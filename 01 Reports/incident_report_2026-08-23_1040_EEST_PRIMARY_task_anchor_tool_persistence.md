@@ -125,9 +125,9 @@ After the user restored the task anchor, the assistant recomputed the exact 09:3
 
 The incident-report contract requires the exact Chat ID before submitting the canonical priority-queue request. The current MCP exposes `actor_8b9ece943a42`, but `actor_status`, `.state\actor-bindings.json`, and available MCP session-tool discovery do not expose the Chat ID.
 
-Two read-only Chrome History checks were attempted: the Default profile and then all Chrome profiles. Neither returned a `chatgpt.com/c/<id>` record. The canonical queue was also read directly and contains no current incident entry from which this conversation ID can be recovered.
+Two read-only Chrome History checks were attempted: the Default profile and then all Chrome profiles. Neither returned a `chatgpt.com/c/<id>` record. A separate read-only browser session-state scan across Chrome and Edge profile `Sessions` files also returned no ChatGPT conversation URL. The canonical queue was read directly and contains no current incident entry from which this conversation ID can be recovered.
 
-No queue entry has been written because `conversation_id` is mandatory and fabricating or substituting an older Chat ID would violate the incident contract.
+No queue entry has been written because `conversation_id` is mandatory and fabricating or substituting an older Chat ID would violate the incident contract. Capture remains pending rather than being marked exhausted because no verified full raw source has been obtained.
 
 `capture_state = pending`
 
