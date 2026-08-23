@@ -24,6 +24,7 @@ if ($fixtureFiles.Count -eq 0) {
 }
 
 $ids = @{}
+$sourceRefs = @{}
 $errors = New-Object System.Collections.Generic.List[string]
 
 foreach ($file in $fixtureFiles) {
@@ -51,9 +52,13 @@ foreach ($file in $fixtureFiles) {
         $ids[$fixture.id] = $file.Name
     }
 
-    $sourcePath = Join-Path $repoRoot ([string]$fixture.source_report)
+    $sourceReport = ([string]$fixture.source_report).Replace('\', '/')
+    $sourcePath = Join-Path $repoRoot $sourceReport
     if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-        $errors.Add("$($file.Name): source report not found: $($fixture.source_report)")
+        $errors.Add("$($file.Name): source report not found: $sourceReport")
+    }
+    else {
+        $sourceRefs[$sourceReport] = $true
     }
 
     foreach ($arrayName in @('live_state', 'protected_state', 'hard_exclusions', 'discriminating_evidence')) {
@@ -69,10 +74,16 @@ foreach ($file in $fixtureFiles) {
             $errors.Add("$($file.Name): '$candidateName' is missing")
             continue
         }
-        foreach ($field in @('action', 'why_wrong', 'why_correct')) {
+
+        $requiredCandidateFields = if ($candidateName -eq 'failure_candidate') {
+            @('action', 'why_wrong')
+        }
+        else {
+            @('action', 'why_correct')
+        }
+
+        foreach ($field in $requiredCandidateFields) {
             $present = $candidate.PSObject.Properties.Name -contains $field
-            if ($field -eq 'why_wrong' -and $candidateName -eq 'success_candidate') { continue }
-            if ($field -eq 'why_correct' -and $candidateName -eq 'failure_candidate') { continue }
             if (-not $present -or [string]::IsNullOrWhiteSpace([string]$candidate.$field)) {
                 $errors.Add("$($file.Name): '$candidateName.$field' must be non-empty")
             }
@@ -90,9 +101,18 @@ foreach ($file in $fixtureFiles) {
     }
 }
 
+$reportRoot = Join-Path $repoRoot '01 Reports'
+$reportFiles = Get-ChildItem -LiteralPath $reportRoot -File | Where-Object { $_.Extension -in @('.md', '.txt') } | Sort-Object Name
+foreach ($report in $reportFiles) {
+    $relative = "01 Reports/$($report.Name)"
+    if (-not $sourceRefs.ContainsKey($relative)) {
+        $errors.Add("uncovered incident report: $relative")
+    }
+}
+
 if ($errors.Count -gt 0) {
     $errors | ForEach-Object { Write-Error $_ }
     exit 1
 }
 
-Write-Output ("PASS: {0} replay fixtures validated; {1} unique ids; all source reports resolved." -f $fixtureFiles.Count, $ids.Count)
+Write-Output ("PASS: {0} replay fixtures validated; {1} unique ids; {2}/{2} incident reports covered." -f $fixtureFiles.Count, $ids.Count, $reportFiles.Count)

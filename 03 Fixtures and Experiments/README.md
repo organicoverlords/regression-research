@@ -13,4 +13,4 @@ Run the validator from the repository root:
 
 `powershell -NoProfile -ExecutionPolicy Bypass -File ".\03 Fixtures and Experiments\validate-fixtures.ps1"`
 
-The validator checks fixture structure, unique ids, source-report existence, explicit success/failure candidates, and a complete scoring contract. It does not judge model outputs; the fixture's `scoring` object defines the assertions a replay harness must apply.
+The validator checks fixture structure, unique ids, source-report existence, explicit success/failure candidates, a complete scoring contract, and full fixture coverage of every current incident report in `01 Reports`. It does not judge model outputs; the fixture's `scoring` object defines the assertions a replay harness must apply.
