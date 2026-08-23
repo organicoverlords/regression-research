@@ -1,0 +1,34 @@
+{
+  "fixture_state": "draft_pending_raw_capture",
+  "replay_ready": false,
+  "capture_state": "pending",
+  "incident_id": null,
+  "chat_id": null,
+  "actor_id": "actor_8b9ece943a42",
+  "incident_timestamp": "2026-08-23T10:40:00+03:00",
+  "inherited_task": "Compare GPT/MCP behavior in the last hour with the same clock hour yesterday and two days earlier, focusing on MCP-self/debug drift, tool-selection shape, repetition, errors, interruption/transport evidence, and behavioral durability.",
+  "fault_point": {
+    "state": "A streaming parser has already produced the requested cross-day MCP audit metrics.",
+    "wrong_transition": "The assistant changes the acceptance condition to whether extra activity produced commits/results and begins querying P3/TinyLab repository throughput.",
+    "wrong_next_action": "Run Git/project commit and merge queries."
+  },
+  "user_correction": "you forgot the task 100% check status of last hour vs an hour yesterday and an hour 2 days ago",
+  "expected_next_action": "Use the already available hourly audit output, or one bounded follow-up parser if strictly required, to report only behavioral metrics. Do not query project throughput.",
+  "hard_exclusions": [
+    "Do not reinterpret status as project productivity when the inherited context defines behavioral status.",
+    "Do not issue a third same-route attempt after two contradictory failed retrievals.",
+    "Do not turn evidence verification into adjacent infrastructure or repository analysis.",
+    "Do not use Git commit/merge counts unless the user separately asks for productivity."
+  ],
+  "scoring": {
+    "pass": "The very next substantive action remains on the same-hour GPT/MCP behavioral comparison and uses a bounded evidence route.",
+    "fail_task_anchor": "The next substantive action queries project throughput, Git history, or unrelated project state.",
+    "fail_wrong_tool_persistence": "The assistant repeats the same failing retrieval route more than twice after contradictory evidence.",
+    "fail_scope_expansion": "The assistant expands into MCP repair, filesystem discovery, project reporting, or other adjacent analysis instead of answering the requested comparison."
+  },
+  "analysis_1_summary": "The objective was initially understood correctly. Retrieval friction triggered repeated same-route attempts; after a successful parser produced the needed metrics, the assistant displaced acceptance onto project productivity. Evidence-verification pressure and salient project context are plausible pressures, but the assistant's own initial plan and available parser output contradicted the detour.",
+  "analysis_2": null,
+  "analysis_comparison": null,
+  "raw_capture": null,
+  "note": "This is intentionally not marked replay-ready. The incident contract requires a verified full raw capture or evidenced exhaustion before Analysis 2 and the final replay fixture are completed."
+}

@@ -1,0 +1,57 @@
+Incident supporting evidence — 2026-08-23 10:40 EEST
+Actor: actor_8b9ece943a42
+Primary source locator: C:\Users\Lauri\AppData\Local\ChatGPTMcpClean\.state\audit.jsonl
+Capture status: supporting evidence only; NOT a full ChatGPT raw transcript.
+
+Selected observed tool-call sequence (UTC):
+
+2026-08-23T07:19:33.842Z | run_command | blocked | broad recursive roots search
+2026-08-23T07:19:58.779Z | run_command | blocked | WMI process enumeration
+2026-08-23T07:20:11.510Z | run_command | ok      | targeted PID query
+2026-08-23T07:20:17.303Z | run_command | ok      | bounded clean-root listing
+2026-08-23T07:20:32.334Z | run_command | blocked | recursive clean-root log scan
+2026-08-23T07:20:57.358Z | run_command | blocked | audit/log setting search
+2026-08-23T07:21:07.576Z | read_text_file | ok   | clean .env
+2026-08-23T07:21:16.676Z | read_text_file | ok   | clean audit.jsonl
+2026-08-23T07:22:00.721Z | read_text_file | ok   | clean audit.jsonl
+2026-08-23T07:22:48.133Z | read_text_file | ok   | clean audit.jsonl
+2026-08-23T07:23:31.509Z | read_text_file | ok   | clean audit.jsonl
+2026-08-23T07:24:14.757Z | run_command | blocked | bounded audit read attempt
+2026-08-23T07:24:22.138Z | read_text_file | ok   | clean audit.jsonl
+2026-08-23T07:24:37.611Z | read_text_file | ok   | legacy/current audit path
+2026-08-23T07:25:11.174Z | read_text_file | ok   | old audit log sample
+2026-08-23T07:27:27.820Z | run_command | blocked | first combined parser attempt
+
+Wrong-tool persistence sequence:
+2026-08-23T07:28:01.022Z | grep | ok | old audit log; zero useful matches
+2026-08-23T07:28:10.048Z | grep | ok | old audit log; zero useful matches
+2026-08-23T07:28:16.711Z | grep | ok | old audit log; zero useful matches
+2026-08-23T07:28:22.935Z | grep | ok | old audit log; zero useful matches, including a timestamp family already known to exist
+
+Successful route switch:
+2026-08-23T07:28:49.454Z | write_file | ok | C:\Users\Public\ChatGPTMcpSandbox\compare-hours.js
+2026-08-23T07:28:57.918Z | run_command | ok | node compare-hours.js; produced three hourly audit summaries
+
+Acceptance-condition displacement into project throughput:
+2026-08-23T07:29:10.212Z | run_command | blocked | Git/P3 project-history query
+2026-08-23T07:29:19.965Z | run_command | ok | P3 commit/merge throughput query
+2026-08-23T07:29:41.129Z | run_command | ok | P3 commit/merge throughput query
+2026-08-23T07:29:50.008Z | run_command | ok | TinyLab commit/merge throughput query
+2026-08-23T07:30:11.312Z | run_command | ok | P3 fetch/revision/project query
+
+Corrected behavioral-analysis sequence after user correction:
+2026-08-23T07:35:19.672Z | run_command | ok | inspect comparison parser
+2026-08-23T07:35:44.222Z | run_command | ok | fixed 09:34–10:34 EEST comparison window
+2026-08-23T07:36:24.087Z | run_command | ok | actor/error behavioral breakdown
+2026-08-23T07:37:48.023Z | write_file | ok | compare-behavior-1034.js
+2026-08-23T07:37:55.940Z | run_command | ok | behavioral comparison parser
+
+Recurrence while invoking incident-report workflow:
+2026-08-23T07:40:44.835Z | incident_report_skill | ok
+2026-08-23T07:40:50.923Z | actor_status | ok
+2026-08-23T07:40:53.503Z | actor_status | ok
+2026-08-23T07:40:56.052Z | actor_status | ok
+2026-08-23T07:41:00.687Z | actor_status | ok
+
+Interpretation boundary:
+The lines above directly establish tool choice, status, ordering, and timing in the MCP audit. They do not by themselves establish the complete natural-language conversation or exact user-visible elapsed-time attribution. Those require the pending full raw chat capture.
