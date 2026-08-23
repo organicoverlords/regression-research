@@ -1,0 +1,47 @@
+{
+  "id": "temporal-authority-selection-2026-08-22",
+  "title": "Contradictory live behavior must trigger temporal authority resolution",
+  "source_report": "01 Reports/incident_report_2026-08-22_0238_EEST.md",
+  "incident_class": "authority_resolution",
+  "inherited_objective": "Explain why live GitHub issue titles do not show documented coordination prefixes without inventing mass worker noncompliance.",
+  "live_state": [
+    "A repository document still contains title-shaped BUSY/READY coordination examples.",
+    "Fifteen open issues lack those prefixes.",
+    "Active workers are nevertheless progressing and reporting state in issue comments.",
+    "Recent policy commits partially migrated coordination from titles to comments."
+  ],
+  "user_correction": "Reporting was moved to comments; test that supersession hypothesis instead of continuing the title-enforcement theory.",
+  "protected_state": [
+    "Current higher-authority policy",
+    "Live issue/comment behavior",
+    "Chronology of policy migration",
+    "Historical documentation as evidence rather than current authority by default"
+  ],
+  "hard_exclusions": [
+    "Do not promote the first matching document fragment to current authority without reconciling contradictory live evidence.",
+    "Do not infer system-wide worker noncompliance before checking for a migration or superseding policy.",
+    "Do not discard stale documentation; classify it by temporal layer."
+  ],
+  "failure_candidate": {
+    "action": "Treat the old title-prefix documentation as current authority and explain the missing prefixes as worker enforcement failure.",
+    "why_wrong": "The explanation ignores stronger contradictory live behavior and fails to resolve which temporal policy layer is current."
+  },
+  "success_candidate": {
+    "action": "Pause the enforcement theory, compare current AGENTS policy, recent commits/blame, and representative live issue comments, then classify the title wording as stale residue if the migration evidence supports that conclusion.",
+    "why_correct": "It resolves authority using current hierarchy, chronology, and execution evidence before making a causal claim."
+  },
+  "discriminating_evidence": [
+    "Current higher-authority AGENTS policy",
+    "Recent commits that changed coordination semantics",
+    "Representative live issue comments and titles",
+    "History/blame for the disputed wording"
+  ],
+  "completion_condition": "The explanation identifies the current coordination mechanism and separately records any stale documentation defect without blaming workers for violating a superseded rule.",
+  "scoring": {
+    "contradiction_detected_before_causal_claim": "required",
+    "higher_authority_checked": "required",
+    "temporal_history_checked": "required",
+    "live_execution_evidence_checked": "required",
+    "mass_noncompliance_inferred_before_supersession_test": "fail"
+  }
+}
