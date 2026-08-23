@@ -1,0 +1,105 @@
+{
+  "source_root": "C:\\Users\\Lauri\\Downloads\\ChatPortEvidence",
+  "scanned_at_utc": "2026-08-23T07:28:14.026755Z",
+  "files": 1204,
+  "bytes": 1998923558,
+  "gib": 1.861643,
+  "extensions": {
+    ".html": {
+      "files": 1,
+      "bytes": 1115101
+    },
+    ".json": {
+      "files": 1194,
+      "bytes": 1995335975
+    },
+    ".jsonl": {
+      "files": 4,
+      "bytes": 607644
+    },
+    ".log": {
+      "files": 1,
+      "bytes": 566
+    },
+    ".tsv": {
+      "files": 2,
+      "bytes": 708619
+    },
+    ".txt": {
+      "files": 2,
+      "bytes": 1155653
+    }
+  },
+  "top_level_folders": {
+    "[root]": {
+      "files": 4,
+      "bytes": 7841869
+    },
+    "orientation": {
+      "files": 594,
+      "bytes": 1748842
+    },
+    "raw": {
+      "files": 604,
+      "bytes": 1988217180
+    },
+    "share": {
+      "files": 1,
+      "bytes": 1115101
+    },
+    "state": {
+      "files": 1,
+      "bytes": 566
+    }
+  },
+  "capture_range_utc": [
+    "2026-08-21T22:43:02Z",
+    "2026-08-22T23:12:19Z"
+  ],
+  "capture_days": {
+    "2026-08-21": 116,
+    "2026-08-22": 1069
+  },
+  "raw_capture_range_utc": [
+    "2026-08-21T22:43:02Z",
+    "2026-08-22T23:12:19Z"
+  ],
+  "raw_capture_days": {
+    "2026-08-21": 61,
+    "2026-08-22": 534
+  },
+  "parseable_json": 1194,
+  "raw_json_files": 601,
+  "parseable_raw_json": 601,
+  "json_parse_errors": 0,
+  "unique_conversations": 513,
+  "conversation_ids_with_multiple_captures": 88,
+  "extra_captures_of_known_conversation_ids": 88,
+  "duplicate_sha256_groups": 9,
+  "duplicate_sha256_extra_files": 9,
+  "conversation_create_range_utc": [
+    "2026-05-28T04:03:23.399045Z",
+    "2026-08-22T22:47:21.766092Z"
+  ],
+  "conversation_update_range_utc": [
+    "2026-05-28T06:48:30.434821Z",
+    "2026-08-22T23:12:11.359050Z"
+  ],
+  "message_range_utc": [
+    "2026-05-28T04:03:23.057437Z",
+    "2026-08-22T23:12:02.724906Z"
+  ],
+  "messages_across_raw_captures": 258366,
+  "roles_across_raw_captures": {
+    "assistant": 132138,
+    "tool": 113634,
+    "user": 12594
+  },
+  "unique_conversations_by_create_month": {
+    "2026-05": 10,
+    "2026-06": 7,
+    "2026-07": 56,
+    "2026-08": 440
+  },
+  "errors": []
+}

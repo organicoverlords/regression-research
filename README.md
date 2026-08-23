@@ -40,3 +40,8 @@ it correct. Read the source rather than inferring from a title or a snippet.
 Seeded 2026-08-23 from the recovery corpus produced after the 2026-08-20 memory loss.
 Scanned for credentials before publication; the Tailscale installer and a 1.1 MB
 share-check HTML dump were excluded as non-evidence.
+
+The external ChatPort download corpus is catalogued under
+`02 Evidence/ChatPort Corpus Catalogue/`. The catalogue records acquisition metadata,
+per-file hashes, unique conversation coverage, and message-time ranges without copying
+the 1.86 GiB raw source into git.
