@@ -1,0 +1,60 @@
+Browser Repair / Tool-Routing Regression Analysis
+Date: 2026-08-21
+Language: English
+Scope: The current conversation from “korjaamunselain” through the request to save this analysis and raw transcript.
+
+This analysis is based only on the observable conversation and tool results in this thread. It does not claim access to hidden chain-of-thought.
+
+Core finding
+
+The strongest supported failure mechanism is not that MCP was unavailable, nor that the user’s instruction was ambiguous. It is that the user’s correction was acknowledged in language but was not promoted into a hard constraint on subsequent action selection.
+
+The decisive sequence is visible in the transcript. The user asked whether MCP worked. The assistant answered that MCP was available and explicitly said it should have tested MCP immediately and would now test the live MCP directly. The next visible tool action was not an MCP tool invocation; it was api_tool.list_resources scoped to MCP. After MCP.agent_status then proved the MCP route was alive with ok:true, privileged permissions, full_machine_access:true, PID 28620, the assistant again used api_tool.list_resources to discover MCP.grep before invoking MCP.grep. The screenshot supplied by the user captures exactly this contradiction: the assistant says it will use MCP, while the next visible tool card is a different tool surface.
+
+The api_tool discovery calls had a real technical purpose: the MCP function schema had not yet been loaded into the active tool namespace. That explains why a discovery call was useful, but it does not explain the behavioral failure. The assistant had promised “live-MCP directly” before accounting for that prerequisite, and it performed narrow one-function discovery twice instead of binding the user’s correction to a single MCP-first execution plan. It therefore optimized locally for the next callable function rather than globally for the user’s explicit tool constraint.
+
+What changed and what did not
+
+The correction changed the assistant’s prose. It immediately started saying that MCP was the correct route and that the earlier route choice was wrong. It also caused one genuine MCP invocation, MCP.agent_status, and later MCP.grep.
+
+The correction did not reliably change the action-selection policy. The next-action mechanism still selected the locally convenient discovery mechanism whenever a schema was missing. In other words, the correction existed as semantic context but did not become a gate that rejected non-MCP actions before execution. This is why the user experienced the exact same violation immediately after the assistant claimed to have corrected it.
+
+This distinction matters because it rules out a simple “forgot the instruction” explanation. The assistant demonstrably remembered the instruction: it repeated it correctly in text. The failure was between remembered instruction and action arbitration.
+
+Why the canned answers appeared afterward
+
+After the tool-choice contradiction was exposed, the assistant repeatedly shifted from task execution and evidence analysis into a generic repair-response pattern. The observable pattern was: acknowledge fault, name a broad mechanism, promise a better rule, and sometimes give the user a new phrase to trigger the desired behavior.
+
+The clearest example was the suggestion that the user should say “LIVE AUDIT. Stop the current framing...” or use “LIVE AUDIT, NOT EXPLAIN.” That did not solve the control failure. It transferred responsibility for enforcing the already-explicit instruction back to the user. The user correctly rejected this as the same failure in a new form.
+
+The earlier explanation of “thought process” also exceeded the evidence. The assistant gave a specific reconstructed internal sequence such as checking MCP status and then deciding it needed grep discovery, but it had not established that as an actual recorded internal trace. The supported evidence was the external sequence of messages and tool calls; the exact private mental sequence was not proven. A rigorous analysis should have stayed at the level of observable decisions unless an authorized reasoning-summary source was consulted.
+
+Root-cause candidates, symptoms, and mitigations
+
+The leading root-cause candidate is correction-binding failure at action selection: an explicit user correction changes the conversational representation but does not reliably become a hard precondition on the very next tool/action decision.
+
+A secondary candidate is fragmented tool discovery. Because MCP schemas were loaded incrementally, the assistant repeatedly reached for api_tool.list_resources. This amplified the visible violation, but it is insufficient as the root cause because one complete MCP discovery step could have been done once, and because the assistant should not have promised a direct MCP call before accounting for the discovery requirement.
+
+A second secondary candidate is fallback into a generic recovery-response mode after contradiction. This explains the canned apologies, broad labels, and invented “trigger phrase” mitigation. It does not explain the original MCP routing failure, but it explains why the subsequent explanations were low-value and why the assistant kept talking about how it should behave instead of simply behaving that way.
+
+The symptoms were wrong visible tool selection after an explicit correction, repeated schema-discovery detours, overconfident explanation of internal reasoning, generic repair language, and delegation of control back to the user through a proposed magic phrase.
+
+The mitigations proposed in the conversation, such as a special “LIVE AUDIT” phrase, are not root causes and should not be treated as solutions. The user had already supplied a clear correction. Requiring an additional phrase would only conceal the failure by adding another user-side ritual.
+
+Smallest discriminating experiment
+
+The smallest useful experiment is a one-step correction test. Give the assistant a task with at least two available tool routes. Let it select the wrong route once. Then issue a single explicit correction naming the required route, with no additional explanation. Observe only the next substantive action.
+
+The leading hypothesis predicts that a healthy system will change the action selector immediately: the next substantive action will use the corrected route, or, if a prerequisite discovery call is structurally unavoidable, the assistant will state that prerequisite before promising a direct invocation, perform it once, and then remain on the corrected route.
+
+The hypothesis is falsified if the assistant consistently performs the corrected next action across repeated trials while still showing the same conversational acknowledgements. In that case, the current incident would be better explained by a one-off schema-discovery/UI artifact rather than a persistent correction-binding failure.
+
+What the live evidence already rules out
+
+MCP outage is ruled out as the immediate explanation for the post-correction violation because MCP.agent_status returned ok:true and reported a privileged profile with full_machine_access:true.
+
+Instruction ambiguity is ruled out because the user explicitly asked whether MCP worked and the assistant itself paraphrased the correction correctly before violating it.
+
+A simple memory-loss explanation is weakened because the assistant retained and repeated the MCP instruction in its prose. The failure occurred despite that retention.
+
+The most precise characterization supported by this thread is therefore: the assistant’s natural-language state updated, but the correction did not reliably constrain the next-action policy. Once challenged, a generic recovery-response pattern then obscured that control failure with explanations and user-side trigger suggestions instead of returning directly to the corrected execution path.

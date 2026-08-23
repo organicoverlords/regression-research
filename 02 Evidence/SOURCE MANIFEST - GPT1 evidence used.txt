@@ -1,0 +1,29 @@
+SOURCE MANIFEST — MATERIAL USED BY GPT #1
+
+LOCAL SOURCES NOW IN THIS FOLDER OR COPIED HERE
+Analysis GPT#3.txt
+Memories According to GPT#1.txt
+Memories According to GPT#2.txt
+Memories According to GPT#3.txt
+OLD GLOBAL CHATGPT WORK RULES — FOCUSED RECOVERY.txt
+share-6a868251-ec24-83ed-992a-6681a66defcb.txt
+share-6a8682a5-e174-83eb-9472-542b14f970c6.txt
+share-6a86831f-6b54-83ed-8209-a1f4bf4e3caf.txt
+deleted_memory_recovery_2026-08-20.md
+AGENTS.md (copied from C:\Users\Lauri\Desktop\AGENTS.md)
+GPT1 first-pass rule records.tsv (derived working set, 878 records)
+
+CHATGPT LIBRARY SOURCES USED / CONSULTED
+historical-memory-source-pack-2026-05-31.md — file_00000000251c72469957185158939172
+historical-deep-research-pack-2026-05-31.md — file_00000000521c7246a735958709cfafac
+chatgpt-conversation-export-2026-05-31-a.md — file_000000006c4871f4a160bcfd3d6600db
+chatgpt-conversation-export-2026-05-31-b.md — file_0000000085bc720aadfea0106a6dfa13
+Pasted markdown(20260820-024924).md — file_00000000149081f4b3db39a9891c8985
+FULL_user_specific_context_memory_recovery_2026-08-20.md — file_00000000e420820ab9f7ec992cbf92d6
+persistent_memory_audit_cleanup_archive_2026-08-20.md — file_00000000c63c820aba0dbe26aaf610a8
+unreal-results-first-bounded-workflow.md
+py-spy-the-stack-before-theorising.md
+dont-park-recheck-the-blocker.md
+
+NOTE
+The Library-only files above were consulted through ChatGPT's file library. Exact IDs are included where recovered so another GPT on the same account can retrieve the original source rather than relying on a paraphrase. They were not physically present on the Windows filesystem under the searched user profile, so this manifest preserves the retrieval provenance instead of fabricating local copies.

@@ -1,0 +1,42 @@
+# Regression Research
+
+Evidence bank for assistant behaviour regressions: what went wrong, what the correct
+next move was, and enough preserved state to replay the case later.
+
+This is research evidence. It is not an operating contract and not a worker prompt.
+Operating rules live in each project's `AGENTS.md`, generated from
+`C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
+
+## Layout
+
+| Directory | Holds |
+|---|---|
+| `01 Reports/` | Incident reports — PRIMARY and SECONDARY, sharing one immutable incident id |
+| `02 Evidence/` | Analyses, recovered rule records, provenance work |
+| `03 Fixtures and Experiments/` | Replay-ready fixtures with scoring criteria |
+| `04 Operating Contracts/` | Snapshots of contracts as they stood, for dating drift |
+| `90 Raw Transcripts/` | Unchanged source exports |
+| `99 Duplicate Archive/` | Superseded duplicates, kept rather than deleted |
+
+## How a case is recorded
+
+Each useful case is a paired behavioural model: the inherited objective and live
+state, the first wrong substantive move, the user correction or falsifying evidence,
+the correct next substantive action, the valid work that had to survive, the hard
+exclusions on route and tool choice, the evidence that made the correction real, and
+the actual completion condition.
+
+Positive examples count. A case where the next move after a correction was right is
+as useful as one where it was wrong, and both are needed to tell them apart.
+
+## Using it
+
+Retrieve the closest failure case *and* the closest successful case, then ask what
+the successful next action was, what valid state it preserved, and what evidence made
+it correct. Read the source rather than inferring from a title or a snippet.
+
+## Provenance
+
+Seeded 2026-08-23 from the recovery corpus produced after the 2026-08-20 memory loss.
+Scanned for credentials before publication; the Tailscale installer and a 1.1 MB
+share-check HTML dump were excluded as non-evidence.

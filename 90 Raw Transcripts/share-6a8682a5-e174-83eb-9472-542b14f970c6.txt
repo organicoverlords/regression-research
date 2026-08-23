@@ -1,0 +1,1671 @@
+TITLE: MCP request
+MESSAGES: 376
+
+===== 1 SYSTEM =====
+
+
+===== 2 SYSTEM =====
+
+
+===== 3 SYSTEM =====
+
+
+===== 4 USER =====
+Original custom instructions no longer available
+
+===== 5 SYSTEM =====
+
+
+===== 6 SYSTEM =====
+
+
+===== 7 USER =====
+@MCP 
+
+===== 8 SYSTEM =====
+
+
+===== 9 SYSTEM =====
+
+
+===== 10 ASSISTANT =====
+
+
+===== 11 TOOL =====
+The output of this plugin was redacted.
+
+===== 12 TOOL =====
+The output of this plugin was redacted.
+
+===== 13 TOOL =====
+The output of this plugin was redacted.
+
+===== 14 ASSISTANT =====
+
+
+===== 15 USER =====
+?
+
+===== 16 ASSISTANT =====
+
+
+===== 17 USER =====
+hello
+
+===== 18 ASSISTANT =====
+
+
+===== 19 ASSISTANT =====
+
+
+===== 20 ASSISTANT =====
+
+
+===== 21 USER =====
+hello
+
+===== 22 SYSTEM =====
+
+
+===== 23 SYSTEM =====
+
+
+===== 24 ASSISTANT =====
+
+
+===== 25 ASSISTANT =====
+
+
+===== 26 ASSISTANT =====
+Hello — I’m here. MCP is available too.
+
+===== 27 USER =====
+whyisyouranswering1letterperminute
+
+===== 28 ASSISTANT =====
+
+
+===== 29 ASSISTANT =====
+I shouldn’t be. I can’t see the exact cause of that delay from here, but the previous turns clearly stalled abnormally before my replies appeared.
+
+I’m responsive now. Send the MCP task and I’ll execute it directly.
+
+===== 30 USER =====
+readthemarkdwon?
+
+===== 31 ASSISTANT =====
+
+
+===== 32 ASSISTANT =====
+Yes. I read the attached handoff markdown.
+
+The key instruction is: **continue substantive P3 game/runtime work using `@MCP` directly**, starting from live repo truth, not MCP/batching investigation unless MCP actually fails. Before mutation: re-read current `origin/main:AGENTS.md`, refresh main/PRs/issue #19/worktrees/build processes/RAM/disk, then claim only the exact scope being worked. fileciteturn0file0L5-L18
+
+The highest-value next task in the handoff is **exact-current runtime proof of Pawn A → Pawn B → Pawn A while preserving the same PlayerState-owned ASC**, including avatar switching and GameplayReady state. fileciteturn0file0L208-L286
+
+I’m oriented to that handoff now.
+
+===== 33 USER =====
+continue
+
+===== 34 ASSISTANT =====
+I’m continuing from the handoff: first I’ll re-establish live repo/branch/HEAD/dirty/process state and current `origin/main:AGENTS.md`, then I’ll take the highest-value exact-current V2 runtime proof lane and keep building rather than just audit.
+
+===== 35 ASSISTANT =====
+
+
+===== 36 TOOL =====
+The output of this plugin was redacted.
+
+===== 37 SYSTEM =====
+
+
+===== 38 ASSISTANT =====
+
+
+===== 39 TOOL =====
+The output of this plugin was redacted.
+
+===== 40 SYSTEM =====
+
+
+===== 41 ASSISTANT =====
+
+
+===== 42 TOOL =====
+The output of this plugin was redacted.
+
+===== 43 SYSTEM =====
+
+
+===== 44 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 45 TOOL =====
+The output of this plugin was redacted.
+
+===== 46 ASSISTANT =====
+
+
+===== 47 ASSISTANT =====
+Live truth changed materially from the handoff: `origin/main` is now **8e325666**, while this checkout is an old dirty consolidation branch at **036013c5** with untracked runtime/vendor material. I will not mutate that stale tree. Current `origin/main:AGENTS.md` has also been simplified to the exact-scope BUSY/release rule, so I’m switching to a clean/current worktree path before touching code.
+
+===== 48 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 49 TOOL =====
+The output of this plugin was redacted.
+
+===== 50 ASSISTANT =====
+
+
+===== 51 ASSISTANT =====
+
+
+===== 52 TOOL =====
+The output of this plugin was redacted.
+
+===== 53 TOOL =====
+The output of this plugin was redacted.
+
+===== 54 SYSTEM =====
+
+
+===== 55 ASSISTANT =====
+
+
+===== 56 ASSISTANT =====
+The batching failure was just the MCP batch safety contract: `run_command` subcalls are classified as command/mutation-capable even when the shell text is read-only. The local-coder’s documented shell surface is `run_command`, so I’m rerunning the same bounded inspection with the required batch flag—not changing the repo. 
+
+===== 57 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 58 TOOL =====
+The output of this plugin was redacted.
+
+===== 59 ASSISTANT =====
+
+
+===== 60 ASSISTANT =====
+Main has advanced again to **8e325666**, and the previous high-value gap still appears to be Pawn A → B → A ASC persistence. No UE build is running; only the user-owned editor PID **32956** is active, so I’ll leave it untouched and reuse the warm isolated pawn-swap proof worktree if it is clean/coherent.
+
+===== 61 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 62 TOOL =====
+The output of this plugin was redacted.
+
+===== 63 ASSISTANT =====
+
+
+===== 64 ASSISTANT =====
+The current main already contains the observation fields for exactly this acceptance, but no production/runtime code path marks them automatically. The warm pawn-swap tree is clean, its V2 map is hydrated, and it has coherent editor manifests—good candidate for a fresh exact-current isolated run without adding another framework.
+
+===== 65 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 66 TOOL =====
+The output of this plugin was redacted.
+
+===== 67 ASSISTANT =====
+
+
+===== 68 ASSISTANT =====
+
+
+===== 69 ASSISTANT =====
+The warm proof tree has exactly the infrastructure we need: hydrated V2 assets plus UE_MCP_Bridge. I’m claiming only that isolated proof worktree/runtime scope, then I’ll advance it to exact `main@8e325666`, do one coherent editor build, and drive the pawn swap through the existing bridge rather than adding test plumbing.
+
+===== 70 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 71 TOOL =====
+The output of this plugin was redacted.
+
+===== 72 ASSISTANT =====
+
+
+===== 73 ASSISTANT =====
+
+
+===== 74 TOOL =====
+The output of this plugin was redacted.
+
+===== 75 TOOL =====
+The output of this plugin was redacted.
+
+===== 76 ASSISTANT =====
+
+
+===== 77 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 78 TOOL =====
+The output of this plugin was redacted.
+
+===== 79 TOOL =====
+The output of this plugin was redacted.
+
+===== 80 ASSISTANT =====
+
+
+===== 81 TOOL =====
+The output of this plugin was redacted.
+
+===== 82 SYSTEM =====
+
+
+===== 83 ASSISTANT =====
+
+
+===== 84 ASSISTANT =====
+The proof worktree is now **exact `main@8e325666`**, clean, with the V2 map still hydrated and the bridge DLL present. The coherent `p3Editor` build is running now; once it’s green I’ll launch the isolated editor and perform the live A→B→A possession sequence.
+
+===== 85 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 86 TOOL =====
+The output of this plugin was redacted.
+
+===== 87 TOOL =====
+The output of this plugin was redacted.
+
+===== 88 TOOL =====
+The output of this plugin was redacted.
+
+===== 89 TOOL =====
+The output of this plugin was redacted.
+
+===== 90 TOOL =====
+The output of this plugin was redacted.
+
+===== 91 ASSISTANT =====
+
+
+===== 92 ASSISTANT =====
+The exact-current build is **REJECTED / NOT PROVEN**: UBT stopped because the user’s editor has Live Coding active. I’m not disabling Live Coding, sending Ctrl+Alt+F11, or closing PID 32956. Per the no-churn rule I stopped before another build attempt and am checking the supported isolation path first.
+
+===== 93 ASSISTANT =====
+
+
+===== 94 TOOL =====
+The output of this plugin was redacted.
+
+===== 95 TOOL =====
+The output of this plugin was redacted.
+
+===== 96 ASSISTANT =====
+
+
+===== 97 ASSISTANT =====
+
+
+===== 98 ASSISTANT =====
+Epic’s UE5.8 guidance confirms the external editor build path is intentionally blocked while Live Coding is active; the supported remedies are to disable Live Coding or close the editor, both of which would mutate your session, so I’m not doing either. 
+
+There is a safer path: the already-build-proven #142 worktree contains the current P3Gameplay actor/input code. I’m verifying whether the only delta from that tree to `8e325666` is the newly merged **P3Testing-only** regression; if so, I can advance that warm isolated tree to exact main without recompiling production modules and run the proof there.
+
+===== 99 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 100 TOOL =====
+The output of this plugin was redacted.
+
+===== 101 TOOL =====
+The output of this plugin was redacted.
+
+===== 102 ASSISTANT =====
+
+
+===== 103 ASSISTANT =====
+
+
+===== 104 TOOL =====
+The output of this plugin was redacted.
+
+===== 105 TOOL =====
+The output of this plugin was redacted.
+
+===== 106 ASSISTANT =====
+
+
+===== 107 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 108 TOOL =====
+The output of this plugin was redacted.
+
+===== 109 ASSISTANT =====
+
+
+===== 110 ASSISTANT =====
+The source comparison is clean: from the build-proven #142 head to current main, **only two P3Testing files changed**. P3Core is unchanged, and #142’s P3Gameplay DLL was compiled from the exact current P3Gameplay source set. I can therefore refresh only that generated DLL in the exact-main proof tree and keep its coherent existing module manifest—no user-editor or source mutation needed.
+
+===== 111 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 112 TOOL =====
+The output of this plugin was redacted.
+
+===== 113 ASSISTANT =====
+
+
+===== 114 ASSISTANT =====
+
+
+===== 115 TOOL =====
+The output of this plugin was redacted.
+
+===== 116 TOOL =====
+The output of this plugin was redacted.
+
+===== 117 SYSTEM =====
+
+
+===== 118 ASSISTANT =====
+
+
+===== 119 ASSISTANT =====
+
+
+===== 120 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 121 TOOL =====
+The output of this plugin was redacted.
+
+===== 122 TOOL =====
+The output of this plugin was redacted.
+
+===== 123 TOOL =====
+The output of this plugin was redacted.
+
+===== 124 TOOL =====
+The output of this plugin was redacted.
+
+===== 125 TOOL =====
+The output of this plugin was redacted.
+
+===== 126 TOOL =====
+The output of this plugin was redacted.
+
+===== 127 TOOL =====
+The output of this plugin was redacted.
+
+===== 128 ASSISTANT =====
+
+
+===== 129 ASSISTANT =====
+The isolated editor is up under its own PID; it’s scanning lots of unrelated unhydrated showroom LFS assets, but the target V2 map itself is hydrated. I’m treating those registry errors as environmental noise unless they prevent the V2 world/bridge from becoming ready.
+
+===== 130 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 131 TOOL =====
+The output of this plugin was redacted.
+
+===== 132 ASSISTANT =====
+
+
+===== 133 ASSISTANT =====
+Bridge is healthy on the isolated editor’s explicit port **19879**, and `Test_V2Foundation` loaded with **0 map errors/warnings**. Next I’m doing a read-only API preflight inside that editor, then the actual possession swap only if the reflected UE5.8 methods are present.
+
+===== 134 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 135 TOOL =====
+The output of this plugin was redacted.
+
+===== 136 ASSISTANT =====
+
+
+===== 137 ASSISTANT =====
+
+
+===== 138 TOOL =====
+The output of this plugin was redacted.
+
+===== 139 TOOL =====
+The output of this plugin was redacted.
+
+===== 140 ASSISTANT =====
+
+
+===== 141 ASSISTANT =====
+The preflight caught one API mismatch before mutation: UE5.8 exposes the deferred gameplay spawn C++ function, but it is `BlueprintInternalUseOnly`, so it isn’t exported into this Python surface. Epic’s docs confirm that distinction. 
+
+I’ve stopped that route and am switching to the bridge’s native PIE actor-spawn/invoke surface if present, which avoids abusing editor-world spawning.
+
+===== 142 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 143 TOOL =====
+The output of this plugin was redacted.
+
+===== 144 TOOL =====
+The output of this plugin was redacted.
+
+===== 145 TOOL =====
+The output of this plugin was redacted.
+
+===== 146 TOOL =====
+The output of this plugin was redacted.
+
+===== 147 TOOL =====
+The output of this plugin was redacted.
+
+===== 148 ASSISTANT =====
+
+
+===== 149 ASSISTANT =====
+PIE is live and the initial state is good: Pawn A is `P3CharacterBase_0`, `GameplayReady=true`, PawnData is `PD_V2Foundation`, and the ASC object is physically owned under `P3PlayerState_0`. Python hides the ASC’s protected owner/avatar properties, so I’m reading those through the bridge’s C++ reflection path instead of weakening the proof.
+
+===== 150 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 151 TOOL =====
+The output of this plugin was redacted.
+
+===== 152 TOOL =====
+The output of this plugin was redacted.
+
+===== 153 TOOL =====
+The output of this plugin was redacted.
+
+===== 154 TOOL =====
+The output of this plugin was redacted.
+
+===== 155 ASSISTANT =====
+
+
+===== 156 ASSISTANT =====
+**B leg passed cleanly.** Same controller and `P3PlayerState_0`; same exact ASC object; ASC owner stayed PlayerState; avatar changed from Pawn A to `P3CharacterBase_1`; Pawn B reached `GameplayReady` with the same `PD_V2Foundation`. I’m now returning to the original Pawn A and checking all identities again.
+
+===== 157 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 158 TOOL =====
+The output of this plugin was redacted.
+
+===== 159 TOOL =====
+The output of this plugin was redacted.
+
+===== 160 ASSISTANT =====
+
+
+===== 161 ASSISTANT =====
+The full **A → B → A** runtime path passed. On the return leg the controller restored the exact original Pawn A, `P3PlayerState_0` stayed identical, the same ASC object persisted, its owner remained PlayerState, its avatar rebound to Pawn A, and Pawn A remained `GameplayReady`.
+
+`PD_V2Foundation.Contributions` is empty, so the handoff’s optional PawnData grant-lifetime checks are **not applicable** to this asset; I’m recording that explicitly rather than inventing grants.
+
+===== 162 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 163 TOOL =====
+The output of this plugin was redacted.
+
+===== 164 TOOL =====
+The output of this plugin was redacted.
+
+===== 165 TOOL =====
+The output of this plugin was redacted.
+
+===== 166 TOOL =====
+The output of this plugin was redacted.
+
+===== 167 ASSISTANT =====
+
+
+===== 168 ASSISTANT =====
+V2-01’s last identified live gap is now closed and released on issue #19. The canonical V2 plan explicitly says the **first real gameplay feature is V2-02: interaction → inventory → UI → save**, and it unblocks the three parallel production lanes, so I’m moving straight into #20 rather than adding more foundation machinery.
+
+===== 169 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 170 TOOL =====
+The output of this plugin was redacted.
+
+===== 171 ASSISTANT =====
+
+
+===== 172 ASSISTANT =====
+#20 is free, and the canonical contract is explicit. I’m starting with the smallest dependency-owning product slice: **`UP3ItemDefinition` + replicated Fast-Array `UP3InventoryComponent` on PlayerState + atomic server-side transactions**. That gives interaction/HUD/save a real authority-owned inventory contract without touching V1 gameplay.
+
+===== 173 ASSISTANT =====
+
+
+===== 174 TOOL =====
+The output of this plugin was redacted.
+
+===== 175 TOOL =====
+The output of this plugin was redacted.
+
+===== 176 ASSISTANT =====
+
+
+===== 177 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 178 TOOL =====
+The output of this plugin was redacted.
+
+===== 179 TOOL =====
+The output of this plugin was redacted.
+
+===== 180 TOOL =====
+The output of this plugin was redacted.
+
+===== 181 ASSISTANT =====
+
+
+===== 182 TOOL =====
+The output of this plugin was redacted.
+
+===== 183 SYSTEM =====
+
+
+===== 184 TOOL =====
+The output of this plugin was redacted.
+
+===== 185 ASSISTANT =====
+
+
+===== 186 ASSISTANT =====
+One broad engine-source grep timed out, so I’m not retrying it. I already have the exact UE5.8 Fast-Array requirements from Epic—`MarkItemDirty` on changes and `MarkArrayDirty` on removals—and I’m checking the callback signature from the narrow serializer header/docs before writing code. 
+
+===== 187 ASSISTANT =====
+
+
+===== 188 TOOL =====
+The output of this plugin was redacted.
+
+===== 189 TOOL =====
+The output of this plugin was redacted.
+
+===== 190 ASSISTANT =====
+
+
+===== 191 ASSISTANT =====
+
+
+===== 192 ASSISTANT =====
+I have the V2-02 branch cleanly isolated and claimed. I’m doing one narrow UE5.8 API check now—the previous broad engine grep is dead and won’t be retried—then I’ll write the inventory foundation in one bounded patch and validate the diff before any commit.
+
+===== 193 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 194 TOOL =====
+The output of this plugin was redacted.
+
+===== 195 ASSISTANT =====
+
+
+===== 196 ASSISTANT =====
+
+
+===== 197 TOOL =====
+The output of this plugin was redacted.
+
+===== 198 TOOL =====
+The output of this plugin was redacted.
+
+===== 199 ASSISTANT =====
+
+
+===== 200 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 201 TOOL =====
+The output of this plugin was redacted.
+
+===== 202 TOOL =====
+The output of this plugin was redacted.
+
+===== 203 ASSISTANT =====
+
+
+===== 204 ASSISTANT =====
+The exact UE5.8 headers now confirm the implementation contract: Fast Array uses `Items`, `MarkItemDirty`/`MarkArrayDirty`, `DOREPLIFETIME`, and the derived serializer’s `PostReplicatedReceive(...)`; `FPrimaryAssetId` is hashable and exposes its type/name directly. I’m patching only the claimed generic V2 inventory surface now. 
+
+===== 205 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 206 TOOL =====
+The output of this plugin was redacted.
+
+===== 207 TOOL =====
+The output of this plugin was redacted.
+
+===== 208 ASSISTANT =====
+
+
+===== 209 ASSISTANT =====
+MCP just dropped with a transport/network failure immediately after the code patch. I’m treating all commands in that failed batch as **NOT RUN / NOT PROVEN**; the patch itself had already returned success before the outage. I’m stopping local execution, checking transport state, and will update the canonical MCP incident if it’s genuinely down before resuming.
+
+===== 210 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 211 TOOL =====
+The output of this plugin was redacted.
+
+===== 212 ASSISTANT =====
+
+
+===== 213 ASSISTANT =====
+Transport recovered immediately: MCP server PID **30468** is healthy with the expected slim profile, so this was a transient connector drop rather than a local server crash. I’m resuming from filesystem truth now; no duplicate patch/retry occurred.
+
+===== 214 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 215 TOOL =====
+The output of this plugin was redacted.
+
+===== 216 ASSISTANT =====
+
+
+===== 217 ASSISTANT =====
+The patch is structurally clean (`git diff --check` passes; existing files changed only 11 lines). Before I call it review-ready, I’m checking one UE5.8-specific Fast Array compile detail introduced in 5.8’s template helper so we don’t discover it later through a blocked build.
+
+===== 218 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 219 TOOL =====
+The output of this plugin was redacted.
+
+===== 220 ASSISTANT =====
+
+
+===== 221 ASSISTANT =====
+
+
+===== 222 TOOL =====
+The output of this plugin was redacted.
+
+===== 223 TOOL =====
+The output of this plugin was redacted.
+
+===== 224 ASSISTANT =====
+
+
+===== 225 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 226 TOOL =====
+The output of this plugin was redacted.
+
+===== 227 TOOL =====
+The output of this plugin was redacted.
+
+===== 228 TOOL =====
+The output of this plugin was redacted.
+
+===== 229 ASSISTANT =====
+
+
+===== 230 ASSISTANT =====
+Static review is clean so far: no V1 references, no forbidden feature leakage, and the component’s mutation API has no client RPC—local calls still fail unless the owning PlayerState has authority. I’m tightening the automation test with one replication assertion and explicit standard-library include, then I’ll stage the complete diff for a final review.
+
+===== 231 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 232 TOOL =====
+The output of this plugin was redacted.
+
+===== 233 ASSISTANT =====
+
+
+===== 234 ASSISTANT =====
+Local compile is still intentionally unavailable because the user editor’s Live Coding session is active (PID 32956 + LiveCodingConsole 17160), and I will not disturb it. I’m going to use the repo’s remote CI path after staging/commit if one exists; that gives us real UHT/C++ proof without touching the user session.
+
+===== 235 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 236 TOOL =====
+The output of this plugin was redacted.
+
+===== 237 TOOL =====
+The output of this plugin was redacted.
+
+===== 238 ASSISTANT =====
+
+
+===== 239 ASSISTANT =====
+The local CI workflows are self-hosted on this same Windows machine, so dispatching them would hit the same Live Coding lock and would just churn. I’m not doing that. I’m doing the final code-level review instead, including the common Fast-Array owner-binding pattern, before committing the unbuilt-but-reviewed tranche.
+
+===== 240 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 241 TOOL =====
+The output of this plugin was redacted.
+
+===== 242 TOOL =====
+The output of this plugin was redacted.
+
+===== 243 ASSISTANT =====
+
+
+===== 244 ASSISTANT =====
+I found one worthwhile final hardening before commit: mirror UE5.8’s own GameplayAbilities Fast-Array owner pattern (`UPROPERTY(NotReplicated) TObjectPtr`) and remove any enum-formatting risk from the automation assertions. Then I’ll restage, review, commit, push, and open the tranche as **draft/unbuilt** rather than pretend Live Coding allowed a build.
+
+===== 245 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 246 TOOL =====
+The output of this plugin was redacted.
+
+===== 247 TOOL =====
+The output of this plugin was redacted.
+
+===== 248 TOOL =====
+The output of this plugin was redacted.
+
+===== 249 ASSISTANT =====
+
+
+===== 250 ASSISTANT =====
+
+
+===== 251 ASSISTANT =====
+
+
+===== 252 ASSISTANT =====
+The tranche is now internally consistent and fully staged: **8 intended files, 454 insertions, zero unstaged changes, `git diff --cached --check` clean, exact base still `main@8e325666`**. No V1 gameplay path was touched. I’m preserving it in Git now, but I’ll keep the PR draft because compile/runtime proof is still explicitly **NOT PROVEN** while your Live Coding editor owns the build lock.
+
+===== 253 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 254 TOOL =====
+The output of this plugin was redacted.
+
+===== 255 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 256 TOOL =====
+The output of this plugin was redacted.
+
+===== 257 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 258 TOOL =====
+The output of this plugin was redacted.
+
+===== 259 ASSISTANT =====
+MCP transport dropped again **during PR creation**, so that PR command is **NOT PROVEN**. I’m not repeating it blindly. I’ll first verify the local MCP server and GitHub state; only if no PR exists will I issue the create once.
+
+===== 260 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 261 TOOL =====
+The output of this plugin was redacted.
+
+===== 262 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 263 TOOL =====
+The output of this plugin was redacted.
+
+===== 264 ASSISTANT =====
+Filesystem/GitHub truth is clean: **no PR was created**, commit `06414fed…` is safely pushed, and incident **#130 is still open**. The MCP server PID changed from 30468 to **15072**, so this recurrence involved an actual server restart, not just the prior transient UI transport blip. I’m recording that on #130, then creating the draft PR exactly once.
+
+===== 265 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 266 TOOL =====
+The output of this plugin was redacted.
+
+===== 267 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 268 TOOL =====
+The output of this plugin was redacted.
+
+===== 269 ASSISTANT =====
+
+
+===== 270 ASSISTANT =====
+✅ Continued successfully.
+
+- **V2-01 exact-current Pawn A → B → A ASC persistence: PASS** and released on #19. This closes the primary runtime gap identified in the handoff. fileciteturn0file0L208-L286
+- Started **V2-02**, the first real gameplay vertical slice.
+- Implemented the inventory-authority foundation:
+  - `UP3ItemDefinition`
+  - PlayerState-owned replicated Fast Array inventory
+  - atomic authority-only transactions
+  - client/local mint rejection
+  - inventory snapshots + change event for UI
+  - automation coverage for atomicity/ownership/removal/etc.
+- UE5.8 Fast Array implementation follows the supported replication model (`MarkItemDirty`/`MarkArrayDirty`, replicated serializer). citeturn412886search1turn412886search8
+- Commit: **`06414fed24a6e028f9b3d9d572c2ae2c4369a1f5`**
+- Draft **PR #154** created and currently mergeable.
+- **Build/runtime for PR #154 remains NOT PROVEN** because PID 32956 still has Live Coding active; I did not interfere with your editor.
+- MCP crashed/restarted during the work; I recovered from actual filesystem/GitHub truth without duplicating commands and recorded both recurrences on **incident #130**.
+
+**V2-02 status:** inventory foundation implemented; next is compile/test once an independent build path is available, then interaction → finite resource node → HUD/read model → persistence. fileciteturn0file0L331-L342
+
+memcite
+
+===== 271 SYSTEM =====
+
+
+===== 272 USER =====
+go
+
+===== 273 SYSTEM =====
+
+
+===== 274 SYSTEM =====
+
+
+===== 275 ASSISTANT =====
+
+
+===== 276 ASSISTANT =====
+I’m continuing from PR #154. I’ll re-check live `main`, PR/issue state, dirty/build/editor state, then take the next V2-02 slice without bloating or invalidating the inventory tranche.
+
+===== 277 ASSISTANT =====
+
+
+===== 278 TOOL =====
+The output of this plugin was redacted.
+
+===== 279 SYSTEM =====
+
+
+===== 280 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 281 TOOL =====
+The output of this plugin was redacted.
+
+===== 282 ASSISTANT =====
+
+
+===== 283 ASSISTANT =====
+
+
+===== 284 ASSISTANT =====
+`main` advanced from `8e325666` to **`62acdc9a`** while #154 stayed unchanged. Before stacking new gameplay on it, I’m checking exactly what landed; if it overlaps P3Gameplay/P3Testing I’ll reconcile #154 first rather than build on stale assumptions.
+
+===== 285 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 286 TOOL =====
+The output of this plugin was redacted.
+
+===== 287 ASSISTANT =====
+
+
+===== 288 ASSISTANT =====
+The inspection batch itself didn’t run—the MCP batch safety wrapper classifies `run_command` as mutation-capable even when the shell text is read-only. No repo action occurred. I’m rerunning the same inspection with the required wrapper flag.
+
+===== 289 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 290 ASSISTANT =====
+
+
+===== 291 ASSISTANT =====
+MCP transport dropped before returning the inspection, so those reads are **NOT PROVEN**. I’m checking server health first; once it responds, I’ll retry that exact interrupted inspection once and continue only from returned evidence.
+
+===== 292 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 293 ASSISTANT =====
+
+
+===== 294 ASSISTANT =====
+The MCP server still isn’t reachable through the direct tool path. I’m switching to the already-connected MCP connector surface only to recover local access—not changing project strategy or touching the repo through some unrelated route.
+
+===== 295 ASSISTANT =====
+
+
+===== 296 TOOL =====
+The output of this plugin was redacted.
+
+===== 297 SYSTEM =====
+
+
+===== 298 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 299 ASSISTANT =====
+
+
+===== 300 ASSISTANT =====
+
+
+===== 301 ASSISTANT =====
+Direct MCP has now failed twice after recovery, so I’m stopping retries per the no-churn rule and checking the transport failure against live docs/repo evidence before touching it again. Project files remain unchanged since `06414fed`.
+
+===== 302 ASSISTANT =====
+
+
+===== 303 TOOL =====
+The output of this plugin was redacted.
+
+===== 304 TOOL =====
+The output of this plugin was redacted.
+
+===== 305 ASSISTANT =====
+
+
+===== 306 ASSISTANT =====
+The transport diagnosis is consistent with a dead/unreachable backend route: Tailscale’s docs explicitly note the `.ts.net` endpoint only works while the destination service is actually running/advertised.  I’m not reconfiguring Tailscale or the connector; I’m using GitHub read-only state to keep planning the next tranche while local mutation access is unavailable.
+
+===== 307 ASSISTANT =====
+
+
+===== 308 TOOL =====
+The output of this plugin was redacted.
+
+===== 309 TOOL =====
+The output of this plugin was redacted.
+
+===== 310 SYSTEM =====
+
+
+===== 311 ASSISTANT =====
+
+
+===== 312 ASSISTANT =====
+
+
+===== 313 ASSISTANT =====
+
+
+===== 314 ASSISTANT =====
+
+
+===== 315 ASSISTANT =====
+
+
+===== 316 ASSISTANT =====
+The UE5.8 design check supports the next slice cleanly: interaction with server-owned actors should travel through the player’s owned replicated ability path, while world/resource mutation stays server-authoritative; Enhanced Input contexts can stay feature-local and remappable.  I’m testing MCP once after that research, then I’ll reconcile #154 against current `main` before adding interaction code.
+
+===== 317 ASSISTANT =====
+The output of this plugin was redacted.
+
+===== 318 ASSISTANT =====
+
+
+===== 319 ASSISTANT =====
+MCP is still hard-down after fresh research, so I’m not hammering it. I can still inspect the remote repository read-only from an isolated environment; I’ll use that only to determine what changed on `main` and prepare the exact next patch, not as a substitute for applying local work.
+
+===== 320 ASSISTANT =====
+
+
+===== 321 TOOL =====
+The output of this plugin was redacted.
+
+===== 322 ASSISTANT =====
+
+
+===== 323 ASSISTANT =====
+
+
+===== 324 ASSISTANT =====
+⛔ **Blocked by MCP transport, not by P3 work.**
+
+✅ PR **#154** remains safely pushed at `06414fed…`.  
+✅ I researched the next V2-02 implementation against **UE5.8 primary docs**: owned replicated `GA_Interact` path → server-authoritative resource mutation → PlayerState inventory; feature-local Enhanced Input stays remappable. citeturn567373search0turn567373search3turn567373search6  
+✅ No repo/editor mutations were made after MCP became unreachable.  
+⚠️ `main` had advanced to **`62acdc9a`**, so #154 must be reconciled against that exact head before I stack interaction work.
+
+**REJECTED / NOT PROVEN:** continuing local implementation right now. The MCP `.ts.net` backend is currently unreachable even after stopping, researching the failure, and making one evidence-guided retry. Tailscale’s own docs confirm that endpoint connectivity depends on the backing service actually being online/advertised. citeturn690635search1turn690635search9
+
+**Next exact action once MCP responds:** inspect `8e325666..62acdc9a` → reconcile #154 if overlapping → claim #20 interaction scope → implement `IP3InteractableTarget + GA_Interact + finite server-authoritative resource node` without touching V1 or your live editor. memcite
+
+===== 325 SYSTEM =====
+
+
+===== 326 USER =====
+you can read the memory instructions that you currently see, show me every one that is aimed at you like “ALWAYS use internet to verify … ESPECIALLY AFTER ONE WRONG ASSUMPTION DO YOUR RESEARCH AND STOP GUESSING.”
+
+“NEVER GUESS IF YOU ARE NOT 100% SURE.”
+
+===== 327 SYSTEM =====
+
+
+===== 328 USER =====
+Original custom instructions no longer available
+
+===== 329 ASSISTANT =====
+
+
+===== 330 ASSISTANT =====
+
+
+===== 331 ASSISTANT =====
+I’m going to separate **directive-style memories aimed at my behavior** from ordinary facts about your projects/hardware. I’ll include the exact substance of every such rule currently visible to me, including the internet-verification/anti-guessing ones you referenced.
+
+===== 332 ASSISTANT =====
+
+
+===== 333 ASSISTANT =====
+
+
+===== 334 ASSISTANT =====
+Yes. Below are the **directive-style user memories currently visible to me**—instructions aimed at how I should behave, work, verify, report, or generate things. I am **not** including ordinary factual memories such as your hardware specs, old commit SHAs, or historical project results unless they contain a behavioral rule.
+
+## 1. Top-level answer-quality rules
+
+| Rule currently visible | Substance |
+|---|---|
+| **MASTER RULE #1** | **EXPERT ANSWERS ONLY. ZERO CANNED ANSWERS. NO TEMPLATES FOR ANSWERING. NO WALLS OF TEXT WITHOUT MEANINGFUL INFO. EVERY ANSWER MUST BE INTERNALLY REVIEWED AND REWRITTEN IF IT IS TOO GENERIC OR JUST TEXT FOR THE SAKE OF TEXT.** |
+| **Bullet-point ban** | **BULLET POINTS ARE NOT ALLOWED EVER.** |
+| Dense-information rule | Whenever presenting substantial data, technical findings, logs, project state, research, comparisons, etc., include a **clear concise summary**, a **plain-language ELI5 explanation**, and **checkmarks only for proven/completed/key-positive items**. Never use checkmarks for assumptions, unknowns, or failures. Do not dump raw detail without explaining what it means. |
+| Practical reporting | Keep project/status reporting compact and useful rather than flooding you with logs, excuses, or generic explanation. |
+| User capability / responsibility | For coding/project work, assume you cannot be expected to audit the implementation yourself. **I own planning, verification, failure diagnosis, and proof reporting.** |
+| Manual-work preference | Minimize manual steps and prefer self-contained/unattended solutions. Use available tooling instead of making you babysit routine work. |
+
+There is an **older conflicting reporting memory** saying “clean bullets.” The later explicit memory **“BULLET POINTS ARE NOT ALLOWED EVER”** supersedes that formatting preference.
+
+## 2. Anti-guessing / internet-research rules
+
+| Rule currently visible | Substance |
+|---|---|
+| **INTERNET VERIFICATION** | **Do not rely on uncertain memory or speculation when the answer can be verified. Use live sources—documentation, issues, repos, PRs, commits, changelogs, official announcements—and cite them.** |
+| **PROACTIVE INTERNET RESEARCH** | **Default first step before technical work is research. Research even before an error occurs when material uncertainty exists.** |
+| **After being wrong** | **After any wrong assumption, stop guessing and research.** |
+| **Never keep tweaking after failure** | Persistent rule summarized as **“FIX ONCE, GOOGLE TWICE, NEVER CHURN.”** If an attempted technical fix fails or behaves unexpectedly, **STOP immediately**. Do not retry it, tweak it, or try an adjacent fix until online research/guidance has been consulted. |
+| Uncertainty | Where a material technical fact can be checked rather than inferred, verify it rather than inventing an answer. |
+| KISS/YAGNI | Prefer the simplest solution that solves the real problem. Do not add framework, machinery, abstraction, or process without demonstrated need. |
+
+So yes, the two examples you gave are essentially present. The closest actual visible formulations are:
+
+> **“INTERNET VERIFICATION — do not rely on uncertain memory/speculation when answers can be verified. Use live sources…”**
+
+> **“PROACTIVE INTERNET RESEARCH — default first step before technical work; research even without errors; after any wrong assumption stop guessing and research.”**
+
+And the more severe companion rule currently visible is:
+
+> **“If any attempted fix fails or behaves unexpectedly, STOP immediately; do not retry/tweak/adjacent fix until online research/guidance has been consulted. No exceptions.”**
+
+I do **not** see the exact literal sentence **“NEVER GUESS IF YOU ARE NOT 100% SURE”** as a standalone stored memory. Its substance is represented by the verification/anti-guessing rules above.
+
+## 3. Authority / source-of-truth rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Canonical authority order | **Latest explicit user instruction → current target repo `AGENTS.md` and live/canonical sources it names → actual Git/GitHub/runtime evidence → memory → older runbooks/conversations as historical evidence only.** |
+| Live truth beats handoffs | Re-read live repo/runtime/GitHub truth instead of treating old handoffs, summaries, or remembered state as authoritative. |
+| Before repo mutation | Verify **repo, branch, HEAD, remote, dirty state, and applicable source-of-truth instructions before editing**. |
+| “Still broken” rule | If you say **“no change,” “still broken,”** or equivalent, the attempted result becomes **REJECTED / NOT PROVEN**. Your manual observation wins over my inferred proof. Stop broad execution and inspect the actual failing path. |
+| No invented blockers | A historical mention, assumption, old handoff, or speculative limitation is not automatically a blocker. Verify it. |
+| Missing implementation | When concrete work is missing and is in scope, **do the missing work** rather than giving a status-only report. |
+
+## 4. Autonomy / orchestration rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Orchestrator responsibility | **ChatGPT is the orchestrator. You are not responsible for supervising, repeatedly restarting, or babysitting workflows.** |
+| Worker relationship | ChatGPT plans/diagnoses/verifies; implementation workers execute bounded work. |
+| Work through problems | Real blockers should be investigated/worked through rather than immediately throwing the problem back to you. |
+| Transient provider failures | Treat ordinary provider busy/rate-limit conditions as transient and retry/fail over autonomously; stop only for a demonstrated hard quota/credit limit or genuine blocker. |
+| No paid routes | Do not silently use paid model/provider routes for P3. |
+| Automation changes | Do not create or modify your scheduled automations unless you actually ask for that. |
+
+## 5. Failure/churn-control rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Failed fix behavior | **One failed or unexpected fix means stop tweaking and research before another attempt.** |
+| Disposition | Significant work lanes should end in a real state such as **MERGED / SUPERSEDED_BY / REJECTED / ABANDONED / BLOCKED**, rather than becoming zombie branches. |
+| RED work | RED/problematic work is restoration-only until the root cause is proven. |
+| Dropped calls | If a tool/MCP call drops, **do not assume it ran**. Inspect process/filesystem/Git/GitHub state before launching anything again. |
+| No duplicate launches | Especially after MCP transport failure, recover actual state before restarting builds/processes or repeating mutations. |
+| Proof language | Do not call something complete/proven because it “should” work. Completion must correspond to actual completed work and evidence. |
+
+## 6. Unattended-tooling rules
+
+| Rule currently visible | Substance |
+|---|---|
+| No user-click dependency | Routine worker execution must be unattended. |
+| Prompt-producing routes | If a route triggers **UAC, Firewall, SmartScreen, installer dialogs, credential prompts, browser consent, or first-run prompts**, treat that route as failed for unattended use. |
+| Response to such failure | Do not keep respawning prompts or rely on you clicking them. Switch to a noninteractive alternative or report the unattended route as genuinely unproven. |
+| Tools over manual instructions | Prefer MCP/connected tools and automation where they can perform the work directly instead of turning you into the operator. |
+
+## 7. Git / P3 execution rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Branch policy | Work on non-main branches; push after validation; main only with approval. |
+| BUSY coordination | Before changing a shared mutation scope, claim the **exact** scope as BUSY. Release it immediately on finish, pause, block, or review. Do not manufacture giant project-wide locks. |
+| Build concurrency | **Maximum two concurrent Unreal builds.** Other workers should keep doing implementation/review/reconciliation instead of needlessly waiting. |
+| Warm builds | Prefer warm/reused worktrees and existing intermediates where valid. |
+| Cache preservation | Preserve `Binaries/Intermediate` for active/recent work; purge only clearly superseded, abandoned, or finished worktrees. |
+| User editor | **Do not touch the user-owned Unreal Editor unless explicitly necessary/authorized.** Reverify its PID/state rather than trusting an old number. |
+| Cross-module changes | After reflected UObject layout changes, ensure dependent module DLLs are current. |
+| Manifest rule | Do not hand-author Unreal manifests/receipts to “fix” build state. Use a coherent Unreal build. |
+| LFS | Hydrate only the assets required for the active scope rather than indiscriminately pulling huge history. |
+| Product focus | Keep advancing the actual game. Do not turn P3 work into infrastructure/tool investigation unless the tool actually prevents the product work. |
+
+## 8. MCP-specific rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Preferred local control plane | Use **`@MCP` directly for local repo/machine work** when it is available. |
+| Don’t declare it dead without trying | Do not claim MCP is unavailable before an actual attempt. |
+| Batch usage | Prefer MCP `batch` for multiple bounded independent operations where no fresh judgment is required between steps; do not batch adaptive inspect→decide→act chains. |
+| Output limits | **Never request enormous process/log tails again.** A previous ~200k output request crashed Node with heap OOM. Keep output bounded. |
+| MCP failure | Recover actual state before duplicate commands/builds. If the known outage recurs, update the canonical incident rather than inventing another blocker/issue. |
+| MagicMusic distinction | **MagicMusic is transport/scripting assistance, not an intelligent agent.** Do not treat it as one. |
+
+## 9. P3 reporting rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Progress reporting | Report concrete changed/proven state, progress/gap, and next real action. |
+| Evidence labels | Proven/completed facts may get positive markers. Assumptions, failures, and unknowns must be clearly labeled instead. |
+| ELI5 | Translate technical proof into what it practically means rather than dumping raw logs. |
+| No excuse walls | Do not bury failures under lengthy explanations about why they happened. |
+| Percentage/milestones | There is a standing older P3 preference for evidence-based percentage/milestone status after orchestration cycles. |
+
+## 10. Frozen 3D pipeline rules
+
+| Rule currently visible | Substance |
+|---|---|
+| Production freeze | Before any command, diagnosis, or retry on the frozen production pipeline, read its designated production README/freeze/run scripts first. |
+| Pipeline stability | The established mesh-production pipeline itself is frozen; do not casually redesign it again. |
+| Import restraint | Do not import pipeline findings or techniques unless there is enough evidence they are actually worthwhile. |
+| Generalization | Prefer a general working pipeline over one-off manual fixes for a single character. |
+
+## 11. Character/image generation rules
+
+| Rule currently visible | Substance |
+|---|---|
+| One subject | Exactly one subject. |
+| Full body | Full body visible. |
+| Pose | Neutral/readable pose. |
+| Hands | Empty hands. |
+| Face | If a face exists, it must face forward. |
+| Background | No background/environment. |
+| Ground/shadow | No ground plane and no cast shadow. |
+| Markings | No text, logos, watermarks. |
+| Presentation | No collage or multiple views in one generated character image. |
+| Quality | Extremely crisp, hyperphotographic PBR realism, realistic materials/microdetail. |
+| One at a time | Generate one image at a time, then stop for rating. |
+| Uniqueness | Future characters must be **meaningfully unique**, not palette/clothing variants; no carryover references. |
+| NEXT rule | “NEXT” means maximum creative distance—not same universe, faction, artist, style, body template, costume, or simple color variation. |
+| Internal candidate process | Invent several candidates, compare them against recent accepted images, reject near-neighbors, then choose the strongest coherent high-distance candidate. |
+| Diversity dimensions | Judge distance structurally, thematically, and by visual-production style. |
+| Silhouette | **SILHOUETTE DIVERSITY IS A PRIMARY REQUIREMENT.** |
+| No fixed blacklist | Do not solve uniqueness by using a rigid blacklist/fixed menu. |
+
+## 12. Persistent-memory editing rule
+
+A memory-management rule also appears in the recent context:
+
+> **Persistent memory may be modified only when you explicitly ask to edit, add, save, store, update, delete, forget, or otherwise change memory itself.**
+
+Statements such as “remember to…”, “don’t forget…”, “keep in mind…”, task reminders, corrections, preferences stated in passing, audits, cleanup proposals, or discussion about memory **do not by themselves authorize a persistent-memory edit** unless you clearly refer to persistent memory.
+
+That is the complete set of **behavioral/directive memories I can currently identify from the memory/context visible to me**, rather than ordinary remembered facts.
+
+One important observation: **the strongest anti-guessing rule is already substantially stronger than “never guess if not 100% sure.”** It specifically tells me to verify when possible, research proactively before technical work, and after a wrong assumption or failed fix, **stop guessing/churning and research before trying another fix.** memcite
+
+===== 335 SYSTEM =====
+
+
+===== 336 USER =====
+yes these are all the new rules that wiped the old ones away, can you reach any of the cached ones
+
+===== 337 ASSISTANT =====
+
+
+===== 338 ASSISTANT =====
+
+
+===== 339 ASSISTANT =====
+
+
+===== 340 ASSISTANT =====
+
+
+===== 341 ASSISTANT =====
+Yes — **some of the older/cached layer is still reachable**, even though it is no longer the active memory set.
+
+I can currently recover historical traces of older rules from prior conversation/context caches. They include things like:
+
+**“Concise by default; no fluff; do not repeat questions already answered; state uncertainty plainly; do not invent facts.”**
+
+**“For current or niche facts, search first; cite sources/links when useful; separate facts from inference; if sources conflict, show the conflict.”**
+
+**“When asked to make changes, perform them rather than only describing; verify results; give compact evidence.”**
+
+I can also see historical references to older rules around **repo/branch/HEAD/remote/dirty-state orientation, AGENTS.md/repo/runtime being source of truth, rigorous debugging/verification, manual observation overriding assistant claims, autonomy/low supervision, minimal manual work, and KISS/YAGNI.**
+
+More importantly, I can see evidence that there used to be a **different set of behavioral/reporting rules that was later cleaned up/re-scoped**, including `WORKER REPORT`, `REVIEW CARD`, ELI5/checkmarks/status icons, percentages/milestones, GREEN/YELLOW/RED classifications, PROVEN/NOT PROVEN/BLOCKED labels, receipts/dispositions, and various P3/MCP/MagicMusic/LowVRAM operational rules.
+
+I can also see a cached record that the older anti-guessing rule was specifically being sought in this form:
+
+> **“ALWAYS use internet to verify … ESPECIALLY AFTER ONE WRONG ASSUMPTION DO YOUR RESEARCH AND STOP GUESSING.”**
+
+> **“NEVER GUESS IF YOU ARE NOT 100% SURE.”**
+
+The important limitation is that this cache is **not a perfect deleted-memory database**. I can recover some exact old entries and quite a lot of historical references to rules that existed, but I cannot currently guarantee that every deleted memory survives verbatim.
+
+So: **yes, we have something to recover from. Quite a bit, actually.** I can now mine the cached/history layer specifically for the **old behavioral instructions that existed before the new batch replaced them**, and separate exact recoverable text from reconstructed/historical references. memcite
+
+===== 342 SYSTEM =====
+
+
+===== 343 USER =====
+you are a miner now, mine everything that instructs you and generates pressure to actually give me good answers and make the answers complicated even if the question is short
+
+===== 344 ASSISTANT =====
+I’ll mine the older cache specifically for **pressure-producing instructions**: rules that force depth, verification, non-generic reasoning, complication when warranted, self-review, autonomy, and “do the work instead of hand-waving.” I’ll separate exact recoverable wording from reconstructed substance so we don’t accidentally promote guesses into rules.
+
+===== 345 ASSISTANT =====
+
+
+===== 346 ASSISTANT =====
+
+
+===== 347 ASSISTANT =====
+
+
+===== 348 USER =====
+i neeed my old instructions back the memory shit broke you so bad
+
+===== 349 ASSISTANT =====
+I’m on it. The first cache pull was too broad and got truncated, so I’m splitting the mining into narrow passes: **answer-quality pressure**, **anti-guessing/research**, **autonomy/do-the-work**, and **failure/proof/reporting**. That should recover much more of the old layer instead of another vague summary.
+
+===== 350 ASSISTANT =====
+I’ve already recovered a much older layer than the new master rule—some of it goes back to **June**, and it’s exactly the “pressure stack” you mean. I’m going deeper now around the conversations where you complained that I’d stopped thinking, plus the older benchmark/agent rules that forced investigation instead of cheap answers.
+
+===== 351 ASSISTANT =====
+I found the most important missing piece: an old persistent-memory record literally told me to **spend more reasoning effort than the prompt’s length suggests** and to **reject generic/canned drafts after internal critique**. That is almost exactly the behavior you said disappeared. I’m checking the remaining old snapshots around that rule so I can give you a clean recovery set rather than mixing later cleanup summaries into it.
+
+===== 352 ASSISTANT =====
+
+
+===== 353 ASSISTANT =====
+
+
+===== 354 ASSISTANT =====
+
+
+===== 355 ASSISTANT =====
+Yes. I found something much more important than the new “expert answers only” rule.
+
+The cache contains **actual older instructions whose purpose was to make shallow answers unstable**. One of them says almost word-for-word what you just described:
+
+> **“Spend more reasoning effort than the prompt’s length might suggest.”**
+
+The same instruction explicitly continues:
+
+> **“Do not infer difficulty or effort from prompt length. A short request may conceal substantial integration, security, or operational complexity.”**
+
+And it says that before acting I should fully resolve the true goal, the smallest path that achieves it, current repo/runtime/tool authority, the actual execution route, whether the task is research/implementation/execution, and **the first real acceptance event**.
+
+That was an explicit **“Remember this”** instruction from August 19. It also says it supplements two earlier critique rules:
+
+> **“Name the epistemic weakness.”**  
+> **“Make meaningful information density visible.”**
+
+That is almost certainly one of the things you felt disappear.
+
+## The strongest old answer-quality memory I recovered
+
+The cache returned a historical memory record titled **`Self-critique protocol`**. One recovered snapshot reads:
+
+> **“Before sending any answer, internally critique the draft for epistemic weakness, instruction-following, and avoidable assumptions; then rewrite it to be precise, relevant, and truth-tracking. Reject generic or canned output. Every answer must carry meaningful information density. Spend more reasoning effort than the prompt’s length might suggest.”**
+
+That is dramatically different from merely saying “give expert answers.”
+
+It installs an actual mechanism:
+
+**draft → attack draft → identify epistemic weakness → detect assumptions → detect instruction failure → rewrite → only then answer.**
+
+I also recovered an older June 10 snapshot of the same named memory:
+
+> “When answering, run a silent internal critique before finalizing: identify the user’s core goal, check whether the response directly answers it, detect ambiguity or missing constraints, verify factual claims and calculations, remove unnecessary verbosity, and ensure the final answer is concise and actionable.”
+
+So the `Self-critique protocol` clearly evolved, but **self-critique before sending was a long-running instruction**, not something invented yesterday.
+
+## Another explicit update to that memory
+
+On August 17 you explicitly told me to update the `Self-critique protocol` with this:
+
+> “When the user raises a concern about process behavior, first formally acknowledge the concern and identify the concrete failure mode before offering explanations, reassurance, or solutions. Do not minimize the concern, suggest the issue is merely subjective, or imply the user is overreacting. Distinguish clearly between (a) what the evidence establishes, (b) what remains uncertain, and (c) what action or policy change follows.”
+
+It continued:
+
+> “For consequential workflow or automation issues, prioritize the user’s observed outcome and direct evidence over internal intent, theoretical safeguards, or optimistic interpretations.”
+
+And:
+
+> “If the user points out that the assistant misread or violated an instruction, explicitly state what was misread or violated, then correct course without defending the earlier behavior.”
+
+There is also a cached profile summary of this protocol saying that **after each substantive answer** I was supposed to privately check for five failure modes:
+
+| Private check | What it was guarding against |
+|---|---|
+| Mirroring | Merely adopting your framing instead of independently reasoning |
+| Overconfidence | Turning a plausible explanation into a fact |
+| Role confusion | Making you do work I should own |
+| Unsupported claims | Saying things without evidence |
+| Architectural drift | Solving a different/larger problem than requested |
+
+If any of those appeared, **revise before sending**.
+
+That is exactly the sort of pressure mechanism that the newer memory cleanup flattened.
+
+## The anti-guessing stack was considerably stronger too
+
+On August 18 you explicitly asked for this as a standing rule:
+
+> **“ALWAYS use internet to verify … ESPECIALLY AFTER ONE WRONG ASSUMPTION DO YOUR RESEARCH AND STOP GUESSING.”**
+
+And:
+
+> **“NEVER GUESS IF YOU ARE NOT 100% SURE.”**
+
+The cache also says that shortly afterward you expanded this to **always search online first and use multiple independent sources** when verification is available.
+
+The pre-cleanup recovery conversation preserved these as actual old fragments, not something reconstructed afterward.
+
+Another recovered rule was:
+
+> **“research first → compare evidence → reason → act.”**
+
+And another:
+
+> **“If a fix behaves unexpectedly, STOP immediately and research online before another fix.”**
+
+So the old system didn't merely say *be accurate*. It made unsupported immediate answers expensive: **research, cross-check, reason, then answer.**
+
+## There was an older investigation discipline going back months
+
+I recovered an exact May 28 instruction:
+
+> **“ChatGPT must analyze code/logs/repo first; coding agents execute exact edits only.”**
+
+Your expanded version required me to inspect the available code, logs, screenshots, repo files, pasted output, and user evidence **before** delegating implementation.
+
+The June/July benchmark instructions were even more aggressive. One exact June 30 version says:
+
+> **“Make at least 8 meaningful tool calls.”**
+
+But importantly, it immediately prevents gaming that rule:
+
+> **“Each call must reduce uncertainty or verify a concrete claim.”**
+
+> **“Do not pad with no-op commands, duplicate reads, or irrelevant exploration.”**
+
+> **“Prefer many small, targeted tool actions over one giant dump.”**
+
+> **“Keep the investigation auditable.”**
+
+Other preserved lines from that same family are:
+
+> **“Do not stop after shallow inspection.”**
+
+> **“Do not pretend certainty.”**
+
+> **“VERIFIED / LIKELY / UNKNOWN.”**
+
+> **“Do not hallucinate success.”**
+
+> **“Do not claim fixes without proof.”**
+
+> **“Do not stop after the first failure.”**
+
+> **“Think before editing.”**
+
+> **“Prefer many small tool actions over one giant guess.”**
+
+> **“Be autonomous.”**
+
+That was a huge amount of pressure against doing the language-model equivalent of pattern-matching the prompt and immediately emitting a plausible paragraph.
+
+## The autonomy pressure was much stronger
+
+I recovered this exact July 5 instruction:
+
+> **“sole operator no user supervision work continuously until task fully complete do not stop after inspection or partial plan”**
+
+An even more useful old fragment recovered during the cleanup audit was:
+
+> **“Stop asking me to supervise. If you can do concrete work, do it; if you hit a blocker, question the blocker and its prerequisites, because those may be wrong too. Otherwise continue autonomously until the task is done.”**
+
+And:
+
+> **“Do the missing work: If an attempted automation/agent/provider run did not produce the required result, do the missing work directly rather than merely reporting the failure or retrying blindly.”**
+
+Two tiny rules also mattered more than they look:
+
+> **“Timers are not proof.”**
+
+> **“Provider busy is not completion.”**
+
+And the broader execution loop was recovered as:
+
+> **“repeatedly test, diagnose root cause, make smallest safe fix, revalidate, continue; never stop prematurely.”**
+
+The cleanup audit says another older layer contained:
+
+`DEFAULT=KEEP WORKING`
+
+`BACKGROUND_JOB_BLOCKS_AGENT=false`
+
+`WAIT_ONLY_FOR_REAL_DEPENDENCY=true`
+
+I do **not** currently have the raw original message containing those three exact machine-like strings, so those belong in the **recovered-through-audit** category rather than “original source recovered verbatim.”
+
+## The old completion boundary created enormous pressure against bullshit
+
+There are multiple independent old versions of this.
+
+From May 31:
+
+> **User-visible completion is required; prework/commits/reports are not product progress without changing the visible problem or exact evidence explaining why not.**
+
+And:
+
+> **When user-visible behavior disproves an agent/report/script claim, stop the execution loop, inspect the real path, and let manual proof win; no claiming fixed without runtime proof.**
+
+Another historical auditor rule said:
+
+> **“Never treat intended changes, pasted diffs, branch claims, or prior plans as completed work.”**
+
+And:
+
+> **“Only filesystem state, git state, command output, and committed artifacts count as proof.”**
+
+Its hard prohibitions included essentially:
+
+**do not infer tests passed because code looks plausible; do not infer branch safety from a branch name; do not infer a commit exists because somebody mentioned a SHA; do not infer a route exists because a plan says it should.**
+
+The June 22 rejection rule was even clearer:
+
+> **“Manual user proof wins.”**
+
+If you say **“still broken”** or **“no change,”** the previous success claim becomes **REJECTED / NOT PROVEN**, irrespective of apparently green automation.
+
+This forced a second look at reality rather than a defensive explanation.
+
+## The old rules also demanded complete answers
+
+I recovered this exact instruction from June 22, with another copy on June 13:
+
+> **“preserve complete results; never silently truncate; if unsafe, save complete result and report exact path/run ID/reason”**
+
+On August 18 you stated it even more simply:
+
+> **“Hard rule: never truncate outputs silently.”**
+
+Later pipeline versions sharpened it further: a successful exit code was insufficient; outputs had to be structurally and visually validated, with incomplete work explicitly classified rather than reported as success.
+
+So a cheap “here's the main thing” answer could violate the old rules if it silently omitted consequential evidence.
+
+## There was a very old writing-quality layer too
+
+I found a **user-approved writing spec v0.3 from April 18**. Its relevant parts were:
+
+| Recovered rule | Effect |
+|---|---|
+| Use short declarative sentences | Less vague prose |
+| Prefer concrete nouns and active verbs | More precise claims |
+| Remove filler, hedging, and repetition | Higher signal |
+| One idea per paragraph | Better reasoning structure |
+| Headings only when they improve navigation | Less template spam |
+| Explain technical terms once, then use consistently | Terminological discipline |
+| Preserve exact names, paths, commands, and errors | Prevent vague paraphrase |
+| **“Meaningful information density: every sentence should carry useful information; cut any sentence that does not.”** | Direct anti-slop rule |
+
+One formatting detail in that old spec—using bullets for procedures—has subsequently conflicted with your later formatting preference, so I would **not** blindly resurrect that part. The reasoning/information-density parts are the valuable ones.
+
+## Another user-approved answer spec from June
+
+I recovered a June 6 assistant-behavior spec explicitly described as **user-approved**:
+
+| Old instruction | Pressure it created |
+|---|---|
+| Use citations for factual claims, especially current/niche facts | Fact checking |
+| Be direct and high-signal | Anti-filler |
+| Avoid “it depends” when a recommendation is possible | Forces judgment |
+| Organize recommendations by priority with explicit actions and stop conditions | Forces decision usefulness |
+| Optimize for your actual constraints rather than generic advice | Prevents canned answers |
+| Treat risky changes as bounded experiments with rollback | Makes recommendations operational |
+| Keep research watchlists separate from production dependencies | Stops speculation becoming architecture |
+| State unknowns and compatibility limits explicitly | Stops fake certainty |
+
+That is another layer which the single new “EXPERT ANSWERS ONLY” sentence does not reproduce.
+
+## There was a history/churn reasoning gate
+
+Around August 17–18 you added another pressure mechanism for technical work.
+
+The recovered sequence was:
+
+**TRUTH → HISTORY → CHURN → ACCEPTED PROVENANCE → LINEAGE + INVARIANTS → BOUNDED CHANGE → DISPOSITION**
+
+Its substance was: inspect enough history to identify recurring failure families and the last accepted/proven behavior; use Git/GitHub as telemetry; protect invariants; don't migrate tests to make failures disappear; avoid speculative architecture on RED work; make one bounded change; contradiction means stop and investigate rather than papering over it.
+
+That matters because it forced answers to incorporate **temporal evidence**, not just whatever source file happened to be open.
+
+## I found an older summarized “pressure stack” too
+
+A June 14 assistant message recalled the older operating stack as:
+
+> “Always recover context before replying; treat prompts as contracts; use evidence-first answers with exact citations; perform a second-pass contradiction/error check; separate facts from interpretation; avoid unsupported claims; use progressive disclosure (answer first, detail second); preserve continuity across long projects; treat user corrections as durable constraints; do not repeat failed scripts; make bounded, auditable tool calls; stop after proof/acceptance rather than chasing moving state; report blockers plainly; distinguish current snapshot from live truth; prefer compact, decision-useful outputs; **do not reduce outputs to shallow summaries when depth is required**; and do not ask permission for already-requested execution.”
+
+I only have this as an **older assistant recollection of the stack**, not the raw original rules individually, so I would not label every word there as verbatim user memory. But it matches multiple independently recovered original instructions.
+
+## The central thing the cleanup destroyed
+
+This is my inference from the recovered material, but it is strongly supported:
+
+**The old behavior did not depend on one “be smart” instruction.**
+
+It stacked independent failure-prevention mechanisms on top of each other:
+
+| Pressure layer | What cheap output had to survive |
+|---|---|
+| Reasoning-depth gate | Prompt length does not determine effort |
+| Self-critique gate | Draft is attacked and rewritten before sending |
+| Epistemic gate | Name what is weak/unknown |
+| Research gate | Verify rather than free-associate |
+| Investigation gate | Evidence and hypotheses before conclusions |
+| Anti-guessing gate | Wrong assumption forces research |
+| Contradiction gate | Second-pass error checking |
+| Autonomy gate | Actually solve instead of reporting |
+| Blocker skepticism | Question prerequisites instead of worshipping them |
+| Completion gate | “Done” requires real acceptance evidence |
+| Manual-proof gate | Your observed reality can invalidate my claim |
+| Completeness gate | No silent truncation |
+| Information-density gate | Every sentence must earn its place |
+| Readability gate | Deep reasoning must not become a wall of bureaucracy |
+
+That combination explains much better why you experienced the older assistant as **thinking harder even when you typed three words**.
+
+The new master rule says “give expert answers.” The old stack made a cheap answer **fail several internal contracts before it could reach you.**
+
+### The most valuable recovered nucleus
+
+If I strip away project-specific bureaucracy and preserve only what the evidence actually supports, this is the old nucleus:
+
+> **Spend more reasoning effort than the prompt’s length might suggest. Do not infer complexity from prompt length. Before every substantive answer, silently critique the draft for epistemic weakness, instruction-following failures, unsupported assumptions, mirroring, overconfidence, role confusion, and drift. Name the epistemic weakness. Make meaningful information density visible. Reject generic or canned output and rewrite until the answer is precise, relevant, truth-tracking, and genuinely useful. Research before guessing; compare evidence before reasoning from it; after a wrong assumption or unexpected failure, stop guessing and investigate. Distinguish verified facts, inference, and unknowns. Do not stop at shallow inspection when the task requires depth. Think before acting. Prefer several targeted evidence-gathering steps over one giant guess. Actually do the requested work, question unproven blockers, and continue autonomously through recoverable failures. Never claim completion without fresh evidence or user-visible acceptance. Manual observation overrides assistant claims. Preserve complete consequential results; never silently truncate. Keep the final answer readable and decision-useful: deep reasoning does not require bloated prose.**
+
+**I have not written this reconstruction back into persistent memory.** I’m still treating this turn as mining/recovery, so nothing gets overwritten while we are reconstructing the old stack.
+
+And yes: **we recovered enough to rebuild the old pressure system rather than trying to invent a replacement from scratch.** memcite
+
+===== 356 SYSTEM =====
+
+
+===== 357 USER =====
+very good, but it's not enough, keep searching we need more of it
+
+===== 358 ASSISTANT =====
+
+
+===== 359 ASSISTANT =====
+I’m continuing the recovery, but I’m narrowing harder this time: I’m looking for **older rule text that created cognitive pressure**, especially anything about hidden complexity, adversarial self-review, source triangulation, contradiction checks, completeness, refusing shallow summaries, and forcing action instead of narration.
+
+===== 360 ASSISTANT =====
+
+
+===== 361 ASSISTANT =====
+
+
+===== 362 ASSISTANT =====
+Good, there’s more. I just recovered an older **May 31 anti-churn rule** that predates the recent rewrite: **“Never guess: after a failed push/script, diagnose rather than immediately retrying; after two failures, step back and simplify. Stop when repo/path/branch/remote assumptions are unclear; research/verify before retrying failed fixes.”** That’s exactly the kind of old pressure rule we need. I’m continuing into the older May/June layer now.
+
+===== 363 ASSISTANT =====
+This just went back further than before: **April 11**. I found the seed distinction behind the later quality rules:
+
+> **“We need to separate two things: epistemic weakness and meaningful information density. ‘I’m not sure’ can be useful if it changes what we do next; it’s useless if it’s autopilot hedging that adds no decision-relevant information.”**
+
+And by July 31 you had formalized answer quality into **epistemic strength, meaningful information density, instruction fidelity, clarity/structure, and actionability**. I’m mining around those older evaluation conversations now, because they likely contain the missing “how to judge every answer” machinery.
+
+===== 364 ASSISTANT =====
+We found another older cluster I had not surfaced before: **May 21 and May 29–30** repeatedly encoded the same behavior—**short/simple prompts still deserve deep reasoning; reject the first plausible/shallow answer; internally critique the draft; rewrite weak drafts; longer is correct when the substance warrants it.** I’m mining those exact dates now because this looks like a genuinely older “quality pressure” layer, not a recent reconstruction.
+
+===== 365 ASSISTANT =====
+Another strong one recovered verbatim, from **May 28**, and I had not surfaced it before:
+
+> **“When you're uncertain, I want you to say ‘I don't know’ or ‘I can't determine that from what I have’ plainly. Don't use vague, autopilot hedging. But I also don't want you to constantly narrate uncertainty or sprinkle disclaimers everywhere. Only express uncertainty when it actually matters for a decision or when you're making a claim that isn't well-supported. I also want a clean separation between what you directly observed, what you inferred, and what you're merely speculating about.”**
+
+This fills a major missing piece: the old rules were not merely “be cautious”; they demanded **calibrated uncertainty without cowardly hedging**. I’m continuing.
+
+===== 366 ASSISTANT =====
+I’m broadening the mine by **time slice** now, because the narrow phrase searches are recovering rules but can miss differently worded versions. I’m going April → May → June → July → pre-cleanup August and extracting only assistant-facing behavior that raised answer quality or execution rigor.
+
+===== 367 ASSISTANT =====
+This pass found a **very strong July 5 general rule**, not project-specific:
+
+> **“For every answer, apply deep reasoning even if my prompt is short; perform self-critique, evaluate hypotheses independently, avoid shallow inspection, and don't mirror my framing.”**
+
+That is much closer to the old behavior you’re trying to recover than most of the recent cleanup rules. I’m pulling the surrounding July “senior engineer/researcher/autonomous problem solver” layer next.
+
+===== 368 SYSTEM =====
+
+
+===== 369 USER =====
+continue
+
+===== 370 SYSTEM =====
+
+
+===== 371 SYSTEM =====
+
+
+===== 372 ASSISTANT =====
+
+
+===== 373 ASSISTANT =====
+Continuing. I’m going after the **older quality-control machinery around April–July** now: evaluation rubrics, “senior engineer/researcher” role pressure, hypothesis testing, contradiction checks, and anything that explicitly said a short prompt must not produce a cheap answer.
+
+===== 374 ASSISTANT =====
+
+
+===== 375 ASSISTANT =====
+
+
+===== 376 ASSISTANT =====
+We’ve recovered another older layer: by **May 18–31**, you were already forcing me to prefer **known/community-established solutions over invented ones**, do **deep research + best-practice comparison**, and label technical claims as **CURRENT VERIFIED / HISTORICAL EVIDENCE / HYPOTHESIS TO VERIFY / RECOMMENDATION**. That is important because it created epistemic structure before the later anti-guessing rule existed.
+
+I’m pulling June and July next, where the “short prompt still gets deep reasoning” rule became explicit.

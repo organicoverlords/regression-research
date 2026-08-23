@@ -1,0 +1,33 @@
+GPT #1 — FIRST-PASS PROVENANCE / RECOVERY ANALYSIS
+Date: 2026-08-20
+
+WHAT I ANALYZED
+878 recovered rule-like records from the four main recovery corpora in this folder, cross-checked against the share transcripts and the historical/library evidence actually used during this chat.
+
+FIRST-PASS CLASSIFICATION
+137 = direct/verifiable user-authored durable/global instructions or explicit memory/custom-instruction updates.
+541 = assistant-normalized, reworded, inferred, summarized, reconstructed, or copied-from-copy records.
+200 = project-specific, benchmark, handoff, one-shot, operational, or non-rule material.
+
+IMPORTANT: 137 does NOT mean 137 unique original memories. Many genuine instructions recur verbatim or nearly verbatim across several miner files. The number of distinct original user-authored global instructions will be substantially smaller after provenance deduplication.
+
+CORE FINDING
+The old strong behavior was real, but the recovery files overstate how much of their polished wording came directly from the user. The miners correctly rediscovered recurring behavioral pressure — deep reasoning, self-critique, independent judgment, research, evidence, autonomy, continuity, completion, anti-canned output, low supervision — then repeatedly converted that pressure into assistant-authored canonical-sounding rules.
+
+The crucial distinction for the next pass is ORIGINAL USER WORDING versus SEMANTIC RECONSTRUCTION. A good reconstruction is useful evidence about intent, but it must not be misrepresented as an original memory instruction.
+
+STRONGEST VERIFIED LINEAGE
+There is high-confidence direct evidence for user-authored instructions that decouple reasoning effort from prompt length; treat short prompts as intent signals rather than complete specifications; demand substantive work and ownership; reject lazy/canned/template output; require independent judgment rather than mirroring; use tools/research when they materially improve the result; preserve relevant context; continue through recoverable failures; and minimize user supervision.
+
+DESIGN CONCLUSION
+Do not restore hundreds of hard rules. Hard rules are dangerous when a small local failure can turn them into a global stop condition. The final system should contain a very small integrity/authority layer plus a larger set of non-blocking reasoning pressures.
+
+The routing principle should be: latest prompt length does not determine task complexity. A one-word continuation/status/why/go prompt inherits the active task model, unresolved work, evidence, domain, tools, and required expertise. The system should route through the best-qualified reasoning/expert/tool path based on the actual task, not fall back to cheap generic-chat behavior because the newest message is short.
+
+Deep reasoning, expert routing, research, alternative hypotheses, verification, self-critique, and persistence should normally increase scrutiny or switch routes when something fails. They should not become mandatory stop gates.
+
+NEXT PASS
+Deduplicate by provenance, not wording. Group exact/near-exact copies back to their earliest verifiable user-authored source. Separate literal user text from memory-layer normalization and later miner reconstruction. Then select roughly 100–250 high-value rules/mechanisms that maximize reasoning quality, expert routing, autonomy, continuity, evidence quality, and useful completion while avoiding blocker/gate behavior.
+
+WORDING POLICY
+If exact behavior matters, final wording should be injected by the user rather than delegated to the memory summarization layer. The memory layer is semantic persistence, not lossless storage of instruction text.
