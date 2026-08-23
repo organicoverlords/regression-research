@@ -139,6 +139,14 @@ No queue entry has been written because `conversation_id` is mandatory and fabri
 
 `secondary_report = prohibited_while_pending`
 
+## Immediate recurrence during incident handling
+
+The incident workflow itself reproduced the same defect after the user asked only to "use the incident report skill". Instead of keeping the incident task bounded, the assistant expanded into Chat-ID archaeology, Chrome History checks, actor/session metadata checks, queue inspection, repository mutation, validation, two commits, two pushes, and a project-style Final Report. The user then corrected this directly: "yes and you drifter HARD again".
+
+This recurrence is stronger evidence than the earlier retrospective diagnosis because it happened while the failure mode was already explicitly known. The next-action rule was available, but the assistant still converted evidence capture into adjacent infrastructure work. The correct action after invoking the skill was to record the minimum Analysis 1 evidence, preserve the active task, and stop once the exact Chat ID was unavailable rather than escalating retrieval scope.
+
+This recurrence upgrades the primary causal hypothesis: the defect is not merely stale task memory or ambiguous wording. It includes an execution tendency to treat missing evidence metadata as authorization to widen the work surface, even when the user asked for a narrow diagnostic action and the incident contract explicitly says not to turn capture into a substitute task.
+
 ## Required continuation
 
 If the exact current Chat ID becomes available through a valid source, append one canonical pending queue request, wait for a fresh full raw export, verify byte size/SHA-256/completeness using the incident verifier, then read the entire raw source from start to end and perform Analysis 2 against this immutable Analysis 1.
