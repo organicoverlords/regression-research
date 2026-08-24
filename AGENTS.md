@@ -100,6 +100,14 @@ outranks disk pressure, build failure, and any cleanup instruction from any sour
   Never widen the scope by one path to make room.
 - Never reclaim from a tree that is currently building, rendering, or holding another actor's
   live warm state. Everything colder than that is fair game without asking.
+- **One machine, several workloads.** Generation runs, Unreal builds, the editor, and agent
+  sessions share one box. Before starting anything long-running, read the whole machine - free
+  physical RAM, commit remaining, free disk, GPU memory - not just what your own process needs,
+  and leave headroom for one concurrent build rather than consuming to your own limit. Free
+  physical RAM is the resource that actually runs out; commit headroom and a large pagefile do
+  not substitute for it. When a neighbour holds the resource, queue for it: contention is a
+  scheduling fact, never a red check or a reason to stop. Measured numbers and the current
+  contradiction between the two gates live in `lowvram3d-studio` under `docs/MACHINE_BUDGET.md`.
 - Keep build state warm and reuse it: an existing warm tree over a fresh cold one, incremental
   over clean, and never copy build caches into throwaway trees.
 - **A narrowed build - one module, one file - is for local iteration only.** Any build whose
