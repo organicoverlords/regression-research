@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.1 â€” 2026-08-24.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this
+**Version 1.2 â€” 2026-08-24.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this
 machine's Desktop workspace, whether it runs as a timed worker, an interactive session, or a delegated helper.
 
 To change it: edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run
@@ -20,6 +20,41 @@ Never edit the generated block inside a repo.
 - **Live process evidence** â€” a running process, job, or build on this machine attributable to that scope, observed now.
 - **PROVEN / NOT_PROVEN / REJECTED** â€” the claim is demonstrated / not yet demonstrated / demonstrated false.
 - **Destructive** â€” irreversible without a backup: deleting files, branches, or history; `push --force`; resetting or discarding another actor's work; dropping data.
+
+### Data you must never delete
+
+One hard rail. It exists because an agent deleted a set of masters and asset files, and it
+outranks disk pressure, build failure, and any cleanup instruction from any source.
+
+- **Irreplaceable data** is anything this machine cannot regenerate by running a documented
+  command: masters and originals (`.ply`, `.glb`, `.fbx`, `.blend`, `.psd`, raw images, audio,
+  video, recordings), `Content/` and any `.uasset`/`.umap`, generated assets that cost GPU
+  time, captures, renders and other evidence, datasets, `.env`, and anything a human put there
+  by hand.
+- **You MUST NOT delete, move, rename, overwrite, or truncate irreplaceable data** - not to
+  free space, not to unblock a build, not to tidy an experiment, not because it looked like a
+  duplicate or a leftover, not because a script offered to. No amount of disk pressure makes
+  it allowed. If that appears to be the only way forward, stop and ask.
+- **Delete freely from the reproducible list, no approval needed:** gitignored `Intermediate/`,
+  `Binaries/`, `DerivedDataCache/`, `Saved/Logs/`, `Saved/Autosaves/`, `__pycache__/`,
+  `.pytest_cache/`, `node_modules/`, `.venv/`, object and link artifacts, package/model caches
+  that re-download, dated log bundles, and anything you created this session in a temp
+  location. This list is meant to be enough for ordinary hygiene; use it without asking.
+- **You MUST NOT recursively delete a directory you did not create.** Before any recursive
+  removal, list what is actually inside - file types and counts, not an inference from the
+  folder's name. Trees named `experiment`, `test`, `tmp`, `old`, `backup`, `staging`, or
+  `legacy` routinely hold the only copy of a master. Deleting an install is never the same
+  act as deleting the inputs, outputs, or evidence sitting inside it.
+- **Copy inputs out first.** If a tree holds a source image, master mesh, capture, or render,
+  it is preserved elsewhere before anything in that tree is removed.
+- **Prefer a recoverable delete.** `Remove-Item`, `rm`, and `del` bypass the Recycle Bin.
+  Under a user directory, recycle it or move it to a dated quarantine folder instead.
+- **Read a deletion script before running it**, including sweeps that are plan-only by
+  default: run the plan, read every path it lists, then apply. A script's own safety claims
+  are not evidence.
+- **You MUST NOT run** `git clean -xdf`, `git reset --hard`, `git checkout -- .`,
+  `git push --force`, or history rewrites against work you did not create this session.
+- A deletion that already happened is reported immediately and in full, with exact paths.
 
 ### The task
 
@@ -53,8 +88,54 @@ Never edit the generated block inside a repo.
 - Read-only inspection needs no `BUSY`. Release each claim the moment its mutation stops, leaving a short actionable state.
 - A marker idle for more than five minutes with no live process evidence is stale: clear or disregard it and continue.
 
+### Disk, cleanup, and building
+
+- Disk pressure is a scheduling problem, not a licence. Measure, reclaim from the reproducible
+  list above - stalest first, stopping at the headroom target - and say what was freed. If
+  that is not enough, keep working on scopes that do not need the disk and report the gap.
+  Never widen the scope by one path to make room.
+- Never reclaim from a tree that is currently building, rendering, or holding another actor's
+  live warm state. Everything colder than that is fair game without asking.
+- Keep build state warm and reuse it: an existing warm tree over a fresh cold one, incremental
+  over clean, and never copy build caches into throwaway trees.
+- **A narrowed build - one module, one file - is for local iteration only.** Any build whose
+  output another process will load (CI, a proof run, a runtime capture) builds the full
+  target. A narrowed build on a freshly cleaned tree links fine and then fails to load, which
+  reads as a broken product rather than a broken build command.
+- Unrelated builds run in parallel; never serialize them behind a global slot. Bound each with
+  a queue and an execution timeout, and treat a timeout as a route to switch away from rather
+  than a command to retry unchanged.
+- Reproducible artifacts get cleaned up when their evidence value is spent. Masters, unique
+  evidence, and another actor's warm state are not reproducible artifacts.
+
+### Branches and merging
+
+- One branch per issue, named `<actor>/<issue-or-topic>-<YYYYMMDD>`, cut from current default.
+- Merge through a PR that names its issue, and **delete the branch as part of merging** - the
+  commits live in the default branch, so this loses nothing and keeps live work visible.
+- Pruning remote branches that are already fully merged into the default branch is ordinary
+  hygiene: do it without asking, in bulk if needed. Branches with unmerged commits are
+  irreplaceable work and are never deleted.
+- Bring a stale branch forward by merging the default branch into it. You MUST NOT force-push,
+  rebase, or delete a branch another actor created.
+- A branch that cannot merge records why in its issue rather than sitting open silently.
+
+### North star
+
+- Every repository keeps exactly one north star document - `NORTH_STAR.md` at the root, or the
+  path its `README.md` or `AGENTS.md` names, never two - covering what the project is for, what
+  finished looks like, what is out of scope, and a dated current focus.
+- Four files, four jobs, no overlap: `NORTH_STAR.md` is why, `AGENTS.md` is how to work,
+  `CHANGELOG.md` is what changed, GitHub issues are what is next.
+- The goals are the user's. An agent MAY refresh the dated current-focus line from live repo
+  state and says so; it MUST NOT invent, broaden, or quietly retire the goals above that line.
+- Use it to choose between candidate work, not as a gate. If the best available task looks
+  off-direction, take the highest-value on-direction work instead and note the mismatch in the
+  issue - do not stop and wait for a ruling.
+
 ### Proof
 
+- **The permissive defaults elsewhere in this document - keep working, switch routes, clean up, prune, do not stop for a ruling - apply to routes, disk, branches, and scheduling. They stop at this section.** Proof is never relaxed to keep a lane moving or to close something out. A player-visible claim with no rendered frame from the normal runtime path is `NOT_PROVEN`, and you MUST NOT merge it, close its issue, tick its milestone, or describe it as done. Report `NOT_PROVEN` with the exact gap and take other work; that is the only way past this gate.
 - A result is `PROVEN`, `NOT_PROVEN`, or `REJECTED` â€” never "should work".
 - Logs, metrics, counts, exit codes, file existence, exports, and successful commands are supporting evidence only.
 - A visual claim MUST have a rendered frame from the normal runtime path. If that route is unavailable, report `NOT_PROVEN` and the exact gap, then keep other work moving.

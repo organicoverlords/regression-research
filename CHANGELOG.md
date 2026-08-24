@@ -10,11 +10,18 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- `NORTH_STAR.md`, naming the three live regression classes this corpus is currently tracking.
+
 - `CHANGELOG.md`, adopting the org-wide changelog standard (`organicoverlords/docs` ->
   `standards/changelog.md`). Changes from 2026-08-24 onward get an entry here; history is
   not backfilled.
 
 ### Changed
+
+- `AGENTS.md` shared policy raised to v1.2, adding a hard rail on deleting irreplaceable data
+  (masters, assets, evidence) after an agent destroyed a set of masters, plus non-blocking
+  defaults for disk reclaim, branch prune-on-merge, and full-target builds for anything CI or a
+  runtime loads. The visual-proof gate is explicitly excluded from those relaxations.
 
 - `AGENTS.md` shared policy raised to v1.1: a control plane, MCP included, is transport and
   visibility and never permission, so an unavailable connector can no longer be reported as
