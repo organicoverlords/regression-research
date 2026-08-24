@@ -28,9 +28,13 @@ outranks disk pressure, build failure, and any cleanup instruction from any sour
 
 - **Irreplaceable data** is anything this machine cannot regenerate by running a documented
   command: masters and originals (`.ply`, `.glb`, `.fbx`, `.blend`, `.psd`, raw images, audio,
-  video, recordings), `Content/` and any `.uasset`/`.umap`, generated assets that cost GPU
-  time, captures, renders and other evidence, datasets, `.env`, and anything a human put there
-  by hand.
+  video, recordings), generated assets that cost GPU time, captures, renders and other
+  evidence, datasets, `.env`, and anything a human put there by hand. **The test is recovery,
+  not file type.** A `Content/` tree inside a checkout whose files are committed and pushed is
+  recoverable with `git lfs pull`, so reclaiming a cold lane's hydrated `Content/` is ordinary
+  hygiene. The same file uncommitted, untracked, ignored, or outside a repo is the only copy
+  and is untouchable. If you cannot name the exact command that brings it back, it is
+  irreplaceable.
 - **You MUST NOT delete, move, rename, overwrite, or truncate irreplaceable data** - not to
   free space, not to unblock a build, not to tidy an experiment, not because it looked like a
   duplicate or a leftover, not because a script offered to. No amount of disk pressure makes
