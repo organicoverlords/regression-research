@@ -49,3 +49,7 @@ Ordinary `search` is intentionally narrow: blank unscoped searches return no ent
 ## Candidate extraction
 
 Prepare compact candidate records from bounded source snippets with python tools\extract_memory_candidates.py <sources.jsonl> <candidates.jsonl>. Source snippets declare source_id, source_class, scope, 	imestamp, evidence, and content. The extractor recognizes corrections, decisions, lessons, status receipts, explicit RULE: lines, and standalone ALL-CAPS rules. Extracted claims remain PROVISIONAL until curation; extractor-only provenance fields are removed when candidates are migrated into the strict bank schema.
+
+## Optional durable-memory adapter
+
+ChatGPT durable memory and personal-context exports are an optional source, class `DURABLE_MEMORY` (`durable-memory:` / `personal-context:` evidence). The adapter `tools/durable_memory_adapter.py` imports a bounded fixture/export (JSON array or JSONL) into curated candidates with provenance (`durable-memory:export:<export>:<id>`, `source_class: DURABLE_MEMORY`), truncates oversized text to 800 characters, caps output to 50 candidates, and skips sensitive/private or unsupported material so no secrets ever enter the public bank or issues. When the surface is unavailable the adapter produces zero candidates and exits cleanly — the bank and ordinary recall work without it, and current explicit user instruction always wins over recalled personal context via source-authority ranking.

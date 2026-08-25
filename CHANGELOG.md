@@ -12,6 +12,8 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 - Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
 
+- Added optional ChatGPT durable-memory and personal-context adapter that imports a bounded fixture/export into curated candidates with DURABLE_MEMORY provenance, skips sensitive/unsupported material, and remains inert when the surface is unavailable; current explicit instruction still outranks recalled personal context via source-authority ranking (#19).
+
 - Added deterministic heterogeneous memory-candidate extraction with bounded text, source provenance, conservative provisional state, and fixtures spanning agents policy, Regression Research, Codex history, and Traycer artifacts (#15).
 - Indexed current shared policy separately from a historical v1.3 snapshot, so ordinary recall prefers LIVE_CANONICAL policy while history still exposes the superseded policy record (#20).
 - Added deterministic 5,000+ candidate stress coverage proving bounded memory recall limits, relevance filtering, and routine runtime/memory use (#17).
