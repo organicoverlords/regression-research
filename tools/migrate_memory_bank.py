@@ -39,18 +39,26 @@ def _audit(audit: list[dict[str, Any]] | None, **record: Any) -> None:
         audit.append(record)
 
 
-def _resolve_supersessions(entries: list[dict[str, Any]], known: dict[str, dict[str, Any]],
+def _resolve_supersessions(entries: list[dict[str, Any]],
+                           assertions: dict[str, list[tuple[str, str | None, int]]],
+                           known: dict[str, dict[str, Any]],
                            registry: dict[str, Any], audit: list[dict[str, Any]] | None) -> None:
     """Strip supersessions asserted by a lower-authority source than their target.
 
     Recall hides any entry named in another entry's `supersedes`, so an unchecked
     supersession lets a RECOVERY_ONLY claim silently remove canonical policy from
     ordinary results. Authority is compared before the claim is honoured.
+
+    Each assertion is judged at the authority of the candidate that actually made it,
+    captured before duplicate collapse. Merging evidence across duplicates legitimately
+    raises an entry's rank for recall, but must not retroactively license a supersession
+    that a lower-authority candidate asserted.
     """
     for entry in entries:
-        name, rank = source_class(entry, registry)
         kept: list[str] = []
-        for target_id in entry["supersedes"]:
+        for target_id, name, rank in assertions.get(entry["id"], []):
+            if target_id in kept:
+                continue
             target = known.get(target_id)
             if target is None:
                 kept.append(target_id)
@@ -78,14 +86,19 @@ def migrate_candidates(candidates: list[dict[str, Any]], *,
     registry = registry if registry is not None else load_source_registry()
     merged: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     order: list[tuple[str, str, str, str]] = []
+    assertions: dict[str, list[tuple[str, str | None, int]]] = {}
     for candidate in candidates:
         validate_entry(candidate)
         key = _semantic_key(candidate)
+        cls_name, cls_rank = source_class(candidate, registry)
+        holder = merged[key]["id"] if key in merged else candidate["id"]
+        for target_id in dict.fromkeys(candidate["supersedes"]):
+            assertions.setdefault(holder, []).append((target_id, cls_name, cls_rank))
         if key not in merged:
             merged[key] = dict(candidate)
             merged[key]["tags"] = list(dict.fromkeys(candidate["tags"]))
             merged[key]["evidence"] = list(dict.fromkeys(candidate["evidence"]))
-            merged[key]["supersedes"] = list(dict.fromkeys(candidate["supersedes"]))
+            merged[key]["supersedes"] = []
             order.append(key)
             _audit(audit, candidate=candidate["id"], action="kept", target=None,
                    source_class=source_class(candidate, registry)[0], target_class=None,
@@ -94,7 +107,6 @@ def migrate_candidates(candidates: list[dict[str, Any]], *,
         current = merged[key]
         current["tags"] = list(dict.fromkeys(current["tags"] + candidate["tags"]))
         current["evidence"] = list(dict.fromkeys(current["evidence"] + candidate["evidence"]))
-        current["supersedes"] = list(dict.fromkeys(current["supersedes"] + candidate["supersedes"]))
         _audit(audit, candidate=candidate["id"], action="collapsed_duplicate",
                target=current["id"], source_class=source_class(candidate, registry)[0],
                target_class=source_class(current, registry)[0],
@@ -102,7 +114,7 @@ def migrate_candidates(candidates: list[dict[str, Any]], *,
     entries = [merged[key] for key in order]
     known = {entry["id"]: entry for entry in (existing or [])}
     known.update({entry["id"]: entry for entry in entries})
-    _resolve_supersessions(entries, known, registry, audit)
+    _resolve_supersessions(entries, assertions, known, registry, audit)
     return entries
 
 

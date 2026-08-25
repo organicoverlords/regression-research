@@ -81,3 +81,36 @@ class SourceAuthorityConflictTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DuplicateEvidenceEscalationTests(unittest.TestCase):
+    def e(self, id_, text, evidence, supersedes=None):
+        return {"id": id_, "timestamp": "2026-08-25T10:00:00+03:00", "kind": "lesson",
+                "scope": "global", "tags": ["policy"], "text": text, "state": "PROVEN",
+                "evidence": evidence, "supersedes": supersedes or []}
+
+    def test_duplicate_evidence_cannot_elevate_a_low_authority_supersession(self):
+        canon = self.e("canon", "Canonical policy claim.", ["shared-policy:SHARED-AGENT-POLICY.md"])
+        low = self.e("low", "Same durable statement.", ["legacy-seed:seed.md"], supersedes=["canon"])
+        dup = self.e("dup", "Same durable statement.", ["shared-policy:v1.4"])
+        out = migrate_candidates([canon, low, dup])
+        merged = next(x for x in out if x["id"] == "low")
+        self.assertIn("shared-policy:v1.4", merged["evidence"])   # merge still happens
+        self.assertEqual(merged["supersedes"], [])                # but does not license the claim
+
+    def test_high_authority_supersession_survives_a_low_authority_duplicate(self):
+        old = self.e("old", "Superseded wording.", ["shared-policy:v1.3"])
+        high = self.e("high", "Same durable statement.", ["shared-policy:v1.4"], supersedes=["old"])
+        junk = self.e("junk", "Same durable statement.", ["legacy-seed:seed.md"])
+        out = migrate_candidates([old, high, junk])
+        self.assertEqual(next(x for x in out if x["id"] == "high")["supersedes"], ["old"])
+
+    def test_each_assertion_judged_at_its_own_asserters_authority(self):
+        canon = self.e("canon", "Canonical.", ["shared-policy:x"])
+        old = self.e("old", "Old wording.", ["shared-policy:v1.3"])
+        hi = self.e("hi", "Same statement.", ["shared-policy:v1.4"], supersedes=["old"])
+        lo = self.e("lo", "Same statement.", ["legacy-seed:seed.md"], supersedes=["canon"])
+        out = migrate_candidates([canon, old, hi, lo])
+        merged = next(x for x in out if x["id"] == "hi")
+        self.assertEqual(merged["supersedes"], ["old"])           # hi's own claim kept
+        self.assertNotIn("canon", merged["supersedes"])           # lo's claim not licensed by hi
