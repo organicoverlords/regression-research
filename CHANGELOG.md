@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -9,6 +9,8 @@ The rule this file follows is `organicoverlords/docs` â†’ `standards/change
 ## [Unreleased]
 
 ### Added
+
+- Added three transcript-proven positive correction-handling cases for route correction, scope narrowing, and authority reconciliation, each paired to an existing failure fixture with explicit behavioral discrimination (#2).
 
 - Added the read-only issue #18 population acceptance report with source/class/kind/state counts, duplicate and supersession statistics, fixed recall queries, and bounded ordinary/history recall checks over the 32-entry bank; no downloads, raw transcript imports, MCP server, or tool changes.
 
@@ -74,4 +76,3 @@ Entry style â€” one line, for a human, with the issue or PR number:
 -->
 
 [Unreleased]: https://github.com/organicoverlords/regression-research/commits/main
-
