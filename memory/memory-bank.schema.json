@@ -1,0 +1,20 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shared Memory Bank Entry",
+  "type": "object",
+  "required": ["id", "timestamp", "kind", "scope", "tags", "text", "state", "evidence", "supersedes"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "kind": {"enum": ["fact", "decision", "lesson", "preference", "status", "correction"]},
+    "scope": {"type": "string", "minLength": 1},
+    "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "text": {"type": "string", "minLength": 1},
+    "state": {"enum": ["PROVEN", "PROVISIONAL", "REJECTED"]},
+    "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "supersedes": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "project": {"type": "string"}
+  },
+  "additionalProperties": false
+}
