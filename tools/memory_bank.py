@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -117,17 +117,41 @@ def _main() -> int:
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
+
+    append = sub.add_parser("append")
+    append.add_argument("--kind", required=True, choices=sorted(KINDS))
+    append.add_argument("--scope", required=True)
+    append.add_argument("--tag", action="append", default=[])
+    append.add_argument("--text", required=True)
+    append.add_argument("--state", required=True, choices=sorted(STATES))
+    append.add_argument("--evidence", action="append", default=[])
+    append.add_argument("--supersedes", action="append", default=[])
+
     search = sub.add_parser("search")
     search.add_argument("query", nargs="?", default="")
     search.add_argument("--scope")
     search.add_argument("--tag", action="append", default=[])
     search.add_argument("--limit", type=int, default=8)
     search.add_argument("--history", action="store_true")
+
+    history = sub.add_parser("history")
+    history.add_argument("query", nargs="?", default="")
+    history.add_argument("--scope")
+    history.add_argument("--tag", action="append", default=[])
+    history.add_argument("--limit", type=int, default=8)
+
     args = parser.parse_args()
     try:
         entries = load_bank(args.bank)
         if args.command == "validate":
             print(json.dumps({"status": "PROVEN", "entries": len(entries)}))
+            return 0
+        if args.command == "append":
+            entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
+            print(json.dumps(entry, ensure_ascii=False))
+            return 0
+        if args.command == "history":
+            print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True), ensure_ascii=False))
             return 0
         if args.command == "search":
             print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history), ensure_ascii=False))
