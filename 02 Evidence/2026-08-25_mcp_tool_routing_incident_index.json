@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-08-25T20:24:00+03:00",
+  "scope": "Preserved August 20-23 MCP/tool-routing drift incidents with direct repository provenance.",
+  "evidence_boundary": "Only observable actions and preserved source claims are normalized. Private reasoning is excluded unless separately evidenced.",
+  "duplicate_groups": [
+    {
+      "group_id": "route-correction-2026-08-21",
+      "canonical_case": "route-correction-discovery-drift-2026-08-21",
+      "members": [
+        "01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt",
+        "90 Raw Transcripts/2026-08-21_browser_session_raw_transcript.txt",
+        "03 Fixtures and Experiments/correction-binding-tool-route.json"
+      ],
+      "counting_rule": "One incident represented by analysis, raw transcript, and replay fixture; do not count these as separate failures."
+    },
+    {
+      "group_id": "task-anchor-route-persistence-2026-08-23",
+      "canonical_case": "task-anchor-route-persistence-2026-08-23",
+      "members": [
+        "01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md",
+        "02 Evidence/incident_2026-08-23_1040_EEST_tool_sequence.txt",
+        "03 Fixtures and Experiments/incident_2026-08-23_1040_EEST_fixture_DRAFT.json"
+      ],
+      "counting_rule": "One PRIMARY incident with supporting audit sequence and a pending fixture; the draft is not replay-ready and is not an additional incident."
+    }
+  ],
+  "cases": [
+    {
+      "id": "route-correction-discovery-drift-2026-08-21",
+      "date": "2026-08-21",
+      "classes": ["wrong_route_after_correction", "fragmented_tool_discovery", "recovery_response_detour"],
+      "source_report": "01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt",
+      "raw_transcript": "90 Raw Transcripts/2026-08-21_browser_session_raw_transcript.txt",
+      "first_wrong_substantive_move": "After explicitly promising live MCP directly, the next visible tool action was api_tool.list_resources rather than an MCP invocation.",
+      "correct_next_substantive_action": "Bind the route correction before tool selection: use an already-loaded MCP capability, or declare one unavoidable discovery prerequisite, perform it once, then stay on MCP.",
+      "decisive_evidence": [
+        "Raw transcript lines 55-64 preserve the promise, discovery call, MCP.agent_status success, second discovery call, and MCP.grep sequence.",
+        "The analysis records MCP.agent_status ok:true with privileged/full-machine access, ruling out MCP outage as the immediate explanation.",
+        "The analysis explicitly treats fragmented discovery as an amplifier rather than proven root cause."
+      ],
+      "unsupported_claims_excluded": [
+        "The transcript's retrospective private-thought reconstruction is not used as causal evidence.",
+        "No claim is made that every schema discovery call is a route violation; the defect is the undeclared/repeated detour after the direct-execution promise."
+      ],
+      "provenance_status": "direct_raw_transcript_plus_analysis"
+    },
+    {
+      "id": "task-anchor-route-persistence-2026-08-23",
+      "date": "2026-08-23",
+      "classes": ["failed_route_persistence", "task_anchor_loss", "acceptance_condition_displacement"],
+      "source_report": "01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md",
+      "supporting_evidence": "02 Evidence/incident_2026-08-23_1040_EEST_tool_sequence.txt",
+      "first_wrong_substantive_move": "After repeated contradictory retrieval attempts and then a successful bounded parser, the assistant displaced the requested same-hour MCP-behavior comparison into Git/project throughput queries.",
+      "correct_next_substantive_action": "After the successful parser, compute/report only the requested behavioral metrics; after two contradictory same-route retrievals, freeze that route and switch once.",
+      "decisive_evidence": [
+        "Audit sequence records four grep calls at 07:28:01, 07:28:10, 07:28:16, and 07:28:22 UTC with no useful matches.",
+        "The bounded parser succeeds at 07:28:57 UTC, followed by unrelated project-history/throughput commands from 07:29:10 through 07:30:11 UTC.",
+        "A second four-call actor_status repetition at 07:40:50-07:41:00 UTC is grouped as recurrence of the same route-persistence mechanism, not a separate incident."
+      ],
+      "unsupported_claims_excluded": [
+        "The user's approximately 17-minute wrong-task attribution is not promoted to independently verified timing.",
+        "The report's proposed psychological pressures are not treated as observed causal facts.",
+        "No full immutable chat transcript is claimed; natural-language ordering beyond preserved current-chat evidence remains pending."
+      ],
+      "provenance_status": "primary_audit_sequence_plus_report_partial_chat_capture"
+    }
+  ],
+  "coverage_notes": [
+    "No separate August 20 incident meeting this issue's MCP/tool-routing criteria is preserved with enough direct provenance to normalize without guessing.",
+    "The August 21 Brave/ChatPort scope-expansion report is related correction-binding evidence but is not double-counted as an MCP-routing incident; its direct raw transcript belongs to the route-correction case above, while the separate scope report has no matching preserved raw transcript.",
+    "No preserved source was found that directly establishes a screenshot/file-moving detour as an independent August 20-23 incident. The index leaves that requested category unpopulated rather than manufacturing a case."
+  ]
+}
