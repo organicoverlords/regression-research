@@ -10,6 +10,12 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- Added the read-only `tools/memory_report.py` workflow for bounded WebGPT reports/status over canonical memory/provenance files, with deterministic SHA-256 receipts, path confinement, a hard 6,000-character output cap, no MCP tools, and no download/import work (#34).
+
+- Added an executable paired visual-proof regression that rejects metadata-as-proof,
+  unnecessary transport expansion, and narrative-fitted screenshots while requiring direct
+  current-artifact inspection and dated descriptive reviewed names (#8).
+
 - An observed-incident-only regression taxonomy and coverage matrix distinguish
   eight mechanisms, link each row to preserved reports/fixtures and positive
   controls, and mark the pending task-anchor capture as a research gap (#6).
