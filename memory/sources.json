@@ -122,6 +122,24 @@
       "availability": "available"
     },
     {
+      "id": "local-shared-agent-policy",
+      "location": "local/.agents/SHARED-AGENT-POLICY.md",
+      "class": "LIVE_CANONICAL",
+      "scope": "global",
+      "freshness": "local-current-generator-source",
+      "availability": "available",
+      "role": "canonical shared policy source propagated into repository AGENTS.md files"
+    },
+    {
+      "id": "repo-agents-md",
+      "location": "project-repo/AGENTS.md",
+      "class": "LIVE_CANONICAL",
+      "scope": "project",
+      "freshness": "repo-current",
+      "availability": "available",
+      "role": "repo-local operating policy; shared generated block plus repo-specific sections"
+    },
+    {
       "id": "local-agents",
       "location": "local/.agents",
       "class": "HISTORICAL_CONTEXT",
@@ -151,7 +169,9 @@
       "class": "HISTORICAL_CONTEXT",
       "scope": "global",
       "freshness": "historical",
-      "availability": "unknown"
+      "availability": "available",
+      "observed_file_count": 1,
+      "observed_at": "2026-08-25T12:41:00+03:00"
     },
     {
       "id": "chatgpt-personal-context",
