@@ -26,6 +26,7 @@ if ($fixtureFiles.Count -eq 0) {
 $ids = @{}
 $sourceRefs = @{}
 $errors = New-Object System.Collections.Generic.List[string]
+$replayReadyCount = 0
 
 foreach ($file in $fixtureFiles) {
     try {
@@ -36,7 +37,17 @@ foreach ($file in $fixtureFiles) {
         continue
     }
 
-    foreach ($name in $requiredTopLevel) {
+    $isPending = (($fixture.PSObject.Properties.Name -contains 'replay_ready') -and (-not [bool]$fixture.replay_ready)) -or
+        (($fixture.PSObject.Properties.Name -contains 'capture_state') -and ([string]$fixture.capture_state -eq 'pending'))
+    $requiredFields = if ($isPending) {
+        @('id', 'title', 'source_report', 'incident_class', 'fixture_state', 'replay_ready', 'capture_state')
+    }
+    else {
+        $replayReadyCount++
+        $requiredTopLevel
+    }
+
+    foreach ($name in $requiredFields) {
         if (-not ($fixture.PSObject.Properties.Name -contains $name)) {
             $errors.Add("$($file.Name): missing '$name'")
         }
@@ -59,6 +70,10 @@ foreach ($file in $fixtureFiles) {
     }
     else {
         $sourceRefs[$sourceReport] = $true
+    }
+
+    if ($isPending) {
+        continue
     }
 
     foreach ($arrayName in @('live_state', 'protected_state', 'hard_exclusions', 'discriminating_evidence')) {
@@ -115,4 +130,4 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-Write-Output ("PASS: {0} replay fixtures validated; {1} unique ids; {2}/{2} incident reports covered." -f $fixtureFiles.Count, $ids.Count, $reportFiles.Count)
+Write-Output ("PASS: {0} fixture records validated ({1} replay-ready, {2} pending); {3} unique ids; {4}/{4} incident reports covered." -f $fixtureFiles.Count, $replayReadyCount, ($fixtureFiles.Count - $replayReadyCount), $ids.Count, $reportFiles.Count)
