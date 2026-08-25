@@ -1,0 +1,6 @@
+day,mcp_calls_total,mcp_calls_source,slow_reads_ge_9s,slow_reads_source,health_probes,merges,default_commits,merges_per_1k_calls,commits_per_1k_calls
+2026-08-21,,missing,0,issue28_snapshot,,,,,
+2026-08-22,,missing,0,issue28_snapshot,,,,,
+2026-08-23,5219,live_telemetry,0,live_telemetry,14437,95,224,18.227,42.978
+2026-08-24,14960,live_telemetry,4,live_telemetry,29654,49,98,3.275,6.551
+2026-08-25,4579,live_telemetry,107,live_telemetry,29184,6,23,1.497,5.74

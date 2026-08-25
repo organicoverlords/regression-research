@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 ### Added
 
+- Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
+
 - Added a dated normalized MCP/tool-routing incident index for August 20–23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
 
 - Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).

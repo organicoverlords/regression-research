@@ -1,0 +1,4590 @@
+{
+  "checksum": "9c5fef7304adf43d190d3b29f44d9c063688c8ef0fbe007489ae8dd143afc595",
+  "day_metrics": {
+    "2026-08-21": {
+      "health_probes": null,
+      "mcp_calls_source": "missing",
+      "mcp_calls_total": null,
+      "slow_reads_ge_9s": 0,
+      "slow_reads_source": "issue28_snapshot"
+    },
+    "2026-08-22": {
+      "health_probes": null,
+      "mcp_calls_source": "missing",
+      "mcp_calls_total": null,
+      "slow_reads_ge_9s": 0,
+      "slow_reads_source": "issue28_snapshot"
+    },
+    "2026-08-23": {
+      "health_probes": 14437,
+      "mcp_calls_source": "live_telemetry",
+      "mcp_calls_total": 5219,
+      "slow_reads_ge_9s": 0,
+      "slow_reads_source": "live_telemetry"
+    },
+    "2026-08-24": {
+      "health_probes": 29654,
+      "mcp_calls_source": "live_telemetry",
+      "mcp_calls_total": 14960,
+      "slow_reads_ge_9s": 4,
+      "slow_reads_source": "live_telemetry"
+    },
+    "2026-08-25": {
+      "health_probes": 29184,
+      "mcp_calls_source": "live_telemetry",
+      "mcp_calls_total": 4579,
+      "slow_reads_ge_9s": 107,
+      "slow_reads_source": "live_telemetry"
+    }
+  },
+  "generated_at": "2026-08-25T17:36:03.110253+00:00",
+  "outcome_join": {
+    "2026-08-23": {
+      "commits_per_1k_calls": 42.978,
+      "default_commits": 224,
+      "mcp_calls": 5212,
+      "merges": 95,
+      "merges_per_1k_calls": 18.227,
+      "source": "issue28_followup_comment_2026-08-25"
+    },
+    "2026-08-24": {
+      "commits_per_1k_calls": 6.551,
+      "default_commits": 98,
+      "mcp_calls": 14960,
+      "merges": 49,
+      "merges_per_1k_calls": 3.275,
+      "source": "issue28_followup_comment_2026-08-25"
+    },
+    "2026-08-25": {
+      "commits_per_1k_calls": 5.74,
+      "default_commits": 23,
+      "mcp_calls": 4007,
+      "merges": 6,
+      "merges_per_1k_calls": 1.497,
+      "source": "issue28_followup_comment_2026-08-25"
+    }
+  },
+  "pr_join": {
+    "captured_at": "2026-08-25T17:36:03.110253+00:00",
+    "rows": [
+      {
+        "fetched": 200,
+        "in_window": 200,
+        "prs": [
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T17:14:28Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 551,
+            "state": "OPEN",
+            "title": "fix: surface disk build admission before expensive work (#33)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T17:14:35Z",
+            "createdAt": "2026-08-25T15:23:01Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 550,
+            "state": "CLOSED",
+            "title": "fix: surface build admission blockers as first-class diagnostic (regression-research#33)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T14:57:06Z",
+            "createdAt": "2026-08-25T14:56:20Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 549,
+            "state": "CLOSED",
+            "title": "Consolidate readable primary weapon and projectile presentation (#456)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T15:01:13Z",
+            "createdAt": "2026-08-25T14:54:55Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T15:01:13Z",
+            "number": 548,
+            "state": "MERGED",
+            "title": "Expose changelog on GitHub landing and enforce synchronization"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T13:32:25Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 547,
+            "state": "OPEN",
+            "title": "Fail fast on Unreal Build.bat lock congestion"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T12:44:00Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 545,
+            "state": "OPEN",
+            "title": "Use role-specific combat impact VFX (#415)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T11:55:30Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 543,
+            "state": "OPEN",
+            "title": "Replicate authoritative environment state on current main (#512)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T11:18:13Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 542,
+            "state": "OPEN",
+            "title": "Make Lane War combat impacts audible"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T11:11:18Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 541,
+            "state": "OPEN",
+            "title": "Fail closed on overflowing aggregate build costs (#500)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T11:02:57Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 540,
+            "state": "OPEN",
+            "title": "Lane War: make creeps react to tactical terrain (#206)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T11:01:59Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 539,
+            "state": "OPEN",
+            "title": "Restore atomic resource pickup credit (#20)"
+          },
+          {
+            "author": {
+              "is_bot": true,
+              "login": "app/github-actions"
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T10:59:14Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 538,
+            "state": "OPEN",
+            "title": "docs: update generated development history"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T10:52:32Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 537,
+            "state": "OPEN",
+            "title": "Fix Lane War roster respawn lifecycle (#205)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T10:45:03Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 536,
+            "state": "OPEN",
+            "title": "Lane War: bind qualified creep presentation path"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:51:36Z",
+            "createdAt": "2026-08-25T10:32:53Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T10:51:36Z",
+            "number": 535,
+            "state": "MERGED",
+            "title": "Consolidate Lane War slot reuse fix (#509)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:33:13Z",
+            "createdAt": "2026-08-25T10:31:50Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T10:33:12Z",
+            "number": 534,
+            "state": "MERGED",
+            "title": "P3: hash-bind qualified Tiny3D asset batches (#511)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:27:29Z",
+            "createdAt": "2026-08-25T03:45:55Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 527,
+            "state": "CLOSED",
+            "title": "Fix Lane War slot reuse after disconnect (#509)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T02:39:45Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 526,
+            "state": "OPEN",
+            "title": "Record verified Lane War environment bindings on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T22:49:32Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 524,
+            "state": "OPEN",
+            "title": "Make P3 build timeout progress-aware"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:45:04Z",
+            "createdAt": "2026-08-24T21:53:08Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 522,
+            "state": "CLOSED",
+            "title": "Record verified Lane War environment bindings on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T21:36:37Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 521,
+            "state": "OPEN",
+            "title": "Make gameplay sprint combat effects server authoritative"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:33:29Z",
+            "createdAt": "2026-08-24T21:21:22Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 520,
+            "state": "CLOSED",
+            "title": "Fix Lane War start-slot reuse after disconnect"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T21:40:37Z",
+            "createdAt": "2026-08-24T21:07:46Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T21:40:37Z",
+            "number": 519,
+            "state": "MERGED",
+            "title": "ci: separate p3 contract and build lanes"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:52:07Z",
+            "createdAt": "2026-08-24T21:05:14Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 518,
+            "state": "CLOSED",
+            "title": "Fix Lane War team slot reuse after disconnect"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T13:26:58Z",
+            "createdAt": "2026-08-24T20:56:56Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 516,
+            "state": "CLOSED",
+            "title": "Lane War: inventory reachable gameplay-sprint VFX"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T20:42:53Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 515,
+            "state": "OPEN",
+            "title": "Lane War: mirror opposing core facing"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:33:17Z",
+            "createdAt": "2026-08-24T20:04:19Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 514,
+            "state": "CLOSED",
+            "title": "#511: serialize hash-keyed Tiny3D materialization batches"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T11:56:18Z",
+            "createdAt": "2026-08-24T20:02:29Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 513,
+            "state": "CLOSED",
+            "title": "Replicate authoritative environment state"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:33:31Z",
+            "createdAt": "2026-08-24T19:54:32Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 510,
+            "state": "CLOSED",
+            "title": "Lane War: reclaim start slot after disconnect"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T19:48:14Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 508,
+            "state": "OPEN",
+            "title": "V2 resource: make material-deposit bootstrap atomic"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T14:47:55Z",
+            "createdAt": "2026-08-24T19:06:44Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 507,
+            "state": "CLOSED",
+            "title": "Lane War: keep visual dressing non-blocking"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T18:58:59Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 506,
+            "state": "OPEN",
+            "title": "V2 resource: refresh atomic pickup credit on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T18:55:56Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 505,
+            "state": "OPEN",
+            "title": "V2 flight: stop simulated proxies running local flight solver"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T18:45:24Z",
+            "createdAt": "2026-08-24T18:43:10Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T18:45:24Z",
+            "number": 503,
+            "state": "MERGED",
+            "title": "Tiny3D executor: reuse unchanged jobs across manifest growth"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:36:47Z",
+            "createdAt": "2026-08-24T18:10:27Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 502,
+            "state": "CLOSED",
+            "title": "V2 resource: make pickup credit use fallible inventory transaction"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T12:47:33Z",
+            "createdAt": "2026-08-24T17:59:49Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 501,
+            "state": "CLOSED",
+            "title": "V2 resource: fail closed on overflowing aggregate costs"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:46:40Z",
+            "createdAt": "2026-08-24T17:42:01Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 498,
+            "state": "CLOSED",
+            "title": "Lane War: refresh creep presentation seam on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T17:12:36Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 497,
+            "state": "OPEN",
+            "title": "Guard combat routing by controller ownership"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T17:48:50Z",
+            "createdAt": "2026-08-24T17:02:12Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T17:48:50Z",
+            "number": 496,
+            "state": "MERGED",
+            "title": "V2 resource: refresh atomic harvest credit on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:50:30Z",
+            "createdAt": "2026-08-24T16:44:04Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 495,
+            "state": "CLOSED",
+            "title": "Gameplay sprint: route gameplay effects through server authority"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T16:18:21Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 493,
+            "state": "OPEN",
+            "title": "V2-04B: abort healthless tower-defense spawns atomically"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T16:16:45Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 492,
+            "state": "OPEN",
+            "title": "Lane War: prevent friendly creep contact damage"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T15:57:38Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 491,
+            "state": "OPEN",
+            "title": "Tower Defense: keep flying-enemy route offset server authoritative"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T17:47:09Z",
+            "createdAt": "2026-08-24T15:15:24Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 490,
+            "state": "CLOSED",
+            "title": "Lane War: replicate creep presentation assets"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T15:12:21Z",
+            "createdAt": "2026-08-24T15:10:31Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T15:12:21Z",
+            "number": 489,
+            "state": "MERGED",
+            "title": "ci: gate PR C++ changes through canonical build"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T15:21:08Z",
+            "createdAt": "2026-08-24T15:09:09Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T15:21:08Z",
+            "number": 488,
+            "state": "MERGED",
+            "title": "P3: fold configurable primary-weapon mesh binding into #466"
+          },
+          {
+            "author": {
+              "is_bot": true,
+              "login": "app/github-actions"
+            },
+            "closedAt": "2026-08-25T10:53:39Z",
+            "createdAt": "2026-08-24T15:00:16Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T10:53:39Z",
+            "number": 487,
+            "state": "MERGED",
+            "title": "docs: update generated development history"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T14:49:50Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 486,
+            "state": "OPEN",
+            "title": "GPT-1: reject non-finite max-health inputs"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T14:14:52Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 483,
+            "state": "OPEN",
+            "title": "V2-07: retire survival world debug overlays"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T12:11:55Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 482,
+            "state": "OPEN",
+            "title": "Worker 4: materialize Chain Lightning presentation in source"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T10:57:31Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 481,
+            "state": "OPEN",
+            "title": "V2-03A: refresh authored animation socket contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T11:18:27Z",
+            "createdAt": "2026-08-24T10:06:19Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 480,
+            "state": "CLOSED",
+            "title": "Gameplay audio presentation cue router"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T14:06:02Z",
+            "createdAt": "2026-08-24T10:02:51Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 479,
+            "state": "CLOSED",
+            "title": "Add data-driven gameplay audio cue contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T09:52:01Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 478,
+            "state": "OPEN",
+            "title": "Runtime ownership: reload receipt before destructive reap"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T16:53:27Z",
+            "createdAt": "2026-08-24T09:45:32Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T16:53:27Z",
+            "number": 477,
+            "state": "MERGED",
+            "title": "Lane War: refresh production core presentation on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T09:01:42Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 476,
+            "state": "OPEN",
+            "title": "Worker 3: prevent cross-controller bird pawn reuse"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T08:18:20Z",
+            "createdAt": "2026-08-24T08:16:23Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 474,
+            "state": "CLOSED",
+            "title": "GPT-4: refresh Lane War core production binding"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T10:46:38Z",
+            "createdAt": "2026-08-24T08:15:15Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 473,
+            "state": "CLOSED",
+            "title": "Lane War: pin qualified Tiny3D creep handoff"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:59:51Z",
+            "createdAt": "2026-08-24T08:14:04Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:59:51Z",
+            "number": 472,
+            "state": "MERGED",
+            "title": "V2 resource: preserve pickups on inventory overflow"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T07:52:05Z",
+            "createdAt": "2026-08-24T07:48:36Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 471,
+            "state": "CLOSED",
+            "title": "V2-04B: ignore defeated construction in creep targeting"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T12:39:22Z",
+            "createdAt": "2026-08-24T07:46:23Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 470,
+            "state": "CLOSED",
+            "title": "Fix Lane War roster respawn lifecycle"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T15:02:33Z",
+            "createdAt": "2026-08-24T07:26:19Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T15:02:33Z",
+            "number": 469,
+            "state": "MERGED",
+            "title": "P3-394: reject runtime PASS without rendered proof"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T07:23:08Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 468,
+            "state": "OPEN",
+            "title": "V2-04B: stop destroyed defense towers firing"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T07:00:09Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 467,
+            "state": "OPEN",
+            "title": "GPT-5: harden Chain Lightning proof materializer"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T06:52:28Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 466,
+            "state": "OPEN",
+            "title": "P3: consolidate primary weapon + projectile presentation"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:29:48Z",
+            "createdAt": "2026-08-24T06:18:37Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:29:48Z",
+            "number": 465,
+            "state": "MERGED",
+            "title": "feat: add cross-repo asset proof contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T06:05:28Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 464,
+            "state": "OPEN",
+            "title": "V2 resource: reconcile atomic harvest credit on current main"
+          },
+          {
+            "author": {
+              "is_bot": true,
+              "login": "app/github-actions"
+            },
+            "closedAt": "2026-08-24T14:50:28Z",
+            "createdAt": "2026-08-24T05:50:14Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:50:28Z",
+            "number": 463,
+            "state": "MERGED",
+            "title": "docs: update generated development history"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T05:33:11Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 462,
+            "state": "OPEN",
+            "title": "P3: route weapon polish build gate through canonical wrapper"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T06:08:12Z",
+            "createdAt": "2026-08-24T04:57:25Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 461,
+            "state": "CLOSED",
+            "title": "V2 resource: make harvest credit atomic"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T12:16:03Z",
+            "createdAt": "2026-08-24T04:08:55Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 460,
+            "state": "CLOSED",
+            "title": "GPT-3: materialize Chain Lightning presentation contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T04:01:24Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 459,
+            "state": "OPEN",
+            "title": "V2 flight: preserve authored animation state on failed swap"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T00:10:01Z",
+            "createdAt": "2026-08-24T00:01:46Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T00:10:01Z",
+            "number": 455,
+            "state": "MERGED",
+            "title": "fix: parse runtime receipts locale-safely"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T23:58:58Z",
+            "createdAt": "2026-08-23T23:20:31Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T23:58:58Z",
+            "number": 452,
+            "state": "MERGED",
+            "title": "fix: allow bounded cold unattended startup"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T21:12:20Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 451,
+            "state": "OPEN",
+            "title": "GPT-5: #415 Chain Lightning build proof recovery"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T00:01:12Z",
+            "createdAt": "2026-08-23T20:53:52Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T00:01:12Z",
+            "number": 450,
+            "state": "MERGED",
+            "title": "GPT-4: reject reviewed visual proof from the wrong map"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T02:48:37Z",
+            "createdAt": "2026-08-23T20:45:53Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T02:48:37Z",
+            "number": 449,
+            "state": "MERGED",
+            "title": "test: pin canonical Macaw flight/landing bindings"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T05:49:07Z",
+            "createdAt": "2026-08-23T20:13:55Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T05:49:07Z",
+            "number": 445,
+            "state": "MERGED",
+            "title": "Reject uncooked runtime-navigation executables"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T10:58:00Z",
+            "createdAt": "2026-08-23T18:53:02Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 443,
+            "state": "CLOSED",
+            "title": "V2-03A: validate authored animation-profile sockets"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T18:26:16Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 442,
+            "state": "OPEN",
+            "title": "GPT-4: retire defense HUD actor-scan fallback"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T17:41:22Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 441,
+            "state": "OPEN",
+            "title": "Asylum: remove player-facing diagnostic overlays"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:41:50Z",
+            "createdAt": "2026-08-23T16:37:15Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T16:41:50Z",
+            "number": 439,
+            "state": "MERGED",
+            "title": "fix: fail fast when the deployed bridge predates health_check"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:26:09Z",
+            "createdAt": "2026-08-23T16:25:59Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T16:26:09Z",
+            "number": 438,
+            "state": "MERGED",
+            "title": "Hydrate explicit runtime startup packages"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:22:40Z",
+            "createdAt": "2026-08-23T16:22:29Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T16:22:39Z",
+            "number": 437,
+            "state": "MERGED",
+            "title": "Wait for runtime-navigation Game process"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:19:44Z",
+            "createdAt": "2026-08-23T16:19:33Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T16:19:44Z",
+            "number": 436,
+            "state": "MERGED",
+            "title": "Expose runtime-navigation startup output"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:12:42Z",
+            "createdAt": "2026-08-23T16:12:30Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T16:12:42Z",
+            "number": 435,
+            "state": "MERGED",
+            "title": "Harden runtime-navigation recovery lane selection"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:10:02Z",
+            "createdAt": "2026-08-23T16:09:51Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T16:10:02Z",
+            "number": 434,
+            "state": "MERGED",
+            "title": "Fix detached worktree handling in runtime navigation verifier"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T08:15:33Z",
+            "createdAt": "2026-08-23T16:09:06Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 433,
+            "state": "CLOSED",
+            "title": "feat: make Lane War creep asset gap explicit"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T15:53:12Z",
+            "createdAt": "2026-08-23T15:50:51Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T15:53:12Z",
+            "number": 432,
+            "state": "MERGED",
+            "title": "fix: make abandoned worker-owned Unreal runtimes reapable"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T16:09:13Z",
+            "createdAt": "2026-08-23T15:14:14Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 430,
+            "state": "CLOSED",
+            "title": "feat: make Lane War creep asset gap explicit"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T09:47:33Z",
+            "createdAt": "2026-08-23T15:13:06Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 429,
+            "state": "CLOSED",
+            "title": "Lane War: bind production core presentation"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T15:11:43Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 428,
+            "state": "OPEN",
+            "title": "Inspect preserved Tiny3D VFX proof lane"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T15:08:13Z",
+            "createdAt": "2026-08-23T15:08:00Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T15:08:13Z",
+            "number": 427,
+            "state": "MERGED",
+            "title": "fix: bound asset quality review queue"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T21:53:15Z",
+            "createdAt": "2026-08-23T15:06:37Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 426,
+            "state": "CLOSED",
+            "title": "feat: record verified Lane War environment bindings"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T02:47:05Z",
+            "createdAt": "2026-08-23T15:02:42Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T02:47:05Z",
+            "number": 425,
+            "state": "MERGED",
+            "title": "Execute Tiny3D qualification jobs in P3"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T14:55:24Z",
+            "createdAt": "2026-08-23T14:55:03Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T14:55:24Z",
+            "number": 424,
+            "state": "MERGED",
+            "title": "Separate asset quality from pipeline state"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T15:17:37Z",
+            "createdAt": "2026-08-23T14:28:43Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T15:17:37Z",
+            "number": 422,
+            "state": "MERGED",
+            "title": "build: prevent concurrent UBA CAS contention"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T14:22:36Z",
+            "createdAt": "2026-08-23T14:21:55Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T14:22:36Z",
+            "number": 421,
+            "state": "MERGED",
+            "title": "Classify UBA storage contention as a retryable build-route failure"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T15:39:09Z",
+            "createdAt": "2026-08-23T14:00:11Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T15:39:09Z",
+            "number": 417,
+            "state": "MERGED",
+            "title": "fix: converge pending client registrations regardless of retry order"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:46:45Z",
+            "createdAt": "2026-08-23T13:41:28Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:46:45Z",
+            "number": 412,
+            "state": "MERGED",
+            "title": "fix: stop the resource hygiene suite depending on whether an editor is open"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:40:04Z",
+            "createdAt": "2026-08-23T13:39:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:40:04Z",
+            "number": 411,
+            "state": "MERGED",
+            "title": "policy: repair generated block UTF-8"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:37:42Z",
+            "createdAt": "2026-08-23T13:32:37Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:37:42Z",
+            "number": 410,
+            "state": "MERGED",
+            "title": "policy: sync canonical shared agent block"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:33:00Z",
+            "createdAt": "2026-08-23T13:22:47Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:33:00Z",
+            "number": 408,
+            "state": "MERGED",
+            "title": "fix: give lane reclaim a cache-only path that can actually fire"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:20:01Z",
+            "createdAt": "2026-08-23T13:19:46Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:20:01Z",
+            "number": 407,
+            "state": "MERGED",
+            "title": "fix: remove V2 forward-shading light conflict"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:14:01Z",
+            "createdAt": "2026-08-23T13:13:15Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:14:01Z",
+            "number": 405,
+            "state": "MERGED",
+            "title": "fix: prevent unattended Unreal GUI launches"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:48:21Z",
+            "createdAt": "2026-08-23T12:47:58Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:48:21Z",
+            "number": 404,
+            "state": "MERGED",
+            "title": "fix: reconcile the three broken ziggy milestone receipts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:43:41Z",
+            "createdAt": "2026-08-23T12:40:18Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:43:41Z",
+            "number": 403,
+            "state": "MERGED",
+            "title": "docs: put the lane rules where workers actually read them"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:21:00Z",
+            "createdAt": "2026-08-23T12:19:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:21:00Z",
+            "number": 402,
+            "state": "MERGED",
+            "title": "fix: activate Lane War state and HUD in PIE"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:55:28Z",
+            "createdAt": "2026-08-23T11:55:04Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:55:28Z",
+            "number": 401,
+            "state": "MERGED",
+            "title": "fix: verify milestone receipts against canonical content"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:48:49Z",
+            "createdAt": "2026-08-23T11:46:19Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:48:49Z",
+            "number": 399,
+            "state": "MERGED",
+            "title": "ci: stop the policy gate failing on its own timeout"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:46:25Z",
+            "createdAt": "2026-08-23T11:46:07Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:46:25Z",
+            "number": 398,
+            "state": "MERGED",
+            "title": "proof: record V2 PIE visual state"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:38:41Z",
+            "createdAt": "2026-08-23T11:27:48Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:38:41Z",
+            "number": 397,
+            "state": "MERGED",
+            "title": "build: create lanes that do not fill the volume"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:24:34Z",
+            "createdAt": "2026-08-23T11:14:09Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 396,
+            "state": "CLOSED",
+            "title": "build: create lanes that do not fill the volume"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:38:48Z",
+            "createdAt": "2026-08-23T11:08:10Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:38:48Z",
+            "number": 395,
+            "state": "MERGED",
+            "title": "proof: preserve Lane War 1v1 host/client rendered evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:24:32Z",
+            "createdAt": "2026-08-23T10:59:59Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:24:32Z",
+            "number": 393,
+            "state": "MERGED",
+            "title": "build: refuse builds that would exhaust the volume"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T10:49:17Z",
+            "createdAt": "2026-08-23T10:44:50Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T10:49:17Z",
+            "number": 392,
+            "state": "MERGED",
+            "title": "proof: reject empty-scene frames as milestone visual proof"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T08:52:33Z",
+            "createdAt": "2026-08-23T08:52:16Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T08:52:33Z",
+            "number": 390,
+            "state": "MERGED",
+            "title": "Fix dispatcher policy provenance scope"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:41:31Z",
+            "createdAt": "2026-08-23T08:04:33Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:41:31Z",
+            "number": 389,
+            "state": "MERGED",
+            "title": "V2-04B: roll back partial wave spawns atomically"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T22:23:30Z",
+            "createdAt": "2026-08-23T07:37:42Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T22:23:30Z",
+            "number": 388,
+            "state": "MERGED",
+            "title": "survival: clear defeated transient state for every player"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T07:29:14Z",
+            "createdAt": "2026-08-23T07:25:54Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T07:29:14Z",
+            "number": 387,
+            "state": "MERGED",
+            "title": "Make P3 build admission resource-aware"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T07:05:10Z",
+            "createdAt": "2026-08-23T07:04:24Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T07:05:10Z",
+            "number": 386,
+            "state": "MERGED",
+            "title": "Proof: publish reviewed visual evidence aliases"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T06:57:42Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 384,
+            "state": "OPEN",
+            "title": "GPT-4: cache survival HUD environment director"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:50:20Z",
+            "createdAt": "2026-08-23T06:47:29Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:50:20Z",
+            "number": 383,
+            "state": "MERGED",
+            "title": "Make warm P3 worktrees a shared pool"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:39:20Z",
+            "createdAt": "2026-08-23T06:38:58Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:39:20Z",
+            "number": 382,
+            "state": "MERGED",
+            "title": "survival: isolate player runtime state per controller"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:30:54Z",
+            "createdAt": "2026-08-23T06:30:47Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:30:54Z",
+            "number": 381,
+            "state": "MERGED",
+            "title": "proof: harden current visual capture integrity"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T06:22:48Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 380,
+            "state": "OPEN",
+            "title": "Lane War: make creeps react to tactical terrain"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:47:16Z",
+            "createdAt": "2026-08-23T06:18:48Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:47:16Z",
+            "number": 379,
+            "state": "MERGED",
+            "title": "proof: wait for editor-ready bridge health before unattended READY"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T04:57:16Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 378,
+            "state": "OPEN",
+            "title": "GPT-4: repair replicated construction client registry"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:31:32Z",
+            "createdAt": "2026-08-23T04:30:55Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:31:32Z",
+            "number": 377,
+            "state": "MERGED",
+            "title": "Add UE-native visual evidence pipeline"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:12:38Z",
+            "createdAt": "2026-08-23T04:08:00Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:12:38Z",
+            "number": 376,
+            "state": "MERGED",
+            "title": "Integrate Tiny3D Birch wind into V2 production world"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T03:58:01Z",
+            "createdAt": "2026-08-23T03:57:36Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T03:58:01Z",
+            "number": 375,
+            "state": "MERGED",
+            "title": "Install canonical Fennec presentation in Lane War"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T03:55:59Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 374,
+            "state": "OPEN",
+            "title": "V2 inventory HUD PlayerState rebind"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T03:43:06Z",
+            "createdAt": "2026-08-23T03:43:04Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T03:43:06Z",
+            "number": 373,
+            "state": "MERGED",
+            "title": "Reject uncapped visual proof runtimes"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T03:40:26Z",
+            "createdAt": "2026-08-23T03:40:24Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T03:40:26Z",
+            "number": 372,
+            "state": "MERGED",
+            "title": "Enforce FPS cap on worker Unreal launches"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T03:36:45Z",
+            "createdAt": "2026-08-23T03:36:17Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T03:36:45Z",
+            "number": 371,
+            "state": "MERGED",
+            "title": "survival: handle enemy contact for every player"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:04:06Z",
+            "createdAt": "2026-08-23T03:22:09Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:04:06Z",
+            "number": 370,
+            "state": "MERGED",
+            "title": "Converge V2 production-world runtime actors"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T03:15:52Z",
+            "createdAt": "2026-08-23T03:15:22Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T03:15:52Z",
+            "number": 369,
+            "state": "MERGED",
+            "title": "test: prove survival replication across clients"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T03:56:15Z",
+            "createdAt": "2026-08-23T02:55:13Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 368,
+            "state": "CLOSED",
+            "title": "V2 inventory HUD: rebind on PlayerState replacement (current-main reconciliation)"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T02:37:35Z",
+            "createdAt": "2026-08-23T02:37:22Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T02:37:35Z",
+            "number": 367,
+            "state": "MERGED",
+            "title": "GPT-1: remove first-controller sprint attachment authority"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T02:18:32Z",
+            "createdAt": "2026-08-23T02:18:16Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T02:18:31Z",
+            "number": 366,
+            "state": "MERGED",
+            "title": "Add one-shot required asset catalog runner"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T02:11:43Z",
+            "createdAt": "2026-08-23T02:11:23Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T02:11:43Z",
+            "number": 365,
+            "state": "MERGED",
+            "title": "Catalog binary P3 3D dependencies via Asset Registry"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T02:55:24Z",
+            "createdAt": "2026-08-23T01:55:41Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 364,
+            "state": "CLOSED",
+            "title": "GPT-4: rebind inventory HUD after PlayerState replacement"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T01:55:45Z",
+            "createdAt": "2026-08-23T01:55:06Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 363,
+            "state": "CLOSED",
+            "title": "GPT-4: rebind inventory HUD after PlayerState replacement"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T01:36:20Z",
+            "createdAt": "2026-08-23T01:36:07Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T01:36:20Z",
+            "number": 361,
+            "state": "MERGED",
+            "title": "Fix authoritative inventory restore path"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T01:54:46Z",
+            "createdAt": "2026-08-23T01:21:31Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T01:54:46Z",
+            "number": 360,
+            "state": "MERGED",
+            "title": "GPT-3: make production-world reruns converge on World Partition"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T01:06:57Z",
+            "createdAt": "2026-08-23T01:06:50Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T01:06:57Z",
+            "number": 359,
+            "state": "MERGED",
+            "title": "flight: prove and fix owning-client replication"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:31:23Z",
+            "createdAt": "2026-08-23T00:54:41Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 358,
+            "state": "CLOSED",
+            "title": "proof: harden visual capture integrity and timeouts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T00:43:57Z",
+            "createdAt": "2026-08-23T00:43:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T00:43:57Z",
+            "number": 357,
+            "state": "MERGED",
+            "title": "Add deterministic P3 catalog refresh contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T00:32:05Z",
+            "createdAt": "2026-08-23T00:31:49Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T00:32:05Z",
+            "number": 356,
+            "state": "MERGED",
+            "title": "Catalog production-world Python mesh dependencies"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T01:21:36Z",
+            "createdAt": "2026-08-23T00:26:55Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 355,
+            "state": "CLOSED",
+            "title": "GPT-3: make V2 production-world reruns converge"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T01:12:02Z",
+            "createdAt": "2026-08-22T23:56:53Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T01:12:01Z",
+            "number": 354,
+            "state": "MERGED",
+            "title": "GPT-4: add authoritative construction support graph"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T23:32:06Z",
+            "createdAt": "2026-08-22T23:31:45Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T23:32:06Z",
+            "number": 353,
+            "state": "MERGED",
+            "title": "V2-03C: integrate partitioned PCG dressing into production world"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T23:34:58Z",
+            "createdAt": "2026-08-22T23:30:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T23:34:58Z",
+            "number": 352,
+            "state": "MERGED",
+            "title": "Derive required P3 3D asset catalog"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T23:17:12Z",
+            "createdAt": "2026-08-22T23:16:52Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T23:17:12Z",
+            "number": 351,
+            "state": "MERGED",
+            "title": "feat(world): add partition-aware PCG dressing sample"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T23:01:22Z",
+            "createdAt": "2026-08-22T23:00:54Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T23:01:22Z",
+            "number": 350,
+            "state": "MERGED",
+            "title": "Test roster selection across respawn"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:46:50Z",
+            "createdAt": "2026-08-22T22:50:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:46:50Z",
+            "number": 349,
+            "state": "MERGED",
+            "title": "flight: add V2 runtime host pawn"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T22:10:59Z",
+            "createdAt": "2026-08-22T22:10:39Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T22:10:59Z",
+            "number": 348,
+            "state": "MERGED",
+            "title": "Consume Tiny3D static handoffs in P3"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T23:41:38Z",
+            "createdAt": "2026-08-22T21:57:58Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T23:41:38Z",
+            "number": 347,
+            "state": "MERGED",
+            "title": "GPT-4: make construction health/death authoritative"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T21:41:32Z",
+            "createdAt": "2026-08-22T21:41:11Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T21:41:32Z",
+            "number": 346,
+            "state": "MERGED",
+            "title": "Fix multiplayer humanoid runtime animation guard [GPT-1]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T21:17:34Z",
+            "createdAt": "2026-08-22T21:17:25Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T21:17:34Z",
+            "number": 345,
+            "state": "MERGED",
+            "title": "Unify offscreen visual proof capture"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T21:13:19Z",
+            "createdAt": "2026-08-22T21:12:50Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T21:13:19Z",
+            "number": 344,
+            "state": "MERGED",
+            "title": "Consume verified Tiny3D avian handoffs in P3"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T20:42:51Z",
+            "createdAt": "2026-08-22T20:42:35Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T20:42:51Z",
+            "number": 343,
+            "state": "MERGED",
+            "title": "Fix duplicate roster combat input routing [GPT-1]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T21:06:54Z",
+            "createdAt": "2026-08-22T20:28:03Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T21:06:54Z",
+            "number": 342,
+            "state": "MERGED",
+            "title": "Expose Fennec combat identity in roster HUD"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T20:13:44Z",
+            "createdAt": "2026-08-22T20:12:52Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T20:13:44Z",
+            "number": 341,
+            "state": "MERGED",
+            "title": "Keep scheduled P3 workers off the desktop"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T21:32:25Z",
+            "createdAt": "2026-08-22T20:11:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T21:32:25Z",
+            "number": 340,
+            "state": "MERGED",
+            "title": "flight: enforce runtime animation mode contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T19:43:21Z",
+            "createdAt": "2026-08-22T19:39:46Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T19:43:21Z",
+            "number": 339,
+            "state": "MERGED",
+            "title": "Reject unusable P3 milestone screenshots"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T19:34:41Z",
+            "createdAt": "2026-08-22T19:34:22Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 337,
+            "state": "CLOSED",
+            "title": "Fix worker editor preflight READY detection [GPT-1]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T19:33:54Z",
+            "createdAt": "2026-08-22T19:33:27Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T19:33:54Z",
+            "number": 336,
+            "state": "MERGED",
+            "title": "Harden KONE MCP transport staging"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T22:29:09Z",
+            "createdAt": "2026-08-22T19:22:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T22:29:09Z",
+            "number": 335,
+            "state": "MERGED",
+            "title": "world: integrate semantic environment into V2 production map"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T23:16:59Z",
+            "createdAt": "2026-08-22T19:16:59Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 334,
+            "state": "CLOSED",
+            "title": "feat(world): add partition-aware PCG dressing sample"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T21:55:12Z",
+            "createdAt": "2026-08-22T19:04:06Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T21:55:12Z",
+            "number": 332,
+            "state": "MERGED",
+            "title": "GPT-4: make Lane War HUD core lookup deterministic"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T18:26:00Z",
+            "createdAt": "2026-08-22T18:25:39Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T18:26:00Z",
+            "number": 330,
+            "state": "MERGED",
+            "title": "Prove runtime construction rerouting and reopening"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T17:30:16Z",
+            "createdAt": "2026-08-22T17:30:04Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T17:30:16Z",
+            "number": 329,
+            "state": "MERGED",
+            "title": "docs: preserve ZiggyMar context slice"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T16:31:05Z",
+            "createdAt": "2026-08-22T16:30:52Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T16:31:05Z",
+            "number": 328,
+            "state": "MERGED",
+            "title": "docs: preserve ZiggyMar visual extension e"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T15:36:30Z",
+            "createdAt": "2026-08-22T15:35:52Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T15:36:30Z",
+            "number": 327,
+            "state": "MERGED",
+            "title": "docs: preserve ZiggyMar visible proof extension"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T14:34:05Z",
+            "createdAt": "2026-08-22T14:34:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T14:34:05Z",
+            "number": 326,
+            "state": "MERGED",
+            "title": "docs: preserve ZiggyMar visible extension proof"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T12:05:22Z",
+            "createdAt": "2026-08-22T12:04:57Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T12:05:22Z",
+            "number": 325,
+            "state": "MERGED",
+            "title": "test: record ZiggyMar visible editor proof"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T10:54:42Z",
+            "createdAt": "2026-08-22T10:53:39Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T10:54:42Z",
+            "number": 324,
+            "state": "MERGED",
+            "title": "Fix production melee runtime acceptance"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T10:51:01Z",
+            "createdAt": "2026-08-22T10:50:28Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T10:51:01Z",
+            "number": 323,
+            "state": "MERGED",
+            "title": "Harden unattended editor readiness"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T10:32:15Z",
+            "createdAt": "2026-08-22T10:29:56Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T10:32:15Z",
+            "number": 317,
+            "state": "MERGED",
+            "title": "Make local tooling and bounded Unreal launches authoritative"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T10:09:45Z",
+            "createdAt": "2026-08-22T10:09:12Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T10:09:45Z",
+            "number": 314,
+            "state": "MERGED",
+            "title": "Fix stale LFS error expectations"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T09:57:10Z",
+            "createdAt": "2026-08-22T09:56:57Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T09:57:10Z",
+            "number": 313,
+            "state": "MERGED",
+            "title": "Bound worker Unreal startup and build waits"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T09:50:36Z",
+            "createdAt": "2026-08-22T09:50:29Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T09:50:36Z",
+            "number": 310,
+            "state": "MERGED",
+            "title": "Default ZiggyMar bridge to isolated P3 port"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T09:35:16Z",
+            "createdAt": "2026-08-22T09:35:07Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T09:35:16Z",
+            "number": 309,
+            "state": "MERGED",
+            "title": "Integrate ZiggyMar Unreal MCP bridge for benchmarking"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T09:10:40Z",
+            "createdAt": "2026-08-22T09:10:31Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T09:10:40Z",
+            "number": 306,
+            "state": "MERGED",
+            "title": "Remove active lane wording from P3 authority"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T09:09:39Z",
+            "createdAt": "2026-08-22T09:09:29Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T09:09:38Z",
+            "number": 304,
+            "state": "MERGED",
+            "title": "Simplify coordination to BUSY-only collision control"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T09:05:34Z",
+            "createdAt": "2026-08-22T09:05:21Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T09:05:34Z",
+            "number": 302,
+            "state": "MERGED",
+            "title": "Restore BUSY-based issue orchestration"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T08:44:38Z",
+            "createdAt": "2026-08-22T08:44:21Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T08:44:38Z",
+            "number": 295,
+            "state": "MERGED",
+            "title": "Fix Lane War friendly-creep damage"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T10:45:29Z",
+            "createdAt": "2026-08-22T07:14:11Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T10:45:28Z",
+            "number": 294,
+            "state": "MERGED",
+            "title": "Polish Lane War core HUD hierarchy"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T07:11:19Z",
+            "createdAt": "2026-08-22T07:02:30Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T07:11:19Z",
+            "number": 293,
+            "state": "MERGED",
+            "title": "Fix V2 production world daylight"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T06:51:54Z",
+            "createdAt": "2026-08-22T06:50:50Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T06:51:53Z",
+            "number": 292,
+            "state": "MERGED",
+            "title": "Lane War: improve arena readability"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T06:52:58Z",
+            "createdAt": "2026-08-22T06:49:45Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T06:52:57Z",
+            "number": 291,
+            "state": "MERGED",
+            "title": "Lane War: enforce two-player match cap"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T06:49:24Z",
+            "createdAt": "2026-08-22T06:47:42Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T06:49:24Z",
+            "number": 290,
+            "state": "MERGED",
+            "title": "Constrain GameplayCue discovery to combat assets"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T06:52:29Z",
+            "createdAt": "2026-08-22T06:37:09Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T06:52:29Z",
+            "number": 289,
+            "state": "MERGED",
+            "title": "Lane War: make core health bars reflect actual health"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T06:36:14Z",
+            "createdAt": "2026-08-22T06:36:05Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T06:36:14Z",
+            "number": 288,
+            "state": "MERGED",
+            "title": "Fix owned PIE launcher path quoting"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T06:28:18Z",
+            "createdAt": "2026-08-22T06:28:06Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T06:28:18Z",
+            "number": 287,
+            "state": "MERGED",
+            "title": "Fix milestone capture evidence integrity"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T11:01:02Z",
+            "createdAt": "2026-08-22T06:15:26Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T11:01:02Z",
+            "number": 286,
+            "state": "MERGED",
+            "title": "Construction: reject duplicate semantic placement slots"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T05:09:12Z",
+            "createdAt": "2026-08-22T05:06:51Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T05:09:12Z",
+            "number": 285,
+            "state": "MERGED",
+            "title": "Require durable progress screenshot evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T03:51:30Z",
+            "createdAt": "2026-08-22T03:50:53Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T03:51:29Z",
+            "number": 284,
+            "state": "MERGED",
+            "title": "test: prove true Lane War 1v1 topology"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-22T02:28:57Z",
+            "createdAt": "2026-08-22T02:28:45Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-22T02:28:57Z",
+            "number": 283,
+            "state": "MERGED",
+            "title": "Fix multiplayer Earthworks undo authority"
+          }
+        ],
+        "repo": "organicoverlords/p3",
+        "status": "ok"
+      },
+      {
+        "fetched": 73,
+        "in_window": 73,
+        "prs": [
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T15:11:14Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 113,
+            "state": "OPEN",
+            "title": "Reconcile Survivor97 authored motion on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T15:01:21Z",
+            "createdAt": "2026-08-25T14:55:01Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T15:01:21Z",
+            "number": 112,
+            "state": "MERGED",
+            "title": "Expose changelog on GitHub landing and enforce synchronization"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-25T14:17:47Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 111,
+            "state": "OPEN",
+            "title": "Reconcile Survivor97 authored combat motion evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T12:12:40Z",
+            "createdAt": "2026-08-25T11:24:20Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T12:12:40Z",
+            "number": 109,
+            "state": "MERGED",
+            "title": "Reconcile Survivor97 stronger-contract evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T22:45:57Z",
+            "createdAt": "2026-08-24T22:41:46Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T22:45:57Z",
+            "number": 107,
+            "state": "MERGED",
+            "title": "Surface newest-150 adapter coverage in library views"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T22:27:06Z",
+            "createdAt": "2026-08-24T22:24:45Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T22:27:06Z",
+            "number": 106,
+            "state": "MERGED",
+            "title": "Integrate hash-indexed unified asset inventory on current main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T21:41:04Z",
+            "createdAt": "2026-08-24T21:29:54Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T21:41:04Z",
+            "number": 105,
+            "state": "MERGED",
+            "title": "Bind P3 materialization promotion to execution identity"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T22:29:02Z",
+            "createdAt": "2026-08-24T21:21:53Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 104,
+            "state": "CLOSED",
+            "title": "Add hash-indexed unified asset inventory"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T21:14:09Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 103,
+            "state": "OPEN",
+            "title": "Define role-qualified Tiny3D-to-P3 missions"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T22:29:00Z",
+            "createdAt": "2026-08-24T20:15:50Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 102,
+            "state": "CLOSED",
+            "title": "Unify Tiny3D asset inventory by content hash"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T19:16:03Z",
+            "createdAt": "2026-08-24T18:16:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T19:16:03Z",
+            "number": 100,
+            "state": "MERGED",
+            "title": "Fail closed on stale P3 materialization evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T17:14:31Z",
+            "createdAt": "2026-08-24T15:40:14Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T17:14:31Z",
+            "number": 99,
+            "state": "MERGED",
+            "title": "Report normalized newest-150 motion families"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:13:30Z",
+            "createdAt": "2026-08-24T14:09:16Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:13:30Z",
+            "number": 98,
+            "state": "MERGED",
+            "title": "Expose operational newest150 coverage filters"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T12:24:55Z",
+            "createdAt": "2026-08-24T12:18:12Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T12:24:55Z",
+            "number": 97,
+            "state": "MERGED",
+            "title": "Require verified materialization before library promotion"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T11:22:58Z",
+            "createdAt": "2026-08-24T11:16:27Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T11:22:58Z",
+            "number": 96,
+            "state": "MERGED",
+            "title": "Require exact P3 materialization identities"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T10:14:10Z",
+            "createdAt": "2026-08-24T10:11:21Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T10:14:10Z",
+            "number": 95,
+            "state": "MERGED",
+            "title": "Refresh selector-bound secondary-motion transfer"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T09:19:25Z",
+            "createdAt": "2026-08-24T09:16:40Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T09:19:25Z",
+            "number": 94,
+            "state": "MERGED",
+            "title": "TDD: operational filters for newest-150 coverage"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T08:28:00Z",
+            "createdAt": "2026-08-24T08:24:19Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T08:28:00Z",
+            "number": 92,
+            "state": "MERGED",
+            "title": "Fix structural-only newest-150 blocking gaps"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T10:14:22Z",
+            "createdAt": "2026-08-24T06:29:40Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 91,
+            "state": "CLOSED",
+            "title": "Bind secondary-motion selectors into P3 transfer"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T06:29:17Z",
+            "createdAt": "2026-08-24T06:18:34Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T06:29:17Z",
+            "number": 90,
+            "state": "MERGED",
+            "title": "feat: carry LowVRAM identity through Tiny3D"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T05:35:14Z",
+            "createdAt": "2026-08-24T05:34:13Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T05:35:14Z",
+            "number": 89,
+            "state": "MERGED",
+            "title": "Harden locomotion QA and collision contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T04:26:30Z",
+            "createdAt": "2026-08-24T04:25:22Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T04:26:30Z",
+            "number": 88,
+            "state": "MERGED",
+            "title": "Harden P3 environment consumer contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:30:37Z",
+            "createdAt": "2026-08-24T04:17:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:30:37Z",
+            "number": 87,
+            "state": "MERGED",
+            "title": "Harden P3 environment role consumer contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T21:59:39Z",
+            "createdAt": "2026-08-24T03:47:23Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T21:59:39Z",
+            "number": 22,
+            "state": "MERGED",
+            "title": "Add Tiny3D VFX mesh contracts for explosions, bursts, vortices and portals"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T06:24:09Z",
+            "createdAt": "2026-08-24T03:46:34Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T06:24:09Z",
+            "number": 86,
+            "state": "MERGED",
+            "title": "feat: add producer admission gate"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T03:16:12Z",
+            "createdAt": "2026-08-24T03:14:22Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T03:16:12Z",
+            "number": 85,
+            "state": "MERGED",
+            "title": "Keep environment role assignments on newest verified identities"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T02:45:41Z",
+            "createdAt": "2026-08-24T02:44:14Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T02:45:41Z",
+            "number": 84,
+            "state": "MERGED",
+            "title": "Qualify authored Asylum animation handoff"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T01:42:13Z",
+            "createdAt": "2026-08-24T01:41:17Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T01:42:13Z",
+            "number": 83,
+            "state": "MERGED",
+            "title": "Add runtime Asylum motion evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T01:14:58Z",
+            "createdAt": "2026-08-24T01:13:58Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T01:14:58Z",
+            "number": 82,
+            "state": "MERGED",
+            "title": "Add hash-bound Asylum motion evidence contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T00:44:28Z",
+            "createdAt": "2026-08-24T00:37:37Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T00:44:28Z",
+            "number": 81,
+            "state": "MERGED",
+            "title": "Fulfill grounded creep semantic animation roles"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T00:30:29Z",
+            "createdAt": "2026-08-24T00:22:07Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T00:30:29Z",
+            "number": 80,
+            "state": "MERGED",
+            "title": "Pin verified P3 environment role contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T00:11:45Z",
+            "createdAt": "2026-08-24T00:11:23Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T00:11:45Z",
+            "number": 79,
+            "state": "MERGED",
+            "title": "Qualify Asylum animation package compatibility"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T23:57:19Z",
+            "createdAt": "2026-08-23T23:56:53Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T23:57:18Z",
+            "number": 78,
+            "state": "MERGED",
+            "title": "Issue 66: surface grounded creep semantic gaps in P3 handoff"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T23:18:57Z",
+            "createdAt": "2026-08-23T23:17:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T23:18:57Z",
+            "number": 77,
+            "state": "MERGED",
+            "title": "Emit missing grounded creep animation request"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T22:51:47Z",
+            "createdAt": "2026-08-23T22:41:37Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T22:51:47Z",
+            "number": 76,
+            "state": "MERGED",
+            "title": "Qualify grounded creep semantic animation roles"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T22:30:00Z",
+            "createdAt": "2026-08-23T22:27:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T22:30:00Z",
+            "number": 75,
+            "state": "MERGED",
+            "title": "Require measured motion for ground skeletal handoffs"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T20:43:22Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 74,
+            "state": "OPEN",
+            "title": "Run guarded survivor97 static intake batch"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T20:04:26Z",
+            "createdAt": "2026-08-23T20:02:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T20:04:26Z",
+            "number": 73,
+            "state": "MERGED",
+            "title": "Add grounded skeletal portable profile for P3 creeps"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:24:53Z",
+            "createdAt": "2026-08-23T19:56:09Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:24:53Z",
+            "number": 72,
+            "state": "MERGED",
+            "title": "Measure and qualify P3 skeletal animation motion"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T19:54:07Z",
+            "createdAt": "2026-08-23T19:52:38Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T19:54:07Z",
+            "number": 71,
+            "state": "MERGED",
+            "title": "Fail closed role catalog on unsupported locomotion contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T19:36:50Z",
+            "createdAt": "2026-08-23T19:33:25Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T19:36:50Z",
+            "number": 70,
+            "state": "MERGED",
+            "title": "Fail closed on unsupported P3 role handoff contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T17:29:57Z",
+            "createdAt": "2026-08-23T17:27:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T17:29:56Z",
+            "number": 68,
+            "state": "MERGED",
+            "title": "T3D-05: preserve durable retry attempt evidence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T15:10:33Z",
+            "createdAt": "2026-08-23T15:07:53Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T15:10:33Z",
+            "number": 65,
+            "state": "MERGED",
+            "title": "T3D-05: expose continuous production heartbeat"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T14:53:26Z",
+            "createdAt": "2026-08-23T14:52:22Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T14:53:26Z",
+            "number": 64,
+            "state": "MERGED",
+            "title": "Scope continuous P3 dispatch to changed identities"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T14:57:31Z",
+            "createdAt": "2026-08-23T14:36:35Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T14:57:31Z",
+            "number": 63,
+            "state": "MERGED",
+            "title": "Assign P3 roles on continuous-production main"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T14:26:16Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 62,
+            "state": "OPEN",
+            "title": "Assign Tiny3D assets to P3 playable slice"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T14:26:22Z",
+            "createdAt": "2026-08-23T13:44:30Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T14:26:22Z",
+            "number": 61,
+            "state": "MERGED",
+            "title": "T3D-05: execute continuous production per asset identity"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:38:59Z",
+            "createdAt": "2026-08-23T13:37:04Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:38:59Z",
+            "number": 60,
+            "state": "MERGED",
+            "title": "Add fail-closed P3 asset qualification gates"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:35:33Z",
+            "createdAt": "2026-08-23T13:08:22Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:35:33Z",
+            "number": 58,
+            "state": "MERGED",
+            "title": "Route Tiny3D CI off offline self-hosted runner"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:13:04Z",
+            "createdAt": "2026-08-23T13:08:10Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:13:04Z",
+            "number": 57,
+            "state": "MERGED",
+            "title": "Add evidence-bound P3 asset identity resolution"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T13:01:12Z",
+            "createdAt": "2026-08-23T12:59:00Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T13:01:12Z",
+            "number": 56,
+            "state": "MERGED",
+            "title": "Validate VFX source mesh evidence integrity"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:41:34Z",
+            "createdAt": "2026-08-23T12:38:47Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:41:34Z",
+            "number": 50,
+            "state": "MERGED",
+            "title": "Add deterministic P3 coverage projection"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:37:27Z",
+            "createdAt": "2026-08-23T12:35:24Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:37:27Z",
+            "number": 49,
+            "state": "MERGED",
+            "title": "Add restartable continuous refresh state"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:12:17Z",
+            "createdAt": "2026-08-23T12:11:29Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:12:17Z",
+            "number": 48,
+            "state": "MERGED",
+            "title": "Add unattended incremental refresh orchestration"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:56:54Z",
+            "createdAt": "2026-08-23T11:56:29Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:56:54Z",
+            "number": 47,
+            "state": "MERGED",
+            "title": "Add durable producer manifest intake receipts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T12:23:13Z",
+            "createdAt": "2026-08-23T11:44:06Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T12:23:13Z",
+            "number": 46,
+            "state": "MERGED",
+            "title": "Add evidence-bound flight locomotion contracts"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T11:34:43Z",
+            "createdAt": "2026-08-23T11:32:57Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T11:34:43Z",
+            "number": 45,
+            "state": "MERGED",
+            "title": "Add deterministic P3 qualification job reconciliation"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T07:47:28Z",
+            "createdAt": "2026-08-23T07:47:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T07:47:27Z",
+            "number": 42,
+            "state": "MERGED",
+            "title": "Require inspectable human-named returned visual proof"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T07:26:42Z",
+            "createdAt": "2026-08-23T07:26:11Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T07:26:42Z",
+            "number": 41,
+            "state": "MERGED",
+            "title": "Add deterministic stage dependency snapshots [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:57:27Z",
+            "createdAt": "2026-08-23T06:57:15Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:57:27Z",
+            "number": 40,
+            "state": "MERGED",
+            "title": "Add manifest-driven source inventory snapshots [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:37:54Z",
+            "createdAt": "2026-08-23T06:37:27Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:37:54Z",
+            "number": 38,
+            "state": "MERGED",
+            "title": "Harden newest-150 classification evidence contract"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:35:01Z",
+            "createdAt": "2026-08-23T06:34:56Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:35:01Z",
+            "number": 37,
+            "state": "MERGED",
+            "title": "Add deterministic incremental refresh planning [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:26:18Z",
+            "createdAt": "2026-08-23T06:26:03Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:26:18Z",
+            "number": 35,
+            "state": "MERGED",
+            "title": "Bind VFX contracts into P3 proof handoffs [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:20:42Z",
+            "createdAt": "2026-08-23T06:19:43Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:20:42Z",
+            "number": 34,
+            "state": "MERGED",
+            "title": "Verify newest-150 freeze idempotence"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T06:22:54Z",
+            "createdAt": "2026-08-23T06:18:03Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T06:22:54Z",
+            "number": 33,
+            "state": "MERGED",
+            "title": "Add authoritative Tiny3D north star and phase roadmap"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:49:57Z",
+            "createdAt": "2026-08-23T04:49:21Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:49:57Z",
+            "number": 30,
+            "state": "MERGED",
+            "title": "Prepare destruction qualification contracts [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:46:45Z",
+            "createdAt": "2026-08-23T04:45:08Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 29,
+            "state": "CLOSED",
+            "title": "Prepare mechanical articulation contracts [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:44:53Z",
+            "createdAt": "2026-08-23T04:44:34Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:44:53Z",
+            "number": 28,
+            "state": "MERGED",
+            "title": "Prepare mechanical articulation contracts [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:37:17Z",
+            "createdAt": "2026-08-23T04:36:59Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:37:17Z",
+            "number": 27,
+            "state": "MERGED",
+            "title": "Support frozen jellyfish receipt bindings [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:31:59Z",
+            "createdAt": "2026-08-23T04:31:37Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:31:58Z",
+            "number": 26,
+            "state": "MERGED",
+            "title": "Produce jellyfish swim derivative [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:15:16Z",
+            "createdAt": "2026-08-23T04:14:59Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:15:16Z",
+            "number": 24,
+            "state": "MERGED",
+            "title": "Add jellyfish swimming preparation contracts [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:10:46Z",
+            "createdAt": "2026-08-23T04:09:45Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:10:46Z",
+            "number": 23,
+            "state": "MERGED",
+            "title": "Implement rigid vehicle contracts [GPT-5]"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T04:08:27Z",
+            "createdAt": "2026-08-23T04:03:05Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T04:08:27Z",
+            "number": 1,
+            "state": "MERGED",
+            "title": "Add evidence-bound ground locomotion contract"
+          }
+        ],
+        "repo": "organicoverlords/tiny3d",
+        "status": "ok"
+      },
+      {
+        "fetched": 52,
+        "in_window": 20,
+        "prs": [
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T15:01:29Z",
+            "createdAt": "2026-08-25T14:55:07Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T15:01:29Z",
+            "number": 82,
+            "state": "MERGED",
+            "title": "Expose changelog on GitHub landing and enforce synchronization"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T11:23:38Z",
+            "createdAt": "2026-08-25T11:22:58Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T11:23:38Z",
+            "number": 80,
+            "state": "MERGED",
+            "title": "Document the missing out\\ directory failure"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-25T11:19:45Z",
+            "createdAt": "2026-08-25T00:08:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-25T11:19:45Z",
+            "number": 79,
+            "state": "MERGED",
+            "title": "Gate billboards, fix render proof, stop overriding requested settings"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T21:13:36Z",
+            "createdAt": "2026-08-24T21:01:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T21:13:36Z",
+            "number": 77,
+            "state": "MERGED",
+            "title": "fix: tolerate replay timeout process races"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T21:38:24Z",
+            "createdAt": "2026-08-24T20:56:44Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T21:38:24Z",
+            "number": 75,
+            "state": "MERGED",
+            "title": "ci: deduplicate repo agent policy"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:48:22Z",
+            "createdAt": "2026-08-24T14:44:41Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:48:22Z",
+            "number": 71,
+            "state": "MERGED",
+            "title": "fix: align authority policy with canonical docs"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:22:26Z",
+            "createdAt": "2026-08-24T06:18:25Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:22:26Z",
+            "number": 69,
+            "state": "MERGED",
+            "title": "test: exercise GLB gate behavior"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T06:18:22Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 68,
+            "state": "OPEN",
+            "title": "fix: admit Unicode source names in handoff identity"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T03:46:30Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 67,
+            "state": "OPEN",
+            "title": "feat: harden LowVRAM to Tiny3D handoff admission"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-24T03:16:26Z",
+            "isDraft": true,
+            "mergedAt": null,
+            "number": 66,
+            "state": "OPEN",
+            "title": "Gate normal queue completion on structural GLB validation"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T14:36:06Z",
+            "createdAt": "2026-08-24T03:04:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T14:36:06Z",
+            "number": 64,
+            "state": "MERGED",
+            "title": "Harden queue GLB validation before DONE"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T02:27:25Z",
+            "createdAt": "2026-08-23T23:54:42Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T02:27:25Z",
+            "number": 61,
+            "state": "MERGED",
+            "title": "Harden checkpoint replay finalization recovery"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T20:00:55Z",
+            "createdAt": "2026-08-23T19:55:18Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 58,
+            "state": "CLOSED",
+            "title": "REJECTED â€” universal queue profile conflicts with live quality lanes"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T19:34:42Z",
+            "createdAt": "2026-08-23T19:34:32Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T19:34:42Z",
+            "number": 57,
+            "state": "MERGED",
+            "title": "Replace stale LowVRAM current-state queue claims"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-23T19:33:27Z",
+            "createdAt": "2026-08-23T19:33:10Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-23T19:33:27Z",
+            "number": 56,
+            "state": "MERGED",
+            "title": "Make LowVRAM ownership and worker mission authoritative"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-24T01:36:26Z",
+            "createdAt": "2026-08-23T18:54:56Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-24T01:36:26Z",
+            "number": 55,
+            "state": "MERGED",
+            "title": "intake: require semantic name, category and priority"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": null,
+            "createdAt": "2026-08-23T07:33:46Z",
+            "isDraft": false,
+            "mergedAt": null,
+            "number": 44,
+            "state": "OPEN",
+            "title": "Reconcile LowVRAM policy and current-state authority"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-21T21:13:52Z",
+            "createdAt": "2026-08-21T21:13:35Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-21T21:13:52Z",
+            "number": 38,
+            "state": "MERGED",
+            "title": "docs: set production defaults to 1024 / 8K / 1M"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-20T05:58:30Z",
+            "createdAt": "2026-08-20T05:58:28Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-20T05:58:30Z",
+            "number": 37,
+            "state": "MERGED",
+            "title": "Remove executable blocker states"
+          },
+          {
+            "author": {
+              "id": "U_kgDOEP3TWA",
+              "is_bot": false,
+              "login": "organicoverlords",
+              "name": ""
+            },
+            "closedAt": "2026-08-20T05:51:04Z",
+            "createdAt": "2026-08-20T05:51:02Z",
+            "isDraft": false,
+            "mergedAt": "2026-08-20T05:51:04Z",
+            "number": 36,
+            "state": "MERGED",
+            "title": "Remove execution blocker policy"
+          }
+        ],
+        "repo": "organicoverlords/lowvram3d-studio",
+        "status": "ok"
+      }
+    ]
+  },
+  "schema_version": "1.0.0",
+  "snapshot_provenance": {
+    "daily_counts": "issue28_body_2026-08-25",
+    "outcome_join": "issue28_followup_comment_2026-08-25",
+    "slow_reads": "issue28_body_2026-08-25",
+    "tool_counts": "issue28_body_2026-08-25"
+  },
+  "study_window": {
+    "end": "2026-08-25",
+    "start": "2026-08-21",
+    "tz": "EEST"
+  },
+  "telemetry": {
+    "bad_lines": 0,
+    "daily_counts": {
+      "2026-08-23": 5219,
+      "2026-08-24": 14960,
+      "2026-08-25": 4579
+    },
+    "daily_tool_counts": {
+      "2026-08-23": {
+        "busy_claim": 169,
+        "busy_list": 277,
+        "busy_release": 124,
+        "execute_command": 1886,
+        "kill_process": 253,
+        "no_such_tool": 12,
+        "read_output": 1965,
+        "start_process": 533
+      },
+      "2026-08-24": {
+        "busy_claim": 271,
+        "busy_list": 357,
+        "busy_release": 158,
+        "kill_process": 378,
+        "read_output": 8697,
+        "start_process": 4903,
+        "view_image": 196
+      },
+      "2026-08-25": {
+        "busy_claim": 110,
+        "busy_list": 130,
+        "busy_release": 79,
+        "kill_process": 160,
+        "read_output": 2729,
+        "start_process": 1342,
+        "view_image": 29
+      }
+    },
+    "health_daily": {
+      "2026-08-23": 14437,
+      "2026-08-24": 29654,
+      "2026-08-25": 29184
+    },
+    "parsed_lines": 234677,
+    "path": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\transport.jsonl",
+    "slow_reads_ge_9s": {
+      "2026-08-24": 4,
+      "2026-08-25": 107
+    },
+    "status": "ok",
+    "tool_total": {
+      "busy_claim": 550,
+      "busy_list": 764,
+      "busy_release": 361,
+      "execute_command": 1886,
+      "kill_process": 791,
+      "no_such_tool": 12,
+      "read_output": 13391,
+      "start_process": 6778,
+      "view_image": 225
+    }
+  },
+  "version_boundaries": [
+    {
+      "commit": "afc85f4",
+      "date": "2026-08-23T20:42:32+00:00",
+      "effect": "eliminates execute_command / 195k+64k token retrievals",
+      "title": "remove foreground command tool from MCP surface"
+    },
+    {
+      "commit": "7ae7025",
+      "date": "2026-08-25T06:28:48+00:00",
+      "effect": "compresses long-poll responses; adds telemetry",
+      "title": "cap read_output at 6000 characters + observability work"
+    },
+    {
+      "commit": "15b017f",
+      "date": "2026-08-25T06:35:17+00:00",
+      "effect": "preserves detail lost to 6k cap for diagnostics",
+      "title": "keep receipts at full capture buffer, not the transport cap"
+    },
+    {
+      "commit": "bbf29b9",
+      "date": "2026-08-25T06:46:47+00:00",
+      "effect": "adds truncation receipts for read_output",
+      "title": "report how much of the head a truncated read dropped"
+    },
+    {
+      "commit": "cd3be1b",
+      "date": "2026-08-25T08:02:59+00:00",
+      "effect": "byte telemetry on every tool response",
+      "title": "record per-response MCP byte counts"
+    }
+  ]
+}
