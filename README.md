@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Added bounded strong-negative-feedback extraction that turns configurable frustration markers into provisional lesson candidates about the preceding assistant behavior and following correction, preserving source-turn provenance without storing the insult as the lesson (#55).
+- Added a bounded reviewed negative-feedback population pass over two preserved transcripts: 8 marker turns reviewed, 4 defensible PROVISIONAL lesson candidates retained, and 4 ambiguous local pairings explicitly excluded (#64).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.
