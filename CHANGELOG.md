@@ -33,6 +33,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 - A deterministic, provider-free replay scoring harness accepts supplied
   candidate actions, reports machine-readable and human-readable assertion
   results, and keeps pending-capture records out of scoreable fixtures (#3).
+- Added a lightweight memory_bank.py recent startup glance over the 10 newest saved memories so workers can notice relevant recent errors before repeating them (#51).
+
 
 - Created machine-readable source provenance index (`provenance.json`) mapping every report in `01 Reports` to raw transcripts, evidence files, contract snapshots, dates, and evidence type, with explicit missing-link records, duplicate/superseded marking via `99 Duplicate Archive`, and a validator that detects broken paths and duplicate incident ids; no credential-bearing material is indexed (#5).
 

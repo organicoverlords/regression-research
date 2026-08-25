@@ -164,6 +164,7 @@ def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("recent", help="show the last 10 saved memory titles")
     sub.add_parser("validate")
 
     append = sub.add_parser("append")
@@ -191,6 +192,11 @@ def _main() -> int:
     args = parser.parse_args()
     try:
         entries = load_bank(args.bank)
+        if args.command == "recent":
+            recent = sorted(entries, key=lambda e: e.get("timestamp", ""), reverse=True)[:10]
+            print(json.dumps([{"title": e.get("title") or e.get("text", "")[:120], "timestamp": e.get("timestamp"), "scope": e.get("scope")} for e in recent], ensure_ascii=False))
+            return 0
+
         if args.command == "validate":
             print(json.dumps({"status": "PROVEN", "entries": len(entries)}))
             return 0
