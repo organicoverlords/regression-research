@@ -17,6 +17,10 @@ DEFAULT_RECALL_LIMIT = 5
 MAX_RECALL_LIMIT = 8
 DEFAULT_HISTORY_LIMIT = 8
 MAX_HISTORY_LIMIT = 20
+DEFAULT_RECENT_TITLES_LIMIT = 10
+MAX_RECENT_TITLES_LIMIT = 20
+MAX_TITLE_CHARS = 100
+MAX_DERIVED_TITLE_CHARS = 80
 MAX_TEXT_CHARS = 800
 MAX_TAGS = 12
 MAX_EVIDENCE = 16
@@ -42,6 +46,11 @@ def validate_entry(entry: dict[str, Any]) -> None:
     for field in ("id", "timestamp", "kind", "scope", "text", "state"):
         if not isinstance(entry.get(field), str) or not entry[field].strip():
             raise BankError(f"{field} must be a non-empty string")
+    if "title" in entry:
+        if not isinstance(entry["title"], str) or not entry["title"].strip():
+            raise BankError("title must be a non-empty string when present")
+        if len(entry["title"]) > MAX_TITLE_CHARS:
+            raise BankError(f"title exceeds {MAX_TITLE_CHARS} characters")
     if entry["kind"] not in KINDS:
         raise BankError(f"invalid kind: {entry['kind']}")
     if entry["state"] not in STATES:
@@ -92,6 +101,8 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now().astimezone()
     entry.setdefault("id", f"mem-{now:%Y%m%d}-{secrets.token_hex(4)}")
     entry.setdefault("timestamp", now.isoformat(timespec="seconds"))
+    if not entry.get("title"):
+        entry.pop("title", None)
     validate_entry(entry)
     if any(existing["id"] == entry["id"] for existing in load_bank(path)):
         raise BankError(f"duplicate id {entry['id']}")
@@ -103,6 +114,41 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
 
 def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[\w-]+", value.casefold(), flags=re.UNICODE))
+
+
+def derive_display_title(entry: dict[str, Any]) -> str:
+    explicit = entry.get("title")
+    if isinstance(explicit, str) and explicit.strip():
+        return re.sub(r"\s+", " ", explicit).strip()
+    text = re.sub(r"\s+", " ", str(entry.get("text", ""))).strip()
+    if len(text) <= MAX_DERIVED_TITLE_CHARS:
+        return text
+    return text[: MAX_DERIVED_TITLE_CHARS - 1].rstrip() + "…"
+
+
+def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None) -> list[dict[str, Any]]:
+    effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, DEFAULT_RECENT_TITLES_LIMIT if limit is None else limit))
+    if effective_limit == 0:
+        return []
+    superseded = {old for entry in entries for old in entry.get("supersedes", [])}
+    current = [entry for entry in entries if entry["state"] != "REJECTED" and entry["id"] not in superseded]
+    current.sort(
+        key=lambda entry: (
+            datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
+            entry["id"],
+        ),
+        reverse=True,
+    )
+    return [
+        {
+            "id": entry["id"],
+            "timestamp": entry["timestamp"],
+            "title": derive_display_title(entry),
+            "kind": entry["kind"],
+            "scope": entry["scope"],
+        }
+        for entry in current[:effective_limit]
+    ]
 
 
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
@@ -159,7 +205,6 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     return [entry for _, _, _, entry in ranked[:effective_limit]]
 
 
-
 def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
@@ -170,6 +215,7 @@ def _main() -> int:
     append.add_argument("--kind", required=True, choices=sorted(KINDS))
     append.add_argument("--scope", required=True)
     append.add_argument("--tag", action="append", default=[])
+    append.add_argument("--title")
     append.add_argument("--text", required=True)
     append.add_argument("--state", required=True, choices=sorted(STATES))
     append.add_argument("--evidence", action="append", default=[])
@@ -188,6 +234,9 @@ def _main() -> int:
     history.add_argument("--tag", action="append", default=[])
     history.add_argument("--limit", type=int, default=DEFAULT_HISTORY_LIMIT)
 
+    recent_titles = sub.add_parser("recent-titles")
+    recent_titles.add_argument("--limit", type=int, default=DEFAULT_RECENT_TITLES_LIMIT)
+
     args = parser.parse_args()
     try:
         entries = load_bank(args.bank)
@@ -195,11 +244,14 @@ def _main() -> int:
             print(json.dumps({"status": "PROVEN", "entries": len(entries)}))
             return 0
         if args.command == "append":
-            entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
+            entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
             print(json.dumps(entry, ensure_ascii=False))
             return 0
         if args.command == "history":
             print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True), ensure_ascii=False))
+            return 0
+        if args.command == "recent-titles":
+            print(json.dumps(recent_title_entries(entries, limit=args.limit), ensure_ascii=False))
             return 0
         if args.command == "search":
             print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history), ensure_ascii=False))
