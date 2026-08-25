@@ -1,0 +1,11 @@
+﻿{
+  "schema_version": "1.0",
+  "sources": [
+    {"name":"Regression Research","role":"behavioral evidence, incidents, fixtures, operating contracts","repository":"organicoverlords/regression-research"},
+    {"name":"Legacy ChatGPT seed and durable memory exports","role":"migration source only; not canonical after bank rollout","repository":"local/.agents and exported memory artifacts"},
+    {"name":"AITubeTranscript memory contracts","role":"stable-memory boundary, contract versioning, stale-memory and preferred-snapshot patterns","repository":"organicoverlords/AITubeTranscript"},
+    {"name":"Level6 memory brain","role":"optional before/after recall-capture concepts; no v1 runtime dependency","repository":"organicoverlords/level6-memory-brain-rust"},
+    {"name":"Project repositories","role":"verified durable cross-chat project facts only","repository":"organicoverlords/p3, tiny3d, lowvram3d-studio"}
+  ],
+  "excluded_runtime_dependency": ["ContextRelay", "browser automation", "Level6 daemon", "MCP availability"]
+}
