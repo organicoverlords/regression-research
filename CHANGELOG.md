@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -9,6 +9,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 ## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
+
+- Preserved the live disk-floor policy-lapse lesson as a distinct provisional orchestration memory (#72).
 
 - Added a searchable, rated 2026-08-25 screenshot evidence index and execution-state persistence study, separating sane Instant controls from task-execution drops, genuine route outages, safety blocks, resource pressure, and delivery failures (#69).
 
