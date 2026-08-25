@@ -40,6 +40,11 @@ except ImportError:  # pragma: no cover - exercised by the CLI smoke test.
         search_entries,
     )
 
+try:  # Keep the canonical provenance contract shared with its CLI validator.
+    from .provenance import validate as validate_provenance
+except ImportError:  # pragma: no cover - exercised by direct script execution.
+    from provenance import validate as validate_provenance  # type: ignore
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROVENANCE = ROOT / "provenance.json"
@@ -245,9 +250,13 @@ def _status_summary(entries: list[dict[str, Any]], sources: dict[str, Any], prov
         for item in source_records
         if isinstance(item, dict)
     )
-    report_paths = []
-    broken_paths = []
-    for item in provenance.get("entries", []):
+    report_paths: list[str] = []
+    broken_paths: list[str] = []
+    provenance_entries = provenance.get("entries", [])
+    if not isinstance(provenance_entries, list):
+        provenance_entries = []
+        broken_paths.append("invalid provenance entries array")
+    for item in provenance_entries:
         if not isinstance(item, dict):
             broken_paths.append("invalid provenance entry")
             continue
@@ -259,14 +268,34 @@ def _status_summary(entries: list[dict[str, Any]], sources: dict[str, Any], prov
         else:
             broken_paths.append("invalid report path")
         for field in ("raw_transcripts", "evidence_files", "contract_snapshots"):
-            for raw_path in item.get(field, []):
+            values = item.get(field, [])
+            if not isinstance(values, list):
+                broken_paths.append(f"invalid {field} array")
+                continue
+            for raw_path in values:
                 safe = _safe_relative(raw_path)
                 if safe and not (ROOT / safe).exists():
                     broken_paths.append(safe)
                 elif safe is None:
                     broken_paths.append("unsafe provenance path")
     duplicate_reports = len(report_paths) - len(set(report_paths))
-    valid = not broken_paths and duplicate_reports == 0 and all(isinstance(item, dict) for item in provenance.get("entries", []))
+    try:
+        validator_ok, validator_messages, validator_stats = validate_provenance(DEFAULT_PROVENANCE)
+    except Exception as exc:  # Fail closed if a malformed index reaches the validator boundary.
+        validator_ok = False
+        validator_messages = [f"provenance validator failed: {type(exc).__name__}"]
+        validator_stats = {"errors": 1}
+    validator_errors = [
+        _clip(message, MAX_FIELD_CHARS)
+        for message in validator_messages
+        if not str(message).startswith("WARN:")
+    ][:MAX_PROVENANCE_ITEMS]
+    validator_warnings = [
+        _clip(message, MAX_FIELD_CHARS)
+        for message in validator_messages
+        if str(message).startswith("WARN:")
+    ][:MAX_PROVENANCE_ITEMS]
+    valid = bool(validator_ok) and not broken_paths and duplicate_reports == 0
     return {
         "status": "PROVEN" if valid else "NOT_PROVEN",
         "entries": len(entries),
@@ -281,6 +310,12 @@ def _status_summary(entries: list[dict[str, Any]], sources: dict[str, Any], prov
             "reports_indexed": len(set(report_paths)),
             "broken_paths": sorted(set(broken_paths))[:MAX_PROVENANCE_ITEMS],
             "duplicate_report_paths": duplicate_reports,
+            "validator": {
+                "status": "PROVEN" if validator_ok else "NOT_PROVEN",
+                "errors": validator_errors,
+                "warnings": validator_warnings,
+                "stats": validator_stats,
+            },
         },
     }
 

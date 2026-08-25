@@ -1,10 +1,10 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-The rule this file follows is `organicoverlords/docs` → `standards/changelog.md`.
+The rule this file follows is `organicoverlords/docs` â†’ `standards/changelog.md`.
 
 ## [Unreleased]
 
@@ -49,6 +49,8 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Changed
 
+- Hardened bounded memory status reporting to use the canonical provenance validator, fail closed on malformed or unsafe provenance, and report validator errors/warnings without changing the existing source distinctions (#41).
+
 - `AGENTS.md` shared policy raised to v1.2, adding a hard rail on deleting irreplaceable data
   (masters, assets, evidence) after an agent destroyed a set of masters, plus non-blocking
   defaults for disk reclaim, branch prune-on-merge, and full-target builds for anything CI or a
@@ -66,9 +68,10 @@ To release:
   2. Open a fresh empty `## [Unreleased]` above it.
   3. Update the link block below.
 
-Entry style — one line, for a human, with the issue or PR number:
+Entry style â€” one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->
 
 [Unreleased]: https://github.com/organicoverlords/regression-research/commits/main
+

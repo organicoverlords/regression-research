@@ -5,6 +5,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.memory_report import (
     EXPOSURE_STATUS,
@@ -30,6 +31,18 @@ class MemoryReportTests(unittest.TestCase):
         self.assertEqual(first["corpus"]["status"], "PROVEN")
         self.assertEqual(first["corpus"]["provenance"]["broken_paths"], [])
         self.assertEqual(first["receipt"]["report_id"], second["receipt"]["report_id"])
+
+    def test_status_fails_closed_when_provenance_validator_rejects(self) -> None:
+        with patch(
+            "tools.memory_report.validate_provenance",
+            return_value=(False, ["entries[0]: duplicate incident_id 'INC-TEST'"], {"errors": 1}),
+        ) as validator:
+            payload = build_status()
+
+        validator.assert_called_once()
+        self.assertEqual(payload["corpus"]["status"], "NOT_PROVEN")
+        self.assertEqual(payload["corpus"]["provenance"]["validator"]["status"], "NOT_PROVEN")
+        self.assertIn("duplicate incident_id", payload["corpus"]["provenance"]["validator"]["errors"][0])
 
     def test_report_is_relevance_first_and_bounded(self) -> None:
         payload = build_report("MCP safety routing")
