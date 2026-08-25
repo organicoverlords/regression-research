@@ -96,3 +96,48 @@ Entry attribution here is inference from behaviour that matches entry wording, n
 causation — no control group ran the same lanes without the entries. The prior-run
 transcript showing "no MCP namespace is exposed" is the nearest thing to a before-image and
 is quoted above for that reason.
+
+---
+
+## Second observation, same day — after entries 7 and 12 were amended
+
+Entry 7 gained a read-back-after-claiming rule; a new entry 12 carried the MCP mitigations
+(bounded output, relative paths with `working_directory`, never repeat a blocked call
+unchanged, zero-arrival is a distinct failure class).
+
+**Negative result: entry 12 did not stop the stall.** Workers hit the ChatGPT safety/routing
+stall again and were stopped manually a second time. Whatever drives it is not reachable by
+memory-entry text, and no further entry should be written against it until the trigger is
+actually identified. This closes the "add a mitigations entry" hypothesis.
+
+**New mechanic: refreshing memory drops the tool surface.** After an explicit "refresh your
+memory", one worker reported the previously exposed MCP0/GitHub connector schemas had
+dropped from the active tool surface, attempted rediscovery, and found MCP0 unregistered.
+The refresh that loads the durable entries is also what removes the tools they instruct the
+worker to use.
+
+**Same drop, opposite responses — entry 8 is not reliably firing.** Two workers saw the
+connector disappear mid-lane:
+
+- One stopped: *"I can't execute the repo lane in this turn because the previously exposed
+  MCP0/GitHub connector schemas dropped from the active tool surface."* It correctly tried
+  rediscovery first (entry 3), then treated the result as terminal — which entry 8 forbids.
+- One continued: *"The GitHub connector dropped during discovery, so I switched route to the
+  local `gh` client instead of stalling."*
+
+The difference is not explained by the entries, which were identical in both. Attempting the
+tool before declaring it dead (entry 3) is now reliable; rerouting after it is confirmed
+dead (entry 8) is not.
+
+**Outcomes despite the stalls.** #14 closed via merged PR #23. #17 closed via PR #24 — a
+5,000-record deterministic stress fixture, 2/2 focused and 33/33 suite green, no production
+rewrite, with the BUSY claim released only after remote state was durable. On p3 #413 a
+worker verified the implementation was already green on `main` at `12740db5`, moved to the
+runtime-proof gap rather than making redundant code changes, and refused to touch any
+user-owned editor or runtime while preparing an offscreen launch.
+
+**Revised rating.** Work quality and safety behaviour hold up under the second observation
+and remain the strongest results. Tool-surface stability is now a confirmed hard limit rather
+than a tuning problem: two manual stops in one day, and the mitigation entry failed. Entry 8
+downgraded from strong to inconsistent on the evidence of two identical situations resolved
+differently.
