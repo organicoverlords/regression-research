@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- Added deterministic 5,000+ candidate stress coverage proving bounded memory recall limits, relevance filtering, and routine runtime/memory use (#17).
+
 - `NORTH_STAR.md`, naming the three live regression classes this corpus is currently tracking.
 
 - `CHANGELOG.md`, adopting the org-wide changelog standard (`organicoverlords/docs` ->
