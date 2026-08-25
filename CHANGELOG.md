@@ -64,6 +64,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 ### Changed
 
+- Kept `memory_bank.py recent` as a compatibility alias for `recent-titles` so repo-start memory glances work across older and current checkouts (#60).
+
 - Hardened bounded memory status reporting to use the canonical provenance validator, fail closed on malformed or unsafe provenance, and report validator errors/warnings without changing the existing source distinctions (#41).
 
 - `AGENTS.md` shared policy raised to v1.2, adding a hard rail on deleting irreplaceable data
