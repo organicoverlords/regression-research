@@ -138,6 +138,21 @@
         "exact_deleted_bytes_and_asset_count_not_proven"
       ],
       "notes": "Mechanism is grounded by NORTH_STAR/changelog policy history and positive disk-cleanup controls; exact deletion inventory is deliberately NOT_PROVEN."
+    },
+    {
+      "incident_id": "RR-HARNESS-20260824",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/incident_report_2026-08-24_harness_vs_product_p3_467.md",
+      "title": "Harness failure misclassified as product failure",
+      "date": "2026-08-24",
+      "evidence_type": "evidence_bounded_incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [],
+      "notes": "Primary evidence is GitHub Actions p3 runs 32724815129 and 32762720907; failed run never started the intended test, repaired run did and completed Success."
     }
   ],
   "orphan_evidence": [

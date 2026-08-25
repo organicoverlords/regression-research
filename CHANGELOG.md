@@ -1,12 +1,12 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ `standards/changelog.md`.
+The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `standards/changelog.md`.
 
-## [Unreleased]
+## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
 
@@ -23,7 +23,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 - Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
 
-- Added a dated normalized MCP/tool-routing incident index for August 20–23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
+- Added a dated normalized MCP/tool-routing incident index for August 20â€“23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
 
 - Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
 
@@ -88,10 +88,10 @@ Delete the headings you do not use. Keep this section at the top at all times.
 
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
-  2. Open a fresh empty `## [Unreleased]` above it.
+  2. Open a fresh empty `## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
-Entry style ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â one line, for a human, with the issue or PR number:
+Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->
