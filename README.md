@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
+- Created machine-readable source provenance index (`provenance.json`) mapping every report in `01 Reports` to raw transcripts, evidence files, contract snapshots, dates, and evidence type, with explicit missing-link records, duplicate/superseded marking via `99 Duplicate Archive`, and a validator that detects broken paths and duplicate incident ids; no credential-bearing material is indexed (#5).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.
@@ -53,3 +53,10 @@ The external ChatPort download corpus is catalogued under
 `02 Evidence/ChatPort Corpus Catalogue/`. The catalogue records acquisition metadata,
 per-file hashes, unique conversation coverage, and message-time ranges without copying
 the 1.86 GiB raw source into git.
+
+Source provenance across reports, evidence, and raw transcripts is indexed in
+[`provenance.json`](provenance.json) (machine-readable). It maps each report in
+`01 Reports` to evidence files, raw transcripts, contract snapshots, dates, and
+evidence type, records missing or unresolved links explicitly, and marks
+duplicate/superseded artifacts in `99 Duplicate Archive`. Validate with
+`python tools/provenance.py validate`.
