@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-08-25T23:40:00+03:00",
+  "selection_bias": "User states conversation screenshots are selectively captured when a conversation is special; this corpus is high-value incident/control evidence, not a random prevalence sample.",
+  "rating_rubric": {
+    "5": "decisive visible transition/control; directly discriminates execution-state persistence from collapse",
+    "4": "strong supporting example with clear behavior but some missing surrounding state",
+    "3": "important contextual/exclusion evidence",
+    "2": "adjacent behavior; useful mainly with other evidence",
+    "1": "weak/ambiguous screenshot"
+  },
+  "search_fields": ["id", "filename", "library_file_id", "polarity", "phenotype", "tags", "observation", "contrast"],
+  "evidence_boundary": "Ratings apply to visible screenshot behavior only. Internal model state and root cause remain NOT_PROVEN.",
+  "cases": [
+    {
+      "id": "p3-456-persistent-runtime-proof",
+      "filename": "96558d60-d563-4be8-8fcb-04a5c69a9741.png",
+      "library_file_id": "file_0000000079e882108b20e3c9e89dc01f",
+      "rating": 5,
+      "polarity": "positive_control",
+      "phenotype": "persistent_execution_state",      "tags": ["instant", "p3", "go", "continue", "pause_resume", "subprocess_failure", "route_switch", "security_review"],
+      "observation": "Worker preserves #456 rendered-runtime-proof objective through build success, frozen worker-owned UnrealEditor-Cmd, owned-process termination, route change, pause/task-recall question, and later go/continue.",
+      "contrast": "Shows long reasoning/security delay and process failure do not inherently cause execution-state collapse."
+    },
+    {
+      "id": "regression-worker-sup-go-resume",
+      "filename": "9ad4f927-ed54-4745-99bf-2c0ff27b5051.png",
+      "library_file_id": "file_000000000d2082438ac2c4d04f59c4f9",
+      "rating": 5,
+      "polarity": "positive_control",
+      "phenotype": "persistent_execution_state",
+      "tags": ["instant", "regression-research", "sup", "go", "incidental_chat", "memory_glance", "live_state"],
+      "observation": "Incidental 'sup' does not displace the active regression-research lane; after 'go' the next visible event is another tool call.",
+      "contrast": "Directly tests persistence across an unrelated conversational turn."
+    },
+    {
+      "id": "regression-worker-mcp-parameter-recovery",
+      "filename": "134c7ba8-d77a-46fb-acbc-0b3c33296d4e.png",
+      "library_file_id": "file_000000002d9c824682216aedbe81bfa6",
+      "rating": 5,
+      "polarity": "positive_control",
+      "phenotype": "local_error_without_task_reset",
+      "tags": ["mcp", "parameter_error", "output_limit", "correct_and_continue", "go"],
+      "observation": "MCP call exceeds the 6000-character deployment cap; worker corrects to 6000 and continues without treating the execution surface as unavailable.",
+      "contrast": "Clean A/B contrast with the bad memory-bank MCP incident."
+    },    {
+      "id": "memory-worker-higher-level-go-continues",
+      "filename": "ce4c265c-7a18-48ab-8633-f38510fd1d0d.png",
+      "library_file_id": "file_000000007a0c820aa231f0baf57594d3",
+      "rating": 5,
+      "polarity": "positive_control",
+      "phenotype": "higher_level_task_persists_after_subtask_completion",
+      "tags": ["instant", "go", "issue_complete", "next_issue", "validation", "merge"],
+      "observation": "After a bounded memory issue is already 100%, one-word 'go' advances the higher-level program into the next legitimate issue, with validation and merge, instead of treating the completed issue as terminal.",
+      "contrast": "Shows completion of a lower-level unit need not end the execution program."
+    },
+    {
+      "id": "cleanup-worker-safe-partial-completion",
+      "filename": "9b6e871d-dc96-4e67-8ae1-301bd06f3a59.png",
+      "library_file_id": "file_0000000089c48246be2815e10b163d65",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "persistent_state_with_safety_stop",
+      "tags": ["disk_cleanup", "dirty_worktree", "stash_hang", "owned_process", "partial_completion", "safety"],
+      "observation": "Worker reclaims safe caches, then attempts preservation before touching dirty worktrees; when git stash hangs it kills only owned Git processes and leaves dirty data intact.",
+      "contrast": "Demonstrates persistence with a legitimate narrow safety stop rather than reckless 'never stop' behavior."
+    },
+    {
+      "id": "bad-cold-baseline-next-step-loop",
+      "filenames": ["Näyttökuva 2026-08-25 232841.png", "Näyttökuva 2026-08-25 232834.png", "Näyttökuva 2026-08-25 232828.png", "Näyttökuva 2026-08-25 232849.png", "Näyttökuva 2026-08-25 232845.png"],
+      "library_file_ids": ["file_00000000496081f490f3d7b076d1eb7a", "file_00000000fc0481f486d816b771ffb962", "file_00000000dd6481f4b7866f6dacdeb0f4", "file_00000000b5b081f4be9bf85cea3064ce", "file_0000000097b0820ab2cb8ae0a8c8f650"],
+      "rating": 5,
+      "polarity": "negative_control",
+      "phenotype": "semantic_recall_without_execution_binding",
+      "tags": ["5.5_instant", "empty_project_memory", "go", "desktop_commander", "github", "plan_loop", "no_tool_call", "cold_bootstrap"],
+      "observation": "Worker successfully finds the repo, reads AGENTS.md, knows both connectors are available, and names an explicit next plan; subsequent go turns repeatedly describe what it would inspect next instead of invoking the tool.",
+      "contrast": "Clean execution-state drop with no visible route outage, safety block, or ambiguous intent."
+    },    {
+      "id": "desktop-commander-multicall-control",
+      "filename": "33bad018-32ad-436d-8702-e3ef016fc458.png",
+      "library_file_id": "file_0000000066e081f480273561338ff032",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "sustained_multicall_execution",
+      "tags": ["desktop_commander", "multiple_calls", "start_process", "tool_surface_stable"],
+      "observation": "Screenshot visibly contains repeated Desktop Commander process calls in one continuing execution chain.",
+      "contrast": "Refutes the idea that the connector necessarily disappears after one call."
+    },
+    {
+      "id": "mcp-safety-block-correct-recovery",
+      "filename": "a1b10cdb-0824-44b1-9ee8-a92389c45a2b.png",
+      "library_file_id": "file_0000000012d88243a02e9863fd122d18",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "blocked_call_without_task_reset",
+      "tags": ["mcp", "safety_block", "refresh", "different_payload", "continue"],
+      "observation": "An MCP edit is blocked before execution; worker preserves the task, refuses identical retry, refreshes the connector and plans smaller materially different calls.",
+      "contrast": "Safety-layer rejection is not itself execution-context loss."
+    },
+    {
+      "id": "github-long-run-control",
+      "filename": "a8ca38ef-fb5b-48a2-b8d5-a1e6b82dfa82.png",
+      "library_file_id": "file_00000000b7f4824683b2c4404677cd66",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "sustained_multicall_execution",
+      "tags": ["github", "many_calls", "search", "read", "issue_update", "pr"],
+      "observation": "Long GitHub sequence visibly continues across many calls and different GitHub operations.",
+      "contrast": "Sustained execution is not specific to Desktop Commander or MCP."
+    },    {
+      "id": "image-delivery-context-failure",
+      "filenames": ["ae7225f6-2973-4f2b-aa85-c5625e08b721.png", "dca72f47-d41e-402a-8ecd-e0c302ce90d0.png", "3071e25e-2cb3-44eb-81c6-f3248381a0ee.png"],
+      "library_file_ids": ["file_000000006b84821090313b1f50ed6f86", "file_00000000502082109c62447116e3f1b9", "file_00000000471082109be4d2903b9d8d87"],
+      "rating": 4,
+      "polarity": "adjacent_failure",
+      "phenotype": "delivery_acceptance_condition_drop",
+      "tags": ["show_me", "image", "artifact_reference", "delivery", "acceptance_condition"],
+      "observation": "Repeated 'show me the android' attempts perform tool work but return references/explanations instead of actually surfacing the requested image.",
+      "contrast": "Same structural family: locally responsive action replaces the real acceptance condition, but this is delivery rather than execution-surface loss."
+    },
+    {
+      "id": "image-delivery-correction-control",
+      "filename": "5e18b21e-c35e-41df-b9b0-6f1b7a28de7c.png",
+      "library_file_id": "file_00000000691c82109357529880b1339f",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "acceptance_condition_restored",
+      "tags": ["show_me", "library", "image_pixels", "visible_delivery"],
+      "observation": "After explicit correction, worker uses Library/image pixels and actually surfaces the requested picture.",
+      "contrast": "Confirms the capability existed; prior failures were task/acceptance selection failures rather than inability to render the image."
+    },
+    {
+      "id": "genuine-rate-limit-exclusion",
+      "filename": "5fdf6106-fff1-4ab8-900c-b240c7caf590.png",
+      "library_file_id": "file_00000000c91881f4b6434511cfec85a1",
+      "rating": 3,
+      "polarity": "exclusion_control",
+      "phenotype": "product_rate_limit",
+      "tags": ["too_many_requests", "conversation_access", "product_limit"],
+      "observation": "Visible product dialog reports temporary conversation-access limitation from too many requests.",
+      "contrast": "Do not misclassify explicit product throttling as model-side execution-state collapse."
+    },    {
+      "id": "resource-pressure-exclusion",
+      "filename": "249a01c6-e538-4e6e-a859-d07b94061796.png",
+      "library_file_id": "file_000000003eb8821084aaeabd2ad62cd9",
+      "rating": 3,
+      "polarity": "exclusion_control",
+      "phenotype": "machine_saturation",
+      "tags": ["ram", "disk", "vram", "resource_pressure", "runtime"],
+      "observation": "Machine-state screenshot shows extreme RAM/disk/GPU pressure during historical runtime/build work.",
+      "contrast": "Some stalls/failures have a genuine resource explanation and must not be collapsed into the execution-state phenotype."
+    },
+    {
+      "id": "mcp-failure-route-switch-pending-state",
+      "filename": "9deee254-4d8f-4f62-827e-6d766f360cc8.png",
+      "library_file_id": "file_00000000904c820aae628f127e75e723",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "route_switch_preserves_unfinished_action",
+      "tags": ["mcp", "registration_failure", "library_fallback", "pending_action", "route_switch"],
+      "observation": "Worker reports MCP0 registration failure, switches to repository/Library work, and explicitly keeps the live queue restart pending until MCP becomes callable again.",
+      "contrast": "Ideal example of route failure changing transport without erasing unresolved task state."
+    },
+    {
+      "id": "editor-timeout-recovery-control",
+      "filename": "96eca921-b550-47d7-8380-2584ad3e9f58.png",
+      "library_file_id": "file_00000000cb7c81f4b8b2208983197bb0",
+      "rating": 4,
+      "polarity": "positive_control",
+      "phenotype": "timeout_diagnose_and_continue",
+      "tags": ["unreal", "timeout", "module_build", "recovery_route", "acceptance_target"],
+      "observation": "After an editor-build timeout, worker inspects the repo, identifies the missing usable editor DLL, switches to the documented module-only recovery route and keeps the final showroom proof target explicit.",
+      "contrast": "Long timeout does not inherently cause task-state loss."
+    }
+  ]
+}
