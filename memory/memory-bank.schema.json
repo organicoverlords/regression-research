@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Shared Memory Bank Entry",
   "type": "object",
@@ -9,6 +9,7 @@
     "kind": {"enum": ["fact", "decision", "lesson", "preference", "status", "correction"]},
     "scope": {"type": "string", "minLength": 1},
     "tags": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "title": {"type": "string", "minLength": 1, "maxLength": 100},
     "text": {"type": "string", "minLength": 1},
     "state": {"enum": ["PROVEN", "PROVISIONAL", "REJECTED"]},
     "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
