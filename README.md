@@ -3,6 +3,14 @@
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
 next move was, and enough preserved state to replay the case later.
 
+<!-- CHANGELOG-LANDING:BEGIN -->
+## Recent changes
+
+Source: [CHANGELOG.md](CHANGELOG.md)
+
+- Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
+<!-- CHANGELOG-LANDING:END -->
+
 This is research evidence. It is not an operating contract and not a worker prompt.
 Operating rules live in each project's `AGENTS.md`, generated from
 `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
