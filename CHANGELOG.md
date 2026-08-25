@@ -36,6 +36,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 - Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
 
+- Recorded the measured 2026-08-25 machine-pressure snapshot and a separate provisional runner/WIP-to-control-plane correlation hypothesis in the shared memory bank (#28).
+
 - Added optional ChatGPT durable-memory and personal-context adapter that imports a bounded fixture/export into curated candidates with DURABLE_MEMORY provenance, skips sensitive/unsupported material, and remains inert when the surface is unavailable; current explicit instruction still outranks recalled personal context via source-authority ranking (#19).
 
 - Added deterministic heterogeneous memory-candidate extraction with bounded text, source provenance, conservative provisional state, and fixtures spanning agents policy, Regression Research, Codex history, and Traycer artifacts (#15).
