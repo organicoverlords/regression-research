@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` â†’ `standards/change
 
 ### Added
 
+- Added a dated, machine-readable normalization index for the preserved August 20-23 MCP/tool-routing drift evidence, grouping duplicate artifacts, naming each first wrong and correct next substantive action, and explicitly leaving unsupported screenshot/file-moving or missing-raw cases unclaimed (#4).
+
 - Added the read-only issue #18 population acceptance report with source/class/kind/state counts, duplicate and supersession statistics, fixed recall queries, and bounded ordinary/history recall checks over the 32-entry bank; no downloads, raw transcript imports, MCP server, or tool changes.
 
 - Added the read-only `tools/memory_report.py` workflow for bounded WebGPT reports/status over canonical memory/provenance files, with deterministic SHA-256 receipts, path confinement, a hard 6,000-character output cap, no MCP tools, and no download/import work (#34).

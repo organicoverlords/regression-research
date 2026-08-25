@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Added the read-only issue #18 population acceptance report with source/class/kind/state counts, duplicate and supersession statistics, fixed recall queries, and bounded ordinary/history recall checks over the 32-entry bank; no downloads, raw transcript imports, MCP server, or tool changes.
+- Added a dated, machine-readable normalization index for the preserved August 20-23 MCP/tool-routing drift evidence, grouping duplicate artifacts, naming each first wrong and correct next substantive action, and explicitly leaving unsupported screenshot/file-moving or missing-raw cases unclaimed (#4).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.
