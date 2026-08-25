@@ -19,10 +19,11 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 DEFAULT_INDEX = Path(__file__).resolve().parents[1] / "provenance.json"
-REPORTS_DIR = Path(__file__).resolve().parents[1] / "01 Reports"
-DUPLICATE_DIR = Path(__file__).resolve().parents[1] / "99 Duplicate Archive"
+REPORTS_DIR_NAME = "01 Reports"
+DUPLICATE_DIR_NAME = "99 Duplicate Archive"
 
 # Deny credential-bearing patterns (path substrings, case-insensitive)
 DENY_SUBSTRINGS = [
@@ -34,7 +35,7 @@ DENY_SUBSTRINGS = [
     "secret",
 ]
 
-def _load_index(path: Path) -> dict:
+def _load_index(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError:
@@ -43,18 +44,62 @@ def _load_index(path: Path) -> dict:
         return {"_error": f"invalid JSON in {path}: {exc}"}
     except OSError as exc:
         return {"_error": f"cannot read {path}: {exc}"}
+    if not isinstance(data, dict):
+        return {"_error": f"provenance root must be an object: {path}"}
     return data
+
+
+def _repo_root(index_path: Path) -> Path:
+    """Resolve the checkout root from the index being validated.
+
+    Keeping this derived from ``index_path`` makes temporary fixture validation
+    faithful to the CLI and avoids checking a fixture against this module's
+    checkout by accident.
+    """
+
+    resolved = index_path.resolve()
+    return resolved.parent if resolved.name == "provenance.json" else DEFAULT_INDEX.parent
+
+
+def _normalise_relative_path(value: Any) -> str | None:
+    """Return a safe repository-relative path, or ``None`` when unsafe."""
+
+    if not isinstance(value, str) or not value.strip():
+        return None
+    normalised = value.replace("\\", "/")
+    candidate = Path(normalised)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        return None
+    return candidate.as_posix()
+
+
+def _path_error(kind: str, value: Any, repo_root: Path) -> str | None:
+    """Validate path shape and existence without ever resolving outside root."""
+
+    normalised = _normalise_relative_path(value)
+    if normalised is None:
+        return f"unsafe or empty path ({kind}): {value!r}"
+    resolved = (repo_root / normalised).resolve()
+    try:
+        resolved.relative_to(repo_root.resolve())
+    except ValueError:
+        return f"unsafe path ({kind}): '{normalised}'"
+    if not resolved.is_file():
+        return f"broken path ({kind}): '{normalised}' does not exist"
+    low = normalised.lower()
+    for deny in DENY_SUBSTRINGS:
+        if deny.lower() in low:
+            return f"credential-bearing path denied ({kind}): '{normalised}' contains '{deny}'"
+    return None
 
 
 def validate(index_path: Path = DEFAULT_INDEX) -> tuple[bool, list[str], dict]:
     errors: list[str] = []
     warnings: list[str] = []
-    repo_root = index_path.resolve().parent if index_path.name == "provenance.json" and index_path.parent.name != "tools" else Path(__file__).resolve().parents[1]
-    # repo_root is parent of provenance.json which is repo root
-    if index_path.name == "provenance.json":
-        repo_root = index_path.resolve().parent
-    else:
-        repo_root = Path(__file__).resolve().parents[1]
+    index_path = Path(index_path)
+    repo_root = _repo_root(index_path)
+    reports_dir = repo_root / REPORTS_DIR_NAME
+    duplicate_dir = repo_root / DUPLICATE_DIR_NAME
 
     data = _load_index(index_path)
     if "_error" in data:
@@ -66,26 +111,53 @@ def validate(index_path: Path = DEFAULT_INDEX) -> tuple[bool, list[str], dict]:
         return False, errors, {"errors": len(errors)}
 
     entries = data["entries"]
-    if not isinstance(data.get("orphan_evidence", []), list):
+    orphan_evidence = data.get("orphan_evidence", [])
+    if not isinstance(orphan_evidence, list):
         errors.append("'orphan_evidence' must be a list if present")
+        orphan_evidence = []
+
+    duplicate_archive = data.get("duplicate_archive", {})
+    if not isinstance(duplicate_archive, dict):
+        errors.append("'duplicate_archive' must be an object if present")
+        duplicate_archive = {}
+    archive_entries_value = duplicate_archive.get("entries", [])
+    if not isinstance(archive_entries_value, list):
+        errors.append("'duplicate_archive.entries' must be a list if present")
+        archive_entries_value = []
+    archive_status = duplicate_archive.get("status")
+    if archive_status is not None and (not isinstance(archive_status, str) or not archive_status.strip()):
+        errors.append("'duplicate_archive.status' must be a non-empty string if present")
+    archive_root = duplicate_archive.get("path")
+    if archive_root is not None:
+        normalised_archive_root = _normalise_relative_path(archive_root)
+        if normalised_archive_root != DUPLICATE_DIR_NAME:
+            errors.append(
+                "'duplicate_archive.path' must be the safe repository-relative archive root "
+                f"'{DUPLICATE_DIR_NAME}'"
+            )
 
     # Collect indexed report paths
     indexed_reports: set[str] = set()
     incident_ids: dict[str, str] = {}
-    all_indexed_paths: list[tuple[str, str]] = []  # (kind, path)
+    all_indexed_paths: list[tuple[str, Any]] = []  # (kind, path)
 
     for idx, entry in enumerate(entries):
         prefix = f"entries[{idx}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{prefix}: entry must be an object")
+            continue
         report_path = entry.get("report_path")
         if not isinstance(report_path, str) or not report_path.strip():
             errors.append(f"{prefix}: report_path must be non-empty string")
-            continue
-        # Normalize slashes
-        norm = report_path.replace("\\", "/")
-        if norm in indexed_reports:
-            errors.append(f"{prefix}: duplicate report_path '{norm}'")
-        indexed_reports.add(norm)
-        all_indexed_paths.append(("report", norm))
+        else:
+            norm = _normalise_relative_path(report_path)
+            if norm is None:
+                errors.append(f"{prefix}: unsafe report_path '{report_path}'")
+            else:
+                if norm in indexed_reports:
+                    errors.append(f"{prefix}: duplicate report_path '{norm}'")
+                indexed_reports.add(norm)
+                all_indexed_paths.append(("report", norm))
 
         # incident_id uniqueness (only for non-null)
         incident_id = entry.get("incident_id")
@@ -93,12 +165,13 @@ def validate(index_path: Path = DEFAULT_INDEX) -> tuple[bool, list[str], dict]:
             if not isinstance(incident_id, str) or not incident_id.strip():
                 errors.append(f"{prefix}: incident_id must be string or null, got empty string")
             else:
-                if incident_id in incident_ids:
+                incident_key = incident_id.strip()
+                if incident_key in incident_ids:
                     errors.append(
-                        f"{prefix}: duplicate incident_id '{incident_id}' also used by {incident_ids[incident_id]}"
+                        f"{prefix}: duplicate incident_id '{incident_id}' also used by {incident_ids[incident_key]}"
                     )
                 else:
-                    incident_ids[incident_id] = f"{prefix} ({norm})"
+                    incident_ids[incident_key] = f"{prefix} ({entry.get('report_path', '')})"
 
         # duplicate_status
         status = entry.get("duplicate_status")
@@ -119,45 +192,55 @@ def validate(index_path: Path = DEFAULT_INDEX) -> tuple[bool, list[str], dict]:
                 for p in val:
                     if not isinstance(p, str) or not p.strip():
                         errors.append(f"{prefix}: {arr_field} contains empty string")
-        # Collect paths for existence check
-        for kind in ("raw_transcripts", "evidence_files", "contract_snapshots"):
-            for p in entry.get(kind, []):
-                if isinstance(p, str) and p.strip():
-                    all_indexed_paths.append((kind, p.replace("\\", "/")))
+                    elif arr_field != "missing":
+                        all_indexed_paths.append((arr_field, p))
+        superseded_by = entry.get("superseded_by")
+        if superseded_by is not None and (not isinstance(superseded_by, str) or not superseded_by.strip()):
+            errors.append(f"{prefix}: superseded_by must be a non-empty string or null")
 
     # Orphan evidence paths also must exist
-    for idx, orphan in enumerate(data.get("orphan_evidence", [])):
+    for idx, orphan in enumerate(orphan_evidence):
+        if not isinstance(orphan, dict):
+            errors.append(f"orphan_evidence[{idx}]: entry must be an object")
+            continue
         p = orphan.get("path")
         if isinstance(p, str) and p.strip():
-            all_indexed_paths.append((f"orphan_evidence[{idx}]", p.replace("\\", "/")))
+            all_indexed_paths.append((f"orphan_evidence[{idx}]", p))
         else:
             errors.append(f"orphan_evidence[{idx}]: path must be non-empty string")
 
-    # duplicate_archive entries if any
-    dup_archive = data.get("duplicate_archive", {})
-    for idx, dup in enumerate(dup_archive.get("entries", []) if isinstance(dup_archive, dict) else []):
-        p = dup.get("path") if isinstance(dup, dict) else None
-        if isinstance(p, str) and p.strip():
-            all_indexed_paths.append((f"duplicate_archive[{idx}]", p.replace("\\", "/")))
+    # Duplicate archive entries must point inside the declared archive root.
+    archive_paths: set[str] = set()
+    for idx, duplicate in enumerate(archive_entries_value):
+        prefix = f"duplicate_archive.entries[{idx}]"
+        if not isinstance(duplicate, dict):
+            errors.append(f"{prefix}: entry must be an object")
+            continue
+        path = duplicate.get("path")
+        normalised = _normalise_relative_path(path)
+        if normalised is None:
+            errors.append(f"{prefix}: path must be a safe non-empty repository-relative path")
+            continue
+        if normalised == DUPLICATE_DIR_NAME or not normalised.startswith(DUPLICATE_DIR_NAME + "/"):
+            errors.append(f"{prefix}: path must be under '{DUPLICATE_DIR_NAME}/'")
+            continue
+        if normalised in archive_paths:
+            errors.append(f"{prefix}: duplicate archive path '{normalised}'")
+        archive_paths.add(normalised)
+        all_indexed_paths.append((prefix, normalised))
 
     # Check every indexed path exists
     for kind, rel in all_indexed_paths:
-        # skip empty
-        abs_path = repo_root / rel
-        if not abs_path.exists():
-            errors.append(f"broken path ({kind}): '{rel}' does not exist")
-        # credential guard
-        low = rel.lower()
-        for deny in DENY_SUBSTRINGS:
-            if deny.lower() in low:
-                errors.append(f"credential-bearing path denied ({kind}): '{rel}' contains '{deny}'")
+        error = _path_error(kind, rel, repo_root)
+        if error:
+            errors.append(error)
 
     # Check every report in 01 Reports is indexed
-    if REPORTS_DIR.exists():
+    if reports_dir.exists() and reports_dir.is_dir():
         actual_reports: set[str] = set()
-        for p in REPORTS_DIR.iterdir():
+        for p in reports_dir.iterdir():
             if p.is_file() and p.suffix.lower() in (".md", ".txt"):
-                actual_reports.add(f"01 Reports/{p.name}")
+                actual_reports.add(f"{REPORTS_DIR_NAME}/{p.name}")
         # indexed_reports already normalized
         for actual in sorted(actual_reports):
             if actual not in indexed_reports:
@@ -168,44 +251,47 @@ def validate(index_path: Path = DEFAULT_INDEX) -> tuple[bool, list[str], dict]:
                 # already flagged as broken path, but also note
                 pass
     else:
-        errors.append(f"reports directory not found: {REPORTS_DIR}")
+        errors.append(f"reports directory not found: {reports_dir}")
 
     # Check duplicate archive marking: if files exist under 99 Duplicate Archive, they must be represented
-    if DUPLICATE_DIR.exists():
-        dup_files = [p for p in DUPLICATE_DIR.iterdir() if p.is_file()]
+    dup_files: list[Path] = []
+    if duplicate_dir.exists() and duplicate_dir.is_dir():
+        dup_files = [p for p in duplicate_dir.iterdir() if p.is_file()]
         if dup_files:
             # If there are files, ensure duplicate_archive.entries covers them and entries with duplicate_status
-            indexed_dup_paths = set()
+            indexed_dup_paths = set(archive_paths)
             for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                report = _normalise_relative_path(entry.get("report_path"))
                 if entry.get("duplicate_status") in ("superseded", "duplicate"):
-                    indexed_dup_paths.add(entry.get("report_path", "").replace("\\", "/"))
+                    if report:
+                        indexed_dup_paths.add(report)
                 for kind in ("raw_transcripts", "evidence_files", "contract_snapshots"):
                     for p in entry.get(kind, []):
-                        if "99 Duplicate Archive" in p:
-                            indexed_dup_paths.add(p.replace("\\", "/"))
-            for dup_key in dup_archive.get("entries", []) if isinstance(dup_archive, dict) else []:
-                if isinstance(dup_key, dict) and isinstance(dup_key.get("path"), str):
-                    indexed_dup_paths.add(dup_key["path"].replace("\\", "/"))
+                        normalised = _normalise_relative_path(p)
+                        if normalised and normalised.startswith(DUPLICATE_DIR_NAME + "/"):
+                            indexed_dup_paths.add(normalised)
+            for orphan in orphan_evidence:
+                if isinstance(orphan, dict):
+                    normalised = _normalise_relative_path(orphan.get("path"))
+                    if normalised and normalised.startswith(DUPLICATE_DIR_NAME + "/"):
+                        indexed_dup_paths.add(normalised)
             for f in dup_files:
-                rel = f"99 Duplicate Archive/{f.name}"
+                rel = f"{DUPLICATE_DIR_NAME}/{f.name}"
                 if rel not in indexed_dup_paths:
-                    # Check orphan or duplicate_archive entries already counted
-                    found = False
-                    for p in data.get("orphan_evidence", []):
-                        if p.get("path", "").replace("\\", "/") == rel:
-                            found = True
-                            break
-                    if not found and dup_archive.get("entries"):
-                        for e in dup_archive.get("entries", []):
-                            if isinstance(e, dict) and e.get("path", "").replace("\\", "/") == rel:
-                                found = True
-                                break
-                    if not found:
-                        errors.append(f"duplicate archive file not indexed/marked: '{rel}'")
+                    errors.append(f"duplicate archive file not indexed/marked: '{rel}'")
                 # Also check that any file in duplicate archive is not marked canonical elsewhere
                 for entry in entries:
-                    if entry.get("report_path", "").replace("\\", "/") == rel and entry.get("duplicate_status") == "canonical":
+                    if not isinstance(entry, dict):
+                        continue
+                    if _normalise_relative_path(entry.get("report_path")) == rel and entry.get("duplicate_status") == "canonical":
                         errors.append(f"duplicate archive file marked canonical: '{rel}'")
+
+    if archive_status == "empty_no_superseded_artifacts_currently_archived" and (archive_entries_value or dup_files):
+        errors.append("duplicate archive status says empty but archive entries/files are present")
+    if dup_files and archive_status == "empty_no_superseded_artifacts_currently_archived":
+        errors.append("duplicate archive files are present while duplicate archive status says empty")
 
     # Validation rules field presence
     if "validation_rules" not in data:

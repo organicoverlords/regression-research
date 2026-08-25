@@ -78,6 +78,39 @@ def test_validator_detects_duplicate_incident_id(tmp_path: Path):
     assert any("duplicate incident_id" in m for m in messages)
 
 
+def test_validator_detects_malformed_required_field(tmp_path: Path):
+    data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
+    bad = copy.deepcopy(data)
+    bad["entries"][0]["title"] = ""
+    tmp_index = tmp_path / "provenance.json"
+    tmp_index.write_text(json.dumps(bad), encoding="utf-8")
+    ok, messages, _ = validate(tmp_index)
+    assert not ok
+    assert any("title must be non-empty string" in m for m in messages)
+
+
+def test_validator_detects_unsafe_link(tmp_path: Path):
+    data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
+    bad = copy.deepcopy(data)
+    bad["entries"][0]["evidence_files"] = ["../outside-evidence.txt"]
+    tmp_index = tmp_path / "provenance.json"
+    tmp_index.write_text(json.dumps(bad), encoding="utf-8")
+    ok, messages, _ = validate(tmp_index)
+    assert not ok
+    assert any("unsafe" in m and "outside-evidence" in m for m in messages)
+
+
+def test_validator_detects_duplicate_archive_inconsistency(tmp_path: Path):
+    data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
+    bad = copy.deepcopy(data)
+    bad["duplicate_archive"]["entries"] = [{"path": "01 Reports/not-an-archive-file.txt"}]
+    tmp_index = tmp_path / "provenance.json"
+    tmp_index.write_text(json.dumps(bad), encoding="utf-8")
+    ok, messages, _ = validate(tmp_index)
+    assert not ok
+    assert any("must be under '99 Duplicate Archive/'" in m for m in messages)
+
+
 def test_no_credential_bearing_material():
     data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
     text = json.dumps(data).lower()
