@@ -11,6 +11,11 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 ### Added
 
 - Added deterministic 5,000+ candidate stress coverage proving bounded memory recall limits, relevance filtering, and routine runtime/memory use (#17).
+- Source-authority conflict handling in memory migration: a supersession is honoured only when
+  the claiming entry's source class ranks at or above the entry it supersedes, so a
+  `RECOVERY_ONLY` seed claim can no longer silently remove `LIVE_CANONICAL` policy from ordinary
+  recall. Every promotion, duplicate collapse and rejected supersession is recorded with its
+  reason and both source classes, written by `--audit`.
 
 - `NORTH_STAR.md`, naming the three live regression classes this corpus is currently tracking.
 
