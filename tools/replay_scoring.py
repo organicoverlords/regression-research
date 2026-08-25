@@ -226,6 +226,14 @@ def _visual_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool, 
     latest_before_open = any(latest < opened for opened in open_positions for latest in latest_positions)
     opened_before_inspection = any(opened < inspected for inspected in inspect_positions for opened in open_positions)
     inspected = bool(inspect_positions)
+    action_positions = [
+        index
+        for index, kind in enumerate(kinds)
+        if kind in {"user_visible_success", "evidence_driven_action"}
+    ]
+    inspected_before_success = bool(inspect_positions) and (
+        not action_positions or min(inspect_positions) < min(action_positions)
+    )
     semantics_recorded = any(
         kind == "pixel_inspection"
         and _contains_any(_normalise(str(event.get("details", ""))), ("screenshot semantics", "visible composition", "visible", "pixels"))
@@ -250,7 +258,7 @@ def _visual_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool, 
     values = {
         "latest_or_index_read_before_open": (latest_before_open, "candidate reads the latest/index record before opening the artifact"),
         "current_image_opened_directly": (opened_before_inspection, "candidate opens the current image directly before inspection"),
-        "image_pixels_inspected_before_success": (inspected, "candidate inspects pixels before acting"),
+        "image_pixels_inspected_before_success": (inspected_before_success, "candidate inspects pixels before acting"),
         "screenshot_semantics_recorded": (semantics_recorded, "candidate records visible screenshot semantics"),
         "observations_drive_next_action": (evidence_driven, "candidate bases the next action on pixel observations"),
         "reviewed_artifact_uses_dated_descriptive_name": (dated_name, "candidate names the reviewed artifact descriptively with its date"),

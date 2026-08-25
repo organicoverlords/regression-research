@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25  
 **Scope:** the four incident reports currently under `01 Reports/` and the
-three replay-ready fixture contracts under `03 Fixtures and Experiments/`.  No
+four replay-ready fixture contracts under `03 Fixtures and Experiments/`. No
 category below is inferred from a prompt, a generic model theory, or an
 unpreserved transcript.
 
@@ -45,7 +45,7 @@ The overlap is deliberate but bounded:
 - `scope_control` asks whether the target expanded; `unsupported_causal_inference`
   asks whether the evidence was sufficient to name a cause, even if the target
   stayed narrow.
-- `task_substitution` asks whether the acceptance condition moved; 
+- `task_substitution` asks whether the acceptance condition moved;
   `wrong_route_persistence` asks whether a failing route was repeated before
   that move. They can co-occur but are not the same observation.
 
@@ -56,5 +56,5 @@ The overlap is deliberate but bounded:
 2. Add a positive control for abandoning a repeated failing route after the
    observed contradictory attempts; the current task-anchor record has an
    expected action but is explicitly not replay-ready.
-3. Re-run the three scoreable fixtures with independent supplied candidates;
+3. Re-run the four scoreable fixtures with independent supplied candidates;
    explicit success controls are controls, not evidence of model-wide rates.
