@@ -1,7 +1,4 @@
-﻿import json
-import tempfile
 import unittest
-from pathlib import Path
 
 from tools.migrate_memory_bank import migrate_candidates
 
@@ -25,6 +22,13 @@ class MemoryMigrationTests(unittest.TestCase):
     def test_supersedes_is_preserved(self):
         e=self.e("new","Path trigger is unproven.",supersedes=["old"])
         self.assertEqual(migrate_candidates([e])[0]["supersedes"],["old"])
+
+    def test_extractor_metadata_is_removed_before_bank_write(self):
+        e=self.e("x","Keep this compact.")
+        e.update({"source_id":"agents-repo","source_class":"HISTORICAL_CONTEXT","source_timestamp":"2026-08-25T10:00:00+03:00"})
+        out=migrate_candidates([e])
+        self.assertEqual(len(out),1)
+        self.assertFalse({"source_id","source_class","source_timestamp"} & set(out[0]))
 
 
 if __name__ == "__main__": unittest.main()
