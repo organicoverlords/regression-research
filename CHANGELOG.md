@@ -10,6 +10,10 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- An observed-incident-only regression taxonomy and coverage matrix distinguish
+  eight mechanisms, link each row to preserved reports/fixtures and positive
+  controls, and mark the pending task-anchor capture as a research gap (#6).
+
 - A deterministic, provider-free replay scoring harness accepts supplied
   candidate actions, reports machine-readable and human-readable assertion
   results, and keeps pending-capture records out of scoreable fixtures (#3).
