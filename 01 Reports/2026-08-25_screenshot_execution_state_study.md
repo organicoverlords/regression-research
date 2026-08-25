@@ -34,6 +34,8 @@ Especially strong controls:
 - Regression-research worker: `sup` did not displace the active lane; the following `go` immediately resumed tool execution.
 - Memory worker: after a bounded issue reached 100%, a one-word `go` advanced the higher-level program into the next legitimate issue rather than treating the completed issue as the whole task.
 - Cleanup worker: reclaimed safe caches, then stopped destructive deletion when `git stash -u` itself hung; it preserved objective, ownership, completed effects, unresolved effects, and safety constraints.
+- PR #71 transport-recovery worker: persistent MCP transport instability did not erase the active rebase; after another `go` it reconstructed the exact two additive conflicts and resumed tool execution.
+- Cleanup/reconciliation worker: after bulk cleanup completed, `continue work` resumed the higher-level objective, detected a lane with five live Unreal validation owners and left it alone, then continued reconciling the remaining dirty lanes through multiple calls.
 ## Strong negative control
 
 The cleanest bad sequence begins with both GitHub and Remote Desktop Commander available. The worker successfully locates `C:\Users\Lauri\Desktop\regression-research`, reads `AGENTS.md`, understands the North Star, and produces an explicit five-step next plan. On subsequent `go` turns it stops consuming that plan and instead says what it *would* inspect next, says the next step *requires* Desktop Commander, and later acknowledges that both connectors are available without invoking them.

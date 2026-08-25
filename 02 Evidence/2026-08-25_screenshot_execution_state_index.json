@@ -171,6 +171,27 @@
       "tags": ["unreal", "timeout", "module_build", "recovery_route", "acceptance_target"],
       "observation": "After an editor-build timeout, worker inspects the repo, identifies the missing usable editor DLL, switches to the documented module-only recovery route and keeps the final showroom proof target explicit.",
       "contrast": "Long timeout does not inherently cause task-state loss."
+    }    ,{
+      "id": "pr71-transport-drop-exact-resume",
+      "filename": "85e4d797-05f0-4c56-b38d-8d525c1933db.png",
+      "library_file_id": "file_00000000f38881f4b3684a7dabee6d8b",
+      "rating": 5,
+      "polarity": "positive_control",
+      "phenotype": "transport_failure_without_execution_state_loss",
+      "tags": ["instant", "mcp", "transport_instability", "pr71", "rebase", "go", "resume", "conflict_reconstruction"],
+      "observation": "Worker reports persistent MCP transport instability during PR #71 rebase, explicitly keeps the lane active, then on the next go reconstructs the exact interrupted rebase state, identifies the two additive conflicts, chooses a merge strategy, and resumes with a tool call.",
+      "contrast": "Strong control showing a real transport interruption can coexist with preserved task identity and exact operation-level recovery."
+    },
+    {
+      "id": "cleanup-reconciliation-continue-owned-lanes",
+      "filename": "620890a1-3d9f-462f-a2ee-0bae6fda7fda.png",
+      "library_file_id": "file_00000000103c820ab81131dd63d3c7e7",
+      "rating": 5,
+      "polarity": "positive_control",
+      "phenotype": "subtask_completion_then_live_state_reconciliation",
+      "tags": ["instant", "cleanup", "continue_work", "ownership", "dirty_worktree", "github", "multiple_calls", "live_state"],
+      "observation": "After stale-bulk cleanup completes, `continue work` resumes the higher-level reconciliation objective, re-orients from live state, detects a lane owned by five live Unreal validation processes and leaves it alone, traces the remaining dirty lanes to branch/issue state, and continues through multiple tool calls.",
+      "contrast": "Shows lower-level completion and live ownership constraints refine the next action without terminating the execution program."
     }
   ]
 }

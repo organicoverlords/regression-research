@@ -13,6 +13,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 - Preserved the live disk-floor policy-lapse lesson as a distinct provisional orchestration memory (#72).
 
 - Added a searchable, rated 2026-08-25 screenshot evidence index and execution-state persistence study, separating sane Instant controls from task-execution drops, genuine route outages, safety blocks, resource pressure, and delivery failures (#69).
+- Extended the screenshot evidence corpus with two rating-5 persistence controls covering exact PR rebase recovery after MCP transport instability and cleanup-to-reconciliation continuation across live ownership constraints (#74).
 
 - Added the highest-severity data-destruction regression report and replay fixture, distinguishing protected masters/uncommitted state from verified reproducible disk-reclaim targets (#66).
 

@@ -111,7 +111,7 @@
       "duplicate_status": "canonical",
       "superseded_by": null,
       "missing": [
-        "aug21_22_mcp_telemetry_unavailable",
+        "evidence_gap_aug21_22_mcp_telemetry_unavailable",
         "exact_token_and_correction_turn_join_not_available"
       ],
       "notes": "Reproducible research synthesis over preserved/live telemetry and explicitly attributed snapshots. Missing Aug 21-22 MCP telemetry is recorded as a limitation rather than inferred as negative evidence."
@@ -133,7 +133,7 @@
       "duplicate_status": "canonical",
       "superseded_by": null,
       "missing": [
-        "exact_aug23_destructive_transcript_not_preserved",
+        "raw_aug23_destructive_transcript_not_preserved",
         "exact_deleted_paths_not_proven",
         "exact_deleted_bytes_and_asset_count_not_proven"
       ],
@@ -151,7 +151,9 @@
       "contract_snapshots": [],
       "duplicate_status": "canonical",
       "superseded_by": null,
-      "missing": [],
+      "missing": [
+        "raw_chat_transcript_not_linked_for_github_actions_primary_evidence"
+      ],
       "notes": "Primary evidence is GitHub Actions p3 runs 32724815129 and 32762720907; failed run never started the intended test, repaired run did and completed Success."
     },
     {
