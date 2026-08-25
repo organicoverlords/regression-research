@@ -1,0 +1,53 @@
+{
+  "markers": [
+    "fucking my convos",
+    "what the fuck seriously",
+    "i hate this",
+    "blocked and proven",
+    "stupid formatting",
+    "your asshole",
+    "did you even read my handoff",
+    "we are so fucked"
+  ],
+  "sources": [
+    {
+      "path": "90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt",
+      "sha256": "38edf6a5e4d8d59240536d8e75c15a71383336649691eae53506b0b440c5405e",
+      "turns_total": 669,
+      "selected_user_turns": [
+        203,
+        210,
+        262,
+        268,
+        394,
+        494,
+        1966
+      ],
+      "selected_count": 7
+    },
+    {
+      "path": "90 Raw Transcripts/share-6a86831f-6b54-83ed-8209-a1f4bf4e3caf.txt",
+      "sha256": "e75fdc061badd15fe19107d78e6db3db7bca254479c38ce8f760c0bfab9d6a16",
+      "turns_total": 469,
+      "selected_user_turns": [
+        154
+      ],
+      "selected_count": 1
+    }
+  ],
+  "review": {
+    "accepted_turns": [
+      262,
+      394,
+      494,
+      1966
+    ],
+    "ambiguous_turns": [
+      203,
+      210,
+      268,
+      154
+    ],
+    "rule": "Keep only windows where the immediately preceding assistant turn is the behavior criticized by the marker turn; otherwise preserve as ambiguous source evidence but do not emit a lesson candidate."
+  }
+}

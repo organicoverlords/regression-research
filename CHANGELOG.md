@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 ### Added
 
+- Added a bounded reviewed negative-feedback population pass over two preserved transcripts: 8 marker turns reviewed, 4 defensible PROVISIONAL lesson candidates retained, and 4 ambiguous local pairings explicitly excluded (#64).
+
 - Preserved the proven recent-memory startup decision from the reconciled canonical local checkout in the shared memory bank (#62).
 
 - Added bounded strong-negative-feedback extraction that turns configurable frustration markers into provisional lesson candidates about the preceding assistant behavior and following correction, preserving source-turn provenance without storing the insult as the lesson (#55).

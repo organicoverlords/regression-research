@@ -1,0 +1,24 @@
+{
+  "status": "PROVEN",
+  "source_files": 2,
+  "selected_marker_turns": 8,
+  "candidates": 4,
+  "duplicates_collapsed": 0,
+  "ambiguous_cases": 4,
+  "states": [
+    "PROVISIONAL"
+  ],
+  "distinct_source_turns": 4,
+  "accepted_turns": [
+    262,
+    394,
+    494,
+    1966
+  ],
+  "ambiguous_turns": [
+    203,
+    210,
+    268,
+    154
+  ]
+}
