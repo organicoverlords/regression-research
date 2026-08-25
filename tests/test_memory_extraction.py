@@ -1,12 +1,11 @@
-﻿import json
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from tools.extract_memory_candidates import extract_candidates
-
+from tools.extract_memory_candidates import extract_candidates, extract_negative_feedback_candidates
 
 FIXTURE = Path("tests/fixtures/memory-source-snippets.jsonl")
 
@@ -37,6 +36,36 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(len(first), 1)
         self.assertLessEqual(len(first[0]["text"]), 800)
+
+    def test_negative_feedback_extracts_behavior_not_insult(self):
+        for marker in ("ASSHOLE", "FUCK YOU", "asädasdnasdnda"):
+            source = {
+                "source_id":"chat-history", "source_class":"HISTORICAL_CONTEXT", "scope":"memory",
+                "source_timestamp":"2026-08-25T12:00:00+03:00", "evidence":"chat:conversation-1",
+                "turns":[
+                    {"role":"assistant","text":"I retried the same failed command again."},
+                    {"role":"user","text":marker,"evidence":f"chat:conversation-1:user-{marker}"},
+                    {"role":"assistant","text":"I switched route and bounded the retry."},
+                ],
+            }
+            out = extract_negative_feedback_candidates([source])
+            self.assertEqual(len(out), 1)
+            self.assertEqual(out[0]["state"], "PROVISIONAL")
+            self.assertIn("I retried the same failed command again.", out[0]["text"])
+            self.assertIn("I switched route and bounded the retry.", out[0]["text"])
+            self.assertNotIn(marker, out[0]["text"])
+            self.assertEqual(out[0]["evidence"], [f"chat:conversation-1:user-{marker}"])
+            self.assertIn("negative-feedback", out[0]["tags"])
+
+    def test_negative_feedback_is_bounded_and_configurable(self):
+        source = {
+            "source_id":"chat-history", "source_class":"HISTORICAL_CONTEXT", "source_timestamp":"2026-08-25T12:00:00+03:00",
+            "turns":[{"role":"assistant","text":"x" * 2000},{"role":"user","text":"CUSTOM PANIC"}],
+        }
+        self.assertEqual(extract_negative_feedback_candidates([source]), [])
+        out = extract_negative_feedback_candidates([source], markers=["CUSTOM PANIC"])
+        self.assertEqual(len(out), 1)
+        self.assertLessEqual(len(out[0]["text"]), 800)
 
     def test_cli_is_byte_deterministic_for_fixture(self):
         with tempfile.TemporaryDirectory() as td:
