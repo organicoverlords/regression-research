@@ -1,4 +1,4 @@
-﻿# Shared Memory Bank Design
+# Shared Memory Bank Design
 
 **Date:** 2026-08-25  
 **Issue:** #10  
@@ -130,6 +130,7 @@ Good write triggers:
 - a project decision that future workers must know;
 - a material status transition (e.g. implementation proven, runtime proof still pending);
 - a regression lesson that changes future behavior;
+- fleet lifecycle lessons such as isolated worker lanes requiring an explicit converge/retire phase (P3 issue #528);
 - a hypothesis being proven or rejected;
 - an external memory contract/routing fact that is stable enough to outlive the current session.
 
