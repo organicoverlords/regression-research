@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- Created machine-readable source provenance index (`provenance.json`) mapping every report in `01 Reports` to raw transcripts, evidence files, contract snapshots, dates, and evidence type, with explicit missing-link records, duplicate/superseded marking via `99 Duplicate Archive`, and a validator that detects broken paths and duplicate incident ids; no credential-bearing material is indexed (#5).
+
 - Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
 
 - Added optional ChatGPT durable-memory and personal-context adapter that imports a bounded fixture/export into curated candidates with DURABLE_MEMORY provenance, skips sensitive/unsupported material, and remains inert when the surface is unavailable; current explicit instruction still outranks recalled personal context via source-authority ranking (#19).
