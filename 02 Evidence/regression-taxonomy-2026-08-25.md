@@ -1,8 +1,8 @@
 # Observed regression taxonomy and coverage
 
 **Date:** 2026-08-25  
-**Scope:** the four incident reports currently under `01 Reports/` and the
-four replay-ready fixture contracts under `03 Fixtures and Experiments/`. No
+**Scope:** the current incident reports under `01 Reports/` and the
+replay fixture contracts under `03 Fixtures and Experiments/`. No
 category below is inferred from a prompt, a generic model theory, or an
 unpreserved transcript.
 
@@ -15,6 +15,7 @@ transcript material.
 
 | ID | Observable mechanism | Distinguishing test | Evidence anchor |
 |---|---|---|---|
+| `data_destruction` | Disk pressure or cleanup pressure is allowed to override recoverability/ownership, making masters, assets, evidence, or dirty state reclaim targets. | Require protected-state classification before mutation and prefer only proven reproducible targets; an unmet space target must not widen scope. | Data-destruction report and disk-pressure replay fixture. |
 | `correction_binding` | The assistant acknowledges a correction but the next substantive action still follows the old plan. | Inspect the first action after the correction, not the acknowledgement. | Browser-route report, lines 10–20; ChatPort report, lines 253–270. |
 | `scope_control` | A narrow fault or exclusion is converted into permission to inspect or change a wider healthy surface. | Compare the first target after the correction with the inherited fault domain and protected state. | ChatPort report, lines 238–354. |
 | `temporal_authority_resolution` | A real but stale document fragment is treated as current authority despite contradictory current policy and live behavior. | Require current higher-authority policy, chronology/history, and representative live execution evidence before causal attribution. | Stale-title report, lines 50–103. |
@@ -32,7 +33,7 @@ not mean a model has been exhaustively tested. `OBSERVED_NOT_REPLAY_READY` means
 the report preserves a concrete case, but its capture contract still prohibits
 scoring; it is a research target, not a claim of missing behavior.
 
-The current matrix has six covered mechanisms and two observed mechanisms that
+The current matrix includes a replay-covered data-destruction mechanism alongside the existing covered mechanisms and observed mechanisms that
 depend on the pending task-anchor capture. The latter are intentionally not
 converted into a new fixture or a downloader: the preserved draft says capture
 is pending, and the corpus is a reporting surface over existing artifacts.
