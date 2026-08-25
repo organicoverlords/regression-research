@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "classes": {
     "CURRENT_USER": 100,
     "LIVE_CANONICAL": 95,
@@ -97,19 +97,110 @@
     }
   ],
   "candidate_source_inventory": [
-    "organicoverlords/regression-research",
-    "organicoverlords/agents",
-    "organicoverlords/docs",
-    "local/.agents",
-    "local/.claude",
-    "local/.codex",
-    "local/.nexus_memory",
-    "ChatGPT durable memories/personal context",
-    "organicoverlords/AITubeTranscript",
-    "organicoverlords/level6-memory-brain-rust",
-    "project repositories",
-    "Traycer/Tracer artifacts and TRAYCER.md files",
-    "shared policies from organicoverlords/agents and organicoverlords/docs"
+    {
+      "id": "regression-research",
+      "location": "organicoverlords/regression-research",
+      "class": "VERIFIED_EVIDENCE",
+      "scope": "global",
+      "freshness": "git-current",
+      "availability": "available"
+    },
+    {
+      "id": "agents-repo",
+      "location": "organicoverlords/agents",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "verify-current-policy-before-promotion",
+      "availability": "available"
+    },
+    {
+      "id": "docs-repo",
+      "location": "organicoverlords/docs",
+      "class": "LIVE_CANONICAL",
+      "scope": "global",
+      "freshness": "git-current",
+      "availability": "available"
+    },
+    {
+      "id": "local-agents",
+      "location": "local/.agents",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "mixed-current-and-snapshots",
+      "availability": "available"
+    },
+    {
+      "id": "claude-history",
+      "location": "local/.claude",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "historical-turns",
+      "availability": "available"
+    },
+    {
+      "id": "codex-history",
+      "location": "local/.codex",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "historical-rollouts",
+      "availability": "available"
+    },
+    {
+      "id": "nexus-memory",
+      "location": "local/.nexus_memory",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "historical",
+      "availability": "unknown"
+    },
+    {
+      "id": "chatgpt-personal-context",
+      "location": "ChatGPT durable memory/personal context",
+      "class": "DURABLE_MEMORY",
+      "scope": "user",
+      "freshness": "surface-managed",
+      "availability": "optional"
+    },
+    {
+      "id": "aitube-memory",
+      "location": "organicoverlords/AITubeTranscript",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "aitube",
+      "freshness": "git-current-contracts",
+      "availability": "available"
+    },
+    {
+      "id": "level6-memory",
+      "location": "organicoverlords/level6-memory-brain-rust",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "memory-system",
+      "freshness": "git-current-contracts",
+      "availability": "available"
+    },
+    {
+      "id": "traycer-artifacts",
+      "location": "local Traycer/TRACER.md/review artifacts",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "artifact-timestamp",
+      "availability": "available"
+    },
+    {
+      "id": "project-repos",
+      "location": "organicoverlords project repositories",
+      "class": "VERIFIED_EVIDENCE",
+      "scope": "project",
+      "freshness": "live-git-state",
+      "availability": "available"
+    },
+    {
+      "id": "legacy-seed",
+      "location": "legacy chatgpt-memory-seed/backups",
+      "class": "RECOVERY_ONLY",
+      "scope": "global",
+      "freshness": "stale-unless-verified",
+      "availability": "available"
+    }
   ],
   "excluded_runtime_dependency": [
     "ContextRelay",
