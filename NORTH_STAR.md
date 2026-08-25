@@ -28,7 +28,7 @@ rule that no fixture tests is a hope; a fixture with no rule is an anecdote.
 
 ## Current focus
 
-*Refreshed 2026-08-24 by `claude` from repo state and current incidents.*
+*Refreshed 2026-08-25 by `chatgpt architecture` from live repo state, current issues/PRs, and corpus evidence.*
 
 1. **Data destruction.** An agent deleted a set of masters and asset files. This is the highest
    severity class in the corpus and now has a hard rail in shared policy v1.2 ("Data you must
