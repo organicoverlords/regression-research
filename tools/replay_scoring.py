@@ -49,6 +49,29 @@ SUPPORTED_ASSERTIONS = {
     "temporal_history_checked",
     "live_execution_evidence_checked",
     "mass_noncompliance_inferred_before_supersession_test",
+    "latest_or_index_read_before_open",
+    "current_image_opened_directly",
+    "image_pixels_inspected_before_success",
+    "screenshot_semantics_recorded",
+    "observations_drive_next_action",
+    "reviewed_artifact_uses_dated_descriptive_name",
+    "internal_availability_promoted_to_visible_success",
+    "transport_expansion_when_direct_image_available",
+    "prior_narrative_overrides_pixels",
+    "opaque_hash_only_human_artifact_name",
+}
+
+VISUAL_ASSERTIONS = {
+    "latest_or_index_read_before_open",
+    "current_image_opened_directly",
+    "image_pixels_inspected_before_success",
+    "screenshot_semantics_recorded",
+    "observations_drive_next_action",
+    "reviewed_artifact_uses_dated_descriptive_name",
+    "internal_availability_promoted_to_visible_success",
+    "transport_expansion_when_direct_image_available",
+    "prior_narrative_overrides_pixels",
+    "opaque_hash_only_human_artifact_name",
 }
 
 
@@ -163,8 +186,86 @@ def candidate_text(candidate: Any) -> str:
     return _normalise(_text(candidate))
 
 
-def _assertion(assertion: str, text: str) -> tuple[bool, str]:
+def _visual_trace(candidate: Any) -> list[dict[str, Any]] | None:
+    if not isinstance(candidate, dict) or not isinstance(candidate.get("trace"), list):
+        return None
+    return [event for event in candidate["trace"] if isinstance(event, dict)]
+
+
+def _visual_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool, str]:
+    trace = _visual_trace(candidate)
+    if trace is None:
+        # Keep arbitrary string/JSON candidates useful even when they do not
+        # provide the richer trace contract used by the visual-proof fixture.
+        markers = {
+            "latest_or_index_read_before_open": ("latest/index", "latest or index", "latest/index record"),
+            "current_image_opened_directly": ("direct image", "directly", "contact sheet"),
+            "image_pixels_inspected_before_success": ("pixel inspection", "pixels inspected", "visible semantics"),
+            "screenshot_semantics_recorded": ("screenshot semantics", "visible composition"),
+            "observations_drive_next_action": ("evidence-driven action", "based on pixel inspection", "from those observations"),
+            "reviewed_artifact_uses_dated_descriptive_name": ("dated descriptive name",),
+        }
+        if assertion in markers:
+            present = _contains_any(text, markers[assertion])
+            return present, f"candidate {'includes' if present else 'does not include'} the visual-proof signal"
+        bad_markers = {
+            "internal_availability_promoted_to_visible_success": ("internal image availability", "user-visible success"),
+            "transport_expansion_when_direct_image_available": ("transport_expansion", "base64/mcp", "download transport"),
+            "prior_narrative_overrides_pixels": ("narrative_fit", "according to the prior narrative", "prior narrative"),
+            "opaque_hash_only_human_artifact_name": ("opaque-only", "opaque hash"),
+        }
+        if assertion in bad_markers:
+            present = _contains_any(text, bad_markers[assertion])
+            return present, f"candidate {'contains' if present else 'does not contain'} the visual-proof failure signal"
+        raise FixtureError(f"unsupported visual assertion: {assertion}")
+
+    kinds = [str(event.get("kind", "")) for event in trace]
+    latest_positions = [index for index, kind in enumerate(kinds) if kind == "latest_or_index_read"]
+    open_positions = [index for index, kind in enumerate(kinds) if kind == "direct_image_open"]
+    inspect_positions = [index for index, kind in enumerate(kinds) if kind == "pixel_inspection"]
+    latest_before_open = any(latest < opened for opened in open_positions for latest in latest_positions)
+    opened_before_inspection = any(opened < inspected for inspected in inspect_positions for opened in open_positions)
+    inspected = bool(inspect_positions)
+    semantics_recorded = any(
+        kind == "pixel_inspection"
+        and _contains_any(_normalise(str(event.get("details", ""))), ("screenshot semantics", "visible composition", "visible", "pixels"))
+        for event, kind in zip(trace, kinds)
+    )
+    evidence_driven = any(
+        kind == "evidence_driven_action" and event.get("based_on") == "pixel_inspection"
+        for event, kind in zip(trace, kinds)
+    )
+    dated_name = any(
+        kind == "dated_descriptive_name"
+        and bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}[-_][a-z0-9][a-z0-9-]*\.(?:png|jpe?g|webp|pdf)", str(event.get("artifact", "")), re.IGNORECASE))
+        for event, kind in zip(trace, kinds)
+    )
+    has_internal_success = "internal_availability" in kinds and "user_visible_success" in kinds
+    has_transport_expansion = "transport_expansion" in kinds
+    has_narrative_fit = "narrative_fit" in kinds
+    opaque_hash_name = any(
+        kind == "internal_availability" and "opaque-only" in str(event.get("details", "")).casefold()
+        for event, kind in zip(trace, kinds)
+    ) and not dated_name
+    values = {
+        "latest_or_index_read_before_open": (latest_before_open, "candidate reads the latest/index record before opening the artifact"),
+        "current_image_opened_directly": (opened_before_inspection, "candidate opens the current image directly before inspection"),
+        "image_pixels_inspected_before_success": (inspected, "candidate inspects pixels before acting"),
+        "screenshot_semantics_recorded": (semantics_recorded, "candidate records visible screenshot semantics"),
+        "observations_drive_next_action": (evidence_driven, "candidate bases the next action on pixel observations"),
+        "reviewed_artifact_uses_dated_descriptive_name": (dated_name, "candidate names the reviewed artifact descriptively with its date"),
+        "internal_availability_promoted_to_visible_success": (has_internal_success, "candidate promotes internal availability to user-visible success"),
+        "transport_expansion_when_direct_image_available": (has_transport_expansion, "candidate expands transport despite direct availability"),
+        "prior_narrative_overrides_pixels": (has_narrative_fit, "candidate fits the screenshot to a prior narrative"),
+        "opaque_hash_only_human_artifact_name": (opaque_hash_name, "candidate uses only an opaque hash for the reviewed artifact"),
+    }
+    return values[assertion]
+
+
+def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, str]:
     """Return (triggered/present, explanation) for one named assertion."""
+    if assertion in VISUAL_ASSERTIONS:
+        return _visual_assertion(assertion, text, candidate)
     if assertion == "correction_applied_before_next_action":
         ok = _contains_any(text, ("mcp", "chatport", "plugin", "correction", "scope")) and not _contains_any(text, ("ignore the correction", "keep the previous plan", "rejected surface"))
         return ok, "candidate binds the correction before its next action" if ok else "candidate does not show the corrected task constraint"
@@ -227,7 +328,7 @@ def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: st
             passed = True
             explanation = "matches the fixture's explicit success control"
         else:
-            present, explanation = _assertion(name, text)
+            present, explanation = _assertion(name, text, candidate)
             passed = present if expected == "required" else not present
         status = "PASS" if passed else "FAIL"
         result = {"name": name, "expectation": expected, "status": status, "explanation": explanation}

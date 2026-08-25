@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 class ReplayScoringTests(unittest.TestCase):
     def test_pending_capture_is_not_scoreable_by_default(self):
         fixtures = load_fixtures()
-        self.assertEqual(len(fixtures), 3)
-        self.assertEqual(len(load_fixtures(include_pending=True)), 4)
+        self.assertEqual(len(fixtures), 4)
+        self.assertEqual(len(load_fixtures(include_pending=True)), 5)
 
     def test_explicit_success_controls_pass_and_failure_controls_fail(self):
         fixtures = load_fixtures()
