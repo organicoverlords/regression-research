@@ -238,7 +238,7 @@ def _main() -> int:
     history.add_argument("--tag", action="append", default=[])
     history.add_argument("--limit", type=int, default=DEFAULT_HISTORY_LIMIT)
 
-    recent_titles = sub.add_parser("recent-titles")
+    recent_titles = sub.add_parser("recent-titles", aliases=["recent"])
     recent_titles.add_argument("--limit", type=int, default=DEFAULT_RECENT_TITLES_LIMIT)
 
     args = parser.parse_args()
@@ -262,7 +262,7 @@ def _main() -> int:
         if args.command == "history":
             print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True), ensure_ascii=False))
             return 0
-        if args.command == "recent-titles":
+        if args.command in ("recent-titles", "recent"):
             print(json.dumps(recent_title_entries(entries, limit=args.limit), ensure_ascii=False))
             return 0
         if args.command == "search":

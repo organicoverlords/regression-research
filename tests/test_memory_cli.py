@@ -36,4 +36,14 @@ class MemoryCliTests(unittest.TestCase):
             self.assertIn("error",created["tags"])
             self.assertEqual(len(bank.read_text(encoding="utf-8").splitlines()),1)
 
+    def test_recent_alias_matches_recent_titles(self):
+        root=Path(__file__).resolve().parents[1]
+        cli=root/"tools"/"memory_bank.py"
+        with tempfile.TemporaryDirectory() as d:
+            bank=Path(d)/"bank.jsonl"
+            subprocess.run([sys.executable,str(cli),"--bank",str(bank),"append","--kind","lesson","--scope","memory","--text","Recent compatibility note","--state","PROVEN"],cwd=root,text=True,capture_output=True,check=True)
+            canonical=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"recent-titles"],cwd=root,text=True,capture_output=True,check=True)
+            alias=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"recent"],cwd=root,text=True,capture_output=True,check=True)
+            self.assertEqual(alias.stdout,canonical.stdout)
+
 if __name__ == "__main__": unittest.main()
