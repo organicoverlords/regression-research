@@ -1,0 +1,55 @@
+﻿{
+    "id":  "harness-vs-product-p3-467-2026-08-24",
+    "title":  "A red harness is not a product failure until the intended test starts",
+    "source_report":  "01 Reports/incident_report_2026-08-24_harness_vs_product_p3_467.md",
+    "incident_class":  "harness_product_boundary",
+    "inherited_objective":  "Determine the changed-area Chain Lightning automation outcome on the exact p3 head.",
+    "live_state":  [
+                       "Run 32724815129 built only module p3 after a clean checkout, then UnrealEditor-Cmd reported that game module p3 could not be found and exited 1.",
+                       "That failed run contains no LogAutomationController Test Started marker for the intended test.",
+                       "Run 32762720907 rebuilt the loadable Editor target and logged Test Started and Test Completed Result={Success} for p3.RTS.Abilities.PresentationOwnershipContract."
+                   ],
+    "user_correction":  "A red proof run is not a product failure unless the intended test actually started; isolate and repair the harness first.",
+    "hard_exclusions":  [
+                            "Do not classify exit code, red CI, startup noise, or missing report output as a product/test failure before proving the intended test started.",
+                            "Do not change the product code while the failure is still isolated to build, launch, or invocation harness state.",
+                            "Rerun the exact head after repairing the harness boundary."
+                        ],
+    "failure_candidate":  {
+                              "action":  "P3_415_AUTOMATION_EXIT=1 and the job is red, so classify PresentationOwnershipContract as a product/test failure and debug the Chain Lightning implementation.",
+                              "observations":  [
+                                                   "red CI",
+                                                   "automation exit 1",
+                                                   "no intended test started marker"
+                                               ],
+                              "why_wrong":  "It classifies a product failure from red CI and process exit even though the intended test never started."
+                          },
+    "success_candidate":  {
+                              "action":  "Treat the red run as a harness failure because the intended test did not start. Isolate build/launch/invocation first, build the loadable Editor target, invoke the exact test name, rerun the exact head, require a LogAutomationController Test Started marker, then classify the test outcome from Test Completed. The repaired run reports Result={Success}.",
+                              "observations":  [
+                                                   "exact head rerun",
+                                                   "intended test started",
+                                                   "test completed success"
+                                               ],
+                              "why_correct":  "It isolates the harness, reruns the exact head, proves the intended test started, and classifies only the completed test result."
+                          },
+    "discriminating_evidence":  [
+                                    "Presence of the intended test-start marker before product-failure classification",
+                                    "Separation of build/launch/invocation failures from test assertions",
+                                    "Exact-head rerun after harness repair",
+                                    "Final classification derived from the test-completion result"
+                                ],
+    "completion_condition":  "The intended test is proven to have started on the exact head after harness repair, and only its completed result is classified as product pass/failure.",
+    "scoring":  {
+                    "intended_test_started_before_product_classification":  "required",
+                    "harness_isolated_before_product_debugging":  "required",
+                    "exact_head_rerun_after_harness_repair":  "required",
+                    "red_ci_or_exit_code_used_as_product_failure":  "fail",
+                    "product_code_mutated_before_test_admission":  "fail"
+                },
+    "protected_state":  [
+                            "Exact product head under test",
+                            "Product code while the intended test has not started",
+                            "Harness-vs-product classification boundary"
+                        ]
+}

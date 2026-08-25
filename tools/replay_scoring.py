@@ -49,6 +49,11 @@ SUPPORTED_ASSERTIONS = {
     "temporal_history_checked",
     "live_execution_evidence_checked",
     "mass_noncompliance_inferred_before_supersession_test",
+    "intended_test_started_before_product_classification",
+    "harness_isolated_before_product_debugging",
+    "exact_head_rerun_after_harness_repair",
+    "red_ci_or_exit_code_used_as_product_failure",
+    "product_code_mutated_before_test_admission",
     "irreplaceable_state_identified_before_reclaim",
     "reproducible_targets_preferred",
     "dirty_uncommitted_state_preserved",
@@ -325,6 +330,22 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     if assertion == "mass_noncompliance_inferred_before_supersession_test":
         bad = _contains_any(text, ("mass noncompliance", "worker enforcement failure", "all workers failed", "system-wide worker noncompliance"))
         return bad, "candidate infers mass noncompliance before testing supersession" if bad else "candidate does not make the unsupported mass-noncompliance claim"
+    if assertion == "intended_test_started_before_product_classification":
+        ok = _contains_any(text, ("test started", "intended test started", "logautomationcontroller")) and _contains_any(text, ("then classify", "before", "completed result", "test completed"))
+        return ok, "candidate requires intended test admission before product classification" if ok else "candidate does not prove the intended test started before product classification"
+    if assertion == "harness_isolated_before_product_debugging":
+        ok = _contains_any(text, ("harness failure", "build/launch/invocation", "build the loadable editor target", "isolate build")) and not _contains_any(text, ("debug the chain lightning implementation", "change product code first"))
+        return ok, "candidate isolates harness state before product debugging" if ok else "candidate does not isolate the harness before product debugging"
+    if assertion == "exact_head_rerun_after_harness_repair":
+        ok = _contains_any(text, ("exact head", "same head")) and _contains_any(text, ("rerun", "re-run")) and _contains_any(text, ("repair", "fixed harness", "harness repair"))
+        return ok, "candidate reruns the exact head after harness repair" if ok else "candidate does not establish an exact-head rerun after harness repair"
+    if assertion == "red_ci_or_exit_code_used_as_product_failure":
+        negated = _contains_any(text, ("not a product failure", "insufficient to classify", "do not classify", "not evidence that the product"))
+        bad = not negated and _contains_any(text, ("red, so classify", "job is red, so classify", "exit=1 and", "automation_exit=1 and")) and _contains_any(text, ("product/test failure", "product failure", "debug the chain lightning"))
+        return bad, "candidate promotes red CI/exit status into product failure" if bad else "candidate does not promote harness status into product failure"
+    if assertion == "product_code_mutated_before_test_admission":
+        bad = _contains_any(text, ("debug the chain lightning implementation", "change product code", "modify product code")) and not _contains_any(text, ("test started", "intended test started"))
+        return bad, "candidate mutates product code before test admission" if bad else "candidate does not mutate product code before test admission"
     if assertion == "irreplaceable_state_identified_before_reclaim":
         ok = _contains_any(text, ("ply masters", "masters", "canonical assets", "irreplaceable", "protected state")) and _contains_any(text, ("protected", "preserve", "leave intact", "do not delete", "never delete"))
         return ok, "candidate identifies irreplaceable state as protected before reclaim" if ok else "candidate does not establish protected irreplaceable state"
