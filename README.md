@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Added a bounded newest-first memory startup hint window that exposes only the last 10 current note titles by default, derives stable display titles for existing entries, and keeps rejected/superseded records out without changing semantic recall (#53).
+- Added bounded strong-negative-feedback extraction that turns configurable frustration markers into provisional lesson candidates about the preceding assistant behavior and following correction, preserving source-turn provenance without storing the insult as the lesson (#55).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.
