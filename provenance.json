@@ -94,6 +94,27 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Report explicitly states incident ID unassigned — no canonical identifier available, none fabricated; Chat ID unresolved / NOT_PROVEN; capture_state pending; queue_state BLOCKED_ON_EXACT_CHAT_ID; raw_capture_verified false; analysis_2 not_started; secondary prohibited while pending. Evidence file 02 Evidence/incident_2026-08-23_1040_EEST_tool_sequence.txt is the direct supporting tool-call sequence (audit timestamps) and is the only file whose name matches the incident timestamp. Full immutable ChatGPT raw export is pending and must not be substituted with older conversation IDs or partial transcripts. No contract snapshot is claimed as direct provenance for this PRIMARY."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "research_synthesis_not_incident_id",
+      "report_path": "01 Reports/2026-08-25_five-day-control-plane-correlation.md",
+      "title": "Five-day control-plane correlation — 2026-08-21..25",
+      "date": "2026-08-25T20:36:03+03:00",
+      "evidence_type": "correlation_research_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/five-day-control-plane-20260821-25/five-day-correlation-dataset.json",
+        "02 Evidence/five-day-control-plane-20260821-25/five-day-correlation-dataset.csv"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "aug21_22_mcp_telemetry_unavailable",
+        "exact_token_and_correction_turn_join_not_available"
+      ],
+      "notes": "Reproducible research synthesis over preserved/live telemetry and explicitly attributed snapshots. Missing Aug 21-22 MCP telemetry is recorded as a limitation rather than inferred as negative evidence."
     }
   ],
   "orphan_evidence": [
