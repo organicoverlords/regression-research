@@ -153,6 +153,26 @@
       "superseded_by": null,
       "missing": [],
       "notes": "Primary evidence is GitHub Actions p3 runs 32724815129 and 32762720907; failed run never started the intended test, repaired run did and completed Success."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "research_synthesis_not_incident_id",
+      "report_path": "01 Reports/2026-08-25_screenshot_execution_state_study.md",
+      "title": "Screenshot study - execution-state persistence vs turn-local collapse",
+      "date": "2026-08-25T23:40:00+03:00",
+      "evidence_type": "screenshot_behavior_research_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-25_screenshot_execution_state_index.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_conversation_export_not_attached_to_each_screenshot",
+        "internal_model_state_and_root_cause_not_observable"
+      ],
+      "notes": "Searchable rated index over selectively captured conversation screenshots; prevalence and internal cause are NOT_PROVEN."
     }
   ],
   "orphan_evidence": [

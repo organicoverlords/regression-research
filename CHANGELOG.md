@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Added
 
+- Added a searchable, rated 2026-08-25 screenshot evidence index and execution-state persistence study, separating sane Instant controls from task-execution drops, genuine route outages, safety blocks, resource pressure, and delivery failures (#69).
+
 - Added the highest-severity data-destruction regression report and replay fixture, distinguishing protected masters/uncommitted state from verified reproducible disk-reclaim targets (#66).
 
 - Added a bounded reviewed negative-feedback population pass over two preserved transcripts: 8 marker turns reviewed, 4 defensible PROVISIONAL lesson candidates retained, and 4 ambiguous local pairings explicitly excluded (#64).
