@@ -211,6 +211,10 @@ def _main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
 
+    note = sub.add_parser("note", help="save a quick durable note")
+    note.add_argument("text")
+    note.add_argument("--scope", default="global")
+
     append = sub.add_parser("append")
     append.add_argument("--kind", required=True, choices=sorted(KINDS))
     append.add_argument("--scope", required=True)
@@ -242,6 +246,14 @@ def _main() -> int:
         entries = load_bank(args.bank)
         if args.command == "validate":
             print(json.dumps({"status": "PROVEN", "entries": len(entries)}))
+            return 0
+        if args.command == "note":
+            text = args.text.strip()
+            tags = ["quick-note"]
+            if text.casefold().startswith(("error:", "error ")):
+                tags.append("error")
+            entry = append_entry(args.bank, {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": []})
+            print(json.dumps(entry, ensure_ascii=False))
             return 0
         if args.command == "append":
             entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
