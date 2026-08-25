@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Added three transcript-proven positive correction-handling cases for route correction, scope narrowing, and authority reconciliation, each paired to an existing failure fixture with explicit behavioral discrimination (#2).
+- Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.

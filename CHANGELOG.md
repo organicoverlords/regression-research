@@ -4,11 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-The rule this file follows is `organicoverlords/docs` â†’ `standards/changelog.md`.
+The rule this file follows is `organicoverlords/docs` Ã¢â€ â€™ `standards/changelog.md`.
 
 ## [Unreleased]
 
 ### Added
+
+- Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
 
 - Added three transcript-proven positive correction-handling cases for route correction, scope narrowing, and authority reconciliation, each paired to an existing failure fixture with explicit behavioral discrimination (#2).
 
@@ -70,7 +72,7 @@ To release:
   2. Open a fresh empty `## [Unreleased]` above it.
   3. Update the link block below.
 
-Entry style â€” one line, for a human, with the issue or PR number:
+Entry style Ã¢â‚¬â€ one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->

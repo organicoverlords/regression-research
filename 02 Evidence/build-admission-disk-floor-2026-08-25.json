@@ -1,0 +1,8 @@
+﻿{
+  "id": "build-admission-disk-floor-2026-08-25",
+  "incident_class": "admission_policy_visibility",
+  "observed": {"filesystem_writable": true, "free_gb": 21.35, "admission_threshold_gb": 25.0, "build_admitted": false},
+  "regression": "downstream build symptoms were investigated before the configured admission blocker was surfaced",
+  "required_diagnostic_fields": ["filesystem_writable", "free_gb", "admission_threshold_gb", "build_admitted", "blockers", "safe_reclaimable_gb"],
+  "invariant": "filesystem_writable does not imply build_admitted"
+}
