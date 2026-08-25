@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 ### Added
 
+- Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
+
 - Added a dated normalized MCP/tool-routing incident index for August 20–23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
 
 - Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
@@ -35,6 +37,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 - Created machine-readable source provenance index (`provenance.json`) mapping every report in `01 Reports` to raw transcripts, evidence files, contract snapshots, dates, and evidence type, with explicit missing-link records, duplicate/superseded marking via `99 Duplicate Archive`, and a validator that detects broken paths and duplicate incident ids; no credential-bearing material is indexed (#5).
 
 - Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
+
+- Recorded the measured 2026-08-25 machine-pressure snapshot and a separate provisional runner/WIP-to-control-plane correlation hypothesis in the shared memory bank (#28).
 
 - Added optional ChatGPT durable-memory and personal-context adapter that imports a bounded fixture/export into curated candidates with DURABLE_MEMORY provenance, skips sensitive/unsupported material, and remains inert when the surface is unavailable; current explicit instruction still outranks recalled personal context via source-authority ranking (#19).
 
