@@ -1,11 +1,120 @@
-﻿{
-  "schema_version": "1.0",
+{
+  "schema_version": "2.0",
+  "classes": {
+    "CURRENT_USER": 100,
+    "LIVE_CANONICAL": 95,
+    "VERIFIED_EVIDENCE": 90,
+    "DURABLE_MEMORY": 75,
+    "HISTORICAL_CONTEXT": 50,
+    "RECOVERY_ONLY": 25
+  },
   "sources": [
-    {"name":"Regression Research","role":"behavioral evidence, incidents, fixtures, operating contracts","repository":"organicoverlords/regression-research"},
-    {"name":"Legacy ChatGPT seed and durable memory exports","role":"migration source only; not canonical after bank rollout","repository":"local/.agents and exported memory artifacts"},
-    {"name":"AITubeTranscript memory contracts","role":"stable-memory boundary, contract versioning, stale-memory and preferred-snapshot patterns","repository":"organicoverlords/AITubeTranscript"},
-    {"name":"Level6 memory brain","role":"optional before/after recall-capture concepts; no v1 runtime dependency","repository":"organicoverlords/level6-memory-brain-rust"},
-    {"name":"Project repositories","role":"verified durable cross-chat project facts only","repository":"organicoverlords/p3, tiny3d, lowvram3d-studio"}
+    {
+      "id": "current-user",
+      "class": "CURRENT_USER",
+      "match_prefixes": [
+        "user-instruction:"
+      ],
+      "role": "explicit current or durable user instruction"
+    },
+    {
+      "id": "shared-current-policy",
+      "class": "LIVE_CANONICAL",
+      "match_prefixes": [
+        "shared-policy:",
+        "agents-policy:",
+        "docs-policy:",
+        "repo-policy:"
+      ],
+      "role": "current shared/repository policy inspected from canonical source"
+    },
+    {
+      "id": "live-github",
+      "class": "VERIFIED_EVIDENCE",
+      "match_prefixes": [
+        "github:",
+        "commit:",
+        "p3:"
+      ],
+      "role": "verified repository issue, PR, commit, or project evidence"
+    },
+    {
+      "id": "regression",
+      "class": "VERIFIED_EVIDENCE",
+      "match_prefixes": [
+        "regression:",
+        "incident:"
+      ],
+      "role": "regression reports, fixtures, and evidence"
+    },
+    {
+      "id": "current-spec",
+      "class": "LIVE_CANONICAL",
+      "match_prefixes": [
+        "spec:"
+      ],
+      "role": "current reviewed design or operating contract"
+    },
+    {
+      "id": "durable-memory",
+      "class": "DURABLE_MEMORY",
+      "match_prefixes": [
+        "durable-memory:",
+        "aitube-memory:",
+        "level6-memory:",
+        "personal-context:"
+      ],
+      "role": "durable memory or personal-context source"
+    },
+    {
+      "id": "historical-context",
+      "class": "HISTORICAL_CONTEXT",
+      "match_prefixes": [
+        "claude-history:",
+        "codex-history:",
+        "nexus-memory:",
+        "shared-policy-snapshot:"
+      ],
+      "role": "historical context useful for reconstruction"
+    },
+    {
+      "id": "legacy-seed",
+      "class": "RECOVERY_ONLY",
+      "match_prefixes": [
+        "legacy-seed:",
+        "memory-backup:"
+      ],
+      "role": "legacy bootstrap/seed/backups; recovery and historical comparison only"
+    },
+    {
+      "id": "traycer-history",
+      "class": "HISTORICAL_CONTEXT",
+      "match_prefixes": [
+        "traycer-history:",
+        "traycer-review:"
+      ],
+      "role": "Traycer/Tracer review and routing artifacts; historical/context unless independently current-verified"
+    }
   ],
-  "excluded_runtime_dependency": ["ContextRelay", "browser automation", "Level6 daemon", "MCP availability"]
+  "candidate_source_inventory": [
+    "organicoverlords/regression-research",
+    "organicoverlords/agents",
+    "organicoverlords/docs",
+    "local/.agents",
+    "local/.claude",
+    "local/.codex",
+    "local/.nexus_memory",
+    "ChatGPT durable memories/personal context",
+    "organicoverlords/AITubeTranscript",
+    "organicoverlords/level6-memory-brain-rust",
+    "project repositories",
+    "Traycer/Tracer artifacts and TRAYCER.md files",
+    "shared policies from organicoverlords/agents and organicoverlords/docs"
+  ],
+  "excluded_runtime_dependency": [
+    "ContextRelay",
+    "browser automation",
+    "Level6 daemon",
+    "MCP availability"
+  ]
 }
