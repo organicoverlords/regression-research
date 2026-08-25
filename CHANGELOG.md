@@ -12,6 +12,10 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 - Added the read-only `tools/memory_report.py` workflow for bounded WebGPT reports/status over canonical memory/provenance files, with deterministic SHA-256 receipts, path confinement, a hard 6,000-character output cap, no MCP tools, and no download/import work (#34).
 
+- Added an executable paired visual-proof regression that rejects metadata-as-proof,
+  unnecessary transport expansion, and narrative-fitted screenshots while requiring direct
+  current-artifact inspection and dated descriptive reviewed names (#8).
+
 - Created machine-readable source provenance index (`provenance.json`) mapping every report in `01 Reports` to raw transcripts, evidence files, contract snapshots, dates, and evidence type, with explicit missing-link records, duplicate/superseded marking via `99 Duplicate Archive`, and a validator that detects broken paths and duplicate incident ids; no credential-bearing material is indexed (#5).
 
 - Exposed the canonical changelog on the GitHub landing page and added CI enforcement for changelog and landing-page synchronization.
