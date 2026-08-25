@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Added the read-only issue #18 population acceptance report with source/class/kind/state counts, duplicate and supersession statistics, fixed recall queries, and bounded ordinary/history recall checks over the 32-entry bank; no downloads, raw transcript imports, MCP server, or tool changes.
+- Added three transcript-proven positive correction-handling cases for route correction, scope narrowing, and authority reconciliation, each paired to an existing failure fixture with explicit behavioral discrimination (#2).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.

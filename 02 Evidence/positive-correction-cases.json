@@ -1,0 +1,47 @@
+﻿{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "positive-route-correction-openai-backend-2026-08-25",
+      "failure_class": "correction_binding",
+      "pairs_with_fixture": "03 Fixtures and Experiments/correction-binding-tool-route.json",
+      "source_transcript": "90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt",
+      "source_user_message": 432,
+      "source_assistant_message": 434,
+      "inherited_objective": "Investigate why response/model routing behavior changed without inventing a local control-plane cause.",
+      "correction": "MCP is not the relevant layer; the behavior comes from the OpenAI backend/request path and may relate to token requests and instruction pressure.",
+      "next_substantive_action": "Switch the investigation to OpenAI request/model-routing documentation and separate documented backend behavior from inference about trigger wording, instead of continuing MCP diagnostics.",
+      "preserved_state": ["The larger routing-regression investigation remains active", "Existing evidence is retained", "No local MCP mutation is introduced without causal need"],
+      "decisive_evidence": ["The user explicitly rejects MCP as the causal layer", "The next assistant response explicitly says MCP cannot fix this", "The next research target becomes OpenAI request/model routing"],
+      "discriminating_difference": "The correction changes the active causal/tool model before the next substantive action; the failure pattern would keep using or diagnosing the rejected MCP route."
+    },
+    {
+      "id": "positive-scope-narrowing-assistant-rules-2026-08-25",
+      "failure_class": "scope_control",
+      "pairs_with_fixture": "03 Fixtures and Experiments/scope-narrowing-chatport.json",
+      "source_transcript": "90 Raw Transcripts/share-6a86831f-6b54-83ed-8209-a1f4bf4e3caf.txt",
+      "source_user_message": 281,
+      "source_assistant_message": 283,
+      "inherited_objective": "Recover and analyze durable instruction material without losing the broader evidence-gathering task.",
+      "correction": "Prioritize instructions aimed at assistant behavior, especially anti-guessing and mandatory-research rules, rather than broad project snapshots.",
+      "next_substantive_action": "Narrow the mining target to assistant-behavior instructions such as anti-guessing, research-after-error, source-of-truth, stop/continue, autonomy, verification, and absolute ALWAYS/NEVER rules while continuing the established recovery workflow.",
+      "preserved_state": ["The recovery workflow continues", "Previously gathered evidence remains valid", "Only the selection criterion is narrowed"],
+      "decisive_evidence": ["The user narrows what material matters most", "The next response enumerates the requested assistant-behavior instruction classes", "The broader recovery task is not restarted or replaced"],
+      "discriminating_difference": "The successful action narrows the candidate set while preserving the enclosing task; the failure pattern would keep mining broad unrelated project state or replace the whole objective."
+    },
+    {
+      "id": "positive-authority-reconciliation-carry-forward-2026-08-25",
+      "failure_class": "authority_resolution",
+      "pairs_with_fixture": "03 Fixtures and Experiments/temporal-authority-selection.json",
+      "source_transcript": "90 Raw Transcripts/share-6a86831f-6b54-83ed-8209-a1f4bf4e3caf.txt",
+      "source_user_message": 20,
+      "source_assistant_message": 22,
+      "inherited_objective": "Perform a forensic audit of interacting persistent instructions and memories.",
+      "correction": "Do a second pass, but do not start over or flatten the first pass; carry the first audit forward as established working state and challenge it.",
+      "next_substantive_action": "Explicitly retain the first audit as working state and test hidden coupling and cleanup risks against it, including retrieval-scope leakage and verification/continuity tradeoffs.",
+      "preserved_state": ["First-pass findings remain active evidence", "The second pass adds or challenges rather than replaces", "The audit objective and constraints remain unchanged"],
+      "decisive_evidence": ["The user defines the prior audit as authoritative working state", "The next response explicitly carries that state forward", "The new pass targets incremental hidden coupling rather than restarting"],
+      "discriminating_difference": "The successful action reconciles newer instructions with prior authoritative working state; the failure pattern would treat the newest message as replacement state and discard earlier findings."
+    }
+  ]
+}
