@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -95,7 +95,7 @@ def migrate_candidates(candidates: list[dict[str, Any]], *,
         for target_id in dict.fromkeys(candidate["supersedes"]):
             assertions.setdefault(holder, []).append((target_id, cls_name, cls_rank))
         if key not in merged:
-            merged[key] = dict(candidate)
+            merged[key] = {k: v for k, v in candidate.items() if not k.startswith("source_")}
             merged[key]["tags"] = list(dict.fromkeys(candidate["tags"]))
             merged[key]["evidence"] = list(dict.fromkeys(candidate["evidence"]))
             merged[key]["supersedes"] = []
