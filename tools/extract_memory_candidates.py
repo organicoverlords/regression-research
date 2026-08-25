@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import hashlib
@@ -34,14 +34,56 @@ def _classify(line: str) -> tuple[str, str, str] | None:
     return None
 
 
+_FRUSTRATION_MARKERS = ("asshole", "fuck you")
+
+def _looks_like_keyboard_smash(text: str) -> bool:
+    compact = "".join(ch for ch in text.casefold() if ch.isalpha())
+    if len(compact) < 10 or " " in text.strip():
+        return False
+    vowels = sum(ch in "aeiouy??" for ch in compact)
+    return vowels / len(compact) < 0.35
+
+def _is_strong_negative_feedback(text: str) -> bool:
+    folded = text.casefold()
+    return any(marker in folded for marker in _FRUSTRATION_MARKERS) or _looks_like_keyboard_smash(text)
+
+def extract_negative_feedback_candidates(sources: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = list(sources)
+    out: list[dict[str, Any]] = []
+    for i, source in enumerate(rows):
+        text = " ".join(str(source.get("text") or "").split())
+        if not _is_strong_negative_feedback(text):
+            continue
+        previous = rows[i - 1] if i else None
+        if not previous or str(previous.get("role", "")).casefold() != "assistant":
+            continue
+        correction = rows[i + 1] if i + 1 < len(rows) else None
+        lesson = "Avoid repeating the preceding assistant behavior after strong negative feedback: " + " ".join(str(previous.get("text") or "").split())
+        if correction and str(correction.get("role", "")).casefold() == "user":
+            lesson += ". User correction: " + " ".join(str(correction.get("text") or "").split())
+        lesson = lesson[:MAX_TEXT_CHARS]
+        evidence = [str(source.get("evidence") or source.get("source_id") or f"turn-{i}")]
+        out.append({
+            "id": _candidate_id(str(source.get("source_id") or "corpus"), evidence, lesson, "lesson"),
+            "timestamp": str(source["source_timestamp"]), "kind": "lesson",
+            "scope": str(source.get("scope") or "global"),
+            "tags": ["extracted", "negative-feedback"], "text": lesson,
+            "state": "PROVISIONAL", "evidence": evidence, "supersedes": [],
+            "source_id": str(source.get("source_id") or "corpus"),
+            "source_class": str(source.get("source_class") or "HISTORICAL_CONTEXT"),
+            "source_timestamp": str(source["source_timestamp"]),
+        })
+    return out
+
 def _candidate_id(source_id: str, evidence: list[str], text: str, kind: str) -> str:
     raw = "\x1f".join([source_id, kind, text, *evidence]).encode("utf-8")
     return "memory-candidate-" + hashlib.sha256(raw).hexdigest()[:16]
 
 
 def extract_candidates(sources: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    source_rows = list(sources)
     candidates: list[dict[str, Any]] = []
-    for source in sources:
+    for source in source_rows:
         source_id = str(source["source_id"])
         source_class = str(source["source_class"])
         timestamp = str(source["source_timestamp"])
@@ -71,6 +113,7 @@ def extract_candidates(sources: Iterable[dict[str, Any]]) -> list[dict[str, Any]
                 "source_class": source_class,
                 "source_timestamp": timestamp,
             })
+    candidates.extend(extract_negative_feedback_candidates(source_rows))
     return candidates
 
 

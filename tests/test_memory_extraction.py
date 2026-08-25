@@ -47,6 +47,21 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
             records=[json.loads(line) for line in a.read_text(encoding="utf-8").splitlines()]
             self.assertEqual(len(records), 6)
 
+    def test_strong_negative_feedback_extracts_preceding_behavior_not_insult(self):
+        for marker in ("ASSHOLE", "FUCK YOU", "as?dasdnasdnda"):
+            rows=[
+                {"source_id":"chat","source_class":"HISTORICAL_CONTEXT","scope":"global","source_timestamp":"2026-08-25T10:00:00+03:00","evidence":"chat:a","role":"assistant","text":"I retried the same failed command without checking why."},
+                {"source_id":"chat","source_class":"HISTORICAL_CONTEXT","scope":"global","source_timestamp":"2026-08-25T10:00:01+03:00","evidence":"chat:b","role":"user","text":marker},
+                {"source_id":"chat","source_class":"HISTORICAL_CONTEXT","scope":"global","source_timestamp":"2026-08-25T10:00:02+03:00","evidence":"chat:c","role":"user","text":"Check the error first and change route."},
+            ]
+            out=[x for x in extract_candidates(rows) if "negative-feedback" in x["tags"]]
+            self.assertEqual(len(out),1,marker)
+            self.assertIn("retried the same failed command",out[0]["text"])
+            self.assertIn("Check the error first",out[0]["text"])
+            self.assertNotIn(marker,out[0]["text"])
+            self.assertEqual(out[0]["state"],"PROVISIONAL")
+            self.assertEqual(out[0]["evidence"],["chat:b"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÂ¢Ã¢â‚¬Â Ã�
 
 ### Added
 
+- Added provisional memory-candidate extraction for strong negative-feedback turns, preserving the preceding assistant behavior and user correction rather than the insult itself (#55).
+
 - Added a bounded newest-first memory startup hint window that exposes only the last 10 current note titles by default, derives stable display titles for existing entries, and keeps rejected/superseded records out without changing semantic recall (#53).
 
 - Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
