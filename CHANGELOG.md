@@ -10,6 +10,7 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- Indexed current shared policy separately from a historical v1.3 snapshot, so ordinary recall prefers LIVE_CANONICAL policy while history still exposes the superseded policy record (#20).
 - Added deterministic 5,000+ candidate stress coverage proving bounded memory recall limits, relevance filtering, and routine runtime/memory use (#17).
 - Source-authority conflict handling in memory migration: a supersession is honoured only when
   the claiming entry's source class ranks at or above the entry it supersedes, so a
