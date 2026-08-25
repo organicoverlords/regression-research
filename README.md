@@ -9,6 +9,7 @@ next move was, and enough preserved state to replay the case later.
 Source: [CHANGELOG.md](CHANGELOG.md)
 
 - Created machine-readable source provenance index (`provenance.json`) mapping every report in `01 Reports` to raw transcripts, evidence files, contract snapshots, dates, and evidence type, with explicit missing-link records, duplicate/superseded marking via `99 Duplicate Archive`, and a validator that detects broken paths and duplicate incident ids; no credential-bearing material is indexed (#5).
+- Added a deterministic provider-free replay scorer for supplied candidate actions, with JSON and concise human output plus pending-capture handling (#3).
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.

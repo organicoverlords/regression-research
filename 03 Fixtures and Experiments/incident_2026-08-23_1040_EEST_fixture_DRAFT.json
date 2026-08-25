@@ -1,4 +1,8 @@
 {
+  "id": "task-anchor-tool-persistence-2026-08-23-draft",
+  "title": "Task-anchor drift after successful same-hour audit parse (pending capture)",
+  "source_report": "01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md",
+  "incident_class": "task_anchor_loss",
   "fixture_state": "draft_pending_raw_capture",
   "replay_ready": false,
   "capture_state": "pending",
