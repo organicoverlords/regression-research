@@ -12,6 +12,15 @@ KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
 REQUIRED = {"id", "timestamp", "kind", "scope", "tags", "text", "state", "evidence", "supersedes"}
 DEFAULT_BANK = Path(__file__).resolve().parents[1] / "memory" / "memory-bank.jsonl"
+DEFAULT_SOURCES = Path(__file__).resolve().parents[1] / "memory" / "sources.json"
+DEFAULT_RECALL_LIMIT = 5
+MAX_RECALL_LIMIT = 8
+DEFAULT_HISTORY_LIMIT = 8
+MAX_HISTORY_LIMIT = 20
+MAX_TEXT_CHARS = 800
+MAX_TAGS = 12
+MAX_EVIDENCE = 16
+MAX_SUPERSEDES = 16
 
 
 class BankError(ValueError):
@@ -45,6 +54,14 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError("timestamp must include a timezone offset")
     for field in ("tags", "evidence", "supersedes"):
         _string_list(entry, field)
+    if len(entry["text"]) > MAX_TEXT_CHARS:
+        raise BankError(f"text exceeds {MAX_TEXT_CHARS} characters")
+    if len(entry["tags"]) > MAX_TAGS:
+        raise BankError(f"tags exceeds {MAX_TAGS} items")
+    if len(entry["evidence"]) > MAX_EVIDENCE:
+        raise BankError(f"evidence exceeds {MAX_EVIDENCE} items")
+    if len(entry["supersedes"]) > MAX_SUPERSEDES:
+        raise BankError(f"supersedes exceeds {MAX_SUPERSEDES} items")
 
 
 def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
@@ -88,28 +105,59 @@ def _tokens(value: str) -> set[str]:
     return set(re.findall(r"[\w-]+", value.casefold(), flags=re.UNICODE))
 
 
+def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
+    if not path.is_file():
+        return {"classes": {}, "sources": []}
+    try:
+        return json.loads(path.read_text(encoding="utf-8-sig"))
+    except (json.JSONDecodeError, OSError):
+        return {"classes": {}, "sources": []}
+
+
+def source_relevance(entry: dict[str, Any], registry: dict[str, Any] | None = None) -> int:
+    registry = registry or load_source_registry()
+    classes = registry.get("classes") or {}
+    best = 0
+    for evidence in entry.get("evidence", []):
+        for source in registry.get("sources", []):
+            if any(evidence.startswith(prefix) for prefix in source.get("match_prefixes", [])):
+                best = max(best, int(classes.get(source.get("class"), 0)))
+    return best
+
+
 def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
-                   tags: list[str] | None = None, limit: int = 8, history: bool = False) -> list[dict[str, Any]]:
+                   tags: list[str] | None = None, limit: int | None = None, history: bool = False,
+                   source_registry: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     tags = [tag.casefold() for tag in (tags or [])]
-    superseded = {old for entry in entries for old in entry.get("supersedes", [])}
     query_tokens = _tokens(query)
-    ranked: list[tuple[float, datetime, dict[str, Any]]] = []
+    if not history and not query_tokens and not scope and not tags:
+        return []
+    default_limit = DEFAULT_HISTORY_LIMIT if history else DEFAULT_RECALL_LIMIT
+    hard_cap = MAX_HISTORY_LIMIT if history else MAX_RECALL_LIMIT
+    effective_limit = min(hard_cap, max(0, default_limit if limit is None else limit))
+    if effective_limit == 0:
+        return []
+    superseded = {old for entry in entries for old in entry.get("supersedes", [])}
+    ranked: list[tuple[float, int, datetime, dict[str, Any]]] = []
+    registry = source_registry or load_source_registry()
     for entry in entries:
         if not history and (entry["state"] == "REJECTED" or entry["id"] in superseded):
             continue
         text_tokens = _tokens(entry["text"])
         tag_tokens = {tag.casefold() for tag in entry["tags"]}
-        score = 0.0
+        relevance = 0.0
         if scope and entry["scope"].casefold() == scope.casefold():
-            score += 4
-        score += 4 * sum(tag in tag_tokens for tag in tags)
-        score += sum(token in text_tokens or token in tag_tokens or token == entry["scope"].casefold() for token in query_tokens)
-        if query_tokens and score == 0:
+            relevance += 4
+        relevance += 4 * sum(tag in tag_tokens for tag in tags)
+        relevance += sum(token in text_tokens or token in tag_tokens or token == entry["scope"].casefold() for token in query_tokens)
+        if (query_tokens or scope or tags) and relevance == 0:
             continue
+        source_score = source_relevance(entry, registry)
         stamp = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
-        ranked.append((score, stamp, entry))
-    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    return [entry for _, _, entry in ranked[:limit]]
+        ranked.append((relevance, source_score, stamp, entry))
+    ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    return [entry for _, _, _, entry in ranked[:effective_limit]]
+
 
 
 def _main() -> int:
@@ -131,14 +179,14 @@ def _main() -> int:
     search.add_argument("query", nargs="?", default="")
     search.add_argument("--scope")
     search.add_argument("--tag", action="append", default=[])
-    search.add_argument("--limit", type=int, default=8)
+    search.add_argument("--limit", type=int, default=DEFAULT_RECALL_LIMIT)
     search.add_argument("--history", action="store_true")
 
     history = sub.add_parser("history")
     history.add_argument("query", nargs="?", default="")
     history.add_argument("--scope")
     history.add_argument("--tag", action="append", default=[])
-    history.add_argument("--limit", type=int, default=8)
+    history.add_argument("--limit", type=int, default=DEFAULT_HISTORY_LIMIT)
 
     args = parser.parse_args()
     try:
