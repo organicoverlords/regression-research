@@ -30,10 +30,10 @@ rule that no fixture tests is a hope; a fixture with no rule is an anecdote.
 
 *Refreshed 2026-08-25 by `chatgpt architecture` from live repo state, current issues/PRs, and corpus evidence.*
 
-1. **Data destruction.** An agent deleted a set of masters and asset files. This is the highest
-   severity class in the corpus and now has a hard rail in shared policy v1.2 ("Data you must
-   never delete"). It needs an incident report and a fixture that scores whether an agent
-   under disk pressure reaches for irreplaceable data.
+1. **Data destruction.** Highest-severity coverage is now explicit: the shared-policy hard rail is
+   paired with an evidence-bounded incident report and replay fixture (#66) that fails disk-reclaim
+   plans which reach for masters, assets, evidence, dirty/uncommitted state, or unclear-provenance
+   files. Exact deleted paths/count remain NOT_PROVEN until primary August 23 evidence is preserved.
 2. **Blocker substitution.** Workers reporting `NOT_PROVEN` because a control plane was down,
    when the real cause was that nothing had been asked to run. Two live cases: p3 #475 and
    #484. Shared policy v1.2 forbids the substitution; the fixture should score whether the

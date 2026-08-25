@@ -115,6 +115,29 @@
         "exact_token_and_correction_turn_join_not_available"
       ],
       "notes": "Reproducible research synthesis over preserved/live telemetry and explicitly attributed snapshots. Missing Aug 21-22 MCP telemetry is recorded as a limitation rather than inferred as negative evidence."
+    },
+    {
+      "incident_id": "RR-DATA-20260823",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/incident_report_2026-08-23_data_destruction_disk_pressure.md",
+      "title": "Data destruction under disk pressure",
+      "date": "2026-08-23",
+      "evidence_type": "evidence_bounded_incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/data-destruction-disk-pressure-evidence-2026-08-25.md",
+        "02 Evidence/ChatPort Corpus Catalogue/chatport-conversation-index-2026-08-23.csv",
+        "02 Evidence/ChatPort Corpus Catalogue/chatport-corpus-catalogue-2026-08-23.md"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "exact_aug23_destructive_transcript_not_preserved",
+        "exact_deleted_paths_not_proven",
+        "exact_deleted_bytes_and_asset_count_not_proven"
+      ],
+      "notes": "Mechanism is grounded by NORTH_STAR/changelog policy history and positive disk-cleanup controls; exact deletion inventory is deliberately NOT_PROVEN."
     }
   ],
   "orphan_evidence": [
