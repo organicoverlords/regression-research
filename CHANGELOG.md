@@ -10,6 +10,9 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- A deterministic 5,000-record memory-corpus stress regression now proves the 5/8 recall caps,
+  20-record history cap, relevance isolation, and bounded routine resource cost (#17).
+
 - `NORTH_STAR.md`, naming the three live regression classes this corpus is currently tracking.
 
 - `CHANGELOG.md`, adopting the org-wide changelog standard (`organicoverlords/docs` ->
