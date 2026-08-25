@@ -1,0 +1,14 @@
+{"action": "kept", "candidate": "mem-20260825-task-anchor", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-route-contradiction", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-enough-evidence-stop", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-missing-metadata-no-widen", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-no-fabricated-chat-id", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-timing-not-inherited", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-correction-action-gate", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-no-magic-phrase", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-tool-prereq-before-promise", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-observable-reasoning-only", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-tool-route-health-test", "reason": "first candidate with this kind/scope/text/state", "source_class": "VERIFIED_EVIDENCE", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-memory-provenance-pointer", "reason": "first candidate with this kind/scope/text/state", "source_class": "LIVE_CANONICAL", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-memory-rejected-hidden", "reason": "first candidate with this kind/scope/text/state", "source_class": "LIVE_CANONICAL", "target": null, "target_class": null}
+{"action": "kept", "candidate": "mem-20260825-memory-authority-reorders-only", "reason": "first candidate with this kind/scope/text/state", "source_class": "LIVE_CANONICAL", "target": null, "target_class": null}

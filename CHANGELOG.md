@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- Added the read-only issue #18 population acceptance report with source/class/kind/state counts, duplicate and supersession statistics, fixed recall queries, and bounded ordinary/history recall checks over the 32-entry bank; no downloads, raw transcript imports, MCP server, or tool changes.
+
 - Added the read-only `tools/memory_report.py` workflow for bounded WebGPT reports/status over canonical memory/provenance files, with deterministic SHA-256 receipts, path confinement, a hard 6,000-character output cap, no MCP tools, and no download/import work (#34).
 
 - Added an executable paired visual-proof regression that rejects metadata-as-proof,

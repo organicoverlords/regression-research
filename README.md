@@ -8,7 +8,7 @@ next move was, and enough preserved state to replay the case later.
 
 Source: [CHANGELOG.md](CHANGELOG.md)
 
-- Added the read-only `tools/memory_report.py` workflow for bounded WebGPT reports/status over canonical memory/provenance files, with deterministic SHA-256 receipts, path confinement, a hard 6,000-character output cap, no MCP tools, and no download/import work (#34).
+- Added the read-only issue #18 population acceptance report with source/class/kind/state counts, duplicate and supersession statistics, fixed recall queries, and bounded ordinary/history recall checks over the 32-entry bank; no downloads, raw transcript imports, MCP server, or tool changes.
 <!-- CHANGELOG-LANDING:END -->
 
 This is research evidence. It is not an operating contract and not a worker prompt.
