@@ -30,6 +30,14 @@ Inspect historical/rejected/superseded entries:
 python tools\memory_bank.py history "6KB threshold" --scope mcp
 ```
 
+Glance at the bounded recent-title startup window (current entries only):
+
+```powershell
+python tools\memory_bank.py recent-titles
+```
+
+This returns at most 10 titles by default (hard cap 20), newest first, without dumping memory bodies. Use it as a cheap hint window when starting repo work or routing a quick note; it is not authority and does not replace live repo/runtime inspection or targeted semantic recall. Rejected and superseded entries are excluded just like ordinary recall. Existing entries derive a stable display title from bounded text; new entries may optionally supply `--title`.
+
 Append one compact entry:
 
 ```powershell
