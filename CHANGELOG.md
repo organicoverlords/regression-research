@@ -10,6 +10,7 @@ The rule this file follows is `organicoverlords/docs` → `standards/changelog.m
 
 ### Added
 
+- Recorded the measured 2026-08-25 machine-pressure snapshot and a separate provisional runner/WIP-to-control-plane correlation hypothesis in the shared memory bank (#28).
 - Indexed current shared policy separately from a historical v1.3 snapshot, so ordinary recall prefers LIVE_CANONICAL policy while history still exposes the superseded policy record (#20).
 - Added deterministic 5,000+ candidate stress coverage proving bounded memory recall limits, relevance filtering, and routine runtime/memory use (#17).
 - Source-authority conflict handling in memory migration: a supersession is honoured only when
