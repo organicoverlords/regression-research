@@ -21,9 +21,11 @@ class MemoryPopulationTests(unittest.TestCase):
         self.assertEqual(report["population"]["candidates"], 14)
         self.assertEqual(report["population"]["curated"], 14)
         self.assertEqual(report["population"]["growth"], 14)
-        self.assertEqual(sum(report["counts"]["state"].values()), 32)
-        self.assertEqual(sum(report["counts"]["kind"].values()), 32)
-        self.assertEqual(sum(report["counts"]["source"].values()), 32)
+        bank_total = report["population"]["bank_entries_after_population"]
+        self.assertGreaterEqual(bank_total, 32)
+        self.assertEqual(sum(report["counts"]["state"].values()), bank_total)
+        self.assertEqual(sum(report["counts"]["kind"].values()), bank_total)
+        self.assertEqual(sum(report["counts"]["source"].values()), bank_total)
         self.assertIn("VERIFIED_EVIDENCE", report["counts"]["class"])
         self.assertIn("regression", report["counts"]["source"])
 

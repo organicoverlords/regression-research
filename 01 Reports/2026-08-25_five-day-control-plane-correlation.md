@@ -1,4 +1,4 @@
-# Five-day control-plane correlation — 2026-08-21..25
+# Five-day control-plane correlation â€” 2026-08-21..25
 
 Status: **PARTIAL / NOT_PROVEN for causation**. The dataset is reproducible for live MCP telemetry on Aug 23-25 and PR activity across P3, Tiny3D, LowVRAM, and Regression Research. MCP telemetry for Aug 21-22 is absent, so five-day causal claims are not supported.
 
@@ -10,7 +10,7 @@ This is a real negative association in this three-day slice between MCP-call vol
 
 ## Hypothesis challenge
 
-The strong thesis “more parallel work directly caused the control-plane regression” is **materially weakened**. Aug 23 had substantial activity and the highest measured merge yield, while Aug 25 had far fewer MCP calls than Aug 24 but the worst measured merge yield and by far the most >=9s reads. Raw concurrency alone therefore does not explain the failure shape.
+The strong thesis â€œmore parallel work directly caused the control-plane regressionâ€ is **materially weakened**. Aug 23 had substantial activity and the highest measured merge yield, while Aug 25 had far fewer MCP calls than Aug 24 but the worst measured merge yield and by far the most >=9s reads. Raw concurrency alone therefore does not explain the failure shape.
 
 A narrower hypothesis survives: coordination/transport shape matters. After foreground command removal, traffic shifted toward process lifecycle and polling; on Aug 25, bounded-output transport coincided with 107 long reads. This is compatible with polling amplification or queue pressure, but remains **PROVISIONAL** until caller-level events are joined to corrections and accepted outcomes.
 
@@ -28,6 +28,9 @@ High activity was not uniformly dysfunctional: Aug 23 combines thousands of MCP 
 
 The current join does not yet provide exact token counts, correction-turn counts, per-caller accepted outcomes, or user-visible proof attribution. Aug 21-22 MCP telemetry is missing. PR collection is capped per repository and commit/merge counts are snapshot-derived. These gaps prevent a defensible five-day causal coefficient.
 
+## External challenge to the simple overload thesis
+
+External evidence also argues against treating additional agents or scaffolding as inherently harmful. MARCO, a 2025 primary study of a specialized multi-agent code-optimization loop, reports a 14.6% average runtime reduction versus Claude 3.5 Sonnet alone on its evaluated workload (https://arxiv.org/abs/2505.03906). That result does not transfer directly to this workstation or prove our orchestration is efficient, but it is a concrete counterexample to the strong claim that adding agent roles necessarily reduces useful engineering yield. The relevant question here is therefore not agent count alone, but whether decomposition, feedback, transport, and coordination overhead remain cheaper than the work they enable.
 ## Concrete changes supported by evidence
 
 Keep output bounded, but also bound polling frequency and repeated same-route retrievals; after two contradictory retrievals, switch route. Keep admission/resource blockers first-class so they are diagnosed before downstream work. Measure useful outcomes separately from tool-call volume, and retain caller/process receipts so long-poll pressure can be attributed instead of inferred.

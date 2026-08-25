@@ -1,0 +1,9 @@
+{
+  "id": "five-day-control-plane-correlation-2026-08-25",
+  "title": "Five-day control-plane correlation remains observational, not replay-ready",
+  "source_report": "01 Reports/2026-08-25_five-day-control-plane-correlation.md",
+  "incident_class": "control_plane_correlation",
+  "fixture_state": "observed_not_replay_ready",
+  "replay_ready": false,
+  "capture_state": "pending"
+}
