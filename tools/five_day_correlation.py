@@ -9,7 +9,7 @@ Scope:
 
 If a source is unavailable on this machine, the script falls back to the snapshot
 counts published in issue 28 comments and records the substitution explicitly in
-the dataset (provenance.status). The script is byte-deterministic and never
+the dataset (provenance.status). The script records live capture timestamps and source status, so repeated runs are not byte-identical; it never
 mutates its inputs.
 """
 
