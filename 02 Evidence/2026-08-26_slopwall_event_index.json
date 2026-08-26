@@ -278,6 +278,95 @@
       "scores": null,
       "severity_100": null,
       "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-009",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "15:01:38Z",
+      "domain": "Plus/MCP/Codex economics / response density",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T15:01:38Z",
+          "role": "prior_turn_retrieval",
+          "name": "Plus/MCP/Codex economics discussion"
+        }
+      ],
+      "context_before": "The user sent a standalone `slopwall` during the Plus/MCP/Codex economics discussion after an overlong response. The full preceding assistant turn is not durably bound in this index pass.",
+      "user_visible_symptom": "The economics/usage answer was rejected for excessive text.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "At 15:01:55Z the assistant replied `Yep. Too much text.` and compressed the answer to the likelihood that MCP remains while heavy autonomous Plus usage may eventually be metered or moved behind a higher tier.",
+      "assistant_action_after": "COMPRESSED_EXPLANATION",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "EMPTY_WALL",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: the literal correction and immediate assistant reaction are recovered, but the complete bounded preceding turn is not yet bound."
+    },
+    {
+      "event_id": "SW-20260826-010",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:44:55Z",
+      "domain": "MCP/Funnel online research / transport diagnosis",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T19:44:55Z",
+          "role": "prior_turn_retrieval",
+          "name": "MCP/Funnel diagnostics and online-research discussion"
+        }
+      ],
+      "context_before": "The user had requested online research into the MCP/Funnel problem. The assistant produced a long research analysis covering Funnel ingress, OpenAI MCP tool discovery, SDK behavior and a proposed tunnel/control-plane A/B test, then the user sent `slopwall`.",
+      "user_visible_symptom": "The research result was too long and insufficiently compressed around the discriminating finding.",
+      "assistant_action_before": "LONG_RESEARCH_EXPLANATION",
+      "context_after": "The assistant immediately compressed the result; the next user turn was `tunnel not available`, continuing diagnosis rather than accepting the previous framing.",
+      "assistant_action_after": "COMPRESSED_EXPLANATION",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "EMPTY_WALL",
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact occurrence, timestamp and nearby sequence are recovered, but the complete bounded turn text is not yet durably bound."
+    },
+    {
+      "event_id": "SW-20260826-011",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:22:47Z",
+      "domain": "preference research / slopwall corpus discussion",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T20:22:47Z",
+          "role": "prior_turn_retrieval",
+          "name": "Preference-research conversation"
+        }
+      ],
+      "context_before": "During the ongoing preference-research conversation, after repeated concern that the research would not converge, the user sent a standalone `slopwall`.",
+      "user_visible_symptom": "The user again used the marker to reject the current response path during preference research.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "At 20:22:53Z the assistant responded by discussing that the `slopwall corpus` was concretely established, which treated the correction partly as a topic rather than proving corrected execution.",
+      "assistant_action_after": "DISCUSSED_MARKER",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "REPEATED_PROMISE_NO_ACTION",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact occurrence and immediate response are recovered, but the full bounded before/after sequence is not yet bound."
     }
   ],
   "occurrences": [
@@ -477,18 +566,82 @@
           "name": "Recovered recent ChatGPT history"
         }
       ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-012",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "15:01:38Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-009",
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T15:01:38Z",
+          "role": "prior_turn_retrieval",
+          "name": "Plus/MCP/Codex economics discussion"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-013",
+      "matched_form": "slopwall",
+      "raw_user_text": "I thinkI'veasked this beforebutdoesyourinbuiltmemorysayanythingaboutslopwalls",
+      "event_date": "2026-08-26",
+      "event_time": "16:11:12Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T16:11:12Z",
+          "role": "prior_turn_retrieval",
+          "name": "In-built memory / slopwall discussion"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-014",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:44:55Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-010",
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T19:44:55Z",
+          "role": "prior_turn_retrieval",
+          "name": "MCP/Funnel diagnostics and online-research discussion"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-015",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:22:47Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-011",
+      "provenance": [
+        {
+          "ref": "prior-conversation-2026-08-26T20:22:47Z",
+          "role": "prior_turn_retrieval",
+          "name": "Preference-research conversation"
+        }
+      ]
     }
   ],
   "confirmed_counts": {
-    "lexical_occurrences": 12,
-    "canonical_interventions": 9,
-    "slopwall": 11,
+    "lexical_occurrences": 16,
+    "canonical_interventions": 12,
+    "slopwall": 15,
     "slop wall": 1,
     "scored": 1,
-    "unscorable": 8,
+    "unscorable": 11,
     "occurrence_roles": {
-      "CORRECTIVE_INTERVENTION": 9,
-      "META_REFERENCE": 3
+      "CORRECTIVE_INTERVENTION": 12,
+      "META_REFERENCE": 4
     }
   },
   "pending_coverage": [

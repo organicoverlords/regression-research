@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
 - [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
 - [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
 - [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
-- [2026-08-26] Added an initial deduplicated `slopwall` / `slop wall` intervention index with auditable severity scoring and weak-evidence events left unscored (#89).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

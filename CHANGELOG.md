@@ -85,6 +85,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
+- [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
 - [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
 - [2026-08-26] [meta] Added a regression incident and replay guard for premature finalization that leaves known executable validation/integration as user burden instead of completing the task before handoff.
 - [2026-08-26] [meta] Simplified incident reporting to one evidence-backed analysis with searchable memory completion, indexed the correction-regurgitation incident, and raised the memory-entry text limit from 800 to 2000 characters with boundary and extraction coverage (#89).
