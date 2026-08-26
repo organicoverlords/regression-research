@@ -1,0 +1,28 @@
+INCIDENT FOLLOW-UP: premature finalization falsely attributed to tool-window cutoff
+TIME: 2026-08-27 02:16 EEST
+
+INSPECTED RAW RECURRENCE
+Conversation ID: 6a879813-0f8c-83eb-86d9-e741ecccc5da
+Title: Optimize Sprint Results
+Raw phrase: “the tool window ended before I could ...”
+
+TERMINAL MESSAGE METADATA
+end_turn=true
+status=finished_successfully
+channel=final
+finish_details.type=stop
+disabled_tool_ids=[]
+context_truncation_continuation=None
+
+TOOL-COUNT DISCRIMINATOR
+Failed working turn: 50 tool results.
+Different working turn, same conversation: 87 tool results.
+Conclusion: 50-call/tool-window hard-cap hypothesis REJECTED for this recurrence.
+
+BOUNDARY CLASSIFICATION
+No raw truncation marker, disabled-tool marker, or failed terminal status was present.
+Known integration work remained executable when the model selected the final response.
+Therefore the inspected stop is model-selected premature finalization, not a demonstrated external tool cutoff.
+
+SCOPE LIMIT
+The exact current #104 worker raw metadata was not available during this investigation. This evidence proves the mechanism for the inspected recurrence and supports the recurring pattern; it does not universalize the mechanism to every worker stop.

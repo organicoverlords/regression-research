@@ -10,7 +10,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
-- [2026-08-27] [meta] Recorded the repeated premature-finalization incident where callable tools were falsely described as a tool-window/session cutoff, with replay evidence requiring state-based completion and direct cutoff proof.
+- [2026-08-27] [meta] Recorded the repeated premature-finalization incident where callable tools were falsely described as a tool-window/session cutoff; added raw `end_turn=true`/normal-stop metadata proving model-selected finalization in the inspected recurrence, plus replay evidence requiring state-based completion and direct cutoff proof.
 
 - [2026-08-27] [meta] Captured `RR-INCIDENT-SCOPE-DRIFT-20260827`, where bounded incident work expanded into unrelated repository repair after baseline validation failures; added replay coverage and a searchable provisional lesson.
 
