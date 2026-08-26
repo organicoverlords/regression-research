@@ -1,24 +1,27 @@
 # Downloaded conversation search
 
-`tools/conversation_search.py` builds a local SQLite FTS5 index over preserved ChatGPT conversation exports. The raw downloads remain unchanged and outside Git; the index defaults to `.state/conversation-search/conversations.sqlite3`.
+`tools/conversation_search.py` searches a local SQLite FTS5 index over preserved ChatGPT conversation exports. The raw downloads remain unchanged and outside Git; the canonical index is `C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3`.
 
-## Discover sources
+## Full refresh
+
+```powershell
+python tools\conversation_search_refresh.py
+```
+
+This is the preferred corpus-ingestion path. It includes the known `Downloads\ChatPortEvidence` and `Downloads\ChatGPTLocalExporter` roots, ChatGPT/export-named download directories, plus a bounded depth-3 metadata walk that finds nested `conversations.json` folders and opaque ZIPs whose central directory contains conversation JSON signatures. This catches archive-organized downloads such as opaque exports kept below an archive folder without performing an unbounded profile scan.
+
+The `main` validation workflow refreshes this canonical local index after the search implementation is merged. PR validation uses a disposable runner-temp index instead.
+
+## Narrow discovery/index
 
 ```powershell
 python tools\conversation_search.py discover
-```
-
-Discovery includes the known `Downloads\ChatPortEvidence` and `Downloads\ChatGPTLocalExporter` roots, top-level download directories whose names indicate ChatGPT/export data, and opaque top-level ZIPs whose central directory contains conversation JSON signatures. Discovery does not extract, move, rename, or delete sources.
-
-## Incremental index
-
-```powershell
 python tools\conversation_search.py index
 ```
 
-Unchanged source items are skipped by path/size/mtime. Changed items are re-read and their source-to-message mappings are reconciled. Exact repeated messages from multiple captures share one search row while every retained source locator remains attached as provenance.
+The narrow path covers the known roots and top-level candidates. Use repeated `--root PATH` arguments to index an explicit protected source set. `--force` re-reads known source items without changing the originals.
 
-Use repeated `--root PATH` arguments to index an explicit protected source set. `--force` re-reads known source items without changing the originals.
+Unchanged source items are skipped by path/size/mtime. Changed items are re-read and their source-to-message mappings are reconciled. Exact repeated messages from multiple captures share one search row while every retained source locator remains attached as provenance.
 
 ## Search full turns
 
@@ -35,7 +38,7 @@ Results are bounded (maximum 20) and contain conversation ID/title/timestamps, r
 python tools\conversation_search.py coverage
 ```
 
-Coverage reports indexed source counts, ignored non-conversation JSON, unresolved sources, deduplicated conversations/messages, role counts, and indexed message-time range.
+Coverage reports indexed source counts, ignored non-conversation JSON, unresolved sources, deduplicated conversations/messages, role counts, and indexed message-time range. The privacy-safe corpus validator additionally proves that an old-ChatPort-only phrase and a post-old-capture newer-download-only phrase can both be retrieved without printing the phrases themselves.
 
 ## Safety boundary
 
