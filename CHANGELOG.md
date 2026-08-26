@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `standards/changelog.md`.
+The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
 
@@ -32,7 +32,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 - Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
 
-- Added a dated normalized MCP/tool-routing incident index for August 20â€“23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
+- Added a dated normalized MCP/tool-routing incident index for August 20Ã¢â‚¬â€œ23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
 
 - Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
 
@@ -79,6 +79,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
+- [2026-08-26] [meta] Added a regression incident and replay guard for premature finalization that leaves known executable validation/integration as user burden instead of completing the task before handoff.
 - [2026-08-26] Added incremental full-text SQLite search over preserved ChatPort, local-exporter, and conversation export downloads with duplicate-message collapse, bounded archive discovery, and exact source provenance (#99).
 - [2026-08-26] [meta] Simplified incident reporting to one evidence-backed analysis with searchable memory completion, indexed the correction-regurgitation incident, and raised the memory-entry text limit from 800 to 2000 characters with boundary and extraction coverage (#89).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
@@ -121,7 +122,7 @@ To release:
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
-Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â one line, for a human, with the issue or PR number:
+Entry style ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->

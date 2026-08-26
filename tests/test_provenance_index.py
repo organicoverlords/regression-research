@@ -15,7 +15,7 @@ INDEX = REPO / "provenance.json"
 def test_provenance_validates():
     ok, messages, stats = validate(INDEX)
     assert ok, f"provenance should be valid: {messages}"
-    assert stats["reports_indexed"] == 8
+    assert stats["reports_indexed"] == 10
     assert stats["errors"] == 0
 
 
