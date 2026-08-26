@@ -8,9 +8,9 @@
 python tools\conversation_search_refresh.py
 ```
 
-This is the preferred corpus-ingestion path. It includes the known `Downloads\ChatPortEvidence` and `Downloads\ChatGPTLocalExporter` roots, ChatGPT/export-named download directories, plus a bounded depth-3 metadata walk that finds nested `conversations.json` folders and opaque ZIPs whose central directory contains conversation JSON signatures. This catches archive-organized downloads such as opaque exports kept below an archive folder without performing an unbounded profile scan.
+This is the preferred corpus-ingestion path. It includes the known `Downloads\ChatPortEvidence` and `Downloads\ChatGPTLocalExporter` roots, ChatGPT/export-named download directories, plus a bounded depth-3 metadata walk that finds nested `conversations.json` folders and opaque ZIPs whose central directory contains conversation JSON signatures. This catches archive-organized downloads without performing an unbounded profile scan or treating generic JSONL archives as conversation exports.
 
-The `main` validation workflow refreshes this canonical local index after the search implementation is merged. PR validation uses a disposable runner-temp index instead.
+The same-machine validation workflow refreshes this canonical derived index while validating the search implementation. Because the database is derived and ignored by Git, retaining it gives workers an immediately usable search surface without changing or replacing any source download.
 
 ## Narrow discovery/index
 
@@ -38,7 +38,7 @@ Results are bounded (maximum 20) and contain conversation ID/title/timestamps, r
 python tools\conversation_search.py coverage
 ```
 
-Coverage reports indexed source counts, ignored non-conversation JSON, unresolved sources, deduplicated conversations/messages, role counts, and indexed message-time range. The privacy-safe corpus validator additionally proves that an old-ChatPort-only phrase and a post-old-capture newer-download-only phrase can both be retrieved without printing the phrases themselves.
+Coverage reports indexed source counts, ignored non-conversation JSON, unresolved sources, deduplicated conversations/messages, role counts, and indexed message-time range. The privacy-safe corpus validator additionally proves that an old-ChatPort-only phrase and a newer-download-only phrase can both be retrieved without printing the phrases themselves; newer-source evidence uses source acquisition time rather than assuming every exporter preserves wall-clock message timestamps.
 
 ## Safety boundary
 
