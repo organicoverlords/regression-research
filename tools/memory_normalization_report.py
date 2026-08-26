@@ -48,12 +48,13 @@ def _disposition(entry: dict[str, Any], superseded: set[str]) -> str:
     return "CURRENT_DURABLE"
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _normalized_text_bytes(path: Path) -> bytes:
+    text = path.read_text(encoding="utf-8-sig")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
+def _sha256_text(path: Path) -> str:
+    return hashlib.sha256(_normalized_text_bytes(path)).hexdigest()
 
 
 def build_snapshot_receipt(root: Path, bank_path: Path) -> dict[str, Any]:
@@ -62,17 +63,18 @@ def build_snapshot_receipt(root: Path, bank_path: Path) -> dict[str, Any]:
         bank_label = bank_resolved.relative_to(root.resolve()).as_posix()
     except ValueError:
         bank_label = str(bank_resolved)
-    sources = [{"path": bank_label, "sha256": _sha256_file(bank_resolved)}]
+    sources = [{"path": bank_label, "sha256": _sha256_text(bank_resolved)}]
     migrations = root / "memory" / "migrations"
     for path in sorted(migrations.glob("*candidates.jsonl")):
-        sources.append({"path": path.relative_to(root).as_posix(), "sha256": _sha256_file(path)})
+        sources.append({"path": path.relative_to(root).as_posix(), "sha256": _sha256_text(path)})
     canonical = json.dumps(sources, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     fingerprint = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return {
         "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
+        "hash_semantics": "UTF8_TEXT_NORMALIZED_LF_NO_BOM",
         "source_fingerprint": fingerprint,
         "sources": sources,
-        "note": "Counts/dispositions describe exactly these source bytes. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot.",
+        "note": "Counts/dispositions describe these logical UTF-8 text sources after BOM removal and LF normalization. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot.",
     }
 
 

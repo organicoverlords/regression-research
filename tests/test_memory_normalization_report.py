@@ -53,6 +53,19 @@ class MemoryNormalizationReportTests(unittest.TestCase):
             bank.write_text('{"id":"a"}\n{"id":"b"}\n', encoding="utf-8")
             second = build_snapshot_receipt(root, bank)
             self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
+            self.assertEqual(second["hash_semantics"], "UTF8_TEXT_NORMALIZED_LF_NO_BOM")
+
+    def test_snapshot_hash_ignores_platform_line_endings_and_bom(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            bank = root / "memory" / "memory-bank.jsonl"
+            migrations = root / "memory" / "migrations"
+            migrations.mkdir(parents=True)
+            bank.write_bytes(b'one\r\ntwo\r\n')
+            crlf = build_snapshot_receipt(root, bank)
+            bank.write_bytes(b'\xef\xbb\xbfone\ntwo\n')
+            lf_bom = build_snapshot_receipt(root, bank)
+            self.assertEqual(crlf["source_fingerprint"], lf_bom["source_fingerprint"])
 
     def test_report_does_not_copy_memory_body(self):
         entries = [{"id":"x","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"global","tags":[],"text":"A" * 140 + " BODY_TAIL_MARKER","state":"PROVISIONAL","evidence":[],"supersedes":[]}]
