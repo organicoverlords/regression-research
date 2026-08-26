@@ -3,12 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import zipfile
 from pathlib import Path
 
 try:
-    from .conversation_search import DEFAULT_DB, DISCOVERY_RE, _zip_relevant, discover_roots, index_roots
+    from .conversation_search import DEFAULT_DB, DISCOVERY_RE, discover_roots, index_roots
 except ImportError:
-    from conversation_search import DEFAULT_DB, DISCOVERY_RE, _zip_relevant, discover_roots, index_roots
+    from conversation_search import DEFAULT_DB, DISCOVERY_RE, discover_roots, index_roots
 
 MAX_DEPTH = 3
 CONVERSATION_FILES = {"conversations.json", "conversation.json"}
@@ -30,6 +31,23 @@ def _covered(candidate: Path, roots: list[Path]) -> bool:
                 pass
         elif _key(resolved) == _key(root_resolved):
             return True
+    return False
+
+
+def _zip_has_conversation_json(path: Path) -> bool:
+    try:
+        with zipfile.ZipFile(path) as zf:
+            for info in zf.infolist():
+                if info.is_dir():
+                    continue
+                lower = info.filename.casefold().replace("\\", "/")
+                base = lower.rsplit("/", 1)[-1]
+                if base in CONVERSATION_FILES:
+                    return True
+                if ("conversation" in lower or "chatgpt" in lower) and lower.endswith((".json", ".jsonl")):
+                    return True
+    except (OSError, zipfile.BadZipFile):
+        return False
     return False
 
 
@@ -62,7 +80,7 @@ def discover_extended(downloads: Path, max_depth: int = MAX_DEPTH) -> list[Path]
             candidate: Path | None = None
             if lower in CONVERSATION_FILES:
                 candidate = current_path
-            elif path.suffix.casefold() == ".zip" and _zip_relevant(path):
+            elif path.suffix.casefold() == ".zip" and _zip_has_conversation_json(path):
                 candidate = path
             if candidate is None or _covered(candidate, roots):
                 continue
