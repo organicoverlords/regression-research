@@ -5,7 +5,10 @@ import json
 import os
 from pathlib import Path
 
-from conversation_search import DEFAULT_DB, DISCOVERY_RE, _zip_relevant, discover_roots, index_roots
+try:
+    from .conversation_search import DEFAULT_DB, DISCOVERY_RE, _zip_relevant, discover_roots, index_roots
+except ImportError:
+    from conversation_search import DEFAULT_DB, DISCOVERY_RE, _zip_relevant, discover_roots, index_roots
 
 MAX_DEPTH = 3
 CONVERSATION_FILES = {"conversations.json", "conversation.json"}
