@@ -125,6 +125,42 @@ def _remote_state() -> tuple[str, list[dict[str, Any]]]:
     return head, _parse_bank_text(shown.stdout)
 
 
+def _align_checkout(remote_head: str, bank_path: Path, *, repo_root: Path = REPO_ROOT) -> bool:
+    canonical_bank = (repo_root / REL_BANK).resolve()
+    if bank_path.resolve() != canonical_bank:
+        return False
+    upstream = _git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}", cwd=repo_root, check=False)
+    if upstream.returncode != 0 or upstream.stdout.strip() != f"{REMOTE}/{BRANCH}":
+        return False
+    current_head = _git("rev-parse", "HEAD", cwd=repo_root).stdout.strip()
+    if current_head == remote_head:
+        return False
+    ancestor = _git("merge-base", "--is-ancestor", current_head, remote_head, cwd=repo_root, check=False)
+    if ancestor.returncode != 0:
+        return False
+
+    fast_forward = _git("merge", "--ff-only", remote_head, cwd=repo_root, check=False)
+    if fast_forward.returncode == 0:
+        return True
+
+    changed = {
+        line.strip().replace("\\", "/")
+        for line in _git("diff", "--name-only", f"{current_head}..{remote_head}", cwd=repo_root).stdout.splitlines()
+        if line.strip()
+    }
+    if changed - {REL_BANK.as_posix()}:
+        return False
+    bank_matches_remote = _git("diff", "--quiet", remote_head, "--", REL_BANK.as_posix(), cwd=repo_root, check=False)
+    if bank_matches_remote.returncode != 0:
+        return False
+    ref = _git("symbolic-ref", "--quiet", "HEAD", cwd=repo_root, check=False).stdout.strip()
+    if not ref:
+        return False
+    _git("update-ref", ref, remote_head, current_head, cwd=repo_root)
+    _git("reset", "HEAD", "--", REL_BANK.as_posix(), cwd=repo_root)
+    return True
+
+
 def _publish_once(entries: list[dict[str, Any]]) -> subprocess.CompletedProcess[str]:
     temp_root = Path(tempfile.mkdtemp(prefix="vault-memory-sync-"))
     worktree = temp_root / "worktree"
@@ -157,25 +193,31 @@ def sync_bank(bank_path: Path, *, publish: bool) -> dict[str, Any]:
         merged = merge_bank_entries(remote_entries, local_entries)
         pulled = len(remote_ids - local_ids)
         pending = len(local_ids - remote_ids)
+        aligned = _align_checkout(remote_head, bank_path) if pending == 0 else False
         _write_bank(bank_path, merged)
         if not publish or pending == 0:
+            if not aligned:
+                aligned = _align_checkout(remote_head, bank_path)
             return {
                 "status": "PROVEN",
                 "remote_head": remote_head,
                 "pulled": pulled,
                 "pending_push": pending,
                 "pushed": 0,
+                "aligned_head": aligned,
             }
         pushed = _publish_once(merged)
         if pushed.returncode == 0:
             _git("fetch", REMOTE, BRANCH)
             new_head = _git("rev-parse", f"{REMOTE}/{BRANCH}").stdout.strip()
+            aligned = _align_checkout(new_head, bank_path)
             return {
                 "status": "PROVEN",
                 "remote_head": new_head,
                 "pulled": pulled,
                 "pending_push": 0,
                 "pushed": pending,
+                "aligned_head": aligned,
             }
         message = (pushed.stderr or pushed.stdout).strip()
         race = "fetch first" in message.lower() or "non-fast-forward" in message.lower()
