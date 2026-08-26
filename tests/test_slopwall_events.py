@@ -11,15 +11,15 @@ def test_index_validates_and_separates_lexical_occurrences_from_events() -> None
     data = load_index(DEFAULT_INDEX)
     validate_index(data)
     counts = summary(data)
-    assert counts["lexical_occurrences"] == 12
-    assert counts["canonical_interventions"] == 9
+    assert counts["lexical_occurrences"] == 16
+    assert counts["canonical_interventions"] == 12
     assert counts["scored"] == 1
-    assert counts["unscorable"] == 8
-    assert counts["slopwall"] == 11
+    assert counts["unscorable"] == 11
+    assert counts["slopwall"] == 15
     assert counts["slop wall"] == 1
     assert counts["occurrence_roles"] == {
-        "CORRECTIVE_INTERVENTION": 9,
-        "META_REFERENCE": 3,
+        "CORRECTIVE_INTERVENTION": 12,
+        "META_REFERENCE": 4,
     }
 
 
