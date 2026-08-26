@@ -3,7 +3,7 @@
 Incident ID: `INC-20260827-002911-EEST-484b75e60565`
 Date: `2026-08-27 EEST`
 Source: current ChatGPT conversation plus user-supplied Personalization screenshot
-Evidence screenshot: `/Regression Research/02 Evidence/2026-08-27_custom-instructions-ui_INC-20260827-002911-EEST-484b75e60565.png`
+Evidence screenshot: user-supplied in the current ChatGPT conversation; the screenshot binary is `NOT_PRESERVED_IN_REPO`.
 
 ## Incident identity
 
@@ -87,4 +87,4 @@ The user could not rely on the Personalization field as the shared behavioral ba
 
 ## Resolution
 
-The incident is preserved with direct screenshot evidence and a searchable memory entry. The observed UI-to-context mismatch is proven for this conversation. The exact OpenAI-internal omission point remains unknown. No claim is made that the assistant caused the missing instruction.
+The incident is preserved as this evidence-bounded report plus a searchable memory entry; the user-supplied screenshot binary is not preserved in the repo. The observed UI-to-context mismatch is proven for this conversation. The exact OpenAI-internal omission point remains unknown. No claim is made that the assistant caused the missing instruction.
