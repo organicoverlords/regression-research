@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from conversation_search import coverage_report, search_db
 
 OLD_TOKEN = "chatportevidence"
 OLD_CAPTURE_END = "2026-08-22T23:12:19Z"
+OLD_CAPTURE_END_NS = int(datetime.fromisoformat(OLD_CAPTURE_END.replace("Z", "+00:00")).timestamp() * 1_000_000_000)
 
 
 def _is_old(locator: str) -> bool:
@@ -25,10 +27,17 @@ def _phrase_candidates(text: str):
             yield phrase
 
 
-def _cohort_counts(conn: sqlite3.Connection) -> tuple[int, int, int, int, str | None]:
-    rows = list(conn.execute("SELECT source_id,locator FROM sources WHERE status='ok'"))
-    old_ids = [sid for sid, locator in rows if _is_old(locator)]
-    new_ids = [sid for sid, locator in rows if not _is_old(locator)]
+def _mtime_text(value: int | None) -> str | None:
+    if value is None:
+        return None
+    return datetime.fromtimestamp(value / 1_000_000_000, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _cohort_counts(conn: sqlite3.Connection) -> tuple[int, int, int, int, int | None]:
+    rows = list(conn.execute("SELECT source_id,locator,mtime_ns FROM sources WHERE status='ok'"))
+    old_ids = [sid for sid, locator, _mtime in rows if _is_old(locator)]
+    new_rows = [(sid, mtime) for sid, locator, mtime in rows if not _is_old(locator)]
+    new_ids = [sid for sid, _mtime in new_rows]
     old_messages = (
         conn.execute(
             "SELECT COUNT(DISTINCT message_uid) FROM source_messages WHERE source_id IN (%s)"
@@ -47,18 +56,8 @@ def _cohort_counts(conn: sqlite3.Connection) -> tuple[int, int, int, int, str | 
         if new_ids
         else 0
     )
-    new_message_last = (
-        conn.execute(
-            """SELECT MAX(m.created_at) FROM messages m
-            JOIN source_messages sm ON sm.message_uid=m.message_uid
-            WHERE sm.source_id IN (%s) AND m.created_at IS NOT NULL"""
-            % ",".join("?" * len(new_ids)),
-            new_ids,
-        ).fetchone()[0]
-        if new_ids
-        else None
-    )
-    return len(old_ids), len(new_ids), old_messages, new_messages, new_message_last
+    new_source_mtime_last_ns = max((int(mtime) for _sid, mtime in new_rows), default=None)
+    return len(old_ids), len(new_ids), old_messages, new_messages, new_source_mtime_last_ns
 
 
 def _candidate_rows(conn: sqlite3.Connection, want_old: bool):
@@ -119,22 +118,22 @@ def validate(db: Path) -> dict[str, Any]:
     conn = sqlite3.connect(db)
     try:
         coverage = coverage_report(conn)
-        old_sources, new_sources, old_messages, new_messages, new_message_last = _cohort_counts(conn)
+        old_sources, new_sources, old_messages, new_messages, new_source_mtime_last_ns = _cohort_counts(conn)
         result = {
             "coverage": coverage,
             "old_sources": old_sources,
             "new_sources": new_sources,
             "old_messages": old_messages,
             "new_messages": new_messages,
-            "new_message_last": new_message_last,
+            "new_source_mtime_last": _mtime_text(new_source_mtime_last_ns),
             "old_capture_end": OLD_CAPTURE_END,
         }
         if not old_sources or not old_messages:
             return {"status": "NOT_PROVEN", "reason": "old ChatPort corpus not indexed", **result}
         if not new_sources or not new_messages:
-            return {"status": "NOT_PROVEN", "reason": "newer non-ChatPort downloads not indexed", **result}
-        if not new_message_last or new_message_last <= OLD_CAPTURE_END:
-            return {"status": "NOT_PROVEN", "reason": "non-ChatPort corpus has no message newer than old ChatPort capture", **result}
+            return {"status": "NOT_PROVEN", "reason": "non-ChatPort downloaded corpus not indexed", **result}
+        if not new_source_mtime_last_ns or new_source_mtime_last_ns <= OLD_CAPTURE_END_NS:
+            return {"status": "NOT_PROVEN", "reason": "no non-ChatPort conversation source newer than old ChatPort capture", **result}
         result["old_probe"] = _probe(conn, db, True)
         result["new_probe"] = _probe(conn, db, False)
         result["status"] = (
