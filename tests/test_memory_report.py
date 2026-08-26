@@ -51,6 +51,19 @@ class MemoryReportTests(unittest.TestCase):
         self.assertLessEqual(len(payload["findings"]), 5)
         self.assertTrue(all(item["text"] for item in payload["findings"]))
         self.assertIn("raw transcripts are not opened", " ".join(payload["limitations"]))
+        self.assertEqual(payload["summary"]["screenshot_occurrences_indexed"], 217)
+
+
+    def test_report_includes_screenshot_frequency_without_expanding_every_hit(self) -> None:
+        payload = build_report("tool")
+        shots = payload["screenshot_occurrences"]
+        self.assertEqual(shots["indexed_occurrences"], 217)
+        self.assertGreater(shots["occurrence_count"], 17)
+        self.assertLessEqual(len(shots["matches"]), 3)
+        self.assertEqual(payload["summary"]["screenshot_occurrence_matches"], shots["occurrence_count"])
+        if shots["matches"]:
+            self.assertIn("before", shots["matches"][0])
+            self.assertIn("after", shots["matches"][0])
 
     def test_history_can_show_rejected_entry_but_ordinary_recall_cannot(self) -> None:
         ordinary = build_report("6KB MCP threshold")
@@ -115,7 +128,14 @@ class MemoryReportTests(unittest.TestCase):
         receipt = corpus_receipt()
         self.assertEqual(
             [item["path"] for item in receipt["files"]],
-            ["memory/memory-bank.jsonl", "memory/sources.json", "provenance.json"],
+            [
+                "memory/memory-bank.jsonl",
+                "memory/sources.json",
+                "provenance.json",
+                "02 Evidence/2026-08-26_library_screenshot_shard_000.jsonl",
+                "02 Evidence/2026-08-26_library_screenshot_text_occurrences_001.jsonl",
+                "02 Evidence/library_screenshot_text/**/*.txt",
+            ],
         )
         self.assertTrue(all("\\" not in item["path"] and not item["path"].startswith("/") for item in receipt["files"]))
 

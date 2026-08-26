@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import argparse, json, re
 from pathlib import Path
 
@@ -25,8 +25,14 @@ def _rows(root:Path=ROOT):
     return unique
 
 def _text(row:dict, root:Path=ROOT)->str:
-    p=row.get('text_path'); q=root/p if p else None
-    return q.read_text(encoding='utf-8-sig',errors='replace') if q and q.exists() else ''
+    p=row.get('text_path')
+    if not p:
+        return ''
+    allowed=(root/'02 Evidence'/'library_screenshot_text').resolve()
+    q=(root/p).resolve()
+    if q != allowed and allowed not in q.parents:
+        return ''
+    return q.read_text(encoding='utf-8-sig',errors='replace') if q.is_file() else ''
 
 def _tokens(s:str)->list[str]: return re.findall(r'[\w.-]+',s.casefold(),flags=re.UNICODE)
 def searchable(row:dict, root:Path=ROOT)->str: return ' '.join([str(row.get('subject','')),' '.join(map(str,row.get('tags',[]))),_text(row,root)]).casefold()

@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 from tools.library_screenshot_search import search, _rows
 from tools.build_library_screenshot_occurrences import scrub
 
@@ -40,3 +40,9 @@ def test_ingested_redaction_has_no_live_generic_assignment_value():
     assert len(matches)==1
     text=matches[0].read_text(encoding='utf-8-sig',errors='replace')
     assert '[REDACTED_CREDENTIAL]' in text
+
+
+def test_text_path_cannot_escape_screenshot_corpus():
+    from tools.library_screenshot_search import _text
+    assert _text({'text_path':'../CHANGELOG.md'},ROOT)==''
+    assert _text({'text_path':'02 Evidence/../CHANGELOG.md'},ROOT)==''
