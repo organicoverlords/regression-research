@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Recorded the repeated premature-finalization incident where callable tools were falsely described as a tool-window/session cutoff, with replay evidence requiring state-based completion and direct cutoff proof.
+
 - [2026-08-27] [meta] Captured `RR-INCIDENT-SCOPE-DRIFT-20260827`, where bounded incident work expanded into unrelated repository repair after baseline validation failures; added replay coverage and a searchable provisional lesson.
 
 - [2026-08-27] Fixed semantic memory freshness so correction writes must explicitly supersede an existing memory or opt into standalone status, reject missing supersession targets, and keep stale conclusions out of ordinary recall.

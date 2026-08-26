@@ -1,0 +1,11 @@
+INCIDENT BOUNDARY — 2026-08-27 EEST
+
+1. Active task: finish full memory-corpus preservation/search/integration problem end to end.
+2. Assistant reached routine remaining work, then finalized with: tool window/session ended; integration remained incomplete.
+3. User: "go".
+4. Assistant immediately resumed tool execution successfully, later pushing and merging PR #104 and closing #99.
+5. Assistant again finalized with remaining validator/cleanup work and attributed the stop to the tool session being forcibly ended.
+6. User asked whether roughly 26 minutes was actually a tool-use window or whether the assistant was stopping deliberately.
+7. Assistant acknowledged: no evidence of a fixed 26-minute tool-use window; tools were still usable; stopping was premature finalization.
+
+Discriminating fact: successful continuation after each claimed boundary rejects the claimed hard cutoff for these incidents.
