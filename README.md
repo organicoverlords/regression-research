@@ -6,10 +6,10 @@
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
 - [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
+- [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
 - [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
 - [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
-- [2026-08-26] Added an initial deduplicated `slopwall` / `slop wall` intervention index with auditable severity scoring and weak-evidence events left unscored (#89).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
@@ -45,6 +45,14 @@ as useful as one where it was wrong, and both are needed to tell them apart.
 Retrieve the closest failure case *and* the closest successful case, then ask what
 the successful next action was, what valid state it preserved, and what evidence made
 it correct. Read the source rather than inferring from a title or a snippet.
+
+Downloaded full conversations are a separate on-demand searchable source layer. Refresh the
+protected local corpus with `python tools/conversation_search_refresh.py`, then query
+exact or token-matched turns with `python tools/conversation_search.py search "..."`.
+Each query returns corpus-wide prevalence first and only a bounded representative excerpt
+sample; this path is not part of the one-time memory bootstrap. See
+[`docs/conversation-search.md`](docs/conversation-search.md). The derived index never
+replaces or authorizes mutation of the original downloads.
 
 ## Provenance
 

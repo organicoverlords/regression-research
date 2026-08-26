@@ -1,10 +1,12 @@
+import io
 import json
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
-from tools.conversation_search import discover_roots, index_roots, search_db
+from tools.conversation_search import _print, discover_roots, index_roots, search_db, search_report
 
 
 def conversation(cid, title, user_text, assistant_text, base=1):
@@ -75,6 +77,44 @@ class ConversationSearchTests(unittest.TestCase):
 
         new_hits = search_db(self.db, "newer unique")
         self.assertEqual(new_hits[0]["conversation_id"], "c2")
+
+    def test_search_report_keeps_full_frequency_signal_but_bounds_diverse_context(self):
+        conversations = [
+            conversation(
+                f"c{index}",
+                f"MCP {index}",
+                f"mcp recurring marker user {index}",
+                f"mcp recurring marker assistant {index}",
+                100 + index * 100,
+            )
+            for index in range(12)
+        ]
+        (self.new / "conversations.json").write_text(json.dumps(conversations), encoding="utf-8")
+        index_roots(self.db, [self.new])
+
+        report = search_report(self.db, "mcp recurring marker", limit=4)
+
+        self.assertEqual(report["summary"]["matching_messages"], 24)
+        self.assertEqual(report["summary"]["matching_conversations"], 12)
+        self.assertEqual(report["summary"]["sampled_conversations"], 4)
+        self.assertEqual(len(report["hits"]), 4)
+        self.assertEqual(len({hit["conversation_id"] for hit in report["hits"]}), 4)
+        self.assertEqual(sum(report["summary"]["roles"].values()), 24)
+        self.assertEqual(report["summary"]["top_conversations"][0]["matches"], 2)
+
+    def test_memory_bootstrap_has_no_conversation_search_dependency(self):
+        memory_bank = (Path(__file__).resolve().parents[1] / "tools" / "memory_bank.py").read_text(encoding="utf-8")
+        self.assertNotIn("conversation_search", memory_bank)
+        self.assertNotIn("conversations.sqlite3", memory_bank)
+
+    def test_json_output_handles_private_use_unicode_on_legacy_stdout_encoding(self):
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="cp1252")
+        with patch("tools.conversation_search.sys.stdout", stream):
+            _print({"text": "\ue200"})
+            stream.flush()
+        payload = raw.getvalue().decode("utf-8")
+        self.assertEqual(json.loads(payload)["text"], "\ue200")
 
     def test_incremental_reindex_removes_stale_message_version(self):
         path = self.new / "conversations.json"

@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import sys
 import zipfile
 from collections import Counter
 from dataclasses import dataclass
@@ -464,8 +465,150 @@ def search_db(db: Path, query: str, literal: bool = False, limit: int = 8, conte
         conn.close()
 
 
+def _match_sql(query: str, literal: bool) -> tuple[str, str, str, str, str]:
+    if literal:
+        return "messages", "m", "", "instr(lower(m.text),lower(?))>0", query
+    return "message_fts", "f", "JOIN messages m ON m.rowid=f.rowid", "message_fts MATCH ?", _fts_query(query)
+
+
+def _populate_query_matches(conn: sqlite3.Connection, query: str, literal: bool) -> None:
+    conn.execute("DROP TABLE IF EXISTS temp.query_matches")
+    conn.execute("CREATE TEMP TABLE query_matches(message_rowid INTEGER PRIMARY KEY)")
+    table, alias, join, where, param = _match_sql(query, literal)
+    conn.execute(
+        f"INSERT INTO query_matches(message_rowid) SELECT m.rowid FROM {table} {alias} {join} WHERE {where}",
+        (param,),
+    )
+
+
+def _representative_rows(conn: sqlite3.Connection) -> list[tuple[Any, ...]]:
+    sql = """
+        WITH chosen AS (
+          SELECT m.conversation_id,MAX(q.message_rowid) AS message_rowid
+          FROM query_matches q
+          JOIN messages m ON m.rowid=q.message_rowid
+          GROUP BY m.conversation_id
+        )
+        SELECT m.message_uid,m.conversation_id,m.message_id,m.role,m.created_at,m.order_index,m.text,
+               c.title,c.create_time,c.update_time
+        FROM chosen x
+        JOIN messages m ON m.rowid=x.message_rowid
+        LEFT JOIN conversations c ON c.conversation_id=m.conversation_id
+        ORDER BY COALESCE(m.created_at,'') ASC,m.conversation_id ASC
+    """
+    return conn.execute(sql).fetchall()
+
+
+def _evenly_spaced(rows: list[tuple[Any, ...]], limit: int) -> list[tuple[Any, ...]]:
+    if len(rows) <= limit:
+        return list(reversed(rows))
+    if limit == 1:
+        return [rows[-1]]
+    positions = [round(index * (len(rows) - 1) / (limit - 1)) for index in range(limit)]
+    sampled = [rows[index] for index in positions]
+    sampled.reverse()
+    return sampled
+
+
+def _hit_from_row(conn: sqlite3.Connection, row: tuple[Any, ...], context_chars: int) -> dict[str, Any]:
+    uid, conv_id, message_id, role, created_at, order_index, text, title, conv_create, conv_update = row
+    sources = [
+        source[0]
+        for source in conn.execute(
+            "SELECT s.locator FROM sources s JOIN source_messages sm ON sm.source_id=s.source_id WHERE sm.message_uid=? ORDER BY s.locator",
+            (uid,),
+        )
+    ]
+    return {
+        "conversation_id": conv_id,
+        "title": title,
+        "conversation_create_time": conv_create,
+        "conversation_update_time": conv_update,
+        "message_id": message_id,
+        "role": role,
+        "created_at": created_at,
+        "match": _clip(text, context_chars),
+        "context_before": _clip(_neighbor(conn, conv_id, int(order_index), True), context_chars),
+        "context_after": _clip(_neighbor(conn, conv_id, int(order_index), False), context_chars),
+        "sources": sources,
+    }
+
+
+def search_report(db: Path, query: str, literal: bool = False, limit: int = 8, context_chars: int = 420) -> dict[str, Any]:
+    """Return full-corpus match aggregates plus a bounded, conversation-diverse sample."""
+    if not db.is_file():
+        raise FileNotFoundError(f"conversation index not found: {db}")
+    limit = max(1, min(MAX_LIMIT, int(limit)))
+    context_chars = max(80, min(2000, int(context_chars)))
+    conn = sqlite3.connect(db)
+    try:
+        _init_db(conn)
+        _populate_query_matches(conn, query, literal)
+        base = "FROM query_matches q JOIN messages m ON m.rowid=q.message_rowid"
+        matching_messages, matching_conversations, first_match, last_match, non_wall_clock_messages = conn.execute(
+            f"""
+            SELECT COUNT(*),COUNT(DISTINCT m.conversation_id),
+                   MIN(CASE WHEN m.created_at>='2000-01-01T00:00:00Z' THEN m.created_at END),
+                   MAX(CASE WHEN m.created_at>='2000-01-01T00:00:00Z' THEN m.created_at END),
+                   SUM(CASE WHEN m.created_at IS NULL OR m.created_at<'2000-01-01T00:00:00Z' THEN 1 ELSE 0 END)
+            {base}
+            """
+        ).fetchone()
+        roles = {
+            role: count
+            for role, count in conn.execute(
+                f"SELECT m.role,COUNT(*) {base} GROUP BY m.role ORDER BY m.role"
+            )
+        }
+        top_conversations = [
+            {
+                "conversation_id": conv_id,
+                "title": title,
+                "matches": count,
+                "first_match": first_seen,
+                "last_match": last_seen,
+            }
+            for conv_id, title, count, first_seen, last_seen in conn.execute(
+                f"""
+                SELECT m.conversation_id,c.title,COUNT(*) AS match_count,MIN(m.created_at),MAX(m.created_at)
+                FROM query_matches q
+                JOIN messages m ON m.rowid=q.message_rowid
+                LEFT JOIN conversations c ON c.conversation_id=m.conversation_id
+                GROUP BY m.conversation_id,c.title
+                ORDER BY match_count DESC,COALESCE(MAX(m.created_at),'') DESC,m.conversation_id ASC
+                LIMIT 5
+                """
+            )
+        ]
+        rows = _representative_rows(conn)
+        sampled_rows = _evenly_spaced(rows, limit)
+        hits = [_hit_from_row(conn, row, context_chars) for row in sampled_rows]
+        return {
+            "summary": {
+                "matching_messages": int(matching_messages),
+                "matching_conversations": int(matching_conversations),
+                "first_match": first_match,
+                "last_match": last_match,
+                "non_wall_clock_messages": int(non_wall_clock_messages or 0),
+                "roles": roles,
+                "top_conversations": top_conversations,
+                "sample_strategy": "one-match-per-conversation, evenly spaced across matched-conversation time range",
+                "sampled_conversations": len(hits),
+            },
+            "hits": hits,
+        }
+    finally:
+        conn.close()
+
+
 def _print(value: Any) -> None:
-    print(json.dumps(value, ensure_ascii=False, indent=2))
+    payload = json.dumps(value, ensure_ascii=False, indent=2) + "\n"
+    stream = getattr(sys.stdout, "buffer", None)
+    if stream is None:
+        print(json.dumps(value, ensure_ascii=True, indent=2))
+        return
+    stream.write(payload.encode("utf-8", "backslashreplace"))
+    stream.flush()
 
 
 def main() -> int:
@@ -497,7 +640,8 @@ def main() -> int:
             _print(index_roots(args.db, roots, force=args.force))
             return 0
         if args.command == "search":
-            _print({"query": args.query, "literal": args.literal, "hits": search_db(args.db, args.query, args.literal, args.limit, args.context_chars)})
+            report = search_report(args.db, args.query, args.literal, args.limit, args.context_chars)
+            _print({"query": args.query, "literal": args.literal, **report})
             return 0
         if args.command == "coverage":
             if not args.db.is_file():
