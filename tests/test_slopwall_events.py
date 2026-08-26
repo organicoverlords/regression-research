@@ -7,15 +7,20 @@ import pytest
 from tools.slopwall_events import DEFAULT_INDEX, load_index, summary, validate_index
 
 
-def test_index_validates_and_counts_both_event_states() -> None:
+def test_index_validates_and_separates_lexical_occurrences_from_events() -> None:
     data = load_index(DEFAULT_INDEX)
     validate_index(data)
     counts = summary(data)
-    assert counts["canonical_interventions"] == 2
+    assert counts["lexical_occurrences"] == 12
+    assert counts["canonical_interventions"] == 9
     assert counts["scored"] == 1
-    assert counts["unscorable"] == 1
-    assert counts["forms"] == {"slopwall": 2}
-    assert counts["excluded_meta_mentions"] == 2
+    assert counts["unscorable"] == 8
+    assert counts["slopwall"] == 11
+    assert counts["slop wall"] == 1
+    assert counts["occurrence_roles"] == {
+        "CORRECTIVE_INTERVENTION": 9,
+        "META_REFERENCE": 3,
+    }
 
 
 def test_scored_event_composite_is_auditable() -> None:
@@ -47,7 +52,39 @@ def test_d_confidence_cannot_be_guessed() -> None:
         validate_index(data)
 
 
-def test_both_literal_spellings_are_valid() -> None:
-    data = copy.deepcopy(load_index(DEFAULT_INDEX))
-    data["events"][0]["exact_spelling"] = "slop wall"
+def test_both_literal_spellings_are_counted_as_occurrences() -> None:
+    data = load_index(DEFAULT_INDEX)
+    forms = [item["matched_form"] for item in data["occurrences"]]
+    assert "slopwall" in forms
+    assert "slop wall" in forms
     validate_index(data)
+
+
+def test_meta_reference_does_not_require_canonical_event() -> None:
+    data = copy.deepcopy(load_index(DEFAULT_INDEX))
+    meta = next(item for item in data["occurrences"] if item["occurrence_role"] == "META_REFERENCE")
+    assert meta["canonical_event_id"] is None
+    validate_index(data)
+
+
+def test_corrective_occurrence_must_link_to_event() -> None:
+    data = copy.deepcopy(load_index(DEFAULT_INDEX))
+    corrective = next(item for item in data["occurrences"] if item["occurrence_role"] == "CORRECTIVE_INTERVENTION")
+    corrective["canonical_event_id"] = None
+    with pytest.raises(ValueError, match="corrective occurrence must link"):
+        validate_index(data)
+
+
+def test_confirmed_counts_cannot_drift_from_records() -> None:
+    data = copy.deepcopy(load_index(DEFAULT_INDEX))
+    data["confirmed_counts"]["lexical_occurrences"] += 1
+    with pytest.raises(ValueError, match="confirmed_counts"):
+        validate_index(data)
+
+
+def test_literal_form_must_exist_in_raw_user_text() -> None:
+    data = copy.deepcopy(load_index(DEFAULT_INDEX))
+    occurrence = data["occurrences"][0]
+    occurrence["raw_user_text"] = "unrelated text"
+    with pytest.raises(ValueError, match="not literal"):
+        validate_index(data)
