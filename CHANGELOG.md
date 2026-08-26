@@ -10,11 +10,15 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Added
 
+- Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
+
 - [2026-08-26] [meta] Added replay-covered incident `RR-MEMROUTE-20260826` for the Vault-memory route bypass, skipped bootstrap, and unsupported execution-success claims; indexed its evidence, taxonomy coverage, and durable Vault-memory lesson (#6).
 
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
+
+- Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
 
 - Preserved the live disk-floor policy-lapse lesson as a distinct provisional orchestration memory (#72).
 
@@ -119,6 +123,8 @@ To release:
   2. Open a fresh empty `## [Unreleased]
 
 ### Added
+
+- Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
 
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
