@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.13 — 2026-08-26.** Applies to every agent working in `p3`, `Tiny3D`,
+**Version 1.14 — 2026-08-26.** Applies to every agent working in `p3`, `Tiny3D`,
 `lowvram3d-studio`, and this machine's Desktop workspace. Edit this source and run
 `sync-agent-policy.mjs`; never edit generated repo blocks. **MUST** / **MUST NOT** are hard;
 **SHOULD** is a strong default.
@@ -117,9 +117,11 @@
   the format owner (`organicoverlords/docs` ? `standards/changelog.md`). A red timeline/changelog check
   is a merge blocker even when GitHub plan limits prevent branch protection from enforcing it.
 - GitHub's README is the project front page, not a competing history. Immediately after the H1 it MUST
-  show the generated **Project timeline** projection: the latest five dated `CHANGELOG.md` entries and a
-  prominent link to the canonical changelog. CI MUST reject a stale/misplaced projection or a substantive
-  PR without a newly added dated timeline entry. Do not hand-maintain a second timeline.
+  show the generated **Project timeline** projection: the latest five dated project entries and a prominent
+  link to the canonical changelog. Pure documentation/control-plane maintenance MAY put `[meta]` immediately
+  after its date; it remains in `CHANGELOG.md` but is omitted from the README project timeline. CI MUST reject
+  a stale/misplaced projection or a substantive PR without a newly added dated timeline entry. Do not hand-
+  maintain a second timeline.
 - Current-state docs answer ?what is true now?; the changelog answers ?how we got here.? Each repo keeps
   one north-star/current-direction document with a dated current-focus line, refreshed at meaningful
   milestones rather than every micro-change. Replace stale current-state prose instead of accumulating

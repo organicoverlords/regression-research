@@ -36,10 +36,13 @@ def recent_entries(changelog: str) -> list[str]:
             stamp = date.fromisoformat(match.group(1))
         except ValueError:
             raise SystemExit(f"CHANGELOG_LANDING_FAIL: invalid timeline date: {line}")
+        if match.group(2).startswith("[meta] "):
+            continue
         entries.append((stamp, position, line))
     if not entries:
-        raise SystemExit("CHANGELOG_LANDING_FAIL: no dated [YYYY-MM-DD] entries under [Unreleased]")
-    entries.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        raise SystemExit("CHANGELOG_LANDING_FAIL: no visible dated project entries under [Unreleased]")
+    entries.sort(key=lambda item: item[1])
+    entries.sort(key=lambda item: item[0], reverse=True)
     return [line for _, _, line in entries[:5]]
 
 
