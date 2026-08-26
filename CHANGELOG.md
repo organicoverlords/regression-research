@@ -85,6 +85,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
+- [2026-08-27] Normalized the append-only memory corpus by collapsing four stale/duplicate clusters through supersession, added a derived exhaustive audit over all bank plus candidate-only records, reconciled an incoming unindexed incident report, and made committed audits self-identifying point-in-time normalized-text source receipts so later appends and Git/Windows line-ending conversion cannot masquerade as part of an older snapshot (#87).
 - [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
 - [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
 - [2026-08-26] [meta] Added a regression incident and replay guard for premature finalization that leaves known executable validation/integration as user burden instead of completing the task before handoff.
@@ -137,3 +138,5 @@ Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€�
 -->
 
 [Unreleased]: https://github.com/organicoverlords/regression-research/commits/main
+
+- [2026-08-27] [meta] Recorded INC-20260827-002911-EEST-484b75e60565: ChatGPT Personalization showed a Custom Instructions bootstrap that was absent from the assistant-readable turn context; preserved the product-layer mismatch without attributing the missing instruction to assistant choice.

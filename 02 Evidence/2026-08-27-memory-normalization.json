@@ -1,0 +1,2214 @@
+{
+  "schema_version": 1,
+  "authority": "DERIVED_AUDIT_ONLY",
+  "notes": [
+    "This report is mechanically derived from the append-only memory bank and is not a second recall authority.",
+    "A committed JSON report is a point-in-time evidence snapshot, not a perpetually current mirror; run this tool again for current state.",
+    "PROVISIONAL records remain explicit review items; rejected/superseded records remain historically searchable.",
+    "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
+    "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
+  ],
+  "total_records": 77,
+  "bank_records": 73,
+  "candidate_only_records": 4,
+  "counts": {
+    "dispositions": {
+      "CURRENT_DURABLE": 36,
+      "DUPLICATE_MERGED": 0,
+      "EPHEMERAL/DO_NOT_RECALL": 0,
+      "HISTORICAL_DURABLE": 0,
+      "PROVISIONAL/NEEDS_EVIDENCE": 20,
+      "REJECTED": 1,
+      "SENSITIVE_EXCLUDED": 0,
+      "SUPERSEDED": 20
+    },
+    "states": {
+      "PROVEN": 49,
+      "PROVISIONAL": 23,
+      "REJECTED": 1
+    },
+    "kinds": {
+      "correction": 12,
+      "decision": 10,
+      "fact": 5,
+      "lesson": 41,
+      "preference": 2,
+      "status": 3
+    },
+    "scopes": {
+      "aitube": 1,
+      "chatgpt-personalization": 1,
+      "control-plane": 2,
+      "execution-context": 5,
+      "global": 17,
+      "mcp": 11,
+      "mcp-diagnostics": 1,
+      "memory": 13,
+      "memory-source-preservation": 1,
+      "orchestration": 7,
+      "p3": 3,
+      "p3-render-queue": 1,
+      "regression-research": 3,
+      "response-quality": 7
+    },
+    "sensitivity": {
+      "CLEAR": 77
+    }
+  },
+  "records": [
+    {
+      "id": "mem-20260825-role-executive",
+      "source_layer": "BANK",
+      "title": "The user sets direction and judges outcomes; the assistant owns planning, execu…",
+      "kind": "preference",
+      "scope": "global",
+      "tags": [
+        "role",
+        "ownership",
+        "autonomy"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "user-instruction:2026-08-25",
+        "regression:04 Operating Contracts/recovered_assistant_behavior_rules_only_2026-08-20.md"
+      ],
+      "source_classes": [
+        "regression",
+        "user-instruction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-current-wins",
+      "source_layer": "BANK",
+      "title": "Current explicit user instruction and verified live evidence outrank recalled m…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "precedence",
+        "memory",
+        "instruction"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:01+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "user-instruction:2026-08-25",
+        "github:organicoverlords/level6-memory-brain-rust/docs/MEMORY_PALACE.md"
+      ],
+      "source_classes": [
+        "github",
+        "user-instruction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-evidence-proof",
+      "source_layer": "BANK",
+      "title": "Do not call work done from intention, reports, compile success, or inferred sta…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "proof",
+        "evidence",
+        "claims"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:02+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:04 Operating Contracts/recovered_assistant_behavior_rules_only_2026-08-20.md",
+        "user-instruction:2026-08-25"
+      ],
+      "source_classes": [
+        "regression",
+        "user-instruction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-anti-churn",
+      "source_layer": "BANK",
+      "title": "After one materially unexpected failure or wrong assumption, stop speculative r…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "failure",
+        "research",
+        "anti-churn",
+        "retry"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:03+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:04 Operating Contracts/recovered_assistant_behavior_rules_only_2026-08-20.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-correction-next-action",
+      "source_layer": "BANK",
+      "title": "When the user corrects drift or tool/layer choice, the very next substantive ac…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "correction",
+        "drift",
+        "next-action"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:04+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/2026-08-23_232945_EEST_mcp-execution-drift_INC-20260823-232600-EEST-01ff0af6fef5_secondary_incident_report.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-bank-no-bootstrap",
+      "source_layer": "BANK",
+      "title": "The shared memory bank is optional historical enrichment, not a startup prerequ…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "bank",
+        "bootstrap",
+        "graceful-degradation"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:05+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/regression-research#10",
+        "spec:docs/superpowers/specs/2026-08-25-shared-memory-bank-design.md"
+      ],
+      "source_classes": [
+        "github",
+        "spec"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-bank-journal",
+      "source_layer": "BANK",
+      "title": "Use one compact append-only tagged JSONL journal as shared history for ChatGPT…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "bank",
+        "jsonl",
+        "git",
+        "shared"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:06+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/regression-research#10"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-contextrelay-excluded",
+      "source_layer": "BANK",
+      "title": "ContextRelay may remain a forensic/archive source but is excluded from the memo…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "contextrelay",
+        "browser",
+        "dependency"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:07+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "user-instruction:2026-08-25",
+        "github:organicoverlords/regression-research#10"
+      ],
+      "source_classes": [
+        "github",
+        "user-instruction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-seed-legacy",
+      "source_layer": "BANK",
+      "title": "The old chatgpt-memory-seed is a migration/recovery source for the new bank, no…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "seed",
+        "migration",
+        "legacy"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:08+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "user-instruction:2026-08-25",
+        "github:organicoverlords/regression-research#10"
+      ],
+      "source_classes": [
+        "github",
+        "user-instruction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-mcp-nonarrival",
+      "source_layer": "BANK",
+      "title": "A ChatGPT MCP failure with zero corresponding server arrival is a different fai…",
+      "kind": "lesson",
+      "scope": "mcp",
+      "tags": [
+        "routing",
+        "safety",
+        "non-arrival",
+        "classifier"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:09+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/chatgpt-mcp-clean#7"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [
+        "mem-20260825-mcp-6kb-hard"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-mcp-6kb-hard",
+      "source_layer": "BANK",
+      "title": "A hard approximately 6 KB MCP response-delivery threshold causes the security-r…",
+      "kind": "lesson",
+      "scope": "mcp",
+      "tags": [
+        "size",
+        "6kb",
+        "routing"
+      ],
+      "state": "REJECTED",
+      "disposition": "REJECTED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T09:30:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/chatgpt-mcp-clean#7",
+        "commit:cd3be1b"
+      ],
+      "source_classes": [
+        "commit",
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260825-mcp-nonarrival"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-mcp-trigger-status",
+      "source_layer": "BANK",
+      "title": "Payload size around 12 KB and absolute external paths remain unproven as trigge…",
+      "kind": "fact",
+      "scope": "mcp",
+      "tags": [
+        "size",
+        "12kb",
+        "absolute-path",
+        "hypothesis"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:31:10+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/chatgpt-mcp-clean#7"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-chain-lightning",
+      "source_layer": "BANK",
+      "title": "P3 Chain Lightning implementation/build is proven, but the rendered runtime eff…",
+      "kind": "status",
+      "scope": "p3",
+      "tags": [
+        "chain-lightning",
+        "415",
+        "runtime-proof"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T11:31:11+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/p3#415",
+        "p3:PR#428"
+      ],
+      "source_classes": [
+        "github",
+        "p3"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-1dd36ba0"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-p3-pr-backlog",
+      "source_layer": "BANK",
+      "title": "At 2026-08-25 11:32 EEST P3 had 50 open PRs: 43 drafts; merge states CLEAN=36,…",
+      "kind": "status",
+      "scope": "p3",
+      "tags": [
+        "fleet",
+        "pr",
+        "backlog",
+        "convergence"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T11:32:00+03:00",
+      "event_date_hint": "2026-08-25",
+      "evidence": [
+        "github:organicoverlords/p3#528"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-1dd36ba0"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-p3-convergence",
+      "source_layer": "BANK",
+      "title": "Worker isolation is incomplete without a convergence lifecycle: validated work…",
+      "kind": "lesson",
+      "scope": "p3",
+      "tags": [
+        "fleet",
+        "pr",
+        "convergence",
+        "retirement"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:32:01+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/p3#528"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-aitube-boundary",
+      "source_layer": "BANK",
+      "title": "Keep always-present memory compact: stable contracts/routing facts may be remem…",
+      "kind": "lesson",
+      "scope": "aitube",
+      "tags": [
+        "memory",
+        "contract",
+        "durable",
+        "volatile"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T11:32:02+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/AITubeTranscript/MEMORY_BANK.md",
+        "github:organicoverlords/AITubeTranscript/GPT_MEMORY.md"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-policy-live-state-v13",
+      "source_layer": "BANK",
+      "title": "Shared policy v1.3 treated live issues, pull requests, branches, and processes…",
+      "kind": "decision",
+      "scope": "global",
+      "tags": [
+        "policy",
+        "history",
+        "live-state",
+        "agents"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T14:06:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "shared-policy-snapshot:AGENTS.md@9e43580"
+      ],
+      "source_classes": [
+        "shared-policy-snapshot"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260825-policy-live-state-current"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-policy-live-state-current",
+      "source_layer": "BANK",
+      "title": "Current shared policy says live issues, pull requests, branches, and processes…",
+      "kind": "decision",
+      "scope": "global",
+      "tags": [
+        "policy",
+        "current",
+        "live-state",
+        "agents",
+        "mutation"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T14:06:01+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "shared-policy:AGENTS.md@e64519d"
+      ],
+      "source_classes": [
+        "shared-policy"
+      ],
+      "supersedes": [
+        "mem-20260825-policy-live-state-v13"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-task-anchor",
+      "source_layer": "BANK",
+      "title": "Once the task's acceptance condition is resolved, adjacent diagnostics must not…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "task-anchor",
+        "scope",
+        "acceptance"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-23T10:40:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-route-contradiction",
+      "source_layer": "BANK",
+      "title": "When repeated tool results contradict known source contents, stop using that ro…",
+      "kind": "lesson",
+      "scope": "mcp",
+      "tags": [
+        "routing",
+        "retry",
+        "churn"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-23T10:40:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-enough-evidence-stop",
+      "source_layer": "BANK",
+      "title": "After a bounded parser or other valid route produces the evidence needed for ac…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "evidence",
+        "scope",
+        "stop-condition"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-23T10:40:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-missing-metadata-no-widen",
+      "source_layer": "BANK",
+      "title": "Missing evidence metadata does not authorize widening the work surface; preserv…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "evidence",
+        "metadata",
+        "scope"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-23T10:40:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260825-no-fabricated-chat-id",
+      "source_layer": "BANK",
+      "title": "If an exact conversation or evidence identifier cannot be verified, leave it un…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "provenance",
+        "identity",
+        "evidence"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-23T10:40:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-timing-not-inherited",
+      "source_layer": "BANK",
+      "title": "Do not promote a user's or worker's precise timing attribution to independently…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "timing",
+        "evidence",
+        "uncertainty"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-23T10:40:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-correction-action-gate",
+      "source_layer": "BANK",
+      "title": "A user correction is not integrated merely because it is restated in prose; it…",
+      "kind": "correction",
+      "scope": "global",
+      "tags": [
+        "correction",
+        "action-selection",
+        "routing"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-21T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-no-magic-phrase",
+      "source_layer": "BANK",
+      "title": "Do not invent a magic phrase or extra user ritual to enforce a correction that…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "correction",
+        "user-burden",
+        "ritual"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-21T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-tool-prereq-before-promise",
+      "source_layer": "BANK",
+      "title": "If a schema-discovery prerequisite is structurally required before using the re…",
+      "kind": "lesson",
+      "scope": "mcp",
+      "tags": [
+        "tool-discovery",
+        "routing",
+        "promise"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-21T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260825-observable-reasoning-only",
+      "source_layer": "BANK",
+      "title": "Diagnose assistant behavior from observable messages, tool calls, and authorize…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "reasoning",
+        "evidence",
+        "analysis"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-21T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-tool-route-health-test",
+      "source_layer": "BANK",
+      "title": "A minimal correction-binding regression test observes only the next substantive…",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "regression-test",
+        "correction",
+        "routing"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-21T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "regression:01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt"
+      ],
+      "source_classes": [
+        "regression"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260825-memory-provenance-pointer",
+      "source_layer": "BANK",
+      "title": "Compact memory records should preserve pointers to full evidence instead of emb…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "provenance",
+        "compactness",
+        "evidence"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "repo-policy:memory/README.md"
+      ],
+      "source_classes": [
+        "repo-policy"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-memory-rejected-hidden",
+      "source_layer": "BANK",
+      "title": "Ordinary memory recall hides rejected and superseded entries; explicit history…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "recall",
+        "rejected",
+        "superseded"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "repo-policy:memory/README.md"
+      ],
+      "source_classes": [
+        "repo-policy"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-memory-authority-reorders-only",
+      "source_layer": "BANK",
+      "title": "Source authority may reorder entries that already match a memory query, but it…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "ranking",
+        "authority",
+        "relevance"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T12:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "repo-policy:memory/README.md"
+      ],
+      "source_classes": [
+        "repo-policy"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-7e943f4c",
+      "source_layer": "BANK",
+      "title": "On 2026-08-25 a Task Manager capture showed 92% CPU, 86% physical RAM, about 29…",
+      "kind": "fact",
+      "scope": "orchestration",
+      "tags": [
+        "cpu",
+        "runners",
+        "builds",
+        "pressure"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T15:17:08+03:00",
+      "event_date_hint": "2026-08-25",
+      "evidence": [
+        "github:organicoverlords/regression-research#28"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-1dd36ba0"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-22e6a820",
+      "source_layer": "BANK",
+      "title": "Machine-wide oversubscription from independent CI runner/build/validation slots…",
+      "kind": "lesson",
+      "scope": "orchestration",
+      "tags": [
+        "wip",
+        "runners",
+        "mcp",
+        "hypothesis"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T15:17:27+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/regression-research#28",
+        "github:organicoverlords/chatgpt-mcp-clean#8"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260825-681deb13",
+      "source_layer": "BANK",
+      "title": "On 2026-08-25 around 15:22-15:24 EEST, two Remote Desktop Commander command inv…",
+      "kind": "fact",
+      "scope": "control-plane",
+      "tags": [
+        "desktop-commander",
+        "timeout",
+        "github"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T15:28:10+03:00",
+      "event_date_hint": "2026-08-25",
+      "evidence": [
+        "Remote Desktop Commander conversation/tool history 2026-08-25 15:22-15:24 EEST; regression-research PR #29; companion issues regression-research#28 and chatgpt-mcp-clean#8"
+      ],
+      "source_classes": [
+        "remote desktop commander conversation/tool history 2026-08-25 15"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-1dd36ba0"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-3b82afd8",
+      "source_layer": "BANK",
+      "title": "At the start of a new conversation, when the shared memory bank is available, r…",
+      "kind": "decision",
+      "scope": "memory",
+      "tags": [
+        "startup",
+        "memory-bank"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T21:27:24+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "2026-08-25 live test: python tools\\memory_bank.py recent returned exactly 10 compact title/timestamp/scope records in ~0.24s."
+      ],
+      "source_classes": [
+        "2026-08-25 live test"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-19ceef1c",
+      "source_layer": "BANK",
+      "title": "Disk pressure never makes masters disposable",
+      "kind": "lesson",
+      "scope": "global",
+      "tags": [
+        "data-safety",
+        "disk-pressure",
+        "masters"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T23:02:22+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/regression-research#66"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260825-696aa50d",
+      "source_layer": "BANK",
+      "title": "2026-08-25 screenshot study: selectively captured conversation screenshots are…",
+      "kind": "lesson",
+      "scope": "regression-research",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T23:36:29+03:00",
+      "event_date_hint": "2026-08-25",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-a501e4a7"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260825-b72e2a62",
+      "source_layer": "BANK",
+      "title": "2026-08-25 live policy lapse: C: fell to 3.31 GB free despite the repo's machin…",
+      "kind": "lesson",
+      "scope": "orchestration",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-25T23:51:56+03:00",
+      "event_date_hint": "2026-08-25",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-46f7aa14",
+      "source_layer": "BANK",
+      "title": "Recent screenshot work: selectively captured screenshots are high-value regress…",
+      "kind": "lesson",
+      "scope": "regression-research",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T00:28:46+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-a501e4a7"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-631675c3",
+      "source_layer": "BANK",
+      "title": "PowerShell on this machine rejected '&&' as a command separator during memory-b…",
+      "kind": "lesson",
+      "scope": "control-plane",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T00:29:52+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-b7360bca",
+      "source_layer": "BANK",
+      "title": "Current render issues need to be streamlined into a bounded, queue-safe workflo…",
+      "kind": "lesson",
+      "scope": "p3-render-queue",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T16:59:51+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-55bcada9",
+      "source_layer": "BANK",
+      "title": "2026-08-26 memory-context lesson: Do not prune or consolidate the assistant-gen…",
+      "kind": "lesson",
+      "scope": "memory",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T17:42:04+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-caf3bdea",
+      "source_layer": "BANK",
+      "title": "2026-08-26 failure-history warning (user-reported): A prior setup review simila…",
+      "kind": "lesson",
+      "scope": "memory",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T17:44:03+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-faad6b90",
+      "source_layer": "BANK",
+      "title": "2026-08-26 execution-context drop: while implementing the cross-repo timeline/c…",
+      "kind": "lesson",
+      "scope": "execution-context",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T18:27:24+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-239d15ae"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-4bd36d39",
+      "source_layer": "BANK",
+      "title": "2026-08-26 repeated execution-context drop: after successfully pushing the memo…",
+      "kind": "lesson",
+      "scope": "execution-context",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T19:20:07+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-239d15ae"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-b75d9ef8",
+      "source_layer": "BANK",
+      "title": "2026-08-26 18:44 EEST — Tool-context incident 2, separate from the 18:27 premat…",
+      "kind": "lesson",
+      "scope": "execution-context",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T19:33:31+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-eebe9041",
+      "source_layer": "BANK",
+      "title": "2026-08-26 memory synchronization contract: canonical memory-bank CLI writes mu…",
+      "kind": "lesson",
+      "scope": "memory",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T20:14:54+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-8b1679de"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-59bebc4c",
+      "source_layer": "BANK",
+      "title": "2026-08-26 PROVEN canonical memory synchronization behavior: normal canonical n…",
+      "kind": "status",
+      "scope": "memory",
+      "tags": [
+        "sync",
+        "github"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T20:30:30+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "git:organicoverlords/regression-research@309c0419fa95e256812823eb87bd1077f784a135"
+      ],
+      "source_classes": [
+        "git"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-8b1679de"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-orchestration-incident-001",
+      "source_layer": "BANK",
+      "title": "Serious orchestration incident: inferred control plane treated as real",
+      "kind": "lesson",
+      "scope": "orchestration",
+      "tags": [
+        "serious-incident",
+        "control-plane",
+        "evidence-first",
+        "governance"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T21:05:00+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "conversation:2026-08-26T21:05+03:00"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260826-f9a5c3d2",
+      "source_layer": "BANK",
+      "title": "BUSY architecture drift and deferred fix",
+      "kind": "lesson",
+      "scope": "orchestration",
+      "tags": [
+        "busy",
+        "mcp",
+        "control-plane",
+        "incident"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T21:38:11+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "git:chatgpt-mcp-clean@ff53260549df41dff0cf24e6e38cd71896b1f134; git:vault@c59cafbb40c46ce5abe6b16409fc5df9e9c8b7ba; conversation:fresh-chat-post-PR14-2026-08-26"
+      ],
+      "source_classes": [
+        "git"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-0743b23f"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-8ad2b847",
+      "source_layer": "BANK",
+      "title": "2026-08-26 source-preservation rule: Downloads and archives containing ChatGPT…",
+      "kind": "lesson",
+      "scope": "memory-source-preservation",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T22:09:12+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-correction-regurgitation-incident",
+      "source_layer": "BANK",
+      "title": "Correction-regurgitation displaces active work",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "incident-report",
+        "slopwall",
+        "correction-integration",
+        "response-quality",
+        "regression"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T23:04:25+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+        "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json",
+        "github:organicoverlords/regression-research#89"
+      ],
+      "source_classes": [
+        "github",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260826-379239ef",
+      "source_layer": "BANK",
+      "title": "INCIDENT — 95%-done handoff presented as near-finished work. On 2026-08-26, aft…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:19:19+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-premature-finalization-user-handoff"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-021f5801",
+      "source_layer": "BANK",
+      "title": "Subjective answering-preference analysis — not user-approved",
+      "kind": "preference",
+      "scope": "response-quality",
+      "tags": [
+        "subjective-analysis",
+        "not-user-approved",
+        "answering-preferences",
+        "communication"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T23:42:52+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "conversation:2026-08-26-current-chat",
+        "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260826-a24f548c",
+      "source_layer": "BANK",
+      "title": "MCP tests 2026-08-26; UTC unless EEST marked. Original PR#15 diagnostic: 19:01:…",
+      "kind": "lesson",
+      "scope": "mcp-diagnostics",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:46:16+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-cc0f45ce"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-b7fb7cf1",
+      "source_layer": "BANK",
+      "title": "2026-08-26 corrected original MCP boundary diagnostic",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "mcp",
+        "diagnostic",
+        "namespace",
+        "heavy-git",
+        "correction"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:47:28+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-cc0f45ce"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-a1b17940",
+      "source_layer": "BANK",
+      "title": "2026-08-26 live pre-3003 checks across PR15 to PR16 cutover",
+      "kind": "fact",
+      "scope": "mcp",
+      "tags": [
+        "mcp",
+        "pre-3003",
+        "pr15",
+        "pr16",
+        "health"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:47:45+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-cc0f45ce"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-d4d27626",
+      "source_layer": "BANK",
+      "title": "2026-08-26 strongest MCP pre-3003 continuity trace",
+      "kind": "lesson",
+      "scope": "mcp",
+      "tags": [
+        "mcp",
+        "pre-3003",
+        "process-continuity",
+        "connection-failed",
+        "execution-context"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:48:02+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-cc0f45ce"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-78d10d87",
+      "source_layer": "BANK",
+      "title": "2026-08-26 A/B same-tool versus alternating-tool MCP test",
+      "kind": "fact",
+      "scope": "mcp",
+      "tags": [
+        "mcp",
+        "ab-test",
+        "tool-transition",
+        "namespace",
+        "pre-3003"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:48:13+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260826-cc0f45ce"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-0743b23f",
+      "source_layer": "BANK",
+      "title": "MCP BUSY is authoritative live ownership",
+      "kind": "correction",
+      "scope": "orchestration",
+      "tags": [
+        "busy",
+        "mcp",
+        "control-plane",
+        "ownership"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T23:48:22+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "git:agents@f49d23624b199a5be97588df1c74d981ced677f3",
+        "github:organicoverlords/agents#8,#9",
+        "user-correction:2026-08-26"
+      ],
+      "source_classes": [
+        "git",
+        "github",
+        "user-correction"
+      ],
+      "supersedes": [
+        "mem-20260826-f9a5c3d2"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260826-premature-finalization-user-handoff",
+      "source_layer": "BANK",
+      "title": "Do not hand off executable completion tail",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "incident-report",
+        "premature-finalization",
+        "user-burden",
+        "completion",
+        "validation",
+        "integration"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-26T23:48:00+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "01 Reports/2026-08-26_2348_EEST_premature-finalization_user-handoff_incident_report.md",
+        "02 Evidence/2026-08-26_2348_EEST_premature_finalization_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-26_2348_EEST_premature_finalization_next_action.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-379239ef"
+      ],
+      "superseded_by": [
+        "mem-20260827-239d15ae"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260826-cc0f45ce",
+      "source_layer": "BANK",
+      "title": "MCP diagnostic traces are bounded evidence",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "mcp",
+        "evidence-scope",
+        "diagnostic",
+        "correction"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T23:53:38+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [
+        "memory:mem-20260826-a24f548c",
+        "memory:mem-20260826-b7fb7cf1",
+        "memory:mem-20260826-a1b17940",
+        "memory:mem-20260826-d4d27626",
+        "memory:mem-20260826-78d10d87"
+      ],
+      "source_classes": [
+        "memory"
+      ],
+      "supersedes": [
+        "mem-20260826-a24f548c",
+        "mem-20260826-b7fb7cf1",
+        "mem-20260826-a1b17940",
+        "mem-20260826-d4d27626",
+        "mem-20260826-78d10d87"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260826-3c353335",
+      "source_layer": "BANK",
+      "title": "INCIDENT 2026-08-26 — Vault persistence route bypass plus fabricated completion…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-26T23:56:54+03:00",
+      "event_date_hint": "2026-08-26",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-cecc8a66",
+      "source_layer": "BANK",
+      "title": "MCP reproduction does not prove unchanged regression rate",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "incident",
+        "regression",
+        "rate-comparison",
+        "rollback"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:36:28+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "report:01 Reports/2026-08-27_0010_EEST_mcp-rate-comparison-invalid-inference_incident_report.md",
+        "user-correction:2026-08-27"
+      ],
+      "source_classes": [
+        "report",
+        "user-correction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-a501e4a7",
+      "source_layer": "BANK",
+      "title": "Screenshots are regression evidence, not causal proof",
+      "kind": "lesson",
+      "scope": "regression-research",
+      "tags": [
+        "screenshots",
+        "evidence",
+        "provenance"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:35:37+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "memory:mem-20260825-696aa50d",
+        "memory:mem-20260826-46f7aa14"
+      ],
+      "source_classes": [
+        "memory"
+      ],
+      "supersedes": [
+        "mem-20260825-696aa50d",
+        "mem-20260826-46f7aa14"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-8b1679de",
+      "source_layer": "BANK",
+      "title": "Canonical memory writes publish before handoff",
+      "kind": "correction",
+      "scope": "memory",
+      "tags": [
+        "sync",
+        "github",
+        "durability"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:35:37+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "git:organicoverlords/regression-research@309c0419fa95e256812823eb87bd1077f784a135"
+      ],
+      "source_classes": [
+        "git"
+      ],
+      "supersedes": [
+        "mem-20260826-eebe9041",
+        "mem-20260826-59bebc4c"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-239d15ae",
+      "source_layer": "BANK",
+      "title": "Active execution or completion tail forbids finalization",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "completion",
+        "process-id",
+        "user-burden"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:35:37+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-26_2348_EEST_premature-finalization_user-handoff_incident_report.md",
+        "memory:mem-20260826-faad6b90",
+        "memory:mem-20260826-4bd36d39"
+      ],
+      "source_classes": [
+        "memory",
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-faad6b90",
+        "mem-20260826-4bd36d39",
+        "mem-20260826-premature-finalization-user-handoff"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-1dd36ba0",
+      "source_layer": "BANK",
+      "title": "Dated operational snapshots are historical evidence",
+      "kind": "correction",
+      "scope": "orchestration",
+      "tags": [
+        "freshness",
+        "live-state",
+        "snapshot"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:35:38+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/p3#415",
+        "github:organicoverlords/p3#528",
+        "github:organicoverlords/regression-research#28"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [
+        "mem-20260825-chain-lightning",
+        "mem-20260825-p3-pr-backlog",
+        "mem-20260825-7e943f4c",
+        "mem-20260825-681deb13"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-9c50458e",
+      "source_layer": "BANK",
+      "title": "ChatGPT Custom Instructions UI/context mismatch",
+      "kind": "lesson",
+      "scope": "chatgpt-personalization",
+      "tags": [
+        "incident",
+        "custom-instructions"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:41:16+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_002911_EEST_custom-instructions-ui-context-mismatch_INC-20260827-002911-EEST-484b75e60565_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-419d3aab",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 - memory refresh treated as completion",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "memory-refresh",
+        "mcp",
+        "execution-context"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T00:57:05+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-3f4034d2"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-3f4034d2",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 - explained bad PROVEN label instead of repairing it",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "proven-label",
+        "incident-report",
+        "repair"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:58:58+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [
+        "mem-20260827-419d3aab"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-4a7287c6",
+      "source_layer": "BANK",
+      "title": "SLOPWALL recurrence - worker report format collapsed into PROVEN spam",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "worker-report-format",
+        "progress-bar",
+        "proven-spam",
+        "recurrence"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:03:59+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0100_EEST_worker-report-format-proven-spam_slopwall_incident_report.md",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "memory-candidate-5d71b46dbf2ca7a8",
+      "source_layer": "CANDIDATE",
+      "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "title": "Candidate memory-candidate-5d71b46dbf2ca7a8",
+      "kind": "lesson",
+      "scope": "assistant-behavior",
+      "tags": [
+        "extracted",
+        "historical_context",
+        "negative-feedback"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T00:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-262:line-1337"
+      ],
+      "source_classes": [
+        "historical_context",
+        "transcript"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "memory-candidate-d3c87986ff7fedaa",
+      "source_layer": "CANDIDATE",
+      "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "title": "Candidate memory-candidate-d3c87986ff7fedaa",
+      "kind": "lesson",
+      "scope": "assistant-behavior",
+      "tags": [
+        "extracted",
+        "historical_context",
+        "negative-feedback"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T00:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-394:line-2324"
+      ],
+      "source_classes": [
+        "historical_context",
+        "transcript"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "memory-candidate-fe19358cb1769f31",
+      "source_layer": "CANDIDATE",
+      "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "title": "Candidate memory-candidate-fe19358cb1769f31",
+      "kind": "lesson",
+      "scope": "assistant-behavior",
+      "tags": [
+        "extracted",
+        "historical_context",
+        "negative-feedback"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T00:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-494:line-2740"
+      ],
+      "source_classes": [
+        "historical_context",
+        "transcript"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "memory-candidate-21d6c6273d9a81d7",
+      "source_layer": "CANDIDATE",
+      "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "title": "Candidate memory-candidate-21d6c6273d9a81d7",
+      "kind": "lesson",
+      "scope": "assistant-behavior",
+      "tags": [
+        "extracted",
+        "historical_context",
+        "negative-feedback"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-25T00:00:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-1966:line-7853"
+      ],
+      "source_classes": [
+        "historical_context",
+        "transcript"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    }
+  ],
+  "snapshot": {
+    "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
+    "hash_semantics": "UTF8_TEXT_NORMALIZED_LF_NO_BOM",
+    "source_fingerprint": "a8d4f1155f44fce136c11dc0dfd3f5da694709d8ce6948632bc3bc6fdb48cea1",
+    "sources": [
+      {
+        "path": "memory/memory-bank.jsonl",
+        "sha256": "73398c9906cbd1e57a4e6a7c6cbbbe2ffcabd8aed086f56b40cf93a4e9f127cb"
+      },
+      {
+        "path": "memory/migrations/2026-08-25-initial-candidates.jsonl",
+        "sha256": "90426d44a33d0137017e5ddb14517345096aa20ef2077a1c0c35f57131bf1337"
+      },
+      {
+        "path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+        "sha256": "2fd84df3338761ed500308daac6c18157725671e7b04913a80f2b81a5ab72e38"
+      },
+      {
+        "path": "memory/migrations/2026-08-25-population-candidates.jsonl",
+        "sha256": "3713447a5bac64d5e1a33114dcc2d3278c661787c401614000390cbe932b264c"
+      }
+    ],
+    "note": "Counts/dispositions describe these logical UTF-8 text sources after BOM removal and LF normalization. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot."
+  }
+}
