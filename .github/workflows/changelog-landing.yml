@@ -13,7 +13,7 @@ concurrency:
 jobs:
   verify:
     runs-on: [self-hosted, Windows, X64, regression-research]
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,4 +29,43 @@ jobs:
             python .github/scripts/check_changelog_landing.py --base-ref "HEAD^"
           } else {
             python .github/scripts/check_changelog_landing.py --base-ref "origin/main"
+          }
+      - name: Validate downloaded conversation search when changed
+        shell: pwsh
+        run: |
+          $event = "${{ github.event_name }}"
+          if ($event -eq "pull_request") {
+            $base = "origin/${{ github.base_ref }}"
+          } elseif ($event -eq "push" -and "${{ github.ref }}" -eq "refs/heads/main") {
+            $base = "HEAD^"
+          } else {
+            $base = "origin/main"
+          }
+          $changed = @(git diff --name-only "$base...HEAD")
+          $conversationChanged = @($changed | Where-Object {
+            $_ -in @(
+              'tools/conversation_search.py',
+              'tools/validate_conversation_search_corpus.py',
+              'tests/test_conversation_search.py'
+            )
+          })
+          if ($conversationChanged.Count -eq 0) {
+            Write-Output 'CONVERSATION_SEARCH_SKIPPED'
+            exit 0
+          }
+
+          python -m py_compile tools/conversation_search.py tools/validate_conversation_search_corpus.py
+          if ($LASTEXITCODE -ne 0) { throw 'conversation search py_compile failed' }
+          python -m unittest tests.test_conversation_search -v
+          if ($LASTEXITCODE -ne 0) { throw 'conversation search tests failed' }
+
+          $db = Join-Path $env:RUNNER_TEMP "conversation-search-$env:GITHUB_RUN_ID.sqlite3"
+          try {
+            python tools/conversation_search.py --db $db index --downloads 'C:\Users\Lauri\Downloads'
+            if ($LASTEXITCODE -ne 0) { throw 'conversation corpus indexing failed' }
+            python tools/validate_conversation_search_corpus.py --db $db
+            if ($LASTEXITCODE -ne 0) { throw 'old/new corpus search validation failed' }
+          }
+          finally {
+            Remove-Item -Force -ErrorAction SilentlyContinue $db, "$db-wal", "$db-shm"
           }
