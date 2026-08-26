@@ -1,116 +1,50 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
 import os
-import zipfile
 from pathlib import Path
 
 try:
-    from .conversation_search import DEFAULT_DB, DISCOVERY_RE, discover_roots, index_roots
+    from .conversation_search import DEFAULT_CORPUS_ROOT, DEFAULT_DB, index_roots
 except ImportError:
-    from conversation_search import DEFAULT_DB, DISCOVERY_RE, discover_roots, index_roots
-
-MAX_DEPTH = 3
-CONVERSATION_FILES = {"conversations.json", "conversation.json"}
+    from conversation_search import DEFAULT_CORPUS_ROOT, DEFAULT_DB, index_roots
 
 
-def _key(path: Path) -> str:
-    return str(path.resolve(strict=False)).casefold()
-
-
-def _covered(candidate: Path, roots: list[Path]) -> bool:
-    resolved = candidate.resolve(strict=False)
-    for root in roots:
-        root_resolved = root.resolve(strict=False)
-        if root_resolved.is_dir():
-            try:
-                resolved.relative_to(root_resolved)
-                return True
-            except ValueError:
-                pass
-        elif _key(resolved) == _key(root_resolved):
-            return True
-    return False
-
-
-def _zip_has_conversation_json(path: Path) -> bool:
-    try:
-        with zipfile.ZipFile(path) as zf:
-            for info in zf.infolist():
-                if info.is_dir():
-                    continue
-                lower = info.filename.casefold().replace("\\", "/")
-                base = lower.rsplit("/", 1)[-1]
-                if base in CONVERSATION_FILES:
-                    return True
-                if ("conversation" in lower or "chatgpt" in lower) and lower.endswith((".json", ".jsonl")):
-                    return True
-    except (OSError, zipfile.BadZipFile):
-        return False
-    return False
-
-
-def discover_extended(downloads: Path, max_depth: int = MAX_DEPTH) -> list[Path]:
-    roots = list(discover_roots(downloads))
-    seen = {_key(path) for path in roots}
-    if not downloads.is_dir():
-        return roots
-
-    base_parts = len(downloads.resolve(strict=False).parts)
-    for current, dirs, files in os.walk(downloads):
-        current_path = Path(current)
-        depth = len(current_path.resolve(strict=False).parts) - base_parts
-        if depth >= max_depth:
-            dirs[:] = []
-        if depth > max_depth:
-            continue
-
-        for dirname in list(dirs):
-            child = current_path / dirname
-            if DISCOVERY_RE.search(dirname) and not _covered(child, roots):
-                key = _key(child)
-                if key not in seen:
-                    seen.add(key)
-                    roots.append(child)
-
-        for filename in files:
-            path = current_path / filename
-            lower = filename.casefold()
-            candidate: Path | None = None
-            if lower in CONVERSATION_FILES:
-                candidate = current_path
-            elif path.suffix.casefold() == ".zip" and _zip_has_conversation_json(path):
-                candidate = path
-            if candidate is None or _covered(candidate, roots):
-                continue
-            key = _key(candidate)
-            if key not in seen:
-                seen.add(key)
-                roots.append(candidate)
-    return roots
+def rebuild_index(db: Path = DEFAULT_DB, corpus_root: Path = DEFAULT_CORPUS_ROOT) -> dict:
+    if not corpus_root.is_dir():
+        return {"status": "NOT_PROVEN", "error": f"canonical Vault conversation corpus missing: {corpus_root}"}
+    db.parent.mkdir(parents=True, exist_ok=True)
+    temp = db.with_name(db.name + f".rebuild-{os.getpid()}")
+    for path in (temp, Path(str(temp) + "-wal"), Path(str(temp) + "-shm")):
+        path.unlink(missing_ok=True)
+    result = index_roots(temp, [corpus_root], force=True)
+    if result["status"] != "PROVEN":
+        return result
+    for sidecar in (Path(str(temp) + "-wal"), Path(str(temp) + "-shm")):
+        if sidecar.exists() and sidecar.stat().st_size:
+            raise RuntimeError(f"temporary SQLite sidecar did not checkpoint: {sidecar}")
+        sidecar.unlink(missing_ok=True)
+    for sidecar in (Path(str(db) + "-wal"), Path(str(db) + "-shm")):
+        sidecar.unlink(missing_ok=True)
+    os.replace(temp, db)
+    result["db"] = str(db)
+    result["canonical_corpus_root"] = str(corpus_root)
+    result["rebuild"] = "atomic-fresh"
+    return result
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Bounded refresh of the downloaded full-conversation search index.")
+    parser = argparse.ArgumentParser(description="Rebuild full-text search solely from the canonical Vault conversation corpus.")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB)
-    parser.add_argument("--downloads", type=Path, default=Path.home() / "Downloads")
-    parser.add_argument("--max-depth", type=int, default=MAX_DEPTH)
-    parser.add_argument("--discover-only", action="store_true")
+    parser.add_argument("--corpus-root", type=Path, default=DEFAULT_CORPUS_ROOT)
     args = parser.parse_args()
-
-    depth = max(1, min(6, int(args.max_depth)))
-    roots = discover_extended(args.downloads, max_depth=depth)
-    if args.discover_only:
-        print(json.dumps({"roots": [str(path) for path in roots], "max_depth": depth}, ensure_ascii=False, indent=2))
-        return 0 if roots else 2
-    if not roots:
-        print(json.dumps({"status": "NOT_PROVEN", "error": "no conversation sources discovered"}, ensure_ascii=False))
-        return 2
-    result = index_roots(args.db, roots)
-    result["discovery_max_depth"] = depth
+    try:
+        result = rebuild_index(args.db, args.corpus_root)
+    except (OSError, RuntimeError) as exc:
+        result = {"status": "REJECTED", "error": str(exc)}
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["status"] == "PROVEN" else 2
+    return 0 if result.get("status") == "PROVEN" else 2
 
 
 if __name__ == "__main__":

@@ -14,7 +14,10 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 REPO = Path(__file__).resolve().parents[1]
-DEFAULT_DB = REPO / ".state" / "conversation-search" / "conversations.sqlite3"
+DEFAULT_VAULT = Path(r"C:\Users\Lauri\Desktop\vault") if __import__("os").name == "nt" else REPO
+DEFAULT_VAULT = Path(__import__("os").environ.get("MEMORY_VAULT_ROOT", str(DEFAULT_VAULT)))
+DEFAULT_DB = DEFAULT_VAULT / ".state" / "conversation-search" / "conversations.sqlite3"
+DEFAULT_CORPUS_ROOT = DEFAULT_VAULT / "memory" / "conversations"
 KNOWN_ROOT_NAMES = ("ChatPortEvidence", "ChatGPTLocalExporter")
 DISCOVERY_RE = re.compile(r"(chatgpt|chatport|openai|conversation|export)", re.I)
 MAX_LIMIT = 20
@@ -633,9 +636,9 @@ def main() -> int:
             _print({"roots": [str(p) for p in discover_roots(args.downloads)]})
             return 0
         if args.command == "index":
-            roots = args.root or discover_roots(args.downloads)
-            if not roots:
-                _print({"status": "NOT_PROVEN", "error": "no candidate conversation roots discovered"})
+            roots = args.root or [DEFAULT_CORPUS_ROOT]
+            if not all(root.exists() for root in roots):
+                _print({"status": "NOT_PROVEN", "error": "canonical Vault conversation corpus is missing", "roots": [str(root) for root in roots]})
                 return 2
             _print(index_roots(args.db, roots, force=args.force))
             return 0

@@ -22,7 +22,7 @@ Operating rules live in each project's `AGENTS.md`, generated from
 
 | Directory | Holds |
 |---|---|
-| `01 Reports/` | Incident reports — PRIMARY and SECONDARY, sharing one immutable incident id |
+| `01 Reports/` | Incident reports â€” PRIMARY and SECONDARY, sharing one immutable incident id |
 | `02 Evidence/` | Analyses, recovered rule records, provenance work |
 | `03 Fixtures and Experiments/` | Replay-ready fixtures with scoring criteria |
 | `04 Operating Contracts/` | Snapshots of contracts as they stood, for dating drift |
@@ -46,13 +46,7 @@ Retrieve the closest failure case *and* the closest successful case, then ask wh
 the successful next action was, what valid state it preserved, and what evidence made
 it correct. Read the source rather than inferring from a title or a snippet.
 
-Downloaded full conversations are a separate on-demand searchable source layer. Refresh the
-protected local corpus with `python tools/conversation_search_refresh.py`, then query
-exact or token-matched turns with `python tools/conversation_search.py search "..."`.
-Each query returns corpus-wide prevalence first and only a bounded representative excerpt
-sample; this path is not part of the one-time memory bootstrap. See
-[`docs/conversation-search.md`](docs/conversation-search.md). The derived index never
-replaces or authorizes mutation of the original downloads.
+Historical full conversations are part of the same Vault memory corpus under the private Git-ignored `memory/conversations/` store. Ordinary `python tools/memory_bank.py search "..."` automatically returns matching curated memories and historical turns, while `recent` stays lightweight. The SQLite index is rebuildable solely from the Vault corpus; Downloads are not a required memory path. See [`docs/conversation-search.md`](docs/conversation-search.md).
 
 ## Provenance
 

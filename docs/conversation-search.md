@@ -1,45 +1,53 @@
-# Downloaded conversation search
+# Unified memory corpus
 
-`tools/conversation_search.py` searches a local SQLite FTS5 index over preserved ChatGPT conversation exports. The raw downloads remain unchanged and outside Git; the canonical index is `C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3`.
+The Vault has one recall system with two source classes:
 
-## Full refresh
+- `memory/memory-bank.jsonl`: compact, manually curated future memories added when the user explicitly asks.
+- `memory/conversations/`: the preserved historical full-conversation corpus used for behavioral/regression analysis.
+
+`memory/conversations/` is private local data, ignored by Git, and is the canonical owner of the historical transcript bytes. Downloads and legacy tool directories are preservation sources only; workers must not depend on those paths after migration.
+
+The rebuildable SQLite FTS5 index is `C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3`. It is disposable and may always be rebuilt from `memory/conversations/`.
+
+## Search
+
+Ordinary memory recall automatically includes matching historical turns:
+
+```powershell
+python tools\memory_bank.py search "MCP routing failure"
+```
+
+Manual memory hits and bounded full-conversation hits are returned together. Startup `recent` remains lightweight and reads only curated memory titles.
+
+Direct transcript analysis is also available when corpus-wide counts or explicit literal matching are needed:
+
+```powershell
+python tools\conversation_search.py search "slopwall"
+python tools\conversation_search.py search "exact historical phrase" --literal
+```
+
+## Preservation and recovery
+
+`tools\conversation_corpus.py` performs explicit one-time preservation operations. It never runs a download queue and never continuously ingests ChatGPT history.
+
+The migration preserves source bytes before deriving anything. The current historical set includes the surviving ChatPort raw corpus, the remaining LocalExporter slice, the legacy regression SQLite itself, and self-contained conversation JSON recovered from that SQLite so conversations survive even if the old database path disappears.
+
+Verify the canonical corpus with hashes:
+
+```powershell
+python tools\conversation_corpus.py verify
+```
+
+Create a separately checksummed backup with:
+
+```powershell
+python tools\conversation_corpus.py backup
+```
+
+Rebuild search only from the canonical Vault corpus:
 
 ```powershell
 python tools\conversation_search_refresh.py
 ```
 
-This is the preferred corpus-ingestion path. It includes the known `Downloads\ChatPortEvidence` and `Downloads\ChatGPTLocalExporter` roots, ChatGPT/export-named download directories, plus a bounded depth-3 metadata walk that finds nested `conversations.json` folders and opaque ZIPs whose central directory contains conversation JSON signatures. This catches archive-organized downloads without performing an unbounded profile scan or treating generic JSONL archives as conversation exports.
-
-The same-machine validation workflow refreshes this canonical derived index while validating the search implementation. Because the database is derived and ignored by Git, retaining it gives workers an immediately usable search surface without changing or replacing any source download.
-
-## Narrow discovery/index
-
-```powershell
-python tools\conversation_search.py discover
-python tools\conversation_search.py index
-```
-
-The narrow path covers the known roots and top-level candidates. Use repeated `--root PATH` arguments to index an explicit protected source set. `--force` re-reads known source items without changing the originals.
-
-Unchanged source items are skipped by path/size/mtime. Changed items are re-read and their source-to-message mappings are reconciled. Exact repeated messages from multiple captures share one search row while every retained source locator remains attached as provenance.
-
-## Search full turns
-
-```powershell
-python tools\conversation_search.py search "slopwall"
-python tools\conversation_search.py search "exact phrase from old conversation" --literal
-```
-
-Search is on-demand only; it is not part of the one-time memory bootstrap and does not alter `memory_bank.py recent`. Each query reports corpus-wide aggregate signal first: total matching messages, distinct matching conversations, usable wall-clock match-time range, count of matches with relative/non-wall-clock timestamps, role counts, and the most match-dense conversations. Context remains bounded (maximum 20): excerpts are limited to one match per conversation and sampled across the matched-conversation time range so one repetitive conversation cannot dominate. Each excerpt still contains conversation ID/title/timestamps, role, matching turn text, one neighboring turn on each side, and every indexed source locator that contains that exact message version. Ordinary search uses FTS token matching; `--literal` searches the full message text as a phrase substring. Frequency is evidence of prevalence, not truth or authority.
-
-## Coverage
-
-```powershell
-python tools\conversation_search.py coverage
-```
-
-Coverage reports indexed source counts, ignored non-conversation JSON, unresolved sources, deduplicated conversations/messages, role counts, and indexed message-time range. The privacy-safe corpus validator additionally proves that an old-ChatPort-only phrase and a newer-download-only phrase can both be retrieved without printing the phrases themselves; newer-source evidence uses source acquisition time rather than assuming every exporter preserves wall-clock message timestamps.
-
-## Safety boundary
-
-The SQLite database is a disposable derived index, not a replacement for the downloads. Indexing a source never authorizes deleting, moving, renaming, overwriting, or deduplicating the original export. A search hit must remain traceable to its source locator.
+Original source files are never deleted, moved, renamed, overwritten, or treated as disposable. The private corpus itself is also never committed to Git.

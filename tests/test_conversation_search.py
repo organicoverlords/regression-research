@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.conversation_search import _print, discover_roots, index_roots, search_db, search_report
+from tools.memory_bank import _print_json, search_all_memory
 
 
 def conversation(cid, title, user_text, assistant_text, base=1):
@@ -102,16 +103,31 @@ class ConversationSearchTests(unittest.TestCase):
         self.assertEqual(sum(report["summary"]["roles"].values()), 24)
         self.assertEqual(report["summary"]["top_conversations"][0]["matches"], 2)
 
-    def test_memory_bootstrap_has_no_conversation_search_dependency(self):
+    def test_memory_bootstrap_stays_light_but_search_can_query_conversations(self):
         memory_bank = (Path(__file__).resolve().parents[1] / "tools" / "memory_bank.py").read_text(encoding="utf-8")
-        self.assertNotIn("conversation_search", memory_bank)
-        self.assertNotIn("conversations.sqlite3", memory_bank)
+        bootstrap_prefix = memory_bank.split("def conversation_history_hits", 1)[0]
+        self.assertNotIn("conversation_search", bootstrap_prefix)
+
+        path = self.new / "conversations.json"
+        path.write_text(json.dumps([conversation("c-memory", "Old behavior", "rare historical marker", "answer", 200)]), encoding="utf-8")
+        index_roots(self.db, [self.new])
+        hits = search_all_memory([], "rare historical marker", conversation_db=self.db)
+        self.assertTrue(any(hit.get("kind") == "conversation" and hit.get("conversation_id") == "c-memory" for hit in hits))
 
     def test_json_output_handles_private_use_unicode_on_legacy_stdout_encoding(self):
         raw = io.BytesIO()
         stream = io.TextIOWrapper(raw, encoding="cp1252")
         with patch("tools.conversation_search.sys.stdout", stream):
             _print({"text": "\ue200"})
+            stream.flush()
+        payload = raw.getvalue().decode("utf-8")
+        self.assertEqual(json.loads(payload)["text"], "\ue200")
+
+    def test_memory_json_output_handles_private_use_unicode_on_legacy_stdout_encoding(self):
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="cp1252")
+        with patch("tools.memory_bank.sys.stdout", stream):
+            _print_json({"text": "\ue200"})
             stream.flush()
         payload = raw.getvalue().decode("utf-8")
         self.assertEqual(json.loads(payload)["text"], "\ue200")

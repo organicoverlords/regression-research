@@ -1,4 +1,4 @@
-﻿# Shared Memory Bank
+# Shared Memory Bank
 
 This directory is the lightweight shared continuity layer for Regression Research and cooperating agents.
 
@@ -8,7 +8,7 @@ Current user instruction and live evidence always outrank recalled memory. A mis
 
 States are `PROVEN`, `PROVISIONAL`, and `REJECTED`. Ordinary recall must exclude rejected and superseded entries unless history is explicitly requested.
 
-No credentials, secrets, full transcripts, huge tool output, or volatile process snapshots belong here. Regression Research reports/evidence remain the forensic source when deeper provenance is required.
+No credentials, secrets, huge tool output, or volatile process snapshots belong in `memory-bank.jsonl`. Historical full transcripts live separately in the private Git-ignored `memory/conversations/` corpus so they remain searchable without bloating curated memory.
 
 ## Commands
 
@@ -18,7 +18,7 @@ Validate the bank:
 python tools\memory_bank.py validate
 ```
 
-Search ordinary current memory (rejected/superseded entries hidden):
+Search ordinary current memory and matching preserved historical conversation turns (rejected/superseded curated entries hidden):
 
 ```powershell
 python tools\memory_bank.py search "MCP safety blocks" --scope mcp
