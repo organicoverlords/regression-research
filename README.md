@@ -7,9 +7,9 @@ Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
 - [2026-08-26] Made CHANGELOG.md the dated project timeline and moved its latest five entries to the top of the GitHub README with enforced dated-entry checks.
 - [2026-08-26] Removed an accidentally duplicated README timeline block and made the checker reject duplicate timelines or misplaced shared-agent-policy markers.
+- [2026-08-26] Hardened project-timeline enforcement so direct pushes to main validate HEAD^..HEAD instead of bypassing the dated changelog requirement.
 - [2026-08-25] Extended screenshot persistence controls with exact recovery and reconciliation cases (#75).
 - [2026-08-25] Preserved the live disk-floor policy lapse as a distinct orchestration lesson (#73).
-- [2026-08-25] Indexed screenshot execution-state evidence and separated persistence failures from real route/resource failures (#71).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
