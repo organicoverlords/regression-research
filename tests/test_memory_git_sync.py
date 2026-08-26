@@ -1,6 +1,6 @@
-import subprocess
+import tempfile
 import unittest
-from unittest.mock import patch
+from pathlib import Path
 
 from tools.memory_git_sync import MemorySyncError, _git, merge_bank_entries
 
@@ -15,13 +15,18 @@ class MemoryGitSyncTests(unittest.TestCase):
         with self.assertRaises(MemorySyncError):
             merge_bank_entries([{"id": "same", "text": "one"}], [{"id": "same", "text": "two"}])
 
-    @patch("tools.memory_git_sync.subprocess.run")
-    def test_git_output_is_decoded_as_utf8(self, run):
-        run.return_value = subprocess.CompletedProcess(["git", "status"], 0, "ok", "")
-
-        _git("status")
-
-        self.assertEqual(run.call_args.kwargs["encoding"], "utf-8")
+    def test_git_output_is_decoded_as_utf8(self):
+        with tempfile.TemporaryDirectory() as raw:
+            repo = Path(raw)
+            _git("init", cwd=repo)
+            _git("config", "user.email", "memory-sync@example.invalid", cwd=repo)
+            _git("config", "user.name", "memory-sync-test", cwd=repo)
+            expected = "incident " + chr(0x2014) + " unicode survives\n"
+            (repo / "unicode.txt").write_text(expected, encoding="utf-8", newline="\n")
+            _git("add", "unicode.txt", cwd=repo)
+            _git("commit", "-m", "unicode fixture", cwd=repo)
+            shown = _git("show", "HEAD:unicode.txt", cwd=repo).stdout
+            self.assertEqual(shown, expected)
 
 
 if __name__ == "__main__":
