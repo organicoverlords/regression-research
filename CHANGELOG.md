@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Captured `RR-INCIDENT-SCOPE-DRIFT-20260827`, where bounded incident work expanded into unrelated repository repair after baseline validation failures; added replay coverage and a searchable provisional lesson.
+
 - [2026-08-27] Fixed semantic memory freshness so correction writes must explicitly supersede an existing memory or opt into standalone status, reject missing supersession targets, and keep stale conclusions out of ordinary recall.
 
 - [2026-08-27] Unified historical full conversations into the private Git-ignored Vault corpus, recovered 569 legacy-database conversations including 120 absent from surviving transcript sources, rebuilt search to 637 conversations / 140,283 deduplicated messages with zero unresolved sources, and made ordinary `memory_bank.py search` include bounded historical turns (#99).
