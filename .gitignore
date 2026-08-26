@@ -4,3 +4,4 @@ _share_check.html
 
 __pycache__/
 *.pyc
+.state/conversation-search/
