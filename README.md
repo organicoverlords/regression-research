@@ -46,11 +46,11 @@ Retrieve the closest failure case *and* the closest successful case, then ask wh
 the successful next action was, what valid state it preserved, and what evidence made
 it correct. Read the source rather than inferring from a title or a snippet.
 
-Downloaded full conversations are a separate searchable source layer. Build or refresh
-the local index with `python tools/conversation_search.py index`, then query exact or
-token-matched turns with `python tools/conversation_search.py search "..."`. See
-[`docs/conversation-search.md`](docs/conversation-search.md). The derived index never
-replaces or authorizes mutation of the original downloads.
+Downloaded full conversations are a separate searchable source layer. Refresh the
+protected local corpus with `python tools/conversation_search_refresh.py`, then query
+exact or token-matched turns with `python tools/conversation_search.py search "..."`.
+See [`docs/conversation-search.md`](docs/conversation-search.md). The derived index
+never replaces or authorizes mutation of the original downloads.
 
 ## Provenance
 
