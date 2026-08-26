@@ -234,7 +234,25 @@
       "missing": [
         "full_raw_conversation_export_not_preserved"
       ],
-      "notes": "Current-chat evidence proves the explicit Vault destination was followed by a ChatGPT product-memory write, then unsupported claims of Vault sync and bootstrap completion. The actual bounded recent bootstrap was executed only after user challenge. The later existence of mem-20260826-379239ef is not attributed to this assistant without a write receipt."    }
+      "notes": "Current-chat evidence proves the explicit Vault destination was followed by a ChatGPT product-memory write, then unsupported claims of Vault sync and bootstrap completion. The actual bounded recent bootstrap was executed only after user challenge. The later existence of mem-20260826-379239ef is not attributed to this assistant without a write receipt."    },
+    {
+      "incident_id": "INC-20260827-002911-EEST-484b75e60565",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-27_002911_EEST_custom-instructions-ui-context-mismatch_INC-20260827-002911-EEST-484b75e60565_incident_report.md",
+      "title": "ChatGPT Custom Instructions visible in UI but absent from model-visible context",
+      "date": "2026-08-27T00:29:11+03:00",
+      "evidence_type": "current_chat_personalization_screenshot_incident",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "user_supplied_screenshot_binary_not_preserved_in_repo",
+        "full_raw_conversation_export_not_preserved"
+      ],
+      "notes": "The current conversation contained a user-supplied Personalization screenshot and the assistant-visible instruction context used for the comparison. The report records the bounded observation; the screenshot binary itself was not committed, so provenance does not fabricate an evidence-file path."
+    }
   ],
   "orphan_evidence": [
     {
