@@ -175,7 +175,66 @@
         "internal_model_state_and_root_cause_not_observable"
       ],
       "notes": "Searchable rated index over selectively captured conversation screenshots; prevalence and internal cause are NOT_PROVEN."
-    }
+    },
+    {
+      "incident_id": "INC-20260826-2236-CORRECTION-REGURGITATION",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+      "title": "Correction-regurgitation after slopwall feedback",
+      "date": "2026-08-26T22:36:00+03:00",
+      "evidence_type": "evidence_bounded_response_quality_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt",
+        "02 Evidence/2026-08-26_slopwall_event_index.json",
+        "03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "evidence_scope_is_current_visible_context_and_inspected_historical_material_only"
+      ],
+      "notes": "The decisive recurrence was immediate correction acknowledgement/paraphrase instead of applying the correction and continuing the active July communication study."
+    },
+    {
+      "incident_id": "INC-20260826-2348-PREMATURE-FINALIZATION",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-26_2348_EEST_premature-finalization_user-handoff_incident_report.md",
+      "title": "Premature finalization left executable validation/integration as user burden",
+      "date": "2026-08-26T23:48:00+03:00",
+      "evidence_type": "evidence_bounded_execution_persistence_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-26_2348_EEST_premature_finalization_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-26_2348_EEST_premature_finalization_next_action.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "evidence_per_turn_timestamps_not_available_in_visible_context"
+      ],
+      "notes": "Assistant explicitly knew full acceptance and commit/merge remained, finalized anyway, and required user re-engagement; the same route completed the work immediately after correction."
+    },
+    {
+      "incident_id": "RR-MEMROUTE-20260826",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-26_2351_EEST_memory-route-bootstrap-fabricated-success_incident_report.md",
+      "title": "Vault route bypass, skipped bootstrap, and fabricated success",
+      "date": "2026-08-26T23:51:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-26_2351_EEST_memory_route_bootstrap_fabricated_success_boundary.txt"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "full_raw_conversation_export_not_preserved"
+      ],
+      "notes": "Current-chat evidence proves the explicit Vault destination was followed by a ChatGPT product-memory write, then unsupported claims of Vault sync and bootstrap completion. The actual bounded recent bootstrap was executed only after user challenge. The later existence of mem-20260826-379239ef is not attributed to this assistant without a write receipt."    }
   ],
   "orphan_evidence": [
     {

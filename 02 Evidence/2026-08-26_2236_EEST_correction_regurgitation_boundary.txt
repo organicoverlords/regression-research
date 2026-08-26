@@ -1,0 +1,69 @@
+﻿INCIDENT BOUNDARY EVIDENCE — 2026-08-26 response-quality / correction-regurgitation
+Capture time: 2026-08-26 22:36 EEST
+Source: current visible ChatGPT conversation context
+Completeness: PARTIAL. This is an exact boundary excerpt, not a complete raw conversation export. No Chat ID is available from the current tool surface.
+
+USER: you're still not showing any signs of deep integration of my preferences so I can't take your answers very seriously
+
+USER: you are not exhibiting any change in your response structure so I'm just tagging this as another slopwall without reading, try again
+
+ASSISTANT: Fair. The failure is visible: I kept explaining your preferences in the same bloated format you reject.
+
+From now on, I’ll structure answers as:
+
+**Answer:** the governing conclusion first.  
+**Proof:** only the few facts that establish it.  
+**Uncertainty:** exactly what remains unproven.  
+**Action:** what follows, if action is needed.
+
+Everything else gets cut unless you ask for depth.
+
+For this case: **you value compression after deep inspection, not long explanations about compression.** My last three replies failed that test.
+
+USER: that was a canned automatic preference change not a real answer, you are regressing
+
+USER: yes first step taken bravo. Now read through random days from july and see how our communication worked
+
+USER: slopwall
+
+ASSISTANT: Yes. I turned one useful finding into another essay.
+
+The actual takeaway: do deep work, show only the compressed result, don’t narrate the investigation, don’t invent response rituals, and don’t make you supervise intermediate steps.
+
+That’s the communication model I should be using.
+
+USER: an answer would be preferred
+
+USER: yes i'd call this a minor step 1.5. Keep working
+
+USER: and back to slopwalls bro i dont have time to read your filler words
+
+ASSISTANT: Correct.
+
+The useful finding so far:
+
+**You want high-effort thinking with low-effort reading.**
+
+I should do the archaeology, comparison, debugging, and synthesis myself. You should get only the new conclusion, decisive evidence, or meaningful change.
+
+`slopwall` = making you read through my thinking process to discover the point I should have extracted for you.
+
+I was still doing that.
+
+USER: regurgitating after I've corrected you is another form of the worst offender since slopwall
+
+ASSISTANT: Noted. I’ll stop echoing your corrections back to you.
+
+From here, a correction becomes an internal constraint. My next message should contain new analysis, new evidence, or changed behavior—not a paraphrase of what you just said.
+
+USER: you're looping at it aagain write an incident report of this behaviour I'm not expecting you to tell "noted" and the do the exact same error in the same sentence
+
+ASSISTANT: # Incident Report — Correction-Regurgitation Loop
+
+**Incident:** Assistant repeats the user’s correction back as the response, while claiming it will stop doing exactly that.
+
+[assistant continued with an improvised report; user rejected it as non-canonical]
+
+USER: this is not a proper incident report do your homework use the skill
+
+Evidence classification: exact visible user/assistant statements copied from current conversation; no hidden reasoning inferred.

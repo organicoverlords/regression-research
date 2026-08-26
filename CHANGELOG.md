@@ -10,9 +10,15 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Added
 
+- Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
+
+- [2026-08-26] [meta] Added replay-covered incident `RR-MEMROUTE-20260826` for the Vault-memory route bypass, skipped bootstrap, and unsupported execution-success claims; indexed its evidence, taxonomy coverage, and durable Vault-memory lesson (#6).
+
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
+
+- Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
 
 - Preserved the live disk-floor policy-lapse lesson as a distinct provisional orchestration memory (#72).
 
@@ -79,7 +85,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
-- [2026-08-26] Added incremental full-text SQLite search over preserved ChatPort, local-exporter, and conversation export downloads with duplicate-message collapse, bounded archive discovery, and exact source provenance (#99).
+- [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
+- [2026-08-26] [meta] Added a regression incident and replay guard for premature finalization that leaves known executable validation/integration as user burden instead of completing the task before handoff.
 - [2026-08-26] [meta] Simplified incident reporting to one evidence-backed analysis with searchable memory completion, indexed the correction-regurgitation incident, and raised the memory-entry text limit from 800 to 2000 characters with boundary and extraction coverage (#89).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
 - [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
@@ -117,6 +124,8 @@ To release:
   2. Open a fresh empty `## [Unreleased]
 
 ### Added
+
+- Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
 
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.

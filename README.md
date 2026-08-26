@@ -5,7 +5,7 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
-- [2026-08-26] Added incremental full-text SQLite search over preserved ChatPort, local-exporter, and conversation export downloads with duplicate-message collapse, bounded archive discovery, and exact source provenance (#99).
+- [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
 - [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
 - [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
@@ -45,12 +45,6 @@ as useful as one where it was wrong, and both are needed to tell them apart.
 Retrieve the closest failure case *and* the closest successful case, then ask what
 the successful next action was, what valid state it preserved, and what evidence made
 it correct. Read the source rather than inferring from a title or a snippet.
-
-Downloaded full conversations are a separate searchable source layer. Refresh the
-protected local corpus with `python tools/conversation_search_refresh.py`, then query
-exact or token-matched turns with `python tools/conversation_search.py search "..."`.
-See [`docs/conversation-search.md`](docs/conversation-search.md). The derived index
-never replaces or authorizes mutation of the original downloads.
 
 ## Provenance
 

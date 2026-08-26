@@ -32,7 +32,7 @@ class NegativeFeedbackPopulationTests(unittest.TestCase):
             self.assertIsNotNone(match)
             actual_turns.add(int(match.group(1)))
             self.assertIn("negative-feedback", record["tags"])
-            self.assertLessEqual(len(record["text"]), 800)
+            self.assertLessEqual(len(record["text"]), 2000)
             lowered = record["text"].casefold()
             for marker in ("asshole", "fuck you", "asädasdnasdnda"):
                 self.assertNotIn(marker, lowered)

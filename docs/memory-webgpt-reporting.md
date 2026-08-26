@@ -28,7 +28,7 @@ The normal WebGPT sequence is:
 
 The default report is relevance-first and returns at most five memory entries.
 Ordinary recall is hard-capped at eight; explicit history is hard-capped at
-twenty. Individual memory text is capped at 800 characters and the worker-facing
+twenty. Individual memory text is capped at 2000 characters and the worker-facing
 output is hard-capped at 6,000 characters. A blank query is rejected so a
 routine status/report request cannot flood model context.
 
