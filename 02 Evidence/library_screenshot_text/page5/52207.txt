@@ -1,0 +1,67 @@
+2.33 A gv On BN 5.99 “451114. %
+
+Build debug APK a 8
+
+failed 1 minute ago in 2m 18s
+
+Y © Build debug APK 2m 8s
+
+49
+50
+51
+
+52
+
+53
+54
+
+55
+56
+By/
+
+58
+
+59)
+
+60
+
+61
+62
+
+63
+
+- app. Gesugdr vepugrilevepenaencLes
+> Task :app:processDebugResources
+> Task :app:mergeExtDexDebug
+
+> Task :app:compileDebugKotlin
+FAILED
+
+gradle/actions: Writing build
+results to
+/home/runner/work/_temp/.gradle-
+actions/build-results/__run-
+1780443009781. json
+
+[Incubating] Problems report is
+available at:
+file:///home/runner/work/gigstack-
+mobile-orchestrator/gigstack-mobile-
+orchestrator/build/reports/problems/
+problems-report.html
+
+FAILURE: Build failed with an
+exception.
+
+Deprecated Gradle features were used
+in this build, making it
+incompatible with Gradle 10.
+
+* What went wrong:
+
+You can use '--warning-mode all' to
+show the individual deprecation
+warnings and determine if they come
+from your own scripts or plugins.
+
+EX€CU te@mamfiGeinkechnfiomioa Sk

@@ -1,0 +1,42 @@
+12.27 @ G89 “17 %
+
+% -969vw9grpr4gerw.github.dev e A
+
+€> C.toeo
+CHAT +v & - | (2 x
+< REFACTOR INVENTORY AND FEATURE TR... (1
+
+Why this matters
+
+¢ The new shell is a safe, visible surface for
+the Workshop Spine rebuild
+
+e It keeps the legacy shell quarantined as a
+fallback rather than making it the new
+primary experience
+
+¢ It makes the current cutover state explicit,
+including "not implemented" truth
+statements and legacy-shell presence
+
+Validation
+
+BV xe 2G
+
+© get errors reported no diagnostics on:
+© 4 spine-shelljs
+’*s workshop-feature-map.js
+
++s workshop_spine_clean_shell_static_asserti
+
+If vou want. | can next add a short docs note or
+
+> © Inspect the workshop feature map file... “=
+© Describe what to build
+
++!1@®1| Auto |= ”
+$33 © Local © Default Approvals >)
+
+>< Codespaces: expert s| 6 experiment/workshop @ &)0Z
+
+@ N Q

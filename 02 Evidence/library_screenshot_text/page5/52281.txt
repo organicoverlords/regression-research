@@ -1,0 +1,28 @@
+1410 BEA 859 “TG %
+
+% github.com/organicoverlords/gi: e A
+
+E Proof #1 ‘© Re-run.
+
+> Annotations
+error and 1 warning
+
+NVIDIA NIM E2E streaming proof
+
+failed now in 10s
+
+Q Search logs
+
+> @ Setupijob
+> @ Checkout target branch
+> @ Configure git author
+> @ Verify NIM secret is present without printing it
+Y @ Run NVIDIA NIM E2E proof
+1 Run python3 scripts/workshop_spine_nim_e2e_proof.py
+stream request failed: list index out of range
+9 Error: Process completed with exit code 1.
+@® Check proof diff whitespace
+@ Commit and push proof report if changed
+> @ Upload NIM E2E proof artifact
+> @ Post Checkout target branch
+> @ Complete job

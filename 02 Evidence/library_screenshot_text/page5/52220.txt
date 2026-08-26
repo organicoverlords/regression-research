@@ -1,0 +1,49 @@
+00, & Ld On FN FO *TI117 %
+obile Orciicou acor
+
+Quick worker console for offline PC days
+
+Expected lane
+
+Chat: Mobile
+
+Repo: organicoverlords/gigstack-mobile-orchestrator
+Branch: experiment/mobile-orchestrator-apk-20260603
+
+Paste report Worker cards
+
+Paste WORKER Ul
+REPORT / FAILURE !DLE
+
+CARD / WANS Visual worker lane
+MISMATCH CARD _ Refactor
+IDLE
+
+Architecture lane
+
+Features
+NEEDS REVIEW
+Feature worker lane
+
+HermesGPT
+IDLE
+Assistant/runtime lane
+
+MagicMusic
+BLOCKED
+Local executor lane
+
+Mobile SELECTED
+DONE
+This APK lane
+
+Parser output
+
+Ready. Select a worker,
+paste a card, then tap
+Parse. Use Sample to
+test the parser quickly.
+
+PARSE| COPY |CLEAR] SAMP
+PROM LE
+PT

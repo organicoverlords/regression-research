@@ -1,0 +1,36 @@
+15.28 @a 88.9 “ill 421%
+
+Share a link to chat?
+This creates a copy that
+
+others can chat with
+
+Plain text oO
+
+It creates a second layer beside the giant file
+instead of removing responsibility from it.
+
+So the branch may reduce future guessing, but it
+also increases current coupling.
+
+Critical question:
+
+Plain text oO
+
+Is this temporary bridge code with a deletion plan,
+or did we just make workspace-chat.js even more
+permanent?
+
+My answer:
+
+Plain text ao)
+
+Do not trust it as a refactor yet.
+
+Treat it as integration scaffolding.
+
+Next step should be: sp’ ‘ert the 650-line
+workspace-chat.js gro NV; ass each block has a
+clear extraction target a, | -moval plan.
+
++ RepytochaceT 2 J

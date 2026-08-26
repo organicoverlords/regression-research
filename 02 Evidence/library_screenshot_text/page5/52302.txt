@@ -1,0 +1,59 @@
+3.09 ev
+
+On
+
+28.0
+KB/S.
+
+746%
+ul
+
+124%
+
+% github.com/organicoverlords/gii e A
+
+Set up Node
+Install Playwright browser runner
+Static syntax checks
+
+Cargo check daemon
+
+Require real provider key for NIM proof
+
+Start GigStack daemon
+
+- Wait for daemon health
+
+Run identity binding browser proof
+
+»Run node scripts/workshop_spine_identity_binding_ui_proof.mjs
+
+Identity binding UI proof verdict: FAIL
+
+FAIL: page.waitForFunction: Timeout 30000ms exceeded.
+
+Proof doc: docs/generated/rebuild/IDENTITY_BINDING_UI_PROOF_20260603.md
+
+Error: Process completed with exit code 1.
+
+Show daemon log tail
+Stop daemon
+
+Check whitespace/diff safety
+
+Commit proof artifact paths if proof passed
+Upload proof artifact
+
+Post Set up Node
+
+Post Checkout target branch
+
+Complete job
+
+1m
+
+31
+
+53
+
+32

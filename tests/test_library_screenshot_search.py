@@ -123,3 +123,42 @@ def test_page4_exact_duplicate_keeps_its_own_occurrence():
     r=duplicate[0]
     assert r['duplicate_of_library_file_id']=='file_00000000c7e07246b0f8706c32f9142f'
     assert r['image_sha256']=='64d983e7df5d46625488ee9e2b8049a988adafb2fcb829b60d68a3e8dbadf23b'
+
+
+def test_page5_occurrence_ledger_is_fully_reconciled():
+    import json
+    from collections import Counter
+    ledger=ROOT/'02 Evidence'/'2026-08-27_library_screenshot_text_occurrences_003.jsonl'
+    rows=[json.loads(x) for x in ledger.read_text(encoding='utf-8-sig').splitlines() if x.strip()]
+    assert len(rows)==100
+    assert len({r['library_file_id'] for r in rows})==100
+    assert len({r['occurrence_id'] for r in rows})==100
+    assert all(r['library_file_id_status']=='EXACT_LIBRARY_LIST' for r in rows)
+    assert all(r['review_status']=='VISUALLY_REVIEWED' for r in rows)
+    assert all(r['reconciliation_status']=='FINAL_VISUAL_REVIEW_2026-08-27' for r in rows)
+    assert Counter(r['classification'] for r in rows)=={
+        'CONVERSATION_SCREENSHOT_NEW':17,
+        'NON_CONVERSATION_IMAGE':78,
+        'DUPLICATE':5,
+    }
+
+
+def test_page5_exact_duplicates_keep_separate_occurrences():
+    import json
+    ledger=ROOT/'02 Evidence'/'2026-08-27_library_screenshot_text_occurrences_003.jsonl'
+    rows=[json.loads(x) for x in ledger.read_text(encoding='utf-8-sig').splitlines() if x.strip()]
+    by_id={r['library_file_id']:r for r in rows}
+    expected={
+        'file_0000000099ec722f99125116de8f1749':('file_00000000d50c722fa08fa2d8202a9fb8','bd7199a3342a2a394e000f892d3ce0d08146e4eb9eece9e7fa02bff7827e610e'),
+        'file_00000000ebe071f4a99cf3ccb6c06d4e':('file_000000003d907246b7e481beea133d20','e891a8cfac658846aae6fcf99fa9565cb999b648a2e77da2dc0bafe9524b886f'),
+        'file_000000006620720aa93604ceb1fa7794':('file_0000000009b071f4b6665445ca8f1671','0b341f4eaeddbdbebf69d6a0bcbdcee3b87cbeccfb07987efb94af349bb8a38c'),
+        'file_0000000032807246adcd5340cc66f523':('file_000000006d047246a5a5cfa46083615e','4e375a18289b0b26efbb6b6b4d5dca0aeddc357367c9df2d853842669157b89f'),
+        'file_0000000042bc7246826e3a2f6611691a':('file_000000006488724682a9dce0678f1266','67d1298b8dd33a089095c33b59c6ee2c06e6898fc24373b17b005e7ddca3cccb'),
+    }
+    duplicates={r['library_file_id']:r for r in rows if r['classification']=='DUPLICATE'}
+    assert set(duplicates)==set(expected)
+    for duplicate_id,(target_id,image_sha256) in expected.items():
+        r=duplicates[duplicate_id]
+        assert target_id in by_id
+        assert r['duplicate_of_library_file_id']==target_id
+        assert r['image_sha256']==image_sha256

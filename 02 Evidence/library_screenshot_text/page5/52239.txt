@@ -1,0 +1,134 @@
+416 &
+
+oO
+
+@ summary
+
+Atoos
+
+| © eu debug arc
+
+© Usage
+2) Werksow te
+
+Bulld debug APK
+
+n
+
+™
+
+89 “13 %
+
+3 github.com/organicoverlords/gi e A
+
+Q search iogs
+
+°
+@
+
+Build debug APK 2 335
+> Task :app:processDebuguani fest
+
+> Task :app:processDebuglani festForPackage
+
+> Task ‘app: javaPrecompiTebebug
+
+> Task :app:mergeDebugShaders
+
+> Task :appicomps leDebugShaders No-SOURCE
+
+> Task ‘app:generateDebughssets UP-TO-DATE
+
+> Task :appinergeDebugassers
+
+> Task :app:conpressDebugkssels
+
+> Task :2pp:desugarDebugFileDependencies
+
+> Task ‘app:processbebugkesources
+
+> Task :app:checkDebugDuplicateClasses
+
+fe: file:/shone/euner/work/Eigstack-nobile-orchestrator/gigstack-nobile:
+orchestrator /app/src/nain/java/org/organicoverlords/mbileorchestrator /Maindctivit
+y-kt:127:13 None of the following candidates is applicable:
+
+fun setTextColor(p0: Int): Unit
+fun setTextColor(p0: ColorstateList!): Unit
+
+> Task spp: comps lebebugkot in
+
+fe: file:/7shone/cuner/mork/Eigstack-nobile-orchestrator/gigstack-nobile:
+orchestrator /app/src/nain/java/org/organicoverlordsincb lear chestrator /Maindctivit
+y-kt:213:135 None of the following candidates is applicable:
+
+fun setTextColor(pd: Int): Unit
+
+un setTextColor(po: ColorstateList!): Unit
+
+fe: file://shome/cumerfrork/gigstack-nobile-orchestrator/igstack-nobile-
+orchestrator /app/src/nain/java/org/organicoverlordsinebi lear chestrator /uainkctivit
+y-KU:314:133 None of the following candidates is applicable:
+
+Tun setTextColor(pd: tnt): Unit
+
+fun setTextColor(p0: ColorstateList!): Unit
+
+> Task :2pp:compileDebugkotLin FAILED
+> Task :appimergeExtDexDebug
+
+radle/actions: Writing build results to /howe/runner /mork/_tenp/.gradle-
+actions /builé-results/__run-1760443237894. json
+FAILURE: Build failed with an exception.
+
+nae went wrong
+[incubating] Problems report is available at: [ile:///home/runner/work/gizsteck
+snobile-orchestrator/igstack-nobile-orchestrator /build/raports/problens/problens~
+report.-htel
+
+Execution failed for task *:app:conpileDebugkot1in’ (registered by plugin
+
+“org. jetbrains.kotlin.androia").
+
+> A failure occurrad while executing
+
+org. jetbrains.kot]in.conpilerkunner .GradleConp lerRunnerwithworkers¥GradlexKotTinco
+pileriorkAction
+
+Deprecated Gradle features were used in this build, making it incompatible with
+Geadle 10,
+
+You can use ‘--warning-node 311° to show the individual deprecation warnings and
+determine if they cone from your om scripts or plugins.
+
+For more on this, please refer to
+httne:Lidocs,erade.ore/9.5, /usersvide/conmand Line
+hneaarnings in the Grade documentation
+
+2) actionable tasks: 21 executed
+
+> compilation error. See log for more devails
+
+Stee
+
++ ay:
+> fun with --stacktrace option to get the stack trace
+
+> fun with --info or --debug option to get more lop output.
+
+> fun with --scan to get full insights from a Build Scan (powered by Develocity)
+> Get more help at nttos:J/éhele.gcadle.crs,
+
+Error: Process completed with
+
+up
+
+ug APK artifact o
+
+Post Set up Grade 1
+
+Post Set up JOK as
+Post Check out repository os
+Complete job os
+
+Q

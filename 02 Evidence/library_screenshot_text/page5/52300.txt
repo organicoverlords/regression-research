@@ -1,0 +1,106 @@
+dm
+
+@©e0 BO0NBEBAHD SO
+
+3.03
+
+On 489 “11 26 %
+
+% github.com/organicoverlords/gii e A
+
+Q
+
+ninute ago in Im 49s
+
+Set up job
+
+Checkout target branch
+
+Configure git author
+
+Set up Rust
+
+Set up Node
+
+Install Playwright browser runner
+
+Static syntax checks
+
+Cargo check daemon
+
+Require real provider key for NIM proof
+
+»Run if [[ -z "${NVIDIA_NIM_API_KEY:-}"
+NVIDIA_NIM_API_KEY or NVIDIA_API_KEY is
+
+proof.
+Error
+
+Process completed with exit code
+Start GigStack daemon
+
+Wait for daemon health
+
+Run identity binding browser proof
+
+Show daemon log tail
+
+Stop daemon
+
+Check whitespace/diff safety
+
+Commit proof artifact paths if proof passed
+Upload proof artifact
+
+Post Set up Node
+
+Post Checkout target branch
+
+Complete job
+
+Search logs
+
+9)
+
+1s
+
+1s
+
+10s
+
+6s
+
+31s
+
+os
+
+55s
+
+is
+
+&& -2 "${NVIDIA_API_KEY:-}" J]; then
+required for real NIM/provider identity
+
+2
+
+1
+
+Os
+
+os
+
+Os
+
+os
+
+Os
+
+os
+
+os
+
+Os
+
+os
+
+os

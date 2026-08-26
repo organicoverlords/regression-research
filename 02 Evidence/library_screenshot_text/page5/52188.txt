@@ -1,0 +1,31 @@
+14.15 599 “iL 47 %
+
+<€ B Memory... Thinking :
+
+ChatGPT > MagentManager > Hermes/OpenCode
+> report/proof > ChatGPT
+
+The point is:
+
+¢ | prepare the task/package.
+¢ MagentManager gives it to Hermes.
+¢ Hermes does the agent work.
+
+¢ MagentManager watches for hangs/
+failures.
+
+¢ MagentManager saves proof/history.
+¢ | read the proof and guide the next step.
+
+So the first real goal is not memory-agent
+features yet.
+
+First goal is:
+
+Plain text oO
+
+Can ChatGPT reliably : NV; iny task to Hermes
+through MagentManage
+and get a structured result back?
+
+-+ Reply to ChatGPT Qd rt)

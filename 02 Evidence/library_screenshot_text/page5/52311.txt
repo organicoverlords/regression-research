@@ -1,0 +1,46 @@
+4.39 BR 411 10 %
+
+% github.com/organicoverlords/gii e A
+
+Restore chat shell and prove identity UI
+
+@ Summary seepaidtamnenshoby Q Searchiogs 26
+anys =
+> © congue gt author a
+(© Restore chat shel
+Eee > © setuppython a
+u
+> © Restowe workspace chat shel s
+setae > @ Acsertrestored shal selectors os
+© Usage
+ee > @ setuprust os
+> @ setupnode c
+> © instal taynright browser runner ws
+>@s a
+>@ daemon ues
+> @ equi ea proviser key for NIM proot os
+> @ Star Gigstack daemon a
+> © Wak or daemon health
+> @ Runidennty binding browser proot a
+> @ stop deemen s
+> @ show doen og tal os
+© © Chockestt sstety a
+
+1 Run git iff --check
+23 crates/gigstack-daenon/wob/workspace-chat html: 120: trailing whitespace.
+
+ra ctextares
+25. crates/gigstack-daenon/web/workspace-chat html: 121: trailing whitespace.
+w+ class="chat-textarea”
+
+27 crates/gigstack-daenon/wob/workspace-chat html: 122: trailing whitespace.
+at ide"chat-toxtarea”™
+
+29° Error! Process completed mith exit code 2
+
+Q :Coreitenor de proc itact pret panned os
+> © Upoad prot artact 1s
+@ Post Set up Node a
+© oat Setup Python os
+> @ Post Checkout target branch Os
+> @ Complete job os

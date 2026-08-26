@@ -1,0 +1,82 @@
+12:
+
+o
+~o
+
+@ Suenmary
+
+Atos
+
+51 SSA
+
+github.com/organicoverlords/gi:
+
+wire-frontend-identity
+
+cbgbacdes Q search iogs
+
+> @ checkout target
+
+© wire-frontend-
+
+identity > @ Configure gt author
+nda > © Funtrontend identity wiring
+© Usage > @ Check itt whitespace
+AUG > @ Node check workspace chat
+> @ Node check KEEP helper JS files
+© Browser load proot avaiable
+
+| Pun if {=F scripts/workshop_spinebrowser_toad_proof.mjs ]; then
+
+os
+
+& file:1/hone/runner swork/gigstack/gigstack/seripts workshop_spine_brorser_losd pro
+
+of mjs:158
+
+9 throw naw Error(‘Playaright import failed. Korkflow should install it before
+running this script. $error message)’:
+
+"
+
+12. Error: Playwright inport failed. Workflow should install it before running this
+script. Cannot find package ‘playeright” inported fron
+
+‘hone /unner/work/igstack/gigstack/scripts/workshop_spine_bronser_loadproof.njs
+
+12 at LeadPlaywright
+
+(fle: ///hone/runner iwork/gigstacki/gigstack/scripts/uorkshop. spine, broaser_load pr
+
+of mjs:158:11)
+14 at async runBrowserProof
+
+(fle: ///hone/runner iork/gigstack/gigstack/scripts/uorkshop. spine browser_load pr
+
+oof mjs:163:24)
+1s at async main
+
+(ile: ///home/runner work/gigs tack/gigstack/scripts/uorkshop_spine_bromser_load pr
+
+of mjs:307:20)
+15 at asyne
+
+‘le://hone/runnerfworkgigstack/igatack/seripts/workshop_spine bronser_ lead pro
+
+of mjs:337:1
+7
+
+18 Node.js v22.22.3
+
+19. Error: Process conpleted with exit code 1
+
+® show pencing change:
+© Commit nd push changed
+
+> @ Uplood ronter
+
+> @ Post checkout target
+
+> @ Complete ob
+
+os

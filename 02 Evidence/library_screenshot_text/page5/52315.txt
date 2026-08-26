@@ -1,0 +1,133 @@
+6.40 =
+
+xX wv
+
+@ summary
+Abs =
+
+© Wire proot review
+routes and smoke
+
+© Usage
+2) Werksow tie
+
+87.0 eer || 1%
+
+KB/S
+
+hub.com < 3
+
+Wire proof review routes and smoke
+
+test @ Searchiogs a ¢
+© Cargo heck daemon ss
+302 7089 | anun::serve(Listener, app) ana?
+aa in the trait “fore!=>
+tonar_service:ServicecTnconingSteeanc'a, tokio: nets TepListener>>” is not
+Seplemented for “Routercetate::ppstate>”
+mw}
+386 | required by 2 bound sntroduced by this calL
+|
+
+233
+
+25
+296
+27
+299
+
+402
+
+403
+
+126
+ar
+
+40
+
+help: ‘Router inplenents trait “tower service: :ServicecRequest>”
+> showe/runner/ car go/registry/sre/ index. crates. 10-1988 FBeSbSb857 /xun
+0.8.5/src/routing/nod.rs:548:5
+1
+
+569 | / inplel> Servicecsorve: :InconingStreane'_, >> for Router<()>
+380 | | where
+551 | | Ls servessListener,
+
+MW ‘A “toner service: :ServicecInconingStreame!
+oe
+
+589 | / imple ServicecReques > for Router<()>
+
+570 | | where
+571 | |B: Htepbodyebata = bytes::Bytes> + Send + “static,
+572 | | BrtError: Intocaxuncore::Boxzrror>,
+
+i :
+Saas
+
+100 | M: fore'a> ServicesincomingStreane'a, (>, Errar = Infallible, Response
+
+by this bound in “serve®
+note: the full nane for the type has been written to
+"snome runner ork/gigstack/gigstack/ target /debug/deps/gigstack daenon-
+20557e84d(b7723.long-type-521646173273547587S, Lx"
+= note: consider using “--verbose” to print the full type nane to the console
+
+error{EO277]: “Servectokio::net::TepListener, Router<state::AppState>, >
+9 future
+
+-> erates /gigstack-daenon/sre/main.rs:7069:32
+
+1
+7063 | axun::serve(Listener, app) anait?:
+
+Hl anna “Servectokio::net::TepListener
+Routersstate: :Appstate>, >” is not a future
+
+rod
+
+| his call returns “Servectokio: inet: :TepListener,
+Router<state::Appstate>, >
+
+1
+
+help: the trait “IntoFuture” is not inplenanted for
+“servectokio:snet::TepListener, Rovter<state::Appstate>, >
+
+note: Servectokio: net: TepListener, Routercstate:sdppState>, > must be a
+future or must ieplenent “IntoFuture” to be anaited
+help: the trait “IntoFuture’ is inplenented for “ServecL, i, S>
+
+> showe/runner/cargorregistry/sre/ index. crates. 10-1948 FesbSb857 /axun
+0.8.9/sre/serve/nod.r5:218:1
+
+1
+218 | / implL, M, S> IntoFuture for Servecl, M, S>
+
+219 | | here
+220 || L: Listener,
+2ai || LesAddr: Debug,
+1
+
+204 | | St SarvicecRequest, Response = Response, Error = Infallible> + Clone
+Send © “static,
+225 || SrsFuture: Send,
+
+i *
+help: renove the “avait
+
+1
+7063 -_axun::serve(Listener, app). 2n0it?
+7069 + axun::serve(Tistener, 3pp)?)
+
+For more information about this error, try “ruste --explain £0277"
+error: could not compile “gigstack-daenon’ (bin "gigstack-daenon") due to 2
+previous errors
+
+Error: Process conpleted with exit code 101,
+
+Start Gigstackdaernan os
+Wat or daemon sith os
+‘Smoke test durable prof and reviaw endpoints os
+Write proot doc as

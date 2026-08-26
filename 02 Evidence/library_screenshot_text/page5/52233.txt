@@ -1,0 +1,30 @@
+4.07 & et On 5.09 45114 %
+Mobile
+
+Cockpit control surface
+
+HOME WORKERS QUEUE
+
+TIMELINE BLUEPRINT PREVIEW
+
+Selected: Mobile
+organicoverlords/gigstack-mobile-orchestrator
+experiment/mobile-orchestrator-apk-20260603
+
+MODE: MANUAL BATCH: 1
+
+Last classification: needs test
+Attention: 2 item(s)
+
+NEEDS ORCHESTRATOR
+
+Parse report
+
+Paste worker report or approved prompt
+
+PARSE COPY CLEAR
+
+SAMPLE
+
+Parse reports here. Timeline, Blueprint, and Attention
+update locally.

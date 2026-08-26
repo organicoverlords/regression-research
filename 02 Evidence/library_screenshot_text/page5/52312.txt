@@ -1,0 +1,94 @@
+6.31 = 529 “13 %
+
+xX = Y — hub.com < @ :
+
+Pullrequests 1
+
+view Binding Check
+
+© Actions (F Projects. © Securityandqualty Insights 3 Settings
+
+v binding check workflow #1 ‘© Re-runjobs ~
+
+5 Annotations
+
+5 ‘error and 2 warnings:
+
+Wire proof review routes and smoke
+
+test
+
+18
+a
+2
+23
+24
+25
+
+26
+
+@eaooood0osd
+
+Q Search logs
+
+oO
+&
+
+Jed 3 minutes ago in 16s
+
+Set up job 1s
+
+Current runner version: '2.34.0°
+»Runner Image Provisioner
+
+operating System
+
+> Runner Inage
+
+> GITHUB_TOKEN Permissions
+
+Secret source: Actions
+
+Prepare workflow directory
+
+Prepare all required actions
+
+Getting action donload info
+
+Download action repository ‘actions/checkoutev4*
+(SHA:34e114876b0b11c390a56381ad16eDd13914F8d5)
+
+Download action repository ‘dtolnay/rust-toolchainestable’
+(SHA: 29eef336d9b2848a0b548edc03192a220660cdb8)
+
+Download action repository ‘actions/setup-python@v5'
+(SHA:426a690e951a2134495a4c3e4e4022e1 6487065)
+
+Download action repository ‘actions/upload-artifactev4’
+(SHA:€a165f8d65b6e75b540449e92b488643607fa02)
+
+Complete job name: Wire proof review routes and smoke test
+
+Checkout target branch 1s
+Configure git author os
+Set up Rust tos
+Set up Python os
+‘Apply bounded route patch os
+> Run python seripts/workshop_spine_wire_proof_review_routes.py
+
+FAILED partial proof/review route wiring detected
+
+['/api/workshop/proof /{proof_id)"", * /api/workshop/proof/{proof_id}/artifacts"",
+*/apisworkshop/reviews/{review_id}"",
+
+* /api/workshop/reviews/ {review_id}/decision"
+Error: Process completed with exit code 1
+
+Assert route patch content os
+Cargo check daemon, os
+Start GigStack daemon os
+Wait for daemon health os
+‘Smoke test durable proof and review endpoints os
+Write proof doc os
+Stop daemon, os
+Show daemon log tall os

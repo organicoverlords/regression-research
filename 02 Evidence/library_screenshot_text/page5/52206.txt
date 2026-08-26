@@ -1,0 +1,26 @@
+2.20 & @® On 199 “8 412%
+
+your workflow file. Once Node.js 24
+becomes the default, you can temporarily
+opt out by setting
+
+ACTIONS _ALLOW_USE_UNSECURE_NODE_VERSION=t
+rue. For more information see:
+
+https: //github.blog/changelog/2025-09-19-
+deprecation-of-node-20-on-github-actions-
+
+runners/
+Show less
+Build debug APK 2 8
+failed 4 minutes ago in 2m 8s
+> @ Setup job 2s
+> @ Check out repository 1s
+> @ Setup JDK Os
+> @ Setup Gradle 1s
+> © Build debug APK 2m Os
+© Upload debug APK artifact Os
+> @ Post Set up Gradle Os
+> @ Post Set up JDK Os
+> @ Post Check out repository ais
+> @ Complete job Os

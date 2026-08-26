@@ -1,0 +1,185 @@
+9.32 =
+
+oO
+
+@ Suenmary
+Aloo
+
+© Validate rebuild
+bundle
+
+© Usage
+5) Werktow fe
+
+Validate rebuild bundle
+
+525
+$697
+
+saa
+
+Backend cargo tmnt check
+
+26 github.com/organicoverlords/gi:
+
+Q search iogs
+
+esponse()
+
+34.0 eri || 2%
+
+Ke/s 1
+
+eA
+
+11 Use spamn_blocking for file 1/0 and SQLite operations
+let renory storage ~ state.senory storage.clane)
+Diff in /hone/runner /work/gigstacki/gigstack/crates/gigstack-
+aenon/sre/routes/nenory.r5:69)
+
+(: anyhow: :Error>(capsule-dir)
+
+»
+ait
+
+urarap_or_e1se(|e| {
+Erranyhow:: anyhow! ("spann_blocking failed: (3°, e))
+
+»:
+
+urarap_or_e1se(|e| Ere(anyhow: anyhow! (*spann blocking failed: (7, €)90:
+
+let capsule dir = natch result (
+
+ox(air
+
+y= air,
+
+Diff in shone/runner /work/gigstack/gigstack/erates/gigstack-
+ddaenon/sre/outes/menory.r3:110:
+pub async fn get manory brief(State(state): StateckppState>) -> Response {
+11 Use spamn_blocking for SQLite operations
+let nenory storage = state.senory storage.clone)
+tokio: task: spam _blocking(move |<
+renory_storage.get.nenory brisf()
+
+let brie
+
+»
+unwrap_or_else( lel {
+eprint
+Err(e,
+
+Int
+inta0))
+
+tokio: task
+
+spam _blockingnove |]
+
+nenory_storage.get_nenory_brief())
+
+pub
+pub
+pub
+pu
+pub
+pub
+pub
+pub
+pub
+pub
+pub
+vir
+
+unwrap_or_else le] ¢
+‘eprintin!(*{get_menory brief] spann_blocking failed: (}*, e):
+
+fn
+De
+
+match briet
+
+r(einto()})
+
+ny
+
+get_nenory_brief) spam blocking failed: 0°, @):
+
+04(o) => (StatusCode: 0K, Json(b)) -into_response()
+Diff in /hone/runner /work/gigstack/gigstack/crates/gigstack-
+ddaenon/sre/routes/nod. 5:1
+
+tod chats
+rod debup
+nod fal 1b9
+
+reports,
+ck manager:
+
+tod Tocal_workers
+
+nod extern
+rod Falla
+nod health
+
+wl_agents
+ck manager:
+
+mod Local_vorkers
+
+nod enor’
+mod provide
+trod trance
+
+in shave/ runner /work/ gigs Lack/igslack/crates/eigstack-
+daemon’ srerroutes od. 5:10
+pub mod worktrees;
+
+pub mod agent_jobs;
+
+Diff in /home/runner /work/gigstack/gigstack/crates/gigstack-
+daenon/src/routes/norktrees.ce:1
+
+axun:: son, oxtract::(State, Path, hetp::StatusCode
+response: Tntotesponse}
+
+a
+
+itt
+
+aun
+‘sen,
+
+extract:
+https sstat
+response:
+
+crater:s(al
+
+Poth, state)
+usCode,
+IntaResponse,
+
+Le: AppState:
+
+°
+
+a
+
+‘in /howe/runner rwork/gigstack/gigstack/crates/gigstack-daenon/sre/state.rs:1
+
+stdssyne:
+erate: loc
+stdssyne
+
+thre, utes)
+al_Instudio:
+Are, Mater)
+
+Lnstudiotonager
+
+111 Shared application state injected into all axun route handlers:
+Mderive(Clone)}
+
+Q

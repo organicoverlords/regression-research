@@ -1,0 +1,40 @@
+12.07 @ 589 “A112 %
+
+% -969vw9grpr4gerw.github.dev e A
+
+BV ex OG
+
+<> GS.reogeoao
+CHAT +v 8 - | (x
+€ REFACTOR INVENTORY AND FEATURE TR... (I)
+
+¢ Treat the following as design/contracts only,
+not working product:
+
+© ® workshop_model_runtime.rs and
+
+/api/model-runtime/*
+° ® workshop_usage_metrics.rs
+© ® workshop_kernel_runs.rs
+© workshop_jobs.rs
+° srce/route_registry.rs
+¢ Do not claim or build:
+° safe landing
+© proof runner execution
+° actual runtime process integration
+© usage telemetry
+
+° route registry extraction
+
+Fastest practical path
+
+> © Inspect the workshop feature map file... ~=
+© Describe what to build
+
++!1@®1| Auto |= ”
+$33 © Local © Default Approvals )
+>< Codespaces: expert s| 6 experiment/workshop @ &)0Z
+
+fn)
+
+A Q
