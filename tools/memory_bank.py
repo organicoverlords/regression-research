@@ -249,6 +249,59 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     return [entry for _, _, _, entry in ranked[:effective_limit]]
 
 
+def conversation_history_hits(query: str, *, limit: int = DEFAULT_RECALL_LIMIT, db: Path | None = None) -> list[dict[str, Any]]:
+    if not query.strip():
+        return []
+    try:
+        try:
+            from .conversation_search import DEFAULT_DB, search_report
+        except ImportError:
+            from conversation_search import DEFAULT_DB, search_report
+        target = db or DEFAULT_DB
+        if not target.is_file():
+            return []
+        report = search_report(target, query, limit=min(MAX_RECALL_LIMIT, max(1, int(limit))))
+    except (OSError, ValueError):
+        return []
+    out: list[dict[str, Any]] = []
+    for hit in report.get("hits", []):
+        out.append({
+            "id": f"conversation:{hit.get('conversation_id')}:{hit.get('message_id')}",
+            "timestamp": hit.get("created_at") or hit.get("conversation_update_time") or hit.get("conversation_create_time") or "1970-01-01T00:00:00Z",
+            "kind": "conversation",
+            "scope": "full-conversation-history",
+            "tags": ["full-conversation", "historical-source"],
+            "title": hit.get("title") or hit.get("conversation_id") or "Historical conversation",
+            "text": hit.get("match") or "",
+            "state": "PROVEN",
+            "evidence": list(hit.get("sources") or []),
+            "supersedes": [],
+            "conversation_id": hit.get("conversation_id"),
+            "message_id": hit.get("message_id"),
+            "role": hit.get("role"),
+            "context_before": hit.get("context_before"),
+            "context_after": hit.get("context_after"),
+        })
+    return out
+
+
+def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
+    manual = search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
+    if history or scope or tags:
+        return manual
+    return manual + conversation_history_hits(query, limit=limit, db=conversation_db)
+
+
+def _print_json(value: Any) -> None:
+    payload = json.dumps(value, ensure_ascii=False) + "\n"
+    stream = getattr(sys.stdout, "buffer", None)
+    if stream is None:
+        print(json.dumps(value, ensure_ascii=True))
+        return
+    stream.write(payload.encode("utf-8", "backslashreplace"))
+    stream.flush()
+
+
 def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
@@ -289,7 +342,7 @@ def _main() -> int:
     try:
         entries = load_bank(args.bank)
         if args.command == "validate":
-            print(json.dumps({"status": "PROVEN", "entries": len(entries)}))
+            _print_json({"status": "PROVEN", "entries": len(entries)})
             return 0
         if args.command == "note":
             text = args.text.strip()
@@ -297,23 +350,23 @@ def _main() -> int:
             if text.casefold().startswith(("error:", "error ")):
                 tags.append("error")
             entry = append_entry(args.bank, {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": []})
-            print(json.dumps(entry, ensure_ascii=False))
+            _print_json(entry)
             return 0
         if args.command == "append":
             entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
-            print(json.dumps(entry, ensure_ascii=False))
+            _print_json(entry)
             return 0
         if args.command == "history":
-            print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True), ensure_ascii=False))
+            _print_json(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True))
             return 0
         if args.command in ("recent-titles", "recent"):
-            print(json.dumps(recent_title_entries(entries, limit=args.limit), ensure_ascii=False))
+            _print_json(recent_title_entries(entries, limit=args.limit))
             return 0
         if args.command == "search":
-            print(json.dumps(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history), ensure_ascii=False))
+            _print_json(search_all_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history))
             return 0
     except BankError as exc:
-        print(json.dumps({"status": "REJECTED", "error": str(exc)}, ensure_ascii=False))
+        _print_json({"status": "REJECTED", "error": str(exc)})
         return 2
     return 1
 

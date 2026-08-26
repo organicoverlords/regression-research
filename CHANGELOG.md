@@ -4,12 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `standards/changelog.md`.
+The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
 
 ### Added
 
+- [2026-08-27] Unified historical full conversations into the private Git-ignored Vault corpus, recovered 569 legacy-database conversations including 120 absent from surviving transcript sources, rebuilt search to 637 conversations / 140,283 deduplicated messages with zero unresolved sources, and made ordinary `memory_bank.py search` include bounded historical turns (#99).
 - Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
 
 - [2026-08-26] [meta] Added replay-covered incident `RR-MEMROUTE-20260826` for the Vault-memory route bypass, skipped bootstrap, and unsupported execution-success claims; indexed its evidence, taxonomy coverage, and durable Vault-memory lesson (#6).
@@ -38,7 +39,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 - Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
 
-- Added a dated normalized MCP/tool-routing incident index for August 20â€“23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
+- Added a dated normalized MCP/tool-routing incident index for August 20Ã¢â‚¬â€œ23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
 
 - Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
 
@@ -87,6 +88,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 - [2026-08-27] Normalized the append-only memory corpus by collapsing four stale/duplicate clusters through supersession, added a derived exhaustive audit over all bank plus candidate-only records, reconciled an incoming unindexed incident report, and made committed audits self-identifying point-in-time normalized-text source receipts so later appends and Git/Windows line-ending conversion cannot masquerade as part of an older snapshot (#87).
 - [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
+- [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
 - [2026-08-26] [meta] Added a regression incident and replay guard for premature finalization that leaves known executable validation/integration as user burden instead of completing the task before handoff.
 - [2026-08-26] [meta] Simplified incident reporting to one evidence-backed analysis with searchable memory completion, indexed the correction-regurgitation incident, and raised the memory-entry text limit from 800 to 2000 characters with boundary and extraction coverage (#89).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
@@ -131,7 +133,7 @@ To release:
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
-Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â one line, for a human, with the issue or PR number:
+Entry style ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->

@@ -4,3 +4,7 @@ _share_check.html
 
 __pycache__/
 *.pyc
+.state/conversation-search/
+
+# Private full-conversation corpus (canonical local Vault data)
+memory/conversations/

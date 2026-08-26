@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] Unified historical full conversations into the private Git-ignored Vault corpus, recovered 569 legacy-database conversations including 120 absent from surviving transcript sources, rebuilt search to 637 conversations / 140,283 deduplicated messages with zero unresolved sources, and made ordinary `memory_bank.py search` include bounded historical turns (#99).
 - [2026-08-27] Normalized the append-only memory corpus by collapsing four stale/duplicate clusters through supersession, added a derived exhaustive audit over all bank plus candidate-only records, reconciled an incoming unindexed incident report, and made committed audits self-identifying point-in-time normalized-text source receipts so later appends and Git/Windows line-ending conversion cannot masquerade as part of an older snapshot (#87).
 - [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
+- [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
 - [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
-- [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
-- [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
@@ -22,7 +22,7 @@ Operating rules live in each project's `AGENTS.md`, generated from
 
 | Directory | Holds |
 |---|---|
-| `01 Reports/` | Incident reports — PRIMARY and SECONDARY, sharing one immutable incident id |
+| `01 Reports/` | Incident reports â€” PRIMARY and SECONDARY, sharing one immutable incident id |
 | `02 Evidence/` | Analyses, recovered rule records, provenance work |
 | `03 Fixtures and Experiments/` | Replay-ready fixtures with scoring criteria |
 | `04 Operating Contracts/` | Snapshots of contracts as they stood, for dating drift |
@@ -45,6 +45,8 @@ as useful as one where it was wrong, and both are needed to tell them apart.
 Retrieve the closest failure case *and* the closest successful case, then ask what
 the successful next action was, what valid state it preserved, and what evidence made
 it correct. Read the source rather than inferring from a title or a snippet.
+
+Historical full conversations are part of the same Vault memory corpus under the private Git-ignored `memory/conversations/` store. Ordinary `python tools/memory_bank.py search "..."` automatically returns matching curated memories and historical turns, while `recent` stays lightweight. The SQLite index is rebuildable solely from the Vault corpus; Downloads are not a required memory path. See [`docs/conversation-search.md`](docs/conversation-search.md).
 
 ## Provenance
 

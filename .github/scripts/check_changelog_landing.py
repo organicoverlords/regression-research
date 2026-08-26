@@ -82,14 +82,14 @@ def projected_readme(readme: str, changelog: str) -> str:
 
 
 def changed_files(base_ref: str, root: Path) -> set[str]:
-    out = subprocess.check_output(["git", "diff", "--name-only", f"{base_ref}...HEAD"], text=True, cwd=root)
+    out = subprocess.check_output(["git", "diff", "--name-only", f"{base_ref}...HEAD"], text=True, encoding="utf-8", cwd=root)
     return {line.strip() for line in out.splitlines() if line.strip()}
 
 
 def added_dated_entries(base_ref: str, root: Path) -> list[str]:
     out = subprocess.check_output(
         ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", "CHANGELOG.md"],
-        text=True,
+        text=True, encoding="utf-8",
         cwd=root,
     )
     added = []
