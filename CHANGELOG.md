@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `standards/changelog.md`.
 
-## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
+## [Unreleased]
+
+### Added
+
+- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
 
@@ -75,6 +79,11 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
+- [2026-08-25] Added the harness-vs-product regression distinguishing a test that failed from one that never started (#70).
+- [2026-08-25] Indexed screenshot execution-state evidence and separated persistence failures from real route/resource failures (#71).
+- [2026-08-25] Preserved the live disk-floor policy lapse as a distinct orchestration lesson (#73).
+- [2026-08-25] Extended screenshot persistence controls with exact recovery and reconciliation cases (#75).
+- [2026-08-26] Made CHANGELOG.md the dated project timeline and moved its latest five entries to the top of the GitHub README with enforced dated-entry checks.
 - Kept `memory_bank.py recent` as a compatibility alias for `recent-titles` so repo-start memory glances work across older and current checkouts (#60).
 
 - Hardened bounded memory status reporting to use the canonical provenance validator, fail closed on malformed or unsafe provenance, and report validator errors/warnings without changing the existing source distinctions (#41).
@@ -93,7 +102,11 @@ Delete the headings you do not use. Keep this section at the top at all times.
 
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
-  2. Open a fresh empty `## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
+  2. Open a fresh empty `## [Unreleased]
+
+### Added
+
+- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
 Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â one line, for a human, with the issue or PR number:
