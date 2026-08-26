@@ -7,12 +7,12 @@
     "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
     "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
   ],
-  "total_records": 74,
-  "bank_records": 70,
+  "total_records": 75,
+  "bank_records": 71,
   "candidate_only_records": 4,
   "counts": {
     "dispositions": {
-      "CURRENT_DURABLE": 36,
+      "CURRENT_DURABLE": 37,
       "DUPLICATE_MERGED": 0,
       "EPHEMERAL/DO_NOT_RECALL": 0,
       "HISTORICAL_DURABLE": 0,
@@ -22,7 +22,7 @@
       "SUPERSEDED": 19
     },
     "states": {
-      "PROVEN": 48,
+      "PROVEN": 49,
       "PROVISIONAL": 21,
       "REJECTED": 1
     },
@@ -30,7 +30,7 @@
       "correction": 10,
       "decision": 10,
       "fact": 5,
-      "lesson": 40,
+      "lesson": 41,
       "preference": 2,
       "status": 3
     },
@@ -48,10 +48,10 @@
       "p3": 3,
       "p3-render-queue": 1,
       "regression-research": 3,
-      "response-quality": 4
+      "response-quality": 5
     },
     "sensitivity": {
-      "CLEAR": 74
+      "CLEAR": 75
     }
   },
   "records": [
@@ -1972,6 +1972,34 @@
       ],
       "source_classes": [
         "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-419d3aab",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 - memory refresh treated as completion",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "memory-refresh",
+        "mcp",
+        "execution-context"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:57:05+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation"
       ],
       "supersedes": [],
       "superseded_by": [],
