@@ -196,6 +196,26 @@
         "evidence_scope_is_current_visible_context_and_inspected_historical_material_only"
       ],
       "notes": "The decisive recurrence was immediate correction acknowledgement/paraphrase instead of applying the correction and continuing the active July communication study."
+    },
+    {
+      "incident_id": "INC-20260826-2348-PREMATURE-FINALIZATION",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-26_2348_EEST_premature-finalization_user-handoff_incident_report.md",
+      "title": "Premature finalization left executable validation/integration as user burden",
+      "date": "2026-08-26T23:48:00+03:00",
+      "evidence_type": "evidence_bounded_execution_persistence_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-26_2348_EEST_premature_finalization_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-26_2348_EEST_premature_finalization_next_action.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "evidence_per_turn_timestamps_not_available_in_visible_context"
+      ],
+      "notes": "Assistant explicitly knew full acceptance and commit/merge remained, finalized anyway, and required user re-engagement; the same route completed the work immediately after correction."
     }
   ],
   "orphan_evidence": [
