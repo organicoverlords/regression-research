@@ -79,6 +79,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
+- [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
 - [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
 - [2026-08-26] Added an initial deduplicated `slopwall` / `slop wall` intervention index with auditable severity scoring and weak-evidence events left unscored (#89).
 - [2026-08-25] Added the data-destruction-under-disk-pressure regression coverage (#67).
