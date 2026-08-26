@@ -79,7 +79,9 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
-- [2026-08-26] Added incremental full-text SQLite search over preserved ChatPort, local-exporter, and conversation ZIP downloads with duplicate-message collapse and exact source provenance (#99).
+- [2026-08-26] Added incremental full-text SQLite search over preserved ChatPort, local-exporter, and conversation export downloads with duplicate-message collapse, bounded archive discovery, and exact source provenance (#99).
+- [2026-08-26] [meta] Simplified incident reporting to one evidence-backed analysis with searchable memory completion, indexed the correction-regurgitation incident, and raised the memory-entry text limit from 800 to 2000 characters with boundary and extraction coverage (#89).
+- [2026-08-26] Expanded the `slopwall` study to separate literal lexical occurrences from canonical corrective interventions, including recent-history and meta-reference accounting without guessing weak-evidence scores (#89).
 - [2026-08-26] Fixed canonical memory Git synchronization to decode Git subprocess output as UTF-8 on Windows, preventing encoding-only identity conflicts, and made manual changelog verification compare non-main refs with `origin/main`.
 - [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
 - [2026-08-26] Added an initial deduplicated `slopwall` / `slop wall` intervention index with auditable severity scoring and weak-evidence events left unscored (#89).
