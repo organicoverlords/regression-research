@@ -1,0 +1,30 @@
+Search gigstack
+
+Prict state resume/bootstrap
+
+Edit workspace.html +76 -6
+
+Now I'll update the UI refresh logic to ensure consistency after key actions. Let me also update the Mission Control documentation.
+
+Explored 1 read
+
+Edit workspace.html #14 -3
+1 Changed file +91 -10
+
+crates/gigstack-daemon/web/workspace.html
+
+Explored 1 read
+
+| © Shelt The bash tool was called with invalid arguments
+
+Invalid request: assistant messages must include non-empty content or tool_calls
+
+Invalid request: assistant messages must include non-empty content or tool_calls
+
+auto
+
+491 -10
+
+continue
+
+help

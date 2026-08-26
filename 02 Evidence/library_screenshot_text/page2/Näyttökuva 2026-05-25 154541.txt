@@ -1,0 +1,135 @@
+>e QD @ bocathost:5180/history
+
+2 +.
+
+-AWINDOWS\system32\cmd, x
+
+Port
+Port
+Port
+Port
+Port
+Port
+Port
+Port
+
+5180
+5181
+5182
+5183
+518u
+5185
+5186
+5187
+
+another
+another
+another
+another
+another
+another
+another
+another
+
+in
+in
+in
+in
+in
+in
+in
+in
+
+is
+is
+is
+is
+is
+is
+is
+is
+
+use, trying
+use, trying
+use, trying
+use, trying
+use, trying
+use, trying
+use, trying
+use, trying
+
+one.
+one.
+one.
+one.
+one.
+one.
+one.
+one...
+
+BB cAWINDOWs\systemsa\emd. X +
+
+[15:43:06.451] [info] UI: http://Localhost:3002/
+
+[15:43:06.452] [info] Ping: http://localhost:3002/api/ping
+
+[15:43:06.452] [info] Proxy: http://Localhost:3002/v1/chat/completions
+[15:43:06.453] [info] Router state: http://localhost:3002/api/free-llm-route
+[15:43:06.453] [info] Router scores: http://Localhost:3002/api/free-llm-rout«
+[15:43:06.454] [info] Router runs: http://localhost:3002/api/free-llm-router,
+[15:43:06.455] [info] Bind: 0.0.0.0 (LAN: 169.254.125.251, 192.168.0.127, 17:
+
+[Health] Health checker disabled by default. Set ENABLE_HEALTH_CHECKS=true to (
+Available tables in C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\for!
+ls, sqlite_sequence, api_keys, requests, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_toker
+Available tables in C:\Users\Lauri\Desktop\FREEEEE\freelLmapi\server\data\free:
+requests, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_toker
+Available tables in C:\Users\Lauri\Desktop\freellmapi\server\data\freeapi.db: 1
+s, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_toker
+Available tables in C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\old-
+models, sqlite_sequence, api_keys, requests, fallback_config, settings
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_toker
+[15:45:12.876] [info] Ulm stream end requestId=0b6e4cal—6dac—4O55-945c-bSca8_o3(
+stralai/mistral-large-3-675b-instruct-2512 attempt=1 classification=ok_text rei
+hunkMs=1287 finalChunkMs=1486 contentLen=6 sawDeltaContent=true sawDeltaToolCal
+[15:45:12.878] [info] proxy stream ok requestId=0b6ellcal-6dac-4055-945c-b5ca8c!
+istralai/mistral-large-3-675b-instruct-2512 attempt=1 wallMs=1U89 inTok=2806 0:
+
+[15:45:32.104] [info] Llm stream end requestId=cb483995-6606-U218-9964-df3f16265992 CasKKind=exploration route=nvicia
+
+om
+
+hi.
+BB Windows PowerShell x +
+Router Live Log - Press Ctrl+C to stop
+Tailing: C:\Users\Lauri\Desktop\merged_gigapi_full\Logs\router—live. log
+Time: local system time
+Format: compact v3; set ROUTER_LIVE_LOG_SHOW_ROUTES=1 for route rows
+[15.43.05.102] START Router live log started format=v3
+[15:45:12] OK @b6elica OpenCode Mistral Large 3 1.5s
+cbl8399 OpenCode Mistral Large 3 21.0s
+
+[15:45:32] OK
+|
+
+ie] & - ao x
+Review 64
+Git changes ~ Unified Split Expand all
+- ao x
+2.8k tok text
+551 tok text
+® ../namess/m. Added +14 -0

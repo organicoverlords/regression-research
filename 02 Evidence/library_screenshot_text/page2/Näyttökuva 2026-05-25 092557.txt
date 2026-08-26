@@ -1,0 +1,74 @@
+© GigAPI Playground Keys Fallback ~— Analytics
+
+Router Dashboard
+
+Active fallback chain, model health, and routing performance.
+
+ACTIVE FALLBACK CHAIN
+
+4 Mistral-large-3-675b-instruct-2512 wna
+
+‘CONTEXT success
+262k 100%
+
+2 kimi-k2.6  wioia
+
+‘CONTEXT suCcESS
+
+3 deepseek-v4-pro_Nvnia
+
+10M -
+
+4 MiniMax M2.7 (NV) | Nvia
+
+‘CONTEXT suCcESS
+197K -
+
+5 Nemotron-3-super-120b-ai2b Nvi0la
+
+‘CONTEXT suCcESS
+10M -
+
+6  deepseek-v4-flash _nvnia
+
+History
+
+CALLS (ALL)
+
+CALLS (ALL)
+
+CALLS (ALL)
+
+CALLS (ALL)
+
+Router
+
+FAILURES
+O empty: 0)
+
+FAILURES
+O empty: 0)
+
+FAILURES
+O empty: 0)
+
+FAILURES
+O empty: 0)
+
+@ = Showtest records @
+
+‘Show all providers
+
+‘Router follows this order top-to-bottom on failure
+
+LATENCY / TPS.
+13045ms / 6.7
+
+LATENCY / TPS.
+-/-
+
+LATENCY / TPS.
+-/-
+
+LATENCY / TPS.
+-/-

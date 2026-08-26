@@ -1,0 +1,21 @@
+- Never call the project new if any state file exists.
+- Never say you will create a file that already exists.
+
+- Never rewrite existing state files unless the user explicitly asks.
+- Never read .env files.
+
+- Never create release workflows unless requested.
+
+Explored 5 searches
+
+Detected new project.
+This is a TypeScript codebase using bun with the following structure:
+© apps/ (empty or not present)
+* packages/ (shared utilities and Tailscale integration)
+© .docs/ (documentation)
+
+© assets/ (icons and logos)
+
+| will create PROJECT.md, TASK.md, .repomap. and NOTES.md. Proceed? (yes/no — or tell me your goal)
+
+Build ‘qwen/qwen3-32b

@@ -1,0 +1,42 @@
+</> Choose Your Technology
+
+Select the programming language or database that matches your project needs
+
+®
+
+@
+
+NodeJS
+
+Arruntime for executing JavaScript server-
+
+side
+
+Object-oriented, reliable
+
+Lua
+Lightweight scripting & extensible
+
+Redis
+In-memory, fast key-value store
+
+Bun
+It's the same as NodeJS but faster!
+
+cH
+Modern & powerful
+
+MongoDB
+NoSQL, flexible document database
+
+PostgreSQL
+Open-source relational database
+
+Python
+
+Beginner-friendly, easy to understand
+
+Fearless concurrency!
+
+MariaDB
+MySQL fork & open-source

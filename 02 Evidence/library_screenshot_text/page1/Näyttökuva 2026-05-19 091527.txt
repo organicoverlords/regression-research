@@ -1,0 +1,25 @@
+© apps/ (empty or not present)
+* packages/ (shared utilities and Tailscale integration)
+© .docs/ (documentation)
+
+© assets/ (icons and logos)
+
+| will create PROJECT.md, TASK.md, .repomap. and NOTES.md. Proceed? (yes/no — or tell me your goal)
+
+Write PROJECT.md
+Write TASK.md
+Write .repomap
+
+Write NOTES.md
+
+[2026-05-19 15:30] /init completed. Phase: new
+
+Continuing from TASK.md next step: Inspect codebase.
+
+4 Changed files +29 -©
+
+-fepomap 45-0
+NOTES.md 44-8
+PROJECT:nd_ 416 -0
+
+TASK.md 44-8

@@ -1,0 +1,14 @@
+Optional checkpoint commit: git add PROJECT.md TASK.md NOTES.md .repomap 8& git commit -m “Add project state
+Files" ?
+
+Plan:
+
+1 Locate chat Ul/input logic ( apps/web )
+
+2. Locate WebSocket/event handling ( apps/server )
+.Design Hermes /goal_command parsing
+4.Implement goal runner Ul integration
+
+5. Ensure chat behavior preservation Start?
+
++a7/-0

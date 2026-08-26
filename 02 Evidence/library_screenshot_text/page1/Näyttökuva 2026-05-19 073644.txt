@@ -1,0 +1,30 @@
+# Dev Log
+## Last session
+- [Auto-generated summary of what was detected/found]
+
+Write the summary in plain language. Eg. “Initialized project. Detected
+Vite + React TS app with npm. Set up task tracking.” Always append,
+never overwrite,
+
+Explored 8 reads
+PROJECT.md
+
+TASK.md
+
+srepomap
+
+NOTES.md
+
+packagejson
+
+Archive
+
+Launch (13 Patched + Hermes + OpenCode + FreeLLMAPI).cmd
+
+1 - Launch (13 Patched + Hermes + OpenCode + FreeLLMAPI).cmd
+
+EEGLEGGE
+
+List 02 root directory contents
+
+Explored 1 read, 1 search

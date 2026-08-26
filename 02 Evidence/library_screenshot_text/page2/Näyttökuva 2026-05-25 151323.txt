@@ -1,0 +1,15 @@
+LIVE REQUEST FLOW — aum an zan
+
+{MF Tool execution i caller-owned, Fre@eLLMAPI shows tool calls and too-result follow-ups it observes.
+
+FLOWS ‘SUCCESSFUL FAILED FALLBACKS TOOL CALLS TOOL FOLLOW-UPS STALLED TOOLS AVG LATENCY
+
+11 7 4 oO 7 7 oO 230685ms
+
+Last 1h: 11 flows. 7 succeeded, 4 failed, 0 fallback. 7 returned tool calls, 7 had follow-ups. Avg latency 230685ms.
+
+©) show detated model nodes
+
+PLAYGROUND ROUTER MODEL ATTEMPTS TOOL CALL TOOL RESULT outcome
+
+Recent Flows ‘Show Live Log

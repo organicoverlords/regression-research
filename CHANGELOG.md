@@ -6,7 +6,13 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ `standards/changelog.md`.
 
-## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
+## [Unreleased]
+
+### Added
+
+- Added timestamped full-text ChatGPT Library screenshot occurrence search with frequency counts and temporal neighbors; exact duplicate screenshots remain separate occurrences, and credential-like extracted text is redacted before indexing (#86).
+
+- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
 
@@ -95,7 +101,11 @@ Delete the headings you do not use. Keep this section at the top at all times.
 
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
-  2. Open a fresh empty `## [Unreleased]`r`n`r`n### Added`r`n`r`n- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
+  2. Open a fresh empty `## [Unreleased]
+
+### Added
+
+- Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
 Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â one line, for a human, with the issue or PR number:

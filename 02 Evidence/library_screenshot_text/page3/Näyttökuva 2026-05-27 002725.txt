@@ -1,0 +1,44 @@
+PART 3 — Desian Native GiaStack Router MVP os
+Thought for 1s
+0/18 tasks done
+
+© part 1 — Baseline
+
+PART 2 — Audit current provider/router code
+PART 3 — Design Native GigStack Router MVP
+PART 4 — NVIDIA NIM-first route selection
+PART 5 —First-signal timeout behavior
+
+PART 6 — Provider adapter MVP
+
+PART 7 — Native router daemon endpoints
+PART 8 — Wire /api/agent/chat/stream to Native Router
+PART 9 — Workspace Chat Ul integration
+PART 10 — Workspace Stats integration
+
+PART 11 — Settings MVP
+
+PART 12 — Local/LM Studio plan
+
+PART 13 — Smoke tests
+
+PART 14 — Unit tests,
+
+PART 15 — Manual smoke
+
+PART 16 — Validation
+
+PART 17 — Commit behavior
+
+PART 18 — Final report
+
+Thought for 1s
+
+a
+
+Command git
+
+© PS C:\tsers\I aur \Recktan\agent worknlace\asent-worksnace\siestack> [1
+‘Ask anything (Ctrl+)
+
++ Code Kimi 26 Wascade 0 O

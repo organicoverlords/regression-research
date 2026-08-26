@@ -1,0 +1,14 @@
+Write the summary in plain language. E.g. “Initialized project. Detected
+Vite + React TS app with npm. Set up task tracking.” Always append,
+never overwrite,
+
+Explored 10 reads, 3 searches
+
+Detected almost done. A collection of PowerShell . cmd launcher scripts for Al apps (T3 patched backend, Hermes, OpenCode, FreeLLMAPI) that delegate to
+Python scripts in C: \Users\Lauri\Desktop\o2\scripts\. Current TASK.md goal is “Project initialization” which seems already done.
+
+found 4 launch scripts + 2 archived ones. No build/test/lint/typecheck tooling — it's a pure utility launcher project.
+
+Last note in TASK.md: “Review created PROJECT.md, TASK.md, .repomap, and NOTES.md files.”
+
+Continue? (yes/revise goal)

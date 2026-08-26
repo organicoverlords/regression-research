@@ -1,0 +1,17 @@
+Edit CHAT_SESSIONS.md /docs #2 -@
+
+Write session_exportrs /crates/aigstack-core/tests
+
+@ waite The write tool was called with invalid arguments ~
+
+SchemaError(Missing key
+at ("content").
+Please rewrite the input so it satisfies the expected schema.
+
+© edit Failed ~
+
+Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.
+
+Shell Find the exact impl block for SqliteStorage ~
+
+$ rg -n “impl SqliteStorage” -A 2 crates/gigstack-core/src/storage-rs

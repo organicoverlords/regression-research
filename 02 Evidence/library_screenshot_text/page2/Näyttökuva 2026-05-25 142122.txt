@@ -1,0 +1,93 @@
+Per-model breakdown
+
+moonshotai/kimi-k2.6
+nvidia/nemotron-3-super-120b-a12b
+
+mi
+deepseek-al/deepseek-v4-pro
+minimaxai/minimax-m2.7
+nvidia/llama-3.3-nemotron-super-49b-v1.5
+deepseek-ai/deepseek-v4-flash
+
+nvidia/llama-3.3-nemotron-super-49b-v1
+
+Errors by provider
+
+300
+
+225
+
+150
+
+75
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+test
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+BF RF EB QB
+
+a
+
+ny
+
+i
+
+errors
+
+PEREEET
+
+100% Oms °
+25.4% 12663 ms. 505
+46.6% 25151 ms 238
+100% 1000 ms 4ak
+265% 20040 ms °
+
+0% 38491 ms 0
+95.8% 30761 ms 0
+17.4% 45245 ms oO
+100% Oms °
+100% 81401 ms 227
+
+Message
+
+[rid=2a95cf04-5fbd-4aa7-9012-0b5d3a788de8 tas_
+[rid=25051994-1ab1~4c06-83de-1d647b92cbc7 tas_
+[rid=53fcf3a2-d69b-44ed-Sd9t-a65da4fba2da task.
+[rid=53fcf3a2-d69b-44ed-Sd9t-a65da4fba2da task.
+[rid=1825bcf4-0d85-48e3-ba93-25b4cBaef7ac tas
+
+[rid=53fcf3a2-d69b-44ed-9d9f-a65da4fba2da task.
+
+74
+
+slolalalal t
+
+10
+
+Time
+11.20
+11.20
+11.20
+11.20
+11.20
+
+1119

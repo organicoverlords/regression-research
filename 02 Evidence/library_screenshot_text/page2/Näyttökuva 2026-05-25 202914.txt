@@ -1,0 +1,36 @@
+jigStack - Providers
+
+PROFILES
+
+ACTIVE
+
+default
+
+LABEL
+
+Default
+
+Refresh
+
+BASE URL
+
+http: //127.0.0.1:3001/v1
+
+NIM
+
+ADD / UPDATE PROFILE
+
+id (e.g. gigapi, Imstudio, nim)
+
+label
+
+base_url (e.g. http://127.0.0.1:3001/v1)
+
+api_key (optional)
+
+Save
+
+active: defé
+
+Is NVIDIA
+NIM

@@ -1,0 +1,32 @@
+© GigAPI Playground Keys Fallback == Analytics. ~—‘History +—Router
+
+Router Telemetry
+
+Hermes-readable router state, health, scores, and recent runs. coding debugging planning —_tong_context_planning _ exploration
+
+Operational Monitoring 10m ih 24h
+Status Calls Failure % Empty % Rate limits ‘Avg Latency
+Healthy 33 12.5% 12.5% oO 1634ms
+
+No current issues detected.
+
+Model Status Calls Success% Failures Empty% Rate Limits Timeouts Latency TPS
+
+mi e 4 100.0% 0 0.0% o o 10ms -
+
+m2 e 4 100.0% o 0.0% ° ° oms =
+
+llama-3:3-70b-versatile ° 8 100.0% 0 0.0% ° ° 17ms =
+
+m3 ° 4 100.0% o 0.0% ° ° oms =
+
+m4 e 4 0.0% 4 100.0% o o Oms -
+
+m5 e 4 100.0% o 0.0% ° ° oms =
+
+m6 ° 4 100.0% o 0.0% ° ° oms =
+
+mistralai/mistral-large-3-675b-instruct-2512 e 1 100.0% 0 0.0% o o 13045ms -
+EESTI) alltime 24h 7d 30d recent
+
+Uses persisted sanitized telemetry by default (no prompts/completions stored).

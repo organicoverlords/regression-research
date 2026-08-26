@@ -1,0 +1,19 @@
+© Duplicate this Space
+
+Space hardware Free
+
+CPU Basic  ZeroGPU ‘Custom Hardware
+
+This Space has 7 secrets and 0 variables that may be needed for it to work properly.
+
+‘Space secrets Private
+
+O» HF_TOKEN Add secret
+©» CLOUDFLARE_WORKERS_TOKEN Add secret
+oO» TELEGRAM_ALLOWED_USERS Add secret
+O» TELEGRAM_BOT_TOKEN Add secret
+O» GATEWAY_TOKEN Add secret
+O» LLM_MODEL Add secret
+©» LLM_API_KEY Add secret
+
+Duplicate Space Cancel

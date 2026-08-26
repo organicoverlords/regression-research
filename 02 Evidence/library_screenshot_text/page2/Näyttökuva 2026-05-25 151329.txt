@@ -1,0 +1,30 @@
+——e——eaes
+
+Recent API calls in real-time. 25 50 100 200
+
+Time Status Provider Model In Out —_Total TPS Latency Error
+11:55:41 success nvidia Mistral Small 4 279K 6 279K 39232 Tiams =
+11:55:40 success nvidia Mistral Small 4 278K 3 278K «25822 1076ms =
+11:55:39 success nvidia Mistral Small 4 277k 0 277K 3732 7430ms =
+11:55:34 error nvidia Mistral Large 3 277k 0 | 277K = 2323ms —Enor [rid=b007a56a-4419-495f-8:
+11:49:24 success nvidia Mistral Small 4 277k 41 277K = 22428 1237ms =
+11:49:23 success nvidia Mistral Small 4 275K 0 «275K 18303 1796ms =
+11:49:01 success nvidia Mistral Small 4 290K 6 290K 38447 817ms =
+11:49:00 success nvidia Mistral Small 4 275K 2 275K —-34903 Ta7ms =
+11:48:59 success nvidia Mistral Small 4 27aK 0 274K = 25011 1096ms =
+11:48:25 success nvidia Mistral Small 4 27aK 2 274K = 11953 2292ms =
+11:48:23 error nvidia Mistral Large 3 274K 0 | 274K = 301ms Enor [rid=7ibofd58-c1b0-4847-
+
+11:46:35 success nvidia Mistral Small 4 139k 0 139K 1410 9874ms =
+11:46:25 success nvidia Mistral Small 4 139k 0 139K 13953 995ms =
+11:46:23 success nvidia Mistral Small 4 13.7k 0 137K — 12582 1088ms =
+11:46:17 success nvidia Mistral Small 4 13.7k 0 137K 13970 979ms =
+
+®. kuvekaappaustydkalu
+
+Nayttkuva kopioitu leikepé:
+Tallennettu automaattisesti
+
+Merkitse
+
+="ooaryreeeuswyyp

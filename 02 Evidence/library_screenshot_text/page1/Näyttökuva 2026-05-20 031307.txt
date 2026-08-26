@@ -1,0 +1,6 @@
+‘Show full message
+
+RT a
+
+Detected new/partial project. T3 Code — a Bun monorepo (web GUI for coding agents). Missing state files:
+PROJECT.md , TASK.md , .repomap , NOTES.md . Create only those? (yes/no — or describe your goal)

@@ -1,0 +1,113 @@
+© GigStack - Workspace
+FILE EXPLORER
+
+BB gigstack
+
+Bi crates
+docs
+scripts
+target
+gitignore
+
+add export implpatch
+add implpy
+
+arch smokejson
+Carao.lock
+
+a
+a
+a
+a
+BB repomap
+a
+a
+a
+2
+Pi
+
+OPEN FILES
+(none)
+
+quick Nav
+1 Workspace Home
+© Al Chat
+# Dogfood
+Run & Debug
+Files
+« Editor
+
+Terminal
+
+© Git
+
+GIT BRANCHES
+
+cigstaci/04s48dasbt7e
+cigstaci/22962¢5916d0
+sigstack/30615120Feac
+
+cigstaci/50a195459093
+igstach/636709517eat
+igstaci/65088682c1b6
+cigstaci/69H1258015b
+
+igstack/736e7e 162164
+sigstack/76580ace1516
+
+cigstaci/930deSetedbd
+igstaci/94d64267Cc69
+
+(@.0k provider http/localnost:3002/v1
+
+v
+
+~
+
+Dashboard Models Router Providers Settings
+
+Workspace Chat Dogfood + Run &Debug Files Editor Terminal Git_—iff
+
+‘Agent mode «I can read/write/edit files, run commands, use git, and run checks.
+
+You
+‘You are working in the GigStack repo only: C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\gigstack Goal: Fix the launcher/browser-tab issue once and for all by adding a real no-launch/static-edit guard, not just prompt instructions. Current
+problem: - Asking the agent to fix scripts caused browser tabs to open. - The model/agent treated the task as executable and tried to use tools. - Chat UI also shows raw tool-call markup like <tool_call_section_begin>. - We need backend/tool guardrails so “do
+not run/openystart” is enforced. Do not touch: - C:\Users\Lauri\Desktop\merged_gigapi full - GigAPI / FreeLLMAPI - OpenRouter / LM Studio - Hermes / external hamesses - frontend framework - cargo clean - commits / merges - broad refactors PART 1 — Fix
+scripts/start-gigstack.ps1 Edit: scripts/start-gigstack ps1 Required behavior. - supports param ([switch]$NoBrowser) - defines: $UL_URL = “http://127.0.0.1:4877/workspace.html" $HEALTH_URL = “http://127.0.0.1:4877/api/health” - has: $scriptopenedBrowser =
+Sfalse - has helper: function Open-GigStackuiOnce {if ($NoBrowser) { Write-Host "NoBrowser set; not opening Ul.” -ForegroundColor Gray retum } if ($scriptopenedBrowser) { return } $scriptopenedBrowser = $true Write-Host “Opening GigStack Ul: SUL_URL"
+-ForegroundColor Cyan Start-Process $UI_URL } Rules: - Never call Start-Process $UI_URL directly anywhere else. - Never open browser inside health retry loop. - If daemon is already healthy, do not start another cargo run. - If daemon is not healthy, start
+daemon, wait for health, then call Open-GigStackUiOnce once. - -NoBrowser must guarantee no browser is opened. PART 2 — Fix scripts/create-gigstack-shortcut.ps1 Edit only if needed: scripts/create-gigstack-shortcutps1 Requirements: - creates shortcut
+only - must not run start-gigstack.ps1 - must not launch browser - must not start daemon - correct quote escaping: powershell.exe -NoExit -ExecutionPolicy Bypass -File “<repo> \scripts\start-gigstack ps1” PART 3 — Add backend No-Run / Static Edit guard
+‘Add a task/input flag if not already present: - no_run: bool or - execution_mode: “static edit” | “normal” For static_edit / no_run tasks: Forbidden actions: - terminal - run checks - cargo run - cargo test - launching scripts - Start-Process - Invoke-RestMethod to
+‘app endpoints - opening browser - starting daemon - external hamesses Allowed: - read files - edit allowed files - static syntax validation only - PowerShell parse-only validation - cargo check only if Rust files changed and no_run does not explicitly forbid it For
+this task, no_run/static_edit should be active. Enforce at backend/tool layer: - command classifier must deny: \scripts\start-gigstack ps1 .\scripts\create-gigstack-shortcut.ps1 cargo run Start-Process start http Invoke-RestMethod http://127.0.0.1:4877 explorer
+http rundlI32 url.dil powershell Start-Process - denial should create a clear blocked action: “Blocked by static-edit mode: launching app/browser is forbidden.” Do not rely only on prompt text. PART 4 — Add UI safety toggle In Chat/Dogfood input area, add a
+checkbox: “Static edit only / no run” When checked: - send no_run=true or execution_mode=static_edit - show badge: “No-run mode" - disable/deny run buttons if tied to this chat action, unless user explicitly uses Run & Debug tab separately Do not redesign
+UL. PART 5 — Fix raw tool-call markup in chat rendering Problem visible in Ul: Raw text like: <tool_call section _begin> <tool_call_begin>... Fix chat renderer so tool-call blocks are: - parsed into a compact “Tool call" card, or - hidden behind collapsed details -
+never rendered inline as ugly raw XML-ish text Do not remove actual tool-call data. Keep “Review changes in Diff tab* link. Target likely files: - crates/gigstack-daemon/web/workspace.html - any JS renderMessage/renderTooICall function in workspace.html - if
+chat renderer is Rust-generated, inspect main.rs templates Minimal fix - detect strings containing: <tool_call section begin> <tool_call_begin> <tool_call_argument_begin> - replace visible content with: “Tool call: <tool name>" and a collapsed details block -
+preserve copy/debug if easy PART 6 — Tests / validation Do NOT run the launcher. Do NOT start daemon. Do NOT open browser. Allowed static validation: powershell -NoProfile -Command “$null = [scriptblock]:Create((Get-Content .\scripts\start-gigstack.ps1
+Raw); ‘start syntax ok" powershell -NoProfile -Command “$null = [scriptblock]:Create((Get-Content .\scripts\create-gigstack-shortcut.ps1 -Raw)); ‘shortcut syntax ok Run: cargo fmt cargo check -p gigstack-core -p gigstack-daemon If command
+classifier/tool preflight changed: RUST_TEST_THREADS=1 cargo test -p gigstack-core tool --lib --jobs 1 RUST_TEST_THREADS=1 cargo test -p gigstack-core run ~lib -jobs 1 RUST_TEST_THREADS=1 cargo test -p gigstack-core goal_ worker --lib --jobs 1 PART 7.
+— Add docs note Update docs/QUICKSTART.md: - use -NoBrowser to launch without opening tab - do not double-click launcher repeatedly while daemon is starting - Static edit /no-run mode is for script/config edits where app launch is forbidden - Run &
+Debug is the safe place to intentionally run commands Final report: - files changed - show Open-GigStackUiOnce helper - static edit/no-run guard behavior - command pattems blocked - chat renderer/tool-call markup fix - validation results - confirm no
+daemon/browser/app launched - confirm no GigAPl/OpenRouter/LM Studio/Hermes/external harness changes Definition of done: - launcher can only open one tab per run - -NoBrowser guarantees no browser opens - agent cannot launch app/browser while
+in static-edit/no-run mode - raw tool-call markup no longer pollutes chat view
+
+Gigsrace tool cals: 0
+‘{Tname": “edit file", “parameters”: ("new string”: “if (SNoBrowser) { Write-Host \"NoBrowser set; not opening UI\" -ForegroundColor Gray return }", “old string”: “if ($scriptopenedBrowsen) {", "path": “scripts/start-gigstack ps1}
+
+— Review changes in Difttab_
+
+Copy Saveto Workbench Create Task Extract Commands Collapse
+
+Ask the Al agent to build something... (Enter to send, Shift+Enter for newline)
+
+branch: master models: 35.
+
+149
+
+OE senor
+
+o0+@ece

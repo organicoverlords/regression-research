@@ -1,0 +1,57 @@
+Pyiproject| hermes dev 2rtt512511m | ATApps Wiztree) cleu r ¢ e ‘ 3 ingsurteds
+
+BB cAWINDOWs\systemsa\emd. X +
+
+| > @freellmapi/server@0.1.0 dev
+> tsx watch src/index.ts
+
+© injected env (7) from ..\.env // tip: % custom filepath { path: ‘/c B® Windows Powershell x + - aQ xX
+Database initialized at C:\Users\Lauri\Desktop\merged_gigapi_full\ser
+
+.294] [info] [FreeLLMAPI] Server Listening Router Live Log - Press Ctrl+C to stop
+
+310] [info] Port: 3002
+
+.311] [info] UI: http://Localhost:3002/
+311] [info] Ping: http://localhost :3002/api/ping Tailing: C:\Users\Lauri\Desktop\merged_gigapi_full\Logs\router—live. log
+
+312] [info] Proxy: http://localhost:3002/v1/chat/completi Time: local system time
+
+.313] [info] Router state: http: //localhost:3002/api/free— Format: compact v3; set ROUTER_LIVE_LOG_SHOW_ROUTES=1 for route rows
+
+.313] [info] Router scores: http://localhost:3002/api/free
+
+314] [info] Router runs: http: //localhost:3002/api/free-1 [15.36.40.941] START Router Live log started format=v3
+
+314] [info] Bind: 0.0.0.0 (LAN: 169.254.125.251, 192.168. [15:37:43] OK 4d10378 OpenCode Mistral Large 3 20.2s 11.4k tok text
+[Health] Health checker disabled by default. Set ENABLE_HEALTH_CHECKS |
+
+[15:37:43.318] [info] Llm stream end requestId=4d103702-dOUU-USd4-8cb
+
+stralai/mistral-large-3-675b-instruct-2512 attempt=1 classification=o
+
+tChunkMs=2296 finalChunkMs=202U6 contentLen=381 sawDeltaContent=true
+
+143.321] [info] proxy stream ok request Id=4d103702-dOUU-USdu-8c
+istralai/mistral-large-3-675b-instruct-2512 attempt=1 wallMs=202U9 in
+
+Port 5195 is in use, trying another one
+Port 5196 is in use, trying another one
+Port 5197 is in use, trying another one
+Port 5198 is in use, trying another one
+Port 5199 is in use, trying another one
+Port 5200 is in use, trying another one
+Port 5201 is in use, trying another one
+
+seg A ® ..hamess/h... Added +62 -0
+Port 5202 is in use, trying another one
+
+VITE v8.0.14 ready in 371 ms
+
+> Local: http: //Localhost:5203/
+Network: use —host to expose
+press h + enter to show help
+
+Lo
+
+VES) WS Se pee ee ie ae, a a ae 7 “hi

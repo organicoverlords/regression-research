@@ -1,0 +1,38 @@
+- Never run ‘git push’, create remotes, publish code, or create release
+workflows unless explicitly asked.
+
+- Never run ‘git reset’ ‘git clean’, “git restore’, “git rebase’, ‘git commit -
+amend, or discard changes unless explicitly approved.
+
+- On Windows/PowerShell, do not use Unix flags like ‘Is la’: use “Get-
+Childitem” or “dir
+
+- Do not print tool commands as prose; either run them or summarize
+their result.
+
+- Never call project new if any state file exists, claim you'll create an
+existing file, or rewrite state files without explicit ask.
+
+@ Task Check project state
+
+Schematrror(Missing key
+at ['subagent type").
+Please rewrite the input so it satisfies the expected schema.
+
+Shell Check Git status
+
+Explored 4 reads
+
+Detected existing project. Goal: Project initialization Last note: Initialized project state. Possible next steps:
+
+4. Set up ini
+
+project structure and tooling.
+2. Resume work from last session.
+
+3. Update project state files.
+Recommended: Update memory or describe a new task.
+
+Continue with recommended, choose another, update memory, or describe a new task?
+
+Build qwen/qwen3-32b

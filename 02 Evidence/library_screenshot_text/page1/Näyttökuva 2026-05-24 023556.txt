@@ -1,0 +1,90 @@
+a@s  Finaldope@gmail.com’s ...
+
+Quick search. K
+
+Account home
+Recents
+
+Domains
+
+Observe
+Investigate
+Analytics
+
+Build
+Compute
+Al
+Models
+Workers Al
+Al Gateway
+Vectorize
+AlSearch | Beta
+Storage & databases
+
+Media
+
+Protect & Connect
+Application security
+Zero Trust
+Networking
+
+Delivery & performance
+
+Workers Al
+
+Run LLM and Al inference models with the performance and reliability of Workers
+
+Build your Al application
+
+as
+
+Build and deploy a Llama 3 Worker
+
+Get started with everything you need to run a Llama 3
+model from a Worker.
+
+Explore Workers Templates
+
+Speech to text app 7
+
+Parse human speech and convert voice recordings into text.
+
+Text Classification (7
+
+Categorize unstructured text into groups based on criteria of
+your choice.
+
+Browse Model Catalog
+
+anthropic/claude-haiku-4.5
+42. « Text Generation
+
+{ API }
+
+\
+
+REST API
+
+Call Workers Al from any deployment using the REST
+API.
+
+Image Classification (7
+
+Identify and label objects found in images.
+
+Vector Embedding App (7
+
+Convert text into mathematical vectors so that you can perform
+text analysis and transformations.
+
+anthropic/claude-opus-4.6
+
+42. « Text Generation
+
+{) REST API
+
++ Ask AL
+
+Documentation
+
+© Support

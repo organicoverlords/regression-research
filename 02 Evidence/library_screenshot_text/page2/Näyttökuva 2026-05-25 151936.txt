@@ -1,0 +1,65 @@
+<
+
+BB cawinvows\systemaz\md, X + v o x
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+
+Available tables in C:\Users\Lauri\Desktop\FREEEEE\freellmapi\server\data\freeapi.db: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+
+Available tables in C:\Users\Lauri\Desktop\freellmapi\server\data\freeapi.db: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+
+Available tables in C:\Users\Lauri\Desktop\Agent workplace \agent-workspace\old-edits\freellmapi\server\data\freeapi.db: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+
+Available tables in C:\Users\Lauri\Desktop\Agent. workplace\agent-workspace\forks\freelLmapi\server\data\freeapi.db: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+
+Available tables in C:\Users\Lauri\Desktop\FREEEEE\freellmapi\server\data\freeapi.db: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+
+Available tables in C:\Users\Lauri\Desktop\freellmapi\server\data\freeapi.db: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+Available tables in C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\old-edits\freeLLmapi\server\data\freeapi . dl
+Potential telemetry tables: requests
+
+Columns in requests: id, platform, model_id, status, input_tokens, output_tokens, latency_ms, error, created_at
+[15:18:57.594] [info] llm stream end requestId=0a3el/97a-91de-UU1c-80b2-5d6bb60d90ea taskKind=exploration route=nvidia/mistralai/mistral-Large-3-675b-instruct-2512 attempt=1 classification=ok_text reason
+=delta_content_present chunks=37 firstChunkMs=4737 finalChunkMs=9232 contentLen=116 sawDeltaContent=true sawDeltaToolCalls=false finishReason=stop parserErrors=0
+
+[15:18:57.596] [info] proxy stream ok request Id=0a3e497a-91de-W.1c-80b2-Sd6bb60d90ea taskKind=exploration route=nvidia/mistralai/mistral-large-3-675b-instruct-2512 attempt=1 wallMs=9236 inTok=27785 outT
+ok=U5 firstTokMs=733
+
+[15:19:11.878] [info] llm stream end requestId=69176859-ea1b-4098-b7d0-aa64icc375029 taskKind=exploration route=nvidia/mistralai/mistral-Large-3-675b-instruct-2512 attempt=1 classification=ok_native_tool
+_call reason=delta_tool_calls_present chunks=1011 firstChunkMs=26U5 finalChunkMs=68920 contentLen=3957 sawDeltaContent=true sawDeltaToolCalls=true finishReason=tool_calls parserErrors=0
+
+[15:19:11.879] [info] proxy stream ok request Id=69176859-ealb-4098-b7d0-aa6ucc375029 taskKind=exploration route=nvidia/mistralai/mistral-large-3-675b-instruct-2512 attempt=1 wallMs=68921 inTok=17992 out
+Tok=1388 firstTokMs=2639
+
+: models, sqlite_sequence, api_keys, requests, fallback_config, settings
+
+- ready | mistral large 3 675b instruct 2512 | eee | ] 18% | 44m 47s | voice off
+
+Bhi
+Your Evolution Engine limit is now 15@ (via EVO_MAX_ITERATIONS), but no cron is running. Ready for your next task.
+fF = C:\WINDOWS\system32
+5 update the gateway to use the same settings as you are ni
+
+Trae23 © error nvidia Mistral Large 3 zraK 0 2raK = ‘301mg —Enor[na=r1pcraDs-CIDU=aea =i

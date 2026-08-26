@@ -1,0 +1,88 @@
+Stack - Workspace
+
+ILE EXPLORER
+
+B sic
+B target
+
+B Cargollock
+B Cargo.tom!
+me src/
+
+me target /
+
+PEN FILES
+
+UICK NAV
+Workspace Home
+Al Chat
+Files
+Editor
+Terminal
+Git
+Diff Review
+
+IT BRANCHES
+
+master
+
+‘ok provider: httpy//127.0.0.1:3002/v1,
+
+Y Workspace Chat
+
+GGigstack_ (running...)
+
+Hello! I'm GigStack, your Al coding assistant. How can | help you with the GigStack project today? Are you looking to work on Rust code, HTML/CSS/JS, or need assistance with any specific development task?
+
+Dashboard Models Router Providers Settings
+
+Files Editor Terminal © Git__—_Diff,
+hi
+
+203041-1 steps 41.62
+
+~ Review changes in Diff tab
+
+GGigstack_ (running...)
+
+We need to decide how to proceed to gather project structure. Perhaps the workspace path is not root? Let's search for any .git or specific folder. Use search to find .git
+
+-<function=terminal>
+
+You
+
+You are working in the GigStack Rust repo only. Do not work on GigAPI / FreeLLMAPI. Do not touch TypeScript/Vite router telemetry. Do not mix in GigAPI performance/quality telemetry tasks. Current GigStack state: - Workspace selector works, - Chat
+sessions and queues work. - Workbench prompt/result loop works. - Detached session windows work. - Command extraction + safe Play works. - Generate Next Prompt works. - Context Packs work. - Memories/Rules work. - Route Advisor works. - Mission
+Control Task Cards work. - Goal/TODO/Action loop works. - Supervised approval works. - Checkpoint/revert works. - Usage dashboard works. - Debug action endpoint works. - Diagnostics and Start Here exist. - Dogfooding docs exist. - No OpenRouter. - No
+LM Studio. Next goal: Add minimal git worktree isolation so GigStack can safely dogfood itself without editing the main checkout. Do not add: - GigAPI/FreeLLMAPI changes - external harness execution - self-evolution - frontend framework - OpenRouter -
+LM Studio - broad refactors MVP feature: Worktree-per-task for Mission Control Task Cards. 1. Add Worktree record Add SOlite table: worktrees:- id - task_card_id nullable - chat_session_id nullable - base_workspace - base_branch - base sha - branch name
+= worktree_path - status: active|reviewlabandonedfailed - created_at - updated_at - error nullable Storage: - create worktree_record - get_worktree - list_worktrees - update worktree status 2. Add APIs Add: - GET /api/worktrees - GET /api/worktrees/:id -
+POST /apitasks/‘id/create-worktree - GET /api/worktrees/:id/diff - POST /api/worktrees/:id/abandon Behavior: - create-worktree verifies task workspace is a git repo. - create branch name like gigstack/task/<short-id>. - create worktree under a safe local
+folder: <base_repo>/.gigstack/worktrees/<branch-or-id> - link worktree to task card. - do not modify main checkout. - do not commit. - do not merge. - abandon removes worktree only if safe/clean, otherwise marks abandoned/failed with warning. - diff
+returns bounded git diff from worktree. 3. Wire task execution to worktree If a TaskCard has an active worktree: - Start Goal should use worktree_path as workspace root. - Actions/checks should run inside worktree. - Task card should show worktree
+path/branch. Main repo must not be modified. 4. GUI In Board/Mission Control: - Add Create Worktree button. - Show worktree path/branch/status on card. - Add View Diff button. - Add Abandon Worktree button. - Show warming: “Worktree isolates edits
+from main checkout. Review and merge manually.” No auto-merge. 5. Tests Fast offline tests: - create temp git repo - create worktree for task - worktree record persists - worktree path differs from base repo - editing file in worktree does not change base
+repo - worktree diff shows edit - non-git workspace is rejected - abandon clean worktree marks/removes safely - no network - no cargo test inside temp repo 6. Docs Create docs/WORKTREES.md: - why worktrees matter - how to create one from Task Card -
+how to review diff - how to abandon - manual merge only for now - limitations 7. Validation Run targeted: cargo fmt cargo check -p gigstack-core -p gigstack-daemon RUST_TEST_THREADS=1 cargo test -p gigstack-core --test worktree tests —jobs 1 If
+storage changed: RUST_TEST_THREADS=1 cargo test -p gigstack-core storage lib —jobs 1 Do not run cargo clean. Definition of done: - Task card can create a git worktree. - Start Goal uses worktree workspace. - Main checkout is untouched. - Diff can be
+viewed. - Worktree can be abandoned safely. - GUI exposes worktree status, - Docs exist. - No GigAPI/FreeLLMAPI changes. - No OpenRouter. - No LM Studio.
+
+<parameter=command>
+Get-Childitem -Path . -Force -Recurse | Where-Object {$_Name -eq ‘git’)
+</parameter>
+</function>
+</tool_call>
+
+204029- 12 steps, 23.18
+
+— Review changes in Difttab_
+
+Ask the Al agent to build something... Enter to send, Shi
+
+branch: master
+
+models: 35
+
+Y | NewChat | Save | Load
+
+oe

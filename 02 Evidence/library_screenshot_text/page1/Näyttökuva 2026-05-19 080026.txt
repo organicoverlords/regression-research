@@ -1,0 +1,29 @@
+- Never call the project new if any state file exists.
+
+- Never say you will create a file that already exists.
+
+- Never rewrite existing state files unless the user explicitly asks.
+- Never read .env files.
+
+- Never create release workflows unless requested.
+
+Shell Check for state files in repo root
+
+She
+
+Check if PROJECT.md exists
+
+Shell Check if TASK.md exists
+
+Shell Check if repomap exists
+
+Shell Check if NOTES.md exists
+
+Explored 2 reads
+Read TASK.md
+Read NOTES.md
+
+Detected almost finished. Goal: Project initialization. Last note: Initialized project state for Al Apps launcher scripts. Continue from TASK.md next step?
+(yes/no — or say refresh)
+
+Build ‘qwen3.5-4b-claude-4.6-opus-reasoning-...

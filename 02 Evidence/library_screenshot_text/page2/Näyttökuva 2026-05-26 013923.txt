@@ -1,0 +1,86 @@
+® GigStack - Workspace
+ILE EXPLORER
+
+BB gigstack
+Bi crates
+
+Bi docs
+
+BB scripts
+
+B target
+
+BB itignore
+
+BB repomap
+
+BB add export implpatch
+Badd _implpy
+
+BB arch smokejson
+
+IB Carcolock
+
+DPEN FILES
+
+none)
+QUICK NAV
+| Workspace Home
+Al Chat
+| Dogfood
+, Run & Debug
+Files
+Editor
+
+Terminal
+
+Git
+
+5IT BRANCHES
+
+jgstack/O4948da8017e
+fgstack/2296225916db
+jgstack/3a6 15720feac
+
+jgstack/$00195459093
+jgstack/6367C95 17a
+jgstack/680B8682c1b6
+jgstack/69rtt258a15b
+
+jgstack/736=7e162F64
+jgstack/76580ace1516
+
+jgstack/930deSee0bd
+jgstack/S4d64267cc69
+
+yok provider: http/localhost:3002/v1
+
+Dashboard Models Router Providers Settings
+
+Y Workspace Chat © Dogfood + Run& Debug Files. Editor ‘Terminal © Git__—iff
+
+‘Agent mode | can read/write files, rn terminal commands, use git, and run checks. Try saying “add a feature" or “fix a bug”
+
+You
+‘You are working in the GigStack repo only: C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\gigstack Goal: Do the first real daily-use dogfood pass using the new launcher, doctor, Start Here, Native Dogfood, worktree, approval, Run & Debug,
+revert/abandon flow. Fix only small usability issues discovered during real use. Current state: - First self-building MVP is complete. - start-gigstackps1 launches daemon and Ul. - create-gigstack-shortcut.ps1 creates desktop shortcut. - doctor-gigstack.ps1
+checks environment. - smoke-self-build-worktree.ps1 exists, - Native Dogfood + worktree + approve + checkpoint/revert works. - Run & Debug works in worktree. - Start Here guides the workflow. - QUICKSTART md exists. - cargo fmt/check pass. Do not add
+new architecture. Do not touch: - C\Users\Lauri\Desktop\merged_gigapi_full - GigAPI / FreeLLMAPI - OpenRouter / LM Studio - Hermes / external harnesses - frontend framework - cargo clean - commits / merges unless explicitly asked - broad refactors PART
+1 — Launch like a normal user Run: \scripts\doctor-gigstack ps1 Then run:.\scripts\start-gigstack.ps1 Verify: - daemon starts - Ul opens - health endpoint works - no confusing terminal errors - no accidental tests/run/dogfood start PART 2 — Use Start Here In
+‘workspace htm: - follow Start Here checklist - create/activate session - start Dogfood with worktree checked - use a tiny safe task: “Improve QUICKSTART.md by adding one sentence that the desktop shortcut starts the daemon and opens the UL.” Mode:
+supervised Planner: native allow_main_repo_edit: false use_worktree: true PART 3 — Complete workflow from UI From Ul only as much as possible: - approve waiting edit action - view worktree diff - run echo check - optionally run cargo check - revert or keep
+the edit - abandon clean worktree if reverted Do not use manual API calls unless UI is blocked. PART 4 — Record friction Write down any friction: - confusing labels - missing refresh - unclear status - bad button placement - path too long / unreadable - unclear
+
+y whether main checkout is protected - unclear whether worktree is dirty - unclear what to do after approval - unclear difference between revert/abandon/keep PART 5 — Fix only tiny usability blockers Allowed fixes: - label text - button text - refresh after action
+~ missing empty states - bad error message - path display truncation - Start Here checklist wording - QUICKSTART wording - doctor/start script message clarity - copy smoke command wording Not allowed: - new subsystem - route rewrites - provider changes
+~ extemal planner/Hermes work - big UI redesign PART 6 — Validation Run: cargo fmt cargo check -p gigstack-core -p gigstack-daemon If Rust changed: RUST_TEST_THREADS=1 cargo test -p gigstack-core worktree lib --jobs 1 RUST_TEST_THREADS=1 cargo
+
+2 test -p gigstack-core run —lib --jobs 1 RUST_TEST_THREADS=1 cargo test -p gigstack-core goal_worker -ib --jobs 1 RUST_TEST_THREADS=1 cargo test -p gigstack-core storage --lib --jobs 1 Do not run cargo clean. Final report: - doctor result - launcher result
+= UI workflow result - dogfood_run_id - worktree id/path - edit_action_id - checkpoint id - diff result - Run & Debug result - revert/abandon result - friction found - fixes applied - validation results - confirm no GigAPI/OpenRouter/LM Studio/Hermes/exteral
+hamess changes Definition of done: GigStack can be launched and used like a normal daily tool to perform one safe self-improvement workflow, with only minor friction remaining.
+
+GGigstack_ (running...)
+
+.
+ww i =o oc=
+= ody Seon Sa A Oe lt

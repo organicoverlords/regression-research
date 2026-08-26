@@ -1,0 +1,28 @@
+BB Windows Powershell x + -
+
+Router Live Log - Press Ctrl+C to stop
+
+Tailing: C:\Users\Lauri\Desktop\merged_gigapi_full\Logs\router—live. log
+Time: local system time
+Format: compact v3; set ROUTER_LIVE_LOG_SHOW_ROUTES=1 for route rows
+
+[15.30.09.838] START Router live log started format=v3
+
+[15:32:42] ROUTE test-re Hermes Llama 3.1 70B
+
+[15:32:44] OK a7Uf968 OpenCode? medium Llama 3.3 70b Versatile 38ms 16 tok —tool_call.
+[15:32:44] FAIL 279334 Node/JS API cli.. Llama 3.3 70b Versatile Ums 2 tok unknown
+[15:32:44] STOP 279334 cli Llama 3.3 70b Versatile ums 2 tok invalid_request
+[15:32:57] ROUTE test-re Hermes Llama 3.1 708
+
+[15:32:59] OK S9bacbl OpenCode? medium Llama 3.3 70b Versatile 37™ms 16 tok —_tool_call
+[15:32:59] OK 3aSbffF Node/JS API cli.. Llama 3.3 70b Versatile gms 24 tok text
+[15:32:59] FAIL  44b823 Node/JS API cli... Llama 3.3 70b Versatile 12ms 2 tok unknown
+[15:33:00] STOP FUb823 cli Llama 3.3 70b Versatile 12ms 2 tok invalid_request
+[15:33:20] ROUTE test-re Hermes Llama 3.1 708
+
+[15:33:21] OK @cacdcf OpenCode? medium Llama 3.3 70b Versatile  42ms 16 tok —_tool_call
+[15:33:21] FAIL e@5cbf9 Node/JS API cli... Llama 3.3 70b Versatile 8ms 2 tok unknown
+[15:33:21] STOP e@5cbf9 cli Llama 3.3 70b Versatile &ms 2 tok invalid_request
+
+14:48:59 success nvidia Mistral Small 4 274k 0 274K = 25014

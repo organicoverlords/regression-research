@@ -1,0 +1,11 @@
+igStack - Settings
+
+TRUNCATION
+
+None
+
+param A (e.g. max_messages / max_chars / head_messages)
+
+param B (tail_messages for head_tail)
+
+Save

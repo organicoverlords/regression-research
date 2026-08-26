@@ -1,0 +1,1 @@
+Router Dashboard / Live Model Performance. Visible performance cards, generation-TPS and latency graphs, Recent Model Failures, Model Comparison, live request-flow counters, route graph and Recent Flows. Many colored model/provider failures and successes appear in the tables. Separate timestamped occurrence of repeated routing/model failure telemetry.

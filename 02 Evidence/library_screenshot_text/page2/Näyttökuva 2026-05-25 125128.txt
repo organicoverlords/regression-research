@@ -1,0 +1,56 @@
+Manual Order Suggested Order
+
+@ Show unavailable models Refresh context metadata
+
+(Manual orders authotative for routing.
+
+mistral-targe-3-675b-instruct-2512 isla -9penaity
+Imtai#SO Speed#9 40rpm 258Kcontaxt mas) 761 tye 627% success
+
+mistral-small-4-119b-2603 wisi -1 penalty
+Intel #50. Speed #5 256K context miss) 2777 tps 908% success
+
+Kimi-k2.6 ovicia -3 penatty
+Intel #60 Speed #9 40rpm 256Kcontext mwas) 1001 tps 63% success
+
+deopseek-vé-pro "visa -S patty
+Intel #50 Speed #9 40‘pm iMeontext mss) 424 tps 223% success
+
+nemotron-3-super-120b-a12b ®Wisi2 -5 penalty
+Intel #50 Speed#9 40mm iMcontoxt ema) 475 tps 408% success
+
+deepseek-v4-flash visa -8 penaty
+Intel #60 Speed #5 1M context iss) 161 tps 15.4% success
+
+MiniMax M2.7 (NV) ovicia -8 penalty
+Intel #3 Speed #9 40rpm 200K context mass) 776 tps 363% success
+
+‘nemotron-3-nano-30b-a3b isa
+Intel #60. Speed #9 40rpm 256K context mas) 3053 tps 98.7% success
+
+‘nemotron-3-nano-omni-30b-a3b-reasoning "vids
+
+Intel #50 Speed #5 256K context men) — tps — success
+
+lama-3.3-nemotron-super-49b-v1.5 sia,
+
+Intel #50 Speed #5 128K context ranty eras tervi mesa resicasd BAG tps 96% success
+
+lama-3.3-nemotron-super-49b-vi. visis
+Intel #50 Speed #5 128K context mass) 51.1 tps 100% success
+
+mistral-nemotron svicia
+Intel #60 Speed #5 128K context wooo — tps — success
+
+«
+«
+«
+«
+«
+«
+«
+«
+«
+«
+«
+«

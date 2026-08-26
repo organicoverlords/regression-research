@@ -1,0 +1,44 @@
+«PowerShell: QO
+
+T3 Code General Greeting _agent-workspace Heyevdae = oF ss
+
+2 catek HERMES GOAL
+
+hi
+build @ 3d mario clone in rust
+‘agent-workspace x Failed
+Genaral Greating om c0
+dello.
+
+Visual Office prototype B® x
+
+It looks Like Hermes isn't configured yet -- no
+
+p Pe np API keys or providers found.
+tency Tok/s Hermes goal Pig meee
+2ms 342 Thread: 2946aae. oe as eas
+lodel — +N-M See % tut
+puend-3_ 8/2 ye ¥ Hermes Setup — Non-interactive mode
+Task:— g
+Lat — Step:—/ o No interactive TTY detected for the first-run
+Beal setup prompt.
+atus: — Busy: ® Hermes exited recently for this goal. Fix Hermes contig, then start a new /goal ‘The interactive wizard cannot be used here.
+hread: — Step: -/—
+Configure Hermes using environment variables
+or config command:
+Bm Codex penal ot hermes config set model.provider custom
+codex 5 hermes config set model.base_url http://loc
+Btency —_Tok/s. alhost :8080/v1
+Tams 489 hermes config set model.default your-model-
+lodel — +N/-M bee
+‘penAlol 22/4
+(Or set OPENROUTER_API_KEY / OPENAT_API_KEY in
+your environment.
+~ ~ Run ‘hermes setup" in an interactive terminal
+arven to use the full wizard.
+New thread
+o-dev GI freell... - qe. * Error: Hermes exited recently for this goal. Fix Hermes
+
+config, then start a new /goal.
+
+6 Local checkout master

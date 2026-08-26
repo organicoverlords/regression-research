@@ -1,0 +1,24 @@
+aon n en een scene ces Ce OE OE OEE IEEE
+workflows unless explicitly asked.
+
+- Never run git reset’, git clean’. ‘git restore’, “git rebase’,
+amend, or discard changes unless explicitly approved.
+
+- On Windows/PowerShell, do not use Unix flags like "Is -I
+Childitem” or “dir
+
+- Do not print tool commands as prose: either run them or summarize
+
+‘git commit —
+
+use “Get-
+
+their result.
+- Never call project new if any state file exists, claim you'll create an
+existing file, or rewrite state files without explicit ask.
+
+Explored 4 reads
+
+Shell Check git status for dirty tree summary
+
+Now let me check if any of the files reference specific paths for the tiny scan:

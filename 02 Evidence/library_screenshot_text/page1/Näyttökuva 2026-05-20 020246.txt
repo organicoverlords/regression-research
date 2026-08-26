@@ -1,0 +1,74 @@
+How to use SSH keys?
+
+Create a new repository
+
+git clone git@gitlab.com:finaldope/t3code-private.git
+cd t3code-private
+
+git switch --create main
+
+‘touch README.md
+
+git add README.md
+
+git commit -m “add README"
+
+git push --set-upstream origin main
+
+Push an existing folder
+Go to your folder
+
+cd existing_folder
+
+Configure the Git repository
+
+git init --initial-branch=main --object-format=sha1
+
+git remote add origin git@gitlab.com:finaldope/t3code-private.git
+git add .
+
+git commit -m “Initial commit"
+
+git push --set-upstream origin main
+
+Push an existing Git repository
+Go to your repository
+cd existing_repo
+Configure the Git repository
+git remote rename origin old-origin
+git remote add origin git@gitlab.com:finaldope/t3code-private.git
+
+git push --set-upstream origin --all
+git push --set-upstream origin --tags
+
+&
+
++
++
++
++
++
++
++
++
+
+Upload File
+
+New file
+
+Add README
+
+Add LICENSE
+
+Add CHANGELOG
+Add CONTRIBUTING
+Set up CI/CD
+
+Add Wiki
+
+Configure Integrations
+
+Created on
+May 19, 2026
+
+<

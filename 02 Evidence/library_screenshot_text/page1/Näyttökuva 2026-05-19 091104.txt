@@ -1,0 +1,20 @@
+~ Never say you will create a file that already exists.
+- Never rewrite existing state files unless the user explicitly asks.
+- Never read .env files.
+- Never create release workflows unless requested.
+
+Shell Check if PROJECT.md exists
+
+Shell Check if TASK.md exists
+
+Shell Check if repomap exists
+
+Shell Check if NOTES.md exists
+
+Detected new project. No state files found (PROJECT.md, TASK.md, .repomap, NOTES.md all missing).
+
+I can create PROJECT.md, TASK.md, .repomap, and NOTES.md with the default templates.
+
+Proceed? (yes/no — or tell me your goal)
+
+Build ‘qwen3.5-4b-claude-4.6-opus-reasoning-...

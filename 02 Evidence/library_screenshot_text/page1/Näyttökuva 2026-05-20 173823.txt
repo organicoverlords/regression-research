@@ -1,0 +1,195 @@
+Time
+
+20.5.2026 klo 14.21.12
+
+20.5.2026 klo 14.21.09
+
+20.5.2026 klo 14.13.46
+
+205.2026 klo 14.13.37
+
+205.2026 klo 14.11.37
+
+20.5.2026 klo 14.11.29
+
+20.5.2026 klo 14.11.23
+
+20.5.2026 klo 14.10.57
+
+20.5.2026 klo 14.1052
+
+20.5.2026 klo 14.10.50
+
+20.5.2026 klo 14.10.33
+
+20.5.2026 klo 14.10.26
+
+20.5.2026 klo 13.50.49
+
+20.5.2026 klo 13.50.42
+
+20.5.2026 klo 13.40.22
+
+Status
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+© success
+
+e success
+
+© success
+
+© success
+
+© success
+
+Provider
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+openai/gpt-oss-120b
+
+155
+
+222K
+
+247K
+
+213K
+
+49K
+
+155
+
+49K
+
+ATK
+
+rot
+
+27K
+
+27K
+
+3
+
+134
+
+128
+
+87
+
+Total
+
+5.1K
+
+2.7K
+
+2.7K
+
+242
+
+47K
+
+41K
+
+27K
+
+27K
+
+5005
+
+4076
+
+2655
+
+2073
+
+757
+
+108
+
+824
+
+4001
+
+805
+
+Latency
+
+1642ms
+
+5316ms
+
+3501ms
+
+2427ms
+
+2231ms
+
+4745ms
+
+5142ms
+
+1154ms

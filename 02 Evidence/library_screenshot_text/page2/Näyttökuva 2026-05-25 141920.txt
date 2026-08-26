@@ -1,0 +1,41 @@
+@ show unavailable modeis = Hefresn context metacata:
+
+I Manual order is authoritative for routing.
+
+10
+
+mistral-large-3-675b-instruct-2512 nvidia -5 429 penalty
+Intel #50 Speed#9 40rpm 256K context inva) 803 tps 633% success
+
+mistral-small-4-119b-2603 nvidia
+Intel#50 Speed #5 256K context iid) 3394 tps 89% success
+
+KimI-k2.6 nvidia -2 429 penalty
+Intel #50 Speed #9 40rpm 256K context inca) 1053 tps 582% success
+
+deepseek-v4-pro nvidia -2 429 penalty
+Intel#50 Speed #9 40rpm 1Mcontext iwiasd 616 tps 29.7% success
+
+nemotron-3-super-120b-a12b nvidia -3 429 penalty
+Intel #50 Speed#9 40rpm iMcontext (wise) 503 tps 443% success
+
+deepseek-v4-flash nvidia -3 429 penalty
+Intel #50 Speed #5 1M context (was) 277 tps 16.7% success
+
+MiniMax M2.7 (NV) svicia -3 429 penalty
+Intel#3 Speed #9 40pm 200K context imwaa) 742 tps 342% success
+
+nemotron-3-nano-30b-a3b nvidia
+Intel #50 Speed #9 40rpm 256K context mas) 3016 tps 98.8% success
+
+nemotron-3-nano-omni-30b-a3b-reasoning nvidia
+Intel #50. Speed #5 256K context maa) — tps —success
+
+Uama-3.3-nemotron-super-49b-V1.5. nvidia
+Intel #50 Speed #5 128K context famiy.infered.trom.vi_wide mosses) 246 tps
+
+96% success
+
+ve Manual Urcer
+
+6/6/\/8/8)\|8)|6)8| 8) 6/86

@@ -1,0 +1,33 @@
+wispbyte.com/client/servers/18f58bd2/console om
+
+e@enten
+
+Not Found x
+
+Missing Main File
+Your server is looking for a file that doesn't exist
+
+What's happening?
+Your server is trying to run a file that either doesn't exist or isn't properly
+configured as the main startup file.
+
+How to fix this:
+
+Go to the Files section
+Navigate to the Files tab in your server management panel
+
+Upload your files
+
+If you haven't uploaded your project files yet, upload them using the file
+manager
+
+Set your main file
+Click the three dots (---) next to your main file and select "Use on startup"
+
+a x ous GEBERRY
+
+3S
+
+[tas
+
+Ie.

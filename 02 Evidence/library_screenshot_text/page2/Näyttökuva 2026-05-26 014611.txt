@@ -1,0 +1,27 @@
+Gigstack
+
+‘Agent mode «I can read/write/edit files, run commands, use git, and run checks.
+
+You
+
+‘You are working in the GigStack repo only: C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\gigstack Task: Fix the launcher scripts so start-gigstack,ps1 supports -NoBrowser and can never open multiple browser tabs from one script run. Important:
+DO NOT launch anything. DO NOT start the daemon. DO NOT open a browser. DO NOT call Start-Process during validation. DO NOT run cargo run. DO NOT run .\scripts\start-gigstack.ps1. DO NOT run .\scripts\create-gigstack-shortcut.ps1 if it
+executes/launches anything. Only edit files and run static syntax validation. Allowed files: - scripts/start-gigstack ps1 - scripts/create-gigstack-shortcut-ps1 only if quote escaping or shortcut target is broken - docs/QUICKSTART.md only for wording Forbidden:
+(C\Users\Lauri\Desktop\merged_gigapi_full - GigAPI / FreeLLMAPI changes - OpenRouter / LM Studio changes - Hermes / external hamess changes - frontend framework changes - cargo clean - commits / merges - broad refactors Required behavior for
+scripts/start-gigstack.ps1: 1. Add params near the top: param( [switch]$NoBrowser ) 2. Define URLs: $UL_URL = *httpy//127.0.0.1:4877/workspace.html” $HEALTH_URL = “http://127.0.0.1:4877/api/health” 3. Add browser-open guard: $scriptopenedBrowser =
+Sfalse function Open-GigStackUiOnce { if (SNoBrowser) { Write-Host "NoBrowser set; not opening Ul." -ForegroundColor Gray return } if ($scriptiopenedBrowser) { return } $scriptopenedBrowser = $true Write-Host “Opening GigStack Ul: SUL_URL" -
+ForegroundColor Cyan Start-Process $UL_URL } 4. Replace every direct browser open / Start-Process $UI_URL / Start-Process browser call with: Open-GigStackUiOnce 5. Never call Open-GigStackUiOnce inside a retry loop more than once. Correct pattern: - wait
+for health in loop - after health succeeds, call Open-GigStackUiOnce once 6. If daemon is already healthy: - print “GigStack already running" - do not start another cargo run - call Open-GigStackUiOnce once, unless -NoBrowser is set 7. f daemon is not
+healthy: - start cargo run -p gigstack-daemon normally - wait for health - call Open-GigStackuiOnce once after health succeeds, unless -NoBrowser is set 8. Shortcut script: Check scripts/create-gigstack-shortcut.psi. It should create a shortcut to:
+Powershell.exe -NoExit -ExecutionPolicy Bypass -File "<repo>\scripts\start-gigstack ps1” It must not run start-gigstack.ps1 during shortcut creation. Fix quote escaping if needed. Allowed validation commands ONLY: powershell -NoProfile Command "Snull =
+Iscriptblock]:Create((Get-Content .\scripts\start-gigstackps1 -Raw)); ‘start syntax ok” powershell -NoProfile -Command “$null = [scriptblock]:Create((Get-Content .\scripts\create-gigstack-shortcut.ps1 Raw); ‘shortcut syntax ok" Do NOT run the scripts
+themselves. Final report: - files changed - show the final Open-GigStackiOnce helper - confirm all direct browser opens were replaced - confirm shortcut creation script does not launch the app - syntax validation results - confirm no daemon/browser/app was
+launched - confirm no GigAPI/OpenRouter/LM Studio/Hermes/external hamess changes
+
+tool calls:0
+
+<|tool_calls_section_begin|> <|tool_call_begin|> chatcmpl-tool-bf423a7de77b44c11988dia1aaac2a0b<{tool_call_argument_begin|> "path": “scripts/start-gigstack.ps1"}<[tool_call_end]> <|tool_calls section_end|>
+
+~ Review changes in Diff tab
+
+Copy Saveto Workbench Create Task Extract Commands Collapse

@@ -1,0 +1,29 @@
+Create a new dataset repository
+
+Arepository contains all dataset files, including the revision history.
+
+Owner Dataset name
+
+finaldoper vi/
+
+Start from an existing dataset
+
+License
+
+License
+
+Public
+'®= “Anyone on the internet can see this dataset. Only you can commit.
+
+5 &] Private
+
+Only you can see and commit to this dataset.
+
+© Tip: Install the official HF CLI Skill so your Al agents can manage datasets directly.
+
+Once your dataset is created, you can upload your files using the web interface or git.
+
+You already created this dataset repo: finaldoper/huggingmes-backup:
+finaldoper/huggingmes-backup
+
+Create dataset

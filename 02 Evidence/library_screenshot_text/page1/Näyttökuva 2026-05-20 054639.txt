@@ -1,0 +1,115 @@
+T3 Code --- description: "Initialize or resume project sta... t3code
+» oa]
+*8code :
+=--description:". 2mago a Directories
+ie © anset
+% © AppData
+»
+© apps
+»
+© beyblade-engine
+Pushed. Final commit lo; © Beyblade-game
+© beyblade-logs
+Desktop ‘9Fcb494a Finalize Hen .
+_ ede0es2a Add saved in © bin
+Working :
+cFo0bc#2 Wire Hermes (yg
+Working ‘Fce0091c Add Hermes g
+40723463 Add Hermes g [~) config_backup
+innit ‘74008656 Add Hermes g
+edda373e Add Hermes ¢ © Y Navigate Enter Select
+
+50356570 Add Hermes go.
+
+hermes-render
+
+Backspace Back Ese Close
+
+Xviweyviia
+
+‘Add Ctrl Enter
+
+Open in Explorer
+
+~ .ermesGoal/HermesGoalManager:ts +283
+
+we evaurune
+
+10
+a
+12
+13
+14
+15
+16
+7
+18
+19
+20
+a
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+
+Bens 49 = 6
+
+x
+
+import * as Context from “effect/Conte
+import * as DateTime from “effect/Date
+
+import * as Effect from
+
+import * as Queue from "effect/Queue”
+
+import * as Ref from “effect/Ref”
+
+effect /Effect’
+import * as Layer from “effect/Layer”
+
+import * as Stream from “effect/Stream
+
+import { spawn, type ChildProcess
+import
+
+type HermesGoalEvent.
+
+type HermesGoald,
+
+type HermesGoal Input.
+
+type HermesGoalStart Input.
+
+type HermesGoalStopInput.
+
+type Threadtd.
+
+from “@t3tools/contracts”
+
+const ISO_STRING_LENGTH = 24
+
+fr
+
+const nowIso = Effect.map (DateTime. now,
+
+interface ActiveGoal
+readonly threadid: ThreadId:
+
+readonly process: ChildProcess.
+
+readonly stdinQueue: Queue. Queue<str
+
+type ActiveGoals = Map<string, Actives:
+
+function makeEvent
+goalld: HermesGoaltd,
+threadId: ThreadId

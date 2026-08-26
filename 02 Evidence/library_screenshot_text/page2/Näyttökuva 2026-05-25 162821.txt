@@ -1,0 +1,65 @@
+Fallback chain
+
+Contigure active fallback chain and inteligent routing.
+
+Manual Order Suggested Order
+
+@ show unavailable models Refresh context metadata Reset to Known-Good Default
+
+(i Manual orders authotatve fr routing.
+
+mistral-small-4-119b-2603 vista
+Inmet #50 Speed #S 256K context meses 9799 tps 889% success
+
+‘istral-large-3-675b-instruct-2512 iis
+Intel $0 Speed¥9 4Drom 256K contert wits) G24 tps 627% auecese
+
+Kimi-k26 cia
+Inmet #80 Speed#9 40 rpm 256K context miss) 1060 tps 567% success
+
+deepseek-v4-pro nvisi2
+Intel #80 Speed#9 40rpm 1M context mass) @58 tps 27.1% success
+
+‘nemotron-3-super-120b-a12b iss
+Intel #80 Speed#9 40rpm 1M context puss) $29 tps 435% success
+
+deepseek-vé-flash mis
+Inmet #60 Speed#S. 1Mcontext mas) 310 tps 167% success
+
+MiniMax M27 (NV) ovia
+Intel #3 Speed #9 40pm 200K context mss) 729 tps 383% success
+
+‘nemotron-3-nano-30b-a3b isis
+Intel #60 Speed¥9 4D rom 256K contert miss) 2949 tps 988% sce
+
+‘nemotron-3-nano-omni-30b-a3b-reasoning cis
+Intel #80 Speedi#S 256K context mata — tps — succes
+
+lama-3.3-nemotron-super-496-V15 ovis
+
+7° imal #50 Speed#S 128K content tay end tennis nosis) 246 tp 96% success
+
+ama-3.3-nemotron-super49b-v1 nia
+
+11 intl so Speed #5 126K context ts $1.4 tps 100% aucceee
+
+®. Kuvekaappaustybkal
+
+‘mlstral-nemotron 2
+
+72 mato Speed #5 128K context ses — tps — success
+
+Nayttékuva kopioitu I
+Tallennettu automaatt
+
+[Lama 4 Maverick (NV) oicis
+
+75 imatsit speed#6 40epm 128K defaut comet tase 17Htps 538% success
+
+6/| 8 6 | 8| 8| 6| 6 | 6) 8| 8 4 | 6) 8
+
+M
+
+lama-3.3-70b-Instruct
+
+~@*r Besvgs ws

@@ -1,0 +1,63 @@
+T3 Code
+
+‘agent-workspace
+General Greeting
+
+General Chat
+General Greeting
+
+Introductory greeting
+
+(© Working hi
+hi
+e
+beyblade-engine
+Stop Conversation
+Local
+Desktop
+t3-test-project
+
+Initial Greeting
+server
+
+New thread
+server
+
+New thread
+
+hermes-dev
+
+certs
+
+just now
+
+General Greeting _agent-workspace
+
+Hello.
+
+%
+
+© Hermes exited recenty for this goal Fix Hermes contig, then start a new /goal.
+
+Gi freell.. - qwe.
+
+Local checkout
+
+A
+
+master
+
+Heyeyee® - 2° Ke
+
+HERMES GOAL
+
+make a game about mario in 3d in rust
+x Failed
+
+It looks Like Hermes isn't configured yet -- no
+API keys or providers found.
+
+Run: hermes setup
+
+Error: Hermes exited recently for this goal. Fix Hermes
+config, then start a new /goal.

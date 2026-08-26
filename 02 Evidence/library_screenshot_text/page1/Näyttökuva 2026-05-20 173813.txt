@@ -1,0 +1,17 @@
+© GigApi Playground Keys Fallback History Analytics
+
+REQUESTS SUCCESS RATE INPUT TOKENS OUTPUT TOKENS AVG LATENCY EST. SAVINGS
+19254 81.7% 382.9M 1.2M 14757 ms $1166.19
+P50 LATENCY P95 LATENCY P50 TPS PQs TPS
+3599 ms 51393 ms 3855 16961
+Requests by provider ‘Avg latency by provider
+20000 5000ms
+415000 2000ms
+40000 3000ms
+o ——— oms
+rwidia ‘openrouter google 9104 nvidia ‘openrouter google 9104
+Requests over time
+6000
+4500
+
+3000

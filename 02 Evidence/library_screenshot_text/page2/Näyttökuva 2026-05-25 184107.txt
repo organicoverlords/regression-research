@@ -1,0 +1,1 @@
+Router Dashboard. Visible NVIDIA request-usage counters, Live Model Performance, LIVE REQUEST FLOW with success/failure/tool-call counters, route graph, Recent Flows and Client Fingerprinting & Management. Several model/provider attempts and mixed statuses are visible. Separate timestamped occurrence of router/fallback telemetry.

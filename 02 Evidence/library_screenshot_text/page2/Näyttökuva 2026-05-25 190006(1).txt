@@ -1,0 +1,70 @@
+R,
+Handoff Verification Instructions
+Crypto Earning Strategies
+Hermes API 404 Error
+Hermes Agent Installation
+Ubuntu Boot Fix
+
+Hermes Queue and Logic
+
+Designing Hermes Integration
+
+Longest context window for codi..
+
+-AWINDOWS\systemaz\cmd, X +
+
+Windows PowerShell
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell {
+GigAPI Simple Launcher
+Repo: C:\Users\Lauri\Desktop\me
+
+Backend: http://localhost : 3002
+UI: http://localhost :5180
+
+Starting...
+Starting backend. .
+Starting frontend...
+Waiting for services to be reac
+Opening browser. ..
+
+Starting router log tail...
+
+GigAPI started!
+Close this window to stop all <
+PS C:\Users\Lauri\Desktop\merge
+
+BB cawinpows\systemaz\md, X + v o x
+
+© injected env (7) from ..\.env
+
+Database initialized at C:\Users\Lauri\Desktop\merged_gigapi_full\server\data\freeapi.db
+
+[18:57:41.792] [info] [FreeLLMAPI] Server Listening
+
+[1s: [info] Port: 3002
+
+(1s: [info] UI: http://Localhost:3002/
+
+[18:57:41.806] [info] Ping: http://localhost:3002/api/ping
+
+[18:57:41.807] [info] Proxy: http://localhost:3002/v1/chat/completions
+
+(18: [info] Router state: http://localhost :3002/api/free-Llm-router/state
+
+(18: [info] Router scores: http: //localhost : 3002/api/free-llm-router/scores?taskKind=coding
+
+[18:57:41.809] [info] Router runs: http://localhost :3002/api/free-l1m-router/runs?limit=100
+
+[18:57:41.809] [info] Bind: 0.0.0.0 (LAN: 169.254.125.251, 192.168.0.127)
+
+[Health] Health checker disabled by default. Set ENABLE_HEALTH_CHECKS=true to enable
+
+[18:58:16.896] [info] lm stream end requestId=007294d9-9432-UH11-a3a9-U51U9b62290a taskKind=exploration route=nvidia/mo
+onshotai/kimi-k2.6 attempt=1 classification=ok_text reason=delta_content_present chunks=5 firstChunkMs=9293 finalChunkMs
+=14188 contentLen=114 sawDeltaContent=true sawDeltaToolCalls=false finishReason=stop parserErrors=0
+
+[18:58:16.898] [info] proxy stream ok request Id=00729Ud9-9432-411-a3a9-45149b62290a taskKind=exploration route=nvidia/m
+oonshotai/kimi-k2.6 attempt=1 wallMs=14190 inTok=44983 outTok=29 firstTokMs=9282

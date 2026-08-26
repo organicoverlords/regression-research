@@ -1,0 +1,139 @@
+File Edit Selection View Go Run
+88 Alll sessions
+
++ New space
+
+Add folder
+
+Spaces ae
+
+Fixing Telemetry Dashboard Issues ~
+
+\W Fixing Telemetry Dashboard Issues
+‘5m ago
+
+AW’ Gigastack Project Overview
+6h ago
+
+AW. You are working in the GigStack Rust rep...
+Jdago
+
+AW Gigstack Worktree Isolation
+Idago
+
+AW Telemetry Ul Polish and Fixes
+Jdago
+
+AW Improve Router Performance Graph
+Jdago
+
+AW’ Continue the unfinished Analytics succes...
+2d ago
+
+AW User Greeting
+2d ago
+
+AW New Cascade
+2d ago
+
+‘%& Review attachment 1779668262331-2r7y...
+O 2d ago
+
+) MCP servers a
+
+Terminal Help
+
+\W Fixing Telemetry Dashboard Issues X > smoke-workspace-stats.ps1
+
+aw
+
+©) Agent Editor € > Q Search sessions... Ctrl + Shift + A
+Fixing Telemetry Dashboard Issues
+
+48 workspace-stats,js (0) workspace-stats.css
+
+Thought fo
+1/18
+
+© PART 1 — Baseline
+
+@ Part 2— Audit current provider/router code
+16 more
+
+Thought fo
+
+6@ Fast Context Find how /api/agent/chat/stream currently calls provider/model backend in the daemon main.rs. Also find providers and rout... in 320
+
+Thought
+Read
+
+Thought
+
+Searched st
+
+emon)
+Thought
+Read mai
+
+Thought
+
+Searched fn
+
+Thought fo
+Now | have a clear picture of the current architecture. Let me create the native router MVP.
+2/18
+
+1 more
+© PART 2 — Audit current provider/router code
+© PART 3 — Design Native GigStack Router MVP
+
+15more
+
+‘Ask anything (Ctrl+)
+
++ © Code Kimi K26
+
+Weesade 09 @
+
+«</> workspace-stats html @+-O-
+
+ea@
+02 gM eaRe
+
+Explorer
+
+™ gigstack (Workspace)
+Y © aigstack
+YO crates
+Y © aigstack-daemon
+vO web
+“> providershtml
+<P> router htm!
+“<P> session.html
+<P> settingshtml
+<P> toolshhtml
+(0) workspace-chat.css
+“<> workspace-chat html
+¥8 workspace-chatjs
+Js workspace-dogfoodjs
+0) workspace-stats.css
+<> workspace-stats.html
+48 workspace-statsjs
+J workspace-tool-health,js
+0) workspace-v2.css
+<> workspace-v2.html
+38 workspace-v2,js
+Js workspace-visual-office,js
+(0) workspace.css,
+<> workspace html
+4 Cargo.toml
+> © gigstack-ui
+> Ce docs
+\ Ge scripts
+>. create-gigstack-desktop-shor
+>. create-gigstack-shortcutps1
+>. doctor-gigstackps1
+>. report-provider-telemetry.ps1
+>. smoke-attachments.ps1
+> Outline
+> Timeline

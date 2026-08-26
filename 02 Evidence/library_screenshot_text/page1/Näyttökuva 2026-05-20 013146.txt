@@ -1,0 +1,23 @@
+their result.
+- Never call project new if any state file exists, claim you'll create an
+existing file, or rewrite state files without explicit ask.
+
+Explored 4 reads
+Read PROJECT.md
+Read TASK.md
+Read .repomap
+Read NOTES.md
+
+Shell Check git status for dirty tree
+
+Detected existing project.
+
+Field Value
+
+Goal Project initialization
+
+Last note _Initialized project state.
+
+Git status 23 modified files (client & server), many untracked files including .repomap, NOTES .md, PROJECT .md, TASK.md
+
+Recommended: Review the current task scope and confirm next steps

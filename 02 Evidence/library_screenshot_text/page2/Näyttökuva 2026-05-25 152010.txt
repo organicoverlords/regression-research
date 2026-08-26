@@ -1,0 +1,50 @@
+BB Windows Powershell
+
+x
+
+Router Live Log - Press Ctrl+C to stop
+
+Tailing: C:\Users\Lauri\Desktop\merged_gigapi_full\Logs\router—live. log
+Time: local system time
+Format: compact v3; set ROUTER_LIVE_LOG_SHOW_ROUTES=1 for route rows
+
+[15.13.35.009]
+[15:18:57.593]
+[15:19:11.878]
+[15:19:22.678]
+[15:19:27.923]
+
+START
+Qa3el97
+6917685
+3939162
+‘TSfbUF6
+
+Router Live log started format=v3
+
+OK
+OK
+OK
+OK
+
+OpenCode?
+OpenCode?
+OpenCode?
+OpenCode?
+
+>
+>
+>
+>
+
+rrrer
+
+mistralai/mistral-lar...
+mistralai/mistral-lar...
+mistralai/mistral-lar...
+mistralai/mistral-lar..
+
+9.2s 27.8k tok text
+1m8.9s 19.Uk tok — tool_call
+7.95 21.Uk tok — tool_call
+5.0s 21.3k tok — tool_call

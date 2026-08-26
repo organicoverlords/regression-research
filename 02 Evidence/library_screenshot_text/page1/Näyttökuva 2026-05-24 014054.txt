@@ -1,0 +1,29 @@
+SELF-HOSTED - HERMES AGENT
+
+Open Hermes Agent — Open Terminal — #% ENV Builder —
+
+GATEWAY . MODEL
+
+‘ONLINE nvidia_nim/mistralai/mistral-
+
+large-3-675b-instruct-2512
+‘APL on port 8642
+
+orotectes Provider: auto
+
+RUNTIME TELEGRAM
+
+2m CONFIGURED
+
+Port 7861 Webhook
+
+BACKUP . KEEP AWAKE
+SUCCESS NOT CONFIGURED
+
+Uploaded Hermes state to finaldoper/huggingmes- Not configured
+
+backup
+
+At 13908
+
+Built by @somratpro

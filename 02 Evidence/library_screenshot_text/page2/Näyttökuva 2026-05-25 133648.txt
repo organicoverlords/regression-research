@@ -1,0 +1,91 @@
+»g
+
+[13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+(13.
+[13.
+
+29.
+29.
+29.
+29.
+29.
+29.
+29.
+29.
+29.
+29.
+29.
+29.
+30.
+30.
+30.
+30.
+30.
+
+3u.
+42.
+42.
+42.
+U6.
+U6.
+U6.
+us.
+us.
+us.
+us.
+us.
+03.
+63.
+21.
+21.
+21.
+
+req=2e86ell8e
+e86elIBe
+eB6elIBe
+req=Icatidfc2
+req=lcalidfc2
+
+BR
+
+req=492dab0e
+req=92dab0e
+
+QD @ ocathost:5180/playground Acie &
+
+vidia/mistralai/mistral-small--119b-2603 event=route_selected class=unknown latency=- tokens=- err=
+vidia/mistralai/mistral-small--119b-2603 event=request_completed class=ok_native_tool_call latency=7734ms tokens=~10U34 err=
+model=unknown event=request_received class=unknown latency=- tokens=- err=
+
+vidia/mistralai/mistral-small-4-119b-2603 event=route_selected class=unknown latency=- tokens=- err=
+vidia/mistralai/mistral-small-4-119b-2603 event=request_completed class=ok_native_tool_call latency=3810ms tokens=~10500 err=
+nknown event=request_received class=unknown latency=- tokens=- err=
+
+model=nvidia/mistralai/mistral-small-4-119b-2603 event=route_selected class=unknown latency=- tokens=- err=
+vidia/mistralai/mistral-small--119b-2603 event=request_completed class=ok_native_tool_call latency=20Ulms tokens=~10558 err=
+nknown event=request_received class=unknown latency=- tokens=- err=
+
+vidia/mistralai/mistral-small-4-119b-2603 event=route_selected class=unknown latency=- tokens=- err=
+vidia/mistralai/mistral-small--119b-2603 event=request_failed class=unknown latency=9Ums tokens=~11003 err=rate_limited
+vidia/moonshotai/kimi-k2.6 event=route_selected class=unknown latency=- tokens=- err=
+
+vidia/moonshotai/kimi-k2.6 event=request_failed class=unknown latency=1511Ums tokens=~11003 err=timeout
+vidia/deepseek-ai/deepseek-v-pro event=route_selected class=unknown latency=- tokens=- err=
+vidia/deepseek-ai/deepseek-vi-pro event=request_completed class=ok_native_tool_call latency=32916ms tokens=~11904 err=
+nknown event=request_received class=unknown latency=- tokens=- err=
+
+vidia/deepseek-ai/deepseek-v-pro event=route_selected class=unknown latency=- tokens=- err=

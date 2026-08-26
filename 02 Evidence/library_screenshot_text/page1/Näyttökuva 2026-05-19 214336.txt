@@ -1,0 +1,14 @@
+This codebase has features for automatic nvidia NIM model discovery for
+coding capable agents. I need you to figure out how it works, and why it
+does not list https://build.nvidia.com/qwen/qwen3.5-122b-a10b in the
+available models currently
+
+Explored 1 read, 2 searches
+
+Glob / pattern="*/*py
+Read deepseek python 20260515_78fc57.py limit=200
+Glob / patteri
+
+‘Prnim*.py
+
+Ask anything

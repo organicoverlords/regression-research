@@ -1,0 +1,14 @@
+Q
+
+@ localhost:5173
+
+Bl
+
+Sivustoon ei saada yhteytta
+localhost kieltaytyi muodostamasta yhteytta.
+
+Kokeile seuraavia toimenpiteita:
+* Tarkista yhteys.
+* Tarkista valityspalvelimen ja palomuurin maaritykset.
+
+ERR_CONNECTION_ REFUSED.

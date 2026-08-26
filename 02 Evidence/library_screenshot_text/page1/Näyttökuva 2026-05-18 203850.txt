@@ -1,0 +1,43 @@
+github
+directory
+
+Release
+
+First:
+
+|. Print the current working directory.
+
+Tea ee ere lee oe ae
+
+eas leaded vga
+
+2. Verity repo root by checking for packagejson and git or AGENTS.md.
+3. Verify .github/workflows/release.yml exists.
+4. If it does not exist, stop and report the missing path.
+
+Classifi
+
+= Path
+cation
+
+Missing N/A
+
+Not .github/workflow
+
+Evidence
+
+github directory not
+found
+
+releaseyml not found —_Locally
+
+in github/workflows
+
+verifiable
+
+Create
+github/workflows and
+releaseyml
+
+Create release
+workflow file

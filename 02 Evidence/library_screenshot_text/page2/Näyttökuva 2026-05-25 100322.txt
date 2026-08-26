@@ -1,0 +1,13 @@
+LIVE REQUEST FLOW 10m 1h 24h
+
+I 7001 execution is caller-owned. FreeLLMAPI shows tool calls and tool-result follow-ups it observes.
+
+FLows SUCCESSFUL FAILED FALLBACKS. TooL CALLS Toot FOLLOW-UPS STALLED TOOLS AVG LATENCY
+6 4 2 te) 5 4 C1) 50203ms
+Request Flow Visualization
+
+Recent Flows
+
+Time Client Path Latency Tokens —_Classification/Error
+
+annazan unknown

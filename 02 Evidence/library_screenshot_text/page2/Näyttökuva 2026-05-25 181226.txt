@@ -1,0 +1,26 @@
+gigstack . Prjct state resume/bootstrap
+
+~\Desktop\agent...
+Edit workspace.html +76 -6
+New session
+Now I'll update the UI refresh logic to ensure consistency after key actions. Let me also update the Mission Control documentation.
+Resume project sta... & I=)
+Project state b..
+Edit workspace.html #14 -3
+1 Changed file +91 -10
+Quick greeting
+crates/gigstack-daemon/web/workspace.html 491 -10
+Resume project sta...
+Initialize or resume... continue
+Load more
+Explored 1 read
+
+| © Shelt The bash tool was called with invalid arguments
+
+Invalid request: assistant messages must include non-empty content or tool_calls
+
+help
+
+Invalid request: assistant messages must include non-empty content or tool_calls
+
+Build auto

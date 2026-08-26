@@ -1,0 +1,96 @@
+ed files
+
+Production.
+
+2? Newer & Faster Urv
+
+= Free Subdomain
+
+‘W Upgrade Now
+
+@ Server Node
+
+FREE-EU-RO-32
+
+is Server Port
+
+@ CPU Limit
+
+2 Getting started
+
+Welcome to Wispbyte!
+
+Thank you for choosing Wispbyte as your hosting
+provider. This guide will help you get started with
+our platform.
+
+To begin, navigate to the Create Server page and
+complete the required information fields.
+
+After providing the server name and description,
+you will need to select the appropriate Docker
+Image that corresponds to your project's
+nnn estan
+
+ae Up O4ue ORAM
+
+© 99.9% Uptime Guarantee
+
+© SLACompensation
+
+@ Server Location
+
+Romania
+
+@ Server URL
+
+http: //93.115.101.178:10468 (7
+
+2 Memory Limit
+
+0.5 GiB
+
+2. Will your server stay online, 24/7?
+
+Wispbyte is committed to providing reliable 24/7
+hosting services with a focus on user satisfaction
+rather than maximizing profits through
+advertisements.
+
+Unlike many hosting providers that impose
+excessive charges, Wispbyte was established with
+the mission to deliver genuine, unrestricted 24/7
+hosting solutions. Our primary objective is to
+support your projects with consistent uptime and
+reliable infrastructure.
+
+To maintain service quality and resource allocation.
+
+& Very fast NVMe Storage
+
+@ Lustom Vomain Support
+
+Priority Support
+
+@ Server Address
+
+93.115.101.178
+
+Ocmr—
+
++ Add Domain
+
+2 How do! install modules/packages?
+
+Installing additional modules and packages on your
+server is a straightforward process.
+
+Navigate to the Startup section of your server
+management interface.
+
+Locate the "Additional Node / Python Packages"
+configuration field and enter the names of the
+modules you wish to install.
+
+Enter module names separated by spaces, for
+example: "discord module2 module3"

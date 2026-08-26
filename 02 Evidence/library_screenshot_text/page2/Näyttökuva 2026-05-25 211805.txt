@@ -1,0 +1,13 @@
+© Sh
+
+SchemaError(Missing key
+at ("description").
+Please rewrite the input so it satisfies the expected schema.
+
+The bash tool was called with invalid arguments ~
+
+Thinking
+
+~ no Openkouter
+
+-no LM Studio

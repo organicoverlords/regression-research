@@ -1,0 +1,43 @@
+wie a we
+—— Yourwork / Projects | New project / Crest blonk project - ¢
+at Home .
+
+7 Create blank project
+
+> Ger Create a blank project to store your files, plan your work, and collaborate on code, among other things.
+
+EB) Work items. Project name
+
+Merge requests { t3code-private ) You don't have permission to use GitLab Duo Agent
+Platform in this project. Learn more.
+
+% To-Do List Must start with a lowercase or uppercase letter, digit, emoji, or underscore. Can also contain dots, pluses, dashes, or spaces.
+> Milestones
+Sj i Get access to GitLab Duo
+4 Snippets Project URL Project slug
+D Activity https://aitlab.com/ Pick a group or namespace ¥ |_| t8code-private 8& Who can grant you access
+: Contact a project Maintainer or group Owner
+a Gia Project deployment target (optional)
+x
+» Workspaces Select the deployment target a
+© Environments
+Swoperstone Visibility Level @
+p O & Private
+D Security > Project access must be granted explicitly to each user. If this project is part of a group, access is granted to members of the group.
+O internal &
+The project can be accessed by any logged in user except external users.
+@ Public
+
+‘The project can be accessed without any authentication.
+
+() Enable Static Application Security Testing (SAST)
+Analyze your source code for known security vulnerabilities. Learn more.
+
+() Enable Secret Detection
+‘Scan your code for secrets and credentials to prevent unauthorized access. Learn more.
+
+> Experimental settings
+
+2 Upgrade subscription
+Help
+- Collapse sidebar

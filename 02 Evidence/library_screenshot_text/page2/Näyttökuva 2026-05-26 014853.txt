@@ -1,0 +1,19 @@
+Request History
+
+Recent API calls in real-time. 25 50 100 200
+
+rime Status Provider Modal In Out Total TPS Latency Eror Debug
+01:48:30 success rmidla Uame-32-11b-vision-instruct 37K 66 «38K «091 72350me = Debog
+014824 enrol Wame-33-T0b-instruct 23K 0 23K TORS Sor [Pd8OMDSfaT-decS-ef Debug
+01817 geno ala Uame-32-906-vision-instruct 23K 023K 6003s Ear [FdGOMDSTaT-decs-er Debug
+014810 error ala ‘Mistral Small 4 23K 023K S2087ms ror [Pd8OMbSfa7-decs-er Debug
+014803 enor ail ‘Nomotron 3 Nano 23K 023K 8025s Sor [FeGOMDSFaT-decS- ef Debug
+014759 wero la emotron-3-nano-omni-30b-aSb-eas. 23K 23K — 2080s Sar [PdsGOMDSfaT-decS-ef Debug,
+01M7S2 error cla ‘Nomotron 3 Super: 23K 023K = SSOTE ms Sor [Pd8OMDSfaT-decS- ef Debug
+O1sT:45 error tila Uama-33-nemotron-super-49b-v15 23K 023K 8059s ror [PdGOMDSTaT-decs-ef Debug
+01738 enor ila Miniax M27 2K 023K «Ads Sr [Fd8OMDSfaT-decS-ef Debug
+o1arst enor ila KimiK28 23K 023K 4026s or [Pd8OMDSTaT-decs- er Debug
+17:24 error ail ictal Large 3 23K 023K 700s Sor [rd8OMbSfa7-decs-ef Debug
+01737 «success idl ictal Large 3 2eK 83 26K «148 STAs = Debug
+01:45:30 success idl Uame-32-906-vision-instruct 43K 80 44K 123 526me = pebug
+01:45:22 a cucnase _awila Kimi K26 ask 42 38K 810.——138ame = petwa
