@@ -8,8 +8,8 @@
     "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
     "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
   ],
-  "total_records": 76,
-  "bank_records": 72,
+  "total_records": 77,
+  "bank_records": 73,
   "candidate_only_records": 4,
   "counts": {
     "dispositions": {
@@ -17,18 +17,18 @@
       "DUPLICATE_MERGED": 0,
       "EPHEMERAL/DO_NOT_RECALL": 0,
       "HISTORICAL_DURABLE": 0,
-      "PROVISIONAL/NEEDS_EVIDENCE": 19,
+      "PROVISIONAL/NEEDS_EVIDENCE": 20,
       "REJECTED": 1,
       "SENSITIVE_EXCLUDED": 0,
       "SUPERSEDED": 20
     },
     "states": {
       "PROVEN": 49,
-      "PROVISIONAL": 22,
+      "PROVISIONAL": 23,
       "REJECTED": 1
     },
     "kinds": {
-      "correction": 11,
+      "correction": 12,
       "decision": 10,
       "fact": 5,
       "lesson": 41,
@@ -49,10 +49,10 @@
       "p3": 3,
       "p3-render-queue": 1,
       "regression-research": 3,
-      "response-quality": 6
+      "response-quality": 7
     },
     "sensitivity": {
-      "CLEAR": 76
+      "CLEAR": 77
     }
   },
   "records": [
@@ -2040,6 +2040,37 @@
       "retrieval_value": "REVIEW"
     },
     {
+      "id": "mem-20260827-4a7287c6",
+      "source_layer": "BANK",
+      "title": "SLOPWALL recurrence - worker report format collapsed into PROVEN spam",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "worker-report-format",
+        "progress-bar",
+        "proven-spam",
+        "recurrence"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:03:59+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0100_EEST_worker-report-format-proven-spam_slopwall_incident_report.md",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
       "id": "memory-candidate-5d71b46dbf2ca7a8",
       "source_layer": "CANDIDATE",
       "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
@@ -2158,25 +2189,26 @@
   ],
   "snapshot": {
     "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
-    "source_fingerprint": "6e77e3ffc3faef457d42caddb3967347d9b853b1061bf140f4c7d58669120d96",
+    "hash_semantics": "UTF8_TEXT_NORMALIZED_LF_NO_BOM",
+    "source_fingerprint": "a8d4f1155f44fce136c11dc0dfd3f5da694709d8ce6948632bc3bc6fdb48cea1",
     "sources": [
       {
         "path": "memory/memory-bank.jsonl",
-        "sha256": "f499c053cff0dd92caa622a880bfa66f3721fe009338879b2c8950732bf51e79"
+        "sha256": "73398c9906cbd1e57a4e6a7c6cbbbe2ffcabd8aed086f56b40cf93a4e9f127cb"
       },
       {
         "path": "memory/migrations/2026-08-25-initial-candidates.jsonl",
-        "sha256": "d7e8e4fa7e835606cdec092bfabe6881b33d226a1d2c67d340436fb077dd392b"
+        "sha256": "90426d44a33d0137017e5ddb14517345096aa20ef2077a1c0c35f57131bf1337"
       },
       {
         "path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
-        "sha256": "95598d3e7648278d8b6052d3162a1011b8f79f19aa43d6f77913d73c6c3640cb"
+        "sha256": "2fd84df3338761ed500308daac6c18157725671e7b04913a80f2b81a5ab72e38"
       },
       {
         "path": "memory/migrations/2026-08-25-population-candidates.jsonl",
-        "sha256": "f59e841dede0a7e099c9580fbbce7878705738f667474d116eafb3929e43656e"
+        "sha256": "3713447a5bac64d5e1a33114dcc2d3278c661787c401614000390cbe932b264c"
       }
     ],
-    "note": "Counts/dispositions describe exactly these source bytes. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot."
+    "note": "Counts/dispositions describe these logical UTF-8 text sources after BOM removal and LF normalization. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot."
   }
 }
