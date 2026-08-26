@@ -1,9 +1,9 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "study_issue": 89,
   "generated_date": "2026-08-26",
   "coverage_state": "NOT_PROVEN",
-  "coverage_note": "Text-indexed Library search and current conversation context were sampled; exhaustive screenshot coverage depends on #86, whose current shard has not exhausted the Library image surface.",
+  "coverage_note": "Literal Library matching and date-bounded screenshot review now cover substantial accessible evidence, and recent conversation history confirms additional Aug 26 occurrences. Full lexical exhaustion remains NOT_PROVEN until #86 accounts for the remaining Library image corpus and deferred local transcript/export surfaces are literal-matched.",
   "events": [
     {
       "event_id": "SW-20260822-001",
@@ -14,9 +14,16 @@
       "intervention_type": "GENUINE_CORRECTION",
       "evidence_confidence": "B",
       "provenance": [
-        {"ref": "file_00000000f1808210b83fdd3c85c352be", "role": "primary", "name": "INC-20260822-072540-EEST-37dca5b13a_partial_active_context_evidence.md"},
-        {"ref": "file_000000002a3c820aa4f2fddcfeb0f1de", "role": "secondary", "name": "Liitetty markdown(20260822-060007).md"},
-        {"ref": "file_000000008e2c81f4a3c2a96f1a23677b", "role": "duplicate_export", "name": "2026-08-20 12-34 EEST — MEMORY RECONSTRUCTION — MoE Routing and 180-item Instruction Dump.json"}
+        {
+          "ref": "file_00000000f1808210b83fdd3c85c352be",
+          "role": "primary",
+          "name": "INC-20260822-072540-EEST-37dca5b13a_partial_active_context_evidence.md"
+        },
+        {
+          "ref": "file_000000002a3c820aa4f2fddcfeb0f1de",
+          "role": "secondary",
+          "name": "Liitetty markdown(20260822-060007).md"
+        }
       ],
       "context_before": "Repeated delay and canonical-path confusion during incident-skill repair. The user had already challenged a seven-minute delay, repeated promises, and a claimed fix whose path later failed direct verification. The assistant then gave a long causal/control-gating explanation instead of returning to the concrete repair.",
       "user_visible_symptom": "Long process/causal explanation after repeated execution failures and corrections.",
@@ -24,8 +31,20 @@
       "context_after": "The assistant immediately shortened the explanation, but did not resume concrete repair on that turn. The user next asked which instructions caused the behavior and then invoked the incident-report process. Direct canonical repair occurred only after another explicit user correction requiring the skill and repo to be updated.",
       "assistant_action_after": "COMPRESSED_EXPLANATION",
       "execution_restored_next_substantive_turn": false,
-      "phenotypes": ["EXPLANATION_INSTEAD_OF_EXECUTION", "RECURSIVE_PREREQUISITES", "REPEATED_PROMISE_NO_ACTION", "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT", "STALE_CONTEXT_OR_AUTHORITY"],
-      "scores": {"information_slop": 4, "task_displacement": 5, "execution_damage": 4, "correction_resistance": 4, "control_state_pathology": 4},
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "RECURSIVE_PREREQUISITES",
+        "REPEATED_PROMISE_NO_ACTION",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT",
+        "STALE_CONTEXT_OR_AUTHORITY"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 5,
+        "execution_damage": 4,
+        "correction_resistance": 4,
+        "control_state_pathology": 4
+      },
       "severity_100": 84,
       "score_rationale": "High severity is grounded in observed delay, repeated user corrections, unverified/wrong path claims, and analysis displacing the requested repair. No hidden-reasoning cause is assumed."
     },
@@ -33,31 +52,449 @@
       "event_id": "SW-20260826-001",
       "exact_spelling": "slopwall",
       "event_date": "2026-08-26",
-      "event_time": null,
+      "event_time": "14:50:35Z",
       "domain": "P3 render-queue / worker handoff discussion",
       "intervention_type": "GENUINE_CORRECTION",
       "evidence_confidence": "D",
-      "provenance": [{"ref": "current-conversation-2026-08-26-render-queue", "role": "current_context", "name": "Current ChatGPT conversation compact history"}],
-      "context_before": "Current conversation history preserves that the user asked for an ELI5 during discussion of the recurring P3 rendering/90-percent worker wall, then said `slopwall`; the exact immediately preceding assistant answer is not available in a stable complete source in this pass.",
-      "user_visible_symptom": "The user used `slopwall` as a direct correction during a dense render-queue explanation.",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T14:50:35Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user used `slopwall` as a corrective message about excessive text during the P3 worker/render-queue discussion. The exact stable full immediately preceding assistant turn is not yet bound.",
+      "user_visible_symptom": "Dense P3 worker/render-queue explanation was rejected as a slopwall.",
       "assistant_action_before": "NOT_PROVEN from stable full-turn evidence.",
-      "context_after": "The conversation moved on to timeline/documentation and later returned to rendering-queue workflow design. The immediate correction effect cannot be scored from the currently bound evidence.",
+      "context_after": "The assistant reportedly compressed the answer, but the exact complete turn sequence is not durably bound yet.",
       "assistant_action_after": "NOT_PROVEN",
       "execution_restored_next_substantive_turn": null,
-      "phenotypes": ["RENDER_OR_VALIDATION_WALL"],
+      "phenotypes": [
+        "RENDER_OR_VALIDATION_WALL",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
       "scores": null,
       "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact before/after turn content is not durably bound yet."
+      "score_rationale": "UNSCORABLE: occurrence and domain are recovered from recent history, but exact bounded before/after evidence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-002",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "17:22:24Z",
+      "domain": "V2 clean-system audit",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:22:24Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user wrote `slopwall v2 was supposed to be clean start with clean systems` while correcting the V2/V1 system audit.",
+      "user_visible_symptom": "The user rejected an answer that had not centered the clean-start requirement for V2.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-003",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "17:52:32Z",
+      "domain": "V2/V1 code-system audit",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:52:32Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user wrote `slopwall eli5` during the V2/V1 audit.",
+      "user_visible_symptom": "The answer needed a human-ingestible ELI5 rather than another dense system explanation.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-004",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "17:58:46Z",
+      "domain": "V2/V1 code-system audit",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:58:46Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user wrote `slopwall you are using -> again and this is not actually human ingestable info`.",
+      "user_visible_symptom": "The response presentation was explicitly rejected as not human-ingestible.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-005",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "17:59:16Z",
+      "domain": "V2/V1 code-system audit",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:59:16Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user wrote a standalone `slopwall` shortly after another readability correction in the same audit.",
+      "user_visible_symptom": "A repeated correction was required within the same task cluster.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-006",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:55:09Z",
+      "domain": "memory/preference integration analysis",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T18:55:09Z",
+          "role": "current_history",
+          "name": "Summarize top memories conversation"
+        }
+      ],
+      "context_before": "The user said the answer was `another slopwall without reading, try again` during a request for deeper integration of their communication preferences.",
+      "user_visible_symptom": "The user rejected a response whose structure itself signaled another low-value wall before reading it.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "EMPTY_WALL",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-007",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:22:45Z",
+      "domain": "memory/preference integration analysis",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T19:22:45Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user wrote `slopwall`. The next assistant turn explicitly admitted: `Yes. I turned one useful finding into another essay.`",
+      "user_visible_symptom": "One useful finding had expanded into another essay.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "EMPTY_WALL",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+    },
+    {
+      "event_id": "SW-20260826-008",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:29:40Z",
+      "domain": "memory/preference integration analysis",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T19:29:40Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ],
+      "context_before": "The user wrote `and back to slopwalls bro i dont have time to read your filler words`. The next assistant turn compressed the finding to high-effort thinking with low-effort reading.",
+      "user_visible_symptom": "The user explicitly objected to filler and reading burden after a relapse in the same task cluster.",
+      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
+      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
+      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": [
+        "EMPTY_WALL",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
     }
   ],
-  "excluded_meta_mentions": [
-    {"date": "2026-08-26", "matched_form": "slopwall", "text": "alsoaddallinstancesofwhenisayslopwallandscorethemetc", "reason": "Study instruction referring to the marker, not a corrective intervention."},
-    {"date": "2026-08-26", "matched_form": "slopwall", "text": "slopwallasonewordandtwowords", "reason": "Search-scope clarification, not a corrective intervention."}
+  "occurrences": [
+    {
+      "occurrence_id": "OCC-20260822-001",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": null,
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260822-001",
+      "provenance": [
+        {
+          "ref": "file_00000000f1808210b83fdd3c85c352be",
+          "role": "primary",
+          "name": "INC-20260822-072540-EEST-37dca5b13a_partial_active_context_evidence.md"
+        },
+        {
+          "ref": "file_000000002a3c820aa4f2fddcfeb0f1de",
+          "role": "secondary",
+          "name": "Liitetty markdown(20260822-060007).md"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-001",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "14:50:35Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-001",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T14:50:35Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-002",
+      "matched_form": "slopwall",
+      "raw_user_text": "Add all instances of when I say `slopwall` and score them.",
+      "event_date": "2026-08-26",
+      "event_time": "15:02:14Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T15:02:14Z",
+          "role": "current_history",
+          "name": "Issue #89 creation discussion"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-003",
+      "matched_form": "slopwall",
+      "raw_user_text": "Search literal one-word `slopwall` and two-word `slop wall`.",
+      "event_date": "2026-08-26",
+      "event_time": "15:02:43Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T15:02:43Z#one-word",
+          "role": "current_history",
+          "name": "Issue #89 search-scope clarification"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-004",
+      "matched_form": "slop wall",
+      "raw_user_text": "Search literal one-word `slopwall` and two-word `slop wall`.",
+      "event_date": "2026-08-26",
+      "event_time": "15:02:43Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T15:02:43Z#two-word",
+          "role": "current_history",
+          "name": "Issue #89 search-scope clarification"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-005",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall v2 was supposed to be clean start with clean systems",
+      "event_date": "2026-08-26",
+      "event_time": "17:22:24Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-002",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:22:24Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-006",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall eli5",
+      "event_date": "2026-08-26",
+      "event_time": "17:52:32Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-003",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:52:32Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-007",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall you are using -> again and this is not actually human ingestable info",
+      "event_date": "2026-08-26",
+      "event_time": "17:58:46Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-004",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:58:46Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-008",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "17:59:16Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-005",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T17:59:16Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-009",
+      "matched_form": "slopwall",
+      "raw_user_text": "you are not exhibiting any change in your response structure so I'm just tagging this as another slopwall without reading, try again",
+      "event_date": "2026-08-26",
+      "event_time": "18:55:09Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-006",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T18:55:09Z",
+          "role": "current_history",
+          "name": "Summarize top memories conversation"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-010",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:22:45Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-007",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T19:22:45Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-20260826-011",
+      "matched_form": "slopwall",
+      "raw_user_text": "and back to slopwalls bro i dont have time to read your filler words",
+      "event_date": "2026-08-26",
+      "event_time": "19:29:40Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-008",
+      "provenance": [
+        {
+          "ref": "recent-history-2026-08-26T19:29:40Z",
+          "role": "current_history",
+          "name": "Recovered recent ChatGPT history"
+        }
+      ]
+    }
   ],
-  "confirmed_counts": {"canonical_interventions": 2, "slopwall": 2, "slop wall": 0, "scored": 1, "unscorable": 1, "excluded_meta_mentions": 2},
+  "confirmed_counts": {
+    "lexical_occurrences": 12,
+    "canonical_interventions": 9,
+    "slopwall": 11,
+    "slop wall": 1,
+    "scored": 1,
+    "unscorable": 8,
+    "occurrence_roles": {
+      "CORRECTIVE_INTERVENTION": 9,
+      "META_REFERENCE": 3
+    }
+  },
   "pending_coverage": [
-    "Complete #86 Library screenshot pagination and visual review; screenshot-only instances may remain.",
-    "Recover stable full-turn evidence for SW-20260826-001 before assigning severity.",
-    "Perform literal matching over each enumerated transcript/export rather than relying on semantic search, especially for the spaced form."
+    "Complete #86 Library screenshot pagination/accounting; screenshot-only instances may remain outside the closed Aug20-Aug26 visual window.",
+    "Literal-match deferred local transcript/export surfaces when the machine route is available; do not infer absence from semantic search.",
+    "Bind stable full-turn evidence for D-confidence Aug26 events before assigning severity.",
+    "Resolve additional recent-history candidates that were surfaced without sufficiently stable exact-turn provenance before promoting them into the canonical index."
   ]
 }
