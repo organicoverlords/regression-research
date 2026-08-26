@@ -40,7 +40,8 @@ class MemoryRankingAndBudgetTests(unittest.TestCase):
         self.assertEqual(len(search_entries(entries,"history topic",limit=999,history=True)),20)
 
     def test_entry_size_limits_prevent_single_record_flood(self):
-        e=self.e("x","x"*801)
+        validate_entry(self.e("boundary","x"*2000))
+        e=self.e("x","x"*2001)
         with self.assertRaises(BankError): validate_entry(e)
         e=self.e("x","ok",tags=[f"t{i}" for i in range(13)])
         with self.assertRaises(BankError): validate_entry(e)

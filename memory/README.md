@@ -62,7 +62,7 @@ Recall is relevance-first. Source authority may only reorder entries that alread
 
 Source classes are ranked in `sources.json`: current user instruction, live canonical policy, verified evidence, durable memory/personal context, historical context, then recovery-only material. Old seeds/backups remain searchable history but do not compete as current truth against canonical or verified sources.
 
-Ordinary `search` is intentionally narrow: blank unscoped searches return no entries, the default is 5 results, and the hard maximum is 8. Explicit `history` may expand to at most 20 entries. Individual entries are bounded to 800 text characters, 12 tags, 16 evidence pointers, and 16 supersession pointers. Broader context requires an explicit follow-up search rather than one accidental dump.
+Ordinary `search` is intentionally narrow: blank unscoped searches return no entries, the default is 5 results, and the hard maximum is 8. Explicit `history` may expand to at most 20 entries. Individual entries are bounded to 2000 text characters, 12 tags, 16 evidence pointers, and 16 supersession pointers. Broader context requires an explicit follow-up search rather than one accidental dump.
 
 ## Candidate extraction
 
@@ -70,4 +70,4 @@ Prepare compact candidate records from bounded source snippets with python tools
 
 ## Optional durable-memory adapter
 
-ChatGPT durable memory and personal-context exports are an optional source, class `DURABLE_MEMORY` (`durable-memory:` / `personal-context:` evidence). The adapter `tools/durable_memory_adapter.py` imports a bounded fixture/export (JSON array or JSONL) into curated candidates with provenance (`durable-memory:export:<export>:<id>`, `source_class: DURABLE_MEMORY`), truncates oversized text to 800 characters, caps output to 50 candidates, and skips sensitive/private or unsupported material so no secrets ever enter the public bank or issues. When the surface is unavailable the adapter produces zero candidates and exits cleanly — the bank and ordinary recall work without it, and current explicit user instruction always wins over recalled personal context via source-authority ranking.
+ChatGPT durable memory and personal-context exports are an optional source, class `DURABLE_MEMORY` (`durable-memory:` / `personal-context:` evidence). The adapter `tools/durable_memory_adapter.py` imports a bounded fixture/export (JSON array or JSONL) into curated candidates with provenance (`durable-memory:export:<export>:<id>`, `source_class: DURABLE_MEMORY`), truncates oversized text to 2000 characters, caps output to 50 candidates, and skips sensitive/private or unsupported material so no secrets ever enter the public bank or issues. When the surface is unavailable the adapter produces zero candidates and exits cleanly — the bank and ordinary recall work without it, and current explicit user instruction always wins over recalled personal context via source-authority ranking.
