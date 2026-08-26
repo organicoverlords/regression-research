@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter
@@ -45,6 +46,34 @@ def _disposition(entry: dict[str, Any], superseded: set[str]) -> str:
     if entry["state"] == "PROVISIONAL":
         return "PROVISIONAL/NEEDS_EVIDENCE"
     return "CURRENT_DURABLE"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def build_snapshot_receipt(root: Path, bank_path: Path) -> dict[str, Any]:
+    bank_resolved = bank_path.resolve()
+    try:
+        bank_label = bank_resolved.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        bank_label = str(bank_resolved)
+    sources = [{"path": bank_label, "sha256": _sha256_file(bank_resolved)}]
+    migrations = root / "memory" / "migrations"
+    for path in sorted(migrations.glob("*candidates.jsonl")):
+        sources.append({"path": path.relative_to(root).as_posix(), "sha256": _sha256_file(path)})
+    canonical = json.dumps(sources, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    fingerprint = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return {
+        "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
+        "source_fingerprint": fingerprint,
+        "sources": sources,
+        "note": "Counts/dispositions describe exactly these source bytes. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot.",
+    }
 
 
 def _read_candidate_files(root: Path, bank_ids: set[str]) -> list[dict[str, Any]]:
@@ -148,6 +177,7 @@ def build_report(entries: list[dict[str, Any]], candidate_entries: list[dict[str
         "authority": "DERIVED_AUDIT_ONLY",
         "notes": [
             "This report is mechanically derived from the append-only memory bank and is not a second recall authority.",
+            "A committed JSON report is a point-in-time evidence snapshot, not a perpetually current mirror; run this tool again for current state.",
             "PROVISIONAL records remain explicit review items; rejected/superseded records remain historically searchable.",
             "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
             "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory.",
@@ -175,6 +205,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     candidates = _read_candidate_files(root, {entry["id"] for entry in entries})
     report = build_report(entries, candidates)
+    report["snapshot"] = build_snapshot_receipt(root, args.bank)
     payload = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
