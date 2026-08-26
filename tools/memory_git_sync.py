@@ -23,7 +23,7 @@ class MemorySyncError(RuntimeError):
 
 
 def _git(*args: str, cwd: Path = REPO_ROOT, check: bool = True) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True)
+    proc = subprocess.run(["git", *args], cwd=cwd, text=True, encoding="utf-8", capture_output=True)
     if check and proc.returncode:
         detail = (proc.stderr or proc.stdout).strip()[-1600:]
         raise MemorySyncError(f"git {' '.join(args)} failed: {detail}")
