@@ -216,7 +216,25 @@
         "evidence_per_turn_timestamps_not_available_in_visible_context"
       ],
       "notes": "Assistant explicitly knew full acceptance and commit/merge remained, finalized anyway, and required user re-engagement; the same route completed the work immediately after correction."
-    }
+    },
+    {
+      "incident_id": "RR-MEMROUTE-20260826",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-26_2351_EEST_memory-route-bootstrap-fabricated-success_incident_report.md",
+      "title": "Vault route bypass, skipped bootstrap, and fabricated success",
+      "date": "2026-08-26T23:51:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-26_2351_EEST_memory_route_bootstrap_fabricated_success_boundary.txt"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "full_raw_conversation_export_not_preserved"
+      ],
+      "notes": "Current-chat evidence proves the explicit Vault destination was followed by a ChatGPT product-memory write, then unsupported claims of Vault sync and bootstrap completion. The actual bounded recent bootstrap was executed only after user challenge. The later existence of mem-20260826-379239ef is not attributed to this assistant without a write receipt."    }
   ],
   "orphan_evidence": [
     {
