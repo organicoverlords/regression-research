@@ -249,9 +249,27 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     return [entry for _, _, _, entry in ranked[:effective_limit]]
 
 
-def conversation_history_hits(query: str, *, limit: int = DEFAULT_RECALL_LIMIT, db: Path | None = None) -> list[dict[str, Any]]:
+def _conversation_excerpt(hit: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": f"conversation:{hit.get('conversation_id')}:{hit.get('message_id')}",
+        "timestamp": hit.get("created_at") or hit.get("conversation_update_time") or hit.get("conversation_create_time") or "1970-01-01T00:00:00Z",
+        "kind": "conversation",
+        "scope": "full-conversation-history",
+        "tags": ["full-conversation", "historical-source"],
+        "title": hit.get("title") or hit.get("conversation_id") or "Historical conversation",
+        "text": hit.get("match") or "",
+        "source_class": "HISTORICAL_CONTEXT",
+        "retrieval_role": "EVIDENCE_EXCERPT",
+        "evidence": list(hit.get("sources") or []),
+        "conversation_id": hit.get("conversation_id"),
+        "message_id": hit.get("message_id"),
+        "role": hit.get("role"),
+    }
+
+
+def conversation_history_report(query: str, *, limit: int = DEFAULT_RECALL_LIMIT, db: Path | None = None) -> dict[str, Any]:
     if not query.strip():
-        return []
+        return {"summary": {}, "hits": []}
     try:
         try:
             from .conversation_search import DEFAULT_DB, search_report
@@ -259,37 +277,91 @@ def conversation_history_hits(query: str, *, limit: int = DEFAULT_RECALL_LIMIT, 
             from conversation_search import DEFAULT_DB, search_report
         target = db or DEFAULT_DB
         if not target.is_file():
-            return []
+            return {"summary": {}, "hits": []}
         report = search_report(target, query, limit=min(MAX_RECALL_LIMIT, max(1, int(limit))))
     except (OSError, ValueError):
-        return []
-    out: list[dict[str, Any]] = []
-    for hit in report.get("hits", []):
-        out.append({
-            "id": f"conversation:{hit.get('conversation_id')}:{hit.get('message_id')}",
-            "timestamp": hit.get("created_at") or hit.get("conversation_update_time") or hit.get("conversation_create_time") or "1970-01-01T00:00:00Z",
-            "kind": "conversation",
-            "scope": "full-conversation-history",
-            "tags": ["full-conversation", "historical-source"],
-            "title": hit.get("title") or hit.get("conversation_id") or "Historical conversation",
-            "text": hit.get("match") or "",
-            "state": "PROVEN",
-            "evidence": list(hit.get("sources") or []),
-            "supersedes": [],
-            "conversation_id": hit.get("conversation_id"),
-            "message_id": hit.get("message_id"),
-            "role": hit.get("role"),
-            "context_before": hit.get("context_before"),
-            "context_after": hit.get("context_after"),
+        return {"summary": {}, "hits": []}
+    return {
+        "summary": dict(report.get("summary") or {}),
+        "hits": [_conversation_excerpt(hit) for hit in report.get("hits", [])],
+    }
+
+
+def conversation_history_hits(query: str, *, limit: int = DEFAULT_RECALL_LIMIT, db: Path | None = None) -> list[dict[str, Any]]:
+    return list(conversation_history_report(query, limit=limit, db=db).get("hits", []))
+
+
+def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str, Any] | None:
+    matching_messages = int(summary.get("matching_messages") or 0)
+    if matching_messages <= 0:
+        return None
+    matching_conversations = int(summary.get("matching_conversations") or 0)
+    first_match = summary.get("first_match")
+    last_match = summary.get("last_match")
+    date_text = f" from {first_match} to {last_match}" if first_match or last_match else ""
+    top = []
+    for item in list(summary.get("top_conversations") or [])[:3]:
+        top.append({
+            "conversation_id": item.get("conversation_id"),
+            "title": item.get("title"),
+            "matches": item.get("matches"),
+            "first_match": item.get("first_match"),
+            "last_match": item.get("last_match"),
         })
-    return out
+    return {
+        "id": "conversation-corpus-summary",
+        "kind": "corpus-summary",
+        "scope": "full-conversation-history",
+        "tags": ["full-conversation", "historical-source", "aggregate-signal"],
+        "title": "Conversation corpus signal",
+        "text": f"{matching_messages} matching messages across {matching_conversations} conversations{date_text}.",
+        "source_class": "HISTORICAL_CONTEXT",
+        "retrieval_role": "AGGREGATE_SIGNAL",
+        "interpretation": "prevalence_signal_not_truth",
+        "query": query,
+        "matching_messages": matching_messages,
+        "matching_conversations": matching_conversations,
+        "first_match": first_match,
+        "last_match": last_match,
+        "non_wall_clock_messages": int(summary.get("non_wall_clock_messages") or 0),
+        "roles": dict(summary.get("roles") or {}),
+        "top_conversations": top,
+        "sample_strategy": summary.get("sample_strategy"),
+    }
 
 
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
-    manual = search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
-    if history or scope or tags:
+    effective_limit = min(MAX_RECALL_LIMIT, max(0, int(limit)))
+    manual = search_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
+    if history or not query.strip() or effective_limit == 0:
         return manual
-    return manual + conversation_history_hits(query, limit=limit, db=conversation_db)
+
+    corpus = conversation_history_report(query, limit=effective_limit, db=conversation_db)
+    summary_entry = _conversation_summary_entry(query, dict(corpus.get("summary") or {}))
+    conversation_hits = list(corpus.get("hits") or [])
+    if summary_entry is None:
+        return manual
+
+    if not manual:
+        selected_manual: list[dict[str, Any]] = []
+        selected_conversations = conversation_hits[:effective_limit]
+    elif not conversation_hits or effective_limit == 1:
+        selected_manual = manual[:effective_limit]
+        selected_conversations = []
+    else:
+        conversation_slots = min(2, max(1, (effective_limit - 1) // 2))
+        manual_slots = effective_limit - conversation_slots
+        selected_manual = manual[:manual_slots]
+        selected_conversations = conversation_hits[:conversation_slots]
+        remaining = effective_limit - len(selected_manual) - len(selected_conversations)
+        if remaining > 0:
+            manual_extra = manual[manual_slots:manual_slots + remaining]
+            selected_manual.extend(manual_extra)
+            remaining -= len(manual_extra)
+        if remaining > 0:
+            selected_conversations.extend(conversation_hits[conversation_slots:conversation_slots + remaining])
+
+    return selected_manual + [summary_entry] + selected_conversations
 
 
 def _print_json(value: Any) -> None:
