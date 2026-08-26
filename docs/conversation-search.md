@@ -30,7 +30,7 @@ python tools\conversation_search.py search "slopwall"
 python tools\conversation_search.py search "exact phrase from old conversation" --literal
 ```
 
-Results are bounded (maximum 20) and contain conversation ID/title/timestamps, role, matching turn text, one neighboring turn on each side, and every indexed source locator that contains that exact message version. Ordinary search uses FTS token matching; `--literal` searches the full message text as a phrase substring.
+Search is on-demand only; it is not part of the one-time memory bootstrap and does not alter `memory_bank.py recent`. Each query reports corpus-wide aggregate signal first: total matching messages, distinct matching conversations, usable wall-clock match-time range, count of matches with relative/non-wall-clock timestamps, role counts, and the most match-dense conversations. Context remains bounded (maximum 20): excerpts are limited to one match per conversation and sampled across the matched-conversation time range so one repetitive conversation cannot dominate. Each excerpt still contains conversation ID/title/timestamps, role, matching turn text, one neighboring turn on each side, and every indexed source locator that contains that exact message version. Ordinary search uses FTS token matching; `--literal` searches the full message text as a phrase substring. Frequency is evidence of prevalence, not truth or authority.
 
 ## Coverage
 
