@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
 - [2026-08-25] Added the data-destruction-under-disk-pressure regression coverage (#67).
 - [2026-08-25] Added the harness-vs-product regression distinguishing a test that failed from one that never started (#70).
 - [2026-08-25] Indexed screenshot execution-state evidence and separated persistence failures from real route/resource failures (#71).
 - [2026-08-25] Preserved the live disk-floor policy lapse as a distinct orchestration lesson (#73).
-- [2026-08-25] Extended screenshot persistence controls with exact recovery and reconciliation cases (#75).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

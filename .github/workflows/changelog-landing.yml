@@ -2,12 +2,18 @@ name: changelog-landing
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 
+concurrency:
+  group: changelog-landing-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, Windows, X64, regression-research]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
