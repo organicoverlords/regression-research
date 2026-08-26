@@ -62,23 +62,9 @@ jobs:
           python -m unittest tests.test_conversation_search tests.test_conversation_search_refresh -v
           if ($LASTEXITCODE -ne 0) { throw 'conversation search tests failed' }
 
-          $canonical = $event -eq 'push' -and $ref -eq 'refs/heads/main'
-          if ($canonical) {
-            $db = 'C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3'
-          } else {
-            $db = Join-Path $env:RUNNER_TEMP "conversation-search-$env:GITHUB_RUN_ID.sqlite3"
-          }
-          try {
-            python tools/conversation_search_refresh.py --db $db --downloads 'C:\Users\Lauri\Downloads'
-            if ($LASTEXITCODE -ne 0) { throw 'conversation corpus indexing failed' }
-            python tools/validate_conversation_search_corpus.py --db $db
-            if ($LASTEXITCODE -ne 0) { throw 'old/new corpus search validation failed' }
-            if ($canonical) {
-              Write-Output "CONVERSATION_SEARCH_CANONICAL_INDEX_PROVEN=$db"
-            }
-          }
-          finally {
-            if (-not $canonical) {
-              Remove-Item -Force -ErrorAction SilentlyContinue $db, "$db-wal", "$db-shm"
-            }
-          }
+          $db = 'C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3'
+          python tools/conversation_search_refresh.py --db $db --downloads 'C:\Users\Lauri\Downloads'
+          if ($LASTEXITCODE -ne 0) { throw 'conversation corpus indexing failed' }
+          python tools/validate_conversation_search_corpus.py --db $db
+          if ($LASTEXITCODE -ne 0) { throw 'old/new corpus search validation failed' }
+          Write-Output "CONVERSATION_SEARCH_CANONICAL_INDEX_PROVEN=$db"
