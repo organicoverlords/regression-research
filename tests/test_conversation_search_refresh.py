@@ -28,6 +28,15 @@ class ConversationSearchRefreshTests(unittest.TestCase):
         self.assertIn(opaque, roots)
         self.assertNotIn(archive_dir, roots)
 
+    def test_ignores_unrelated_nested_zip_with_generic_jsonl(self):
+        archive_dir = self.downloads / "05_Archives"
+        archive_dir.mkdir()
+        unrelated = archive_dir / "repo-proof.zip"
+        with zipfile.ZipFile(unrelated, "w") as zf:
+            zf.writestr("logs/events.jsonl", "{}\n")
+        roots = discover_extended(self.downloads)
+        self.assertNotIn(unrelated, roots)
+
     def test_finds_nested_official_export_folder_by_conversations_json(self):
         container = self.downloads / "sorted" / "2026" / "opaque-export"
         container.mkdir(parents=True)
