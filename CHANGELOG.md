@@ -79,6 +79,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Changed
 
+- [2026-08-26] Added a dedicated Windows Actions runner and per-branch concurrency cancellation so duplicate changelog checks cannot starve the queue (#76).
 - [2026-08-26] Hardened project-timeline enforcement so direct pushes to main validate HEAD^..HEAD instead of bypassing the dated changelog requirement.
 - [2026-08-26] Removed an accidentally duplicated README timeline block and made the checker reject duplicate timelines or misplaced shared-agent-policy markers.
 - [2026-08-25] Added the harness-vs-product regression distinguishing a test that failed from one that never started (#70).
