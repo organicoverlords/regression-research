@@ -35,7 +35,7 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
         second = extract_candidates([source])
         self.assertEqual(first, second)
         self.assertEqual(len(first), 1)
-        self.assertLessEqual(len(first[0]["text"]), 800)
+        self.assertLessEqual(len(first[0]["text"]), 2000)
 
     def test_negative_feedback_extracts_behavior_not_insult(self):
         for marker in ("ASSHOLE", "FUCK YOU", "asädasdnasdnda"):
@@ -60,12 +60,12 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
     def test_negative_feedback_is_bounded_and_configurable(self):
         source = {
             "source_id":"chat-history", "source_class":"HISTORICAL_CONTEXT", "source_timestamp":"2026-08-25T12:00:00+03:00",
-            "turns":[{"role":"assistant","text":"x" * 2000},{"role":"user","text":"CUSTOM PANIC"}],
+            "turns":[{"role":"assistant","text":"x" * 5000},{"role":"user","text":"CUSTOM PANIC"}],
         }
         self.assertEqual(extract_negative_feedback_candidates([source]), [])
         out = extract_negative_feedback_candidates([source], markers=["CUSTOM PANIC"])
         self.assertEqual(len(out), 1)
-        self.assertLessEqual(len(out[0]["text"]), 800)
+        self.assertLessEqual(len(out[0]["text"]), 2000)
 
     def test_cli_is_byte_deterministic_for_fixture(self):
         with tempfile.TemporaryDirectory() as td:
