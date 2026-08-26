@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.memory_normalization_report import DISPOSITIONS, build_report
+from tools.memory_normalization_report import DISPOSITIONS, build_report, build_snapshot_receipt
 
 
 class MemoryNormalizationReportTests(unittest.TestCase):
@@ -38,6 +38,21 @@ class MemoryNormalizationReportTests(unittest.TestCase):
         self.assertEqual(cand["disposition"], "PROVISIONAL/NEEDS_EVIDENCE")
         self.assertFalse(cand["ordinary_recall"] )
         self.assertNotIn("candidate body should not be copied", json.dumps(report))
+
+    def test_snapshot_receipt_binds_exact_source_bytes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            bank = root / "memory" / "memory-bank.jsonl"
+            migrations = root / "memory" / "migrations"
+            migrations.mkdir(parents=True)
+            bank.write_text('{"id":"a"}\n', encoding="utf-8")
+            (migrations / "x-candidates.jsonl").write_text('{"id":"c"}\n', encoding="utf-8")
+            first = build_snapshot_receipt(root, bank)
+            self.assertEqual(first["semantics"], "POINT_IN_TIME_SOURCE_RECEIPT")
+            self.assertEqual(first["sources"][0]["path"], "memory/memory-bank.jsonl")
+            bank.write_text('{"id":"a"}\n{"id":"b"}\n', encoding="utf-8")
+            second = build_snapshot_receipt(root, bank)
+            self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
 
     def test_report_does_not_copy_memory_body(self):
         entries = [{"id":"x","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"global","tags":[],"text":"A" * 140 + " BODY_TAIL_MARKER","state":"PROVISIONAL","evidence":[],"supersedes":[]}]

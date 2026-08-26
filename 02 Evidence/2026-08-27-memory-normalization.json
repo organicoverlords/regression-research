@@ -3,31 +3,32 @@
   "authority": "DERIVED_AUDIT_ONLY",
   "notes": [
     "This report is mechanically derived from the append-only memory bank and is not a second recall authority.",
+    "A committed JSON report is a point-in-time evidence snapshot, not a perpetually current mirror; run this tool again for current state.",
     "PROVISIONAL records remain explicit review items; rejected/superseded records remain historically searchable.",
     "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
     "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
   ],
-  "total_records": 75,
-  "bank_records": 71,
+  "total_records": 76,
+  "bank_records": 72,
   "candidate_only_records": 4,
   "counts": {
     "dispositions": {
-      "CURRENT_DURABLE": 37,
+      "CURRENT_DURABLE": 36,
       "DUPLICATE_MERGED": 0,
       "EPHEMERAL/DO_NOT_RECALL": 0,
       "HISTORICAL_DURABLE": 0,
-      "PROVISIONAL/NEEDS_EVIDENCE": 18,
+      "PROVISIONAL/NEEDS_EVIDENCE": 19,
       "REJECTED": 1,
       "SENSITIVE_EXCLUDED": 0,
-      "SUPERSEDED": 19
+      "SUPERSEDED": 20
     },
     "states": {
       "PROVEN": 49,
-      "PROVISIONAL": 21,
+      "PROVISIONAL": 22,
       "REJECTED": 1
     },
     "kinds": {
-      "correction": 10,
+      "correction": 11,
       "decision": 10,
       "fact": 5,
       "lesson": 41,
@@ -48,10 +49,10 @@
       "p3": 3,
       "p3-render-queue": 1,
       "regression-research": 3,
-      "response-quality": 5
+      "response-quality": 6
     },
     "sensitivity": {
-      "CLEAR": 75
+      "CLEAR": 76
     }
   },
   "records": [
@@ -1991,8 +1992,8 @@
         "execution-context"
       ],
       "state": "PROVEN",
-      "disposition": "CURRENT_DURABLE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T00:57:05+03:00",
       "event_date_hint": "2026-08-27",
       "evidence": [
@@ -2002,9 +2003,41 @@
         "conversation"
       ],
       "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-3f4034d2"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-3f4034d2",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 - explained bad PROVEN label instead of repairing it",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "proven-label",
+        "incident-report",
+        "repair"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T00:58:58+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [
+        "mem-20260827-419d3aab"
+      ],
       "superseded_by": [],
       "sensitivity": "CLEAR",
-      "retrieval_value": "CURRENT"
+      "retrieval_value": "REVIEW"
     },
     {
       "id": "memory-candidate-5d71b46dbf2ca7a8",
@@ -2122,5 +2155,28 @@
       "sensitivity": "CLEAR",
       "retrieval_value": "REVIEW"
     }
-  ]
+  ],
+  "snapshot": {
+    "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
+    "source_fingerprint": "6e77e3ffc3faef457d42caddb3967347d9b853b1061bf140f4c7d58669120d96",
+    "sources": [
+      {
+        "path": "memory/memory-bank.jsonl",
+        "sha256": "f499c053cff0dd92caa622a880bfa66f3721fe009338879b2c8950732bf51e79"
+      },
+      {
+        "path": "memory/migrations/2026-08-25-initial-candidates.jsonl",
+        "sha256": "d7e8e4fa7e835606cdec092bfabe6881b33d226a1d2c67d340436fb077dd392b"
+      },
+      {
+        "path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+        "sha256": "95598d3e7648278d8b6052d3162a1011b8f79f19aa43d6f77913d73c6c3640cb"
+      },
+      {
+        "path": "memory/migrations/2026-08-25-population-candidates.jsonl",
+        "sha256": "f59e841dede0a7e099c9580fbbce7878705738f667474d116eafb3929e43656e"
+      }
+    ],
+    "note": "Counts/dispositions describe exactly these source bytes. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot."
+  }
 }
