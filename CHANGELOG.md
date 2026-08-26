@@ -137,3 +137,5 @@ Entry style ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€�
 -->
 
 [Unreleased]: https://github.com/organicoverlords/regression-research/commits/main
+
+- [2026-08-27] [meta] Recorded INC-20260827-002911-EEST-484b75e60565: ChatGPT Personalization showed a Custom Instructions bootstrap that was absent from the assistant-readable turn context; preserved the product-layer mismatch without attributing the missing instruction to assistant choice.
