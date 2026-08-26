@@ -114,6 +114,10 @@ def main() -> int:
     readme_path = root / "README.md"
     changelog = changelog_path.read_text(encoding="utf-8")
     readme = readme_path.read_text(encoding="utf-8")
+    if readme.count("## Project timeline") != 1:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: README must contain exactly one Project timeline")
+    if "<!-- SHARED-AGENT-POLICY:BEGIN -->" in readme or "<!-- SHARED-AGENT-POLICY:END -->" in readme:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: README contains misplaced shared-agent-policy markers")
     expected = projected_readme(readme, changelog)
     if args.write:
         readme_path.write_text(expected, encoding="utf-8")
