@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 
 ### Added
 
+- [2026-08-26] [meta] Added replay-covered incident `RR-MEMROUTE-20260826` for the Vault-memory route bypass, skipped bootstrap, and unsupported execution-success claims; indexed its evidence, taxonomy coverage, and durable Vault-memory lesson (#6).
+
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).
 
 ### Added
