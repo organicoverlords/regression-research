@@ -46,6 +46,14 @@ python tools\memory_bank.py append --kind lesson --scope p3 --tag fleet --tag co
 
 These are ordinary repository commands. MCP/local workers may invoke them when they have repo access, but MCP availability is not part of the memory contract.
 
+## Durability and GitHub mirror
+
+A successful local memory or memory-report write is not considered fully handed off until its coherent repository commit has been pushed to GitHub. This keeps the remote mirror useful when the local execution/tool context later disappears.
+
+The canonical local bank remains authoritative when it may contain unpushed entries. Before modifying `memory-bank.jsonl` through GitHub, prove that the GitHub copy includes the latest expected local memory state. If that cannot be proven because the local vault is unavailable or the mirror appears stale, **do not replace or reconstruct the bank from GitHub**.
+
+Instead, preserve new information as an append-only timestamped file under `memory/reports/` (or another explicitly pending append-only artifact), record which local memory it should join, and reconcile it into the canonical bank when local access returns. Push that reconciled canonical commit to GitHub before the next handoff. A stale mirror is a durability gap, not permission to discard unseen local history and not a reason to stop the active task.
+
 ## Source relevance and recall budget
 
 Recall is relevance-first. Source authority may only reorder entries that already match the query, scope, or tags; it must never cause unrelated high-authority memories to surface.
@@ -56,7 +64,7 @@ Ordinary `search` is intentionally narrow: blank unscoped searches return no ent
 
 ## Candidate extraction
 
-Prepare compact candidate records from bounded source snippets with python tools\extract_memory_candidates.py <sources.jsonl> <candidates.jsonl>. Source snippets declare source_id, source_class, scope, 	imestamp, evidence, and content. The extractor recognizes corrections, decisions, lessons, status receipts, explicit RULE: lines, and standalone ALL-CAPS rules. Extracted claims remain PROVISIONAL until curation; extractor-only provenance fields are removed when candidates are migrated into the strict bank schema.
+Prepare compact candidate records from bounded source snippets with python tools\extract_memory_candidates.py <sources.jsonl> <candidates.jsonl>. Source snippets declare source_id, source_class, scope, \timestamp, evidence, and content. The extractor recognizes corrections, decisions, lessons, status receipts, explicit RULE: lines, and standalone ALL-CAPS rules. Extracted claims remain PROVISIONAL until curation; extractor-only provenance fields are removed when candidates are migrated into the strict bank schema.
 
 ## Optional durable-memory adapter
 
