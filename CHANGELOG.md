@@ -82,6 +82,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã‚Â¢ÃƒÂ¢
 - [2026-08-26] Added a dedicated Windows Actions runner, per-branch concurrency cancellation, and a manual dispatch path so duplicate or stalled changelog checks cannot starve the queue (#76).
 - [2026-08-26] Added an initial deduplicated `slopwall` / `slop wall` intervention index with auditable severity scoring and weak-evidence events left unscored (#89).
 - [2026-08-25] Added the data-destruction-under-disk-pressure regression coverage (#67).
+- [2026-08-26] [meta] Made canonical memory updates reconcile bidirectionally with GitHub main and publish local-only entries automatically through isolated memory-only commits, while preserving append-only conflict safety.
 - [2026-08-26] [meta] Kept documentation/control-plane maintenance in CHANGELOG.md while excluding it from the README project timeline, and fixed same-day project-entry ordering.
 - [2026-08-26] [meta] Hardened project-timeline enforcement so direct pushes to main validate HEAD^..HEAD instead of bypassing the dated changelog requirement.
 - [2026-08-26] [meta] Removed an accidentally duplicated README timeline block and made the checker reject duplicate timelines or misplaced shared-agent-policy markers.

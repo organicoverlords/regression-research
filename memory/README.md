@@ -48,11 +48,13 @@ These are ordinary repository commands. MCP/local workers may invoke them when t
 
 ## Durability and GitHub mirror
 
-A successful local memory or memory-report write is not considered fully handed off until its coherent repository commit has been pushed to GitHub. This keeps the remote mirror useful when the local execution/tool context later disappears.
+A successful canonical memory write is not fully handed off until GitHub `main` contains it. Canonical `memory_bank.py` reads and writes therefore reconcile with `origin/main` automatically: entries are merged by immutable memory ID, remote-only entries are pulled into the local bank, and local-only entries are published through an isolated memory-only commit. Unrelated dirty files and unrelated local branch commits are never staged into that synchronization commit.
 
-The canonical local bank remains authoritative when it may contain unpushed entries. Before modifying `memory-bank.jsonl` through GitHub, prove that the GitHub copy includes the latest expected local memory state. If that cannot be proven because the local vault is unavailable or the mirror appears stale, **do not replace or reconstruct the bank from GitHub**.
+Canonical `note` and `append` operations run under a bounded local sync lock, reconcile before writing, then publish after writing. A racing `main` update is fetched and retried without overwriting either side. If the local append succeeds but GitHub publication cannot be proven, the command fails visibly with an explicit `local memory was saved` message; do not append a duplicate. Any later canonical CLI call retries pending reconciliation.
 
-Instead, preserve new information as an append-only timestamped file under `memory/reports/` (or another explicitly pending append-only artifact), record which local memory it should join, and reconcile it into the canonical bank when local access returns. Push that reconciled canonical commit to GitHub before the next handoff. A stale mirror is a durability gap, not permission to discard unseen local history and not a reason to stop the active task.
+A GitHub-only worker may read the bank directly from `main`. Before changing `memory-bank.jsonl` through GitHub, it must start from current `main`, preserve append-only history, and merge the coherent memory-only change promptly rather than leaving it stranded on a worker branch. The next canonical local CLI call imports remote-only entries automatically.
+
+If a GitHub-only worker cannot prove the mirror is current, **do not replace or reconstruct the bank from GitHub**. Preserve new information as an append-only timestamped file under `memory/reports/` (or another explicitly pending append-only artifact), record which canonical memory it should join, and let the next local reconciliation merge it safely. A stale mirror is a durability gap, not permission to discard unseen local history and not a reason to stop the active task.
 
 ## Source relevance and recall budget
 

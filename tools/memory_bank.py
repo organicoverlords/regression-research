@@ -4,9 +4,15 @@ import argparse
 import json
 import re
 import secrets
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
+except ImportError:
+    from memory_git_sync import MemorySyncError, sync_bank, sync_lock
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -73,7 +79,7 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError(f"supersedes exceeds {MAX_SUPERSEDES} items")
 
 
-def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
+def _read_bank_file(path: Path) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     seen: set[str] = set()
     if not path.exists():
@@ -96,6 +102,43 @@ def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
     return entries
 
 
+def _is_canonical_bank(path: Path) -> bool:
+    try:
+        return path.resolve() == DEFAULT_BANK.resolve()
+    except OSError:
+        return False
+
+
+def _sync_canonical_locked(path: Path, *, strict: bool) -> None:
+    try:
+        result = sync_bank(path, publish=True)
+    except MemorySyncError as exc:
+        message = f"canonical memory GitHub sync NOT_PROVEN: {exc}"
+        if strict:
+            raise BankError(f"local memory was saved; {message}; do not append a duplicate") from exc
+        print(message, file=sys.stderr)
+        return
+    if result.get("pulled") or result.get("pushed"):
+        print("MEMORY_SYNC " + json.dumps(result, ensure_ascii=False), file=sys.stderr)
+
+
+def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
+    if _is_canonical_bank(path):
+        with sync_lock(path):
+            _sync_canonical_locked(path, strict=False)
+            return _read_bank_file(path)
+    return _read_bank_file(path)
+
+
+def _append_entry_file(path: Path, entry: dict[str, Any]) -> dict[str, Any]:
+    if any(existing["id"] == entry["id"] for existing in _read_bank_file(path)):
+        raise BankError(f"duplicate id {entry['id']}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n")
+    return entry
+
+
 def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
     entry = dict(values)
     now = datetime.now().astimezone()
@@ -104,12 +147,13 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
     if not entry.get("title"):
         entry.pop("title", None)
     validate_entry(entry)
-    if any(existing["id"] == entry["id"] for existing in load_bank(path)):
-        raise BankError(f"duplicate id {entry['id']}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n")
-    return entry
+    if _is_canonical_bank(path):
+        with sync_lock(path):
+            _sync_canonical_locked(path, strict=False)
+            saved = _append_entry_file(path, entry)
+            _sync_canonical_locked(path, strict=True)
+            return saved
+    return _append_entry_file(path, entry)
 
 
 def _tokens(value: str) -> set[str]:

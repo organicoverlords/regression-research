@@ -8,6 +8,7 @@ from pathlib import Path
 BEGIN = "<!-- CHANGELOG-LANDING:BEGIN -->"
 END = "<!-- CHANGELOG-LANDING:END -->"
 DATED = re.compile(r"^- \[(\d{4}-\d{2}-\d{2})\] (.+\S)$")
+TIMELINE_EXEMPT_PATHS = {"memory/memory-bank.jsonl"}
 
 
 def unreleased_lines(changelog: str) -> list[str]:
@@ -132,7 +133,8 @@ def main() -> int:
         )
     if args.base_ref:
         changed = changed_files(args.base_ref, root)
-        if changed - {"CHANGELOG.md"}:
+        substantive = changed - {"CHANGELOG.md"} - TIMELINE_EXEMPT_PATHS
+        if substantive:
             if "CHANGELOG.md" not in changed:
                 raise SystemExit("CHANGELOG_LANDING_FAIL: substantive PR changed without CHANGELOG.md")
             if not added_dated_entries(args.base_ref, root):
