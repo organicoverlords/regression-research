@@ -18,5 +18,5 @@ jobs:
           if ("${{ github.event_name }}" -eq "pull_request") {
             python .github/scripts/check_changelog_landing.py --base-ref "origin/${{ github.base_ref }}"
           } else {
-            python .github/scripts/check_changelog_landing.py
+            python .github/scripts/check_changelog_landing.py --base-ref "HEAD^"
           }
