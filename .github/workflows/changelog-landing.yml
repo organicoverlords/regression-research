@@ -21,8 +21,12 @@ jobs:
       - name: Verify changelog and GitHub landing projection
         shell: pwsh
         run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
+          $event = "${{ github.event_name }}"
+          $ref = "${{ github.ref }}"
+          if ($event -eq "pull_request") {
             python .github/scripts/check_changelog_landing.py --base-ref "origin/${{ github.base_ref }}"
-          } else {
+          } elseif ($event -eq "push" -and $ref -eq "refs/heads/main") {
             python .github/scripts/check_changelog_landing.py --base-ref "HEAD^"
+          } else {
+            python .github/scripts/check_changelog_landing.py --base-ref "origin/main"
           }
