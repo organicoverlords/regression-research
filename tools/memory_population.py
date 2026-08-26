@@ -104,7 +104,7 @@ ACCEPTANCE_QUERIES: tuple[dict[str, Any], ...] = (
         "label": "prior project status",
         "query": "Chain Lightning",
         "scope": "p3",
-        "history": False,
+        "history": True,
         "expected_any": ["mem-20260825-chain-lightning"],
     },
     {
