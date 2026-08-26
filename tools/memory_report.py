@@ -54,7 +54,7 @@ except ImportError:  # pragma: no cover - exercised by direct script execution.
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROVENANCE = ROOT / "provenance.json"
 DEFAULT_SCREENSHOT_INVENTORY = ROOT / "02 Evidence" / "2026-08-26_library_screenshot_shard_000.jsonl"
-DEFAULT_SCREENSHOT_OCCURRENCES = ROOT / "02 Evidence" / "2026-08-26_library_screenshot_text_occurrences_001.jsonl"
+SCREENSHOT_OCCURRENCE_GLOB = "*_library_screenshot_text_occurrences_*.jsonl"
 DEFAULT_LIMIT = 5
 MAX_QUERY_CHARS = 200
 MAX_SCOPE_CHARS = 80
@@ -159,6 +159,14 @@ def _file_receipt(path: Path, relative: str) -> dict[str, Any]:
     }
 
 
+def _screenshot_occurrence_receipts() -> list[dict[str, Any]]:
+    evidence = ROOT / "02 Evidence"
+    paths = sorted(evidence.glob(SCREENSHOT_OCCURRENCE_GLOB), key=lambda item: item.name)
+    if not paths:
+        raise ReportError("canonical screenshot occurrence ledgers are unavailable")
+    return [_file_receipt(path, path.relative_to(ROOT).as_posix()) for path in paths]
+
+
 def _screenshot_text_receipt() -> dict[str, Any]:
     root = ROOT / "02 Evidence" / "library_screenshot_text"
     if not root.is_dir():
@@ -191,7 +199,7 @@ def corpus_receipt() -> dict[str, Any]:
         _file_receipt(DEFAULT_SOURCES, "memory/sources.json"),
         _file_receipt(DEFAULT_PROVENANCE, "provenance.json"),
         _file_receipt(DEFAULT_SCREENSHOT_INVENTORY, "02 Evidence/2026-08-26_library_screenshot_shard_000.jsonl"),
-        _file_receipt(DEFAULT_SCREENSHOT_OCCURRENCES, "02 Evidence/2026-08-26_library_screenshot_text_occurrences_001.jsonl"),
+        *_screenshot_occurrence_receipts(),
         _screenshot_text_receipt(),
     ]
     digest = hashlib.sha256()

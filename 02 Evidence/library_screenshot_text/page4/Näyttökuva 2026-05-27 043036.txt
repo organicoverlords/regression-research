@@ -1,0 +1,23 @@
+4/10 tasks done
+
+© PART A: Protect and inspect accidental edits first
+
+© PART B: Establish current baseline after cleanup
+
+© PART C: Inspect disabled/stubbed state from rescue commit
+© PART D: Restore agent_controller compile support first
+
+© PART E: Restore POST /api/agent/run safely
+
+PART F: Restore memory storage safely
+
+PART G: Restore external agent detector safely
+
+PART H: Clean up only harmful temporary diagnostics
+
+PART I: Final validation
+
+PART J: Final report
+
+Thought for 1s
+PART E - Restore POST /api/agent/run safely:

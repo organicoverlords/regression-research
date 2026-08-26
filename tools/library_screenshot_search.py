@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 INVENTORY_GLOB='2026-08-26_library_screenshot_shard_*.jsonl'
-OCCURRENCE_GLOB='2026-08-26_library_screenshot_text_occurrences_*.jsonl'
+OCCURRENCE_GLOB='*_library_screenshot_text_occurrences_*.jsonl'
 
 def _load_jsonl(path:Path)->list[dict]:
     return [json.loads(x) for x in path.read_text(encoding='utf-8-sig').splitlines() if x.strip()]

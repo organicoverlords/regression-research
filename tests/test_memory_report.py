@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tools.library_screenshot_search import _rows as screenshot_rows
+
 from tools.memory_report import (
     EXPOSURE_STATUS,
     MAX_OUTPUT_CHARS,
@@ -51,13 +53,13 @@ class MemoryReportTests(unittest.TestCase):
         self.assertLessEqual(len(payload["findings"]), 5)
         self.assertTrue(all(item["text"] for item in payload["findings"]))
         self.assertIn("raw transcripts are not opened", " ".join(payload["limitations"]))
-        self.assertEqual(payload["summary"]["screenshot_occurrences_indexed"], 217)
+        self.assertEqual(payload["summary"]["screenshot_occurrences_indexed"], len(screenshot_rows(ROOT)))
 
 
     def test_report_includes_screenshot_frequency_without_expanding_every_hit(self) -> None:
         payload = build_report("tool")
         shots = payload["screenshot_occurrences"]
-        self.assertEqual(shots["indexed_occurrences"], 217)
+        self.assertEqual(shots["indexed_occurrences"], len(screenshot_rows(ROOT)))
         self.assertGreater(shots["occurrence_count"], 17)
         self.assertLessEqual(len(shots["matches"]), 3)
         self.assertEqual(payload["summary"]["screenshot_occurrence_matches"], shots["occurrence_count"])
@@ -133,7 +135,7 @@ class MemoryReportTests(unittest.TestCase):
                 "memory/sources.json",
                 "provenance.json",
                 "02 Evidence/2026-08-26_library_screenshot_shard_000.jsonl",
-                "02 Evidence/2026-08-26_library_screenshot_text_occurrences_001.jsonl",
+                *[path.relative_to(ROOT).as_posix() for path in sorted((ROOT / "02 Evidence").glob("*_library_screenshot_text_occurrences_*.jsonl"))],
                 "02 Evidence/library_screenshot_text/**/*.txt",
             ],
         )

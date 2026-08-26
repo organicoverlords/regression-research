@@ -1,0 +1,59 @@
+< Cc QO %
+ChatGPT Oo
+
+G Uusi keskustelu
+Q Hae keskusteluista
+ON Kirjasto
+
+88 Sovellukset
+
+© Codex
+
+oe Lisa
+
+Projektit
+
+& Uusi projekti
+
+& aigstack
+
+Askettaiset
+
+Memory Workflow Optimization
+Memory Optimization Request
+Workflow Memory Update
+
+Memory workflow rules
+
+© Joonas Ahonen
+
+x
+
+chatgpt.com/#chatgpt-local-exporter
+
+®@ Luo kuva
+
+mita tahansa
+
+- oO
+
+eiGa SH aaks
+
+ChatGPT Local Exporter
+
+This is running in a dedicated force-loaded Brave exporter window. It
+does not touch MagicMusic.
+
+> Secx
+
+1 njp6b5
+Output: Downloads/ChatGPTLocalExporter/<runld>/
+
+[8.47.43] Exporter loaded. Click Start export. If not
+logged in, log in here first, then reload this page.
+
+[8.47.44] Starting auth probe. If this fails, log in to
+ChatGPT in this window and reload.
+[8.47.45] Auth probe Ok.
+
+x

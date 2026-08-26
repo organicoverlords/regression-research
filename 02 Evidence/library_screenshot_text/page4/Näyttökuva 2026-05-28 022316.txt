@@ -1,0 +1,121 @@
+Provider Model Discovery
+
+Discover models across all configured providers. Results are cached. LW = Local Worker eligible.
+
+USE (FEDS) oad Cached costes 24 mols)
+
+Provider
+
+uM suo
+oa
+
+uM susio
+oa
+
+uM suo
+oa
+
+uM suo
+oa
+
+uM suo
+oa
+
+uM suo
+oa
+
+VIAN
+
+VIAN
+
+VIAN
+
+VIAN
+
+VIAN
+
+VIAN
+
+VIAN
+
+VIAN
+
+VIAN
+
+quen3.5-tb-claude-4.6-opus-reasoning-
+stled2
+
+quen3.5-9b-deepseek-ul-fash
+
+quen3.5-2b-claude-4.6-opus-reasoning-
+distlled@a ks
+
+quen3.5-2b-claude-4.6-opus-reasoning-
+distlled@a5. ks
+
+quen3-170
+
+tex-embedding-nomic-embed-tox-v15
+
+yiarge
+
+dacans-lama-3.1-70b-instruct
+
+fs
+
+Jamba-t Sarge inswuct
+
+session-Tosnstruct
+
+bgem3
+
+starcoder2-15b
+
+seed-one-36b-inctuct
+
+doncinstract,
+
+Display Name
+
+(Qwens 5 db Claude 4 6
+
+‘Qwens 5 9b Deepsesk V4 Fash
+
+(Quen 5 2b Claude 4 6
+
+(Quen 5 2b Claude 4 6
+
+wens 17
+
+‘Text Embedding Nomic Embed
+Ten v1
+
+Vilage
+
+Dracangs ama 3 1 70b instruct
+
+Fuyu a
+
+Jamba 15 Large instruct
+
+‘Sea Lion Tb Instruct
+
+ge M3
+
+Starcoder? 1S
+
+‘Seed Oss 260 Instruct
+
+ber etruct
+
+unavailable
+
+unavailable
+
+unavailable
+
+eld
+
+eld
+
+etd

@@ -1,0 +1,58 @@
+) gigstack Fixing Proof Patch Generation
+
+v Implement Plan/Build Intake Gate X > smoke-workspace-chatps1M >. debug-workspace-chat-long-runs.ps1
+
+>. smoke-workspace-chat.ps1
+
+Thought for 15
+8/14 tasks done
+
+© Remove Chat mode from HTML, only show Plan and Build
+© Add classifyUserintentForAgent helper function
+
+© Add intent check in sendMessage before callProofendpoint,
+© Normalize invalid persisted modes to Plan
+
+© Improve proof completion message with useful details
+
+© Update proof failure message with mode prefix
+
+© Update cache-busting version in HTML
+
+© Update smoke-workspace-chat.ps1 with new assertions
+
+© Real UI test: Plan + hi
+
+Real Ul test Build + hi
+
+Real UI test: Build + real task
+
+: cargo check, test-proof-stream-live,mjs, smoke-workspace-chat-ps1
+Commit and push changes
+
+Generate final report
+
+Run validati
+
+Thought for 15
+
+Command agent-browser in ./gigstack
+
+© PS C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\gigstack> []
+
+2 set-nim-provider.pst
+
+Ms SUGGESTED_ROUTER CLASSIF
+
++19
+
+a
+
+3 files +154 12 >
+Ask anything (Ctrl+L)
+
++ Code SWE-16
+
+sana
+
+Weascade OF @

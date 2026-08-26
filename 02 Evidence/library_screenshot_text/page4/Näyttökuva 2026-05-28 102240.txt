@@ -1,0 +1,79 @@
+—— ere LE IES NE LOIS > an
+
+ees ee ee LES NIL OLD SSIS NS EE ENE ees a
+
+ele & GB AOBkE
+
+memory_dir: Pathsur, Toiminta - 51s >
+
+!
+| AAAAKAKAAA
+|
+
+Ss note: “#[warn(dead_code)]> (part of “#[warn(unused)]) on by default
+
+. He° warning: field ‘mode’ is never read ® Selaaminen GitHub-repositoryn koodin
+
+ma Pr crates\gigstack-core\src\resource_monitor.rs:75:5 veneer
+>> 73 | pub struct ResourceMonitor {_ ; ; (@ rawgjthubusercontent.com
+VKin> | I - - field in this struct
+74 | workspace_root: PathBuf,
+ee) || mode: ResourceMonitoringMode, : _ :
+2 Sc’ I AAAA error in C:\Users\Lauri\.gemini\settings. json: Unexpected token '* "oe
+
+BF "mcpS"... is not valid JSON __ :
+) C3> warning: “gigstack-core’ (lib) generated 3 warnings (run “cargo Ff? loo fo the conf guration File(s) and bry again. ;
+>> warning: variable \actual_route_id_used’ is assigned to, but nevePS C:\Users\Lauri\Desktop\agent workplace\agent-workspace\gigstack>
+--> crates\gigstack—daemon\src\main. rs: 2288: 13
+
+Jet mut actual_route_id_used: Option<String> = Noni
+AAAAAAAAAAAAAAAAAAAAAAAA
+
+note: consider using “_actual_route_id_used_ instead
+note: “#[warn(unused_variables)]° (part of ~#[warn(unused)
+
+2° warning: value assigned to “actual_route_id_used’ is never read
+7 --> crates\gigstack-daemon\src\main. rs: 2440: 25
+
+oss-
+bow - -
+Bol actual_route_id_used = route_id_to.
+g: 7 AAAAAAAAAAAAAAAAAAAA
+indsurf £ help: maybe it is overwritten before being read?
+
+“#[warn(unused_assignments)]~ (part of °#[warn(unuse:
+
+feUbun) a4 bey G
+warning: field ‘clear_api_key’ is never read
+callim > crates\gigstack-daemon\src\main. rs: 365:5
+
+357 | struct ProviderUpsertInput {
+
+indsurf a | - -- field in this struct
+1al Scree365_ | clear_api_key: Option<bool>,
+| AAAAAAAAAAAAA
+rsonalA | - ~
+
+note: “#[warn(dead_code)]° (part of “#[warn(unused)]") on by default ane
+fash Ic om -rF /mnt/date/gigstack && ei
+sualziMGwarning: “gigstack-daemon’ (bin "gigstack-daemon") generated 3 warnings
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 0.29s
+ext prom Running \target\debug\gigstack-daemon. exe
+{'"timestamp": "2026-05 -28T07 : 22:18. 8269452", "level
+named 77" },"target": "gigstack_daemon"'}
+
+ative Router Telemetry Integrat...
+
+—_ ”
+
+INFO", "fields": {"message":"gigstackd listening", "addr": "127.0.0.1:48]
+
+Cloning into
+“/mnt/data/gigstack’...
+fata
+
+: unable to access
+
+“https: //github.com/organicoverlor
+
+mi 2.6 vs SWF 1.6,

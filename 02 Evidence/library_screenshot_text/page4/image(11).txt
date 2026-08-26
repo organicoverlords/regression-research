@@ -1,0 +1,42 @@
+GigStack GigStack x + - og x
+
+<€>ea Q  @ = 127.0.0.1:4877/workspace-chat.html?v=1 m® Q\e ® Qae=
+iosack ‘igstack / Initiating Project Collaboration oa a © _ DevTools is now available in Finnish x
+‘Always match Chrome's language Switch DevTools to Finnish
+IR [0 | Elements Console _Sources_ Network Performance >> 1B. 8 x
+meson Page Workspace >> $ [4 _workspace-chat....1779970800000 x
+ore 6121] if (typeof updatestreamActivity === ‘function’) {
+> O top 6122 updateStreamActivity();
+019e6e1b >» & 127.0.0.1:4877 6123 +
+workspace-chat.html... 124
+workspace-chat html... : °
+ew comeraton 6126 Neen cio cereercrotiaectates reser):
+D) workspace-chatjsrv. 6127 }
+DB workspace-chat.ess 6128}
+6129
+
+>
+(<] Ao = Thinking 5 €} Line 6126, Column 17 Coverage:n/a
+was steps)” Took tok: >
+Tool calls me ¥ Twi Scope_ Watch
+read file] .
+¥ Breakpoints a Not paused
+Gi Pause on uncaught exceptions
+G Pause on caught exceptions
+¥ Call Stack
+Not paused
+> XHR/fetch Breakpoints
+> DOM Breakpoints
+0 main
+8a > Global Listeners ’
+As hing, @ to mer for act Console What's new a x
+DBD @\ tpy |@| F Filter Default levels ¥ | 16 Issues: 16 | ihidden §3
+LO Sui Lea Key: none Rout: sito Mode: bul ese UCHatKUNStates SWILEIT Conversatiorr wor kSpate=CHat=JSr n
+© Uisixioy addMiessage: role-user, contentLength=739  workspace-chat.js?
+© hwo v © > SSE error event: workspace-chat .js?v=.~
+© ohana Roar v ) {nessage: ‘ALL provider retries exhausted’, type: ‘error’} |
+Om Detailed error message: All provider retries workspace-chat.js?
+Auto Bud ab Le en: exhausted
+© connec Treg | teri | [La irs
+
+addMessage: role=assistant, contentLength=39 workspace-chat.js

@@ -1,0 +1,48 @@
+BB Windows Powershell x +» - a x
+
+atic fallback routing, so you should take that in to consideration. DO NOT EDIT ANY FILES. you can read and plan and pro
+be the models for initial testing, but come up with a working plan for the probing and scoring that works practically. d
+© not create any cronjobs or scripts yet. do not stop until you have a list ofr at least 10 models total.
+
+a the goal is done. H g until it is, you pe
+
+© DO NOT STOP UNTIL YOU HAVE REAL DATA FROM 50 MODELS WITH 5X5 TOOL USAGE LOOPS AND LOGIC DEDUCTION BENCHMARKS WITH TPS
+AND AVG RESPONSE TIME AND SCORE FOR JOB COMPLETION, create new folder called probe analysis on desktop, then start new
+analysis and probing task: figure out the top 50 candidates for agentic automatic coding and orchestration and Long
+planning from http: //localhost:3002/v1/models after that figure out a plan how you could probe their real-life TPS and
+response times and tool-calling abilities consistently somehow. I want you to find 19 stable working coding capable
+models from there that have high reliability and fast tps for agentic coding tasks and 2-3 models capable of
+orchestration and high context. Use online sources in figuring out the models capabilities but base your results on real
+world capability, as many of the models are so overloaded and busy that they timeout easily. Gigapi has automatic
+fallback routing, so you should take that in to consideration. DO NOT EDIT ANY FILES. you can read and plan and probe
+the models for initial testing, but come up with a working plan for the probing and scoring that works practically. do
+not create any cronjobs or scripts yet. do not stop until you have a list ofr at least 10 models total.
+
+curl -s http://localhost:3002/v1/models 1.Us
+mkdir —p "/c/Users/Lauri/Desktop/probe analysis" 0.1s
+A. Response truncated (finish_reason="Length') - model hit max output tokens
+
+ims for id in gemini-3.1-pro-preview qwen/qwen3-coder:free minimax/minimax-m2.5:free openai/gpt-oss-120b:fr
+ee gemini-2.5-flash Llama-3.3-70b-versatile gemini-3-flash-preview qwen/qwen3-next-80b-a3b-instruct meta-Llama/llama-U-s
+cout-17b-16e-instruct google/gemma-4-31b-it:free; do echo "Model: $id"; curl -s -o /dev/null -w "%{time_total}\n" -X POS
+T http: //Localhost :3002/v1/chat/completions -H "Content-Type: application/json" -d "{\"model\":\"$id\",\"messages\": [{\"
+
+role\":\"user\",\"content\":\"ping\"}] ,\"max_tokens\":10}"; done 15.85
+
+A Response truncated (finish_reason="Length') - model hit max output tokens
+
+A Response truncated (finish_reason="Length') - model hit max output tokens
+
+A Truncated tool call detected — retrying API call...
+
+A Truncated tool call detected — retrying API call...
+
+A Truncated tool call response detected again - refusing to execute incomplete tool arguments.
+
+‘$Hermes
+
+Error: Response truncated due to output length Limit
+
+Fauto | 24.3K/131.1K | [IE 1 19% | 7m | @1m 29s
+
+>a
