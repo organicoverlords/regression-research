@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "study_issue": 89,
+  "generated_date": "2026-08-26",
+  "coverage_state": "NOT_PROVEN",
+  "coverage_note": "Text-indexed Library search and current conversation context were sampled; exhaustive screenshot coverage depends on #86, whose current shard has not exhausted the Library image surface.",
+  "events": [
+    {
+      "event_id": "SW-20260822-001",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": null,
+      "domain": "control-plane / incident-reporting / MCP context",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {"ref": "file_00000000f1808210b83fdd3c85c352be", "role": "primary", "name": "INC-20260822-072540-EEST-37dca5b13a_partial_active_context_evidence.md"},
+        {"ref": "file_000000002a3c820aa4f2fddcfeb0f1de", "role": "secondary", "name": "Liitetty markdown(20260822-060007).md"},
+        {"ref": "file_000000008e2c81f4a3c2a96f1a23677b", "role": "duplicate_export", "name": "2026-08-20 12-34 EEST — MEMORY RECONSTRUCTION — MoE Routing and 180-item Instruction Dump.json"}
+      ],
+      "context_before": "Repeated delay and canonical-path confusion during incident-skill repair. The user had already challenged a seven-minute delay, repeated promises, and a claimed fix whose path later failed direct verification. The assistant then gave a long causal/control-gating explanation instead of returning to the concrete repair.",
+      "user_visible_symptom": "Long process/causal explanation after repeated execution failures and corrections.",
+      "assistant_action_before": "Explained recursive prerequisites, control gating, stale context and competing control surfaces at length.",
+      "context_after": "The assistant immediately shortened the explanation, but did not resume concrete repair on that turn. The user next asked which instructions caused the behavior and then invoked the incident-report process. Direct canonical repair occurred only after another explicit user correction requiring the skill and repo to be updated.",
+      "assistant_action_after": "COMPRESSED_EXPLANATION",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": ["EXPLANATION_INSTEAD_OF_EXECUTION", "RECURSIVE_PREREQUISITES", "REPEATED_PROMISE_NO_ACTION", "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT", "STALE_CONTEXT_OR_AUTHORITY"],
+      "scores": {"information_slop": 4, "task_displacement": 5, "execution_damage": 4, "correction_resistance": 4, "control_state_pathology": 4},
+      "severity_100": 84,
+      "score_rationale": "High severity is grounded in observed delay, repeated user corrections, unverified/wrong path claims, and analysis displacing the requested repair. No hidden-reasoning cause is assumed."
+    },
+    {
+      "event_id": "SW-20260826-001",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": null,
+      "domain": "P3 render-queue / worker handoff discussion",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "D",
+      "provenance": [{"ref": "current-conversation-2026-08-26-render-queue", "role": "current_context", "name": "Current ChatGPT conversation compact history"}],
+      "context_before": "Current conversation history preserves that the user asked for an ELI5 during discussion of the recurring P3 rendering/90-percent worker wall, then said `slopwall`; the exact immediately preceding assistant answer is not available in a stable complete source in this pass.",
+      "user_visible_symptom": "The user used `slopwall` as a direct correction during a dense render-queue explanation.",
+      "assistant_action_before": "NOT_PROVEN from stable full-turn evidence.",
+      "context_after": "The conversation moved on to timeline/documentation and later returned to rendering-queue workflow design. The immediate correction effect cannot be scored from the currently bound evidence.",
+      "assistant_action_after": "NOT_PROVEN",
+      "execution_restored_next_substantive_turn": null,
+      "phenotypes": ["RENDER_OR_VALIDATION_WALL"],
+      "scores": null,
+      "severity_100": null,
+      "score_rationale": "UNSCORABLE: exact before/after turn content is not durably bound yet."
+    }
+  ],
+  "excluded_meta_mentions": [
+    {"date": "2026-08-26", "matched_form": "slopwall", "text": "alsoaddallinstancesofwhenisayslopwallandscorethemetc", "reason": "Study instruction referring to the marker, not a corrective intervention."},
+    {"date": "2026-08-26", "matched_form": "slopwall", "text": "slopwallasonewordandtwowords", "reason": "Search-scope clarification, not a corrective intervention."}
+  ],
+  "confirmed_counts": {"canonical_interventions": 2, "slopwall": 2, "slop wall": 0, "scored": 1, "unscorable": 1, "excluded_meta_mentions": 2},
+  "pending_coverage": [
+    "Complete #86 Library screenshot pagination and visual review; screenshot-only instances may remain.",
+    "Recover stable full-turn evidence for SW-20260826-001 before assigning severity.",
+    "Perform literal matching over each enumerated transcript/export rather than relying on semantic search, especially for the spaced form."
+  ]
+}
