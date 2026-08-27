@@ -9,11 +9,15 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 ## [Unreleased]
 - [2026-08-27] [meta] Decomposed #122 scope expansion into recursive adoption of unrelated baseline failures and a separate post-acceptance integration tail; confirmed the latter recurred under committed shared policy v1.14 before the v1.15 active-tail rule.
 
+- [2026-08-27] [meta] Added a scored #122 interruption/tool-discovery replay so an unloaded MCP0 schema cannot be promoted to global tool unavailability before MCP0 discovery/attempt, while preserving the inherited task across the interruption.
+
 - [2026-08-27] [meta] Bound #122?s Aug 26 18:19 premature finalization to a completion-classification error: 50/51 process launches were consumed normally, the final required launch returned the historical `RUNNING` / `READ_SAME_PROCESS_ID` contract and exited 0, but the model finalized and mislabeled the still-unlanded direct-push acceptance step as optional hardening.
 
 - [2026-08-27] [meta] Added the #122 executable fresh-chat regression matrix: eight raw-conversation controls reproduce the Aug 25 minimal-prompt execution envelope and Aug 26 GPT-5.6 Thinking/extended contrasts, including sustained execution, route correction, response rejection, and a zero-tool fabricated Vault mutation claim.
 
 ### Added
+
+- [2026-08-27] [meta] Promoted and scored the first 14 of #89's 28 newly recovered raw `slopwall` corrections into canonical events, raising the canonical index to 26 interventions / 30 lexical occurrences with 24 scored events while leaving the remaining 14 explicit promotion candidates.
 
 - [2026-08-27] [meta] Replaced duplicated inline CI logic with one tested `python tools/verify.py` entrypoint, a five-minute job bound, and fixture-only changed-area checks that are identical locally and in Actions (#144).
 
