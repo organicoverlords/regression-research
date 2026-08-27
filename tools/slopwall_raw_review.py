@@ -36,6 +36,12 @@ EVENT_BY_MESSAGE = {
     "17b9220f-6b52-4be2-a5e1-d07ef42e07f5": "SW-20260826-010",
 }
 
+try:
+    from .slopwall_event_promotion import PROMOTIONS as PROMOTED_EVENTS
+except ImportError:
+    from slopwall_event_promotion import PROMOTIONS as PROMOTED_EVENTS
+EVENT_BY_MESSAGE.update({mid: spec["event_id"] for mid, spec in PROMOTED_EVENTS.items()})
+
 REVIEWED_EVENT_UPDATES = {
     "SW-20260826-001": {
         "scores": {"information_slop": 3, "task_displacement": 1, "execution_damage": 0, "correction_resistance": 0, "control_state_pathology": 0},
@@ -145,7 +151,7 @@ def build_review(raw: dict[str, Any], index: dict[str, Any]) -> dict[str, Any]:
         "schema_version": 1,
         "study_issue": 89,
         "authority": "HUMAN_REVIEW_OF_RAW_DISCOVERY",
-        "note": "This review classifies the 46 deduplicated raw ChatPort hit messages. It does not silently promote the 28 newly identified corrective messages into the canonical scored event index; those remain explicit next-work candidates.",
+        "note": "This review classifies all deduplicated raw ChatPort hit messages. Direct corrections mapped to a canonical event are distinguished from still-unpromoted candidates; meta/design references remain separate.",
         "summary": {
             "reviewed_hit_messages": len(rows),
             "role_counts": dict(sorted(roles.items())),
@@ -199,10 +205,13 @@ def reconcile_existing_events(raw: dict[str, Any], index: dict[str, Any]) -> dic
         "unscorable": len(out["events"]) - scored,
         "occurrence_roles": dict(sorted(roles.items())),
     }
+    direct_mids = [r["message_id"] for r in raw["records"] if r["message_id"] not in META_REASONS]
+    bound = sum(mid in EVENT_BY_MESSAGE for mid in direct_mids)
+    pending = len(direct_mids) - bound
     out["coverage_note"] = (
-        "Canonical index remains a confirmed lower bound. Ten existing events are now bound to exact raw ChatPort turns; "
-        "nine formerly D-confidence events are B-confidence and scored. Raw review separately identifies 28 additional "
-        "corrective messages awaiting canonical event promotion plus 8 meta references on the raw surface."
+        f"Canonical index remains a confirmed lower bound. {bound} raw ChatPort direct corrections are bound to canonical events; "
+        f"{pending} reviewed direct corrections remain explicit promotion candidates, alongside {len(META_REASONS)} meta/design references. "
+        "Library screenshot exhaustion remains separately open under #86."
     )
     return out
 
