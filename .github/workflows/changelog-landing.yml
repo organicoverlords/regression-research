@@ -88,7 +88,9 @@ jobs:
               'tools/conversation_search_refresh.py',
               'tools/validate_conversation_search_corpus.py',
               'tests/test_conversation_search.py',
-              'tests/test_conversation_search_refresh.py'
+              'tests/test_conversation_search_refresh.py',
+              'tests/fixtures/conversation-corpus/ChatPortEvidence/old.json',
+              'tests/fixtures/conversation-corpus/ChatGPTLocalExporter/new.json'
             )
           })
           if ($conversationChanged.Count -eq 0) {
@@ -101,9 +103,10 @@ jobs:
           python -m unittest tests.test_conversation_search tests.test_conversation_search_refresh -v
           if ($LASTEXITCODE -ne 0) { throw 'conversation search tests failed' }
 
-          $db = 'C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3'
-          python tools/conversation_search_refresh.py --db $db
+          $corpus = Join-Path $env:GITHUB_WORKSPACE 'tests/fixtures/conversation-corpus'
+          $db = Join-Path $env:RUNNER_TEMP 'regression-research-conversation-search.sqlite3'
+          python tools/conversation_search_refresh.py --db $db --corpus-root $corpus
           if ($LASTEXITCODE -ne 0) { throw 'conversation corpus indexing failed' }
           python tools/validate_conversation_search_corpus.py --db $db
           if ($LASTEXITCODE -ne 0) { throw 'old/new corpus search validation failed' }
-          Write-Output "CONVERSATION_SEARCH_CANONICAL_INDEX_PROVEN=$db"
+          Write-Output "CONVERSATION_SEARCH_FIXTURE_INDEX_PROVEN=$db"

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ci-old-chatport",
+    "title": "CI old ChatPort cohort",
+    "messages": [
+      {
+        "id": "old-message",
+        "role": "user",
+        "content": "Old cohort fixture phrase for regression validation",
+        "create_time": 1724371200
+      }
+    ]
+  }
+]
