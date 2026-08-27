@@ -35,6 +35,8 @@ STACK_PATHS = {
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
+    "03 Fixtures and Experiments/issue123-startup-memory-orchestration.json",
+    "tests/test_issue123_startup_memory_acceptance.py",
 }
 
 CONVERSATION_PATHS = {
@@ -124,6 +126,7 @@ def verify_stack() -> None:
             "tests.test_busy_authority",
             "tests.test_stack_acceptance",
             "tests.test_issue122_acceptance_boundary_replay",
+            "tests.test_issue123_startup_memory_acceptance",
             "tests.test_connector_reliability",
             "tests.test_north_star_entry",
             "-v",

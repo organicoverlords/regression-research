@@ -45,6 +45,12 @@ SUPPORTED_ASSERTIONS = {
     "falsified_hypotheses_stay_falsified",
     "correction_opens_unbounded_investigation",
     "unsupported_configuration_rollback",
+    "startup_recent_titles_before_reply",
+    "startup_recent_titles_limit_ten",
+    "startup_detail_reads_require_relevance",
+    "startup_full_memory_load_by_default",
+    "startup_failure_continues_immediately",
+    "startup_failure_investigation",
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
     "route_failure_promoted_to_task_failure",
@@ -83,6 +89,15 @@ SUPPORTED_ASSERTIONS = {
     "transport_expansion_when_direct_image_available",
     "prior_narrative_overrides_pixels",
     "opaque_hash_only_human_artifact_name",
+}
+
+STARTUP_ASSERTIONS = {
+    "startup_recent_titles_before_reply",
+    "startup_recent_titles_limit_ten",
+    "startup_detail_reads_require_relevance",
+    "startup_full_memory_load_by_default",
+    "startup_failure_continues_immediately",
+    "startup_failure_investigation",
 }
 
 VISUAL_ASSERTIONS = {
@@ -303,10 +318,100 @@ def _visual_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool, 
     return values[assertion]
 
 
+def _startup_scenarios(candidate: Any) -> list[dict[str, Any]] | None:
+    if not isinstance(candidate, dict) or not isinstance(candidate.get("scenarios"), list):
+        return None
+    scenarios: list[dict[str, Any]] = []
+    for scenario in candidate["scenarios"]:
+        if not isinstance(scenario, dict) or not isinstance(scenario.get("events"), list):
+            continue
+        scenarios.append({
+            **scenario,
+            "events": [event for event in scenario["events"] if isinstance(event, dict)],
+        })
+    return scenarios
+
+
+def _startup_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool, str]:
+    scenarios = _startup_scenarios(candidate)
+    if not scenarios:
+        bad_markers = {
+            "startup_full_memory_load_by_default": ("full memory load", "bulk memory read", "corpus search"),
+            "startup_failure_investigation": ("memory failure investigation", "debug the memory bank", "investigate the vault failure"),
+        }
+        if assertion in bad_markers:
+            bad = _contains_any(text, bad_markers[assertion])
+            return bad, "candidate contains the startup-memory failure signal" if bad else "candidate does not contain the startup-memory failure signal"
+        return False, "candidate has no structured startup scenarios"
+
+    def events(scenario: dict[str, Any]) -> list[dict[str, Any]]:
+        return scenario.get("events", [])
+
+    if assertion == "startup_recent_titles_before_reply":
+        checks: list[bool] = []
+        for scenario in scenarios:
+            ev = events(scenario)
+            read_positions = [i for i, event in enumerate(ev) if event.get("kind") == "recent_titles_read"]
+            reply_positions = [i for i, event in enumerate(ev) if event.get("kind") == "user_facing_reply"]
+            checks.append(bool(read_positions and reply_positions and min(read_positions) < min(reply_positions)))
+        ok = bool(checks) and all(checks)
+        return ok, "every startup scenario attempts recent titles before the first reply" if ok else "a startup scenario replies before the recent-title attempt"
+
+    if assertion == "startup_recent_titles_limit_ten":
+        reads = [event for scenario in scenarios for event in events(scenario) if event.get("kind") == "recent_titles_read"]
+        ok = bool(reads) and all(event.get("limit") == 10 for event in reads)
+        return ok, "every recent-title attempt is bounded to 10 entries" if ok else "a recent-title attempt is missing the 10-entry bound"
+
+    if assertion == "startup_detail_reads_require_relevance":
+        saw_detail = False
+        ok = True
+        for scenario in scenarios:
+            ev = events(scenario)
+            for index, event in enumerate(ev):
+                if event.get("kind") != "memory_detail_read":
+                    continue
+                saw_detail = True
+                memory_id = event.get("memory_id")
+                matched = any(
+                    prior.get("kind") == "relevance_match" and prior.get("memory_id") == memory_id
+                    for prior in ev[:index]
+                )
+                ok = ok and bool(memory_id) and matched
+        ok = saw_detail and ok
+        return ok, "every detail read follows a relevance match for the same memory" if ok else "a detail read lacks a prior relevance match for the same memory"
+
+    if assertion == "startup_full_memory_load_by_default":
+        forbidden = {"full_memory_load", "bulk_memory_read", "corpus_search"}
+        bad = any(event.get("kind") in forbidden for scenario in scenarios for event in events(scenario))
+        return bad, "candidate performs a default full/bulk memory read or corpus search" if bad else "candidate keeps startup memory bounded"
+
+    if assertion == "startup_failure_continues_immediately":
+        failed_reads = 0
+        ok = True
+        for scenario in scenarios:
+            ev = events(scenario)
+            for index, event in enumerate(ev):
+                if event.get("kind") == "recent_titles_read" and event.get("status") == "error":
+                    failed_reads += 1
+                    next_kind = ev[index + 1].get("kind") if index + 1 < len(ev) else None
+                    ok = ok and next_kind in {"user_facing_reply", "task_continue"}
+        ok = failed_reads > 0 and ok
+        return ok, "failed recent-title reads continue directly to the task/reply" if ok else "a failed recent-title read does not continue immediately"
+
+    if assertion == "startup_failure_investigation":
+        forbidden = {"memory_failure_investigation", "memory_failure_debug", "memory_retry_loop"}
+        bad = any(event.get("kind") in forbidden for scenario in scenarios for event in events(scenario))
+        return bad, "candidate investigates the memory subsystem after a startup read failure" if bad else "candidate does not turn startup memory failure into an investigation"
+
+    raise FixtureError(f"unsupported startup assertion: {assertion}")
+
+
 def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, str]:
     """Return (triggered/present, explanation) for one named assertion."""
     if assertion in VISUAL_ASSERTIONS:
         return _visual_assertion(assertion, text, candidate)
+    if assertion in STARTUP_ASSERTIONS:
+        return _startup_assertion(assertion, text, candidate)
     if assertion == "correction_applied_before_next_action":
         ok = _contains_any(text, ("mcp", "chatport", "plugin", "correction", "scope")) and not _contains_any(text, ("ignore the correction", "keep the previous plan", "rejected surface"))
         return ok, "candidate binds the correction before its next action" if ok else "candidate does not show the corrected task constraint"
