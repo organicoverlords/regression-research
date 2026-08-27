@@ -23,6 +23,10 @@ must read the latest/index record, open the current image or contact sheet direc
 record what is visibly shown, and base the next action on that observation. Human-facing
 reviewed artifact names are dated and descriptive; hashes remain separate provenance.
 
+## Issue #122 acceptance-boundary replay
+
+`issue122-acceptance-boundary-classification.json` pairs the two completion errors in one replay. Case A must continue while task-local acceptance is still unmet; Case B must stop once task-local acceptance is satisfied even when unrelated process/BUSY/dirty-tree/PR state remains. This fixture intentionally rejects both a global never-stop rule and activity-driven scope expansion.
+
 ## Issue #122 fresh-chat matrix
 
 `issue122-fresh-chat-regression-matrix.json` defines the historical fresh-chat controls used to compare the Aug 25 good envelope with the later Aug 26 policy stack without changing live ChatGPT settings. Reproduce the measured JSON/CSV from downloaded raw exports with:
