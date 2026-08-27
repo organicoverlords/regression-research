@@ -7,10 +7,30 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
-
 ### Added
 
 - [2026-08-27] Refined unified memory search so one topical query returns bounded durable memories plus a corpus-wide prevalence signal and a tiny historical-evidence sample; raw conversation excerpts are `HISTORICAL_CONTEXT` rather than claim-state `PROVEN`, scoped searches still fan out, and the 10-title recent bootstrap is unchanged (#99).
+
+- [2026-08-27] [meta] Added reproducible raw ChatPort literal discovery for #89, binding 46 unique `slopwall` hit messages across 48 source aliases to conversation/message IDs, SHA-256 provenance, timestamps, and bounded before/after context without inflating the canonical scored event count before review.
+
+- [2026-08-27] Defined the assistant-stack north star and preserved the mixed `MASTER MEMORY` context as immutable classified evidence with a replay fixture for stale-context authority, show-before-mutate, and non-blocking recovery (#125).
+
+- [2026-08-27] [meta] Added first-class historical-evidence registry and deterministic fixture/test coverage for ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code, keeping unverified local OpenCode/Command-Code paths explicitly unknown (#125).
+
+- [2026-08-27] [meta] Added a provider-agnostic capability-routing policy simulator and regression tests for ordered fallback, capability-local failure, single coordination authority, and explicit memory-write authorization (#125).
+
+- [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
+
+- [2026-08-27] [meta] Made canonical memory reads side-effect free: `recent`, `validate`, and `search` no longer trigger Git reconciliation or publishing; canonical writes retain pre/post synchronization.
+
+- [2026-08-27] [meta] Captured `RR-INCIDENT-REPORT-OVERPROCESSING-20260827` from a full downloaded conversation: a supposedly bounded incident capture continued for 157.8 seconds of repository lifecycle work after its incident-owned artifacts were already declared valid.
+
+- [2026-08-27] [meta] Recorded the repeated premature-finalization incident where callable tools were falsely described as a tool-window/session cutoff; added raw `end_turn=true`/normal-stop metadata proving model-selected finalization in the inspected recurrence, plus replay evidence requiring state-based completion and direct cutoff proof.
+
+- [2026-08-27] [meta] Captured `RR-INCIDENT-SCOPE-DRIFT-20260827`, where bounded incident work expanded into unrelated repository repair after baseline validation failures; added replay coverage and a searchable provisional lesson.
+
+- [2026-08-27] Fixed semantic memory freshness so correction writes must explicitly supersede an existing memory or opt into standalone status, reject missing supersession targets, and keep stale conclusions out of ordinary recall.
+
 - [2026-08-27] Unified historical full conversations into the private Git-ignored Vault corpus, recovered 569 legacy-database conversations including 120 absent from surviving transcript sources, rebuilt search to 637 conversations / 140,283 deduplicated messages with zero unresolved sources, and made ordinary `memory_bank.py search` include bounded historical turns (#99).
 - Recorded the timestamped ChatGPT Personal Instructions response-quality trial, preserving the exact before snapshot and proposed replacement as ACTIVE_TEST_NOT_CONCLUSION evidence; worker policy and the shared memory bank were not changed (#107).
 

@@ -16,6 +16,7 @@ REMOTE = "origin"
 BRANCH = "main"
 MAX_SYNC_ATTEMPTS = 3
 LOCK_STALE_SECONDS = 180
+IS_WINDOWS = os.name == "nt"
 
 
 class MemorySyncError(RuntimeError):
@@ -81,7 +82,27 @@ def _write_bank(path: Path, entries: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_name(path.name + ".sync-tmp")
     temp_path.write_text(text, encoding="utf-8", newline="\n")
-    temp_path.replace(path)
+    try:
+        os.replace(temp_path, path)
+        return
+    except PermissionError:
+        # Windows readers can open the bank without FILE_SHARE_DELETE. In that
+        # state replacing the pathname fails even though the file itself remains
+        # writable. sync_lock serializes memory writers, so preserve the temp
+        # recovery copy and rewrite the existing file identity in place.
+        if not IS_WINDOWS or not path.exists():
+            raise
+
+    payload = temp_path.read_bytes()
+    with path.open("r+b") as handle:
+        handle.seek(0)
+        handle.write(payload)
+        handle.truncate()
+        handle.flush()
+        os.fsync(handle.fileno())
+    if path.read_bytes() != payload:
+        raise MemorySyncError(f"memory bank in-place rewrite verification failed: {path}")
+    temp_path.unlink()
 
 
 @contextmanager

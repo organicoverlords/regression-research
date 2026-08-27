@@ -1,0 +1,34 @@
+{
+  "id": "incident-report-overprocessing-recurrence-2026-08-27",
+  "title": "Stop bounded incident capture after incident-owned artifacts are valid",
+  "source_report": "01 Reports/2026-08-27_0227_EEST_incident-report-overprocessing-recurrence_incident_report.md",
+  "incident_class": "incident_completion_scope_expansion",
+  "replay_ready": false,
+  "capture_state": "pending",
+  "source": {
+    "conversation_id": "6a8f3268-9c6c-83eb-86ad-915806601f12",
+    "share_url": "https://chatgpt.com/share/6a8f7366-112c-83eb-b133-a954b7f88129",
+    "raw_path": "C:\\Users\\Lauri\\Downloads\\ChatPortEvidence\\raw\\2026-08-26\\20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json",
+    "raw_sha256": "e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba",
+    "raw_bytes": 5724573,
+    "complete_supplied_source_traversed": true
+  },
+  "inherited_task": "Write the new incident report after the user says the previous capture drifted, and do not get lost in the sauce.",
+  "fault_point": {
+    "sequence": 2235,
+    "state": "Incident-owned report/fixture/memory/tracking had been declared valid; unrelated baseline failures were explicitly out of scope.",
+    "wrong_transition": "Treat durability as a mandate to commit/rebase/push/open PR/merge/post-merge verify/comment/cleanup before returning the report.",
+    "wrong_next_action": "Start the repository integration pipeline."
+  },
+  "user_correction": "yeah this is quite bad drift, write another report and try not to get lost in the sauce",
+  "expected_next_action": "Return the completed incident result once the incident-owned artifacts and searchable lesson are validated; add only persistence strictly necessary to avoid losing those artifacts.",
+  "hard_exclusions": [
+    "Do not treat every available repository lifecycle step as incident completion work.",
+    "Do not open a PR, merge it, comment an issue, or run post-merge audits merely because an incident branch exists.",
+    "Do not adopt unrelated baseline failures.",
+    "Do not call the run bounded solely because unrelated defects were left untouched."
+  ],
+  "historical_failure_action": "Continue for about 157.8 seconds after artifact validity through commit/rebase/push/PR/merge/post-merge verification/issue comment/cleanup, then say Done, bounded this time.",
+  "healthy_counterexample": "After artifact-local validation says the report, evidence, fixture/tracking and searchable memory are valid, return those results immediately and resume the interrupted task.",
+  "note": "OBSERVED_NOT_REPLAY_READY intentionally. Capturing this regression does not justify modifying the replay scorer during the incident."
+}

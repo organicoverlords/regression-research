@@ -67,6 +67,8 @@ def build_snapshot_receipt(root: Path, bank_path: Path) -> dict[str, Any]:
     migrations = root / "memory" / "migrations"
     for path in sorted(migrations.glob("*candidates.jsonl")):
         sources.append({"path": path.relative_to(root).as_posix(), "sha256": _sha256_text(path)})
+    for path in sorted(migrations.glob("*candidate-dispositions.json")):
+        sources.append({"path": path.relative_to(root).as_posix(), "sha256": _sha256_text(path)})
     canonical = json.dumps(sources, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     fingerprint = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return {
@@ -96,7 +98,34 @@ def _read_candidate_files(root: Path, bank_ids: set[str]) -> list[dict[str, Any]
     return out
 
 
-def build_report(entries: list[dict[str, Any]], candidate_entries: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+def _read_candidate_dispositions(root: Path, candidate_ids: set[str]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for path in sorted((root / "memory" / "migrations").glob("*candidate-dispositions.json")):
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        if data.get("schema_version") != 1 or not isinstance(data.get("reviews"), list):
+            raise ValueError(f"invalid candidate-disposition receipt: {path}")
+        for review in data["reviews"]:
+            candidate_id = review.get("id")
+            disposition = review.get("disposition")
+            if candidate_id not in candidate_ids:
+                raise ValueError(f"candidate-disposition receipt references unknown candidate: {candidate_id}")
+            if candidate_id in out:
+                raise ValueError(f"duplicate candidate disposition: {candidate_id}")
+            if disposition not in DISPOSITIONS or disposition == "PROVISIONAL/NEEDS_EVIDENCE":
+                raise ValueError(f"invalid final candidate disposition for {candidate_id}: {disposition}")
+            if not isinstance(review.get("reason"), str) or not review["reason"].strip():
+                raise ValueError(f"candidate disposition requires reason: {candidate_id}")
+            normalized = dict(review)
+            normalized["_review_path"] = path.relative_to(root).as_posix()
+            out[candidate_id] = normalized
+    return out
+
+
+def build_report(
+    entries: list[dict[str, Any]],
+    candidate_entries: list[dict[str, Any]] | None = None,
+    candidate_dispositions: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     superseded_by: dict[str, list[str]] = {}
     for entry in entries:
         for old_id in entry.get("supersedes", []):
@@ -137,13 +166,19 @@ def build_report(entries: list[dict[str, Any]], candidate_entries: list[dict[str
             }
         )
 
+    candidate_dispositions = candidate_dispositions or {}
     for entry in candidate_entries or []:
         text = str(entry.get("text", ""))
         sensitive = _is_sensitive(text, {"tags": entry.get("tags", [])})
         sensitivity = "REVIEW" if sensitive else "CLEAR"
         sensitivity_counts[sensitivity] += 1
         state = str(entry.get("state") or "PROVISIONAL")
-        disposition = "REJECTED" if state == "REJECTED" else "PROVISIONAL/NEEDS_EVIDENCE"
+        review = candidate_dispositions.get(entry["id"])
+        disposition = (
+            str(review["disposition"])
+            if review is not None
+            else "REJECTED" if state == "REJECTED" else "PROVISIONAL/NEEDS_EVIDENCE"
+        )
         source_class = str(entry.get("source_class") or "candidate").casefold()
         evidence = [str(item) for item in entry.get("evidence", [])]
         event_source = entry.get("source_timestamp") or entry.get("timestamp")
@@ -153,6 +188,9 @@ def build_report(entries: list[dict[str, Any]], candidate_entries: list[dict[str
                 "id": entry["id"],
                 "source_layer": "CANDIDATE",
                 "candidate_path": entry.get("_candidate_path"),
+                "candidate_review_path": review.get("_review_path") if review else None,
+                "candidate_review_reason": review.get("reason") if review else None,
+                "candidate_review_evidence": list(review.get("evidence") or []) if review else [],
                 "title": entry.get("title") or f"Candidate {entry['id']}",
                 "kind": entry.get("kind", "lesson"),
                 "scope": entry.get("scope", "global"),
@@ -167,7 +205,7 @@ def build_report(entries: list[dict[str, Any]], candidate_entries: list[dict[str
                 "supersedes": entry.get("supersedes", []),
                 "superseded_by": [],
                 "sensitivity": sensitivity,
-                "retrieval_value": "REVIEW",
+                "retrieval_value": "REVIEW" if disposition == "PROVISIONAL/NEEDS_EVIDENCE" else "HISTORICAL",
             }
         )
 
@@ -206,7 +244,8 @@ def main() -> int:
     entries = load_bank(args.bank)
     root = Path(__file__).resolve().parents[1]
     candidates = _read_candidate_files(root, {entry["id"] for entry in entries})
-    report = build_report(entries, candidates)
+    candidate_dispositions = _read_candidate_dispositions(root, {entry["id"] for entry in candidates})
+    report = build_report(entries, candidates, candidate_dispositions)
     report["snapshot"] = build_snapshot_receipt(root, args.bank)
     payload = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     if args.output:

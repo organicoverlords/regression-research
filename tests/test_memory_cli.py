@@ -20,6 +20,28 @@ class MemoryCliTests(unittest.TestCase):
             self.assertEqual(h.returncode,0,h.stderr)
             self.assertEqual(json.loads(h.stdout)[0]["text"],"Investigate first.")
 
+    def test_correction_requires_supersedes_or_explicit_standalone(self):
+        root=Path(__file__).resolve().parents[1]
+        cli=root/"tools"/"memory_bank.py"
+        with tempfile.TemporaryDirectory() as d:
+            bank=Path(d)/"bank.jsonl"
+            base=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"append","--kind","fact","--scope","mcp","--text","Old conclusion","--state","PROVEN"],cwd=root,text=True,capture_output=True,check=True)
+            base_id=json.loads(base.stdout)["id"]
+
+            rejected=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"append","--kind","correction","--scope","mcp","--text","Corrected conclusion","--state","PROVEN"],cwd=root,text=True,capture_output=True)
+            self.assertEqual(rejected.returncode,2,rejected.stderr)
+            self.assertIn("correction must name at least one --supersedes",rejected.stdout)
+
+            missing=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"append","--kind","correction","--scope","mcp","--text","Corrected conclusion","--state","PROVEN","--supersedes","mem-does-not-exist"],cwd=root,text=True,capture_output=True)
+            self.assertEqual(missing.returncode,2,missing.stderr)
+            self.assertIn("supersedes target not found",missing.stdout)
+
+            linked=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"append","--kind","correction","--scope","mcp","--text","Corrected conclusion","--state","PROVEN","--supersedes",base_id],cwd=root,text=True,capture_output=True,check=True)
+            self.assertEqual(json.loads(linked.stdout)["supersedes"],[base_id])
+
+            standalone=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"append","--kind","correction","--scope","mcp","--text","Standalone correction rule","--state","PROVISIONAL","--standalone-correction"],cwd=root,text=True,capture_output=True,check=True)
+            self.assertEqual(json.loads(standalone.stdout)["supersedes"],[])
+
     def test_quick_note_cli_accepts_unicode_error(self):
         root=Path(__file__).resolve().parents[1]
         cli=root/"tools"/"memory_bank.py"

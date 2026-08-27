@@ -123,10 +123,8 @@ def _sync_canonical_locked(path: Path, *, strict: bool) -> None:
 
 
 def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
-    if _is_canonical_bank(path):
-        with sync_lock(path):
-            _sync_canonical_locked(path, strict=False)
-            return _read_bank_file(path)
+    # Reads are local and side-effect free. Canonical Git reconciliation belongs only
+    # to explicit writes, where append_entry() syncs before and after mutation.
     return _read_bank_file(path)
 
 
@@ -393,6 +391,7 @@ def _main() -> int:
     append.add_argument("--state", required=True, choices=sorted(STATES))
     append.add_argument("--evidence", action="append", default=[])
     append.add_argument("--supersedes", action="append", default=[])
+    append.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
 
     search = sub.add_parser("search")
     search.add_argument("query", nargs="?", default="")
@@ -425,6 +424,14 @@ def _main() -> int:
             _print_json(entry)
             return 0
         if args.command == "append":
+            if args.standalone_correction and args.kind != "correction":
+                raise BankError("--standalone-correction is valid only with --kind correction")
+            if args.kind == "correction" and not args.supersedes and not args.standalone_correction:
+                raise BankError("correction must name at least one --supersedes memory id, or explicitly use --standalone-correction")
+            known_ids = {item["id"] for item in entries}
+            missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
+            if missing_supersedes:
+                raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
             entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
             _print_json(entry)
             return 0

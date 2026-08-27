@@ -1,9 +1,11 @@
 ﻿import json
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
+from unittest.mock import patch
 
-from tools.memory_bank import BankError, load_bank, validate_entry
+from tools.memory_bank import BankError, append_entry, load_bank, validate_entry
 
 
 class MemoryBankValidationTests(unittest.TestCase):
@@ -47,6 +49,31 @@ class MemoryBankValidationTests(unittest.TestCase):
             p = Path(d) / "bank.jsonl"
             p.write_text(json.dumps(e)+"\n"+json.dumps(e)+"\n", encoding="utf-8")
             with self.assertRaises(BankError): load_bank(p)
+
+    def test_canonical_load_is_read_only(self):
+        e = self.valid()
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "bank.jsonl"
+            p.write_text(json.dumps(e)+"\n", encoding="utf-8")
+            with patch("tools.memory_bank._is_canonical_bank", return_value=True), patch("tools.memory_bank.sync_bank") as sync:
+                self.assertEqual(load_bank(p), [e])
+            sync.assert_not_called()
+
+    def test_canonical_append_still_syncs_before_and_after_write(self):
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "bank.jsonl"
+            p.write_text("", encoding="utf-8")
+            with patch("tools.memory_bank._is_canonical_bank", return_value=True), patch(
+                "tools.memory_bank.sync_lock", side_effect=lambda path: nullcontext()
+            ), patch("tools.memory_bank._sync_canonical_locked") as sync:
+                saved = append_entry(p, values)
+            self.assertEqual(saved["text"], values["text"])
+            self.assertEqual(sync.call_count, 2)
+            self.assertFalse(sync.call_args_list[0].kwargs["strict"])
+            self.assertTrue(sync.call_args_list[1].kwargs["strict"])
 
 
 if __name__ == "__main__": unittest.main()
