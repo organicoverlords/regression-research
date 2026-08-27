@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
+The rule this file follows is `organicoverlords/docs` → `standards/changelog.md`.
 
 ## [Unreleased]
 ### Added
@@ -20,6 +20,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 - [2026-08-27] [meta] Added a provider-agnostic capability-routing policy simulator and regression tests for ordered fallback, capability-local failure, single coordination authority, and explicit memory-write authorization (#125).
 
 - [2026-08-27] [meta] Added an instruction-provenance arbiter, mixed-request partial-execution regression tests, and CI enforcement so user-authored context cannot be conflated with protected/internal material or overridden by stale/retrieved context (#125).
+
+- [2026-08-27] [meta] Added a BUSY single-authority resolver and regression tests so only live MCP BUSY claims control shared mutation; GitHub/process projections remain non-authoritative and stale projections are non-blocking (#125).
 
 - [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
 
@@ -62,7 +64,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - Added the reproducible five-day control-plane correlation dataset/report and live telemetry generator for #28, including version boundaries, PR/outcome joins, counterexamples that weaken a simple parallelism-causation thesis, and explicit missing-data limits for Aug 21-22.
 
-- Added a dated normalized MCP/tool-routing incident index for August 20Ã¢â‚¬â€œ23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
+- Added a dated normalized MCP/tool-routing incident index for August 20–23 with explicit deduplication, exact provenance, first wrong substantive moves, correct next substantive actions, and unsupported-claim exclusions (#4).
 
 - Added an executable build-admission diagnostic that reports filesystem writability separately from disk-floor admission, including configured threshold and safe-reclaim headroom (#33).
 
@@ -156,7 +158,7 @@ To release:
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
-Entry style ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â one line, for a human, with the issue or PR number:
+Entry style — one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->
