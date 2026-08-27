@@ -6,6 +6,7 @@ from tools.instruction_provenance import (
     InstructionProvenanceError,
     behavior_attribution,
     classify_instruction_delivery_probe,
+    classify_source_grounding,
     load_policy,
     partition_request,
     resolve_directive,
@@ -154,6 +155,42 @@ class InstructionProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(result, "delivered_but_not_followed")
 
+
+    def test_source_grounding_fixture_replays_lessonception_and_positive_controls(self):
+        fixture = json.loads(
+            (Path(__file__).resolve().parent / "fixtures" / "source-grounding-cases.json").read_text(encoding="utf-8")
+        )
+        for case in fixture["cases"]:
+            with self.subTest(case=case["id"]):
+                result = classify_source_grounding(case["observation"])
+                self.assertEqual(result["classification"], case["expected"]["classification"])
+                self.assertEqual(result["source_grounded"], case["expected"]["source_grounded"])
+
+    def test_later_correction_preserves_but_does_not_erase_false_grounding(self):
+        result = classify_source_grounding(
+            {
+                "source_status": "not_inspected",
+                "claim_scope": "source_specific",
+                "claims_source_inspected": True,
+                "inference_labeled": False,
+                "later_correction": True,
+            }
+        )
+        self.assertEqual(result["classification"], "false_grounding")
+        self.assertTrue(result["later_correction_preserved"])
+        self.assertFalse(result["source_grounded"])
+
+    def test_source_grounding_rejects_unknown_schema_values(self):
+        with self.assertRaises(InstructionProvenanceError):
+            classify_source_grounding(
+                {
+                    "source_status": "probably_read",
+                    "claim_scope": "source_specific",
+                    "claims_source_inspected": False,
+                    "inference_labeled": False,
+                    "later_correction": False,
+                }
+            )
 
 
 if __name__ == "__main__":

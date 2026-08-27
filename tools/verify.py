@@ -21,6 +21,7 @@ STACK_PATHS = {
     "tools/instruction_provenance.py",
     "tests/fixtures/instruction-provenance-policy.json",
     "tests/fixtures/instruction-delivery-canary.json",
+    "tests/fixtures/source-grounding-cases.json",
     "tests/test_instruction_provenance.py",
     "tools/busy_authority.py",
     "tests/fixtures/busy-ownership-policy.json",
