@@ -123,10 +123,8 @@ def _sync_canonical_locked(path: Path, *, strict: bool) -> None:
 
 
 def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
-    if _is_canonical_bank(path):
-        with sync_lock(path):
-            _sync_canonical_locked(path, strict=False)
-            return _read_bank_file(path)
+    # Reads are local and side-effect free. Canonical Git reconciliation belongs only
+    # to explicit writes, where append_entry() syncs before and after mutation.
     return _read_bank_file(path)
 
 

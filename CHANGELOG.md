@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Made canonical memory reads side-effect free: `recent`, `validate`, and `search` no longer trigger Git reconciliation or publishing; canonical writes retain pre/post synchronization.
+
 - [2026-08-27] [meta] Captured `RR-INCIDENT-REPORT-OVERPROCESSING-20260827` from a full downloaded conversation: a supposedly bounded incident capture continued for 157.8 seconds of repository lifecycle work after its incident-owned artifacts were already declared valid.
 
 - [2026-08-27] [meta] Recorded the repeated premature-finalization incident where callable tools were falsely described as a tool-window/session cutoff; added raw `end_turn=true`/normal-stop metadata proving model-selected finalization in the inspected recurrence, plus replay evidence requiring state-based completion and direct cutoff proof.
