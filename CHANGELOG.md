@@ -13,6 +13,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Replaced duplicated inline CI logic with one tested `python tools/verify.py` entrypoint, a five-minute job bound, and fixture-only changed-area checks that are identical locally and in Actions (#144).
+
 - [2026-08-27] [meta] Resolved six additional source-backed #87 provisionals without using the disputed live ChatGPT memory payload: promoted bounded evidence/scope, route-correction, concurrency-causality, and screenshot-causality lessons; rejected one explicitly unapproved subjective preference synthesis.
 
 - [2026-08-27] [meta] Streamlined the conversation-search CLI by keeping Downloads discovery read-only, removing the dead `index --downloads` option, and documenting canonical-or-explicit-root indexing (#139).
