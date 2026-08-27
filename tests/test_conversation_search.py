@@ -105,14 +105,70 @@ class ConversationSearchTests(unittest.TestCase):
 
     def test_memory_bootstrap_stays_light_but_search_can_query_conversations(self):
         memory_bank = (Path(__file__).resolve().parents[1] / "tools" / "memory_bank.py").read_text(encoding="utf-8")
-        bootstrap_prefix = memory_bank.split("def conversation_history_hits", 1)[0]
+        bootstrap_prefix = memory_bank.split("def _conversation_excerpt", 1)[0]
         self.assertNotIn("conversation_search", bootstrap_prefix)
 
         path = self.new / "conversations.json"
         path.write_text(json.dumps([conversation("c-memory", "Old behavior", "rare historical marker", "answer", 200)]), encoding="utf-8")
         index_roots(self.db, [self.new])
         hits = search_all_memory([], "rare historical marker", conversation_db=self.db)
-        self.assertTrue(any(hit.get("kind") == "conversation" and hit.get("conversation_id") == "c-memory" for hit in hits))
+        excerpt = next(hit for hit in hits if hit.get("kind") == "conversation")
+        self.assertEqual(excerpt.get("conversation_id"), "c-memory")
+        self.assertEqual(excerpt.get("source_class"), "HISTORICAL_CONTEXT")
+        self.assertEqual(excerpt.get("retrieval_role"), "EVIDENCE_EXCERPT")
+        self.assertNotIn("state", excerpt)
+        self.assertNotIn("context_before", excerpt)
+        self.assertNotIn("context_after", excerpt)
+        summary = next(hit for hit in hits if hit.get("kind") == "corpus-summary")
+        self.assertEqual(summary["matching_conversations"], 1)
+        self.assertEqual(summary["interpretation"], "prevalence_signal_not_truth")
+
+    def test_unified_search_keeps_aggregate_signal_and_bounds_combined_evidence(self):
+        conversations = [
+            conversation(
+                f"c{index}",
+                f"MCP {index}",
+                f"mcp recurring marker user {index}",
+                f"mcp recurring marker assistant {index}",
+                100 + index * 100,
+            )
+            for index in range(12)
+        ]
+        (self.new / "conversations.json").write_text(json.dumps(conversations), encoding="utf-8")
+        index_roots(self.db, [self.new])
+        entries = [
+            {
+                "id": f"mem-{index}",
+                "timestamp": f"2026-08-2{index}T10:00:00+03:00",
+                "kind": "correction",
+                "scope": "mcp",
+                "tags": ["mcp"],
+                "text": f"mcp recurring marker durable {index}",
+                "state": "PROVEN",
+                "evidence": [f"evidence:{index}"],
+                "supersedes": [],
+            }
+            for index in range(1, 6)
+        ]
+
+        hits = search_all_memory(entries, "mcp recurring marker", limit=4, conversation_db=self.db)
+        evidence_hits = [hit for hit in hits if hit.get("kind") != "corpus-summary"]
+        memory_hits = [hit for hit in evidence_hits if hit.get("kind") != "conversation"]
+        conversation_hits = [hit for hit in evidence_hits if hit.get("kind") == "conversation"]
+        summary = next(hit for hit in hits if hit.get("kind") == "corpus-summary")
+
+        self.assertEqual(len(evidence_hits), 4)
+        self.assertEqual(len(memory_hits), 3)
+        self.assertEqual(len(conversation_hits), 1)
+        self.assertEqual(summary["matching_messages"], 24)
+        self.assertEqual(summary["matching_conversations"], 12)
+        self.assertLessEqual(len(summary["top_conversations"]), 3)
+        self.assertTrue(all(hit.get("source_class") == "HISTORICAL_CONTEXT" for hit in conversation_hits))
+        self.assertTrue(all("state" not in hit for hit in conversation_hits))
+
+        scoped = search_all_memory(entries, "mcp recurring marker", scope="mcp", limit=4, conversation_db=self.db)
+        self.assertTrue(any(hit.get("kind") == "corpus-summary" for hit in scoped))
+        self.assertTrue(any(hit.get("kind") == "conversation" for hit in scoped))
 
     def test_json_output_handles_private_use_unicode_on_legacy_stdout_encoding(self):
         raw = io.BytesIO()

@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] Refined unified memory search so one topical query returns bounded durable memories plus a corpus-wide prevalence signal and a tiny historical-evidence sample; raw conversation excerpts are `HISTORICAL_CONTEXT` rather than claim-state `PROVEN`, scoped searches still fan out, and the 10-title recent bootstrap is unchanged (#99).
 - [2026-08-27] Defined the assistant-stack north star and preserved the mixed `MASTER MEMORY` context as immutable classified evidence with a replay fixture for stale-context authority, show-before-mutate, and non-blocking recovery (#125).
 - [2026-08-27] Fixed semantic memory freshness so correction writes must explicitly supersede an existing memory or opt into standalone status, reject missing supersession targets, and keep stale conclusions out of ordinary recall.
 - [2026-08-27] Unified historical full conversations into the private Git-ignored Vault corpus, recovered 569 legacy-database conversations including 120 absent from surviving transcript sources, rebuilt search to 637 conversations / 140,283 deduplicated messages with zero unresolved sources, and made ordinary `memory_bank.py search` include bounded historical turns (#99).
 - [2026-08-27] Normalized the append-only memory corpus by collapsing four stale/duplicate clusters through supersession, added a derived exhaustive audit over all bank plus candidate-only records, reconciled an incoming unindexed incident report, and made committed audits self-identifying point-in-time normalized-text source receipts so later appends and Git/Windows line-ending conversion cannot masquerade as part of an older snapshot (#87).
-- [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

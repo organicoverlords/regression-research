@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -16,9 +17,11 @@ class StandaloneRepoSmoke(unittest.TestCase):
             shutil.copytree(root / "memory", dst / "memory")
             shutil.copytree(root / "tools", dst / "tools")
 
+            env = os.environ.copy()
+            env["MEMORY_VAULT_ROOT"] = str(dst)
             ordinary = subprocess.run(
                 [sys.executable, str(dst / "tools" / "memory_bank.py"), "search", "Chain Lightning", "--scope", "p3"],
-                cwd=dst, text=True, capture_output=True,
+                cwd=dst, text=True, encoding="utf-8", capture_output=True, env=env,
             )
             self.assertEqual(ordinary.returncode, 0, ordinary.stderr)
             ordinary_hits = json.loads(ordinary.stdout)
@@ -26,7 +29,7 @@ class StandaloneRepoSmoke(unittest.TestCase):
 
             history = subprocess.run(
                 [sys.executable, str(dst / "tools" / "memory_bank.py"), "history", "Chain Lightning", "--scope", "p3"],
-                cwd=dst, text=True, capture_output=True,
+                cwd=dst, text=True, encoding="utf-8", capture_output=True, env=env,
             )
             self.assertEqual(history.returncode, 0, history.stderr)
             history_hits = json.loads(history.stdout)

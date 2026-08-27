@@ -11,6 +11,10 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Kept conversation-search CI deterministic by validating against a small tracked old/new corpus fixture and a runner-local SQLite database; live Vault reindex remains a local-only operation (#99).
+
+- [2026-08-27] Refined unified memory search so one topical query returns bounded durable memories plus a corpus-wide prevalence signal and a tiny historical-evidence sample; raw conversation excerpts are `HISTORICAL_CONTEXT` rather than claim-state `PROVEN`, scoped searches still fan out, and the 10-title recent bootstrap is unchanged (#99).
+
 - [2026-08-27] [meta] Preserved the #122 12:30?12:44 EEST screenshot A/B boundary: visible-tool MCP refusal before the 12:37 operating-rule intervention, followed by three fresh minimal-prompt chats that immediately execute live repo work; causal attribution to Personal Instructions vs Saved Memory remains explicitly open.
 
 - [2026-08-27] [meta] Consolidated six source-backed #87 provisional memories into three narrower durable corrections, reducing unresolved bank provisionals from 27 to 21 without touching the disputed live ChatGPT memory payload.

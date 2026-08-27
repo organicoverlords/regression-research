@@ -1,0 +1,14 @@
+[
+  {
+    "id": "ci-new-export",
+    "title": "CI new exporter cohort",
+    "messages": [
+      {
+        "id": "new-message",
+        "role": "user",
+        "content": "New cohort fixture phrase for regression validation",
+        "create_time": 1756080000
+      }
+    ]
+  }
+]
