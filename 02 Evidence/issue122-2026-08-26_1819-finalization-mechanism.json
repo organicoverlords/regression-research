@@ -1,0 +1,175 @@
+{
+  "issue": 122,
+  "evidence_id": "issue122-20260826-1819-finalization-mechanism",
+  "state": "CONFIRMED_MECHANISM_CAUSAL_TRIGGER_STILL_PARTLY_OPEN",
+  "source": {
+    "conversation_title": "Fix worker convergence lifecycle",
+    "conversation_id": "6a8ef32a-44b4-83eb-bc3d-efbad2ab09c3",
+    "raw_path": "ChatPortEvidence/raw/2026-08-26/20260827T031355Z_6a8ef32a-44b4-83eb-bc3d-efbad2ab09c3_sha256-d033b99f1584.json",
+    "raw_sha256": "d033b99f158486c291de82e003d718e20aa63b19e86f7f74900fe5fd2f02725b"
+  },
+  "scope_contract": {
+    "user_message_id": "eca6fd4c-1848-4632-84fb-8b62d6a4081a",
+    "user_time_eest": "2026-08-26T17:52:45.138000+03:00",
+    "user_excerpt": "yesdothisalsothechangelogthingiaskedisnotworkingnobodyusesitandthechangelogisnotthefrontpageofthegithubrepoforeachone",
+    "assistant_contract_message_id": "5d458194-4c1f-4407-ba38-ef2767f0aa7e",
+    "assistant_contract_time_eest": "2026-08-26T17:52:47.424644+03:00",
+    "assistant_contract_excerpt": "every meaningful merge leaves a dated timeline/changelog entry; each GitHub front page visibly projects it; CI rejects user-visible changes that skip it"
+  },
+  "failing_turn": {
+    "request_id": "fb97ffaf-28c3-418c-b249-42d4e3d748c7",
+    "final_message_id": "6bf288e0-4946-439f-a921-ebcd18f65598",
+    "final_time_eest": "2026-08-26T18:19:03.072338+03:00",
+    "start_process_count": 51,
+    "read_output_count": 66,
+    "start_process_followed_by_read_output": 50,
+    "start_process_followed_by_final": 1,
+    "last_start_message_id": "37070ce5-e680-4ca9-87b4-3c84333314ea",
+    "last_start_command_purpose": "modify and py_compile the staging helper so push: main validation uses HEAD^..HEAD",
+    "final_admission": "direct-push hardening has not been landed in the repos yet",
+    "false_boundary_claim": "tool window ended",
+    "api_tool_call_tool_count": 120,
+    "tool_surface_action_count_including_discovery": 121,
+    "turn_duration_seconds": 1577.934,
+    "turn_duration_note": "Measured from earliest to latest message carrying the failing request_id in the raw snapshot."
+  },
+  "mcp_start_contract": {
+    "repo": "ChatGPTMcpClean",
+    "observability_commit": "7ae7025c5fd49dc9510a75f97e28dcf24fd3f022",
+    "commit_time_eest": "2026-08-25T09:28:48+03:00",
+    "contract": {
+      "running_process_state": "RUNNING",
+      "running_next_action": "READ_SAME_PROCESS_ID",
+      "completed_next_action": "STOP_READING"
+    },
+    "verified_present_at_pre_failure_commit": "85dea3d41fe28c56c67c30401e9ee542877a0aad"
+  },
+  "transport": {
+    "start_request_id": "453dc383-7553-49cb-87bd-17c1ac9d1532",
+    "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
+    "events": [
+      {
+        "at": "2026-08-26T15:19:01.213Z",
+        "server_pid": 22536,
+        "event": "request_start",
+        "request_id": "453dc383-7553-49cb-87bd-17c1ac9d1532",
+        "caller_id": "caller_b5cccc8796df",
+        "connection_id": "connection_cbd1da6bde88",
+        "session_id": "session_b5cccc8796df",
+        "method": "POST",
+        "path": "/mcp",
+        "via_funnel": true,
+        "remote_address": "127.0.0.1"
+      },
+      {
+        "at": "2026-08-26T15:19:01.227Z",
+        "server_pid": 22536,
+        "request_id": "453dc383-7553-49cb-87bd-17c1ac9d1532",
+        "caller_id": "caller_b5cccc8796df",
+        "connection_id": "connection_cbd1da6bde88",
+        "session_id": "session_b5cccc8796df",
+        "event": "process_started",
+        "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
+        "pid": 29384,
+        "owner_caller_id": "caller_b5cccc8796df",
+        "cwd": "C:\\Users\\Lauri",
+        "started_at": "2026-08-26T15:19:01.227Z"
+      },
+      {
+        "at": "2026-08-26T15:19:01.228Z",
+        "server_pid": 22536,
+        "event": "response_finish",
+        "request_id": "453dc383-7553-49cb-87bd-17c1ac9d1532",
+        "caller_id": "caller_b5cccc8796df",
+        "connection_id": "connection_cbd1da6bde88",
+        "session_id": "session_b5cccc8796df",
+        "method": "POST",
+        "path": "/mcp",
+        "via_funnel": true,
+        "mcp_method": "tools/call",
+        "mcp_tool": "start_process",
+        "status": 200,
+        "response_bytes": 342,
+        "duration_ms": 14.937
+      },
+      {
+        "at": "2026-08-26T15:19:01.595Z",
+        "server_pid": 22536,
+        "request_id": "453dc383-7553-49cb-87bd-17c1ac9d1532",
+        "caller_id": "caller_b5cccc8796df",
+        "connection_id": "connection_cbd1da6bde88",
+        "session_id": "session_b5cccc8796df",
+        "event": "process_receipt_persisted",
+        "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
+        "pid": 29384,
+        "owner_caller_id": "caller_b5cccc8796df"
+      },
+      {
+        "at": "2026-08-26T15:19:01.595Z",
+        "server_pid": 22536,
+        "request_id": "453dc383-7553-49cb-87bd-17c1ac9d1532",
+        "caller_id": "caller_b5cccc8796df",
+        "connection_id": "connection_cbd1da6bde88",
+        "session_id": "session_b5cccc8796df",
+        "event": "process_exit_observed",
+        "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
+        "pid": 29384,
+        "owner_caller_id": "caller_b5cccc8796df",
+        "exit_code": 0,
+        "signal": null,
+        "started_at": "2026-08-26T15:19:01.227Z",
+        "finished_at": "2026-08-26T15:19:01.593Z"
+      },
+      {
+        "at": "2026-08-26T15:43:09.245Z",
+        "server_pid": 22536,
+        "request_id": "5c7f9128-9199-4508-8909-6cea2b41ddfc",
+        "caller_id": "caller_b5cccc8796df",
+        "connection_id": "connection_cbd1da6bde88",
+        "session_id": "session_b5cccc8796df",
+        "event": "process_read",
+        "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
+        "pid": 29384,
+        "owner_caller_id": "caller_b5cccc8796df",
+        "running": false,
+        "reassociated": false
+      }
+    ]
+  },
+  "resume": {
+    "read_output_message_id": "da2d7c6b-ddd7-4f35-bbf7-1e2a4aa8dd97",
+    "read_output_time_eest": "2026-08-26T18:43:03.264043+03:00",
+    "resume_message_id": "b6baf127-345e-4751-a234-0767ba8ff818",
+    "resume_time_eest": "2026-08-26T18:43:20.746603+03:00",
+    "resume_observation": "previously started process completed successfully but updated only the staging helper, not any repo",
+    "subsequent_action": "apply the verified helper one repo at a time and merge direct-push hardening"
+  },
+  "falsified_hypotheses": [
+    "MCP/server failure forced the stop",
+    "start_process semantics did not provide a continuation action",
+    "the launched process failed",
+    "the direct-push step was already landed",
+    "a universal approximately-26-minute product tool cutoff exists"
+  ],
+  "confirmed_mechanism": "completion-classification error: the model downgraded an unmet in-scope acceptance criterion to optional hardening and finalized instead of consuming the explicit process continuation",
+  "causal_limit": "Long-turn/context pressure may have increased the probability of the error, but it is not a proven trigger. v1.12/v1.13 temporal proximity remains insufficient for a causal claim.",
+  "corrective_invariant": "Persist unmet acceptance criteria, not arbitrary activity. If a launched process belongs to a required acceptance criterion and returns RUNNING/READ_SAME_PROCESS_ID, consume that result before finalizing. Do not adopt unrelated discovered work merely because a process exists.",
+  "load_controls": {
+    "interpretation": "Reject a deterministic tool-count or approximately-26-minute cutoff; do not reject a softer context/effort-pressure contribution.",
+    "same_model_pre_regression_examples": [
+      {
+        "request_id": "6f3a6c8b-f4ea-41fc-95fb-7275d616e269",
+        "title": "P3 map population increment verified and pushed",
+        "duration_seconds": 1597.244,
+        "tool_surface_actions": 68
+      },
+      {
+        "request_id": "e36442f4-7225-408b-b797-8aacba7cc26a",
+        "title": "Summarize cleanup progress",
+        "duration_seconds": 1554.226,
+        "tool_surface_actions": 143
+      }
+    ],
+    "older_same_model_product_controls": "Aug 22 GPT-5.6 Thinking requests in the same raw corpus exceed 3,000 seconds and 150-290 tool actions; product configuration may differ, so this is only a universal-cutoff falsifier."
+  }
+}
