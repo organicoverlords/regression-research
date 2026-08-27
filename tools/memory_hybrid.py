@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import math
 import re
@@ -6,16 +6,28 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any, Iterable
 
-from tools.memory_bank import (
-    DEFAULT_HISTORY_LIMIT,
-    DEFAULT_RECALL_LIMIT,
-    MAX_HISTORY_LIMIT,
-    MAX_RECALL_LIMIT,
-    _tokens as legacy_tokens,
-    load_source_registry,
-    search_entries,
-    source_relevance,
-)
+try:
+    from .memory_bank import (
+        DEFAULT_HISTORY_LIMIT,
+        DEFAULT_RECALL_LIMIT,
+        MAX_HISTORY_LIMIT,
+        MAX_RECALL_LIMIT,
+        _tokens as legacy_tokens,
+        load_source_registry,
+        search_entries,
+        source_relevance,
+    )
+except ImportError:
+    from memory_bank import (
+        DEFAULT_HISTORY_LIMIT,
+        DEFAULT_RECALL_LIMIT,
+        MAX_HISTORY_LIMIT,
+        MAX_RECALL_LIMIT,
+        _tokens as legacy_tokens,
+        load_source_registry,
+        search_entries,
+        source_relevance,
+    )
 
 BM25_K1 = 1.2
 BM25_B = 0.75

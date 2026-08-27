@@ -50,6 +50,8 @@ it correct. Read the source rather than inferring from a title or a snippet.
 
 Historical full conversations are part of the same Vault memory corpus under the private Git-ignored `memory/conversations/` store. Ordinary `python tools/memory_bank.py search "..."` automatically returns matching curated memories and historical turns, while `recent` stays lightweight. The SQLite index is rebuildable solely from the Vault corpus; Downloads are not a required memory path. See [`docs/conversation-search.md`](docs/conversation-search.md).
 
+Memory Bank retrieval uses the deterministic hybrid ranker validated in #172; set `MEMORY_RETRIEVAL_STRATEGY=legacy` for an exact rollback to the previous lexical ranker. CLI `search`, `history`, and `recent` output labels behavioral authority separately from relevance. A direct stored user `preference`, `decision`, or `correction` backed by `user-instruction:` is behavior-authoritative regardless of its factual claim state; the user does not have to prove an instruction. Live canonical policy/spec entries must be `PROVEN` before they can alter behavior. `USER_EXPLICIT` outranks `CANONICAL_POLICY`; everything else is `ADVISORY_EVIDENCE`, even when relevant or independently proven. User provenance authorizes behavior only and does not by itself prove hidden external causality. The canonical JSONL is unchanged by retrieval and derived indexes remain disposable.
+
 ## Provenance
 
 Seeded 2026-08-23 from the recovery corpus produced after the 2026-08-20 memory loss.
