@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [meta] Mapped #123 current user-behavior preferences to deterministic, partial, policy-only, and external-only coverage, identifying the startup-memory boundary as the next coherent acceptance packet instead of continuing one-assertion test churn.
 - [2026-08-27] [meta] Completed #123 correction-integration contract coverage by rejecting corrections that spawn a new unbounded causal investigation instead of continuing the bounded active task.
 - [2026-08-27] [meta] Tightened #123 correction-integration replay scoring so a local correction cannot resurrect a hypothesis that earlier evidence already falsified.
 - [2026-08-27] [meta] Tightened #123 correction integration so a local correction cannot collapse every still-live hypothesis into a new single-cause story; unaffected hypotheses must remain provisional until separately falsified.
