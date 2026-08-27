@@ -1,6 +1,17 @@
+import json
 import unittest
+from pathlib import Path
 
-from tools.capability_routing import CapabilityRoutingError, load_policy, select_adapter, validate_policy
+from tools.capability_routing import (
+    CapabilityRoutingError,
+    load_policy,
+    resolve_reachable_roles,
+    select_adapter,
+    validate_policy,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class CapabilityRoutingTests(unittest.TestCase):
@@ -31,6 +42,43 @@ class CapabilityRoutingTests(unittest.TestCase):
         self.assertIsNone(result["adapter_role"])
         self.assertEqual(result["fallback_mode"], "no_second_authority")
         self.assertEqual(result["next_action"], "continue_read_only_and_independent_work")
+
+    def test_process_only_surface_can_reach_live_ownership_indirectly(self):
+        fixture = json.loads(
+            (ROOT / "tests" / "fixtures" / "capability-routing-indirect-route.json").read_text(encoding="utf-8")
+        )
+        result = select_adapter(
+            fixture["capability"],
+            fixture["visible_roles"],
+            role_providers=fixture["role_providers"],
+            policy=self.policy,
+        )
+        self.assertEqual(result["status"], "selected")
+        self.assertEqual(result["adapter_role"], "live_ownership")
+
+    def test_failed_process_provider_does_not_fabricate_coordination(self):
+        fixture = json.loads(
+            (ROOT / "tests" / "fixtures" / "capability-routing-indirect-route.json").read_text(encoding="utf-8")
+        )
+        result = select_adapter(
+            fixture["capability"],
+            fixture["visible_roles"],
+            role_providers=fixture["role_providers"],
+            failed_roles={"process_execution"},
+            policy=self.policy,
+        )
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["fallback_mode"], "no_second_authority")
+
+    def test_reachable_roles_expand_only_from_reachable_providers(self):
+        reachable = resolve_reachable_roles(
+            {"outer_transport"},
+            role_providers={
+                "outer_transport": ["process_execution"],
+                "process_execution": ["live_ownership"],
+            },
+        )
+        self.assertEqual(reachable, {"outer_transport", "process_execution", "live_ownership"})
 
     def test_one_capability_failure_does_not_collapse_another(self):
         failed_source = select_adapter("source_read", set(), policy=self.policy)
