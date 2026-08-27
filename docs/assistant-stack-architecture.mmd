@@ -50,7 +50,7 @@ flowchart LR
 
   T -- "task / publication evidence - INTENDED" --> GH
   X -- "task / publication evidence - INTENDED" --> GH
-  GH --> CI
-  GH --> RT
+  GH -- "workflow trigger / revision - PROVEN" --> CI
+  GH -- "artifact / revision under proof - INTENDED" --> RT
   CI -- "validation evidence - PROVEN when observed" --> W
   RT -- "product/runtime truth - PROVEN when observed" --> W

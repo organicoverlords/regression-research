@@ -61,13 +61,13 @@ For this exact conversation the path through live MCP0 binding, BUSY, local shel
 5. Keep the user above the stack for real decisions, not inside its maintenance loop.
 
 
-## Executor activity sample - Aug 25-27
+## Executor activity snapshot - Aug 25 through 2026-08-27 10:57:52 EEST
 
-These counts measure local execution activity, not quality. The clients expose different event schemas and token/cache accounting, so token totals are not used as a cross-client score.
+These counts measure local execution activity, not quality. The snapshot is frozen at **2026-08-27 10:57:52 EEST**; Codex was still active, so its figures are not a stable Aug 25-27 total. The clients expose different event schemas and token/cache accounting, so token totals are not used as a cross-client score.
 
 | Surface | Local log evidence | GitHub evidence in regression-research |
 |---|---:|---|
-| Codex | 27 session logs; 3,637 explicit tool calls; 313 task starts, 297 completes, 10 aborts | PRs #140/#145 merged; 2 commits, 9 changed files |
+| Codex | 27 session logs; 3,673 explicit tool calls; 318 task starts, 302 completes, 10 aborts | PRs #140/#145 merged; 2 commits, 9 changed files |
 | Claude | 5 sessions with timestamped in-window events; 875 tool calls | PRs #22/#26 merged; 4 commits, 4 changed files |
 | OpenCode | 5 sessions; 512 tool parts | PRs #35/#36 merged; 2 commits, 10 changed files |
 | Command Code | 4 recent session logs; 33 tool calls | no Command-Code-prefixed branch/PR found in the current repo search |
