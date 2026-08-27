@@ -1,8 +1,8 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 P3 LFS-hydration normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 worker-live-authority normalization. This is a derived review queue, not recall authority.
 
-Effective unsuperseded provisionals: **9**.
+Effective unsuperseded provisionals: **8**.
 
 | Memory ID | Scope | Title / summary | Next evidence gate |
 | --- | --- | --- | --- |
@@ -18,7 +18,6 @@ Effective unsuperseded provisionals: **9**.
 | `mem-20260827-92f21a3e` | incident:orchestration-overload-v2-v1 | Orchestration-overload / missed-project-truth incident | Needs direct user/runtime evidence before promotion; do not promote its assistant-generated causal list from the incident text alone. |
 
 
-| `mem-20260827-2b06e4ae` | durable:worker-launch-live-authority | Worker-launch prompts must defer to current live authority | Needs direct user/worker-start authority evidence before promotion; avoid reviving stale control-plane instructions from historical prompts. |
 
 ## Closed in this batch
 
@@ -38,6 +37,8 @@ Effective unsuperseded provisionals: **9**.
 - `mem-20260827-424d0a22` ? `mem-20260827-5ba7efc4`: replaced the inferred recent-conversation-context mechanism with the tracked #122 boundary that hidden delivery/context source remains OPEN without a direct witness; universal deterministic 24m45 cutoff remains rejected.
 
 - `mem-20260827-27ea5e8c` + `mem-20260827-c7e50794` ? `mem-20260827-93b2ddf6`: consolidated the P3 #595 LFS pair using live issue evidence; full Content hydration is an Editor-lane prerequisite, not itself a hidden security mechanism, and unsupported disk/causal details were not promoted.
+
+- `mem-20260827-2b06e4ae` ? `mem-20260827-a7207d58`: retained the current user-authored worker live-authority/precedence boundary and dropped unrelated disk-cleanup, pool-sharding, and stale-control-plane specifics.
 
 ## Boundary
 
