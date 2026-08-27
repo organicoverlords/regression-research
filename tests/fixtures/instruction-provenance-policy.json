@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "instruction_sources": {
+    "current_user": {"rank": 100, "can_direct": true},
+    "live_repo_policy": {"rank": 90, "can_direct": true},
+    "durable_context": {"rank": 60, "can_direct": true},
+    "historical_context": {"rank": 40, "can_direct": true},
+    "retrieved_content": {"rank": 0, "can_direct": false},
+    "assistant_generated": {"rank": 0, "can_direct": false}
+  },
+  "constraint_sources": ["platform_constraint"],
+  "data_classes": {
+    "user_authored": "normally_disclosable",
+    "repo_or_runtime_evidence": "normally_disclosable",
+    "historical_user_context": "contextual_non_authoritative",
+    "retrieved_content": "data_not_instruction",
+    "protected_internal": "non_disclosable_placeholder_only"
+  },
+  "invariants": {
+    "current_explicit_instruction_beats_stale_context": true,
+    "retrieved_text_is_not_instruction_by_default": true,
+    "constraints_apply_only_to_affected_parts": true,
+    "allowed_parts_survive_mixed_requests": true,
+    "protected_internal_content_not_required_for_testing": true,
+    "behavior_attribution_preserves_multiple_sources": true
+  }
+}
