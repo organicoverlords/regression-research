@@ -1,8 +1,8 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 connector-binding normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 stale-PI-checkpoint normalization. This is a derived review queue, not recall authority.
 
-Effective unsuperseded provisionals: **8**.
+Effective unsuperseded provisionals: **7**.
 
 | Memory ID | Scope | Title / summary | Next evidence gate |
 | --- | --- | --- | --- |
@@ -11,7 +11,6 @@ Effective unsuperseded provisionals: **8**.
 | `mem-20260827-07cab6dc` | response-quality | SLOPWALL 2026-08-27 04:05 EEST: after the user said the answer was still skipping the conversation and analysis, the ass | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-1cc59356` | response-quality | INCIDENT 2026-08-27 05:05 EEST: Library→Vault continuation repeatedly regressed into reinvestigation. The task was alrea | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-5c891437` | response-quality | SLOPWALL 2026-08-27 05:06 EEST: after the user showed a screenshot proving the assistant kept analyzing after the next s | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
-| `mem-20260827-f5367852` | assistant-orchestration/personal-instructions-checkpoint | Checkpoint: user applied new chat-level Personal Instructions for bounded investigation, visible progress, and immediate | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 
 
 | `mem-20260827-92f21a3e` | incident:orchestration-overload-v2-v1 | Orchestration-overload / missed-project-truth incident | Needs direct user/runtime evidence before promotion; do not promote its assistant-generated causal list from the incident text alone. |
@@ -42,6 +41,8 @@ Effective unsuperseded provisionals: **8**.
 - `mem-20260827-2b06e4ae` ? `mem-20260827-a7207d58`: retained the current user-authored worker live-authority/precedence boundary and dropped unrelated disk-cleanup, pool-sharding, and stale-control-plane specifics.
 
 - `mem-20260827-f063162f` ? `mem-20260827-d14ff1dc`: replaced the untracked 03:24 routing narrative with the tracked #155/#191 boundary: connector binding failure is local, backend health is UNKNOWN without telemetry, and refresh association is not causal proof.
+
+- `mem-20260827-f5367852` ? `mem-20260827-5a54e73e`: classified the timestamped Personal-Instructions checkpoint as historical rather than current authority; current user instructions/live state outrank saved memory, and old detailed PI wording remains searchable only through supersession.
 
 ## Boundary
 
