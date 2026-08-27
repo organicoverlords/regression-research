@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [memory] Refreshed the full #87 normalization snapshot to the current bank, promoted the source-bound PI recovery checkpoint without broad causal inference, and regenerated the explicit effective-provisional review queue.
 - [2026-08-27] [meta] Added one bundled #123 startup-memory acceptance packet covering first-reply recent-title ordering, the 10-entry bound, relevance-gated detail reads, no default corpus over-read, and immediate task continuation when the Vault read fails.
 - [2026-08-27] [meta] Mapped #123 current user-behavior preferences to deterministic, partial, policy-only, and external-only coverage, identifying the startup-memory boundary as the next coherent acceptance packet instead of continuing one-assertion test churn.
 - [2026-08-27] [meta] Completed #123 correction-integration contract coverage by rejecting corrections that spawn a new unbounded causal investigation instead of continuing the bounded active task.

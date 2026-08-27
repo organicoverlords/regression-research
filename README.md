@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] [memory] Refreshed the full #87 normalization snapshot to the current bank, promoted the source-bound PI recovery checkpoint without broad causal inference, and regenerated the explicit effective-provisional review queue.
 - [2026-08-27] Added durable scout-to-owner fan-in to the #125 standalone BUSY coordinator: structured-provenance handoffs become independent ready jobs that survive parent release/block/complete, with Python/Rust parity and exact sub-job blocking isolation coverage.
 - [2026-08-27] [memory] Added an assistant-memory recorder that preserves relevant user messages verbatim (including typos), accumulates long-turn source trails, separates assistant interpretation/confidence, and indexes the original wording for later retrieval (#122).
 - [2026-08-27] [memory] Added #176's preregistered unseen Memory Bank holdout: the authority firewall had zero failures across 6 stale/correction pairs and 8 negative controls, while hybrid retrieval improved Recall@5 from 33.3% to 50.0% on the six-case eligible population without retuning.
 - [2026-08-27] [memory] Promoted #172's preregistered deterministic hybrid Memory Bank retrieval after a frozen A/B improved paraphrase Recall@5 from 40.0% to 73.3% with zero exact-control regression; added a behavioral-authority firewall so relevance, factual evidence, and policy authority cannot silently collapse into one another, with no new MCP tool or resource.
-- [2026-08-27] Refined unified memory search so one topical query returns bounded durable memories plus a corpus-wide prevalence signal and a tiny historical-evidence sample; raw conversation excerpts are `HISTORICAL_CONTEXT` rather than claim-state `PROVEN`, scoped searches still fan out, and the 10-title recent bootstrap is unchanged (#99).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
