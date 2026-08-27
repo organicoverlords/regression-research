@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Decomposed #122 scope expansion into recursive adoption of unrelated baseline failures and a separate post-acceptance integration tail; confirmed the latter recurred under committed shared policy v1.14 before the v1.15 active-tail rule.
+
 - [2026-08-27] [meta] Added a scored #122 interruption/tool-discovery replay so an unloaded MCP0 schema cannot be promoted to global tool unavailability before MCP0 discovery/attempt, while preserving the inherited task across the interruption.
 
 - [2026-08-27] [meta] Bound #122?s Aug 26 18:19 premature finalization to a completion-classification error: 50/51 process launches were consumed normally, the final required launch returned the historical `RUNNING` / `READ_SAME_PROCESS_ID` contract and exited 0, but the model finalized and mislabeled the still-unlanded direct-push acceptance step as optional hardening.
