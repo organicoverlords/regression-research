@@ -63,8 +63,8 @@ flowchart LR
 
   T -- "task / publication evidence - INTENDED" --> GH
   X -- "task / publication evidence - INTENDED" --> GH
-  GH --> CI
-  GH --> RT
+  GH -- "workflow trigger / revision - PROVEN" --> CI
+  GH -- "artifact / revision under proof - INTENDED" --> RT
   CI -- "validation evidence - PROVEN when observed" --> W
   RT -- "product/runtime truth - PROVEN when observed" --> W
 ```
@@ -108,11 +108,11 @@ Local Codex CLI configuration does not list MCP0, while recent Codex histories c
 
 ## Executor activity measured from logs + GitHub
 
-This is a workload sample, not a leaderboard. Local event schemas differ, coverage differs, and token accounting is not comparable across clients; token totals are deliberately not used as a work score.
+This is a timestamped workload snapshot, not a leaderboard. The counting window starts 2026-08-25 00:00 EEST and is frozen at **2026-08-27 10:57:52 EEST**; Codex was still active, so these numbers must not be read as a completed Aug 25-27 total. Local event schemas differ, coverage differs, and token accounting is not comparable across clients; token totals are deliberately not used as a work score.
 
-| Surface | Local activity observed in the Aug 25-27 sample | Regression-research GitHub outcome observed | What it means |
+| Surface | Local activity observed in the timestamped snapshot | Regression-research GitHub outcome observed | What it means |
 |---|---:|---|---|
-| Codex | 27 session logs; 3,637 explicit tool calls; 313 task starts / 297 completes / 10 aborts | PRs #140 and #145 merged; 2 commits across 9 changed files | High activity, two small landed changes |
+| Codex | 27 session logs; 3,673 explicit tool calls; 318 task starts / 302 completes / 10 aborts | PRs #140 and #145 merged; 2 commits across 9 changed files | High activity, two small landed changes |
 | Claude | 5 sessions with in-window events; 875 tool calls | PRs #22 and #26 merged; 4 commits across 4 changed files | Lower call volume, same merged-PR count |
 | OpenCode | 5 sessions; 512 tool parts | PRs #35 and #36 merged; 2 commits across 10 changed files | Moderate activity, same merged-PR count |
 | Command Code | 4 recent session logs; 33 tool calls | No Command-Code-prefixed branch/PR found in the current repo search | Very light observed footprint; not proof of zero useful work elsewhere |
