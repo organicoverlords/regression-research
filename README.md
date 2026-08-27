@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] [memory] Replaced the residual security-routing investigation provisional with the current user-authored route-failure scope boundary and refreshed #87 for a concurrently added orchestration incident; effective provisionals remain 10.
 - [2026-08-27] [memory] Replaced the connector-reliability provisional with the live-reproduced process-ID recovery boundary, excluding speculative connector-architecture recommendations; effective #87 provisionals are now 10.
 - [2026-08-27] [memory] Normalized the current machine-control routing memory from the effective Personal Instructions, removed the stale MCP0-first saved-memory clause, and refreshed #87 against a concurrently added P3 security provisional; effective provisionals remain 11.
 - [2026-08-27] [memory] Consolidated the PLY/GLB cleanup incident memories into one verbatim-user-sourced PROVEN correction, superseding the broad provisional and its overinterpreted predecessor; effective #87 provisionals are now 11.
 - [2026-08-27] [memory] Normalized the newest BUSY/coordinator memory: superseded the broad provisional with the independently supported standalone-authority/process-transport contract, left unsupported lifecycle-pruning detail unpromoted, and refreshed the #87 effective provisional queue.
-- [2026-08-27] [memory] Replaced two #87 project/resource provisionals with source-backed build-admission and P3 runtime-proof/batch-recovery invariants, then refreshed the live review queue.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
