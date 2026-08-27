@@ -11,6 +11,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-27] Defined the assistant-stack north star and preserved the mixed `MASTER MEMORY` context as immutable classified evidence with a replay fixture for stale-context authority, show-before-mutate, and non-blocking recovery (#125).
 
+- [2026-08-27] [meta] Added first-class historical-evidence registry and deterministic fixture/test coverage for ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code, keeping unverified local OpenCode/Command-Code paths explicitly unknown (#125).
+
 - [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
 
 - [2026-08-27] [meta] Made canonical memory reads side-effect free: `recent`, `validate`, and `search` no longer trigger Git reconciliation or publishing; canonical writes retain pre/post synchronization.

@@ -12,8 +12,17 @@ class SourceInventoryTests(unittest.TestCase):
         for x in items:self.assertTrue(required.issubset(x),x)
     def test_required_source_families_are_present(self):
         ids={x['id'] for x in self.data['candidate_source_inventory']}
-        for expected in {'regression-research','agents-repo','docs-repo','local-agents','claude-history','codex-history','nexus-memory','chatgpt-personal-context','aitube-memory','level6-memory','traycer-artifacts','project-repos'}:
+        for expected in {'regression-research','agents-repo','docs-repo','local-agents','chatgpt-history','opencode-history','claude-history','codex-history','traycer-artifacts','command-code-history','nexus-memory','chatgpt-personal-context','aitube-memory','level6-memory','project-repos'}:
             self.assertIn(expected,ids)
+    def test_all_six_assistant_surfaces_are_historical_evidence_sources(self):
+        items={x['id']:x for x in self.data['candidate_source_inventory']}
+        for expected in {'chatgpt-history','opencode-history','claude-history','codex-history','traycer-artifacts','command-code-history'}:
+            self.assertEqual(items[expected]['class'],'HISTORICAL_CONTEXT')
+    def test_unverified_local_surface_paths_stay_unknown(self):
+        items={x['id']:x for x in self.data['candidate_source_inventory']}
+        for expected in {'opencode-history','command-code-history'}:
+            self.assertEqual(items[expected]['availability'],'unknown')
+            self.assertEqual(items[expected]['freshness'],'verify-local-path-before-ingestion')
     def test_legacy_seed_is_recovery_not_canonical(self):
         items={x['id']:x for x in self.data['candidate_source_inventory']}
         self.assertEqual(items['legacy-seed']['class'],'RECOVERY_ONLY')
