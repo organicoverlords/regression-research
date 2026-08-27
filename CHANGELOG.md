@@ -9,6 +9,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 ## [Unreleased]
 ### Added
 
+- [2026-08-27] [meta] Added reproducible raw ChatPort literal discovery for #89, binding 46 unique `slopwall` hit messages across 48 source aliases to conversation/message IDs, SHA-256 provenance, timestamps, and bounded before/after context without inflating the canonical scored event count before review.
+
 - [2026-08-27] Defined the assistant-stack north star and preserved the mixed `MASTER MEMORY` context as immutable classified evidence with a replay fixture for stale-context authority, show-before-mutate, and non-blocking recovery (#125).
 
 - [2026-08-27] [meta] Added first-class historical-evidence registry and deterministic fixture/test coverage for ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code, keeping unverified local OpenCode/Command-Code paths explicitly unknown (#125).
