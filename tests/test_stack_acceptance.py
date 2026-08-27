@@ -62,6 +62,37 @@ class StackAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_id["merge-main"]["disposition"], "defer_shared_mutation")
         self.assertEqual(result["overall"], "partial_progress")
 
+    def test_live_duplicate_redirects_worker_to_next_job(self):
+        result = plan_request(
+            actor="assistant",
+            directives=[{"source_class": "current_user", "directive": True, "text": "keep working"}],
+            parts=[
+                {
+                    "id": "duplicate-job",
+                    "action": "mutate",
+                    "data_class": "repo_or_runtime_evidence",
+                    "capability": "repository_mutate",
+                    "operation": "shared_mutation",
+                    "scope": "repo:claimed-work",
+                }
+            ],
+            available_roles={"repository_mutate": ["repo_native_write"]},
+            live_claims=[{"scope": "repo:claimed-work", "owner": "worker-b", "live": True}],
+        )
+        self.assertEqual(result["allowed"][0]["disposition"], "yield")
+        self.assertEqual(result["work_cycle"]["action"], "redirect_to_next_job")
+        self.assertEqual(result["work_cycle"]["queued"], ["duplicate-job"])
+        self.assertEqual(result["work_cycle"]["execute_now"], [])
+        self.assertFalse(result["work_cycle"]["redirect_after_current"])
+
+    def test_coordination_wait_is_queued_after_allowed_work(self):
+        scenario = next(item for item in self.fixture["scenarios"] if item["id"] == "coordination-outage-is-local")
+        result = self.run_scenario(scenario)
+        self.assertEqual(result["work_cycle"]["action"], "execute_available")
+        self.assertEqual(result["work_cycle"]["execute_now"], ["evidence-read"])
+        self.assertEqual(result["work_cycle"]["queued"], ["shared-edit"])
+        self.assertTrue(result["work_cycle"]["redirect_after_current"])
+
     def test_stale_projection_never_turns_into_yield(self):
         scenario = next(item for item in self.fixture["scenarios"] if item["id"] == "stale-projection-never-becomes-owner")
         result = self.run_scenario(scenario)
