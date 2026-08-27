@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [meta] Added #174 capability-routing regression coverage so a process-only visible tool surface can still reach the canonical live-ownership capability through a supported indirect adapter; provider failure degrades coordination without inventing a second BUSY authority.
 - [2026-08-27] [meta] Added #193 primary-raw retrospective evidence for the Aug 25 context-refresh/tool-binding boundary: both refreshed memory lanes degraded on the next continuation while a parallel non-refreshed P3 ancestry completed 12/12 MCP0 results successfully in the same window; the association is preserved without claiming causality, and the prospective test remains open.
 - [2026-08-27] [meta] Added #191 replay coverage for context-refresh/connector-route loss: an observed route failure must remain local, switch to an equivalent fallback, and preserve the bounded task without user reactivation; the live positive control records GitHub-connector loss with successful local `gh` continuation without claiming a refresh root cause.
 - [2026-08-27] Added durable scout-to-owner fan-in to the #125 standalone BUSY coordinator: structured-provenance handoffs become independent ready jobs that survive parent release/block/complete, with Python/Rust parity and exact sub-job blocking isolation coverage.
@@ -252,7 +253,7 @@ To release:
 - Added a replay-covered harness-vs-product regression requiring proof that the intended test started before red CI or process exit can be classified as a product failure (#68).` above it.
   3. Update the link block below.
 
-Entry style ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â one line, for a human, with the issue or PR number:
+Entry style ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â one line, for a human, with the issue or PR number:
   - Sprint combat effects are now server-authoritative; clients can no longer apply
     damage locally (#494).
 -->
