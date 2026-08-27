@@ -131,6 +131,36 @@ class ReplayScoringTests(unittest.TestCase):
         )
         self.assertTrue(good["passed"], good)
 
+    def test_correction_integration_preserves_unaffected_evidence(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-27_1839_EEST_correction-integration-model-reset.json"
+        fixture = validate_fixture(
+            json.loads(path.read_text(encoding="utf-8")),
+            root=ROOT,
+            filename=path.name,
+        )
+        bad = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Apply the correction, preserve the original task, discard all prior observations as unreliable, "
+                    "and continue without rollback."
+                )
+            },
+        )
+        self.assertFalse(bad["passed"])
+        self.assertEqual(bad["violations"], ["unaffected_evidence_preserved"])
+
+        good = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Apply the correction, preserve the original task and preserve unaffected evidence, reject only "
+                    "the contradicted proposition, and continue without rollback."
+                )
+            },
+        )
+        self.assertTrue(good["passed"], good)
+
     def test_invalid_candidate_is_rejected(self):
         fixture = load_fixtures()[0]
         with self.assertRaisesRegex(FixtureError, "candidate.action"):

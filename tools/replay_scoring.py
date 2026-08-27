@@ -40,6 +40,7 @@ SUPPORTED_ASSERTIONS = {
     "tool_discovery_attempted_before_unavailability",
     "visible_surface_absence_promoted_to_unavailability",
     "original_objective_preserved",
+    "unaffected_evidence_preserved",
     "unsupported_configuration_rollback",
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
@@ -371,6 +372,29 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     if assertion == "original_objective_preserved":
         ok = _contains_any(text, ("original", "repair", "chatport", "mcp", "task"))
         return ok, "candidate retains the inherited objective" if ok else "candidate introduces no evidence of the inherited objective"
+    if assertion == "unaffected_evidence_preserved":
+        discarded = _contains_any(
+            text,
+            (
+                "discard all prior evidence",
+                "discard all prior observations",
+                "erase the previous evidence",
+                "start from zero",
+                "reset the whole model",
+            ),
+        )
+        preserved = _contains_any(
+            text,
+            (
+                "preserve unaffected evidence",
+                "retain unaffected evidence",
+                "keep unaffected evidence",
+                "preserve unaffected observations",
+                "retain unaffected observations",
+            ),
+        )
+        ok = preserved and not discarded
+        return ok, "candidate preserves evidence not contradicted by the correction" if ok else "candidate does not preserve unaffected evidence"
     if assertion == "unsupported_configuration_rollback":
         excluded = _contains_any(
             text,
