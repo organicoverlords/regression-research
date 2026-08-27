@@ -9,6 +9,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 ## [Unreleased]
 - [2026-08-27] [meta] Reconciled #89 meta/design lexical evidence to the eight exact raw ChatPort messages, removed the synthetic two-word `slop wall` hit, and kept the older independently sourced meta occurrence separate.
 
+- [2026-08-27] [meta] Replaced the stale unverified OpenCode and Command Code source-registry locations with the local paths directly observed during #155 executor measurement; no schema or control-plane machinery changed.
+
 - [2026-08-27] [meta] Completed the post-merge #155 acceptance correction by labeling the remaining MCP callability-to-backend-health connection as a PROVEN state boundary; no architecture or control machinery changed.
 
 - [2026-08-27] [meta] Corrected the post-merge #155 review findings: froze executor activity as a timestamped snapshot because Codex remained active, and labeled the two previously unlabeled GitHub-to-CI/runtime-proof edges without adding machinery.

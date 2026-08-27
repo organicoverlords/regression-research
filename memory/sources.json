@@ -175,7 +175,7 @@
     },
     {
       "id": "opencode-history",
-      "location": "local OpenCode history/logs (path not yet verified)",
+      "location": "local/.local/share/opencode/opencode.db",
       "class": "HISTORICAL_CONTEXT",
       "scope": "global",
       "freshness": "verify-local-path-before-ingestion",
@@ -208,7 +208,7 @@
     },
     {
       "id": "command-code-history",
-      "location": "local Command-Code history/logs (path not yet verified)",
+      "location": "local/.commandcode/projects",
       "class": "HISTORICAL_CONTEXT",
       "scope": "global",
       "freshness": "verify-local-path-before-ingestion",
