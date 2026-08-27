@@ -8,30 +8,30 @@
     "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
     "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
   ],
-  "total_records": 154,
-  "bank_records": 150,
+  "total_records": 158,
+  "bank_records": 154,
   "candidate_only_records": 4,
   "counts": {
     "dispositions": {
-      "CURRENT_DURABLE": 82,
+      "CURRENT_DURABLE": 85,
       "DUPLICATE_MERGED": 0,
       "EPHEMERAL/DO_NOT_RECALL": 0,
       "HISTORICAL_DURABLE": 2,
-      "PROVISIONAL/NEEDS_EVIDENCE": 12,
+      "PROVISIONAL/NEEDS_EVIDENCE": 11,
       "REJECTED": 4,
       "SENSITIVE_EXCLUDED": 0,
-      "SUPERSEDED": 54
+      "SUPERSEDED": 56
     },
     "states": {
-      "PROVEN": 100,
-      "PROVISIONAL": 48,
+      "PROVEN": 103,
+      "PROVISIONAL": 49,
       "REJECTED": 2
     },
     "kinds": {
-      "correction": 48,
+      "correction": 49,
       "decision": 13,
       "fact": 10,
-      "lesson": 65,
+      "lesson": 68,
       "preference": 2,
       "status": 12
     },
@@ -62,8 +62,11 @@
       "memory-source-preservation": 2,
       "memory-system": 1,
       "orchestration": 8,
+      "orchestration/p3-build-admission": 1,
       "p3": 3,
-      "p3-render-queue": 1,
+      "p3-render-queue": 2,
+      "pc-cleanup/lowvram3d-asset-preservation": 1,
+      "pc-cleanup/safety-incident": 1,
       "personal-instructions-recovery-trial": 4,
       "plugin-experiment-change-point": 1,
       "regression-research": 4,
@@ -79,7 +82,7 @@
       "tool-routing": 1
     },
     "sensitivity": {
-      "CLEAR": 154
+      "CLEAR": 158
     }
   },
   "records": [
@@ -1168,16 +1171,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-25T23:51:56+03:00",
       "event_date_hint": "2026-08-25",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-aeeb9ef6"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-46f7aa14",
@@ -1235,16 +1240,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T16:59:51+03:00",
       "event_date_hint": null,
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-f9d7a1f5"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-55bcada9",
@@ -4309,6 +4316,113 @@
       "retrieval_value": "CURRENT"
     },
     {
+      "id": "mem-20260827-7f5ac301",
+      "source_layer": "BANK",
+      "title": "2026-08-27 PC-cleanup incident. User asked to reclaim disk space and then set a…",
+      "kind": "lesson",
+      "scope": "pc-cleanup/safety-incident",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T19:58:02+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-1d581787",
+      "source_layer": "BANK",
+      "title": "PC cleanup: never infer PLY/GLB disposable",
+      "kind": "correction",
+      "scope": "pc-cleanup/lowvram3d-asset-preservation",
+      "tags": [],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T19:58:16+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "Library incident-pc-cleanup-ply-glb-20260827.md; user correction: you will not delete plys or glbs"
+      ],
+      "source_classes": [
+        "library incident-pc-cleanup-ply-glb-20260827.md; user correction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-aeeb9ef6",
+      "source_layer": "BANK",
+      "title": "Build admission is separate from filesystem writability",
+      "kind": "lesson",
+      "scope": "orchestration/p3-build-admission",
+      "tags": [
+        "disk",
+        "admission",
+        "resource-governance",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T20:05:15+03:00",
+      "event_date_hint": "2026-08-25",
+      "evidence": [
+        "02 Evidence/build-admission-disk-floor-2026-08-25.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260825-b72e2a62"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-f9d7a1f5",
+      "source_layer": "BANK",
+      "title": "P3 render acceptance and batch recovery use runtime proof",
+      "kind": "lesson",
+      "scope": "p3-render-queue",
+      "tags": [
+        "runtime-proof",
+        "batch-recovery",
+        "p3",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T20:05:22+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "AGENTS.md",
+        "02 Evidence/issue155-live-stack-evidence-20260827.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-b7360bca"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
       "id": "memory-candidate-5d71b46dbf2ca7a8",
       "source_layer": "CANDIDATE",
       "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
@@ -4448,11 +4562,11 @@
   "snapshot": {
     "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
     "hash_semantics": "UTF8_TEXT_NORMALIZED_LF_NO_BOM",
-    "source_fingerprint": "4a35a9c06e1db92fa63f78229dc6d42bdf3823ce6baeb6d94afc36f4702b5c3f",
+    "source_fingerprint": "735eb09f59aa9da2c8e9f9aa120a5a5aa21d3b17f64a163053c519459545c853",
     "sources": [
       {
         "path": "memory/memory-bank.jsonl",
-        "sha256": "88b8140b768916da0d4011cd9dd9292dbb052e209ff0c23bc7ff94d22ce1de93"
+        "sha256": "2d4c56dbca55841a5e2d79a25c32c21d78b576e2571fb84eb0b9d8130c3110f3"
       },
       {
         "path": "memory/migrations/2026-08-25-initial-candidates.jsonl",
