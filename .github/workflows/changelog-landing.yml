@@ -30,6 +30,39 @@ jobs:
           } else {
             python .github/scripts/check_changelog_landing.py --base-ref "origin/main"
           }
+      - name: Validate assistant stack policy harnesses when changed
+        shell: pwsh
+        run: |
+          $event = "${{ github.event_name }}"
+          $ref = "${{ github.ref }}"
+          if ($event -eq "pull_request") {
+            $base = "origin/${{ github.base_ref }}"
+          } elseif ($event -eq "push" -and $ref -eq "refs/heads/main") {
+            $base = "HEAD^"
+          } else {
+            $base = "origin/main"
+          }
+          $changed = @(git diff --name-only "$base...HEAD")
+          $stackChanged = @($changed | Where-Object {
+            $_ -in @(
+              'tools/capability_routing.py',
+              'tests/fixtures/capability-routing-policy.json',
+              'tests/test_capability_routing.py',
+              'tools/instruction_provenance.py',
+              'tests/fixtures/instruction-provenance-policy.json',
+              'tests/test_instruction_provenance.py'
+            )
+          })
+          if ($stackChanged.Count -eq 0) {
+            Write-Output 'ASSISTANT_STACK_POLICY_SKIPPED'
+            exit 0
+          }
+
+          python -m py_compile tools/capability_routing.py tools/instruction_provenance.py
+          if ($LASTEXITCODE -ne 0) { throw 'assistant stack policy py_compile failed' }
+          python -m unittest tests.test_capability_routing tests.test_instruction_provenance -v
+          if ($LASTEXITCODE -ne 0) { throw 'assistant stack policy tests failed' }
+          Write-Output 'ASSISTANT_STACK_POLICY_PROVEN'
       - name: Validate downloaded conversation search when changed
         shell: pwsh
         run: |

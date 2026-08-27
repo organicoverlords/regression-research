@@ -11,6 +11,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-27] Refined unified memory search so one topical query returns bounded durable memories plus a corpus-wide prevalence signal and a tiny historical-evidence sample; raw conversation excerpts are `HISTORICAL_CONTEXT` rather than claim-state `PROVEN`, scoped searches still fan out, and the 10-title recent bootstrap is unchanged (#99).
 
+- [2026-08-27] [meta] Consolidated six source-backed #87 provisional memories into three narrower durable corrections, reducing unresolved bank provisionals from 27 to 21 without touching the disputed live ChatGPT memory payload.
+
 - [2026-08-27] [meta] Added reproducible raw ChatPort literal discovery for #89, binding 46 unique `slopwall` hit messages across 48 source aliases to conversation/message IDs, SHA-256 provenance, timestamps, and bounded before/after context without inflating the canonical scored event count before review.
 
 - [2026-08-27] Defined the assistant-stack north star and preserved the mixed `MASTER MEMORY` context as immutable classified evidence with a replay fixture for stale-context authority, show-before-mutate, and non-blocking recovery (#125).
@@ -18,6 +20,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 - [2026-08-27] [meta] Added first-class historical-evidence registry and deterministic fixture/test coverage for ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code, keeping unverified local OpenCode/Command-Code paths explicitly unknown (#125).
 
 - [2026-08-27] [meta] Added a provider-agnostic capability-routing policy simulator and regression tests for ordered fallback, capability-local failure, single coordination authority, and explicit memory-write authorization (#125).
+
+- [2026-08-27] [meta] Added an instruction-provenance arbiter, mixed-request partial-execution regression tests, and CI enforcement so user-authored context cannot be conflated with protected/internal material or overridden by stale/retrieved context (#125).
 
 - [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
 
