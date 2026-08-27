@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] [memory] Consolidated the PLY/GLB cleanup incident memories into one verbatim-user-sourced PROVEN correction, superseding the broad provisional and its overinterpreted predecessor; effective #87 provisionals are now 11.
 - [2026-08-27] [memory] Normalized the newest BUSY/coordinator memory: superseded the broad provisional with the independently supported standalone-authority/process-transport contract, left unsupported lifecycle-pruning detail unpromoted, and refreshed the #87 effective provisional queue.
 - [2026-08-27] [memory] Replaced two #87 project/resource provisionals with source-backed build-admission and P3 runtime-proof/batch-recovery invariants, then refreshed the live review queue.
 - [2026-08-27] [memory] Normalized three source-backed user-marker provisionals into narrow PROVEN records without promoting unknown security/tool-state mechanisms; effective #87 provisional queue is now 12.
 - [2026-08-27] [memory] Refreshed the full #87 normalization snapshot to the current bank, promoted the source-bound PI recovery checkpoint without broad causal inference, and regenerated the explicit effective-provisional review queue.
-- [2026-08-27] Added durable scout-to-owner fan-in to the #125 standalone BUSY coordinator: structured-provenance handoffs become independent ready jobs that survive parent release/block/complete, with Python/Rust parity and exact sub-job blocking isolation coverage.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

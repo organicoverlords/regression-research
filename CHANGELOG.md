@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [memory] Consolidated the PLY/GLB cleanup incident memories into one verbatim-user-sourced PROVEN correction, superseding the broad provisional and its overinterpreted predecessor; effective #87 provisionals are now 11.
+
 - [2026-08-27] [memory] Normalized the newest BUSY/coordinator memory: superseded the broad provisional with the independently supported standalone-authority/process-transport contract, left unsupported lifecycle-pruning detail unpromoted, and refreshed the #87 effective provisional queue.
 
 - [2026-08-27] [memory] Replaced two #87 project/resource provisionals with source-backed build-admission and P3 runtime-proof/batch-recovery invariants, then refreshed the live review queue.
