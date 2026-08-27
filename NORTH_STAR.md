@@ -32,6 +32,21 @@ If a known regression reappears, one of these must be true and explicitly identi
 
 Bad data must be correctable without destroying history. Superseded evidence stays traceable, and corrected evidence must identify what changed and why.
 
+## Evidence coverage
+
+The evidence model must not depend on one assistant surface. Local histories from **ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code** are complementary evidence sources for the same operating stack.
+
+- Preserve source, timestamp, repo/task scope, model/surface when known, and enough surrounding context to reconstruct the decision.
+- Normalize common behavioural events across surfaces without erasing source-specific details.
+- Cross-surface agreement strengthens a conclusion; disagreement is a finding that must remain visible.
+- Missing logs or unavailable periods are explicit coverage gaps, not evidence that a behaviour did or did not occur.
+- Prefer primary local logs/transcripts over summaries when establishing what actually happened.
+- Use one surface to fill chronology/context gaps in another only when provenance makes the relationship defensible.
+- Never merge contradictory records into a synthetic "consensus" event. Preserve both and resolve with stronger evidence or mark unresolved.
+- Evidence ingestion/indexing must not mutate live personal-context or memory state.
+
+The target is a corpus rich enough that a future regression can normally be compared against prior failures and successful controls across multiple agents rather than relying on one model's history.
+
 ## What finished looks like
 
 ### 1. One coherent ruleset
@@ -158,8 +173,9 @@ Everything else should bias toward completing useful work.
 
 1. **Ruleset convergence.** Reduce cross-project behaviour to one canonical shared policy with repo-local additions only where genuinely local.
 2. **BUSY/MCP correctness.** Make live MCP ownership the only coordination authority and regression-test stale projections, route failures, claim/release boundaries, and independent-work continuation.
-3. **Capability routing.** Inventory tools/plugins by capability, define one preferred path plus explicit fallbacks, eliminate duplicate authority/coupling, and make failures local.
-4. **Instruction provenance.** Regression-test user-authored instructions versus repo policy, recalled context, retrieved content, and higher-priority constraints so safe requests are not over-refused or misclassified.
-5. **Memory boundary.** Keep ordinary reads side-effect free, writes explicit/auditable, and analysis snapshots external to the live personal-context store.
-6. **Evidence enforcement.** Map every known recurring failure to evidence + fixture + rule, add positive controls, and make those fixtures mandatory for changes that touch the relevant stack surface.
-7. **End-to-end acceptance.** Build whole-stack replay scenarios covering provenance, BUSY ownership, tool selection, failure recovery, bounded completion, proof, cleanup, and concise reporting. The finish line is a stack that stays predictable as models and integrations change.
+3. **Cross-surface evidence.** Inventory and provenance local ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code logs; normalize common events while preserving disagreement and missing-coverage boundaries.
+4. **Capability routing.** Inventory tools/plugins by capability, define one preferred path plus explicit fallbacks, eliminate duplicate authority/coupling, and make failures local.
+5. **Instruction provenance.** Regression-test user-authored instructions versus repo policy, recalled context, retrieved content, and higher-priority constraints so safe requests are not over-refused or misclassified.
+6. **Memory boundary.** Keep ordinary reads side-effect free, writes explicit/auditable, and analysis snapshots external to the live personal-context store.
+7. **Evidence enforcement.** Map every known recurring failure to evidence + fixture + rule, add positive controls, and make those fixtures mandatory for changes that touch the relevant stack surface.
+8. **End-to-end acceptance.** Build whole-stack replay scenarios covering provenance, BUSY ownership, tool selection, failure recovery, bounded completion, proof, cleanup, and concise reporting. The finish line is a stack that stays predictable as models and integrations change.
