@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [meta] Added #193 primary-raw retrospective evidence for the Aug 25 context-refresh/tool-binding boundary: both refreshed memory lanes degraded on the next continuation while a parallel non-refreshed P3 ancestry completed 12/12 MCP0 results successfully in the same window; the association is preserved without claiming causality, and the prospective test remains open.
 - [2026-08-27] [meta] Added #191 replay coverage for context-refresh/connector-route loss: an observed route failure must remain local, switch to an equivalent fallback, and preserve the bounded task without user reactivation; the live positive control records GitHub-connector loss with successful local `gh` continuation without claiming a refresh root cause.
 - [2026-08-27] Added durable scout-to-owner fan-in to the #125 standalone BUSY coordinator: structured-provenance handoffs become independent ready jobs that survive parent release/block/complete, with Python/Rust parity and exact sub-job blocking isolation coverage.
 - [2026-08-27] [meta] Corrected #122 chronology with the newly recovered Aug 23 user-authored direct-chat kernel/application period, relabeling Aug 25 12:40 as a repair/reconstruction boundary and advancing the claim-to-evidence ledger to 12 pinned raw-chat extractions / 15 canonical claims.
