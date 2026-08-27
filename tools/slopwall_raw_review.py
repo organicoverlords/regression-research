@@ -210,7 +210,8 @@ def reconcile_existing_events(raw: dict[str, Any], index: dict[str, Any]) -> dic
     pending = len(direct_mids) - bound
     out["coverage_note"] = (
         f"Canonical index remains a confirmed lower bound. {bound} raw ChatPort direct corrections are bound to canonical events; "
-        f"{pending} reviewed direct corrections remain explicit promotion candidates, alongside {len(META_REASONS)} meta/design references. "
+        f"{pending} reviewed direct corrections remain explicit promotion candidates; "
+        f"{len(META_REASONS)} raw meta/design references are preserved as exact lexical occurrences. "
         "Library screenshot exhaustion remains separately open under #86."
     )
     return out
