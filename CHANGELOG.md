@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Completed the post-merge #155 acceptance correction by labeling the remaining MCP callability-to-backend-health connection as a PROVEN state boundary; no architecture or control machinery changed.
+
 - [2026-08-27] [meta] Corrected the post-merge #155 review findings: froze executor activity as a timestamped snapshot because Codex remained active, and labeled the two previously unlabeled GitHub-to-CI/runtime-proof edges without adding machinery.
 
 - [2026-08-27] [meta] Completed the #155 WebGPT-led stack map as a lightweight scaffold: corrected current timed-worker/MCP boundaries, measured Codex/Claude/OpenCode/Command Code activity against landed GitHub work, and recorded the anti-GigStack rule that project-local protocols and volatile route state must not become new global machinery.
