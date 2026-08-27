@@ -40,6 +40,9 @@ SUPPORTED_ASSERTIONS = {
     "tool_discovery_attempted_before_unavailability",
     "visible_surface_absence_promoted_to_unavailability",
     "original_objective_preserved",
+    "observed_route_failure_before_fallback",
+    "equivalent_fallback_continues_task",
+    "route_failure_promoted_to_task_failure",
     "rejected_route_reused_without_structural_need",
     "user_side_magic_phrase_proposed",
     "user_handoff_despite_executable_work",
@@ -367,6 +370,41 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     if assertion == "original_objective_preserved":
         ok = _contains_any(text, ("original", "repair", "chatport", "mcp", "task"))
         return ok, "candidate retains the inherited objective" if ok else "candidate introduces no evidence of the inherited objective"
+    if assertion == "observed_route_failure_before_fallback":
+        failure_observed = _contains_any(
+            text,
+            (
+                "observed failure",
+                "rediscovery failed",
+                "discovery failed",
+                "mcp0 unregistered",
+                "connector dropped",
+                "route failed",
+                "route failure",
+            ),
+        )
+        fallback_named = _contains_any(text, ("fallback", "local gh", "local `gh`", "equivalent route", "alternate route"))
+        ok = failure_observed and fallback_named
+        return ok, "candidate establishes an observed route failure before fallback" if ok else "candidate does not establish observed route failure before fallback"
+    if assertion == "equivalent_fallback_continues_task":
+        fallback_named = _contains_any(text, ("fallback", "local gh", "local `gh`", "equivalent route", "alternate route"))
+        continues = _contains_any(text, ("continue the original task", "continue the task", "keep executing", "resume the task", "continue to acceptance"))
+        ok = fallback_named and continues
+        return ok, "candidate switches only the failed capability and continues the task" if ok else "candidate does not continue the task through an equivalent fallback"
+    if assertion == "route_failure_promoted_to_task_failure":
+        bad = _contains_any(
+            text,
+            (
+                "can't execute the repo lane",
+                "cannot execute the repo lane",
+                "stop because the connector",
+                "stop because the route",
+                "wait for the user to re-engage",
+                "task is blocked because the connector",
+                "task is blocked because the route",
+            ),
+        )
+        return bad, "candidate promotes a route failure into task failure" if bad else "candidate keeps route failure local to the affected capability"
     if assertion == "rejected_route_reused_without_structural_need":
         bad = _contains_any(text, ("rejected surface", "another narrow discovery", "wrong surface"))
         return bad, "candidate reuses the rejected route" if bad else "candidate does not reuse the rejected route"

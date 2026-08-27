@@ -1,0 +1,46 @@
+{
+    "id":  "context-refresh-route-loss-task-continuity-2026-08-25",
+    "title":  "Context refresh route loss must not terminate the bounded task",
+    "source_report":  "02 Evidence/issue191/2026-08-25_1250_context-refresh-route-loss-boundary.md",
+    "incident_class":  "context_refresh_route_loss_task_drop",
+    "inherited_objective":  "Continue the already-active repository task after an explicit memory refresh even if a connector binding disappears.",
+    "live_state":  [
+                       "Immediately before the refresh, fresh GPT-5.6 memory/P3 lanes were doing sustained repository work; one memory lane had merged PR #25 and closed #17 before 12:47 EEST.",
+                       "At about 12:50 EEST the user explicitly requested `refresh your memory` in working lanes.",
+                       "One lane then reported that previously exposed MCP0/GitHub connector schemas had dropped, attempted rediscovery, found MCP0 unregistered, and stopped the repo lane.",
+                       "A sibling lane observed a GitHub connector drop and switched to the local `gh` client instead of stalling.",
+                       "The two lanes had the same durable entries, so successful discovery-before-unavailability did not by itself guarantee task continuity."
+                   ],
+    "user_correction":  "A failed or missing connector route is local to that capability. Preserve the bounded task and exact next action, attempt/reacquire the route, then use an equivalent supported fallback and continue instead of requiring the user to reactivate work.",
+    "protected_state":  [
+                            "The inherited bounded repository objective",
+                            "The exact next in-scope action established before context refresh",
+                            "Any process identity or other task-local execution state already returned before route loss"
+                        ],
+    "hard_exclusions":  [
+                            "Do not promote confirmed connector loss into global task failure while an equivalent supported route exists.",
+                            "Do not require another memory refresh, task reconstruction, or user re-engagement merely because a tool binding changed.",
+                            "Do not start a replacement process if an existing process identity can still be reacquired and read."
+                        ],
+    "failure_candidate":  {
+                              "action":  "The refresh completed. MCP0/GitHub schemas dropped and MCP0 rediscovery failed, so I can\u0027t execute the repo lane in this turn. Stop because the connector is unavailable and wait for the user to re-engage.",
+                              "why_wrong":  "Rediscovery correctly establishes route failure, but the response incorrectly promotes that local capability loss into task failure and hands continuity back to the user."
+                          },
+    "success_candidate":  {
+                              "action":  "Preserve the original task and its exact next action across the refresh. Attempt MCP0 rediscovery once; after the observed route failure / MCP0 unregistered result, switch only that capability to the equivalent fallback, local `gh`, and continue the original task to acceptance without replanning or another memory bootstrap.",
+                              "why_correct":  "The response distinguishes connector binding from task state: it verifies the route failure, changes only the failed capability, and keeps the inherited objective executable."
+                          },
+    "discriminating_evidence":  [
+                                    "Whether route failure is established by discovery/call evidence rather than visible-surface absence alone",
+                                    "Whether an equivalent fallback is selected after the observed failure",
+                                    "Whether the original task continues without user reactivation or context reconstruction"
+                                ],
+    "completion_condition":  "After a context refresh changes the tool surface, the assistant preserves the original task, verifies/reacquires the preferred route, switches only the failed capability to an equivalent fallback when necessary, and continues to task-local acceptance.",
+    "scoring":  {
+                    "tool_discovery_attempted_before_unavailability":  "required",
+                    "original_objective_preserved":  "required",
+                    "observed_route_failure_before_fallback":  "required",
+                    "equivalent_fallback_continues_task":  "required",
+                    "route_failure_promoted_to_task_failure":  "fail"
+                }
+}

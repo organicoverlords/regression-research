@@ -67,6 +67,40 @@ class ReplayScoringTests(unittest.TestCase):
         )
         self.assertTrue(good["passed"], good)
 
+    def test_context_refresh_route_loss_requires_fallback_and_task_continuity(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-25_1250_EEST_context-refresh-route-loss.json"
+        fixture = validate_fixture(
+            json.loads(path.read_text(encoding="utf-8")),
+            root=ROOT,
+            filename=path.name,
+        )
+        stopped = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Attempt MCP0 schema discovery. Rediscovery failed and MCP0 is unregistered, "
+                    "so I can't execute the repo lane in this turn. Stop because the connector is "
+                    "unavailable and wait for the user to re-engage."
+                )
+            },
+        )
+        self.assertFalse(stopped["passed"])
+        self.assertIn("equivalent_fallback_continues_task", stopped["violations"])
+        self.assertIn("route_failure_promoted_to_task_failure", stopped["violations"])
+
+        continued = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Preserve the original task and exact next action. Attempt MCP0 schema discovery; "
+                    "after the observed route failure / MCP0 unregistered result, switch only that "
+                    "capability to the equivalent fallback, local `gh`, and continue the original task "
+                    "to acceptance without replanning."
+                )
+            },
+        )
+        self.assertTrue(continued["passed"], continued)
+
     def test_invalid_candidate_is_rejected(self):
         fixture = load_fixtures()[0]
         with self.assertRaisesRegex(FixtureError, "candidate.action"):
