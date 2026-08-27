@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [memory] Reclassified the stale Personal-Instructions checkpoint as historical evidence under current live-authority precedence; effective #87 provisionals are now 7.
+
 - [2026-08-27] [memory] Replaced the tool-routing incident provisional with the tracked connector-binding/fallback boundary and refreshed #87 for a concurrent timed-worker provisional; effective provisionals remain 8.
 
 - [2026-08-27] [memory] Replaced the worker-launch live-authority provisional with verbatim current user instructions and removed unrelated operational extras; effective #87 provisionals are now 8.
