@@ -1,8 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, merge_bank_entries
+from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, _write_bank, merge_bank_entries
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -14,6 +15,30 @@ class MemoryGitSyncTests(unittest.TestCase):
     def test_same_id_with_different_content_is_rejected(self):
         with self.assertRaises(MemorySyncError):
             merge_bank_entries([{"id": "same", "text": "one"}], [{"id": "same", "text": "two"}])
+
+    def test_windows_replace_lock_falls_back_to_verified_in_place_rewrite(self):
+        with tempfile.TemporaryDirectory() as raw:
+            bank = Path(raw) / "memory-bank.jsonl"
+            bank.write_text('{"id":"old"}\n', encoding="utf-8", newline="\n")
+            entries = [{"id": "new", "text": "replacement"}]
+            with patch("tools.memory_git_sync.IS_WINDOWS", True), patch(
+                "tools.memory_git_sync.os.replace", side_effect=PermissionError(13, "locked")
+            ):
+                _write_bank(bank, entries)
+            self.assertEqual(bank.read_text(encoding="utf-8"), '{"id":"new","text":"replacement"}\n')
+            self.assertFalse(bank.with_name(bank.name + ".sync-tmp").exists())
+
+    def test_non_windows_replace_permission_error_stays_fail_closed(self):
+        with tempfile.TemporaryDirectory() as raw:
+            bank = Path(raw) / "memory-bank.jsonl"
+            bank.write_text('{"id":"old"}\n', encoding="utf-8", newline="\n")
+            with patch("tools.memory_git_sync.IS_WINDOWS", False), patch(
+                "tools.memory_git_sync.os.replace", side_effect=PermissionError(13, "denied")
+            ):
+                with self.assertRaises(PermissionError):
+                    _write_bank(bank, [{"id": "new"}])
+            self.assertEqual(bank.read_text(encoding="utf-8"), '{"id":"old"}\n')
+            self.assertTrue(bank.with_name(bank.name + ".sync-tmp").exists())
 
     def test_align_checkout_fast_forwards_memory_commit_preserving_other_dirty_work(self):
         with tempfile.TemporaryDirectory() as raw:
