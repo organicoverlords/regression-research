@@ -615,14 +615,19 @@ def _print(value: Any) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Read-only full-text index/search for downloaded ChatGPT conversations.")
+    parser = argparse.ArgumentParser(description="Full-text indexing and search for preserved ChatGPT conversations.")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB)
     sub = parser.add_subparsers(dest="command", required=True)
-    discover = sub.add_parser("discover")
+    discover = sub.add_parser("discover", help="List candidate exports under Downloads without indexing them.")
     discover.add_argument("--downloads", type=Path, default=Path.home() / "Downloads")
-    index = sub.add_parser("index")
-    index.add_argument("--root", type=Path, action="append", default=[])
-    index.add_argument("--downloads", type=Path, default=Path.home() / "Downloads")
+    index = sub.add_parser("index", help="Index explicit roots or the canonical Vault corpus.")
+    index.add_argument(
+        "--root",
+        type=Path,
+        action="append",
+        default=[],
+        help="Source root to index; repeatable. Defaults to the canonical Vault corpus.",
+    )
     index.add_argument("--force", action="store_true")
     search = sub.add_parser("search")
     search.add_argument("query")

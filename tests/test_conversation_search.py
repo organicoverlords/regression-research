@@ -1,5 +1,7 @@
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -57,6 +59,26 @@ class ConversationSearchTests(unittest.TestCase):
             archive.writestr("nested/conversations.json", json.dumps([conversation("z", "Zip", "zip phrase", "answer")]))
         roots = discover_roots(self.root)
         self.assertEqual({path.name for path in roots}, {"ChatPortEvidence", "ChatGPTLocalExporter", "e31c17.zip"})
+
+    def test_cli_keeps_download_discovery_separate_from_canonical_indexing(self):
+        cli = Path(__file__).resolve().parents[1] / "tools" / "conversation_search.py"
+        discover_help = subprocess.run(
+            [sys.executable, str(cli), "discover", "--help"],
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+        )
+        index_help = subprocess.run(
+            [sys.executable, str(cli), "index", "--help"],
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+        )
+        self.assertEqual(discover_help.returncode, 0, discover_help.stderr)
+        self.assertEqual(index_help.returncode, 0, index_help.stderr)
+        self.assertIn("--downloads", discover_help.stdout)
+        self.assertNotIn("--downloads", index_help.stdout)
+        self.assertIn("--root", index_help.stdout)
 
     def test_full_text_search_dedupes_repeated_captures_and_keeps_provenance(self):
         old = conversation("c1", "Old convo", "needle old phrase", "old answer", 100)
