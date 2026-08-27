@@ -9,6 +9,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 ## [Unreleased]
 ### Added
 
+- [2026-08-27] [meta] Consolidated six source-backed #87 provisional memories into three narrower durable corrections, reducing unresolved bank provisionals from 27 to 21 without touching the disputed live ChatGPT memory payload.
+
 - [2026-08-27] [meta] Added reproducible raw ChatPort literal discovery for #89, binding 46 unique `slopwall` hit messages across 48 source aliases to conversation/message IDs, SHA-256 provenance, timestamps, and bounded before/after context without inflating the canonical scored event count before review.
 
 - [2026-08-27] Defined the assistant-stack north star and preserved the mixed `MASTER MEMORY` context as immutable classified evidence with a replay fixture for stale-context authority, show-before-mutate, and non-blocking recovery (#125).
