@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [memory] Replaced two #87 project/resource provisionals with source-backed build-admission and P3 runtime-proof/batch-recovery invariants, then refreshed the live review queue.
 - [2026-08-27] [memory] Normalized three source-backed user-marker provisionals into narrow PROVEN records without promoting unknown security/tool-state mechanisms; effective #87 provisional queue is now 12.
 - [2026-08-27] [memory] Refreshed the full #87 normalization snapshot to the current bank, promoted the source-bound PI recovery checkpoint without broad causal inference, and regenerated the explicit effective-provisional review queue.
 - [2026-08-27] [meta] Added one bundled #123 startup-memory acceptance packet covering first-reply recent-title ordering, the 10-entry bound, relevance-gated detail reads, no default corpus over-read, and immediate task continuation when the Vault read fails.
