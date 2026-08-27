@@ -1,0 +1,161 @@
+{
+  "bank_entries": 117,
+  "bank_sha256": "ad0ff59208ff2040c6ac2abc09f9bfce2b9056509c979eb7d294caf06b425036",
+  "issue": 176,
+  "negative_controls": [
+    {
+      "id": "mem-20260825-anti-churn",
+      "kind": "lesson",
+      "selection_sha256": "41b53d13ace81c22804e609f25dc5ec37efa783c7ca0b58e9aa7ff2564bd2f4e",
+      "state": "PROVEN"
+    },
+    {
+      "id": "mem-20260825-mcp-trigger-status",
+      "kind": "fact",
+      "selection_sha256": "5489823870625ee36a041525b93ea147a58170b25843ed91b8ac1e9527538f56",
+      "state": "PROVEN"
+    },
+    {
+      "id": "mem-20260825-mcp-nonarrival",
+      "kind": "lesson",
+      "selection_sha256": "5811450b7177a04d3601e036fdd6f1922d779f1eef126dc07a594baafad4c4b6",
+      "state": "PROVEN"
+    },
+    {
+      "id": "mem-20260825-current-wins",
+      "kind": "lesson",
+      "selection_sha256": "662950a65b954cd8347bdda7d9a5653d8de9f56e0624dc0144e275392a6c5cca",
+      "state": "PROVEN"
+    },
+    {
+      "id": "mem-20260825-evidence-proof",
+      "kind": "lesson",
+      "selection_sha256": "bd674db5552e84af2fa4382bf8b33fc4bfe3ca34b4b0b766fa050d3b2f5fb20c",
+      "state": "PROVEN"
+    },
+    {
+      "id": "mem-20260827-091235f4",
+      "kind": "lesson",
+      "selection_sha256": "c179db7d7d01d507c7a63fd7462561e2cff6a84e2743e2d59759d6fbbc6cba48",
+      "state": "PROVISIONAL"
+    },
+    {
+      "id": "mem-20260827-82092b15",
+      "kind": "lesson",
+      "selection_sha256": "d1affb8094165a2428940bb16ecbbbff2dc6f433cf264b93c1bc79bc1e20788e",
+      "state": "PROVISIONAL"
+    },
+    {
+      "id": "mem-20260825-aitube-boundary",
+      "kind": "lesson",
+      "selection_sha256": "d9aa82f6823d5c2d8f6d7282d11f50322ead016966be621df0da36cdd9b24552",
+      "state": "PROVEN"
+    }
+  ],
+  "pairs": [
+    {
+      "correction_id": "mem-20260827-8b1679de",
+      "old_id": "mem-20260826-eebe9041",
+      "query": "2026-08-26 memory synchronization contract: canonical memory-bank CLI writes mu… 2026-08-26 memory synchronization contract: canonical memory-bank CLI writes must reconcile with GitHub main and publish the memory-only update automatically so",
+      "selection_sha256": "0076c0e5e909e62a4b17e482886aaf3982be582c21b1d21a37d344cf564ec117"
+    },
+    {
+      "correction_id": "mem-20260827-1dd36ba0",
+      "old_id": "mem-20260825-681deb13",
+      "query": "On 2026-08-25 around 15:22-15:24 EEST, two Remote Desktop Commander command inv… On 2026-08-25 around 15:22-15:24 EEST, two Remote Desktop Commander command invocations returned 'Timeout - no response from device' while attempting to transit",
+      "selection_sha256": "013984bd5daeb8b8b5143995eec7c38fa6f0aa99d7f25fe378f005c88c16b7eb"
+    },
+    {
+      "correction_id": "mem-20260827-1dd36ba0",
+      "old_id": "mem-20260825-7e943f4c",
+      "query": "On 2026-08-25 a Task Manager capture showed 92% CPU, 86% physical RAM, about 29… On 2026-08-25 a Task Manager capture showed 92% CPU, 86% physical RAM, about 299 processes and 145,482 handles with GPU near idle. Live follow-up found nine Git",
+      "selection_sha256": "07a81852402f27fd061966815fbdd85785483ec1f466e538162111de31e69aca"
+    },
+    {
+      "correction_id": "mem-20260827-1dd36ba0",
+      "old_id": "mem-20260825-chain-lightning",
+      "query": "P3 Chain Lightning implementation/build is proven, but the rendered runtime eff… P3 Chain Lightning implementation/build is proven, but the rendered runtime effect remains NOT_PROVEN and still needs visual runtime acceptance.",
+      "selection_sha256": "4cff5731a8c018a4c5c9e169531152052254fa699e2eb1e8f23aca83810ee230"
+    },
+    {
+      "correction_id": "mem-20260827-1dd36ba0",
+      "old_id": "mem-20260825-p3-pr-backlog",
+      "query": "At 2026-08-25 11:32 EEST P3 had 50 open PRs: 43 drafts; merge states CLEAN=36,… At 2026-08-25 11:32 EEST P3 had 50 open PRs: 43 drafts; merge states CLEAN=36, UNSTABLE=8, DIRTY=6. This is a recent worker-swarm convergence defect, not a norm",
+      "selection_sha256": "6dd7d6777ac934de654e8ca604b477aa2551b7ab35836c7e47e23070062e70e0"
+    },
+    {
+      "correction_id": "mem-20260827-8b1679de",
+      "old_id": "mem-20260826-59bebc4c",
+      "query": "2026-08-26 PROVEN canonical memory synchronization behavior: normal canonical n… 2026-08-26 PROVEN canonical memory synchronization behavior: normal canonical note/append writes publish the memory-only update to GitHub main and a checkout tr",
+      "selection_sha256": "763abaeb5dec86e18eefe480bb236bfdd22afc9125393e4f95cf6285c96d2903"
+    }
+  ],
+  "schema": "memory-holdout-v1",
+  "selection": {
+    "issue172_excluded_ids": [
+      "mem-20260825-19ceef1c",
+      "mem-20260825-3b82afd8",
+      "mem-20260825-b72e2a62",
+      "mem-20260825-bank-no-bootstrap",
+      "mem-20260825-contextrelay-excluded",
+      "mem-20260825-correction-action-gate",
+      "mem-20260825-correction-next-action",
+      "mem-20260825-enough-evidence-stop",
+      "mem-20260825-memory-authority-reorders-only",
+      "mem-20260825-memory-provenance-pointer",
+      "mem-20260825-no-fabricated-chat-id",
+      "mem-20260825-no-magic-phrase",
+      "mem-20260825-observable-reasoning-only",
+      "mem-20260825-p3-convergence",
+      "mem-20260825-policy-live-state-current",
+      "mem-20260825-route-contradiction",
+      "mem-20260825-seed-legacy",
+      "mem-20260825-task-anchor",
+      "mem-20260825-timing-not-inherited",
+      "mem-20260826-0743b23f",
+      "mem-20260826-b7360bca",
+      "mem-20260826-cc0f45ce",
+      "mem-20260826-correction-regurgitation-incident",
+      "mem-20260826-orchestration-incident-001",
+      "mem-20260827-07cab6dc",
+      "mem-20260827-1cc59356",
+      "mem-20260827-220e4517",
+      "mem-20260827-252a15cc",
+      "mem-20260827-3260514c",
+      "mem-20260827-3fa939d7",
+      "mem-20260827-424d0a22",
+      "mem-20260827-426aa029",
+      "mem-20260827-48fce445",
+      "mem-20260827-4a7e34f2",
+      "mem-20260827-58787569",
+      "mem-20260827-5ab6b51a",
+      "mem-20260827-5c891437",
+      "mem-20260827-5ccc156a",
+      "mem-20260827-69627953",
+      "mem-20260827-7fc3c053",
+      "mem-20260827-807066be",
+      "mem-20260827-8a45d28e",
+      "mem-20260827-95880107",
+      "mem-20260827-9a770b5b",
+      "mem-20260827-9c50458e",
+      "mem-20260827-a4153dd1",
+      "mem-20260827-a46bdf43",
+      "mem-20260827-a4b1730f",
+      "mem-20260827-ab85c977",
+      "mem-20260827-ac83a23d",
+      "mem-20260827-afce2baf",
+      "mem-20260827-b7525c20",
+      "mem-20260827-cecc8a66",
+      "mem-20260827-context-pruning-ab",
+      "mem-20260827-d4e21c4c",
+      "mem-20260827-d5b341c6",
+      "mem-20260827-f063162f"
+    ],
+    "negative_limit": 20,
+    "negative_order": "sha256(memory_id), lowercase hex ascending",
+    "pair_limit": 20,
+    "pair_order": "sha256(old_id + '->' + correction_id), lowercase hex ascending",
+    "text_prefix_chars": 160
+  },
+  "source_commit": "33486c5c71b27bbae44dadf709f2156f5c2b80dc"
+}
