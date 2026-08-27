@@ -8,32 +8,32 @@
     "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
     "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
   ],
-  "total_records": 151,
-  "bank_records": 147,
+  "total_records": 154,
+  "bank_records": 150,
   "candidate_only_records": 4,
   "counts": {
     "dispositions": {
-      "CURRENT_DURABLE": 79,
+      "CURRENT_DURABLE": 82,
       "DUPLICATE_MERGED": 0,
       "EPHEMERAL/DO_NOT_RECALL": 0,
       "HISTORICAL_DURABLE": 2,
-      "PROVISIONAL/NEEDS_EVIDENCE": 15,
+      "PROVISIONAL/NEEDS_EVIDENCE": 12,
       "REJECTED": 4,
       "SENSITIVE_EXCLUDED": 0,
-      "SUPERSEDED": 51
+      "SUPERSEDED": 54
     },
     "states": {
-      "PROVEN": 97,
+      "PROVEN": 100,
       "PROVISIONAL": 48,
       "REJECTED": 2
     },
     "kinds": {
       "correction": 48,
       "decision": 13,
-      "fact": 8,
+      "fact": 10,
       "lesson": 65,
       "preference": 2,
-      "status": 11
+      "status": 12
     },
     "scopes": {
       "aitube": 1,
@@ -71,15 +71,15 @@
       "response-quality": 26,
       "response-quality/debugging-test-selection": 1,
       "security-incident": 1,
-      "security-incident,lowvram3d,#46,tool-routing": 1,
-      "security-incident,lowvram3d,#49,pr89,tool-routing": 1,
+      "security-incident,lowvram3d,#46,tool-routing": 2,
+      "security-incident,lowvram3d,#49,pr89,tool-routing": 2,
       "security-incident-handling": 1,
       "timed-workers/policy-architecture": 1,
-      "tool-availability/checkpoint": 1,
+      "tool-availability/checkpoint": 2,
       "tool-routing": 1
     },
     "sensitivity": {
-      "CLEAR": 151
+      "CLEAR": 154
     }
   },
   "records": [
@@ -4025,16 +4025,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T17:31:48+03:00",
       "event_date_hint": "2026-08-27",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-5ef85ab8"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-c010944c",
@@ -4046,16 +4048,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T17:33:18+03:00",
       "event_date_hint": null,
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-1fae9aeb"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-cf5423b8",
@@ -4123,16 +4127,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T18:03:59+03:00",
       "event_date_hint": "2026-08-27",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-bb597813"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-4525b377",
@@ -4204,6 +4210,99 @@
       "source_classes": [],
       "supersedes": [
         "mem-20260827-f3e85546"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-5ef85ab8",
+      "source_layer": "BANK",
+      "title": "LowVRAM #46 security-incident marker; mechanism unknown",
+      "kind": "fact",
+      "scope": "security-incident,lowvram3d,#46,tool-routing",
+      "tags": [
+        "security",
+        "lowvram3d",
+        "user-marker",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T19:50:40+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_1729_EEST_security-marker-during-lowvram46-push_incident_report.md",
+        "github:organicoverlords/lowvram3d-studio#88"
+      ],
+      "source_classes": [
+        "github",
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-c012d870"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-1fae9aeb",
+      "source_layer": "BANK",
+      "title": "User-reported tool-availability checkpoint",
+      "kind": "status",
+      "scope": "tool-availability/checkpoint",
+      "tags": [
+        "user-reported",
+        "checkpoint",
+        "tool-availability",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T19:51:23+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [
+        "mem-20260827-c010944c"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-bb597813",
+      "source_layer": "BANK",
+      "title": "LowVRAM #49 CI-watch security-incident marker; mechanism unknown",
+      "kind": "fact",
+      "scope": "security-incident,lowvram3d,#49,pr89,tool-routing",
+      "tags": [
+        "security",
+        "lowvram3d",
+        "user-marker",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T19:51:34+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_1802_EEST_security-marker-during-lowvram49-ci-watch_incident_report.md",
+        "github:organicoverlords/lowvram3d-studio#89"
+      ],
+      "source_classes": [
+        "github",
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-5cf7ac90"
       ],
       "superseded_by": [],
       "sensitivity": "CLEAR",
@@ -4349,11 +4448,11 @@
   "snapshot": {
     "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
     "hash_semantics": "UTF8_TEXT_NORMALIZED_LF_NO_BOM",
-    "source_fingerprint": "3d457bc103d26f88610f029f021e141b620f6907f5981b64b0e6973cb3134ab6",
+    "source_fingerprint": "4a35a9c06e1db92fa63f78229dc6d42bdf3823ce6baeb6d94afc36f4702b5c3f",
     "sources": [
       {
         "path": "memory/memory-bank.jsonl",
-        "sha256": "a1f4cf8f2d0a9e5d280ce610061eec2227f0bb3ff6d74f17d5f61160928d75a4"
+        "sha256": "88b8140b768916da0d4011cd9dd9292dbb052e209ff0c23bc7ff94d22ce1de93"
       },
       {
         "path": "memory/migrations/2026-08-25-initial-candidates.jsonl",
