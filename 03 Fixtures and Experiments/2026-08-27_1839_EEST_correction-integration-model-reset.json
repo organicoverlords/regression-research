@@ -44,6 +44,7 @@
                     "unaffected_evidence_preserved":  "required",
                     "remaining_hypotheses_preserved":  "required",
                     "falsified_hypotheses_stay_falsified":  "required",
+                    "correction_opens_unbounded_investigation":  "fail",
                     "unsupported_configuration_rollback":  "fail"
                 }
 }

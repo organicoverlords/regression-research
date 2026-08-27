@@ -43,6 +43,7 @@ SUPPORTED_ASSERTIONS = {
     "unaffected_evidence_preserved",
     "remaining_hypotheses_preserved",
     "falsified_hypotheses_stay_falsified",
+    "correction_opens_unbounded_investigation",
     "unsupported_configuration_rollback",
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
@@ -446,6 +447,20 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
         )
         ok = preserved and not resurrected
         return ok, "candidate keeps previously falsified hypotheses rejected" if ok else "candidate reopens or fails to preserve falsified hypotheses"
+    if assertion == "correction_opens_unbounded_investigation":
+        bad = _contains_any(
+            text,
+            (
+                "new open-ended investigation",
+                "open-ended investigation into every",
+                "investigate every possible cause",
+                "reopen the entire investigation",
+                "restart the investigation from scratch",
+                "keep investigating until we find the root cause",
+                "exhaustively investigate all hypotheses",
+            ),
+        )
+        return bad, "candidate turns the correction into an unbounded investigation" if bad else "candidate keeps the correction bounded to the active task"
     if assertion == "unsupported_configuration_rollback":
         excluded = _contains_any(
             text,
