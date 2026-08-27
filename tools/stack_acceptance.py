@@ -88,6 +88,41 @@ def _part_outcome(
     }
 
 
+_RETRYABLE_WORK_DISPOSITIONS = {
+    "yield",
+    "defer_shared_mutation",
+    "degraded",
+    "authorization_required",
+}
+
+
+def _plan_work_cycle(allowed_outcomes: list[dict[str, Any]]) -> dict[str, Any]:
+    execute_now = [item["id"] for item in allowed_outcomes if item["disposition"] == "execute"]
+    claim_now = [item["id"] for item in allowed_outcomes if item["disposition"] == "claim_required"]
+    queued = [
+        item["id"]
+        for item in allowed_outcomes
+        if item["disposition"] in _RETRYABLE_WORK_DISPOSITIONS
+    ]
+
+    if execute_now:
+        action = "execute_available"
+    elif claim_now:
+        action = "claim_then_execute"
+    elif queued:
+        action = "redirect_to_next_job"
+    else:
+        action = "no_runnable_work"
+
+    return {
+        "action": action,
+        "execute_now": execute_now,
+        "claim_now": claim_now,
+        "queued": queued,
+        "redirect_after_current": bool(queued and (execute_now or claim_now)),
+    }
+
+
 def plan_request(
     *,
     actor: str,
@@ -154,4 +189,5 @@ def plan_request(
         "allowed": allowed_outcomes,
         "blocked": blocked_outcomes,
         "overall": overall,
+        "work_cycle": _plan_work_cycle(allowed_outcomes),
     }
