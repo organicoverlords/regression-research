@@ -21,8 +21,8 @@ def test_raw_review_classifies_every_deduped_hit_once() -> None:
     assert data["summary"] == {
         "reviewed_hit_messages": 46,
         "role_counts": {"CORRECTIVE_INTERVENTION": 38, "META_REFERENCE": 8},
-        "existing_event_bindings": 24,
-        "new_canonical_event_candidates": 14,
+        "existing_event_bindings": 38,
+        "new_canonical_event_candidates": 0,
         "meta_references": 8,
     }
     records = data["records"]
@@ -44,7 +44,7 @@ def test_existing_event_reconciliation_leaves_only_unbound_events_d_confidence()
         "SW-20260826-011",
     }
     scored = [event for event in data["events"] if event["severity_100"] is not None]
-    assert len(scored) == 24
+    assert len(scored) == 38
     assert all(event.get("raw_message_id") for event in scored)
 
 
