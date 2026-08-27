@@ -17,6 +17,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-27] [meta] Added a provider-agnostic capability-routing policy simulator and regression tests for ordered fallback, capability-local failure, single coordination authority, and explicit memory-write authorization (#125).
 
+- [2026-08-27] [meta] Added an instruction-provenance arbiter, mixed-request partial-execution regression tests, and CI enforcement so user-authored context cannot be conflated with protected/internal material or overridden by stale/retrieved context (#125).
+
 - [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
 
 - [2026-08-27] [meta] Made canonical memory reads side-effect free: `recent`, `validate`, and `search` no longer trigger Git reconciliation or publishing; canonical writes retain pre/post synchronization.
