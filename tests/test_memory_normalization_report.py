@@ -27,6 +27,18 @@ class MemoryNormalizationReportTests(unittest.TestCase):
         self.assertFalse(by_id["d"]["ordinary_recall"])
         self.assertEqual(set(report["counts"]["dispositions"]), set(DISPOSITIONS))
 
+    def test_final_candidate_disposition_resolves_review_without_entering_recall(self):
+        entries = [{"id":"bank","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"global","tags":[],"text":"bank","state":"PROVEN","evidence":[],"supersedes":[]}]
+        candidates = [{"id":"cand","timestamp":"2026-08-25T12:00:00+03:00","kind":"lesson","scope":"assistant-behavior","tags":[],"text":"candidate body","state":"PROVISIONAL","evidence":["transcript:x"],"supersedes":[],"_candidate_path":"memory/migrations/x-candidates.jsonl"}]
+        dispositions = {"cand":{"disposition":"HISTORICAL_DURABLE","reason":"reviewed replay evidence","evidence":["transcript:x"],"_review_path":"memory/migrations/x-candidate-dispositions.json"}}
+        report = build_report(entries, candidates, dispositions)
+        cand = next(record for record in report["records"] if record["id"] == "cand")
+        self.assertEqual(cand["disposition"], "HISTORICAL_DURABLE")
+        self.assertFalse(cand["ordinary_recall"])
+        self.assertEqual(cand["retrieval_value"], "HISTORICAL")
+        self.assertEqual(cand["candidate_review_path"], "memory/migrations/x-candidate-dispositions.json")
+        self.assertEqual(cand["candidate_review_reason"], "reviewed replay evidence")
+
     def test_candidate_only_record_is_accounted_but_never_ordinary_recall(self):
         entries = [{"id":"bank","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"global","tags":[],"text":"bank","state":"PROVEN","evidence":[],"supersedes":[]}]
         candidates = [{"id":"cand","timestamp":"2026-08-25T12:00:00+03:00","source_timestamp":"2026-08-24T10:00:00+03:00","kind":"lesson","scope":"assistant-behavior","tags":["negative-feedback"],"text":"candidate body should not be copied","state":"PROVISIONAL","evidence":["transcript:x"],"supersedes":[],"source_class":"HISTORICAL_CONTEXT","_candidate_path":"memory/migrations/x-candidates.jsonl"}]
@@ -54,6 +66,10 @@ class MemoryNormalizationReportTests(unittest.TestCase):
             second = build_snapshot_receipt(root, bank)
             self.assertNotEqual(first["source_fingerprint"], second["source_fingerprint"])
             self.assertEqual(second["hash_semantics"], "UTF8_TEXT_NORMALIZED_LF_NO_BOM")
+            (migrations / "x-candidate-dispositions.json").write_text('{"schema_version":1,"reviews":[]}\n', encoding="utf-8")
+            third = build_snapshot_receipt(root, bank)
+            self.assertNotEqual(second["source_fingerprint"], third["source_fingerprint"])
+            self.assertTrue(any(source["path"].endswith("x-candidate-dispositions.json") for source in third["sources"]))
 
     def test_snapshot_hash_ignores_platform_line_endings_and_bom(self):
         with tempfile.TemporaryDirectory() as d:

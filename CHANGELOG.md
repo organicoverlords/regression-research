@@ -7,8 +7,9 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
-
 ### Added
+
+- [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
 
 - [2026-08-27] [meta] Made canonical memory reads side-effect free: `recent`, `validate`, and `search` no longer trigger Git reconciliation or publishing; canonical writes retain pre/post synchronization.
 
