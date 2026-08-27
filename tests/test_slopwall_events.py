@@ -4,22 +4,22 @@ import copy
 
 import pytest
 
-from tools.slopwall_events import DEFAULT_INDEX, load_index, summary, validate_index
+from tools.slopwall_events import DEFAULT_INDEX, FORMS, load_index, summary, validate_index
 
 
 def test_index_validates_and_separates_lexical_occurrences_from_events() -> None:
     data = load_index(DEFAULT_INDEX)
     validate_index(data)
     counts = summary(data)
-    assert counts["lexical_occurrences"] == 44
+    assert counts["lexical_occurrences"] == 49
     assert counts["canonical_interventions"] == 40
     assert counts["scored"] == 38
     assert counts["unscorable"] == 2
-    assert counts["slopwall"] == 43
-    assert counts["slop wall"] == 1
+    assert counts["slopwall"] == 49
+    assert counts["slop wall"] == 0
     assert counts["occurrence_roles"] == {
         "CORRECTIVE_INTERVENTION": 40,
-        "META_REFERENCE": 4,
+        "META_REFERENCE": 9,
     }
 
 
@@ -52,11 +52,12 @@ def test_d_confidence_cannot_be_guessed() -> None:
         validate_index(data)
 
 
-def test_both_literal_spellings_are_counted_as_occurrences() -> None:
+def test_both_literal_spellings_are_search_targets_without_synthetic_hits() -> None:
     data = load_index(DEFAULT_INDEX)
+    assert set(FORMS) == {"slopwall", "slop wall"}
     forms = [item["matched_form"] for item in data["occurrences"]]
     assert "slopwall" in forms
-    assert "slop wall" in forms
+    assert "slop wall" not in forms
     validate_index(data)
 
 

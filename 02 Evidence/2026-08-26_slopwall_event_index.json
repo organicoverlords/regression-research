@@ -3,7 +3,7 @@
   "study_issue": 89,
   "generated_date": "2026-08-26",
   "coverage_state": "NOT_PROVEN",
-  "coverage_note": "Canonical index remains a confirmed lower bound. 38 raw ChatPort direct corrections are bound to canonical events; 0 reviewed direct corrections remain explicit promotion candidates, alongside 8 meta/design references. Library screenshot exhaustion remains separately open under #86.",
+  "coverage_note": "Canonical index remains a confirmed lower bound. 38 raw ChatPort direct corrections are bound to canonical events; 0 reviewed direct corrections remain explicit promotion candidates; 8 raw meta/design references are preserved as exact lexical occurrences. Library screenshot exhaustion remains separately open under #86.",
   "events": [
     {
       "event_id": "SW-20260822-001",
@@ -1588,54 +1588,6 @@
       ]
     },
     {
-      "occurrence_id": "OCC-20260826-002",
-      "matched_form": "slopwall",
-      "raw_user_text": "Add all instances of when I say `slopwall` and score them.",
-      "event_date": "2026-08-26",
-      "event_time": "15:02:14Z",
-      "occurrence_role": "META_REFERENCE",
-      "canonical_event_id": null,
-      "provenance": [
-        {
-          "ref": "recent-history-2026-08-26T15:02:14Z",
-          "role": "current_history",
-          "name": "Issue #89 creation discussion"
-        }
-      ]
-    },
-    {
-      "occurrence_id": "OCC-20260826-003",
-      "matched_form": "slopwall",
-      "raw_user_text": "Search literal one-word `slopwall` and two-word `slop wall`.",
-      "event_date": "2026-08-26",
-      "event_time": "15:02:43Z",
-      "occurrence_role": "META_REFERENCE",
-      "canonical_event_id": null,
-      "provenance": [
-        {
-          "ref": "recent-history-2026-08-26T15:02:43Z#one-word",
-          "role": "current_history",
-          "name": "Issue #89 search-scope clarification"
-        }
-      ]
-    },
-    {
-      "occurrence_id": "OCC-20260826-004",
-      "matched_form": "slop wall",
-      "raw_user_text": "Search literal one-word `slopwall` and two-word `slop wall`.",
-      "event_date": "2026-08-26",
-      "event_time": "15:02:43Z",
-      "occurrence_role": "META_REFERENCE",
-      "canonical_event_id": null,
-      "provenance": [
-        {
-          "ref": "recent-history-2026-08-26T15:02:43Z#two-word",
-          "role": "current_history",
-          "name": "Issue #89 search-scope clarification"
-        }
-      ]
-    },
-    {
       "occurrence_id": "OCC-20260826-005",
       "matched_form": "slopwall",
       "raw_user_text": "slopwall v2 was supposed to be clean start with clean systems",
@@ -2268,18 +2220,146 @@
           "name": "ChatPortEvidence/raw/2026-08-27/20260827T010341Z_6a8f88c3-9a70-83ed-8347-aa71b3ccd274_sha256-4c15fbe5e9f3.json"
         }
       ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-0f598d1a-77f-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "help me stop slopwalls",
+      "event_date": "2026-08-22",
+      "event_time": "21:37:55Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:c259efed06f0cac5a46a2d6808fc37708547bf5f2d72e7fd575345048734ef49#message=0f598d1a-77fe-4c52-8cf3-425bdba3b389",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a8a14ca-e85c-83ed-a43e-392ec2294c17_sha256-c259efed06f0.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-637805aa-90f-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "and how do we now incorporate memory corpus so we can cut this slopwalling now",
+      "event_date": "2026-08-25",
+      "event_time": "02:21:00Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:f435728f0f64f58ad1e171a0d85bcefe476aba173b9c805b1ec2b97ad3a0b1d8#message=637805aa-90ff-4e68-adf4-41e52ba9cf17",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042256Z_6a8cfba1-f34c-83eb-ad4c-ea6898dcd313_sha256-f435728f0f64.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-1305333c-b0c-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "alsoaddallinstancesofwhenisayslopwallandscorethemetc",
+      "event_date": "2026-08-26",
+      "event_time": "15:02:14Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:a73a0068bc2bb9dac7e8fffc2c1cf00177b16c706440b5d212447b7658dbbba6#message=1305333c-b0c0-4cc7-a240-55fdc8ade924",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031855Z_6a8ef7bd-9c90-83ed-a3cb-189356bdd3ce_sha256-a73a0068bc2b.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-8b2211b7-a5f-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwallasonewordandtwowords",
+      "event_date": "2026-08-26",
+      "event_time": "15:02:43Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:a73a0068bc2bb9dac7e8fffc2c1cf00177b16c706440b5d212447b7658dbbba6#message=8b2211b7-a5f2-49db-9b26-d02aa1a477da",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031855Z_6a8ef7bd-9c90-83ed-a3cb-189356bdd3ce_sha256-a73a0068bc2b.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-a6ca5ad4-897-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "we should enforce some more rigorous answers. does your in built memory say anything about slopwalls",
+      "event_date": "2026-08-26",
+      "event_time": "18:40:32Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=a6ca5ad4-8971-4d81-b9fb-3f0ee54b0c8b",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-fa1693c9-9df-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "How do we stop the slopwalls",
+      "event_date": "2026-08-26",
+      "event_time": "20:20:55Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=fa1693c9-9df0-443a-b5f7-7cecf09b5413",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-84606404-44a-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "so now design where this goes, memory, agents, personal instructions, shared instructions, where? slopwall becomes the automatic \"save this to memory as a bad interaction example and bad response form\" and return with revised answer after saving or something",
+      "event_date": "2026-08-26",
+      "event_time": "20:34:55Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=84606404-44ab-4b8b-aa7a-0207135d0f58",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-META-957c2d60-efa-slopwall-1",
+      "matched_form": "slopwall",
+      "raw_user_text": "what caused you to do that? How can i encourage the investigation but not reduce it to a useless slopwall report?",
+      "event_date": "2026-08-27",
+      "event_time": "01:03:33Z",
+      "occurrence_role": "META_REFERENCE",
+      "canonical_event_id": null,
+      "provenance": [
+        {
+          "ref": "sha256:4c15fbe5e9f3581253db3ca793a33aa39bb7de65c9ebf9fc9dc9bf91a12810d5#message=957c2d60-efa5-459d-ae76-5b5978b9ed46",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-27/20260827T010341Z_6a8f88c3-9a70-83ed-8347-aa71b3ccd274_sha256-4c15fbe5e9f3.json"
+        }
+      ]
     }
   ],
   "confirmed_counts": {
-    "lexical_occurrences": 44,
+    "lexical_occurrences": 49,
     "canonical_interventions": 40,
-    "slopwall": 43,
-    "slop wall": 1,
+    "slopwall": 49,
+    "slop wall": 0,
     "scored": 38,
     "unscorable": 2,
     "occurrence_roles": {
       "CORRECTIVE_INTERVENTION": 40,
-      "META_REFERENCE": 4
+      "META_REFERENCE": 9
     }
   },
   "pending_coverage": [

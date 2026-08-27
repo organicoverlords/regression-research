@@ -269,6 +269,82 @@ def _counts(index: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _reconcile_meta_occurrences(raw: dict[str, Any], index: dict[str, Any]) -> int:
+    # META_REASONS is the reviewed classification authority. Import lazily to
+    # avoid a module-import cycle: raw_review also imports PROMOTIONS.
+    try:
+        from .slopwall_raw_review import META_REASONS
+    except ImportError:
+        from slopwall_raw_review import META_REASONS
+
+    records = [record for record in raw["records"] if record["message_id"] in META_REASONS]
+    records.sort(key=lambda record: (record.get("timestamp") or "", record["message_id"]))
+
+    target_times: set[tuple[str, str]] = set()
+    for record in records:
+        stamp = datetime.fromisoformat(record["timestamp"].replace("Z", "+00:00"))
+        target_times.add((stamp.date().isoformat(), stamp.strftime("%H:%M:%SZ")))
+
+    # Replace older paraphrased/current-history meta rows at the same source
+    # timestamps. In particular this removes the synthetic two-word row that
+    # described the requested search scope even though `slop wall` was not
+    # literally present in the raw user message. Unrelated legacy meta rows
+    # outside the raw ChatPort snapshot remain intact.
+    index["occurrences"] = [
+        occurrence
+        for occurrence in index["occurrences"]
+        if not (
+            occurrence.get("occurrence_role") == "META_REFERENCE"
+            and (occurrence.get("event_date"), occurrence.get("event_time")) in target_times
+        )
+    ]
+    occurrence_ids = {occurrence["occurrence_id"] for occurrence in index["occurrences"]}
+
+    for record in records:
+        mid = record["message_id"]
+        stamp = datetime.fromisoformat(record["timestamp"].replace("Z", "+00:00"))
+        sources = record.get("sources") or []
+        provenance = [
+            {
+                "ref": f"sha256:{source['sha256']}#message={mid}",
+                "role": "raw_chatport_export",
+                "name": source["path"],
+            }
+            for source in sources
+        ]
+        if not provenance:
+            provenance = [
+                {
+                    "ref": f"02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id={mid}",
+                    "role": "derived_raw_index",
+                    "name": "raw discovery snapshot",
+                }
+            ]
+
+        matched_forms = record.get("matched_forms") or {}
+        for form in ("slopwall", "slop wall"):
+            count = int(matched_forms.get(form, 0))
+            for ordinal in range(1, count + 1):
+                occurrence_id = f"OCC-RAW-META-{mid[:12]}-{form.replace(' ', '-')}-{ordinal}"
+                if occurrence_id in occurrence_ids:
+                    raise ValueError(f"occurrence id collision: {occurrence_id}")
+                index["occurrences"].append(
+                    {
+                        "occurrence_id": occurrence_id,
+                        "matched_form": form,
+                        "raw_user_text": record["raw_user_text"],
+                        "event_date": stamp.date().isoformat(),
+                        "event_time": stamp.strftime("%H:%M:%SZ"),
+                        "occurrence_role": "META_REFERENCE",
+                        "canonical_event_id": None,
+                        "provenance": provenance,
+                    }
+                )
+                occurrence_ids.add(occurrence_id)
+
+    return len(records)
+
+
 def promote(raw: dict[str, Any], index: dict[str, Any]) -> dict[str, Any]:
     out = copy.deepcopy(index)
     raw_by_mid = {record["message_id"]: record for record in raw["records"]}
@@ -329,14 +405,15 @@ def promote(raw: dict[str, Any], index: dict[str, Any]) -> dict[str, Any]:
         out["events"].append(event)
         out["occurrences"].append(occurrence)
         event_ids.add(event_id); occurrence_ids.add(occurrence_id); existing_mid.add(mid)
+    raw_meta_reference_count = _reconcile_meta_occurrences(raw, out)
     out["confirmed_counts"] = _counts(out)
-    raw_meta_reference_count = 8
     direct_total = len(raw["records"]) - raw_meta_reference_count
     bound_raw = sum(record["message_id"] in existing_mid for record in raw["records"])
     pending_direct = max(0, direct_total - bound_raw)
     out["coverage_note"] = (
         f"Canonical index remains a confirmed lower bound. {bound_raw} raw ChatPort direct corrections are bound to canonical events; "
-        f"{pending_direct} reviewed direct corrections remain explicit promotion candidates, alongside {raw_meta_reference_count} meta/design references. "
+        f"{pending_direct} reviewed direct corrections remain explicit promotion candidates; "
+        f"{raw_meta_reference_count} raw meta/design references are preserved as exact lexical occurrences. "
         "Library screenshot exhaustion remains separately open under #86."
     )
     return out
