@@ -190,7 +190,8 @@ def sweep_expired(state: dict) -> tuple[list[dict], bool]:
 
 def operate(store: Path, command: str, actor: str | None = None, raw_scope: str | None = None,
             *, lease_seconds: int = DEFAULT_LEASE_S, checkpoint: str | None = None,
-            operation_id: str | None = None) -> dict:
+            operation_id: str | None = None, finding_id: str | None = None,
+            source: str | None = None, summary: str | None = None) -> dict:
     with StoreLock(store):
         state = load_state(store)
         swept, sweep_changed = sweep_expired(state)
@@ -227,6 +228,63 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                 })
                 result = {"ok": True, "claim": claim, "job": job, "expired": swept}
                 break
+            result = remember(state, operation_id, signature, result)
+            persist(store, state)
+            return result
+
+        if command == "handoff":
+            if actor is None:
+                raise ValueError("actor required")
+            if raw_scope is None:
+                raise ValueError("scope required")
+            parent_scope = canonical_scope(raw_scope)
+            finding = canonical_scope(finding_id or "")
+            source_value = (source or "").strip()
+            summary_value = (summary or "").strip()
+            if not source_value:
+                raise ValueError("source must not be empty")
+            if not summary_value:
+                raise ValueError("summary must not be empty")
+            scope = f"{parent_scope}::handoff:{finding}"
+            signature = {
+                "command": command,
+                "actor": actor,
+                "scope": parent_scope,
+                "finding_id": finding,
+                "source": source_value,
+                "summary": summary_value,
+            }
+            replay = idempotent(state, operation_id, signature)
+            if replay is not None:
+                if sweep_changed:
+                    persist(store, state)
+                return replay
+            existing = job_for(state, scope)
+            if existing is not None:
+                result = {"ok": False, "reason": "finding_id_conflict", "job": existing}
+            else:
+                timestamp = iso()
+                handoff = {
+                    "parent_scope": parent_scope,
+                    "finding_id": finding,
+                    "reported_by": actor,
+                    "source": source_value,
+                    "summary": summary_value,
+                    "reported_at": timestamp,
+                }
+                job = {
+                    "job_id": scope,
+                    "scope": scope,
+                    "state": "ready",
+                    "owner": None,
+                    "lease_expires_at": None,
+                    "claim_timestamp": None,
+                    "checkpoint": summary_value,
+                    "updated_at": timestamp,
+                    "handoff": handoff,
+                }
+                state["coordinator"]["jobs"][scope] = job
+                result = {"ok": True, "job": job, "handoff": handoff}
             result = remember(state, operation_id, signature, result)
             persist(store, state)
             return result
@@ -349,6 +407,13 @@ def build_parser() -> argparse.ArgumentParser:
     nxt.add_argument("actor")
     nxt.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_S)
     nxt.add_argument("--operation-id")
+    handoff = sub.add_parser("handoff")
+    handoff.add_argument("actor")
+    handoff.add_argument("scope")
+    handoff.add_argument("--finding-id", required=True)
+    handoff.add_argument("--source", required=True)
+    handoff.add_argument("--summary", required=True)
+    handoff.add_argument("--operation-id")
     for name in ("enqueue", "ready"):
         p = sub.add_parser(name)
         p.add_argument("scope")
@@ -373,6 +438,17 @@ def main() -> int:
             result = operate(args.store, args.cmd)
         elif args.cmd == "next":
             result = operate(args.store, args.cmd, args.actor, lease_seconds=args.lease_seconds, operation_id=args.operation_id)
+        elif args.cmd == "handoff":
+            result = operate(
+                args.store,
+                args.cmd,
+                args.actor,
+                args.scope,
+                operation_id=args.operation_id,
+                finding_id=args.finding_id,
+                source=args.source,
+                summary=args.summary,
+            )
         elif args.cmd in {"enqueue", "ready"}:
             result = operate(args.store, args.cmd, raw_scope=args.scope, checkpoint=args.checkpoint, operation_id=args.operation_id)
         else:
