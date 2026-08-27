@@ -13,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 STACK_PATHS = {
+    "AGENTS.md",
+    "NORTH_STAR.md",
     "tools/capability_routing.py",
     "tests/fixtures/capability-routing-policy.json",
     "tests/test_capability_routing.py",
@@ -29,6 +31,7 @@ STACK_PATHS = {
     "tools/replay_scoring.py",
     "tools/connector_reliability.py",
     "tests/test_connector_reliability.py",
+    "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
 }
@@ -121,6 +124,7 @@ def verify_stack() -> None:
             "tests.test_stack_acceptance",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_connector_reliability",
+            "tests.test_north_star_entry",
             "-v",
         ]
     )

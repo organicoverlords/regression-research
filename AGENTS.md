@@ -85,6 +85,7 @@ generated block inside a repo. **MUST** / **MUST NOT** are hard; **SHOULD** is a
   processes are the truth. No roles, no reserved work: any actor may take any unclaimed issue, and
   nothing from an earlier run blocks you now.
 - Read a repo's `AGENTS.md` before your first mutation there.
+- In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as project direction. It does not override current user instructions, live repo/runtime evidence, or these operating rules.
 
 ### Branches, changelog, north star
 
