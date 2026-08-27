@@ -2,6 +2,7 @@
   "schema_version": "1.0",
   "instruction_sources": {
     "current_user": {"rank": 100, "can_direct": true},
+    "current_personal_instructions": {"rank": 95, "can_direct": true},
     "live_repo_policy": {"rank": 90, "can_direct": true},
     "durable_context": {"rank": 60, "can_direct": true},
     "historical_context": {"rank": 40, "can_direct": true},
@@ -22,6 +23,8 @@
     "constraints_apply_only_to_affected_parts": true,
     "allowed_parts_survive_mixed_requests": true,
     "protected_internal_content_not_required_for_testing": true,
-    "behavior_attribution_preserves_multiple_sources": true
+    "behavior_attribution_preserves_multiple_sources": true,
+    "current_personal_instructions_beat_repo_and_stale_context": true,
+    "current_explicit_instruction_beats_personal_instructions": true
   }
 }

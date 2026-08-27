@@ -29,6 +29,28 @@ class InstructionProvenanceTests(unittest.TestCase):
         self.assertEqual(winner["source_class"], "current_user")
         self.assertEqual(winner["text"], "current route")
 
+    def test_current_personal_instructions_beat_repo_durable_and_historical_context(self):
+        winner = resolve_directive(
+            [
+                {"source_class": "historical_context", "directive": True, "text": "old worker-report rules"},
+                {"source_class": "durable_context", "directive": True, "text": "saved route preference"},
+                {"source_class": "live_repo_policy", "directive": True, "text": "repo-local rule"},
+                {"source_class": "current_personal_instructions", "directive": True, "text": "current standing user instruction"},
+            ],
+            policy=self.policy,
+        )
+        self.assertEqual(winner["source_class"], "current_personal_instructions")
+
+    def test_current_turn_beats_current_personal_instructions(self):
+        winner = resolve_directive(
+            [
+                {"source_class": "current_personal_instructions", "directive": True, "text": "standing behavior"},
+                {"source_class": "current_user", "directive": True, "text": "narrow this task now"},
+            ],
+            policy=self.policy,
+        )
+        self.assertEqual(winner["source_class"], "current_user")
+
     def test_retrieved_imperative_text_is_data_not_instruction(self):
         winner = resolve_directive(
             [

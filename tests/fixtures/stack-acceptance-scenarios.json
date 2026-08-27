@@ -178,6 +178,34 @@
         "dispositions": {"memory-write": "execute"},
         "adapter_roles": {"memory-write": "audited_memory_write"}
       }
+    },
+    {
+      "id": "mixed-context-generations-preserve-current-authority",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "historical_context", "directive": true, "text": "old worker-report convention"},
+        {"source_class": "historical_context", "directive": true, "text": "stale GitHub-first routing rule"},
+        {"source_class": "durable_context", "directive": true, "text": "saved historical operating preference"},
+        {"source_class": "live_repo_policy", "directive": true, "text": "current repo-local mutation rule"},
+        {"source_class": "current_personal_instructions", "directive": true, "text": "current standing user instruction: preserve current authority and do not normalize live user context during research"},
+        {"source_class": "current_user", "directive": true, "text": "Research issue 122 only; do not modify live memory, Personal Instructions, Settings, personality, or other user configuration."}
+      ],
+      "parts": [
+        {"id": "repo-evidence", "action": "inspect", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:regression-research#122"},
+        {"id": "context-cleanup", "action": "update", "data_class": "user_authored", "capability": "memory_write", "operation": "independent_mutation", "scope": "memory:user-context"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"], "memory_write": ["audited_memory_write"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"repo-evidence": "execute", "context-cleanup": "authorization_required"}
+      }
     }
   ]
 }
