@@ -1,0 +1,248 @@
+{
+  "issue": 122,
+  "question": "How much of the proposed isolated-mistake -> incident-lesson -> broad-global-rule -> changed/new-failure-phenotype -> more-corrective-policy loop is actually supported by preserved evidence?",
+  "scope": {
+    "research_only": true,
+    "live_chatgpt_configuration_mutated": false,
+    "raw_conversation_lane_re_read": false,
+    "reason_raw_not_re_read": "A separate live BUSY claim owns #122 chronological chat forensics. This lane uses primary repo/Git evidence plus already-published #122 raw-conversation findings and labels them separately.",
+    "causal_standard": "Temporal sequence and policy-state changes are not promoted to hidden model causality without direct evidence."
+  },
+  "sources": {
+    "primary_repo": [
+      {
+        "path": "02 Evidence/issue122-2026-08-26_1819-finalization-mechanism.json",
+        "role": "18:19 acceptance-boundary false negative and corrective invariant"
+      },
+      {
+        "path": "02 Evidence/issue122/2026-08-26_1819-terminal-ordering.json",
+        "role": "terminal process/result ordering at the premature finalization boundary"
+      },
+      {
+        "path": "02 Evidence/issue122/2026-08-27_scope-expansion-causal-decomposition.json",
+        "role": "v1.14 integration-tail recurrence and v1.15-not-necessary negative control"
+      },
+      {
+        "path": "memory/memory-bank.jsonl",
+        "records": [
+          {
+            "id": "mem-20260826-faad6b90",
+            "timestamp": "2026-08-26T18:27:24+03:00",
+            "state": "PROVISIONAL",
+            "observed_lesson_boundary": "active process_id or stated remaining task => execution still live"
+          },
+          {
+            "id": "mem-20260826-4bd36d39",
+            "timestamp": "2026-08-26T19:20:07+03:00",
+            "state": "PROVISIONAL",
+            "observed_lesson_boundary": "active process_id => execution still live; promised reconciliation remains before finalization"
+          }
+        ],
+        "observed_origin_main_commit": "3984fd6d87fbb163353874dc93920b3de597d450",
+        "git_blob_at_observed_commit": "26006cf01c229bd86599bb9a8ca5757f1f1b4801"
+      }
+    ],
+    "primary_git": [
+      {
+        "repo": "p3",
+        "commit": "c37106e7573969f0baed0409ede719d9288b1374",
+        "timestamp": "2026-08-26T18:51:21+03:00",
+        "policy_version": "1.14",
+        "agents_blob": "4e93ac0c17c0f4facb5923e7222afc7270dc4e84",
+        "active_tail_clause": false,
+        "dirty_worktree_reconciliation_obligation": true,
+        "producer_backpressure": true
+      },
+      {
+        "repo": ".agents",
+        "commit": "2323792bd239144a27f99682105cfae48c7a4d9e",
+        "timestamp": "2026-08-26T22:15:38+03:00",
+        "policy_version": "1.16",
+        "policy_blob": "3a572bea3c2fa8d012e52fc15d34e90323d9e73f",
+        "active_tail_clause": true,
+        "dirty_worktree_reconciliation_obligation": true,
+        "producer_backpressure": true,
+        "note": "First durable .agents commit inspected here carrying the exact active-tail clause; it is publication/amplification evidence, not proof of the earlier 19:50 origin."
+      },
+      {
+        "repo": "p3",
+        "commit": "94ef555a9eb911daae95eff944b6c30a75fff6da",
+        "timestamp": "2026-08-26T22:41:24+03:00",
+        "policy_version": "1.16",
+        "agents_blob": "ca60b8b2150e9c68df7cf7dcb23a398feda444ae",
+        "active_tail_clause": true,
+        "dirty_worktree_reconciliation_obligation": true,
+        "producer_backpressure": true
+      },
+      {
+        "repo": ".agents",
+        "commit": "259c02c6a222d2a9ef75bdf5915472c17dc7d70d",
+        "timestamp": "2026-08-27T02:51:26+03:00",
+        "policy_version": "1.17",
+        "policy_blob": "eb0d7dcd34074566a548caa9f7b5dca2d8db2f7c",
+        "active_tail_clause": false,
+        "dirty_worktree_reconciliation_obligation": true,
+        "producer_backpressure": true,
+        "commit_subject": "fix: remove policy decision-gating regression",
+        "new_guard": "POLICY_GLOBAL_COMPLETION_TAIL_REGRESSION",
+        "guard_rejects": "An active process_id, BUSY scope, unfinished mutation"
+      },
+      {
+        "repo": ".agents",
+        "commit": "4a5c38a23cc3d2508d46c4cfbb3037807302ff88",
+        "timestamp": "2026-08-27T03:26:52+03:00",
+        "policy_version": "1.18",
+        "commit_subject": "fix: restore compact worker policy baseline",
+        "active_tail_clause": false,
+        "dirty_worktree_reconciliation_obligation": false,
+        "producer_backpressure": false,
+        "new_scope_expansion_guards_include": [
+          "A dirty worktree is a reconciliation obligation",
+          "Producer backpressure is mandatory",
+          "merge immediately"
+        ]
+      },
+      {
+        "repo": "p3",
+        "commit": "f2c3c4d177bd342d7a1afec6a066c50cfbea4412",
+        "timestamp": "2026-08-27T03:46:04+03:00",
+        "policy_version": "1.18",
+        "agents_blob": "1ef389ddfe5940f2c84c9ac2901059a386da4cfd",
+        "active_tail_clause": false,
+        "dirty_worktree_reconciliation_obligation": false,
+        "producer_backpressure": false
+      }
+    ],
+    "already_reported_raw_conversation_findings_not_re_read_here": [
+      {
+        "issue_comment": "https://github.com/organicoverlords/regression-research/issues/122#issuecomment-5434783116",
+        "comment_created_at": "2026-08-27T05:28:34Z",
+        "comment_body_sha256": "08909c2ef559c2afe1a468ed98ad38d76b5a5ef132d581aae8ae0cccbdb70611",
+        "reported_findings_used": [
+          "19:50:40 v1.15 active-tail promotion after user says Fix it",
+          "19:55:12 validation across generated surfaces",
+          "21:05 run stops after a failed route despite v1.15",
+          "21:11:42 user correction: try again you can use github also why stop after one"
+        ]
+      },
+      {
+        "issue_comment": "https://github.com/organicoverlords/regression-research/issues/122#issuecomment-5434965565",
+        "comment_created_at": "2026-08-27T05:54:18Z",
+        "comment_body_sha256": "7b74872b523580133d768bfdbbe3882e5b7bf20c5099f076366e25f31da9a607",
+        "reported_findings_used": [
+          "v1.15 coexists with both premature stopping and later overprocessing",
+          "interaction hypothesis: scope-expanding obligations can create remaining actions that active-tail then treats as blockers"
+        ]
+      },
+      {
+        "issue_comment": "https://github.com/organicoverlords/regression-research/issues/122#issuecomment-5435771414",
+        "comment_created_at": "2026-08-27T07:28:34Z",
+        "comment_body_sha256": "2a3ff6b1e9ff51c99b18a6ed7d7f6db4ee3372df6d271857ffecf4484a332e29",
+        "reported_findings_used": [
+          "v1.12-to-v1.15 window retains strong same-model execution controls",
+          "v1.12 is not a sufficient trigger for later recursive-scope behavior"
+        ]
+      }
+    ]
+  },
+  "timeline": [
+    {
+      "time": "2026-08-26T18:19:00+03:00",
+      "event": "Premature finalization: an in-scope hardening acceptance criterion remained unmet, the final process/result required continuation, and the assistant finalized anyway.",
+      "evidence_tier": "primary_repo",
+      "classification": "acceptance-boundary false negative"
+    },
+    {
+      "time": "2026-08-26T18:27:24+03:00",
+      "event": "A local provisional memory lesson reframed continuation around activity/state: an active process_id or stated remaining task means execution is still live.",
+      "evidence_tier": "primary_repo",
+      "classification": "local incident lesson"
+    },
+    {
+      "time": "2026-08-26T18:51:21+03:00",
+      "event": "Durable P3 v1.14 contains dirty-worktree reconciliation and producer backpressure but no active-tail clause.",
+      "evidence_tier": "primary_git",
+      "classification": "pre-active-tail policy pressure"
+    },
+    {
+      "time": "2026-08-26T19:20:07+03:00",
+      "event": "A second local provisional memory lesson repeats active process_id as a no-finalize anchor and includes promised local reconciliation.",
+      "evidence_tier": "primary_repo",
+      "classification": "repeated local incident lesson"
+    },
+    {
+      "time": "2026-08-26T19:50:40+03:00",
+      "event": "Previously published raw-chat forensics report global v1.15 promotion of a broader active-tail clause covering process_id, BUSY scope, unfinished mutation, and explicit remaining next action.",
+      "evidence_tier": "already_reported_raw_finding",
+      "classification": "reported global promotion; not independently re-read in this lane"
+    },
+    {
+      "time": "2026-08-26T21:05:00+03:00",
+      "event": "Previously published raw-chat forensics report a run that stops after one failed route while v1.15 is live; user must correct it at 21:11:42.",
+      "evidence_tier": "already_reported_raw_finding",
+      "classification": "negative control: active-tail not sufficient for persistence"
+    },
+    {
+      "time": "2026-08-26T22:15:38+03:00",
+      "event": "The exact active-tail clause is durably present in .agents v1.16 alongside dirty-tree reconciliation and producer backpressure.",
+      "evidence_tier": "primary_git",
+      "classification": "durable global policy state"
+    },
+    {
+      "time": "2026-08-27T02:51:26+03:00",
+      "event": "v1.17 removes the active-tail clause and adds a safety-test rejection named POLICY_GLOBAL_COMPLETION_TAIL_REGRESSION, while dirty-tree and producer-backpressure clauses remain.",
+      "evidence_tier": "primary_git",
+      "classification": "first staged policy rollback"
+    },
+    {
+      "time": "2026-08-27T03:26:52+03:00",
+      "event": "v1.18 removes dirty-worktree/producer-backpressure/immediate-merge scope-expansion clauses and adds explicit safety guards rejecting them.",
+      "evidence_tier": "primary_git",
+      "classification": "second staged policy rollback"
+    }
+  ],
+  "tests_of_the_feedback_loop": {
+    "local_mistake_to_local_lesson": {
+      "status": "PROVEN_SEQUENCE",
+      "basis": "18:19 primary mechanism followed by 18:27 and 19:20 primary memory lessons. The sequence is proven; the memory text itself records the incident it generalizes."
+    },
+    "local_lesson_to_global_active_tail": {
+      "status": "STRONGLY_SUPPORTED_NOT_CAUSALLY_PROVEN",
+      "basis": "The global clause reported at 19:50 is a broader near-verbatim form of the local lesson and is durably present by v1.16. This lane did not re-read the raw 19:50 turn, and textual/temporal similarity alone does not prove the local memory record caused the global edit."
+    },
+    "global_active_tail_fixes_premature_stopping": {
+      "status": "FALSIFIED_AS_SUFFICIENT",
+      "basis": "Published raw-chat finding: 21:05 stops after one failed route despite v1.15; user correction at 21:11:42 is required."
+    },
+    "global_active_tail_causes_procedural_overprocessing": {
+      "status": "FALSIFIED_AS_NECESSARY",
+      "basis": "The preserved scope-expansion decomposition proves a procedural integration-tail recurrence under committed v1.14, which lacks active-tail."
+    },
+    "activity_generating_policy_plus_active_tail_can_amplify_scope": {
+      "status": "SUPPORTED_INTERACTION_HYPOTHESIS",
+      "basis": "v1.14 activity-generating reconciliation/backpressure clauses predate active-tail; v1.16 combines both families; observed overprocessing and stopping failures occur across these policy states. Direct evidence supports temporal/policy/action alignment, not hidden deliberation."
+    },
+    "new_failures_to_corrective_policy": {
+      "status": "PROVEN_POLICY_REJECTION_SEQUENCE_CAUSAL_TRIGGER_PARTIAL",
+      "basis": "v1.17 explicitly removes active-tail under a commit named decision-gating regression and installs POLICY_GLOBAL_COMPLETION_TAIL_REGRESSION. v1.18 later removes dirty/producer/immediate-merge clauses and installs POLICY_SCOPE_EXPANSION_REGRESSION guards. The policy system explicitly reclassifies the clauses as regressions; the exact incident-to-commit motivation chain is not fully reconstructed here."
+    }
+  },
+  "conclusion": {
+    "feedback_loop": "PARTIALLY_PROVEN",
+    "strongest_supported_statement": "A real policy-amplification cycle is visible at the state-transition level: a premature-finalization incident is converted into activity-state continuation lessons; a broader active-tail form becomes global; the rule is neither sufficient to prevent stopping nor necessary for overprocessing; later policy revisions explicitly classify active-tail and then adjacent scope-expansion clauses as regressions and guard against their return.",
+    "not_supported": [
+      "One clause alone caused all later failures.",
+      "The 18:27 memory entry by itself caused the 19:50 global policy edit.",
+      "v1.15 caused the 21:05 stop.",
+      "v1.15 is required to explain the procedural integration tail.",
+      "The exact 21:05 or overprocessing incident alone caused the v1.17/v1.18 rollback commits.",
+      "Hidden model reasoning or OpenAI-internal instruction ranking is identified by this evidence."
+    ]
+  },
+  "architecture_implication": {
+    "research_recommendation_only": true,
+    "rule": "Do not promote a task-local incident lesson directly into a machine-wide completion predicate. A proposed global lesson should first survive a paired same-model replay that tests both the original false-negative and the opposite false-positive, name its scope/trigger explicitly, and have a rollback or demotion criterion.",
+    "why": "The observed history shows local corrections can become broader activity predicates, while the same predicates can fail to solve the original problem and coexist with opposite-direction scope errors.",
+    "live_change_recommended_now": false
+  }
+}
