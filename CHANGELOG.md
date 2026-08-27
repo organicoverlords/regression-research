@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Added a #122 canonical claim-to-evidence ledger that pins 16 repository artifacts and 11 raw-chat forensic extractions by hash, separates evidence tiers from canonical synthesis, and records the causal limits/supersession rules for 14 current conclusions.
 - [2026-08-27] [meta] Extended #174 with a second frozen 24-episode random tranche: only 2 additional conservative tool-use mistakes, bringing the combined sample to 10/48 and demonstrating that the first 24-episode prevalence signal was unstable; preserved cost outliers and response-only failures outside the tool-mistake numerator.
 
 - [2026-08-27] [memory] Added an assistant-memory recorder that preserves relevant user messages verbatim (including typos), accumulates long-turn source trails, separates assistant interpretation/confidence, and indexes the original wording for later retrieval (#122).
