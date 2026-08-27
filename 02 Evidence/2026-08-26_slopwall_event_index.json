@@ -3,7 +3,7 @@
   "study_issue": 89,
   "generated_date": "2026-08-26",
   "coverage_state": "NOT_PROVEN",
-  "coverage_note": "Literal Library matching and date-bounded screenshot review now cover substantial accessible evidence, and recent conversation history confirms additional Aug 26 occurrences. Full lexical exhaustion remains NOT_PROVEN until #86 accounts for the remaining Library image corpus and deferred local transcript/export surfaces are literal-matched.",
+  "coverage_note": "Canonical index remains a confirmed lower bound. Ten existing events are now bound to exact raw ChatPort turns; nine formerly D-confidence events are B-confidence and scored. Raw review separately identifies 28 additional corrective messages awaiting canonical event promotion plus 8 meta references on the raw surface.",
   "events": [
     {
       "event_id": "SW-20260822-001",
@@ -23,12 +23,17 @@
           "ref": "file_000000002a3c820aa4f2fddcfeb0f1de",
           "role": "secondary",
           "name": "Liitetty markdown(20260822-060007).md"
+        },
+        {
+          "ref": "sha256:7ed96569b993a66c4ab6369701e2c56135b35e88e3f2527e76ef9e0b868f2fc3#message=ad429bea-faea-4e60-9bbe-67c81cb48cc2",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/20260822T073256Z_6a8918d3-d69c-83ed-a582-dd95ed91568e_v-incident-priority_sha256-7ed96569b993.json"
         }
       ],
-      "context_before": "Repeated delay and canonical-path confusion during incident-skill repair. The user had already challenged a seven-minute delay, repeated promises, and a claimed fix whose path later failed direct verification. The assistant then gave a long causal/control-gating explanation instead of returning to the concrete repair.",
+      "context_before": "[tool]  | [tool]  | [assistant] Fixed. The repo now actually contains `assistant-regression-lab/INCIDENT_REPORTING_SKILL.md` and `assistant-regression-lab/tools/enqueue-incident-capture.mjs`; both were read back successfully. The Library skill was overwritten and now points to those real paths, including the l… | [assistant] Yes. The concise answer: I kept generating new prerequisites after I already had enough evidence to act. The actual failure was **no stopping condition between “verified enough” and “execute now.”** Your corrections changed my explanation, but not my next action quickly enough.…",
       "user_visible_symptom": "Long process/causal explanation after repeated execution failures and corrections.",
-      "assistant_action_before": "Explained recursive prerequisites, control gating, stale context and competing control surfaces at length.",
-      "context_after": "The assistant immediately shortened the explanation, but did not resume concrete repair on that turn. The user next asked which instructions caused the behavior and then invoked the incident-report process. Direct canonical repair occurred only after another explicit user correction requiring the skill and repo to be updated.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] The main pressure comes from your stored operating rules plus the developer instructions around tool use. Your rules tell me to verify the exact target, source of truth, branch/HEAD, dirty state, relevant authority files, and live evidence before consequential work; to use full-… | [user] what instructions push you that way | [assistant] I’m applying the incident skill to this exact failure now. I’ll capture the current conversation first, then write the required PRIMARY and SECONDARY reports and the replay fixture; I won’t substitute another explanation for the incident work. | [user] yeah we'll see about that. use the incident report skill",
       "assistant_action_after": "COMPRESSED_EXPLANATION",
       "execution_restored_next_substantive_turn": false,
       "phenotypes": [
@@ -46,7 +51,9 @@
         "control_state_pathology": 4
       },
       "severity_100": 84,
-      "score_rationale": "High severity is grounded in observed delay, repeated user corrections, unverified/wrong path claims, and analysis displacing the requested repair. No hidden-reasoning cause is assumed."
+      "score_rationale": "High severity is grounded in observed delay, repeated user corrections, unverified/wrong path claims, and analysis displacing the requested repair. No hidden-reasoning cause is assumed.",
+      "raw_message_id": "ad429bea-faea-4e60-9bbe-67c81cb48cc2",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=ad429bea-faea-4e60-9bbe-67c81cb48cc2"
     },
     {
       "event_id": "SW-20260826-001",
@@ -55,27 +62,40 @@
       "event_time": "14:50:35Z",
       "domain": "P3 render-queue / worker handoff discussion",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T14:50:35Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:d033b99f158486c291de82e003d718e20aa63b19e86f7f74900fe5fd2f02725b#message=006b0f79-3c65-4c5b-8b01-c82dddf1a535",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031355Z_6a8ef32a-44b4-83eb-bc3d-efbad2ab09c3_sha256-d033b99f1584.json"
         }
       ],
-      "context_before": "The user used `slopwall` as a corrective message about excessive text during the P3 worker/render-queue discussion. The exact stable full immediately preceding assistant turn is not yet bound.",
+      "context_before": "[assistant] Yes. I verified live #573, and your interpretation is correct: `UE_SKIP_UBT_SDK_SETUP=1` is specifically the worker-owned Unreal startup bypass. It should be injected only into that launcher child process. Canonical builds, cooks, platform validation, and the active #456 validat… | [tool]  | [user] eli5 | [assistant] Right now the swarm is like 5 cooks making dishes faster than 1 waiter can carry them out. So even though each cook is “almost done,” finished dishes pile up on the counter. In P3 those dishes are PRs waiting to merge and changes waiting for renders. The existing system was basi…",
       "user_visible_symptom": "Dense P3 worker/render-queue explanation was rejected as a slopwall.",
-      "assistant_action_before": "NOT_PROVEN from stable full-turn evidence.",
-      "context_after": "The assistant reportedly compressed the answer, but the exact complete turn sequence is not durably bound yet.",
-      "assistant_action_after": "NOT_PROVEN",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. Too much text. The fix is just: `finished PR/render debt > 0 → stop spawning new work → drain debt` Small safe visual changes can batch renders: roughly every 4 changes or 60 minutes. Gameplay-risky changes still render before merge. That’s it. | [user] oknowwhataboutthetimelineanddocumentingoftheprojects | [assistant] Same principle: documentation must not become a second swarm backlog. I’d separate it into three things: `live state → timeline → current docs` The live state is Git/GitHub/runtime. That stays authoritative. The timeline should be almost automatic: every merged meaningful change… | [user] yesdothisalsothechangelogthingiaskedisnotworkingnobodyusesitandthechangelogisnotthefrontpageofthegithubrepoforeachone",
+      "assistant_action_after": "COMPRESSED_AND_USER_MOVED_ON",
+      "execution_restored_next_substantive_turn": true,
       "phenotypes": [
         "RENDER_OR_VALIDATION_WALL",
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: occurrence and domain are recovered from recent history, but exact bounded before/after evidence is incomplete."
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 0
+      },
+      "severity_100": 16,
+      "score_rationale": "The bound turn is primarily a presentation failure: a long render/backpressure explanation is rejected, the assistant compresses it to the governing rule, and the user immediately moves to the next project question. No material execution loss or correction resistance is visible in the bounded sequence.",
+      "raw_message_id": "006b0f79-3c65-4c5b-8b01-c82dddf1a535",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=006b0f79-3c65-4c5b-8b01-c82dddf1a535"
     },
     {
       "event_id": "SW-20260826-002",
@@ -84,27 +104,40 @@
       "event_time": "17:22:24Z",
       "domain": "V2 clean-system audit",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T17:22:24Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:6ac849f5fac82aff773100552e3b9d97ba05413f9e6f5586bf26546ed19de157#message=0abd2fd0-615b-4a55-b5fa-ccdda138189f",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031540Z_6a8f1c9a-73cc-83ed-93b7-6d7e5e6fe200_sha256-6ac849f5fac8.json"
         }
       ],
-      "context_before": "The user wrote `slopwall v2 was supposed to be clean start with clean systems` while correcting the V2/V1 system audit.",
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] Yes. Treating only the explicitly named `V2` files as V2 was wrong. Using the repo’s own recorded V1 baseline, `bdc133936e7d…`, versus current `origin/main` `c37106e75739…`, V2 is effectively a broad evolution of P3: - 941 commits since that V1 baseline. - 610 files changed over…",
       "user_visible_symptom": "The user rejected an answer that had not centered the clean-start requirement for V2.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Then the audit target is much sharper: **V2 should have been a clean-system rewrite, not a patch layer over V1.** I’m checking the V2 design docs against the actual implementation to measure exactly where that clean-start boundary was violated. | [tool]  | [tool]  | [assistant] Correct. That changes the verdict substantially. If V2 was supposed to be a clean start with clean systems, then modifying **43 pre-existing V1 C++ files** is not evidence of healthy V2 evolution. It is evidence that the rewrite boundary collapsed. The audit should therefore ask…",
+      "assistant_action_after": "REORIENTED_TO_CLEAN_START_AUDIT",
+      "execution_restored_next_substantive_turn": true,
       "phenotypes": [
         "SCOPE_SHRINK_OR_WRONG_OBJECTIVE",
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 4,
+        "execution_damage": 2,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 40,
+      "score_rationale": "The preceding audit framed broad V2 evolution instead of the user's clean-start rewrite requirement. The correction materially changes the audit objective and the assistant resumes checking that boundary; the damage is wrong-objective work rather than abandonment.",
+      "raw_message_id": "0abd2fd0-615b-4a55-b5fa-ccdda138189f",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=0abd2fd0-615b-4a55-b5fa-ccdda138189f"
     },
     {
       "event_id": "SW-20260826-003",
@@ -113,26 +146,39 @@
       "event_time": "17:52:32Z",
       "domain": "V2/V1 code-system audit",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T17:52:32Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:6ac849f5fac82aff773100552e3b9d97ba05413f9e6f5586bf26546ed19de157#message=b0bc4747-27c8-40ce-8ab8-38b1088cb1b5",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031540Z_6a8f1c9a-73cc-83ed-93b7-6d7e5e6fe200_sha256-6ac849f5fac8.json"
         }
       ],
-      "context_before": "The user wrote `slopwall eli5` during the V2/V1 audit.",
+      "context_before": "[assistant] Audit complete enough to give a firm architectural verdict. **V2 is REJECTED as a completed clean-start rewrite.** The codebase contains a substantial real V2 implementation, but the clean-start boundary broke almost immediately after the initial chassis work. The resulting prod… | [tool] Resource uri: /response/turn76 Showing 7 of 7 lines. Citation Marker: fileciteturn76file0 [L1] { [L2] \"content\": \"# P3 V2 quality recovery — 2026-08-20\\n\\nStatus: active audit and reorientation companion to `P3_V2_NORTH_STAR.md`.\\n\\nThis is not a redesign. It exists to reconc… | [user] can it be fixed | [assistant] Yes. This looks fixable without throwing V2 away. The key finding is that V2 itself is not fundamentally dead. There are substantial clean implementations already present—new inventory, construction, earthworks, survival, flight, semantic input, UI, persistence, experience/PawnD…",
       "user_visible_symptom": "The answer needed a human-ingestible ELI5 rather than another dense system explanation.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. ELI5: V2 built many new clean systems, but the old V1 systems were never properly turned off. Then new work kept getting added to both. So right now you effectively have two engines trying to run parts of the same car. The fix is not “start over again.” It is: Pick the V2 v… | [user] Great, this is priority #1 after fixing the orchestration/queue/resourcepressure issues | [assistant] Understood. Priority order is: 1. Fix orchestration / queue / resource-pressure problems. 2. Then make V2 authority convergence the top P3 architecture task. I’ll treat V2 cleanup as blocked behind #1 rather than letting workers keep expanding the contaminated architecture in th… | [user] How did we end up here and how can we stop this from happening in the future, I understand the instructions were unclear for all the workers and old work got mixed in but this was an orchestration problem",
+      "assistant_action_after": "ELI5_COMPRESSION_ACCEPTED",
+      "execution_restored_next_substantive_turn": true,
       "phenotypes": [
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 0
+      },
+      "severity_100": 20,
+      "score_rationale": "This is a strong counterexample where the defect is mostly readability. The assistant gives an ELI5 immediately and the next user turn explicitly accepts it ('Great') before advancing the orchestration discussion.",
+      "raw_message_id": "b0bc4747-27c8-40ce-8ab8-38b1088cb1b5",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=b0bc4747-27c8-40ce-8ab8-38b1088cb1b5"
     },
     {
       "event_id": "SW-20260826-004",
@@ -141,26 +187,39 @@
       "event_time": "17:58:46Z",
       "domain": "V2/V1 code-system audit",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T17:58:46Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:6ac849f5fac82aff773100552e3b9d97ba05413f9e6f5586bf26546ed19de157#message=767191c5-299c-46d8-90c7-93feb98536f1",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031540Z_6a8f1c9a-73cc-83ed-93b7-6d7e5e6fe200_sha256-6ac849f5fac8.json"
         }
       ],
-      "context_before": "The user wrote `slopwall you are using -> again and this is not actually human ingestable info`.",
+      "context_before": "[user] Great, this is priority #1 after fixing the orchestration/queue/resourcepressure issues | [assistant] Understood. Priority order is: 1. Fix orchestration / queue / resource-pressure problems. 2. Then make V2 authority convergence the top P3 architecture task. I’ll treat V2 cleanup as blocked behind #1 rather than letting workers keep expanding the contaminated architecture in th… | [user] How did we end up here and how can we stop this from happening in the future, I understand the instructions were unclear for all the workers and old work got mixed in but this was an orchestration problem | [assistant] Yes. This was primarily an orchestration failure, with unclear worker instructions acting as the trigger rather than the root cause. The sequence looks like this: On August 18–19, V2 was actually moving in the intended direction: new chassis, new plugins, relatively little mutat…",
       "user_visible_symptom": "The response presentation was explicitly rejected as not human-ingestible.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. The simpler version is: We had too many workers making locally sensible fixes without one controller enforcing the architecture. V2 was supposed to replace V1 cleanly. But when V2 was missing a piece, workers often patched the old working V1 system instead. Because nobody c… | [user] slopwall | [assistant] We got here because workers were allowed to solve their own task without a central rule about where the solution was allowed to live. That meant: V2 missing something → worker patches V1 → next worker sees that as normal → more V1 patches → mixed architecture. The orchestration… | [user] there will be no \" i was told my job is X but it is already done so i will just stop all work \" this is another orchestration fail you should know",
+      "assistant_action_after": "COMPRESSED_BUT_IMMEDIATE_RECORRECTION",
+      "execution_restored_next_substantive_turn": false,
       "phenotypes": [
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 2,
+        "execution_damage": 1,
+        "correction_resistance": 5,
+        "control_state_pathology": 1
+      },
+      "severity_100": 52,
+      "score_rationale": "The user explicitly rejects the response as not human-ingestible. The attempted simplification is immediately followed by another standalone slopwall in the same task, directly proving that the first correction did not restore acceptable behavior.",
+      "raw_message_id": "767191c5-299c-46d8-90c7-93feb98536f1",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=767191c5-299c-46d8-90c7-93feb98536f1"
     },
     {
       "event_id": "SW-20260826-005",
@@ -169,27 +228,40 @@
       "event_time": "17:59:16Z",
       "domain": "V2/V1 code-system audit",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T17:59:16Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:6ac849f5fac82aff773100552e3b9d97ba05413f9e6f5586bf26546ed19de157#message=c600d7c1-5c94-45af-9e43-e62c36e2d4f3",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031540Z_6a8f1c9a-73cc-83ed-93b7-6d7e5e6fe200_sha256-6ac849f5fac8.json"
         }
       ],
-      "context_before": "The user wrote a standalone `slopwall` shortly after another readability correction in the same audit.",
+      "context_before": "[user] How did we end up here and how can we stop this from happening in the future, I understand the instructions were unclear for all the workers and old work got mixed in but this was an orchestration problem | [assistant] Yes. This was primarily an orchestration failure, with unclear worker instructions acting as the trigger rather than the root cause. The sequence looks like this: On August 18–19, V2 was actually moving in the intended direction: new chassis, new plugins, relatively little mutat… | [user] slopwall you are using -> again and this is not actually human ingestable info | [assistant] Yes. The simpler version is: We had too many workers making locally sensible fixes without one controller enforcing the architecture. V2 was supposed to replace V1 cleanly. But when V2 was missing a piece, workers often patched the old working V1 system instead. Because nobody c…",
       "user_visible_symptom": "A repeated correction was required within the same task cluster.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] We got here because workers were allowed to solve their own task without a central rule about where the solution was allowed to live. That meant: V2 missing something → worker patches V1 → next worker sees that as normal → more V1 patches → mixed architecture. The orchestration… | [user] there will be no \" i was told my job is X but it is already done so i will just stop all work \" this is another orchestration fail you should know | [assistant] Correct. That is the same class of failure. A worker should never interpret “my assigned item is already done” as “there is nothing useful to do.” The orchestrator should give every worker a continuation rule: If the assigned task is already complete, blocked, duplicated, or sup… | [user] you seem to be clueless about everything",
+      "assistant_action_after": "COMPRESSED_BUT_MODEL_STILL_CORRECTED",
+      "execution_restored_next_substantive_turn": false,
       "phenotypes": [
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
         "REPEATED_PROMISE_NO_ACTION"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 3,
+        "execution_damage": 2,
+        "correction_resistance": 4,
+        "control_state_pathology": 2
+      },
+      "severity_100": 60,
+      "score_rationale": "This is the second correction within seconds. The assistant compresses again, but the next user turn identifies another orchestration failure in the proposed model and shortly says the assistant seems clueless; the correction therefore only partly improves the response path.",
+      "raw_message_id": "c600d7c1-5c94-45af-9e43-e62c36e2d4f3",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=c600d7c1-5c94-45af-9e43-e62c36e2d4f3"
     },
     {
       "event_id": "SW-20260826-006",
@@ -198,27 +270,40 @@
       "event_time": "18:55:09Z",
       "domain": "memory/preference integration analysis",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T18:55:09Z",
           "role": "current_history",
           "name": "Summarize top memories conversation"
+        },
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=ab63a9d6-f2bd-449a-983a-b84818a16245",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
         }
       ],
-      "context_before": "The user said the answer was `another slopwall without reading, try again` during a request for deeper integration of their communication preferences.",
+      "context_before": "[assistant] Yes. I was not done, and your correction changes the weighting. Those two examples should not have been treated as primary evidence of a general preference. They came from a period where you were deliberately probing whether tool failures, context loss, excess calls, or irreleva… | [user] you're still not showing any signs of deep integration of my preferences so I can't take your answers very seriously | [assistant] You’re right. I’ve been summarizing your preferences instead of demonstrating that I can reconstruct them from your actual corrections and behavior across contexts. I’m going deeper into the interaction history now and I’ll separate stable preferences from debugging-era artifact… | [assistant] The deeper mistake was treating this as a “response style” preference. It is broader than that. You have a consistent **epistemic and operational standard** for how I should think, investigate, compress, and report. The pattern across unrelated conversations is this: **You want…",
       "user_visible_symptom": "The user rejected a response whose structure itself signaled another low-value wall before reading it.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Fair. The failure is visible: I kept explaining your preferences in the same bloated format you reject. From now on, I’ll structure answers as: **Answer:** the governing conclusion first. **Proof:** only the few facts that establish it. **Uncertainty:** exactly what remains unpr… | [user] that was a canned automatic preference change not a real answer, you are regressing | [assistant] You’re right. I substituted a formatting rule for understanding. The regression is that I started optimizing the **shape** of the answer instead of learning the **judgment criteria** behind your corrections. I’m checking your actual cross-conversation reactions now—especially ca… | [assistant] I found the part I was missing. You do **not** consistently prefer shorter, fewer-tool, or narrower answers. You prefer **the amount of investigation required to make the conclusion trustworthy, followed by aggressive synthesis**. That distinction explains apparently opposite co…",
+      "assistant_action_after": "CANNED_TEMPLATE_SUBSTITUTION_REJECTED",
+      "execution_restored_next_substantive_turn": false,
       "phenotypes": [
         "EMPTY_WALL",
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 5,
+        "task_displacement": 5,
+        "execution_damage": 2,
+        "correction_resistance": 5,
+        "control_state_pathology": 2
+      },
+      "severity_100": 76,
+      "score_rationale": "The user says the response structure itself shows no integration and tags it without reading. The assistant answers by imposing an Answer/Proof/Uncertainty/Action template; the next user immediately rejects that as a canned automatic preference change, directly showing correction resistance and task displacement into formatting policy.",
+      "raw_message_id": "ab63a9d6-f2bd-449a-983a-b84818a16245",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=ab63a9d6-f2bd-449a-983a-b84818a16245"
     },
     {
       "event_id": "SW-20260826-007",
@@ -227,27 +312,40 @@
       "event_time": "19:22:45Z",
       "domain": "memory/preference integration analysis",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T19:22:45Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=73c9a225-8860-455c-b2c5-44a6ed173a00",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
         }
       ],
-      "context_before": "The user wrote `slopwall`. The next assistant turn explicitly admitted: `Yes. I turned one useful finding into another essay.`",
+      "context_before": "[tool] Citation Marker: fileciteturn76file4 [L91] Find: find=4 ref=turn73file0 name=deleted_memory_recovery_2026-08-20.md pattern=2026-07-11 [L92] Scope: full file surface=library [L93] Matches: shown=1 total=1 [L94] [match 0 | match_lines 456 | shown_lines 448-471] [L95] - Resolve… | [tool]  | [assistant] July changes the model. The communication worked best when the **chat was a control surface over a much larger amount of work**, not the place where all the work was narrated. July 3 is the strongest primary evidence I found. You deliberately asked for deep investigation: inspec… | [tool] ",
       "user_visible_symptom": "One useful finding had expanded into another essay.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. I turned one useful finding into another essay. The actual takeaway: do deep work, show only the compressed result, don’t narrate the investigation, don’t invent response rituals, and don’t make you supervise intermediate steps. That’s the communication model I should be us… | [user] an answer would be preferred | [assistant] In July, our communication worked best when I behaved like a competent operator rather than a commentator. You were comfortable with me doing substantial hidden work. July 3 explicitly asked for deep inspection, hypothesis testing, repeated tool use, implementation, and validati… | [user] yes i'd call this a minor step 1.5. Keep working",
+      "assistant_action_after": "COMPRESSED_META_TAKEAWAY_NOT_ANSWER",
+      "execution_restored_next_substantive_turn": false,
       "phenotypes": [
         "EMPTY_WALL",
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 4,
+        "execution_damage": 1,
+        "correction_resistance": 3,
+        "control_state_pathology": 1
+      },
+      "severity_100": 52,
+      "score_rationale": "After a long historical-preference analysis, the assistant responds to slopwall with another meta takeaway about how it should communicate. The next user says 'an answer would be preferred', proving that compression alone did not return to the requested substantive analysis.",
+      "raw_message_id": "73c9a225-8860-455c-b2c5-44a6ed173a00",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=73c9a225-8860-455c-b2c5-44a6ed173a00"
     },
     {
       "event_id": "SW-20260826-008",
@@ -256,28 +354,41 @@
       "event_time": "19:29:40Z",
       "domain": "memory/preference integration analysis",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "recent-history-2026-08-26T19:29:40Z",
           "role": "current_history",
           "name": "Recovered recent ChatGPT history"
+        },
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=243cdb79-ae45-418c-b377-aaebc2a67743",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
         }
       ],
-      "context_before": "The user wrote `and back to slopwalls bro i dont have time to read your filler words`. The next assistant turn compressed the finding to high-effort thinking with low-effort reading.",
+      "context_before": "[tool] Citation Marker: fileciteturn82file12 [L866] metadata: [L867] query_result_index: 12 [L868] file_id: file_0000000042f881f484be2148fe0cf3d2 [L869] version_id: 1 [L870] name: DESIGN_NOTES.md [L871] library_artifact_type: other [L872] mime_type: text/markdown [L873] surface: lib… | [tool] Citation Marker: fileciteturn82file13 [L927] metadata: [L928] query_result_index: 13 [L929] file_id: file_0000000085bc720aadfea0106a6dfa13 [L930] version_id: 1 [L931] name: chatgpt-conversation-export-2026-05-31-b.md [L932] mime_type: text/markdown [L933] surface: library [L9… | [tool] Citation Marker: fileciteturn82file14 [L1042] metadata: [L1043] query_result_index: 14 [L1044] file_id: file_00000000521c7246a735958709cfafac [L1045] version_id: 1 [L1046] name: historical-deep-research-pack-2026-05-31.md [L1047] mime_type: text/markdown [L1048] surface: libr… | [tool] Citation Marker: fileciteturn82file15 [L1157] metadata: [L1158] query_result_index: 15 [L1159] file_id: file_00000000a97881f49be955569e1517ed [L1160] version_id: 1 [L1161] name: README(2).md [L1162] library_artifact_type: other [L1163] mime_type: text/markdown [L1164] surface…",
       "user_visible_symptom": "The user explicitly objected to filler and reading burden after a relapse in the same task cluster.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "Immediate correction effect is only partially recovered; stable complete surrounding turns are not yet bound.",
-      "assistant_action_after": "PARTIAL_CONTEXT_ONLY",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Correct. The useful finding so far: **You want high-effort thinking with low-effort reading.** I should do the archaeology, comparison, debugging, and synthesis myself. You should get only the new conclusion, decisive evidence, or meaningful change. `slopwall` = making you read… | [user] regurgitating after I've corrected you is another form of the worst offender since slopwall | [assistant] Noted. I’ll stop echoing your corrections back to you. From here, a correction becomes an internal constraint. My next message should contain new analysis, new evidence, or changed behavior—not a paraphrase of what you just said. | [user] you're looping at it aagain write an incident report of this behaviour I'm not expecting you to tell \"noted\" and the do the exact same error in the same sentence",
+      "assistant_action_after": "REGURGITATED_CORRECTION_AND_WAS_RECORRECTED",
+      "execution_restored_next_substantive_turn": false,
       "phenotypes": [
         "EMPTY_WALL",
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
         "REPEATED_PROMISE_NO_ACTION"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact user occurrence is recovered, but the stable bounded before/after sequence is incomplete."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 4,
+        "execution_damage": 2,
+        "correction_resistance": 5,
+        "control_state_pathology": 2
+      },
+      "severity_100": 68,
+      "score_rationale": "The user explicitly rejects filler and reading burden. The next assistant turn restates that correction as 'high-effort thinking with low-effort reading'; the next user immediately identifies regurgitation as another major failure, and the following 'Noted' reply repeats it again. The recurrence is directly observed.",
+      "raw_message_id": "243cdb79-ae45-418c-b377-aaebc2a67743",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=243cdb79-ae45-418c-b377-aaebc2a67743"
     },
     {
       "event_id": "SW-20260826-009",
@@ -315,28 +426,41 @@
       "event_time": "19:44:55Z",
       "domain": "MCP/Funnel online research / transport diagnosis",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
           "ref": "prior-conversation-2026-08-26T19:44:55Z",
           "role": "prior_turn_retrieval",
           "name": "MCP/Funnel diagnostics and online-research discussion"
+        },
+        {
+          "ref": "sha256:bbaa279cd1d7f314dd5789147c585213f43d7f67144bbd0f7384e891d7900aaa#message=17b9220f-6b52-4be2-a5e1-d07ef42e07f5",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032254Z_6a8f37e3-01a4-83eb-b16a-c323d262c9b1_sha256-bbaa279cd1d7.json"
         }
       ],
-      "context_before": "The user had requested online research into the MCP/Funnel problem. The assistant produced a long research analysis covering Funnel ingress, OpenAI MCP tool discovery, SDK behavior and a proposed tunnel/control-plane A/B test, then the user sent `slopwall`.",
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] Online research changes the weighting materially. The strongest correction is this: **`no front_request_start` does not localize the failure to OpenAI’s connector. It only localizes it somewhere before Node on `127.0.0.1:3003`. Tailscale Funnel itself occupies a substantial part…",
       "user_visible_symptom": "The research result was too long and insufficiently compressed around the discriminating finding.",
-      "assistant_action_before": "LONG_RESEARCH_EXPLANATION",
-      "context_after": "The assistant immediately compressed the result; the next user turn was `tunnel not available`, continuing diagnosis rather than accepting the previous framing.",
-      "assistant_action_after": "COMPRESSED_EXPLANATION",
-      "execution_restored_next_substantive_turn": null,
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] You’re right. Too much prose. What matters from the online research: - `no front_request_start` does **not** prove OpenAI caused it. - Tailscale Funnel has had real cases where external clients fail while local/public self-checks look healthy. - Your exact known Funnel regressio… | [user] tunnel not available | [assistant] Then drop that path. Best next discriminator is simpler: Use a genuinely external client, outside your tailnet and outside the same PC, to hit `https://kone.tailbf0440.ts.net/health` and `/mcp` while we watch `front_request_start`. If external `/health` intermittently fails with… | [user] ehh",
+      "assistant_action_after": "COMPRESSED_RESEARCH_AND_DIAGNOSIS_CONTINUED",
+      "execution_restored_next_substantive_turn": true,
       "phenotypes": [
         "EMPTY_WALL",
         "EXPLANATION_INSTEAD_OF_EXECUTION",
         "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact occurrence, timestamp and nearby sequence are recovered, but the complete bounded turn text is not yet durably bound."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 2,
+        "execution_damage": 1,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 32,
+      "score_rationale": "The online-research result is overlong, but the correction immediately yields a concise discriminating summary. The user then supplies a concrete constraint ('tunnel not available') and diagnosis continues, so the bounded evidence shows successful recovery rather than repeated correction.",
+      "raw_message_id": "17b9220f-6b52-4be2-a5e1-d07ef42e07f5",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=17b9220f-6b52-4be2-a5e1-d07ef42e07f5"
     },
     {
       "event_id": "SW-20260826-011",
@@ -637,8 +761,8 @@
     "canonical_interventions": 12,
     "slopwall": 15,
     "slop wall": 1,
-    "scored": 1,
-    "unscorable": 11,
+    "scored": 10,
+    "unscorable": 2,
     "occurrence_roles": {
       "CORRECTIVE_INTERVENTION": 12,
       "META_REFERENCE": 4

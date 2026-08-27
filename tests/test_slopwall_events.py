@@ -13,8 +13,8 @@ def test_index_validates_and_separates_lexical_occurrences_from_events() -> None
     counts = summary(data)
     assert counts["lexical_occurrences"] == 16
     assert counts["canonical_interventions"] == 12
-    assert counts["scored"] == 1
-    assert counts["unscorable"] == 11
+    assert counts["scored"] == 10
+    assert counts["unscorable"] == 2
     assert counts["slopwall"] == 15
     assert counts["slop wall"] == 1
     assert counts["occurrence_roles"] == {
@@ -39,7 +39,7 @@ def test_composite_mismatch_is_rejected() -> None:
 
 def test_d_confidence_cannot_be_guessed() -> None:
     data = copy.deepcopy(load_index(DEFAULT_INDEX))
-    event = data["events"][1]
+    event = next(item for item in data["events"] if item["evidence_confidence"] == "D")
     event["scores"] = {
         "information_slop": 1,
         "task_displacement": 1,

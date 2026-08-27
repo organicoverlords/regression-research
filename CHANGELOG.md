@@ -11,6 +11,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Reviewed all 46 deduplicated raw ChatPort `slopwall` hits for #89: 38 are direct corrective interventions and 8 are meta/design references; bound 10 to existing canonical events and upgraded nine formerly D-confidence events to raw-context-backed scored evidence, leaving 28 newly discovered corrective turns explicit for later canonical promotion.
+
 - [2026-08-27] [meta] Kept conversation-search CI deterministic by validating against a small tracked old/new corpus fixture and a runner-local SQLite database; live Vault reindex remains a local-only operation (#99).
 
 - [2026-08-27] Refined unified memory search so one topical query returns bounded durable memories plus a corpus-wide prevalence signal and a tiny historical-evidence sample; raw conversation excerpts are `HISTORICAL_CONTEXT` rather than claim-state `PROVEN`, scoped searches still fan out, and the 10-title recent bootstrap is unchanged (#99).
