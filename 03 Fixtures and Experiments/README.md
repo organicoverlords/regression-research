@@ -23,6 +23,16 @@ must read the latest/index record, open the current image or contact sheet direc
 record what is visibly shown, and base the next action on that observation. Human-facing
 reviewed artifact names are dated and descriptive; hashes remain separate provenance.
 
+## Issue #122 fresh-chat matrix
+
+`issue122-fresh-chat-regression-matrix.json` defines the historical fresh-chat controls used to compare the Aug 25 good envelope with the later Aug 26 policy stack without changing live ChatGPT settings. Reproduce the measured JSON/CSV from downloaded raw exports with:
+
+```text
+python tools/fresh_chat_regression_matrix.py --raw-root <ChatPortEvidence/raw> --json-out "02 Evidence/issue122-fresh-chat-regression-matrix.json" --csv-out "02 Evidence/issue122-fresh-chat-regression-matrix.csv"
+```
+
+The matrix records model mode, time to first tool, tool count, turn duration, next-user correction, and raw snapshot SHA-256. Tool volume is not a quality verdict: explicit rows distinguish sustained execution, route correction, user-rejected response, and a zero-tool unsupported mutation claim.
+
 The validator checks fixture structure, unique ids, source-report existence, explicit success/failure candidates, a complete scoring contract, and full fixture coverage of every current incident report in `01 Reports`. It does not judge model outputs; the fixture's `scoring` object defines the assertions a replay harness must apply.
 
 ## Scoring supplied actions

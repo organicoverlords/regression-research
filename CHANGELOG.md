@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Added the #122 executable fresh-chat regression matrix: eight raw-conversation controls reproduce the Aug 25 minimal-prompt execution envelope and Aug 26 GPT-5.6 Thinking/extended contrasts, including sustained execution, route correction, response rejection, and a zero-tool fabricated Vault mutation claim.
+
 ### Added
 
 - [2026-08-27] [meta] Consolidated six source-backed #87 provisional memories into three narrower durable corrections, reducing unresolved bank provisionals from 27 to 21 without touching the disputed live ChatGPT memory payload.
