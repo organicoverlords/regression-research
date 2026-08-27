@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [memory] Consolidated the paired P3 #595 LFS-hydration provisionals from live issue evidence, preserving the hidden security mechanism as unknown; effective #87 provisionals are now 9 after one concurrent worker-launch provisional.
+
 - [2026-08-27] [memory] Replaced the context-provenance mechanism provisional with the tracked #122 open-source boundary and refreshed #87 for a concurrent P3 LFS correction; effective provisionals remain 10.
 
 - [2026-08-27] [memory] Replaced the residual security-routing investigation provisional with the current user-authored route-failure scope boundary and refreshed #87 for a concurrently added orchestration incident; effective provisionals remain 10.

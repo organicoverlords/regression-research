@@ -1,8 +1,8 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 context-provenance normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 P3 LFS-hydration normalization. This is a derived review queue, not recall authority.
 
-Effective unsuperseded provisionals: **10**.
+Effective unsuperseded provisionals: **9**.
 
 | Memory ID | Scope | Title / summary | Next evidence gate |
 | --- | --- | --- | --- |
@@ -14,11 +14,11 @@ Effective unsuperseded provisionals: **10**.
 | `mem-20260827-5c891437` | response-quality | SLOPWALL 2026-08-27 05:06 EEST: after the user showed a screenshot proving the assistant kept analyzing after the next s | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-f5367852` | assistant-orchestration/personal-instructions-checkpoint | Checkpoint: user applied new chat-level Personal Instructions for bounded investigation, visible progress, and immediate | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 
-| `mem-20260827-27ea5e8c` | security-incident:p3-595-lfs-hydration-20260827 | P3 #595 broad LFS hydration security incident | Needs independent tracked/raw evidence before promotion; preserve the non-destructive reconciliation boundary. |
 
 | `mem-20260827-92f21a3e` | incident:orchestration-overload-v2-v1 | Orchestration-overload / missed-project-truth incident | Needs direct user/runtime evidence before promotion; do not promote its assistant-generated causal list from the incident text alone. |
 
-| `mem-20260827-c7e50794` | security-incident:p3-595-lfs-hydration-20260827 | Correction: Editor lanes require full Content hydration; hidden security mechanism remains unknown | Needs tracked P3 lane/runtime evidence and explicit supersession relation before promotion. |
+
+| `mem-20260827-2b06e4ae` | durable:worker-launch-live-authority | Worker-launch prompts must defer to current live authority | Needs direct user/worker-start authority evidence before promotion; avoid reviving stale control-plane instructions from historical prompts. |
 
 ## Closed in this batch
 
@@ -36,6 +36,8 @@ Effective unsuperseded provisionals: **10**.
 - `mem-20260827-82092b15` ? `mem-20260827-6d3f0534`: replaced the residual security-routing investigation lesson with the current user-authored route-failure boundary; failed routes do not become debugging projects unless route debugging is itself the task.
 
 - `mem-20260827-424d0a22` ? `mem-20260827-5ba7efc4`: replaced the inferred recent-conversation-context mechanism with the tracked #122 boundary that hidden delivery/context source remains OPEN without a direct witness; universal deterministic 24m45 cutoff remains rejected.
+
+- `mem-20260827-27ea5e8c` + `mem-20260827-c7e50794` ? `mem-20260827-93b2ddf6`: consolidated the P3 #595 LFS pair using live issue evidence; full Content hydration is an Editor-lane prerequisite, not itself a hidden security mechanism, and unsupported disk/causal details were not promoted.
 
 ## Boundary
 

@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] [memory] Consolidated the paired P3 #595 LFS-hydration provisionals from live issue evidence, preserving the hidden security mechanism as unknown; effective #87 provisionals are now 9 after one concurrent worker-launch provisional.
 - [2026-08-27] [memory] Replaced the context-provenance mechanism provisional with the tracked #122 open-source boundary and refreshed #87 for a concurrent P3 LFS correction; effective provisionals remain 10.
 - [2026-08-27] [memory] Replaced the residual security-routing investigation provisional with the current user-authored route-failure scope boundary and refreshed #87 for a concurrently added orchestration incident; effective provisionals remain 10.
 - [2026-08-27] [memory] Replaced the connector-reliability provisional with the live-reproduced process-ID recovery boundary, excluding speculative connector-architecture recommendations; effective #87 provisionals are now 10.
 - [2026-08-27] [memory] Normalized the current machine-control routing memory from the effective Personal Instructions, removed the stale MCP0-first saved-memory clause, and refreshed #87 against a concurrently added P3 security provisional; effective provisionals remain 11.
-- [2026-08-27] [memory] Consolidated the PLY/GLB cleanup incident memories into one verbatim-user-sourced PROVEN correction, superseding the broad provisional and its overinterpreted predecessor; effective #87 provisionals are now 11.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
