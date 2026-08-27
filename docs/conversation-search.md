@@ -26,6 +26,14 @@ python tools\conversation_search.py search "slopwall"
 python tools\conversation_search.py search "exact historical phrase" --literal
 ```
 
+`discover` is a read-only inventory command for locating preservation sources under a Downloads directory. It does not index those paths:
+
+```powershell
+python tools\conversation_search.py discover --downloads C:\Users\Lauri\Downloads
+```
+
+`index` accepts repeatable explicit `--root` values, or uses the canonical Vault corpus when no root is supplied. It has no Downloads shortcut. For the normal canonical rebuild, use `conversation_search_refresh.py` as documented below.
+
 ## Preservation and recovery
 
 `tools\conversation_corpus.py` performs explicit one-time preservation operations. It never runs a download queue and never continuously ingests ChatGPT history.
