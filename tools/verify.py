@@ -18,6 +18,7 @@ STACK_PATHS = {
     "tests/test_capability_routing.py",
     "tools/instruction_provenance.py",
     "tests/fixtures/instruction-provenance-policy.json",
+    "tests/fixtures/instruction-delivery-canary.json",
     "tests/test_instruction_provenance.py",
     "tools/busy_authority.py",
     "tests/fixtures/busy-ownership-policy.json",
