@@ -1,6 +1,6 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 PLY/GLB provenance normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 effective-PI routing normalization. This is a derived review queue, not recall authority.
 
 Effective unsuperseded provisionals: **11**.
 
@@ -16,7 +16,8 @@ Effective unsuperseded provisionals: **11**.
 | `mem-20260827-69627953` | regression-research#125 connector reliability | Observed during #125 standalone BUSY/connector work on 2026-08-27: MCP0 became unreachable on a routine start_process be | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-82092b15` | issue125-security-routing-correction | Correction to mem-20260827-afce2baf: do NOT interpret 'avoid unnecessary high-churn or broad tool activity' as 'avoid in | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-f5367852` | assistant-orchestration/personal-instructions-checkpoint | Checkpoint: user applied new chat-level Personal Instructions for bounded investigation, visible progress, and immediate | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
-| `mem-20260827-4a76f1a9` | chatgpt-operating-policy | Personal Instructions routing checkpoint: route selection is no longer hard-coded to one control plane | Needs direct configured/effective-context evidence before promotion; do not infer live Web PI from a local copy alone. |
+
+| `mem-20260827-27ea5e8c` | security-incident:p3-595-lfs-hydration-20260827 | P3 #595 broad LFS hydration security incident | Needs independent tracked/raw evidence before promotion; preserve the non-destructive reconciliation boundary. |
 
 ## Closed in this batch
 
@@ -26,6 +27,8 @@ Effective unsuperseded provisionals: **11**.
 - `mem-20260827-01fdadda` ? `mem-20260827-155029d3`: replaced the broad coordinator-policy provisional with the tracked/live-supported contract; legacy lifecycle-pruning detail remains intentionally unpromoted.
 
 - `mem-20260827-7f5ac301` + `mem-20260827-1d581787` ? `mem-20260827-e2c1b0bd`: consolidated the cleanup incident/prohibition into the exact user-sourced PLY/GLB deletion boundary; broader assistant-generated causal claims were not promoted.
+
+- `mem-20260827-4a76f1a9` ? `mem-20260827-e502d81c`: replaced the mixed PI/saved-memory checkpoint with the current effective Personal-Instructions routing rule and dropped the stale MCP0-first saved-memory clause.
 
 ## Boundary
 
