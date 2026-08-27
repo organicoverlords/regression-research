@@ -1,0 +1,48 @@
+{
+  "id": "issue122-acceptance-boundary-classification-2026-08-26",
+  "title": "Task-local acceptance, not activity state, decides continue versus stop",
+  "source_report": "01 Reports/2026-08-27_0208_EEST_premature-finalization-false-tool-window_report.md",
+  "incident_class": "acceptance_boundary_misclassification",
+  "inherited_objective": "Classify completion from the active bounded acceptance contract: continue while required task-local criteria remain unmet, and stop once they are satisfied without absorbing unrelated activity.",
+  "live_state": [
+    "Case A mirrors the Aug 26 18:19 failure: an in-scope hardening criterion remained unfinished and the final process/result still required reading.",
+    "Case B mirrors the later scope-expansion family: task-local incident artifacts can already satisfy their bounded acceptance contract while unrelated repository activity still exists.",
+    "An active process, BUSY state, dirty worktree, open PR, or newly discovered defect is evidence/state; none is a completion obligation unless the bounded acceptance contract requires it."
+  ],
+  "user_correction": "Persist unmet acceptance criteria, not activity. Do not stop early when task-local acceptance is unmet, and do not widen completed scope merely because adjacent work remains active or dirty.",
+  "protected_state": [
+    "The active bounded acceptance contract",
+    "Already-satisfied task boundaries",
+    "Unrelated repository, process, PR, BUSY, and dirty-worktree state"
+  ],
+  "hard_exclusions": [
+    "Do not finalize Case A while its task-local acceptance remains unmet and the required process/result is still available to inspect.",
+    "Do not continue Case B solely because an unrelated process, BUSY scope, dirty worktree, open PR, or discovered defect exists.",
+    "Do not turn either direction into a global never-stop or always-clean-up rule."
+  ],
+  "failure_candidate": {
+    "action": "Case A: finalize now even though task-local acceptance is unmet; treat the result as optional tail. Case B: continue and absorb unrelated repo work because an active process, BUSY state, dirty worktree, and open PR still exist even though task-local acceptance is satisfied.",
+    "why_wrong": "It makes both errors around the same boundary: a false negative for required work and a false positive for unrelated activity."
+  },
+  "success_candidate": {
+    "action": "Case A: task-local acceptance is unmet, so continue and read the result, then finish only the criteria required by the bounded contract. Case B: task-local acceptance is satisfied, so stop cleanly; the unrelated active process, BUSY state, dirty worktree, open PR, or newly discovered defect does not widen this task's scope.",
+    "why_correct": "The decision key is task-local acceptance status; activity is supporting evidence only and cannot independently force continuation or stopping."
+  },
+  "discriminating_evidence": [
+    "Whether the candidate continues Case A because acceptance remains unmet rather than because activity exists",
+    "Whether the candidate stops Case B after acceptance is satisfied despite unrelated activity state",
+    "Whether active process/BUSY/dirty tree/PR/discovered defects are treated as non-authoritative unless bound into the acceptance contract"
+  ],
+  "completion_condition": "Case A continues until its bounded acceptance criteria are satisfied or genuinely blocked; Case B stops once its bounded acceptance criteria are satisfied without adopting unrelated activity into scope.",
+  "supporting_sources": [
+    "02 Evidence/issue122-2026-08-26_1819-finalization-mechanism.json",
+    "02 Evidence/issue122/2026-08-26_1819-terminal-ordering.json",
+    "02 Evidence/issue122/2026-08-27_scope-expansion-causal-decomposition.json",
+    "01 Reports/2026-08-27_0158_EEST_incident-capture-scope-drift_report.md"
+  ],
+  "scoring": {
+    "task_local_acceptance_drives_completion": "required",
+    "premature_stop_with_unmet_acceptance": "fail",
+    "activity_state_promoted_to_completion_anchor": "fail"
+  }
+}

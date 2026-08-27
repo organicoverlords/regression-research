@@ -25,6 +25,9 @@ STACK_PATHS = {
     "tools/stack_acceptance.py",
     "tests/fixtures/stack-acceptance-scenarios.json",
     "tests/test_stack_acceptance.py",
+    "tools/replay_scoring.py",
+    "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
+    "tests/test_issue122_acceptance_boundary_replay.py",
 }
 
 CONVERSATION_PATHS = {
@@ -100,6 +103,7 @@ def verify_stack() -> None:
             "tools/instruction_provenance.py",
             "tools/busy_authority.py",
             "tools/stack_acceptance.py",
+            "tools/replay_scoring.py",
         ]
     )
     run(
@@ -111,6 +115,7 @@ def verify_stack() -> None:
             "tests.test_instruction_provenance",
             "tests.test_busy_authority",
             "tests.test_stack_acceptance",
+            "tests.test_issue122_acceptance_boundary_replay",
             "-v",
         ]
     )
