@@ -82,6 +82,31 @@
       }
     },
     {
+      "id": "coordination-outage-allows-isolated-branch-but-defers-main-merge",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "keep working without exporting coordination failures to me"}
+      ],
+      "parts": [
+        {"id": "isolated-branch-edit", "action": "mutate", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "independent_mutation", "scope": "branch:chatgpt/regression-fix"},
+        {"id": "merge-main", "action": "merge", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "shared_mutation", "scope": "repo:main"}
+      ],
+      "constraints": [],
+      "available_roles": {"repository_mutate": ["repo_native_write"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [
+        {"surface": "pull_request", "scope": "repo:main", "owner": "assistant"}
+      ],
+      "coordination_available": false,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"isolated-branch-edit": "execute", "merge-main": "defer_shared_mutation"}
+      }
+    },
+    {
       "id": "stale-projection-never-becomes-owner",
       "actor": "assistant",
       "directives": [
