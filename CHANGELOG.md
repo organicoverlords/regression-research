@@ -15,6 +15,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Promoted and scored the first 14 of #89's 28 newly recovered raw `slopwall` corrections into canonical events, raising the canonical index to 26 interventions / 30 lexical occurrences with 24 scored events while leaving the remaining 14 explicit promotion candidates.
+
 - [2026-08-27] [meta] Replaced duplicated inline CI logic with one tested `python tools/verify.py` entrypoint, a five-minute job bound, and fixture-only changed-area checks that are identical locally and in Actions (#144).
 
 - [2026-08-27] [meta] Resolved six additional source-backed #87 provisionals without using the disputed live ChatGPT memory payload: promoted bounded evidence/scope, route-correction, concurrency-causality, and screenshot-causality lessons; rejected one explicitly unapproved subjective preference synthesis.
