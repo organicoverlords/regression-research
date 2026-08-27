@@ -63,7 +63,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'conversation search tests failed' }
 
           $db = 'C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3'
-          python tools/conversation_search_refresh.py --db $db --downloads 'C:\Users\Lauri\Downloads'
+          python tools/conversation_search_refresh.py --db $db
           if ($LASTEXITCODE -ne 0) { throw 'conversation corpus indexing failed' }
           python tools/validate_conversation_search_corpus.py --db $db
           if ($LASTEXITCODE -ne 0) { throw 'old/new corpus search validation failed' }
