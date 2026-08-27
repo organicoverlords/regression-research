@@ -7,6 +7,7 @@ from tools.verify import changed_files, select_areas
 class VerifyTests(unittest.TestCase):
     def test_selects_only_affected_area(self):
         self.assertEqual(select_areas({"tools/capability_routing.py"}), ["stack"])
+        self.assertEqual(select_areas({"tools/connector_reliability.py"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
         self.assertEqual(select_areas({"README.md"}), [])
 
