@@ -11,6 +11,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Preserved the #122 12:30?12:44 EEST screenshot A/B boundary: visible-tool MCP refusal before the 12:37 operating-rule intervention, followed by three fresh minimal-prompt chats that immediately execute live repo work; causal attribution to Personal Instructions vs Saved Memory remains explicitly open.
+
 - [2026-08-27] [meta] Consolidated six source-backed #87 provisional memories into three narrower durable corrections, reducing unresolved bank provisionals from 27 to 21 without touching the disputed live ChatGPT memory payload.
 
 - [2026-08-27] [meta] Added reproducible raw ChatPort literal discovery for #89, binding 46 unique `slopwall` hit messages across 48 source aliases to conversation/message IDs, SHA-256 provenance, timestamps, and bounded before/after context without inflating the canonical scored event count before review.
