@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [meta] Tightened #123 correction integration so a local correction cannot collapse every still-live hypothesis into a new single-cause story; unaffected hypotheses must remain provisional until separately falsified.
 - [2026-08-27] [meta] Extended #123 correction-integration scoring so a valid correction must preserve evidence it does not contradict instead of resetting the working model to zero.
 - [2026-08-27] [meta] Tightened #123 correction-integration replay scoring so a locally valid user correction cannot trigger an unsupported Personal Instructions/memory/configuration rollback while the original task and unaffected evidence remain live.
 - [2026-08-27] [meta] Added #123 replay coverage for correction integration: a user correction must narrow only the affected claim, preserve the original task and unaffected evidence, and must not trigger an unsupported configuration rollback.
