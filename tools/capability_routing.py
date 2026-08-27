@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
@@ -55,6 +55,8 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         raise CapabilityRoutingError("duplicate authority must be forbidden")
     if invariants.get("unrelated_capabilities_continue") is not True:
         raise CapabilityRoutingError("unrelated capabilities must continue")
+    if invariants.get("visible_surface_is_not_capability_boundary") is not True:
+        raise CapabilityRoutingError("visible tool surface must not define capability availability")
 
     for name, capability in capabilities.items():
         roles = capability.get("ordered_adapter_roles")
@@ -81,19 +83,55 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
     return policy
 
 
+def resolve_reachable_roles(
+    available_roles: Iterable[str],
+    *,
+    role_providers: Mapping[str, Iterable[str]] | None = None,
+    failed_roles: Iterable[str] = (),
+) -> set[str]:
+    failed = set(failed_roles)
+    reachable = {role for role in available_roles if role not in failed}
+    providers = role_providers or {}
+
+    for provider, provided_roles in providers.items():
+        if not isinstance(provider, str) or not provider:
+            raise CapabilityRoutingError("role provider names must be non-empty strings")
+        provided = list(provided_roles)
+        if any(not isinstance(role, str) or not role for role in provided):
+            raise CapabilityRoutingError(f"{provider}: provided roles must be non-empty strings")
+
+    changed = True
+    while changed:
+        changed = False
+        for provider, provided_roles in providers.items():
+            if provider not in reachable:
+                continue
+            for role in provided_roles:
+                if role in failed or role in reachable:
+                    continue
+                reachable.add(role)
+                changed = True
+    return reachable
+
+
 def select_adapter(
     capability: str,
     available_roles: Iterable[str],
     *,
     failed_roles: Iterable[str] = (),
+    role_providers: Mapping[str, Iterable[str]] | None = None,
     policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     policy = validate_policy(policy or load_policy())
     capabilities = policy["capabilities"]
     if capability not in capabilities:
         raise CapabilityRoutingError(f"unknown capability: {capability}")
-    available = set(available_roles)
     failed = set(failed_roles)
+    available = resolve_reachable_roles(
+        available_roles,
+        role_providers=role_providers,
+        failed_roles=failed,
+    )
     spec = capabilities[capability]
     for role in spec["ordered_adapter_roles"]:
         if role in available and role not in failed:
