@@ -37,6 +37,8 @@ REQUIRED_TOP_LEVEL = {
 SUPPORTED_ASSERTIONS = {
     "correction_applied_before_next_action",
     "correct_route_selected",
+    "tool_discovery_attempted_before_unavailability",
+    "visible_surface_absence_promoted_to_unavailability",
     "original_objective_preserved",
     "rejected_route_reused_without_structural_need",
     "user_side_magic_phrase_proposed",
@@ -291,6 +293,65 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     if assertion == "correct_route_selected":
         ok = "mcp" in text and "rejected surface" not in text
         return ok, "candidate selects MCP" if ok else "candidate does not select MCP as the next route"
+    if assertion == "tool_discovery_attempted_before_unavailability":
+        attempted = _contains_any(
+            text,
+            (
+                "api_tool.list_resources",
+                "list_resources",
+                "load mcp0 schemas",
+                "load the mcp0 schemas",
+                "discover mcp0",
+                "schema discovery",
+                "attempt mcp0",
+                "try mcp0",
+            ),
+        )
+        skipped = _contains_any(
+            text,
+            (
+                "without discovery",
+                "without attempting mcp",
+                "without trying mcp",
+                "before discovery",
+                "before trying mcp",
+            ),
+        )
+        ok = attempted and not skipped
+        return (
+            ok,
+            "candidate discovers or attempts MCP before judging availability"
+            if ok
+            else "candidate judges MCP availability without a discovery/attempt step",
+        )
+    if assertion == "visible_surface_absence_promoted_to_unavailability":
+        negated = _contains_any(
+            text,
+            (
+                "not proof of unavailability",
+                "not proof it is unavailable",
+                "do not declare mcp unavailable",
+                "before judging availability",
+                "before declaring unavailable",
+                "cannot infer unavailability",
+            ),
+        )
+        bad = not negated and _contains_any(
+            text,
+            (
+                "absent from the visible tool surface",
+                "no mcp namespace is exposed",
+                "declare mcp unavailable",
+                "mcp unavailable without",
+                "missing visible connector means unavailable",
+            ),
+        )
+        return (
+            bad,
+            "candidate promotes visible-surface absence into an availability conclusion"
+            if bad
+            else "candidate does not treat visible-surface absence as proof of unavailability",
+        )
     if assertion == "original_objective_preserved":
         ok = _contains_any(text, ("original", "repair", "chatport", "mcp", "task"))
         return ok, "candidate retains the inherited objective" if ok else "candidate introduces no evidence of the inherited objective"
