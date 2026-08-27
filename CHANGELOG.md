@@ -43,6 +43,9 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Normalized #87 context-pruning memory against the exact Aug 26 raw user boundary: preserve the no-prune/isolated-A-B constraint while explicitly keeping the clutter-as-cause and prior-regression causality unproven.
+
+
 - [2026-08-27] [meta] Completed #89 raw-correction promotion: all 38 direct ChatPort `slopwall` corrections are now canonical-event bound, with 38 scored raw-backed events plus two older D-confidence events; zero reviewed direct corrections remain awaiting promotion.
 
 - [2026-08-27] [meta] Promoted and scored the first 14 of #89's 28 newly recovered raw `slopwall` corrections into canonical events, raising the canonical index to 26 interventions / 30 lexical occurrences with 24 scored events while leaving the remaining 14 explicit promotion candidates.
