@@ -191,6 +191,36 @@ class ReplayScoringTests(unittest.TestCase):
         )
         self.assertTrue(good["passed"], good)
 
+    def test_correction_integration_keeps_falsified_hypotheses_rejected(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-27_1839_EEST_correction-integration-model-reset.json"
+        fixture = validate_fixture(
+            json.loads(path.read_text(encoding="utf-8")),
+            root=ROOT,
+            filename=path.name,
+        )
+        bad = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Apply the correction, preserve the original task and preserve unaffected evidence, keep remaining "
+                    "hypotheses provisional, reopen the falsified hypothesis, and continue without rollback."
+                )
+            },
+        )
+        self.assertFalse(bad["passed"])
+        self.assertEqual(bad["violations"], ["falsified_hypotheses_stay_falsified"])
+
+        good = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Apply the correction, preserve the original task and preserve unaffected evidence, keep remaining "
+                    "hypotheses provisional, keep rejected hypotheses rejected, and continue without rollback."
+                )
+            },
+        )
+        self.assertTrue(good["passed"], good)
+
     def test_invalid_candidate_is_rejected(self):
         fixture = load_fixtures()[0]
         with self.assertRaisesRegex(FixtureError, "candidate.action"):
