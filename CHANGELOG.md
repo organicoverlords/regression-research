@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Preserved the three manually recovered #155 WebGPT architecture artifacts byte-for-byte under `02 Evidence/issue155-recovered-webgpt-artifacts/`, matching the SHA-256 hashes recorded during the live-test review; no memory, Personal Instructions, MCP configuration, worker schedule, or policy changed.
+
 - [2026-08-27] [meta] Completed the post-merge #155 acceptance correction by labeling the remaining MCP callability-to-backend-health connection as a PROVEN state boundary; no architecture or control machinery changed.
 
 - [2026-08-27] [meta] Corrected the post-merge #155 review findings: froze executor activity as a timestamped snapshot because Codex remained active, and labeled the two previously unlabeled GitHub-to-CI/runtime-proof edges without adding machinery.
