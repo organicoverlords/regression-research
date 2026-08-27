@@ -1,8 +1,8 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 BUSY-coordinator normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 PLY/GLB provenance normalization. This is a derived review queue, not recall authority.
 
-Effective unsuperseded provisionals: **12**.
+Effective unsuperseded provisionals: **11**.
 
 | Memory ID | Scope | Title / summary | Next evidence gate |
 | --- | --- | --- | --- |
@@ -17,7 +17,6 @@ Effective unsuperseded provisionals: **12**.
 | `mem-20260827-82092b15` | issue125-security-routing-correction | Correction to mem-20260827-afce2baf: do NOT interpret 'avoid unnecessary high-churn or broad tool activity' as 'avoid in | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-f5367852` | assistant-orchestration/personal-instructions-checkpoint | Checkpoint: user applied new chat-level Personal Instructions for bounded investigation, visible progress, and immediate | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-4a76f1a9` | chatgpt-operating-policy | Personal Instructions routing checkpoint: route selection is no longer hard-coded to one control plane | Needs direct configured/effective-context evidence before promotion; do not infer live Web PI from a local copy alone. |
-| `mem-20260827-7f5ac301` | pc-cleanup/safety-incident | 2026-08-27 PC-cleanup incident. User asked to reclaim disk space and then set an approximately 100 GB target. After an i | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 
 ## Closed in this batch
 
@@ -25,6 +24,8 @@ Effective unsuperseded provisionals: **12**.
 - `mem-20260826-b7360bca` ? `mem-20260827-f9d7a1f5`: replaced historical render-issue wording with the current tracked normal-runtime proof and batch-requeue contract.
 
 - `mem-20260827-01fdadda` ? `mem-20260827-155029d3`: replaced the broad coordinator-policy provisional with the tracked/live-supported contract; legacy lifecycle-pruning detail remains intentionally unpromoted.
+
+- `mem-20260827-7f5ac301` + `mem-20260827-1d581787` ? `mem-20260827-e2c1b0bd`: consolidated the cleanup incident/prohibition into the exact user-sourced PLY/GLB deletion boundary; broader assistant-generated causal claims were not promoted.
 
 ## Boundary
 
