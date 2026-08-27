@@ -50,7 +50,13 @@ jobs:
               'tests/test_capability_routing.py',
               'tools/instruction_provenance.py',
               'tests/fixtures/instruction-provenance-policy.json',
-              'tests/test_instruction_provenance.py'
+              'tests/test_instruction_provenance.py',
+              'tools/busy_authority.py',
+              'tests/fixtures/busy-ownership-policy.json',
+              'tests/test_busy_authority.py',
+              'tools/stack_acceptance.py',
+              'tests/fixtures/stack-acceptance-scenarios.json',
+              'tests/test_stack_acceptance.py'
             )
           })
           if ($stackChanged.Count -eq 0) {
@@ -58,9 +64,9 @@ jobs:
             exit 0
           }
 
-          python -m py_compile tools/capability_routing.py tools/instruction_provenance.py
+          python -m py_compile tools/capability_routing.py tools/instruction_provenance.py tools/busy_authority.py tools/stack_acceptance.py
           if ($LASTEXITCODE -ne 0) { throw 'assistant stack policy py_compile failed' }
-          python -m unittest tests.test_capability_routing tests.test_instruction_provenance -v
+          python -m unittest tests.test_capability_routing tests.test_instruction_provenance tests.test_busy_authority tests.test_stack_acceptance -v
           if ($LASTEXITCODE -ne 0) { throw 'assistant stack policy tests failed' }
           Write-Output 'ASSISTANT_STACK_POLICY_PROVEN'
       - name: Validate downloaded conversation search when changed
