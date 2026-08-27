@@ -13,6 +13,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Resolved six additional source-backed #87 provisionals without using the disputed live ChatGPT memory payload: promoted bounded evidence/scope, route-correction, concurrency-causality, and screenshot-causality lessons; rejected one explicitly unapproved subjective preference synthesis.
+
 - [2026-08-27] [meta] Streamlined the conversation-search CLI by keeping Downloads discovery read-only, removing the dead `index --downloads` option, and documenting canonical-or-explicit-root indexing (#139).
 
 - [2026-08-27] [meta] Reviewed all 46 deduplicated raw ChatPort `slopwall` hits for #89: 38 are direct corrective interventions and 8 are meta/design references; bound 10 to existing canonical events and upgraded nine formerly D-confidence events to raw-context-backed scored evidence, leaving 28 newly discovered corrective turns explicit for later canonical promotion.
