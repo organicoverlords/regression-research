@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.1",
+  "schema_version": "2.2",
   "classes": {
     "CURRENT_USER": 100,
     "LIVE_CANONICAL": 95,
@@ -78,6 +78,24 @@
       "role": "historical context useful for reconstruction"
     },
     {
+      "id": "opencode-history",
+      "class": "HISTORICAL_CONTEXT",
+      "match_prefixes": [
+        "opencode-history:",
+        "opencode-log:"
+      ],
+      "role": "OpenCode local history/log evidence; historical context unless independently current-verified"
+    },
+    {
+      "id": "command-code-history",
+      "class": "HISTORICAL_CONTEXT",
+      "match_prefixes": [
+        "command-code-history:",
+        "command-code-log:"
+      ],
+      "role": "Command-Code local history/log evidence; historical context unless independently current-verified"
+    },
+    {
       "id": "legacy-seed",
       "class": "RECOVERY_ONLY",
       "match_prefixes": [
@@ -148,6 +166,23 @@
       "availability": "available"
     },
     {
+      "id": "chatgpt-history",
+      "location": "preserved ChatGPT conversation/export corpus",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "artifact-timestamp",
+      "availability": "available"
+    },
+    {
+      "id": "opencode-history",
+      "location": "local OpenCode history/logs (path not yet verified)",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "verify-local-path-before-ingestion",
+      "availability": "unknown",
+      "role": "first-class evidence source; do not infer absence or current state until the local source is verified"
+    },
+    {
       "id": "claude-history",
       "location": "local/.claude",
       "class": "HISTORICAL_CONTEXT",
@@ -162,6 +197,23 @@
       "scope": "global",
       "freshness": "historical-rollouts",
       "availability": "available"
+    },
+    {
+      "id": "traycer-artifacts",
+      "location": "local Traycer/TRACER.md/review artifacts",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "artifact-timestamp",
+      "availability": "available"
+    },
+    {
+      "id": "command-code-history",
+      "location": "local Command-Code history/logs (path not yet verified)",
+      "class": "HISTORICAL_CONTEXT",
+      "scope": "global",
+      "freshness": "verify-local-path-before-ingestion",
+      "availability": "unknown",
+      "role": "first-class evidence source; do not infer absence or current state until the local source is verified"
     },
     {
       "id": "nexus-memory",
@@ -195,14 +247,6 @@
       "class": "HISTORICAL_CONTEXT",
       "scope": "memory-system",
       "freshness": "git-current-contracts",
-      "availability": "available"
-    },
-    {
-      "id": "traycer-artifacts",
-      "location": "local Traycer/TRACER.md/review artifacts",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "artifact-timestamp",
       "availability": "available"
     },
     {
