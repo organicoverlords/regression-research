@@ -75,5 +75,30 @@ class MemoryBankValidationTests(unittest.TestCase):
             self.assertFalse(sync.call_args_list[0].kwargs["strict"])
             self.assertTrue(sync.call_args_list[1].kwargs["strict"])
 
+    def test_assistant_recorded_requires_verbatim_provenance(self):
+        e = self.valid()
+        e["tags"] = ["assistant-recorded"]
+        with self.assertRaises(BankError):
+            validate_entry(e)
+
+    def test_assistant_recorded_structured_fields_validate(self):
+        e = self.valid()
+        e.update({
+            "tags": ["assistant-recorded", "verbatim-source"],
+            "source_messages": ["and hwat you think it means with like confidence score etc? dunno"],
+            "turn_task": "make it permanent that the original actual words are always included in every assistant recorder memory so there is no ambiguity afterwards",
+            "interpretation": "Preserve source wording separately from assistant interpretation.",
+            "confidence": 98,
+            "confidence_reason": "The user stated the desired recorder behavior explicitly across several consecutive turns.",
+        })
+        validate_entry(e)
+        self.assertEqual(e["source_messages"][0], "and hwat you think it means with like confidence score etc? dunno")
+
+    def test_structured_fields_rejected_without_assistant_recorded_tag(self):
+        e = self.valid()
+        e["source_messages"] = ["exact source"]
+        with self.assertRaises(BankError):
+            validate_entry(e)
+
 
 if __name__ == "__main__": unittest.main()

@@ -72,6 +72,21 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError("timestamp must include a timezone offset")
     for field in ("tags", "evidence", "supersedes"):
         _string_list(entry, field)
+    if "assistant-recorded" in entry["tags"]:
+        _string_list(entry, "source_messages")
+        source_messages = entry["source_messages"]
+        if not source_messages:
+            raise BankError("assistant-recorded memory requires at least one verbatim source_messages item")
+        for field in ("interpretation", "confidence_reason"):
+            if not isinstance(entry.get(field), str) or not entry[field].strip():
+                raise BankError(f"assistant-recorded memory requires non-empty {field}")
+        confidence = entry.get("confidence")
+        if not isinstance(confidence, int) or isinstance(confidence, bool) or not 0 <= confidence <= 100:
+            raise BankError("assistant-recorded memory confidence must be an integer from 0 to 100")
+        if "turn_task" in entry and (not isinstance(entry["turn_task"], str) or not entry["turn_task"].strip()):
+            raise BankError("turn_task must be a non-empty string when present")
+    elif any(field in entry for field in ("source_messages", "turn_task", "interpretation", "confidence", "confidence_reason")):
+        raise BankError("structured recorder fields require the assistant-recorded tag")
     if len(entry["text"]) > MAX_TEXT_CHARS:
         raise BankError(f"text exceeds {MAX_TEXT_CHARS} characters")
     if len(entry["tags"]) > MAX_TAGS:
@@ -235,7 +250,14 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     for entry in entries:
         if not history and (entry["state"] == "REJECTED" or entry["id"] in superseded):
             continue
-        text_tokens = _tokens(entry["text"])
+        searchable_text = "\n".join([
+            entry["text"],
+            entry.get("title", ""),
+            entry.get("turn_task", ""),
+            entry.get("interpretation", ""),
+            *entry.get("source_messages", []),
+        ])
+        text_tokens = _tokens(searchable_text)
         tag_tokens = {tag.casefold() for tag in entry["tags"]}
         relevance = 0.0
         if scope and entry["scope"].casefold() == scope.casefold():
@@ -410,6 +432,22 @@ def _main() -> int:
     append.add_argument("--supersedes", action="append", default=[])
     append.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
 
+    record = sub.add_parser("record", help="save an assistant-authored memory with verbatim user provenance")
+    record.add_argument("--kind", required=True, choices=sorted(KINDS))
+    record.add_argument("--scope", required=True)
+    record.add_argument("--tag", action="append", default=[])
+    record.add_argument("--title")
+    record.add_argument("--text", required=True, help="compact memory summary")
+    record.add_argument("--source-message", action="append", required=True, help="verbatim user message; repeat in chronological order")
+    record.add_argument("--turn-task", help="verbatim user task that opened the long execution turn, when relevant")
+    record.add_argument("--interpretation", required=True, help="assistant explanation of why the memory exists and what it means")
+    record.add_argument("--confidence", required=True, type=int, help="assistant interpretation confidence, 0-100")
+    record.add_argument("--confidence-reason", required=True)
+    record.add_argument("--state", required=True, choices=sorted(STATES))
+    record.add_argument("--evidence", action="append", default=[])
+    record.add_argument("--supersedes", action="append", default=[])
+    record.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
+
     search = sub.add_parser("search")
     search.add_argument("query", nargs="?", default="")
     search.add_argument("--scope")
@@ -450,6 +488,28 @@ def _main() -> int:
             if missing_supersedes:
                 raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
             entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
+            _print_json(entry)
+            return 0
+        if args.command == "record":
+            if args.standalone_correction and args.kind != "correction":
+                raise BankError("--standalone-correction is valid only with --kind correction")
+            if args.kind == "correction" and not args.supersedes and not args.standalone_correction:
+                raise BankError("correction must name at least one --supersedes memory id, or explicitly use --standalone-correction")
+            known_ids = {item["id"] for item in entries}
+            missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
+            if missing_supersedes:
+                raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
+            values = {
+                "kind": args.kind, "scope": args.scope,
+                "tags": [*args.tag, "assistant-recorded", "verbatim-source"],
+                "title": args.title, "text": args.text, "state": args.state,
+                "evidence": args.evidence, "supersedes": args.supersedes,
+                "source_messages": args.source_message, "interpretation": args.interpretation,
+                "confidence": args.confidence, "confidence_reason": args.confidence_reason,
+            }
+            if args.turn_task:
+                values["turn_task"] = args.turn_task
+            entry = append_entry(args.bank, values)
             _print_json(entry)
             return 0
         if args.command == "history":

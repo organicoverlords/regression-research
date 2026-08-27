@@ -130,4 +130,13 @@ generated block inside a repo. **MUST** / **MUST NOT** are hard; **SHOULD** is a
   files, four jobs — `NORTH_STAR.md` why, `AGENTS.md` how, `CHANGELOG.md` what changed, issues next.
 <!-- SHARED-AGENT-POLICY:END -->
 
+### Assistant-recorded memory provenance
+
+- Every new memory written by an assistant MUST use `python tools/memory_bank.py record`, not the free-form `note`/`append` path.
+- `source_messages` is the authoritative source layer: preserve every relevant user message verbatim, in chronological order, including spelling mistakes, punctuation, and terse wording. Never clean up or paraphrase those strings.
+- If the remembered incident occurs inside a long execution turn, also preserve the exact user task that opened that turn in `turn_task` when it is not already one of the source messages. Include later user corrections/triggers as additional verbatim `source_messages`.
+- As the user adds relevant messages one by one, the final durable memory MUST accumulate the complete relevant source trail rather than replacing earlier wording with the latest interpretation.
+- Keep assistant meaning separate: `interpretation` explains why the memory exists, what happened, and what the assistant added/inferred; `confidence` is an integer 0-100 for that interpretation only, with `confidence_reason`. The verbatim source transcript outranks the interpretation.
+- When replacing partial assistant-recorded notes with a complete record, supersede the partial memory IDs rather than leaving competing summaries as equal authority.
+
 See README.md for what this bank is and how to use it.
