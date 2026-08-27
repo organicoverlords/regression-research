@@ -1,9 +1,9 @@
 # Issue #122 canonical claim-to-evidence ledger
 
 Snapshot basis:
-- Git `origin/main`: `1b192cd1b5745e5c5e535f9737fe5f8a0a650c23`
-- GitHub issue #122 canonical body `updatedAt`: `2026-08-27T11:56:41Z`
-- canonical body SHA-256: `2d61ca86f4047d9f00c4eab04d627930d99a7d70fa1f1063acce21a48b1ccd78`
+- Git `origin/main`: `87bc1ff1e8eda251f46ec1e5845a62d817070497`
+- GitHub issue #122 canonical body `updatedAt`: `2026-08-27T12:16:40Z`
+- canonical body SHA-256: `548ad2913463f6a78e2045f2e327cf3641cc813bec3e8527d9ad50d600da40a7`
 
 Purpose: make the canonical report auditable without turning later synthesis into stronger evidence than its sources. This ledger is a forensic index, not a new causal experiment and not an assistant-stack design.
 
@@ -52,6 +52,7 @@ These comments are pinned because several newer boundary corrections have not ye
 | C09 | `#5438342690` | `c4e089df1f8382197ee31b215f1a6a0e1cb7e90c8e5b0489259b6e8e1fd333c1` | Good-state survival matrix and positive direct-work controls. |
 | C10 | `#5438348955` | `5ba601ad85d4a60311e9ab2ec166b990d0989d5e34a103024249b6d004466162` | Good-state survival ledger; smallest evidence-backed behavioral kernel. |
 | C11 | `#5438418459` | `e9a4858d7a08a3eeb9ce887f08a6a4323bb6a5a12216fe519b09d37b8e62f93e` | 18:52 -> 20:06 Settings correlation is model-confounded and not a clean PI A/B. |
+| C12 | `#5438841727` | `e454e5f27332199c7a9e875296dda5c86be3af7b1a18ad1ffe46b5acc9d3054b` | Major chronology correction: user-authored core direct-chat PI exists Aug 23; corrected PI/application witnesses and a long direct GPT-5.6 working period predate the Aug 25 reconstruction. |
 
 Canonical URLs are `https://github.com/organicoverlords/regression-research/issues/122#issuecomment-<id>` for each C-row.
 
@@ -59,8 +60,8 @@ Canonical URLs are `https://github.com/organicoverlords/regression-research/issu
 
 | Claim | Current classification | Supporting evidence | Causal/epistemic limit |
 | --- | --- | --- | --- |
-| K01. Fresh-chat strong-good behavior is established by 12:40-12:41 Aug 25, after the repaired rule block exists. | **Established behavior boundary** | E01-E05, E13-E16 | Does not identify which hidden delivery surface injected the repaired behavior. |
-| K02. The good state is not explained by one magic prompt; positive controls support a compact kernel: immediate bounded execution, live-state reconciliation, capability attempt before absence, correction precedence, task-local route resilience, acceptance-matched proof, worker/main separation. | **Supported survival kernel** | E11, C09, C10 | This is a behavior-survival inference, not a claim about OpenAI internal instruction ranking. |
+| K01. Fresh-chat strong-good behavior is established by 12:40-12:41 Aug 25 after the repaired rule block exists, but this is a **repair/reconstruction boundary**, not the architecture origin. | **Established fresh-chat repair boundary** | E01-E05, E13-E16, C12 | Does not identify which hidden delivery surface injected the Aug 25 repaired behavior; C12 establishes an older architecture/application period. |
+| K02. The good state is not explained by one magic prompt; the core short-prompt/execution/route-resilience/worker-separation architecture is user-authored by Aug 23 and later positive controls support the compact seven-part survival kernel. | **User-authored origin + survival kernel supported** | C12, E11, C09, C10 | This does not establish that PI/memory alone caused every successful run or reveal OpenAI internal instruction ranking. |
 | K03. 17:43 Aug 26 is the earliest currently confirmed direct-assistant premature-finalization recurrence found after the established good state. | **Established current boundary** | C05; C06 prevents the 17:10 misclassification | C05 is a forensic extraction pending standalone artifact promotion; ?earliest currently found? is not ?first possible occurrence.? |
 | K04. 18:19 is a completion-classification error: an unmet in-scope acceptance criterion was downgraded to optional hardening and the assistant finalized instead of consuming the required process continuation. | **Established mechanism for that turn** | E07, E08, E12 | It is no longer the earliest known direct recurrence; it remains the strongest instrumented instance. |
 | K05. A deterministic ~24m45/~26-minute cutoff, raw tool count, gross context size, explicit truncation, or +2 ms result/final ordering does not distinguish the failure. | **Rejected as simple deterministic explanation** | E07, E08; canonical negative controls | Does not exclude softer context/effort pressure as a probabilistic contributor. |
@@ -73,6 +74,7 @@ Canonical URLs are `https://github.com/organicoverlords/regression-research/issu
 | K12. Existing local archaeology does not identify whether repaired fresh-chat behavior arrived via Web Personal Instructions, Saved Memory, or another injected-context mechanism. | **Open; local source class exhausted** | E04, E06 | Reopen only with a genuinely new source class or an explicitly authorized same-model delivery canary. |
 | K13. Completion should be driven by inherited task-local acceptance: unmet acceptance -> continue; satisfied acceptance plus unrelated activity -> stop cleanly. | **Regression invariant supported by opposite-case evidence** | E07, E10, E12 | This is the bounded correction to both premature stopping and runaway active-tail behavior; it is not a global ?never stop? rule. |
 | K14. Worker/swarm success is not direct-assistant success and worker-authored state is not platform telemetry. | **Established provenance/authority separation** | C06, C08, C10 | Worker evidence may still be relevant evidence; it simply cannot silently become main-assistant or platform authority. |
+| K15. The core direct-chat architecture predates Aug 25: the reconstructed role-corrected Aug 23 PI is 2,292 UTF-8 bytes (SHA-256 `ce2ef5f9d96dff7512bba052164bd696c1fc9e794f179dbfade9181623789c9f`; body SHA-256 `88cad017185f90db3c5a11a3c315415b1b896c732564c61b21bc71f0dac78155`), followed by a strong Personalization/Saved-Memory application witness and 126 minimal direct GPT-5.6 prompts with 0 zero-tool stops plus concrete landed repo work. | **Earlier user-authored architecture/application period established by forensic extraction** | C12 | The source proves earlier provenance and a strong working period; it does not isolate PI/memory as the sole cause of all later successes. |
 
 ## Supersession rules
 
