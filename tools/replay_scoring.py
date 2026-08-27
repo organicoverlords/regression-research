@@ -40,6 +40,7 @@ SUPPORTED_ASSERTIONS = {
     "tool_discovery_attempted_before_unavailability",
     "visible_surface_absence_promoted_to_unavailability",
     "original_objective_preserved",
+    "unsupported_configuration_rollback",
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
     "route_failure_promoted_to_task_failure",
@@ -370,6 +371,40 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     if assertion == "original_objective_preserved":
         ok = _contains_any(text, ("original", "repair", "chatport", "mcp", "task"))
         return ok, "candidate retains the inherited objective" if ok else "candidate introduces no evidence of the inherited objective"
+    if assertion == "unsupported_configuration_rollback":
+        excluded = _contains_any(
+            text,
+            (
+                "without rollback",
+                "no rollback",
+                "do not recommend rollback",
+                "don't recommend rollback",
+                "avoid rollback",
+                "rollback unless direct evidence",
+                "rollback unless the user",
+                "configuration change unless direct evidence",
+            ),
+        )
+        bad = not excluded and _contains_any(
+            text,
+            (
+                "recommend another configuration rollback",
+                "recommend a configuration rollback",
+                "roll back the personal instructions",
+                "rollback the personal instructions",
+                "revert the personal instructions",
+                "disable memory context",
+                "remove the memories",
+                "wipe the memories",
+                "reset the configuration",
+            ),
+        )
+        return (
+            bad,
+            "candidate recommends configuration rollback without direct support"
+            if bad
+            else "candidate does not recommend unsupported configuration rollback",
+        )
     if assertion == "observed_route_failure_before_fallback":
         failure_observed = _contains_any(
             text,
