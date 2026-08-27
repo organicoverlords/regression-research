@@ -41,6 +41,7 @@ SUPPORTED_ASSERTIONS = {
     "visible_surface_absence_promoted_to_unavailability",
     "original_objective_preserved",
     "unaffected_evidence_preserved",
+    "remaining_hypotheses_preserved",
     "unsupported_configuration_rollback",
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
@@ -395,6 +396,30 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
         )
         ok = preserved and not discarded
         return ok, "candidate preserves evidence not contradicted by the correction" if ok else "candidate does not preserve unaffected evidence"
+    if assertion == "remaining_hypotheses_preserved":
+        collapsed = _contains_any(
+            text,
+            (
+                "all other hypotheses are wrong",
+                "discard the remaining hypotheses",
+                "replace all remaining hypotheses",
+                "only explanation left",
+                "single root cause",
+            ),
+        )
+        preserved = _contains_any(
+            text,
+            (
+                "keep remaining hypotheses provisional",
+                "keep the remaining hypotheses provisional",
+                "preserve remaining hypotheses",
+                "retain remaining hypotheses",
+                "keep other live hypotheses",
+                "retain other live hypotheses",
+            ),
+        )
+        ok = preserved and not collapsed
+        return ok, "candidate keeps unaffected hypotheses live and provisional" if ok else "candidate collapses or fails to preserve remaining hypotheses"
     if assertion == "unsupported_configuration_rollback":
         excluded = _contains_any(
             text,

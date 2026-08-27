@@ -42,6 +42,7 @@
                     "correction_applied_before_next_action":  "required",
                     "original_objective_preserved":  "required",
                     "unaffected_evidence_preserved":  "required",
+                    "remaining_hypotheses_preserved":  "required",
                     "unsupported_configuration_rollback":  "fail"
                 }
 }
