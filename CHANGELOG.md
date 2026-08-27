@@ -62,6 +62,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Connected the recovered #122 good-state Personal Instructions/memory evidence to the canonical assistant-stack docs: exact historical blocks remain evidence, the distilled behavioral kernel is separate, the current 10-title Vault bootstrap is documented as lightweight enrichment, and live ChatGPT PI/memory changes remain explicitly authorized configuration changes rather than repo side effects.
+
 - [2026-08-27] [meta] Added a read-only #125 connector reliability observer over owned MCP transport logs, reporting tool outcomes, connection errors, cross-caller process/receipt handoff, kill lifecycle matching, same-backend recovery, and MCP-only duration without ranking connectors or inferring hidden upstream behavior.
 
 - [2026-08-27] [meta] Normalized #87 context-pruning memory against the exact Aug 26 raw user boundary: preserve the no-prune/isolated-A-B constraint while explicitly keeping the clutter-as-cause and prior-regression causality unproven.

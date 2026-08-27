@@ -147,6 +147,16 @@ This is the main anti-GigStack constraint for #155: **preserve the good mechanis
 | Historical behavior? | Versioned evidence/Vault corpus with provenance | **PROVEN as history, not live authority** |
 | Persistent context writes? | Explicit user authorization | **INTENDED / policy-proven** |
 
+## Personal Instructions, bootstrap, and durable-memory provenance
+
+Do not collapse these into one authority surface:
+
+1. **Recovered good-state text is historical evidence, not live configuration.** The strongest word-for-word Aug 25 boundary is preserved in [`02 Evidence/issue122/2026-08-25_122229_EEST_pre-repair-memory-block.txt`](../02%20Evidence/issue122/2026-08-25_122229_EEST_pre-repair-memory-block.txt) and [`02 Evidence/issue122/2026-08-25_123749_EEST_repaired-memory-block.txt`](../02%20Evidence/issue122/2026-08-25_123749_EEST_repaired-memory-block.txt), with lineage and temporal limits in [`2026-08-25_1226-1237_rule-provenance.md`](../02%20Evidence/issue122/2026-08-25_1226-1237_rule-provenance.md). The observed sequence is the 12:30 missing-capability-guard failure, repair between 12:30:19 and 12:37:49, then fresh-chat execution success from 12:40 onward. The exact persistence surface that activated the behavior remains unproven; do not rewrite this as a proven Personal Instructions-vs-Saved-Memory mechanism.
+2. **The durable behavioral kernel is smaller than the recovered blob.** #122's surviving direct-assistant controls support: start the bounded task immediately; reconcile live state; try a capability before declaring it absent; bind explicit user correction above derived interpretation; route around local failure without abandoning the bounded scope; match proof to the task's acceptance claim; and keep worker success separate from direct-assistant health. Dated project state, transient connector names, tactical fallbacks, and assistant-authored platform explanations remain historical evidence unless independently promoted.
+3. **Current Personal Instructions and ChatGPT saved memory are live user configuration.** Repository evidence does not silently overwrite them, and workers must not assume that the current account configuration is byte-identical to the recovered Aug 25 block. Live PI or ChatGPT-memory mutation requires explicit current user authorization and separate post-change verification.
+4. **The current startup bootstrap is deliberately lightweight.** As observed in the current user instructions on 2026-08-27, start from `C:\Users\Lauri\Desktop\vault` and run `python tools\memory_bank.py recent`; inspect only the 10 newest compact title/timestamp/scope entries, retrieve a full memory only when a recent title is clearly relevant, and continue immediately if the bank/command is unavailable. This bootstrap is context enrichment, not a prerequisite that may block the user's task.
+5. **Assistant-authored durable Vault memories preserve the user's actual words.** When the user explicitly asks to record a memory, use `python tools/memory_bank.py record`; `source_messages` and, when applicable, `turn_task` preserve the relevant user wording verbatim, while assistant interpretation/confidence/state remain separate and auditable. This is the durable Vault record; it must not be confused with a verified mutation of ChatGPT's product-level saved-memory store.
+
 ## Normal flow
 
 1. WebGPT preserves the bounded request and reads applicable live authority/state. **PROVEN/INTENDED**.
@@ -179,6 +189,8 @@ The user should not need to manage BUSY claims, connector fallbacks, worker rear
 
 ## Source inventory - observed 2026-08-27
 
+- `organicoverlords/regression-research#122` - forensic reconstruction of the good-state behavior boundary; implementation/live-context changes remain #125 work.
+- `02 Evidence/issue122/2026-08-25_122229_EEST_pre-repair-memory-block.txt`, `2026-08-25_123749_EEST_repaired-memory-block.txt`, and `2026-08-25_1226-1237_rule-provenance.md` - exact recovered text and provenance for the pre/post repair boundary.
 - `organicoverlords/regression-research#155` - architecture scope and acceptance criteria.
 - `organicoverlords/regression-research#125` - single BUSY authority, capability-local degradation, instruction provenance, explicit memory-write authorization, and whole-stack acceptance.
 - `02 Evidence/issue155-live-stack-evidence-20260827.md` - live MCP/scheduler/control-plane evidence plus the worker activity sample.

@@ -169,7 +169,7 @@ Everything else should bias toward completing useful work.
 
 ## Current focus
 
-*Refreshed 2026-08-27 from the live conversation, issues #123, #125, and #155, the current repository contract, and the existing regression corpus. No memory or personal-context store was modified.*
+*Refreshed 2026-08-27 from the live conversation, the recovered #122 good-state boundary, issues #123, #125, and #155, the current repository contract, and the existing regression corpus. Historical PI/memory evidence remains separate from current live account configuration; no ChatGPT memory, Personal Instructions, or other personal-context store was modified by this documentation refresh.*
 
 1. **Ruleset convergence.** Reduce cross-project behaviour to one canonical shared policy with repo-local additions only where genuinely local.
 2. **BUSY/MCP correctness.** Make live MCP ownership the only coordination authority and regression-test stale projections, route failures, claim/release boundaries, and independent-work continuation.
