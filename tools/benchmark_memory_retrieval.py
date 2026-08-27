@@ -10,21 +10,23 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.memory_bank import load_bank, search_entries
+from tools.memory_hybrid import search_entries_hybrid
 
 DEFAULT_BANK = ROOT / "memory" / "memory-bank.jsonl"
 DEFAULT_FIXTURE = ROOT / "tests" / "fixtures" / "memory-retrieval-eval-v1.json"
 
 
-def evaluate(bank: Path, fixture: Path) -> dict:
+def evaluate(bank: Path, fixture: Path, strategy: str = "baseline") -> dict:
     entries = load_bank(bank)
     spec = json.loads(fixture.read_text(encoding="utf-8-sig"))
     known = {e["id"] for e in entries}
     details = []
+    search = search_entries_hybrid if strategy == "hybrid" else search_entries
     for case in spec["cases"]:
         missing = [item for item in case["expected"] if item not in known]
         if missing:
             raise SystemExit(f"fixture references missing memory IDs for {case['id']}: {missing}")
-        hits = search_entries(entries, case["query"], limit=5)
+        hits = search(entries, case["query"], limit=5)
         ids = [h["id"] for h in hits]
         expected = set(case["expected"])
         rank = next((i + 1 for i, item in enumerate(ids) if item in expected), None) if expected else None
@@ -46,7 +48,7 @@ def evaluate(bank: Path, fixture: Path) -> dict:
 
     negatives = [r for r in details if r["cohort"] == "abstain"]
     return {
-        "fixture_version": spec["version"], "bank_entries": len(entries),
+        "fixture_version": spec["version"], "bank_entries": len(entries), "strategy": strategy,
         "metrics": {
             "paraphrase": positive_metrics("paraphrase"),
             "exact_control": positive_metrics("exact_control"),
@@ -61,8 +63,9 @@ def main() -> int:
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--strategy", choices=("baseline", "hybrid"), default="baseline")
     args = parser.parse_args()
-    result = evaluate(args.bank, args.fixture)
+    result = evaluate(args.bank, args.fixture, args.strategy)
     rendered = json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
