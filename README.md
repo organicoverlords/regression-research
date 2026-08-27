@@ -18,6 +18,8 @@ This is research evidence. It is not an operating contract and not a worker prom
 Operating rules live in each project's `AGENTS.md`, generated from
 `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
 
+Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
+
 ## Layout
 
 | Directory | Holds |
