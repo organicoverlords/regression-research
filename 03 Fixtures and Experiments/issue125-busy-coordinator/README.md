@@ -14,6 +14,7 @@ Supported coordinator operations are `list`, `sweep`, `enqueue`, `ready`, `next`
 The tool apps are separate from MCP. They are intended to be invoked through an existing process tool or directly from the local machine; neither implementation is registered as a GPT/MCP tool. The MCP connectors remain interchangeable transport entrances, not ownership systems.
 
 `install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` without changing the canonical store.
+The installer also overwrites the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` entrypoint with the current Python implementation so older callers cannot retain a destructive claims-only writer.
 
 Verification:
 
