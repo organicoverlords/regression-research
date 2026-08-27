@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [memory] Added an assistant-memory recorder that preserves relevant user messages verbatim (including typos), accumulates long-turn source trails, separates assistant interpretation/confidence, and indexes the original wording for later retrieval (#122).
+
 - [2026-08-27] [meta] Added a #122 mixed-surrounding-context replay that keeps current Personal Instructions distinct from saved memory, preserves stale rule generations as evidence, gives the current user turn final user-level authority, and blocks live-context cleanup without explicit authorization.
 
 - [2026-08-27] [memory] Added #176's preregistered unseen Memory Bank holdout: the authority firewall had zero failures across 6 stale/correction pairs and 8 negative controls, while hybrid retrieval improved Recall@5 from 33.3% to 50.0% on the six-case eligible population without retuning.

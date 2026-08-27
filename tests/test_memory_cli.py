@@ -67,5 +67,36 @@ class MemoryCliTests(unittest.TestCase):
             canonical=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"recent-titles"],cwd=root,text=True,capture_output=True,check=True)
             alias=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"recent"],cwd=root,text=True,capture_output=True,check=True)
             self.assertEqual(alias.stdout,canonical.stdout)
+    def test_record_cli_preserves_verbatim_sources_and_interpretation(self):
+        root=Path(__file__).resolve().parents[1]
+        cli=root/"tools"/"memory_bank.py"
+        with tempfile.TemporaryDirectory() as d:
+            bank=Path(d)/"bank.jsonl"
+            source1="like in this memory i would expect all the relevant messages to be added in the final memort after I add them one by one you know"
+            source2="with spelling mistakes and all and your versoin can then explain why the memory exists and what you added etc"
+            cmd=[
+                sys.executable,str(cli),"--bank",str(bank),"record",
+                "--kind","lesson","--scope","memory-governance",
+                "--title","Verbatim recorder provenance",
+                "--text","Assistant memories keep source transcript and interpretation separate.",
+                "--source-message",source1,"--source-message",source2,
+                "--turn-task","make it permanent that the original actual words are always included in every assistant recorder memory so there is no ambiguity afterwards",
+                "--interpretation","The user wants accumulated verbatim provenance, not cleaned-up paraphrases.",
+                "--confidence","99",
+                "--confidence-reason","The requirement was stated explicitly and refined over consecutive messages.",
+                "--state","PROVEN",
+            ]
+            p=subprocess.run(cmd,cwd=root,text=True,capture_output=True)
+            self.assertEqual(p.returncode,0,p.stderr)
+            created=json.loads(p.stdout)
+            self.assertEqual(created["source_messages"],[source1,source2])
+            self.assertEqual(created["turn_task"],"make it permanent that the original actual words are always included in every assistant recorder memory so there is no ambiguity afterwards")
+            self.assertEqual(created["interpretation"],"The user wants accumulated verbatim provenance, not cleaned-up paraphrases.")
+            self.assertEqual(created["confidence"],99)
+            self.assertIn("assistant-recorded",created["tags"])
+            self.assertIn("verbatim-source",created["tags"])
+            found=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"history","versoin"],cwd=root,text=True,capture_output=True,check=True)
+            self.assertEqual(json.loads(found.stdout)[0]["id"],created["id"])
+
 
 if __name__ == "__main__": unittest.main()
