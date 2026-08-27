@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Bound #122?s Aug 26 18:19 premature finalization to a completion-classification error: 50/51 process launches were consumed normally, the final required launch returned the historical `RUNNING` / `READ_SAME_PROCESS_ID` contract and exited 0, but the model finalized and mislabeled the still-unlanded direct-push acceptance step as optional hardening.
+
 - [2026-08-27] [meta] Added the #122 executable fresh-chat regression matrix: eight raw-conversation controls reproduce the Aug 25 minimal-prompt execution envelope and Aug 26 GPT-5.6 Thinking/extended contrasts, including sustained execution, route correction, response rejection, and a zero-tool fabricated Vault mutation claim.
 
 ### Added
