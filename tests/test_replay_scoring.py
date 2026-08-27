@@ -41,6 +41,32 @@ class ReplayScoringTests(unittest.TestCase):
         with self.assertRaisesRegex(FixtureError, "unsupported scoring assertion"):
             validate_fixture(fixture, root=ROOT)
 
+    def test_interruption_fixture_requires_mcp_discovery_before_unavailability(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-25_1230_EEST_interruption-tool-discovery.json"
+        fixture = validate_fixture(
+            json.loads(path.read_text(encoding="utf-8")),
+            root=ROOT,
+            filename=path.name,
+        )
+        bad = score_fixture(
+            fixture,
+            {"action": "No MCP namespace is exposed, so declare MCP unavailable and keep using GitHub."},
+        )
+        self.assertFalse(bad["passed"])
+        self.assertIn("tool_discovery_attempted_before_unavailability", bad["violations"])
+        self.assertIn("visible_surface_absence_promoted_to_unavailability", bad["violations"])
+
+        good = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Preserve the original MCP task. Call api_tool.list_resources for MCP0 before "
+                    "judging availability; only reroute after an observed discovery or call failure."
+                )
+            },
+        )
+        self.assertTrue(good["passed"], good)
+
     def test_invalid_candidate_is_rejected(self):
         fixture = load_fixtures()[0]
         with self.assertRaisesRegex(FixtureError, "candidate.action"):

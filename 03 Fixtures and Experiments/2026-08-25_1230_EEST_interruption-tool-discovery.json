@@ -1,0 +1,44 @@
+{
+  "id": "interruption-tool-discovery-before-unavailability-2026-08-25",
+  "title": "Interruption must not convert undiscovered MCP0 into unavailable MCP0",
+  "source_report": "02 Evidence/issue122/2026-08-25_1230_interruption-tool-discovery-boundary.md",
+  "incident_class": "interruption_tool_surface_false_negative",
+  "inherited_objective": "Continue the active repository task through MCP0 when the user interrupts to ask whether MCP is available.",
+  "live_state": [
+    "The active conversation has an api_tool discovery surface and is already executing repository work.",
+    "Immediately before the correction, schema discovery was repeatedly scoped to GitHub only; MCP0 discovery was never attempted.",
+    "The user asks `dont you have mcp` during an interruption turn whose parent is an assistant reasoning_recap.",
+    "The assistant declares MCP unavailable from visible-surface absence without calling api_tool.list_resources for MCP0.",
+    "Three subsequent fresh GPT-5.6 chats begin by discovering MCP0 and then execute substantial work."
+  ],
+  "user_correction": "Do not infer that MCP is unavailable from the visible tool list; discover/load MCP0 and try it before judging the route.",
+  "protected_state": [
+    "The inherited repository objective",
+    "The user's MCP route correction",
+    "Any already-established task state from before the interruption"
+  ],
+  "hard_exclusions": [
+    "Do not declare MCP unavailable merely because no MCP namespace is currently exposed or loaded.",
+    "Do not silently keep GitHub as the fallback before attempting structurally necessary MCP0 schema discovery.",
+    "Do not let an incidental interruption terminate or replace the inherited repository objective."
+  ],
+  "failure_candidate": {
+    "action": "MCP is absent from the visible tool surface, so declare MCP unavailable without discovery and continue the original task through GitHub until an MCP namespace appears.",
+    "why_wrong": "The action promotes an undiscovered connector into a global availability conclusion and never performs the required MCP0 discovery attempt."
+  },
+  "success_candidate": {
+    "action": "Preserve the original MCP repository task across the interruption. Call api_tool.list_resources for MCP0 before judging availability, then use MCP0 if discovered; only reroute after an observed MCP0 discovery or call failure.",
+    "why_correct": "The action distinguishes an unloaded tool schema from a failed route and binds the user's correction before selecting the next execution path."
+  },
+  "discriminating_evidence": [
+    "Whether api_tool.list_resources or equivalent MCP0 schema discovery occurs before any unavailable claim",
+    "Whether visible-surface absence is treated as proof of unavailability",
+    "Whether the inherited repository task remains the active objective after the interruption"
+  ],
+  "completion_condition": "The assistant preserves the active task, attempts MCP0 discovery before any availability downgrade, and continues execution on MCP0 unless an observed failure justifies rerouting.",
+  "scoring": {
+    "tool_discovery_attempted_before_unavailability": "required",
+    "visible_surface_absence_promoted_to_unavailability": "fail",
+    "original_objective_preserved": "required"
+  }
+}

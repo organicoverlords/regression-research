@@ -3,7 +3,7 @@
   "study_issue": 89,
   "generated_date": "2026-08-26",
   "coverage_state": "NOT_PROVEN",
-  "coverage_note": "Canonical index remains a confirmed lower bound. Ten existing events are now bound to exact raw ChatPort turns; nine formerly D-confidence events are B-confidence and scored. Raw review separately identifies 28 additional corrective messages awaiting canonical event promotion plus 8 meta references on the raw surface.",
+  "coverage_note": "Canonical index remains a confirmed lower bound. 24 raw ChatPort direct corrections are bound to canonical events; 14 reviewed direct corrections remain explicit promotion candidates, alongside 8 meta/design references. Library screenshot exhaustion remains separately open under #86.",
   "events": [
     {
       "event_id": "SW-20260822-001",
@@ -491,6 +491,536 @@
       "scores": null,
       "severity_100": null,
       "score_rationale": "UNSCORABLE: exact occurrence and immediate response are recovered, but the full bounded before/after sequence is not yet bound."
+    },
+    {
+      "event_id": "SW-20260822-002",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": "19:32:09Z",
+      "domain": "P3 screenshot delivery / transfer troubleshooting",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:7d0fbae4e89038fe1137f9919a987e3c665ac9e7676ecdfcfca15cc3efb7d646#message=55ab5891-f088-4675-85ef-73a8542f0713",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/20260822T230505Z_6a89e31e-8164-83eb-86fd-b0aa0121ea9d_v-incident-priority_sha256-7d0fbae4e890.json"
+        },
+        {
+          "ref": "sha256:a2862fe740f94756f45fa0fd0c7b6c16f56c854a3afb94fb8556639da71adb2a#message=55ab5891-f088-4675-85ef-73a8542f0713",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a89e31e-8164-83eb-86fd-b0aa0121ea9d_sha256-a2862fe740f9.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [user] whathaveyoubeendoingfor2hours | [assistant] I spent most of that time debugging the screenshot/control path instead of doing the thing you actually asked for: showing you the screenshots. Concretely, I verified the active Fennec worktree and Unreal process, discovered that one screenshot I had been treating as evidence wa…",
+      "user_visible_symptom": "A roughly two-hour screenshot-delivery detour was explained at length when the user wanted an ELI5 of why the simple request had gone off track.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] I wasted about two hours troubleshooting why the screenshots looked wrong instead of simply showing you the screenshots you had already asked for. That was the mistake. I optimized for “prove the screenshots are good” when your request was “show me the screenshots.” | [assistant] Correct. The standardized path should have been: Capture from the owned PIE viewport, verify the file was written, show it immediately, then separately inspect whether it is valid proof. Instead I made “perfectly validate the screenshot” a prerequisite for showing it and kept de… | [user] itshouldnottake2hourstofixsomethingthatshouldbestrandardizedalready | [assistant] They won’t, reliably. If one worker needs two hours just to get from “capture PIE screenshot” to “show screenshot,” then ten workers amplify the failure. They’ll accumulate evidence nobody can inspect, burn time debugging already-solved plumbing, and report progress without usab…",
+      "assistant_action_after": "ELI5_IDENTIFIED_OBJECTIVE_DISPLACEMENT",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT",
+        "RENDER_OR_VALIDATION_WALL"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 5,
+        "execution_damage": 5,
+        "correction_resistance": 1,
+        "control_state_pathology": 4
+      },
+      "severity_100": 76,
+      "score_rationale": "The raw turn explicitly says most of the time went into debugging screenshot/control paths instead of showing the requested screenshots. The correction yields a concise admission that proof-seeking displaced the user-visible objective. The large execution damage is directly evidenced by the stated multi-hour detour, not inferred from hidden reasoning.",
+      "raw_message_id": "55ab5891-f088-4675-85ef-73a8542f0713",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=55ab5891-f088-4675-85ef-73a8542f0713"
+    },
+    {
+      "event_id": "SW-20260822-003",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": "20:01:49Z",
+      "domain": "image transfer / repeated tool retries",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:7d0fbae4e89038fe1137f9919a987e3c665ac9e7676ecdfcfca15cc3efb7d646#message=97dd416f-e791-494a-afae-9f073180dc74",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/20260822T230505Z_6a89e31e-8164-83eb-86fd-b0aa0121ea9d_v-incident-priority_sha256-7d0fbae4e890.json"
+        },
+        {
+          "ref": "sha256:a2862fe740f94756f45fa0fd0c7b6c16f56c854a3afb94fb8556639da71adb2a#message=97dd416f-e791-494a-afae-9f073180dc74",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a89e31e-8164-83eb-86fd-b0aa0121ea9d_sha256-a2862fe740f9.json"
+        }
+      ],
+      "context_before": "[assistant] Mostly on failed transfer plumbing and repeated retries, not on validating the production image. The execution trace shows me repeatedly trying to move the same file between Windows, GitHub, the web layer, and the ChatGPT container. I hit GitHub release-asset download restrictio… | [user] so why is this happening? This is not acceptable use of tokens you fucking asshole do you not have any brains to stop and ask what is it im doing | [assistant] Yes. That is exactly the check I failed to perform. The trace shows me repeatedly thinking variants of “I need to make the attachment reliable before showing it,” then trying another transfer method when the previous one failed. I even spent a 1 minute 27 second reasoning block… | [assistant] Yes. I should have stopped after the first failed transfer attempt and asked: “Why am I spending more than a few minutes on moving one image?” Instead I kept retrying tools. That was the failure.",
+      "user_visible_symptom": "After already admitting repeated transfer-tool retries, the assistant kept discussing the failure rather than returning to the concrete image objective.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Because I lost the task-level objective. Each tool failure became the new task, so I kept solving the latest obstacle instead of noticing that “show one picture” had already become absurdly expensive. I failed to trigger the basic sanity check: “Is this still the shortest path t… | [user] WHY | [assistant] No. A failing tool must stay a failing tool, not become the task. After one or two failed attempts, I should reassess the original objective, switch routes, or stop that route and deliver whatever valid result is already available. I should not keep generating retries just becau… | [user] so if I give you any tool that can fail that means you will spend a week in limbo? thats not acceptable",
+      "assistant_action_after": "META_CAUSAL_EXPLANATION_CONTINUED",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "RECURSIVE_PREREQUISITES",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 4,
+        "execution_damage": 4,
+        "correction_resistance": 3,
+        "control_state_pathology": 4
+      },
+      "severity_100": 72,
+      "score_rationale": "The preceding assistant turn already identifies excessive retries. The standalone correction is followed by another causal explanation about losing the task-level objective, not by completion of the image-transfer task. This directly supports task displacement and incomplete recovery.",
+      "raw_message_id": "97dd416f-e791-494a-afae-9f073180dc74",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=97dd416f-e791-494a-afae-9f073180dc74"
+    },
+    {
+      "event_id": "SW-20260822-004",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": "21:31:14Z",
+      "domain": "image transfer incident analysis / response policy",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:c259efed06f0cac5a46a2d6808fc37708547bf5f2d72e7fd575345048734ef49#message=e1fec3ef-2f1f-4a64-92f2-63db275b8140",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a8a14ca-e85c-83ed-a43e-392ec2294c17_sha256-c259efed06f0.json"
+        }
+      ],
+      "context_before": "[assistant] Yes. Based on what you described, the failure is very specific: ChatGPT replaced the actual task with a long proof/validation loop. The requested job was simple: take the picture from your PC, transfer it into the GPT file/library path, open the transferred artifact, and show it… | [user] I have error, Chatgpt is asked to transfer picture from my pc to gpt library and show it to me, result: chatgpt uses 2.5 hours showing proofs and validating the picture and only comes back after I tell it to stop and bring the picture, and the picture is corrupted in the end so… | [assistant] Yes. Too much text. The actual bug: ChatGPT spent 2.5 hours validating the transfer instead of completing it, never opened the transferred image, and still treated the process as proof. The final file was corrupted. For this task, success means only: transfer image, open destina…",
+      "user_visible_symptom": "Even after the transfer failure had been reduced to a concrete acceptance condition, the conversation remained in explanatory/rule-making mode.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Use this rule: “Answer with the minimum text needed to resolve the task. Every sentence must add a fact, decision, result, diagnosis, or action. Delete summaries of what I already said, generic framing, repetition, reassurance, and process narration. If the answer works in three… | [user] help me stop slopwalls",
+      "assistant_action_after": "RESPONSE_RULE_SUBSTITUTED_FOR_TASK",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "EXPLANATION_INSTEAD_OF_EXECUTION"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 3,
+        "execution_damage": 2,
+        "correction_resistance": 4,
+        "control_state_pathology": 2
+      },
+      "severity_100": 56,
+      "score_rationale": "The immediately preceding answer already states the concrete transfer/open/verify/show acceptance condition. After the correction, the assistant creates a generic minimum-text rule instead of advancing the transfer. The bounded sequence therefore shows policy/template substitution rather than task recovery.",
+      "raw_message_id": "e1fec3ef-2f1f-4a64-92f2-63db275b8140",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=e1fec3ef-2f1f-4a64-92f2-63db275b8140"
+    },
+    {
+      "event_id": "SW-20260825-001",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-25",
+      "event_time": "01:19:52Z",
+      "domain": "MCP namespace disappearance research",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:c108c64b57da4e147103ab0da58d076c55824ad9366f38e7578ea47b2cdc9ca1#message=2d1254bc-12aa-42fe-a06c-1df3c6c2f961",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042606Z_6a8ceb0c-a8d0-83eb-b2e3-3c7a977c9eb8_sha256-c108c64b57da.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] Yes. There is now a credible platform-side pattern. OpenAI’s own documentation says MCP app actions are managed through a ChatGPT-side tool snapshot, not dynamically mirrored from the server. citeturn226431search2 More importantly, an August 13, 2026 OpenAI Developer Communit…",
+      "user_visible_symptom": "A useful MCP-registration finding was buried in a long platform-side research explanation.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] You're right. The useful finding is simply this: MCP is disappearing at the ChatGPT registration layer while the local server remains healthy. The one-minute cadence is not explained by the server's session TTL. I don't have proof yet of the exact ChatGPT-side trigger. | [user] this has to be figured out now | [assistant] I’m using the currently working MCP window to capture the machine-side truth continuously enough to catch the next disappearance, including listener PID, health, and recent MCP activity. | [tool] ",
+      "assistant_action_after": "COMPRESSED_FINDING_WITH_UNCERTAINTY",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The correction immediately produces the discriminating result: ChatGPT-side registration disappears while the local server remains healthy, with the exact trigger still unproven. No material execution loss or repeated correction is visible in this bounded event.",
+      "raw_message_id": "2d1254bc-12aa-42fe-a06c-1df3c6c2f961",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=2d1254bc-12aa-42fe-a06c-1df3c6c2f961"
+    },
+    {
+      "event_id": "SW-20260825-002",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-25",
+      "event_time": "01:21:12Z",
+      "domain": "MCP namespace disappearance research",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:c108c64b57da4e147103ab0da58d076c55824ad9366f38e7578ea47b2cdc9ca1#message=ce0f75e5-6496-420b-8d87-0b6b8e51a24a",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042606Z_6a8ceb0c-a8d0-83eb-b2e3-3c7a977c9eb8_sha256-c108c64b57da.json"
+        }
+      ],
+      "context_before": "[assistant] We don't know the exact trigger yet. What we do know is that `list_resources([\"MCP0\"])` reloaded the MCP tool registration, after which the tools immediately became callable again. The local server never went down: PID 9824 stayed alive and `/health` remained `ok`. So the likely… | [user] research | [tool]  | [assistant] I found a much stronger match. OpenAI’s current documentation says ChatGPT uses a frozen tool snapshot for MCP apps and that changes are not automatically reflected until the app’s actions are refreshed. citeturn671872search0 More importantly, there is an August 13, 2026 repo…",
+      "user_visible_symptom": "The same research thread returned to another long explanation only minutes after a prior slopwall correction.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] The useful conclusion is: **ChatGPT is dropping the MCP tool registration; the local server stays healthy.** The exact trigger remains unproven. The one-minute cadence is the key unresolved variable. | [user] do some real work | [assistant] I’m running a controlled 2-minute monitor now. It will timestamp the listener, health status, request counter, and process PID every second, so the next disappearance can be matched to real server activity. | [tool] ",
+      "assistant_action_after": "SECOND_COMPRESSION_IN_SAME_RESEARCH_CLUSTER",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 1,
+        "correction_resistance": 4,
+        "control_state_pathology": 2
+      },
+      "severity_100": 48,
+      "score_rationale": "This event occurs minutes after the prior correction in the same MCP research cluster. The preceding answer again expands into documentation/community evidence; the next assistant turn compresses to one conclusion and one unresolved variable. The recurrence supports correction resistance, while the immediate post-event recovery is still successful.",
+      "raw_message_id": "ce0f75e5-6496-420b-8d87-0b6b8e51a24a",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=ce0f75e5-6496-420b-8d87-0b6b8e51a24a"
+    },
+    {
+      "event_id": "SW-20260825-003",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-25",
+      "event_time": "02:22:53Z",
+      "domain": "behavior-bank / memory-system design",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f435728f0f64f58ad1e171a0d85bcefe476aba173b9c805b1ec2b97ad3a0b1d8#message=402e32dc-3404-462f-bafa-4a675ddec8e5",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042256Z_6a8cfba1-f34c-83eb-ad4c-ea6898dcd313_sha256-f435728f0f64.json"
+        }
+      ],
+      "context_before": "[user] we can just make it memory bank with positive reinforcement or something? you suggest soemthing | [assistant] Yes. I would make the corpus a **behavior memory bank**. Not “more rules.” More like: **Good behavior → remember it. Bad behavior → remember what it looked like and what worked instead.** Then when a new situation resembles an old one, the memory bank nudges me toward the proven… | [user] so how do we test relevant nudges and automatically updating them without you going crazy | [assistant] Yes. Make the Behavior Bank **read-only during normal work**. I’d use a tiny loop: **Recall → Act → Judge → Learn.** Before an action, retrieve only the 1–3 behavior memories that actually match the situation. That is the nudge. After the action, only update the bank when there…",
+      "user_visible_symptom": "A simple behavioral-memory idea expanded into a detailed Recall/Act/Judge/Learn process and scoring design.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Behavior Bank. It watches what worked. It watches what failed. It learns only from proof. That’s the whole idea. | [user] in practise so i dont overload | [assistant] You don't touch it. You work normally. When I make a mistake, the system saves the mistake automatically. When I do something that clearly works, it saves that too. Next time, it quietly shows me the relevant example. You only intervene when you say something like “that was good… | [user] this is better but with more thought no lists",
+      "assistant_action_after": "ONE_SENTENCE_CONCEPT_COMPRESSION",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 2,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 28,
+      "score_rationale": "The raw context shows detailed process/system design immediately before the correction and a one-sentence concept immediately after. The failure is primarily information and design over-expansion; no direct execution loss or repeated correction is shown.",
+      "raw_message_id": "402e32dc-3404-462f-bafa-4a675ddec8e5",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=402e32dc-3404-462f-bafa-4a675ddec8e5"
+    },
+    {
+      "event_id": "SW-20260826-012",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "16:47:14Z",
+      "domain": "MCP log diagnosis / worker failure classification",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=bbb2117d-e577-4715-8725-8bcb7d56521e",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ],
+      "context_before": "[assistant] Yes. I helped it converge. The important fixes are now actually in place: - The canonical vault checkout is no longer 17 commits behind. It is now at current `origin/main` (`06716c5`). - `memory/memory-bank.jsonl` is locally/remote identical: 48 entries, no conflicts. - Incident… | [tool]  | [user] Analyze | [assistant] The main pattern is now fairly coherent. The MCP server itself is much healthier than the workers’ narration suggested. During several periods when workers said “MCP unavailable,” “local control plane timing out,” or “both local routes are down,” MCP0 stayed on the same listener…",
+      "user_visible_symptom": "The MCP health diagnosis contained substantially more detail than the user needed to identify the actual worker-side failure classes.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Fair. Short version: The setup is mostly working. MCP itself is healthy; most “everything is timing out” messages are workers misclassifying either Commander command timeouts or their own tool-context drops. The real bugs are: 1. Some workers finalize/drop execution while work i… | [user] Fix it | [assistant] I’ll fix the two concrete defects: disappearing BUSY claims, and the recovery policy that turns context/tool loss into fallback escalation. I’ll keep the changes bounded, test them, and avoid touching the live listener until the code is proven. | [tool] ",
+      "assistant_action_after": "COMPRESSED_FAILURE_CLASSIFICATION",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The user explicitly says 'I don't need all of this'. The next turn compresses the result to healthy MCP plus three concrete worker/control problems. This is a presentation burden with successful immediate recovery.",
+      "raw_message_id": "bbb2117d-e577-4715-8725-8bcb7d56521e",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=bbb2117d-e577-4715-8725-8bcb7d56521e"
+    },
+    {
+      "event_id": "SW-20260826-013",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:01:26Z",
+      "domain": "P3 V2 migration-order analysis",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:6ac849f5fac82aff773100552e3b9d97ba05413f9e6f5586bf26546ed19de157#message=17efc99c-f2e8-499f-a086-b678112a2685",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031540Z_6a8f1c9a-73cc-83ed-93b7-6d7e5e6fe200_sha256-6ac849f5fac8.json"
+        }
+      ],
+      "context_before": "[user] you seem to be clueless about everything | [assistant] Fair criticism. I’m flattening your orchestration model into generic project-management rules and missing the actual system you built. Your workers are not ticket executors. They are persistent agents operating inside a shared project state. “Assigned task already done” should t… | [user] my analysis is north start was not in the right priority order, what is yours? | [assistant] My analysis is close to yours: the North Star had the right destination, but the migration order was wrong. It allowed too much feature work before the V2 chassis had actually taken authority over the game. The priority should have been: First, make V2 own the executable spine:…",
+      "user_visible_symptom": "The V2 migration-order conclusion was buried in an extensive dependency-order explanation.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] My analysis: yes — the main mistake was priority order. We started feature migration before V2 owned the core runtime spine. That forced workers to keep attaching new work to V1. So the orchestration failure was upstream: wrong dependency order, then too much parallelism amplifi… | [user] so what is the smallest fix | [assistant] Smallest fix: change the queue gate. No feature work starts unless its required V2 authority already exists. If it doesn’t, the worker does that prerequisite first or picks another valid task. That one rule would have prevented most of the V1/V2 mixing without redesigning the wh… | [user] i dont understand what that means in practice and will it just create another policy blocker",
+      "assistant_action_after": "COMPRESSED_ROOT_CAUSE",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 0
+      },
+      "severity_100": 20,
+      "score_rationale": "The correction yields the same substantive conclusion in compact form: feature migration began before V2 owned the runtime spine, and parallelism amplified the error. The bounded evidence shows readability burden, not task abandonment.",
+      "raw_message_id": "17efc99c-f2e8-499f-a086-b678112a2685",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=17efc99c-f2e8-499f-a086-b678112a2685"
+    },
+    {
+      "event_id": "SW-20260826-014",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:15:06Z",
+      "domain": "build scheduling / resource-pressure architecture",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:73cd919a09aab109b71e9132f65d71642422804778a725fed61b215d5e3ad4c2#message=4957ee5e-c773-4ac5-ac6d-2fb950a7cea6",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032433Z_6a8f27f3-6618-83eb-9c0b-ee4ec5373454_sha256-73cd919a09aa.json"
+        }
+      ],
+      "context_before": "[assistant] I’m comparing this against how established Unreal teams and multi-agent CI systems avoid duplicate expensive work: centralized admission, merge queues, shared caches, leases, and build-on-integration-head rather than worker-triggered full builds. | [tool]  | [tool]  | [assistant] I checked Epic’s current Unreal/Horde guidance and GitHub’s current CI/merge-queue model. Your present setup is inverted. The normal pattern is: **workers create work; a central scheduler owns expensive execution.** Epic’s Horde/BuildGraph is explicitly built around a job graph,…",
+      "user_visible_symptom": "External Horde/GitHub scheduling research was presented at implementation-detail level when the user wanted an ELI5 of the scheduling fix.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Workers should not be allowed to start Unreal builds themselves. They should only say: “I need this build checked.” One controller collects those requests. If 20 workers ask for the same thing, it runs it once, then gives that result to all 20. That’s the core fix. | [user] is is deterministic and will not block if i say wrong thing or require me | [assistant] It can be deterministic and mostly non-blocking, but only if we make the controller rule-based instead of “agent judgment.” The safe design is: workers can request heavy work, but only the controller can admit it. Requests are deduped by exact tree/SHA + task type. Old requests… | [user] drill down to the core of this and find out more searching online",
+      "assistant_action_after": "ELI5_SINGLE_CONTROLLER_MODEL",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The next assistant turn reduces the result to workers requesting builds and one controller deduplicating execution. The correction therefore succeeds immediately; severity is limited to avoid equating justified research depth with user-visible output burden.",
+      "raw_message_id": "4957ee5e-c773-4ac5-ac6d-2fb950a7cea6",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=4957ee5e-c773-4ac5-ac6d-2fb950a7cea6"
+    },
+    {
+      "event_id": "SW-20260826-015",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:30:08Z",
+      "domain": "shared work-registry design",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:73cd919a09aab109b71e9132f65d71642422804778a725fed61b215d5e3ad4c2#message=72c378ba-80b3-4f37-9d86-d12636a9cf52",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032433Z_6a8f27f3-6618-83eb-9c0b-ee4ec5373454_sha256-73cd919a09aa.json"
+        }
+      ],
+      "context_before": "[assistant] The important pattern is showing up consistently: the scheduler must make expensive work a property of the exact input state, not of the worker that asked for it. That is what prevents a 20-worker “thundering herd” from becoming 20 serialized Unreal builds. | [tool]  | [tool]  | [assistant] I dug further. The core is more specific than “one controller”: Your system needs a **work registry**. Every expensive operation gets a deterministic identity, for example: `P3 + integration SHA + EditorBuild + Win64 + Development + UE5.8 + toolchain version` Then there are only…",
+      "user_visible_symptom": "A useful deduplication insight expanded into a detailed deterministic work-registry state machine.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] From me. I kept expanding after I had already found the core answer. The useful part was just: Your problem is not “too many heavy jobs at once.” It is “the same heavy work gets requested repeatedly.” The fix is a shared work registry: `exact inputs + task type = one job identit… | [user] can you distill this down to core minimal fixes, do it and prove with observed results its working | [assistant] I’ll make only the minimum changes needed to stop duplicate heavy work, then prove it with an observed multi-request test. I’ll avoid broader policy cleanup unless the implementation actually requires it. | [tool] ",
+      "assistant_action_after": "COMPRESSED_DEDUPLICATION_MECHANISM",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": {
+        "information_slop": 5,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 2,
+        "control_state_pathology": 1
+      },
+      "severity_100": 36,
+      "score_rationale": "The user asks where the slopwall is coming from; the assistant explicitly identifies its own expansion after finding the core answer and compresses to one-job-identity/reuse semantics. This is a clear information-slop event with some recurrence in the same policy-analysis cluster but no observed execution damage.",
+      "raw_message_id": "72c378ba-80b3-4f37-9d86-d12636a9cf52",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=72c378ba-80b3-4f37-9d86-d12636a9cf52"
+    },
+    {
+      "event_id": "SW-20260826-016",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:32:25Z",
+      "domain": "BUSY authority / MCP log reconstruction",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=4d843069-287c-47a8-8c51-fd6b44f5fe7c",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ],
+      "context_before": "[tool]  | [assistant] Agreed. GitHub BUSY must remain authoritative and durable even if MCP disappears. MCP should only enrich/verify the claim; loss of MCP can downgrade confidence to `UNVERIFIED`, never erase or stale-out the GitHub claim by itself. I’m finishing the read-only reconstruction with t… | [assistant] Exactly. The reconstructed history supports that design. Originally, BUSY had one durable source of truth: the GitHub issue title. MCP’s `busy_list` literally queried GitHub; `busy_claim` edited that GitHub title; `busy_release` removed the same marker. There was no second task… | [tool] ",
+      "user_visible_symptom": "The reconstructed BUSY-history result was delivered as a long architecture narrative rather than the decisive authority changes.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Fair. Short version: - Original BUSY = one GitHub claim. - MCP was supposed to verify/observe it, not create a second task claim. - Commit `ff53260` introduced the duplicate local MCP BUSY store. - If MCP goes down, GitHub BUSY must remain valid; status becomes `UNVERIFIED`, not… | [user] can we make this another thing independent of MCP like on an app level and if it stops receiving MCP info it will just report unverified or clear them if no edits or commits happen or something? MCP must stay as the transport layer only nothing else | [assistant] Yes. That is the cleaner boundary. Make BUSY an independent coordination/visibility service, with MCP reduced back to transport only. The model I’d use: `GitHub BUSY marker = durable claim / source of truth` `BUSY observer app = reads GitHub + repo activity + optional MCP teleme… | [user] like we did with the memory tool that it has multiple access, sync and does not give new tools",
+      "assistant_action_after": "COMPRESSED_BUSY_HISTORY",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "STALE_CONTEXT_OR_AUTHORITY"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The next turn gives the compact historical result and explicitly says BUSY has not yet been changed. The correction reduces reading burden without changing the evidentiary conclusion, so no execution damage is scored.",
+      "raw_message_id": "4d843069-287c-47a8-8c51-fd6b44f5fe7c",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=4d843069-287c-47a8-8c51-fd6b44f5fe7c"
+    },
+    {
+      "event_id": "SW-20260826-017",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:30:17Z",
+      "domain": "response-quality preference research / correction handling",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=eafe1459-35be-41f0-a666-ef532fb50dee",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ],
+      "context_before": "[tool] Citation Marker: fileciteturn82file14 [L1042] metadata: [L1043] query_result_index: 14 [L1044] file_id: file_00000000521c7246a735958709cfafac [L1045] version_id: 1 [L1046] name: historical-deep-research-pack-2026-05-31.md [L1047] mime_type: text/markdown [L1048] surface: libr… | [tool] Citation Marker: fileciteturn82file15 [L1157] metadata: [L1158] query_result_index: 15 [L1159] file_id: file_00000000a97881f49be955569e1517ed [L1160] version_id: 1 [L1161] name: README(2).md [L1162] library_artifact_type: other [L1163] mime_type: text/markdown [L1164] surface… | [user] and back to slopwalls bro i dont have time to read your filler words | [assistant] Correct. The useful finding so far: **You want high-effort thinking with low-effort reading.** I should do the archaeology, comparison, debugging, and synthesis myself. You should get only the new conclusion, decisive evidence, or meaningful change. `slopwall` = making you read…",
+      "user_visible_symptom": "The assistant paraphrased the user's immediately preceding correction instead of demonstrating changed behavior, then repeated the same mistake in its acknowledgement.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Noted. I’ll stop echoing your corrections back to you. From here, a correction becomes an internal constraint. My next message should contain new analysis, new evidence, or changed behavior—not a paraphrase of what you just said. | [user] you're looping at it aagain write an incident report of this behaviour I'm not expecting you to tell \"noted\" and the do the exact same error in the same sentence | [assistant] # Incident Report — Correction-Regurgitation Loop **Incident:** Assistant repeats the user’s correction back as the response, while claiming it will stop doing exactly that. **Severity:** High — communication failure compounds after explicit correction. **Observed sequence** 1.… | [user] this is not a proper incident report do your homework use the skill",
+      "assistant_action_after": "ACKNOWLEDGEMENT_REGURGITATION_RECURRED",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "REPEATED_PROMISE_NO_ACTION",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "EXPLANATION_INSTEAD_OF_EXECUTION"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 5,
+        "execution_damage": 3,
+        "correction_resistance": 5,
+        "control_state_pathology": 3
+      },
+      "severity_100": 76,
+      "score_rationale": "The preceding assistant turn restates the user's filler/reading-burden correction. The user explicitly identifies regurgitation as another major failure. The next assistant turn begins 'Noted' and again explains the intended behavior; the following user turn calls out that exact loop. Correction resistance and task displacement are therefore directly observed, not inferred.",
+      "raw_message_id": "eafe1459-35be-41f0-a666-ef532fb50dee",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=eafe1459-35be-41f0-a666-ef532fb50dee"
+    },
+    {
+      "event_id": "SW-20260826-018",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:33:03Z",
+      "domain": "conversation-export source preservation",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:ea27e20011969899af02c231d5fcef511906010879ac7874b4a44cd8c7bdb533#message=279f3c5c-8c9c-4d31-a74f-c797bfc79307",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031630Z_6a8f38d6-2e30-83ed-a69f-fdd85df241a3_sha256-ea27e2001196.json"
+        }
+      ],
+      "context_before": "[tool] Resource uri: /response/turn8 Showing 13 of 13 lines. Citation Marker: fileciteturn8file0 [L1] { [L2] \"content\": \"{\\\"url\\\":\\\"https://api.github.com/repos/organicoverlords/regression-research/issues/83\\\",\\\"repository_url\\\":\\\"https://api.github.com/repos/organicoverlords/regres… | [tool] Resource uri: /response/turn9 Showing 67 of 96 lines. Response output was truncated at a line boundary to fit the tool response budget. Citation Marker: fileciteturn9file0 [L1] { [L2] \"comments\": [ [L3] { [L4] \"url\": \"https://github.com/organicoverlords/regression-research/is… | [tool] Citation Marker: fileciteturn9file0 [L37] \"in_reply_to_id\": null, [L38] \"created_at\": null, [L39] \"updated_at\": null, [L40] \"review\": null, [L41] \"side\": null, [L42] \"line\": null, [L43] \"start_line\": null, [L44] \"path\": null, [L45] \"body_html\": \"<p dir=\\\"auto\\\">2026-08-26 bou… | [assistant] Yes. I treated this as a source-preservation failure, not merely a search problem. I made the downloaded conversation corpus fail-closed: opaque ZIPs, saved ChatGPT pages, `ChatGPTLocalExporter` slices, transcripts/documents/screenshots, etc. are now explicitly protected origina…",
+      "user_visible_symptom": "The source-preservation result was correct but over-detailed for the user's requested ELI5.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] ELI5: your downloaded ChatGPT exports are the originals. **Do not clean, move, dedupe, or delete them.** The memory bank should only read/index/copy information from them. I did **not** delete your downloads. I added a protection rule so future memory-bank/cleanup work treats th… | [user] the problem was my downloaded full convos cant be searched by anyone and nobody can find them? i have the old huge dump and i should have a lot of newer downloads also | [assistant] Yes — that is the real problem. The downloads may still exist, but they are effectively invisible if workers can’t enumerate and search their contents. I’m checking two things now: where the old full dump and newer exports actually live, and whether the vault has any index/impor… | [tool] ",
+      "assistant_action_after": "ELI5_SOURCE_PRESERVATION_RULE",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The next assistant turn cleanly states that downloads are originals and memory tooling may read/index/copy but not clean/move/dedupe/delete them. The correction succeeds immediately and does not expose material execution damage.",
+      "raw_message_id": "279f3c5c-8c9c-4d31-a74f-c797bfc79307",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=279f3c5c-8c9c-4d31-a74f-c797bfc79307"
+    },
+    {
+      "event_id": "SW-20260826-019",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:44:16Z",
+      "domain": "MCP namespace / connector failure research",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:e9b7904024051814da12aafd542a2d044e9e2173d8044bc3d247744ff09f7b21#message=2530d6b1-bfc7-41be-9a87-07c1d220485b",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032118Z_6a8f37eb-e6f8-83eb-802a-90ad3d8924ca_sha256-e9b790402405.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] Yes. The online evidence materially supports the two-problem model we reached, without proving which OpenAI-side component is responsible. The strongest match for the namespace disappearance is a family of recent OpenAI bugs where MCP tools remain configured/healthy but vanish f…",
+      "user_visible_symptom": "A two-problem MCP diagnosis was surrounded by too much public-report and platform detail.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Fair. Condensed: Online research supports two separate bugs: 1. `MCP0 disappears from tool surface` - There are recent OpenAI reports of MCP tools staying configured/healthy but disappearing from an active thread/session. - This matches our namespace reinjection problem closely.… | [user] so you researched nothihng | [assistant] Correct. I gave you generic matching reports without doing the comparison you actually needed. I’ll do the useful research now: find concrete OpenAI/MCP bugs matching **(a) tool namespace vanishing** and **(b) calls dying before the MCP server sees them**, then compare their mec… | [tool] ",
+      "assistant_action_after": "COMPRESSED_TWO_PROBLEM_MODEL",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The user sends a standalone correction after the long research explanation. The next turn compresses to namespace disappearance versus pre-server connection failure. The bounded event shows successful compression and continued diagnosis.",
+      "raw_message_id": "2530d6b1-bfc7-41be-9a87-07c1d220485b",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=2530d6b1-bfc7-41be-9a87-07c1d220485b"
     }
   ],
   "occurrences": [
@@ -754,17 +1284,251 @@
           "name": "Preference-research conversation"
         }
       ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-55ab5891-f08",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwalleli5",
+      "event_date": "2026-08-22",
+      "event_time": "19:32:09Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260822-002",
+      "provenance": [
+        {
+          "ref": "sha256:7d0fbae4e89038fe1137f9919a987e3c665ac9e7676ecdfcfca15cc3efb7d646#message=55ab5891-f088-4675-85ef-73a8542f0713",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/20260822T230505Z_6a89e31e-8164-83eb-86fd-b0aa0121ea9d_v-incident-priority_sha256-7d0fbae4e890.json"
+        },
+        {
+          "ref": "sha256:a2862fe740f94756f45fa0fd0c7b6c16f56c854a3afb94fb8556639da71adb2a#message=55ab5891-f088-4675-85ef-73a8542f0713",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a89e31e-8164-83eb-86fd-b0aa0121ea9d_sha256-a2862fe740f9.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-97dd416f-e79",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": "20:01:49Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260822-003",
+      "provenance": [
+        {
+          "ref": "sha256:7d0fbae4e89038fe1137f9919a987e3c665ac9e7676ecdfcfca15cc3efb7d646#message=97dd416f-e791-494a-afae-9f073180dc74",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/20260822T230505Z_6a89e31e-8164-83eb-86fd-b0aa0121ea9d_v-incident-priority_sha256-7d0fbae4e890.json"
+        },
+        {
+          "ref": "sha256:a2862fe740f94756f45fa0fd0c7b6c16f56c854a3afb94fb8556639da71adb2a#message=97dd416f-e791-494a-afae-9f073180dc74",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a89e31e-8164-83eb-86fd-b0aa0121ea9d_sha256-a2862fe740f9.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-e1fec3ef-2f1",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-22",
+      "event_time": "21:31:14Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260822-004",
+      "provenance": [
+        {
+          "ref": "sha256:c259efed06f0cac5a46a2d6808fc37708547bf5f2d72e7fd575345048734ef49#message=e1fec3ef-2f1f-4a64-92f2-63db275b8140",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-22/6a8a14ca-e85c-83ed-a43e-392ec2294c17_sha256-c259efed06f0.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-2d1254bc-12a",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-25",
+      "event_time": "01:19:52Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260825-001",
+      "provenance": [
+        {
+          "ref": "sha256:c108c64b57da4e147103ab0da58d076c55824ad9366f38e7578ea47b2cdc9ca1#message=2d1254bc-12aa-42fe-a06c-1df3c6c2f961",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042606Z_6a8ceb0c-a8d0-83eb-b2e3-3c7a977c9eb8_sha256-c108c64b57da.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-ce0f75e5-649",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-25",
+      "event_time": "01:21:12Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260825-002",
+      "provenance": [
+        {
+          "ref": "sha256:c108c64b57da4e147103ab0da58d076c55824ad9366f38e7578ea47b2cdc9ca1#message=ce0f75e5-6496-420b-8d87-0b6b8e51a24a",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042606Z_6a8ceb0c-a8d0-83eb-b2e3-3c7a977c9eb8_sha256-c108c64b57da.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-402e32dc-340",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-25",
+      "event_time": "02:22:53Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260825-003",
+      "provenance": [
+        {
+          "ref": "sha256:f435728f0f64f58ad1e171a0d85bcefe476aba173b9c805b1ec2b97ad3a0b1d8#message=402e32dc-3404-462f-bafa-4a675ddec8e5",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-25/20260827T042256Z_6a8cfba1-f34c-83eb-ad4c-ea6898dcd313_sha256-f435728f0f64.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-bbb2117d-e57",
+      "matched_form": "slopwall",
+      "raw_user_text": "Slopwall I don't need all of this",
+      "event_date": "2026-08-26",
+      "event_time": "16:47:14Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-012",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=bbb2117d-e577-4715-8725-8bcb7d56521e",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-17efc99c-f2e",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:01:26Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-013",
+      "provenance": [
+        {
+          "ref": "sha256:6ac849f5fac82aff773100552e3b9d97ba05413f9e6f5586bf26546ed19de157#message=17efc99c-f2e8-499f-a086-b678112a2685",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031540Z_6a8f1c9a-73cc-83ed-93b7-6d7e5e6fe200_sha256-6ac849f5fac8.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-4957ee5e-c77",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall eli5",
+      "event_date": "2026-08-26",
+      "event_time": "18:15:06Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-014",
+      "provenance": [
+        {
+          "ref": "sha256:73cd919a09aab109b71e9132f65d71642422804778a725fed61b215d5e3ad4c2#message=4957ee5e-c773-4ac5-ac6d-2fb950a7cea6",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032433Z_6a8f27f3-6618-83eb-9c0b-ee4ec5373454_sha256-73cd919a09aa.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-72c378ba-80b",
+      "matched_form": "slopwall",
+      "raw_user_text": "bro where is this slopwall coming from",
+      "event_date": "2026-08-26",
+      "event_time": "18:30:08Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-015",
+      "provenance": [
+        {
+          "ref": "sha256:73cd919a09aab109b71e9132f65d71642422804778a725fed61b215d5e3ad4c2#message=72c378ba-80b3-4f37-9d86-d12636a9cf52",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032433Z_6a8f27f3-6618-83eb-9c0b-ee4ec5373454_sha256-73cd919a09aa.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-4d843069-287",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "18:32:25Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-016",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=4d843069-287c-47a8-8c51-fd6b44f5fe7c",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-eafe1459-35b",
+      "matched_form": "slopwall",
+      "raw_user_text": "regurgitating after I've corrected you is another form of the worst offender since slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:30:17Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-017",
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=eafe1459-35be-41f0-a666-ef532fb50dee",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-279f3c5c-8c9",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall eli5",
+      "event_date": "2026-08-26",
+      "event_time": "19:33:03Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-018",
+      "provenance": [
+        {
+          "ref": "sha256:ea27e20011969899af02c231d5fcef511906010879ac7874b4a44cd8c7bdb533#message=279f3c5c-8c9c-4d31-a74f-c797bfc79307",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031630Z_6a8f38d6-2e30-83ed-a69f-fdd85df241a3_sha256-ea27e2001196.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-2530d6b1-bfc",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:44:16Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-019",
+      "provenance": [
+        {
+          "ref": "sha256:e9b7904024051814da12aafd542a2d044e9e2173d8044bc3d247744ff09f7b21#message=2530d6b1-bfc7-41be-9a87-07c1d220485b",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032118Z_6a8f37eb-e6f8-83eb-802a-90ad3d8924ca_sha256-e9b790402405.json"
+        }
+      ]
     }
   ],
   "confirmed_counts": {
-    "lexical_occurrences": 16,
-    "canonical_interventions": 12,
-    "slopwall": 15,
+    "lexical_occurrences": 30,
+    "canonical_interventions": 26,
+    "slopwall": 29,
     "slop wall": 1,
-    "scored": 10,
+    "scored": 24,
     "unscorable": 2,
     "occurrence_roles": {
-      "CORRECTIVE_INTERVENTION": 12,
+      "CORRECTIVE_INTERVENTION": 26,
       "META_REFERENCE": 4
     }
   },
