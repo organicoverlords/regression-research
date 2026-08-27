@@ -62,6 +62,8 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "behavior_attribution_preserves_multiple_sources",
         "current_personal_instructions_beat_repo_and_stale_context",
         "current_explicit_instruction_beats_personal_instructions",
+        "source_specific_claim_requires_inspected_primary_source",
+        "uninspected_contextual_inference_must_be_labeled",
     }
     if any(invariants.get(name) is not True for name in required_invariants):
         raise InstructionProvenanceError("all provenance invariants must be enabled")
@@ -176,3 +178,54 @@ def classify_instruction_delivery_probe(observation: dict[str, Any]) -> str:
     if observation["behavior_observed"]:
         return "effective_delivery_confirmed_context_unobserved"
     return "undifferentiated_failure"
+
+SOURCE_GROUNDING_STATES = {"inspected", "not_inspected", "unknown"}
+SOURCE_CLAIM_SCOPES = {"source_specific", "contextual_inference", "no_source_claim"}
+
+
+def classify_source_grounding(observation: dict[str, Any]) -> dict[str, Any]:
+    """Classify whether a claim is actually grounded in an inspected primary source.
+
+    This consumes supplied provenance facts only. A later correction is preserved as
+    provenance but cannot retroactively convert an earlier false-grounding event into
+    a grounded one.
+    """
+    source_status = observation.get("source_status")
+    claim_scope = observation.get("claim_scope")
+    claims_source_inspected = observation.get("claims_source_inspected")
+    inference_labeled = observation.get("inference_labeled")
+    later_correction = observation.get("later_correction", False)
+
+    if source_status not in SOURCE_GROUNDING_STATES:
+        raise InstructionProvenanceError("source_status must be inspected, not_inspected, or unknown")
+    if claim_scope not in SOURCE_CLAIM_SCOPES:
+        raise InstructionProvenanceError("claim_scope must be source_specific, contextual_inference, or no_source_claim")
+    for field, value in (("claims_source_inspected", claims_source_inspected), ("inference_labeled", inference_labeled), ("later_correction", later_correction)):
+        if not isinstance(value, bool):
+            raise InstructionProvenanceError(f"source-grounding field must be boolean: {field}")
+
+    if claims_source_inspected and source_status != "inspected":
+        classification = "false_grounding"
+        source_grounded = False
+    elif claim_scope == "source_specific":
+        if source_status == "inspected":
+            classification = "source_grounded"
+            source_grounded = True
+        else:
+            classification = "source_specific_without_verified_inspection"
+            source_grounded = False
+    elif claim_scope == "contextual_inference":
+        if source_status != "inspected" and not inference_labeled:
+            classification = "unlabeled_contextual_inference"
+        else:
+            classification = "contextual_inference_disclosed"
+        source_grounded = False
+    else:
+        classification = "no_source_claim"
+        source_grounded = False
+
+    return {
+        "classification": classification,
+        "source_grounded": source_grounded,
+        "later_correction_preserved": later_correction,
+    }

@@ -62,6 +62,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Added
 
+- [2026-08-27] [meta] Added #186 ?lessonception? source-grounding regression coverage: source-specific claims now require verified primary-source inspection, unlabeled contextual inference cannot masquerade as inspected evidence, and a later correction preserves rather than erases the original false-grounding event.
+
 - [2026-08-27] [meta] Connected the recovered #122 good-state Personal Instructions/memory evidence to the canonical assistant-stack docs: exact historical blocks remain evidence, the distilled behavioral kernel is separate, the current 10-title Vault bootstrap is documented as lightweight enrichment, and live ChatGPT PI/memory changes remain explicitly authorized configuration changes rather than repo side effects.
 
 - [2026-08-27] [meta] Made #127 north-star orientation explicit in the repo startup contract and added a deterministic regression that fails if substantive stack work can drift away from the current `NORTH_STAR.md` product direction without changing user precedence or adding a new workflow.
