@@ -15,11 +15,11 @@ def _load(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_first_promotion_batch_is_present_and_scored() -> None:
+def test_all_reviewed_promotion_batches_are_present_and_scored() -> None:
     data = _load(INDEX)
     validate_index(data)
     by_mid = {event.get("raw_message_id"): event for event in data["events"]}
-    assert len(PROMOTIONS) == 14
+    assert len(PROMOTIONS) == 28
     for mid, spec in PROMOTIONS.items():
         event = by_mid[mid]
         assert event["event_id"] == spec["event_id"]

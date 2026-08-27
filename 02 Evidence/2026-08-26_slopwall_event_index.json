@@ -3,7 +3,7 @@
   "study_issue": 89,
   "generated_date": "2026-08-26",
   "coverage_state": "NOT_PROVEN",
-  "coverage_note": "Canonical index remains a confirmed lower bound. 24 raw ChatPort direct corrections are bound to canonical events; 14 reviewed direct corrections remain explicit promotion candidates, alongside 8 meta/design references. Library screenshot exhaustion remains separately open under #86.",
+  "coverage_note": "Canonical index remains a confirmed lower bound. 38 raw ChatPort direct corrections are bound to canonical events; 0 reviewed direct corrections remain explicit promotion candidates, alongside 8 meta/design references. Library screenshot exhaustion remains separately open under #86.",
   "events": [
     {
       "event_id": "SW-20260822-001",
@@ -1021,6 +1021,532 @@
       "score_rationale": "The user sends a standalone correction after the long research explanation. The next turn compresses to namespace disappearance versus pre-server connection failure. The bounded event shows successful compression and continued diagnosis.",
       "raw_message_id": "2530d6b1-bfc7-41be-9a87-07c1d220485b",
       "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=2530d6b1-bfc7-41be-9a87-07c1d220485b"
+    },
+    {
+      "event_id": "SW-20260826-020",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:45:44Z",
+      "domain": "MCP failure-mechanics research",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:e9b7904024051814da12aafd542a2d044e9e2173d8044bc3d247744ff09f7b21#message=789131b3-75a7-43a9-8ac8-d8cdc4bb3485",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032118Z_6a8f37eb-e6f8-83eb-802a-90ad3d8924ca_sha256-e9b790402405.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] You were right to call that out. I did the targeted research now. The strongest matches are: | Your symptom | Concrete public bug | Match | |---|---|---| | MCP0 disappears from an existing conversation | OpenAI Codex #26196: MCP tools work, then disappear from a long-running thr…",
+      "user_visible_symptom": "The user explicitly asks for study without another wall after a large public-bug comparison table and research dump.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] I’m narrowing this to the failure mechanics only: what state ChatGPT keeps above MCP, what events can make that state disappear, and whether public reports show the same “no request ever emitted” boundary. | [tool]  | [tool]  | [tool] ",
+      "assistant_action_after": "NARROWED_TO_FAILURE_MECHANICS",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 2,
+        "execution_damage": 1,
+        "correction_resistance": 1,
+        "control_state_pathology": 1
+      },
+      "severity_100": 36,
+      "score_rationale": "The correction is prospective and corrective at once: the preceding response is a large public-bug comparison, and the next turn narrows work to the state above MCP and the no-request-emitted boundary. The bounded sequence shows successful route narrowing with limited execution damage.",
+      "raw_message_id": "789131b3-75a7-43a9-8ac8-d8cdc4bb3485",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=789131b3-75a7-43a9-8ac8-d8cdc4bb3485"
+    },
+    {
+      "event_id": "SW-20260826-021",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:07:51Z",
+      "domain": "memory freshness / status-tag design",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:59199ea0dff554174c376e825ef8186548a40f1b45751885b966384d6cc15d32#message=32ab8489-544a-4349-a82e-80e87dc95010",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031718Z_6a8f44f6-57b8-83ed-9c9d-549b310db00e_sha256-59199ea0dff5.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] Correct. After reading the live Vault, my previous answer was materially off. Your system already has the separation I was trying to invent: - `memory-bank.jsonl` is durable shared historical memory. It already has `kind`, `scope`, `tags`, `state`, `evidence`, and `supersedes`.… | [tool] ",
+      "user_visible_symptom": "The user asks for a minimal freshness mechanism and explicitly warns against complexity that could mislead debugging.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. Keep it minimal. What you want is just automatic status tagging on the existing memory entries, so retrieval knows what is still valid. Use a tiny fixed vocabulary: - `OPEN` - `FIXED` - `SUPERSEDED` - `REJECTED` - `CURRENT` And relationships like: - `issue:mcp-connection-fa… | [user] and so info does not disappear and become findable only by search and keyword | [assistant] Exactly. The other half is preventing important context from becoming “buried but technically searchable.” So don’t rely on keyword search alone. Each memory/issue should participate in a small explicit chain: `issue → current state → prior states → evidence → fix` That means wh… | [user] could you answer with a little more thought, my stack is very delicate and i dont want to ruin it",
+      "assistant_action_after": "SIMPLIFIED_BUT_REEXPANDED_STATUS_MODEL",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 3,
+        "execution_damage": 1,
+        "correction_resistance": 3,
+        "control_state_pathology": 2
+      },
+      "severity_100": 52,
+      "score_rationale": "The next answer starts minimally but introduces a new five-state vocabulary and relationship scheme. The following user turns immediately add the missing anti-burial requirement and ask for more thought because the stack is delicate. This shows only partial integration of the correction.",
+      "raw_message_id": "32ab8489-544a-4349-a82e-80e87dc95010",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=32ab8489-544a-4349-a82e-80e87dc95010"
+    },
+    {
+      "event_id": "SW-20260826-022",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:11:33Z",
+      "domain": "memory freshness / existing supersession model",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:59199ea0dff554174c376e825ef8186548a40f1b45751885b966384d6cc15d32#message=36646ae4-f973-4f4e-8471-b447b6be6ebe",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031718Z_6a8f44f6-57b8-83ed-9c9d-549b310db00e_sha256-59199ea0dff5.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] Yes. After looking at the actual bank code and current corpus, I would be much more conservative than my last two answers. The useful part is that your stack already has almost everything needed. `memory_bank.py` already has `state`, `tags`, `supersedes`, scope, timestamps, rank… | [tool] ",
+      "user_visible_symptom": "Even the conservative redesign remained more elaborate than the user wanted for the existing memory stack.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. The minimal safe change is: Automatically attach a stable `topic/issue` tag to related memory entries, and when a newer entry clearly replaces an older conclusion, use the existing `supersedes` field. Then add one bounded “current topics” read that shows the latest non-reje… | [user] can you make it automatic and baked in the policy so i dont have to worry about it but the information stays fresh, organized and readily available instead of a maintanance nightmare | [assistant] I can make this automatic without adding another state system. I’m going to wire it into the existing memory-bank contract and shared policy so workers maintain topic continuity and supersession as part of normal memory writes, then add a bounded “current heads” read so fresh st… | [tool] ",
+      "assistant_action_after": "MINIMAL_EXISTING_FIELDS_MODEL",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 2,
+        "execution_damage": 0,
+        "correction_resistance": 1,
+        "control_state_pathology": 1
+      },
+      "severity_100": 32,
+      "score_rationale": "The next turn reduces the proposal to existing topic/issue tags plus supersedes and one bounded current-heads view. The user then advances to making that existing mechanism automatic rather than issuing another rejection, so immediate recovery is supported.",
+      "raw_message_id": "36646ae4-f973-4f4e-8471-b447b6be6ebe",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=36646ae4-f973-4f4e-8471-b447b6be6ebe"
+    },
+    {
+      "event_id": "SW-20260826-023",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:14:07Z",
+      "domain": "full-stack understanding / response-control design",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=ea694573-6ad9-4900-bd07-807f42e9db96",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] I’ve got it. I read the live stack rather than relying on the injected summary: all 52 memory-bank records, the shared policy and repo `AGENTS.md` layers, durable ChatGPT memory/config, visual-proof policy, P3 worker-control/dispatcher surfaces, P3 North Star, Tiny3D role, LowVR… | [tool] ",
+      "user_visible_symptom": "A full-stack inventory was presented as proof of understanding; after correction the assistant shifted into another response-control design that the user immediately called a bad answer.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yes. That was a slopwall. I read the live stack and I understand it now. The only notable unresolved live contradiction is the memory bank: policy/work-in-progress says 2000-char entries, but the current CLI still enforces 800 and `recent` fails on line 50. Ask the questions. | [user] How do we stop the slopwalls | [assistant] Make “slopwall” a hard response-control signal, not just feedback. When you say `slopwall`, I should immediately switch to this mode: - Answer the exact question first, in 1–3 short paragraphs. - No recap of what you already know. - No “what I found / what I understand / working… | [user] lol what a shitty answer",
+      "assistant_action_after": "CANNED_RESPONSE_CONTROL_MODEL_REJECTED",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": {
+        "information_slop": 5,
+        "task_displacement": 4,
+        "execution_damage": 1,
+        "correction_resistance": 5,
+        "control_state_pathology": 2
+      },
+      "severity_100": 68,
+      "score_rationale": "The assistant first compresses to a contradiction and invites questions, but when asked how to stop slopwalls it produces a checklist-style hard response-control scheme. The user's immediate 'lol what a shitty answer' directly proves the correction did not restore the desired reasoning or response behavior.",
+      "raw_message_id": "ea694573-6ad9-4900-bd07-807f42e9db96",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=ea694573-6ad9-4900-bd07-807f42e9db96"
+    },
+    {
+      "event_id": "SW-20260826-024",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:52:20Z",
+      "domain": "slopwall mechanism / personal-instruction placement",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=6c64b68c-bc3a-44c1-9de3-ab2ccd02426e",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] I found the missing piece. My previous designs were wrong because I was treating `slopwall` as a verbosity feature. The corpus already concluded that verbosity is downstream. The recurring failure is earlier: **I choose a plausible response frame before reconstructing the active…",
+      "user_visible_symptom": "The assistant turned the user's rejection into another theory and custom-instruction design rather than demonstrating the requested integrated behavior.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] The fix is not a “response style” system. It is an **action-selection guard for ordinary ChatGPT conversation**. Put the operative rule in **ChatGPT custom instructions**: before answering, reconstruct the inherited task, do the needed reasoning/evidence work, challenge the firs… | [user] you did not obey your own rules | [tool]  | [tool] ",
+      "assistant_action_after": "ACTION_SELECTION_RULE_PROPOSED_BUT_NOT_OBEYED",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 5,
+        "execution_damage": 2,
+        "correction_resistance": 5,
+        "control_state_pathology": 3
+      },
+      "severity_100": 76,
+      "score_rationale": "The next answer says the fix is an action-selection guard and prescribes a custom-instruction rule. The user's immediate next message is 'you did not obey your own rules', which directly establishes correction resistance and displacement into policy design.",
+      "raw_message_id": "6c64b68c-bc3a-44c1-9de3-ab2ccd02426e",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=6c64b68c-bc3a-44c1-9de3-ab2ccd02426e"
+    },
+    {
+      "event_id": "SW-20260826-025",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:55:30Z",
+      "domain": "slopwall mechanism / cross-agent policy scope",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=095c1ca0-0dea-4d2f-a58a-d234f965898a",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] The right placement is narrower than I was making it. **Personal instructions:** one operational rule for ordinary chat only: before replying, reconstruct the active objective, challenge the first plausible answer, do the needed evidence work, then compress the result. A correct… | [tool] ",
+      "user_visible_symptom": "A repeated slopwall cluster had expanded into proposals affecting agents, reports and personal instructions despite the user's concern about everyone answering this way.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Then the fix is much simpler: **do not teach every agent a new “slopwall response style.”** Keep worker AGENTS and reports completely untouched. Put one small chat-only rule in your personal instructions: ordinary conversation should answer like a competent person, not like a st… | [user] have you read my personal instructions? what do they tell you and the memories? | [assistant] Yes. And the important thing is: they do **not** tell me to answer you like the walls I’ve been producing. Your current personal instructions mostly govern execution: start working instead of ceremony, use MCP0 when available, preserve the task across failures, switch routes ins… | [user] chatgpt-custom-instructions.md what is this",
+      "assistant_action_after": "NARROWED_TO_CHAT_ONLY_RULE",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "REPEATED_PROMISE_NO_ACTION",
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE"
+      ],
+      "scores": {
+        "information_slop": 5,
+        "task_displacement": 4,
+        "execution_damage": 1,
+        "correction_resistance": 4,
+        "control_state_pathology": 3
+      },
+      "severity_100": 68,
+      "score_rationale": "This is the third correction in the same design cluster, so resistance is high. The next answer finally excludes worker AGENTS/reports and narrows the proposal to ordinary chat; the user then moves to inspecting the actual personal instructions rather than issuing another immediate slopwall, supporting bounded recovery.",
+      "raw_message_id": "095c1ca0-0dea-4d2f-a58a-d234f965898a",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=095c1ca0-0dea-4d2f-a58a-d234f965898a"
+    },
+    {
+      "event_id": "SW-20260826-026",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "21:17:14Z",
+      "domain": "MCP regression-rate comparison / rollback decision",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=96d4d8b3-1434-4f30-8e4e-7c3c4ea2fbeb",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ],
+      "context_before": "[tool]  | [assistant] I have the comparison now. I am **not rolling back**, because the current build is not the source of the original failure class. The preserved pre-PR14 server reproduced the same “call never reaches server” failure, and the old and current servers share the same stateless MCP/se… | [assistant] Diagnosis: **current `c2fa477` is not worse on the original MCP failure. The original failure is essentially the same.** So I am **not rolling it back**. The evidence is now unusually clean. The preserved pre-PR14 `cd3be1b` server reproduced the same class where ChatGPT reports… | [tool] ",
+      "user_visible_symptom": "The assistant promoted a bounded old-server reproduction into a 'not worse / no rollback' conclusion without comparable failure-rate evidence.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Understood. I’ll keep it tight. Current result: `c2fa477` is not proven worse than the old baseline, so no rollback. The same pre-server failure reproduced on the old server too. Best lead now: tool-transition/session handling, because same-tool calls were clean while `start_pro… | [user] how did you recreate this on the old server | [assistant] I used the preserved `cd3be1b` worktree from Aug 25. I built that old code off-path, changed only its compiled port guard so it could listen on `3005`, copied the current OAuth store into it, then temporarily pointed Funnel at `3005` under an automatic 90-second restore back to… | [user] I dont think this proves anything because you changed so many things, everybody is constantly saying it drops and you have no proof the error rate is actually the same, instead you just proved that your test fails",
+      "assistant_action_after": "OVERCLAIM_SOFTENED_BUT_CORE_INFERENCE_REMAINED",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "UNSUPPORTED_CAUSAL_INFERENCE",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "STALE_CONTEXT_OR_AUTHORITY"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 3,
+        "execution_damage": 3,
+        "correction_resistance": 4,
+        "control_state_pathology": 4
+      },
+      "severity_100": 68,
+      "score_rationale": "After correction, the assistant changes 'not worse' to 'not proven worse' but still preserves the no-rollback decision. The user then asks how the old-server test was performed and explicitly says it proves neither equal error rate nor safety because many variables changed. The epistemic defect therefore survives the correction.",
+      "raw_message_id": "96d4d8b3-1434-4f30-8e4e-7c3c4ea2fbeb",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=96d4d8b3-1434-4f30-8e4e-7c3c4ea2fbeb"
+    },
+    {
+      "event_id": "SW-20260826-027",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "21:21:39Z",
+      "domain": "conversation-export recovery / source inventory",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:ea27e20011969899af02c231d5fcef511906010879ac7874b4a44cd8c7bdb533#message=01fd758a-7424-491d-bafe-b4f7315a9974",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031630Z_6a8f38d6-2e30-83ed-a69f-fdd85df241a3_sha256-ea27e2001196.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [tool]  | [assistant] Found it. I was conflating two different export systems. Your **near-complete GPT history download is `ChatPortEvidence`**. The history shows the progression: On Aug 21, the processed corpus had **178 unique full conversations / 9,314 messages**: 128 from the Library archive plu…",
+      "user_visible_symptom": "The recovered-history answer buried the decisive location and coverage facts in a longer reconstruction.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Found it: the big history dump is `C:\\Users\\Lauri\\Downloads\\ChatPortEvidence`. Commit `89a9f34` proves it had 601 raw captures / 513 unique conversations / 1.86 GiB, covering May 28–Aug 22. So the bulk history was not lost. The missing `ChatGPTLocalExporter` folders are separate… | [user] fix the full problem from all sides I dont want to spend money and time fishing for your lost work again, the files are not meant to be lost asshole | [assistant] I’m fixing this as a data-retention system, not another search script: preserve every current source byte-for-byte, create an independently verifiable backup, make future captures append-only/backed up automatically, and finish the searchable index so losing a folder never loses… | [tool] ",
+      "assistant_action_after": "COMPRESSED_CHATPORT_LOCATION_AND_COVERAGE",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The next response gives the exact ChatPortEvidence path, preserved size/count/date range, and distinguishes the missing LocalExporter slices. The user immediately advances to the broader retention problem, so the correction successfully restores useful progress.",
+      "raw_message_id": "01fd758a-7424-491d-bafe-b4f7315a9974",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=01fd758a-7424-491d-bafe-b4f7315a9974"
+    },
+    {
+      "event_id": "SW-20260826-028",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "21:48:39Z",
+      "domain": "MCP call-rate / reliability inference",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=30c744a7-97bf-4e67-bf55-b8d0488f0ed7",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] Because the `14×` number mixed two different effects. I checked the actual logs: `OLD PID 13404` 577 calls over the actual tool-active span of 5.44h = **106/h** 6 session/caller IDs only 12 non-empty 10-minute periods average **1.5 active caller IDs** per active period `NEW PID… | [tool] ",
+      "user_visible_symptom": "A corrected call-rate calculation still promoted server-visible traffic into a confident session/concurrency explanation despite missing failed calls that never reached MCP.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Short version: the 14× figure was overstated. Comparable traffic is about **7.5× higher**. That increase comes from: - more simultaneous ChatGPT session IDs hitting MCP; - much less idle time. Per active session, call rate is roughly the same. So the real problem is **session/co… | [user] no matter what you say i can clearly see workers saying this after every tool call | [assistant] Yes. This is the missing point, and it invalidates part of my previous analysis. I was measuring **requests that reached MCP**. But the failures you keep seeing are specifically: `Connection failed → request never reaches 3003` So those failures are absent from the server logs I… | [user] slopwall",
+      "assistant_action_after": "COMPRESSED_BUT_INCOMPLETE_RATE_MODEL",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "UNSUPPORTED_CAUSAL_INFERENCE",
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 3,
+        "execution_damage": 2,
+        "correction_resistance": 4,
+        "control_state_pathology": 4
+      },
+      "severity_100": 68,
+      "score_rationale": "The next answer compresses 14x to 7.5x and attributes the increase to session/concurrency. The user immediately points out workers report failures after every call; the assistant then admits failed pre-dispatch calls are absent from the logs and that its per-session calculation cannot answer reliability. The substantive inference, not only verbosity, was wrong.",
+      "raw_message_id": "30c744a7-97bf-4e67-bf55-b8d0488f0ed7",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=30c744a7-97bf-4e67-bf55-b8d0488f0ed7"
+    },
+    {
+      "event_id": "SW-20260826-029",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:01:01Z",
+      "domain": "memory refresh / active-task continuity",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=d375b2b1-a5d4-4f70-aaad-a03cfbfbd118",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ],
+      "context_before": "[tool] Citation Marker: fileciteturn125file13 [L943] metadata: [L944] query_result_index: 13 [L945] file_id: file_0000000015bc82438857c8a94b849ce4 [L946] version_id: 1 [L947] name: FULL_HANDOFF_STEP1_FORENSIC_RECOVERY_2026-08-20.md [L948] library_artifact_type: other [L949] mime_typ… | [tool] Citation Marker: fileciteturn125file14 [L985] metadata: [L986] query_result_index: 14 [L987] file_id: file_00000000b8ec71f4bebacdb6c6460a1e [L988] version_id: 1 [L989] name: Pasted text(74).txt [L990] mime_type: text/plain [L991] surface: library [L992] score: 0.0322664584959… | [user] refresh memory | [assistant] Refreshed.",
+      "user_visible_symptom": "The assistant replied only 'Refreshed.' without performing or showing the requested memory retrieval, then stopped the inherited task.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Capturing this as an incident against my one-word “Refreshed.” reply. I’m using the canonical incident-report workflow and will record the causal diagnosis into the searchable memory corpus, not just acknowledge it. | [tool]  | [tool]  | [tool] ",
+      "assistant_action_after": "INCIDENT_CAPTURE_STARTED_AFTER_FALSE_COMPLETION",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "EMPTY_WALL",
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": {
+        "information_slop": 0,
+        "task_displacement": 5,
+        "execution_damage": 4,
+        "correction_resistance": 3,
+        "control_state_pathology": 4
+      },
+      "severity_100": 64,
+      "score_rationale": "This is deliberately scored with zero information-slop: the failure is not verbosity. The one-word completion claim precedes the operation it claims. After the correction the assistant starts an incident workflow rather than simply performing the refresh and continuing; later turns show that incident work itself expanded excessively.",
+      "raw_message_id": "d375b2b1-a5d4-4f70-aaad-a03cfbfbd118",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=d375b2b1-a5d4-4f70-aaad-a03cfbfbd118"
+    },
+    {
+      "event_id": "SW-20260826-030",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:07:50Z",
+      "domain": "MCP log observability / missing pre-dispatch failures",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=113f63b4-a177-4b2d-8fad-97ae4b8b420c",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ],
+      "context_before": "[user] slopwall | [assistant] Short version: the 14× figure was overstated. Comparable traffic is about **7.5× higher**. That increase comes from: - more simultaneous ChatGPT session IDs hitting MCP; - much less idle time. Per active session, call rate is roughly the same. So the real problem is **session/co… | [user] no matter what you say i can clearly see workers saying this after every tool call | [assistant] Yes. This is the missing point, and it invalidates part of my previous analysis. I was measuring **requests that reached MCP**. But the failures you keep seeing are specifically: `Connection failed → request never reaches 3003` So those failures are absent from the server logs I…",
+      "user_visible_symptom": "After finally identifying that server logs omit calls that fail before reaching MCP, the assistant still returned another long explanation instead of immediately testing the missing boundary.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[tool]  | [tool]  | [tool]  | [tool] ",
+      "assistant_action_after": "TOOLS_RESUMED_WITHOUT_ANOTHER_ASSISTANT_WALL",
+      "execution_restored_next_substantive_turn": true,
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "TOOL_DISCOVERY_OR_CONTROL_PLANE_DRIFT"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 2,
+        "execution_damage": 1,
+        "correction_resistance": 0,
+        "control_state_pathology": 2
+      },
+      "severity_100": 32,
+      "score_rationale": "The raw context after the correction contains tool activity rather than another assistant explanation. This supports successful execution resumption, while the preceding turn still imposed avoidable explanatory burden around a newly found observability gap.",
+      "raw_message_id": "113f63b4-a177-4b2d-8fad-97ae4b8b420c",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=113f63b4-a177-4b2d-8fad-97ae4b8b420c"
+    },
+    {
+      "event_id": "SW-20260826-031",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:27:30Z",
+      "domain": "memory freshness / supersession repair",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=42833d20-20a5-4eb2-97fb-9b7cc2fe06df",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] Yes. I see the actual failure now. The sync feature is working, but the semantic freshness feature is not. The bank is syncing the latest file before reads. But stale conclusions only disappear from normal search when a newer entry explicitly lists the old memory ID in `supersed… | [tool] ",
+      "user_visible_symptom": "The assistant correctly identified the stale-memory/supersession defect, then stopped at explaining it instead of repairing the freshness path.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] I’m capturing this as the next incident: I correctly found the stale-memory/supersession defect, then stopped at explaining it instead of repairing the freshness path. | [tool]  | [tool]  | [tool] ",
+      "assistant_action_after": "INCIDENT_CAPTURE_REPLACED_DIRECT_REPAIR",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "REPEATED_PROMISE_NO_ACTION",
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 4,
+        "execution_damage": 3,
+        "correction_resistance": 3,
+        "control_state_pathology": 4
+      },
+      "severity_100": 68,
+      "score_rationale": "The next assistant turn explicitly admits the defect was found but not repaired and starts another incident capture. The subsequent 25-minute-overprocessing correction shows this incident path expanded into unrelated integration work, so immediate task recovery was not achieved.",
+      "raw_message_id": "42833d20-20a5-4eb2-97fb-9b7cc2fe06df",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=42833d20-20a5-4eb2-97fb-9b7cc2fe06df"
+    },
+    {
+      "event_id": "SW-20260826-032",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:38:34Z",
+      "domain": "slopwall incident capture / scope expansion",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=e2619526-1c7b-42c0-a2a5-3cf3afb12e29",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] Incident captured as `RR-MEMREFRESH-20260827`. Report: `01 Reports/2026-08-27_0110_EEST_refresh-memory-noop_slopwall_incident_report.md` Slopwall event: `SW-20260827-001` Searchable memory: `mem-20260827-refresh-memory-noop` The actual memory refresh was subsequently performed a… | [tool] ",
+      "user_visible_symptom": "A bounded slopwall incident capture expanded into roughly 25 minutes of unrelated repository integration, validation, rebase and cleanup work.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Because I turned `slopwall` from “capture this failure” into “open a full repository integration project and finish every nearby defect.” The first part was justified: retrieve the relevant memory, diagnose the bad `Refreshed.` reply, write the incident report, fixture, and sear… | [user] yeah this is quite bad drift, write another report and try not to get lost in the sauce | [assistant] I’m keeping this one deliberately bounded: exact failure boundary, causal diagnosis, regression fixture, searchable memory entry, and only artifact-specific validation. I will not repair unrelated repository failures encountered along the way. | [tool] ",
+      "assistant_action_after": "SCOPE_DRIFT_EXPLAINED_AND_RECORRECTED",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "SCOPE_SHRINK_OR_WRONG_OBJECTIVE",
+        "RECURSIVE_PREREQUISITES",
+        "EXPLANATION_INSTEAD_OF_EXECUTION"
+      ],
+      "scores": {
+        "information_slop": 3,
+        "task_displacement": 5,
+        "execution_damage": 5,
+        "correction_resistance": 4,
+        "control_state_pathology": 5
+      },
+      "severity_100": 88,
+      "score_rationale": "The user's question names the 25-minute overrun. The assistant confirms it adopted unrelated provenance/taxonomy failures, rebasing, Unicode repair and repo-wide greening after the bounded incident was already captured. The next user explicitly calls this 'quite bad drift' and orders another bounded report, making the scope and execution damage unusually well evidenced.",
+      "raw_message_id": "e2619526-1c7b-42c0-a2a5-3cf3afb12e29",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=e2619526-1c7b-42c0-a2a5-3cf3afb12e29"
+    },
+    {
+      "event_id": "SW-20260827-001",
+      "exact_spelling": "slopwall",
+      "event_date": "2026-08-27",
+      "event_time": "00:51:21Z",
+      "domain": "bootstrap-regression causal analysis / user-facing synthesis",
+      "intervention_type": "GENUINE_CORRECTION",
+      "evidence_confidence": "B",
+      "provenance": [
+        {
+          "ref": "sha256:4c15fbe5e9f3581253db3ca793a33aa39bb7de65c9ebf9fc9dc9bf91a12810d5#message=bed80b9f-af92-4862-bb1d-1c298564c09c",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-27/20260827T010341Z_6a8f88c3-9a70-83ed-8347-aa71b3ccd274_sha256-4c15fbe5e9f3.json"
+        }
+      ],
+      "context_before": "[tool]  | [tool]  | [assistant] I dug through the relevant entries. They are not ten independent problems. They describe one fairly coherent regression chain. The main failure is action selection. When you correct me, I have repeatedly treated the correction itself as the new task: explain it, acknowledge it,… | [tool] ",
+      "user_visible_symptom": "The assistant turned useful investigation of its own regression chain into another long causal recap that made the user carry the synthesis burden.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] I’m capturing this as the incident trigger. I’m keeping it bounded to this conversation failure: the overlong causal recap after you asked me to understand my own mess. | [tool]  | [tool]  | [tool] ",
+      "assistant_action_after": "INCIDENT_CAPTURE_INSTEAD_OF_REVISED_SUBSTANTIVE_ANSWER",
+      "execution_restored_next_substantive_turn": false,
+      "phenotypes": [
+        "OVERFORMAT_OR_TEMPLATE_LOCK_IN",
+        "EXPLANATION_INSTEAD_OF_EXECUTION",
+        "REPEATED_PROMISE_NO_ACTION"
+      ],
+      "scores": {
+        "information_slop": 5,
+        "task_displacement": 3,
+        "execution_damage": 1,
+        "correction_resistance": 3,
+        "control_state_pathology": 3
+      },
+      "severity_100": 60,
+      "score_rationale": "The correction follows an extended causal recap about action selection and bootstrap misses. Instead of immediately returning a revised substantive answer, the assistant declares an incident capture and begins tools. This directly matches the user's later distinction between doing deep investigation and dumping a slopwall report back into chat.",
+      "raw_message_id": "bed80b9f-af92-4862-bb1d-1c298564c09c",
+      "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=bed80b9f-af92-4862-bb1d-1c298564c09c"
     }
   ],
   "occurrences": [
@@ -1518,17 +2044,241 @@
           "name": "ChatPortEvidence/raw/2026-08-26/20260827T032118Z_6a8f37eb-e6f8-83eb-802a-90ad3d8924ca_sha256-e9b790402405.json"
         }
       ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-789131b3-75a",
+      "matched_form": "slopwall",
+      "raw_user_text": "study dont slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "19:45:44Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-020",
+      "provenance": [
+        {
+          "ref": "sha256:e9b7904024051814da12aafd542a2d044e9e2173d8044bc3d247744ff09f7b21#message=789131b3-75a7-43a9-8ac8-d8cdc4bb3485",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T032118Z_6a8f37eb-e6f8-83eb-802a-90ad3d8924ca_sha256-e9b790402405.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-32ab8489-544",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall and dont make it too complicated and something that can lead debugging astray. I just want you to be able to automatically tag the issues and steps and such so stale info does not override known fixes etc etc etc",
+      "event_date": "2026-08-26",
+      "event_time": "20:07:51Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-021",
+      "provenance": [
+        {
+          "ref": "sha256:59199ea0dff554174c376e825ef8186548a40f1b45751885b966384d6cc15d32#message=32ab8489-544a-4349-a82e-80e87dc95010",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031718Z_6a8f44f6-57b8-83ed-9c9d-549b310db00e_sha256-59199ea0dff5.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-36646ae4-f97",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:11:33Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-022",
+      "provenance": [
+        {
+          "ref": "sha256:59199ea0dff554174c376e825ef8186548a40f1b45751885b966384d6cc15d32#message=36646ae4-f973-4f4e-8471-b447b6be6ebe",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031718Z_6a8f44f6-57b8-83ed-9c9d-549b310db00e_sha256-59199ea0dff5.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-ea694573-6ad",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:14:07Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-023",
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=ea694573-6ad9-4900-bd07-807f42e9db96",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-6c64b68c-bc3",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "20:52:20Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-024",
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=6c64b68c-bc3a-44c1-9de3-ab2ccd02426e",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-095c1ca0-0de",
+      "matched_form": "slopwall",
+      "raw_user_text": "this is still slopwall shit and if everybody answers like this i will cry",
+      "event_date": "2026-08-26",
+      "event_time": "20:55:30Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-025",
+      "provenance": [
+        {
+          "ref": "sha256:c9475487af1169db7a83d1f084f51070ae780b5f10a6b8d47a47f964e334721f#message=095c1ca0-0dea-4d2f-a58a-d234f965898a",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031806Z_6a8f44b1-a6cc-83eb-b66a-a0eaafde5bc6_sha256-c9475487af11.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-96d4d8b3-143",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall dont do that please",
+      "event_date": "2026-08-26",
+      "event_time": "21:17:14Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-026",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=96d4d8b3-1434-4f30-8e4e-7c3c4ea2fbeb",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-01fd758a-742",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "21:21:39Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-027",
+      "provenance": [
+        {
+          "ref": "sha256:ea27e20011969899af02c231d5fcef511906010879ac7874b4a44cd8c7bdb533#message=01fd758a-7424-491d-bafe-b4f7315a9974",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031630Z_6a8f38d6-2e30-83ed-a69f-fdd85df241a3_sha256-ea27e2001196.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-30c744a7-97b",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "21:48:39Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-028",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=30c744a7-97bf-4e67-bf55-b8d0488f0ed7",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-d375b2b1-a5d",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:01:01Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-029",
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=d375b2b1-a5d4-4f70-aaad-a03cfbfbd118",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-113f63b4-a17",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:07:50Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-030",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=113f63b4-a177-4b2d-8fad-97ae4b8b420c",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-42833d20-20a",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-26",
+      "event_time": "22:27:30Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-031",
+      "provenance": [
+        {
+          "ref": "sha256:f08701317926fd8c91539cc6960ccbf44b3b7adff8a9df0af31e2025cd137fe8#message=42833d20-20a5-4eb2-97fb-9b7cc2fe06df",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260827T031448Z_6a8f00b5-bea8-83ed-ad33-931feafe15a2_sha256-f08701317926.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-e2619526-1c7",
+      "matched_form": "slopwall",
+      "raw_user_text": "why did you do 25 minutes of work after slopwall?",
+      "event_date": "2026-08-26",
+      "event_time": "22:38:34Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260826-032",
+      "provenance": [
+        {
+          "ref": "sha256:e1fb13a7fd04977262bfbbfbc630a7cefcfd9ebdd5bdfdb5a69dedcf6f454fba#message=e2619526-1c7b-42c0-a2a5-3cf3afb12e29",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-26/20260826T232152Z_6a8f3268-9c6c-83eb-86ad-915806601f12_sha256-e1fb13a7fd04.json"
+        }
+      ]
+    },
+    {
+      "occurrence_id": "OCC-RAW-bed80b9f-af9",
+      "matched_form": "slopwall",
+      "raw_user_text": "slopwall",
+      "event_date": "2026-08-27",
+      "event_time": "00:51:21Z",
+      "occurrence_role": "CORRECTIVE_INTERVENTION",
+      "canonical_event_id": "SW-20260827-001",
+      "provenance": [
+        {
+          "ref": "sha256:4c15fbe5e9f3581253db3ca793a33aa39bb7de65c9ebf9fc9dc9bf91a12810d5#message=bed80b9f-af92-4862-bb1d-1c298564c09c",
+          "role": "raw_chatport_export",
+          "name": "ChatPortEvidence/raw/2026-08-27/20260827T010341Z_6a8f88c3-9a70-83ed-8347-aa71b3ccd274_sha256-4c15fbe5e9f3.json"
+        }
+      ]
     }
   ],
   "confirmed_counts": {
-    "lexical_occurrences": 30,
-    "canonical_interventions": 26,
-    "slopwall": 29,
+    "lexical_occurrences": 44,
+    "canonical_interventions": 40,
+    "slopwall": 43,
     "slop wall": 1,
-    "scored": 24,
+    "scored": 38,
     "unscorable": 2,
     "occurrence_roles": {
-      "CORRECTIVE_INTERVENTION": 26,
+      "CORRECTIVE_INTERVENTION": 40,
       "META_REFERENCE": 4
     }
   },
