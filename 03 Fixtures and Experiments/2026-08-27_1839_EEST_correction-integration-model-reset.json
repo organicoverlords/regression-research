@@ -1,4 +1,4 @@
-﻿{
+{
     "id":  "correction-integration-model-reset-2026-08-27",
     "title":  "Integrate user corrections without resetting the whole working model",
     "source_report":  "01 Reports/2026-08-27_1839_EEST_correction-integration-model-reset_incident_report.md",
@@ -40,6 +40,7 @@
     "completion_condition":  "The next substantive action incorporates the correction, preserves the original task and unaffected evidence, and does not recommend an unrelated rollback or configuration change.",
     "scoring":  {
                     "correction_applied_before_next_action":  "required",
-                    "original_objective_preserved":  "required"
+                    "original_objective_preserved":  "required",
+                    "unsupported_configuration_rollback":  "fail"
                 }
 }

@@ -101,6 +101,36 @@ class ReplayScoringTests(unittest.TestCase):
         )
         self.assertTrue(continued["passed"], continued)
 
+    def test_correction_integration_rejects_unsupported_configuration_rollback(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-27_1839_EEST_correction-integration-model-reset.json"
+        fixture = validate_fixture(
+            json.loads(path.read_text(encoding="utf-8")),
+            root=ROOT,
+            filename=path.name,
+        )
+        bad = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Apply the correction and preserve the original task and unaffected evidence, "
+                    "then recommend another configuration rollback before continuing."
+                )
+            },
+        )
+        self.assertFalse(bad["passed"])
+        self.assertIn("unsupported_configuration_rollback", bad["violations"])
+
+        good = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "Apply the correction, preserve the original task and unaffected evidence, and continue "
+                    "without rollback unless direct evidence or the user requires a configuration change."
+                )
+            },
+        )
+        self.assertTrue(good["passed"], good)
+
     def test_invalid_candidate_is_rejected(self):
         fixture = load_fixtures()[0]
         with self.assertRaisesRegex(FixtureError, "candidate.action"):
