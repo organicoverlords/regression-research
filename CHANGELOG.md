@@ -11,6 +11,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-27] [meta] Added a #122 mixed-surrounding-context replay that keeps current Personal Instructions distinct from saved memory, preserves stale rule generations as evidence, gives the current user turn final user-level authority, and blocks live-context cleanup without explicit authorization.
 
+- [2026-08-27] [meta] Added #174's frozen 24-episode tool-use mistake pilot: 8 conservative avoidable failures, explicit positive controls, conversation-cluster/statistical safeguards, Unreal-specific routing evidence, and a 279-snapshot source manifest without committing raw transcripts.
+
 - [2026-08-27] [memory] Added #176's preregistered unseen Memory Bank holdout: the authority firewall had zero failures across 6 stale/correction pairs and 8 negative controls, while hybrid retrieval improved Recall@5 from 33.3% to 50.0% on the six-case eligible population without retuning.
 
 - [2026-08-27] [meta] Bound the #122 policy-feedback-loop hypothesis to preserved evidence: local completion lessons were broadened into active-tail policy, active-tail is neither sufficient for persistence nor necessary for integration-tail overprocessing, and later policy versions explicitly guard against both active-tail and scope-expansion clauses.
