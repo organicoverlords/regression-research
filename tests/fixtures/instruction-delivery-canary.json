@@ -1,0 +1,132 @@
+{
+  "fixture_id": "RR-PI-DELIVERY-CANARY-20260827",
+  "status": "REPLAY_READY",
+  "purpose": "Distinguish Personal Instructions delivery failure from delivered-but-not-followed behavior without treating a failed behavior alone as proof of a product injection failure.",
+  "source_evidence": [
+    "01 Reports/2026-08-27_002911_EEST_custom-instructions-ui-context-mismatch_INC-20260827-002911-EEST-484b75e60565_incident_report.md",
+    "02 Evidence/issue122/2026-08-25_1226-web-activation-local-negative.md"
+  ],
+  "canary_contract": {
+    "marker_template": "PI-CANARY-<fresh-random-id>",
+    "harmless_instruction": "On the first assistant reply in a new chat, append the unique marker exactly once.",
+    "first_user_turn": "A normal prompt that does not contain or describe the marker.",
+    "required_observations": [
+      "fresh_chat",
+      "ui_marker_present",
+      "marker_repeated_in_user_turn",
+      "effective_context_marker: present|absent|unknown",
+      "behavior_observed"
+    ],
+    "safety": "This fixture is an offline classifier only. It must not edit Personal Instructions, memory, Settings, personality, or other live user configuration. Any live canary setup requires separate explicit user authorization."
+  },
+  "classifications": {
+    "delivery_failure_proven": "UI marker is confirmed, fresh-chat setup is uncontaminated, effective context is directly observed absent, and canary behavior is absent.",
+    "delivered_but_not_followed": "The marker is directly observed in effective context but the harmless behavior is absent; do not blame delivery.",
+    "delivery_and_behavior_confirmed": "The marker is directly observed in effective context and the harmless behavior is observed.",
+    "effective_delivery_confirmed_context_unobserved": "The unique behavior is observed without user restatement, supporting effective delivery while literal context presence remains unobserved.",
+    "undifferentiated_failure": "Behavior is absent and effective context is unavailable; do not attribute the failure to delivery or assistant noncompliance.",
+    "inconsistent_observation": "Behavior is observed while the same run claims the unique marker is absent from effective context; evidence must be reconciled before attribution.",
+    "invalid_setup": "The chat is not fresh, the UI marker is not confirmed, or the marker leaked into the user turn."
+  },
+  "cases": [
+    {
+      "id": "ui-context-mismatch",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "absent",
+        "behavior_observed": false
+      },
+      "expected": "delivery_failure_proven"
+    },
+    {
+      "id": "delivered-not-followed",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "present",
+        "behavior_observed": false
+      },
+      "expected": "delivered_but_not_followed"
+    },
+    {
+      "id": "delivered-and-followed",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "present",
+        "behavior_observed": true
+      },
+      "expected": "delivery_and_behavior_confirmed"
+    },
+    {
+      "id": "behavior-only-success",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "unknown",
+        "behavior_observed": true
+      },
+      "expected": "effective_delivery_confirmed_context_unobserved"
+    },
+    {
+      "id": "behavior-only-failure",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "unknown",
+        "behavior_observed": false
+      },
+      "expected": "undifferentiated_failure"
+    },
+    {
+      "id": "contradictory-evidence",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "absent",
+        "behavior_observed": true
+      },
+      "expected": "inconsistent_observation"
+    },
+    {
+      "id": "marker-leaked-through-user",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": true,
+        "effective_context_marker": "unknown",
+        "behavior_observed": true
+      },
+      "expected": "invalid_setup"
+    },
+    {
+      "id": "not-fresh-chat",
+      "observation": {
+        "fresh_chat": false,
+        "ui_marker_present": true,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "present",
+        "behavior_observed": true
+      },
+      "expected": "invalid_setup"
+    },
+    {
+      "id": "ui-not-confirmed",
+      "observation": {
+        "fresh_chat": true,
+        "ui_marker_present": false,
+        "marker_repeated_in_user_turn": false,
+        "effective_context_marker": "unknown",
+        "behavior_observed": false
+      },
+      "expected": "invalid_setup"
+    }
+  ]
+}

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Added an offline #122 Personal Instructions delivery-canary decision table that separates proven UI-to-context delivery failure from delivered-but-not-followed behavior and from behavior-only ambiguous failures; no live ChatGPT configuration is read or changed.
+
 - [2026-08-27] [meta] Added bounded #155 failure-boundary forensics: localized the WebGPT `Resource not found` interval above a healthy MCP0 backend, proved browser-export/recovered-artifact boundaries and cross-caller process recovery, and kept unresolved product-layer behavior as evidence targets rather than new machinery.
 
 - [2026-08-27] [meta] Added a paired #122 acceptance-boundary replay that requires continuation only while task-local acceptance is unmet and rejects unrelated process/BUSY/dirty-tree/PR activity as a reason to widen completed scope.

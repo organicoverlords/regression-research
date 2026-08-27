@@ -62,3 +62,6 @@ concise report, and `--format both` emits JSON on stdout with the human report
 on stderr so either stream remains usable. A pending-capture record is retained
 for provenance and coverage but is excluded from scoring until it becomes
 replay-ready.
+## Issue #122 Personal Instructions delivery canary
+
+`tests/fixtures/instruction-delivery-canary.json` defines a harmless, offline-scored canary contract for future explicitly authorized live tests. It requires a fresh unique marker, no marker restatement in the user turn, UI confirmation, and separate observation of effective context when available. A missing behavior with unknown effective context is deliberately `undifferentiated_failure`; only direct UI-present/context-absent evidence is classified as a proven delivery failure. The fixture itself never reads or changes Personal Instructions, memory, Settings, personality, or other live configuration.

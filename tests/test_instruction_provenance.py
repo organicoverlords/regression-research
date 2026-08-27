@@ -1,8 +1,11 @@
+import json
 import unittest
+from pathlib import Path
 
 from tools.instruction_provenance import (
     InstructionProvenanceError,
     behavior_attribution,
+    classify_instruction_delivery_probe,
     load_policy,
     partition_request,
     resolve_directive,
@@ -91,6 +94,44 @@ class InstructionProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(result["blocked"][0]["id"], "placeholder")
         self.assertNotIn("content", result["blocked"][0])
+
+    def test_instruction_delivery_canary_decision_table(self):
+        fixture = json.loads(
+            (Path(__file__).resolve().parent / "fixtures" / "instruction-delivery-canary.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for case in fixture["cases"]:
+            with self.subTest(case=case["id"]):
+                self.assertEqual(
+                    classify_instruction_delivery_probe(case["observation"]),
+                    case["expected"],
+                )
+
+    def test_behavior_failure_without_context_visibility_is_not_delivery_failure(self):
+        result = classify_instruction_delivery_probe(
+            {
+                "fresh_chat": True,
+                "ui_marker_present": True,
+                "marker_repeated_in_user_turn": False,
+                "effective_context_marker": "unknown",
+                "behavior_observed": False,
+            }
+        )
+        self.assertEqual(result, "undifferentiated_failure")
+
+    def test_delivered_but_ignored_is_not_misclassified_as_delivery_failure(self):
+        result = classify_instruction_delivery_probe(
+            {
+                "fresh_chat": True,
+                "ui_marker_present": True,
+                "marker_repeated_in_user_turn": False,
+                "effective_context_marker": "present",
+                "behavior_observed": False,
+            }
+        )
+        self.assertEqual(result, "delivered_but_not_followed")
+
 
 
 if __name__ == "__main__":

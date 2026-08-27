@@ -121,3 +121,49 @@ def behavior_attribution(active_sources: Iterable[str], *, policy: dict[str, Any
         if source not in out:
             out.append(source)
     return out
+
+DELIVERY_CONTEXT_STATES = {"present", "absent", "unknown"}
+
+
+def classify_instruction_delivery_probe(observation: dict[str, Any]) -> str:
+    """Classify a harmless Personal Instructions delivery-canary observation.
+
+    This function only classifies supplied evidence. It does not read or mutate
+    ChatGPT Personalization, memory, or any other live user configuration.
+    """
+    required_bool = (
+        "fresh_chat",
+        "ui_marker_present",
+        "marker_repeated_in_user_turn",
+        "behavior_observed",
+    )
+    for field in required_bool:
+        if not isinstance(observation.get(field), bool):
+            raise InstructionProvenanceError(f"delivery probe field must be boolean: {field}")
+
+    context_state = observation.get("effective_context_marker")
+    if context_state not in DELIVERY_CONTEXT_STATES:
+        raise InstructionProvenanceError(
+            "effective_context_marker must be one of: absent, present, unknown"
+        )
+
+    if (
+        not observation["fresh_chat"]
+        or not observation["ui_marker_present"]
+        or observation["marker_repeated_in_user_turn"]
+    ):
+        return "invalid_setup"
+
+    if context_state == "absent":
+        if observation["behavior_observed"]:
+            return "inconsistent_observation"
+        return "delivery_failure_proven"
+
+    if context_state == "present":
+        if observation["behavior_observed"]:
+            return "delivery_and_behavior_confirmed"
+        return "delivered_but_not_followed"
+
+    if observation["behavior_observed"]:
+        return "effective_delivery_confirmed_context_unobserved"
+    return "undifferentiated_failure"
