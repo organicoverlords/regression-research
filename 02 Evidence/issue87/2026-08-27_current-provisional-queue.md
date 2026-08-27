@@ -1,6 +1,6 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 route-failure-scope normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 context-provenance normalization. This is a derived review queue, not recall authority.
 
 Effective unsuperseded provisionals: **10**.
 
@@ -12,12 +12,13 @@ Effective unsuperseded provisionals: **10**.
 | `mem-20260827-07cab6dc` | response-quality | SLOPWALL 2026-08-27 04:05 EEST: after the user said the answer was still skipping the conversation and analysis, the ass | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-1cc59356` | response-quality | INCIDENT 2026-08-27 05:05 EEST: Library→Vault continuation repeatedly regressed into reinvestigation. The task was alrea | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-5c891437` | response-quality | SLOPWALL 2026-08-27 05:06 EEST: after the user showed a screenshot proving the assistant kept analyzing after the next s | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
-| `mem-20260827-424d0a22` | assistant-context-provenance | Observed 2026-08-27: during issue #155 work, awareness of the ~24m45/~25m caller-turn timing pattern appears to have com | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-f5367852` | assistant-orchestration/personal-instructions-checkpoint | Checkpoint: user applied new chat-level Personal Instructions for bounded investigation, visible progress, and immediate | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 
 | `mem-20260827-27ea5e8c` | security-incident:p3-595-lfs-hydration-20260827 | P3 #595 broad LFS hydration security incident | Needs independent tracked/raw evidence before promotion; preserve the non-destructive reconciliation boundary. |
 
 | `mem-20260827-92f21a3e` | incident:orchestration-overload-v2-v1 | Orchestration-overload / missed-project-truth incident | Needs direct user/runtime evidence before promotion; do not promote its assistant-generated causal list from the incident text alone. |
+
+| `mem-20260827-c7e50794` | security-incident:p3-595-lfs-hydration-20260827 | Correction: Editor lanes require full Content hydration; hidden security mechanism remains unknown | Needs tracked P3 lane/runtime evidence and explicit supersession relation before promotion. |
 
 ## Closed in this batch
 
@@ -33,6 +34,8 @@ Effective unsuperseded provisionals: **10**.
 - `mem-20260827-69627953` ? `mem-20260827-5960d3f0`: retained the directly reproduced process-ID recovery boundary after connector disconnects and dropped speculative multi-connector/language architecture recommendations.
 
 - `mem-20260827-82092b15` ? `mem-20260827-6d3f0534`: replaced the residual security-routing investigation lesson with the current user-authored route-failure boundary; failed routes do not become debugging projects unless route debugging is itself the task.
+
+- `mem-20260827-424d0a22` ? `mem-20260827-5ba7efc4`: replaced the inferred recent-conversation-context mechanism with the tracked #122 boundary that hidden delivery/context source remains OPEN without a direct witness; universal deterministic 24m45 cutoff remains rejected.
 
 ## Boundary
 
