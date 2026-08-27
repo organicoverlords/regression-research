@@ -9,6 +9,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 ## [Unreleased]
 - [2026-08-27] [meta] Corrected #122 rule provenance: the Aug 25 12:26 custom-instructions rewrite had removed the pre-existing MCP availability guard; after the 12:30 direct-chat failure, an external-agent repair restored that guard and added durable-memory entry `A TOOL IS AVAILABLE UNTIL I HAVE TRIED IT` before the 12:37 visible rule paste and 12:40 fresh-chat successes.
 
+- [2026-08-27] [meta] Preserved #122 negative evidence for the repaired MCP-rule activation question: local browser history/storage, clipboard-adjacent storage, raw activation terms, and first-turn context metadata contain no direct Settings-application witness, bounding further local archaeology without claiming the PI was never applied.
+
 - [2026-08-27] [meta] Decomposed #122 scope expansion into recursive adoption of unrelated baseline failures and a separate post-acceptance integration tail; confirmed the latter recurred under committed shared policy v1.14 before the v1.15 active-tail rule.
 
 - [2026-08-27] [meta] Added a scored #122 interruption/tool-discovery replay so an unloaded MCP0 schema cannot be promoted to global tool unavailability before MCP0 discovery/attempt, while preserving the inherited task across the interruption.
