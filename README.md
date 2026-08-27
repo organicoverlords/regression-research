@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-27] [memory] Replaced the tool-routing incident provisional with the tracked connector-binding/fallback boundary and refreshed #87 for a concurrent timed-worker provisional; effective provisionals remain 8.
 - [2026-08-27] [memory] Replaced the worker-launch live-authority provisional with verbatim current user instructions and removed unrelated operational extras; effective #87 provisionals are now 8.
 - [2026-08-27] [memory] Consolidated the paired P3 #595 LFS-hydration provisionals from live issue evidence, preserving the hidden security mechanism as unknown; effective #87 provisionals are now 9 after one concurrent worker-launch provisional.
 - [2026-08-27] [memory] Replaced the context-provenance mechanism provisional with the tracked #122 open-source boundary and refreshed #87 for a concurrent P3 LFS correction; effective provisionals remain 10.
 - [2026-08-27] [memory] Replaced the residual security-routing investigation provisional with the current user-authored route-failure scope boundary and refreshed #87 for a concurrently added orchestration incident; effective provisionals remain 10.
-- [2026-08-27] [memory] Replaced the connector-reliability provisional with the live-reproduced process-ID recovery boundary, excluding speculative connector-architecture recommendations; effective #87 provisionals are now 10.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
