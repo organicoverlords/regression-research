@@ -1,8 +1,8 @@
 # Issue #87 current provisional review queue
 
-Snapshot after the 2026-08-27 effective-PI routing normalization. This is a derived review queue, not recall authority.
+Snapshot after the 2026-08-27 process-recovery normalization. This is a derived review queue, not recall authority.
 
-Effective unsuperseded provisionals: **11**.
+Effective unsuperseded provisionals: **10**.
 
 | Memory ID | Scope | Title / summary | Next evidence gate |
 | --- | --- | --- | --- |
@@ -13,7 +13,6 @@ Effective unsuperseded provisionals: **11**.
 | `mem-20260827-1cc59356` | response-quality | INCIDENT 2026-08-27 05:05 EEST: Library→Vault continuation repeatedly regressed into reinvestigation. The task was alrea | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-5c891437` | response-quality | SLOPWALL 2026-08-27 05:06 EEST: after the user showed a screenshot proving the assistant kept analyzing after the next s | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-424d0a22` | assistant-context-provenance | Observed 2026-08-27: during issue #155 work, awareness of the ~24m45/~25m caller-turn timing pattern appears to have com | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
-| `mem-20260827-69627953` | regression-research#125 connector reliability | Observed during #125 standalone BUSY/connector work on 2026-08-27: MCP0 became unreachable on a routine start_process be | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-82092b15` | issue125-security-routing-correction | Correction to mem-20260827-afce2baf: do NOT interpret 'avoid unnecessary high-churn or broad tool activity' as 'avoid in | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 | `mem-20260827-f5367852` | assistant-orchestration/personal-instructions-checkpoint | Checkpoint: user applied new chat-level Personal Instructions for bounded investigation, visible progress, and immediate | Needs independent raw/direct evidence before promotion or a superseding narrower rule. |
 
@@ -29,6 +28,8 @@ Effective unsuperseded provisionals: **11**.
 - `mem-20260827-7f5ac301` + `mem-20260827-1d581787` ? `mem-20260827-e2c1b0bd`: consolidated the cleanup incident/prohibition into the exact user-sourced PLY/GLB deletion boundary; broader assistant-generated causal claims were not promoted.
 
 - `mem-20260827-4a76f1a9` ? `mem-20260827-e502d81c`: replaced the mixed PI/saved-memory checkpoint with the current effective Personal-Instructions routing rule and dropped the stale MCP0-first saved-memory clause.
+
+- `mem-20260827-69627953` ? `mem-20260827-5960d3f0`: retained the directly reproduced process-ID recovery boundary after connector disconnects and dropped speculative multi-connector/language architecture recommendations.
 
 ## Boundary
 
