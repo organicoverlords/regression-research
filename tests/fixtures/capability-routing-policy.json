@@ -5,7 +5,8 @@
     "transport_is_not_permission": true,
     "duplicate_authority_forbidden": true,
     "unrelated_capabilities_continue": true,
-    "tool_names_live_outside_core_policy": true
+    "tool_names_live_outside_core_policy": true,
+    "visible_surface_is_not_capability_boundary": true
   },
   "capabilities": {
     "coordination": {
