@@ -14,6 +14,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 - [2026-08-27] [meta] Bound the #122 policy-feedback-loop hypothesis to preserved evidence: local completion lessons were broadened into active-tail policy, active-tail is neither sufficient for persistence nor necessary for integration-tail overprocessing, and later policy versions explicitly guard against both active-tail and scope-expansion clauses.
 
 - [2026-08-27] [memory] Promoted #172's preregistered deterministic hybrid Memory Bank retrieval after a frozen A/B improved paraphrase Recall@5 from 40.0% to 73.3% with zero exact-control regression; added a behavioral-authority firewall so relevance, factual evidence, and policy authority cannot silently collapse into one another, with no new MCP tool or resource.
+- [2026-08-27] [meta] Promoted the #125 standalone BUSY trial into feature-equivalent Rust/Python job coordination with idempotent operations, renewable leases, automatic stale recovery, blocked/completed checkpoints, next-ready handoff, a stable local installer, and cross-language parity/200-attempt contention proof; no new GPT-facing tool or authority was added.
 
 - [2026-08-27] [meta] Added the #125 standalone BUSY trial in Python and Rust: both share the current authority outside the MCP schema, pass two-way live cross-visibility and 200 mixed-writer contention attempts, with no new GPT-facing tool.
 

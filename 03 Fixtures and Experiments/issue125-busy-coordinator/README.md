@@ -1,23 +1,29 @@
-# #125 standalone BUSY coordinator trial
+# #125 standalone BUSY coordinator
 
-Purpose: prove that BUSY ownership can leave the MCP tool schema without adding any GPT-facing tool or changing the user's work method.
+Purpose: move BUSY/job coordination out of the MCP tool schema without changing the user's workflow or creating a second authority.
 
-Two intentionally small implementations are kept for comparison:
+Two interchangeable implementations are kept deliberately feature-equivalent:
 
 - `python/busy.py`
 - `rust/` (`busy-coordinator.exe` after build)
 
-Both operate on the same existing JSON store and `.lock` file. They implement only `list`, `claim`, and `release` in this first parity stage. The default store remains `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json` so the trial can prove cross-visibility with the current MCP BUSY tools before cutover.
+Both operate on the same canonical `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json` plus its existing atomic `.lock`. They preserve unknown top-level metadata so current MCP0 and either standalone implementation can coexist during rollout.
 
-Both preserve unknown top-level versioned coordinator/job metadata when rewriting `claims`. This matches `chatgpt-mcp-clean` PR #17 and prevents any legacy or fallback client from erasing checkpoints stored in the canonical file.
+Supported coordinator operations are `list`, `sweep`, `enqueue`, `ready`, `next`, `claim`, `heartbeat`, `release`, `block`, `complete`, and `inspect`. Job identity is the canonical trimmed scope string. Optional operation IDs make retries idempotent across connector/runtime changes. Leases are renewable; expired coordinator-owned work returns to `ready`; a newer legacy/MCP claim timestamp disables automatic expiry rather than deleting newer ownership. Block/complete persist a checkpoint and release ownership automatically.
 
-The intended invocation is through the existing `start_process` capability. Neither implementation is an MCP/GPT tool.
+The tool apps are separate from MCP. They are intended to be invoked through an existing process tool or directly from the local machine; neither implementation is registered as a GPT/MCP tool. The MCP connectors remain interchangeable transport entrances, not ownership systems.
 
-The automation layer described in regression-research #125 is the next stage after parity: admission dedupe, renewable ownership, blocked checkpoint/release, automatic cleanup, and bounded next-work redirection. Do not turn this trial into a dashboard, dispatcher, scoring system, or second ownership authority.
+`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` without changing the canonical store.
 
-Run isolated contention proof:
+Verification:
 
 ```powershell
 cargo build --release --manifest-path .\rust\Cargo.toml
+cargo test --manifest-path .\rust\Cargo.toml
+python .\tests\coordinator_parity.py
 python .\tests\mixed_contention.py
 ```
+
+`coordinator_parity.py` proves cross-language idempotency, lifecycle continuation, exact ownership, lease expiry, legacy-refresh safety, metadata passthrough, and blocked/next-work handoff. `mixed_contention.py` races Python and Rust writers against the same lock/store.
+
+Do not add a dashboard, dispatcher UI, scoring system, workflow language, connector-specific ownership state, or another database. Normal user interaction remains an issue request, `go`, or `continue`.
