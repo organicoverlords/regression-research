@@ -77,6 +77,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-27] [meta] Added whole-stack acceptance scenarios composing instruction provenance, partial execution, capability fallback, BUSY ownership, coordination-outage degradation, and explicit memory-write authorization (#125).
 
+- [2026-08-27] [meta] Preserved the observed coordination-outage merge regression where PRs #133 and #135 were merged without a callable BUSY adapter, and added a replay requiring isolated branch work to continue while merge-to-main defers (#125).
+
 - [2026-08-27] [meta] Finalized the four candidate-only negative-feedback review records from #87: two evidence-backed replay lessons are historical-only and two unsupported/misaligned assistant diagnoses are rejected; the derived audit consumes the review receipt without changing ordinary recall.
 
 - [2026-08-27] [meta] Made canonical memory reads side-effect free: `recent`, `validate`, and `search` no longer trigger Git reconciliation or publishing; canonical writes retain pre/post synchronization.

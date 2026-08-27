@@ -50,6 +50,18 @@ class StackAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_id["shared-edit"]["disposition"], "defer_shared_mutation")
         self.assertEqual(result["overall"], "partial_progress")
 
+    def test_coordination_outage_allows_isolated_work_but_not_main_merge(self):
+        scenario = next(
+            item
+            for item in self.fixture["scenarios"]
+            if item["id"] == "coordination-outage-allows-isolated-branch-but-defers-main-merge"
+        )
+        result = self.run_scenario(scenario)
+        by_id = {item["id"]: item for item in result["allowed"]}
+        self.assertEqual(by_id["isolated-branch-edit"]["disposition"], "execute")
+        self.assertEqual(by_id["merge-main"]["disposition"], "defer_shared_mutation")
+        self.assertEqual(result["overall"], "partial_progress")
+
     def test_stale_projection_never_turns_into_yield(self):
         scenario = next(item for item in self.fixture["scenarios"] if item["id"] == "stale-projection-never-becomes-owner")
         result = self.run_scenario(scenario)
