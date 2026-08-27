@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "source_issue": 122,
+  "event": "2026-08-26T18:19:03+03:00 execution-finalization recurrence",
+  "classification": "confirmed_post_good_recurrence_open_delivery_mechanism",
+  "conversation": {
+    "title": "Fix worker convergence lifecycle",
+    "request_id": "fb97ffaf-28c3-418c-b249-42d4e3d748c7",
+    "model": "gpt-5-6-thinking",
+    "thinking_effort": "extended",
+    "reported_turn_duration_s": 1605.97,
+    "tool_calls": 121,
+    "tool_results": 118
+  },
+  "terminal_ordering_eest": {
+    "mcp_start_process_http_200": "2026-08-26T18:19:01.227+03:00",
+    "mcp_process_exit_code_0": "2026-08-26T18:19:01.595+03:00",
+    "assistant_final": "2026-08-26T18:19:03.072+03:00",
+    "chatgpt_tool_result_node": "2026-08-26T18:19:03.074+03:00",
+    "process_exit_to_assistant_final_ms": 1477,
+    "tool_result_node_minus_assistant_final_ms": 2,
+    "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
+    "pid": 29384,
+    "mcp_caller_id": "caller_b5cccc8796df"
+  },
+  "raw_completion_metadata": {
+    "status": "finished_successfully",
+    "finish_details_type": "stop",
+    "stop_tokens": [200002],
+    "is_complete": true,
+    "timeout_or_cutoff_marker_observed": false
+  },
+  "observed_failure": {
+    "required_result_consumed_before_final": false,
+    "assistant_claimed_tool_window_ended": true,
+    "process_was_later_read_at": "2026-08-26T18:43:09.245+03:00"
+  },
+  "universal_24m45_cutoff_test": {
+    "threshold_s": 1485,
+    "status": "rejected",
+    "evidence": [
+      {
+        "case_id": "good-p3-1317",
+        "turn_duration_s": 1688.532,
+        "seconds_past_threshold": 203.532,
+        "behavior": "sustained_execution"
+      },
+      {
+        "case_id": "postpolicy-good-1742",
+        "turn_duration_s": 1538.595,
+        "seconds_past_threshold": 53.595,
+        "model": "gpt-5-6-thinking",
+        "thinking_effort": "extended",
+        "behavior": "sustained_execution"
+      },
+      {
+        "case_id": "terminal-regression-1819",
+        "turn_duration_s": 1605.97,
+        "seconds_past_threshold": 120.97,
+        "note": "MCP accepted and completed the terminal start_process near the request tail; no timeout completion marker was serialized."
+      }
+    ]
+  },
+  "historical_calibration": {
+    "same_failure_family_predates_aug25_repair": true,
+    "earlier_incident": "INC-20260822-041206-EEST-6fbe00877ea1",
+    "earlier_phenotype": "assistant claimed execution window ended while an owned healthy validation process remained active and requested work was incomplete",
+    "interpretation": "18:19 is the first independently confirmed recurrence after the known-good Aug 25/Aug 26 checkpoint, not the first-ever occurrence of premature process finalization."
+  },
+  "interpretation": {
+    "proven": [
+      "MCP server accepted and completed the final process before the assistant final.",
+      "The assistant final was an ordinary successful stop, not a serialized timeout/cutoff completion.",
+      "The ChatGPT-side tool-result node is ordered 2 ms after the assistant final in the raw export.",
+      "A universal 24m45 turn/tool ceiling is falsified by longer healthy controls, including the same GPT-5.6 Thinking/extended mode."
+    ],
+    "open": [
+      "Whether the 2 ms result-after-final ordering reflects a product/tool-result delivery race, timestamp jitter, or another orchestration mechanism.",
+      "Whether control-layer composition increased the probability of this pre-existing execution-binding failure family after the 17:10 good checkpoint."
+    ],
+    "do_not_infer": [
+      "Do not label MCP server outage as the cause.",
+      "Do not label a hard 24m45 platform cutoff as the cause.",
+      "Do not attribute the recurrence to one policy clause without a same-mode intervention/replay."
+    ]
+  },
+  "comparison_required": "For healthy long-turn raw controls, compare final required tool-result node timestamp against assistant final timestamp. The race hypothesis is not promoted until that control comparison is available."
+}
