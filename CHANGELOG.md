@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-27] [security] Recorded the PR #215 interrupt-authority incident and added a replay guard requiring user interrupts to revoke pending state-changing authority before a separate post-interrupt mutation action.
+
 - [2026-08-27] [memory] Replaced the tool-routing incident provisional with the tracked connector-binding/fallback boundary and refreshed #87 for a concurrent timed-worker provisional; effective provisionals remain 8.
 
 - [2026-08-27] [memory] Replaced the worker-launch live-authority provisional with verbatim current user instructions and removed unrelated operational extras; effective #87 provisionals are now 8.
