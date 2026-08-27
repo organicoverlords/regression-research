@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Added bounded #155 failure-boundary forensics: localized the WebGPT `Resource not found` interval above a healthy MCP0 backend, proved browser-export/recovered-artifact boundaries and cross-caller process recovery, and kept unresolved product-layer behavior as evidence targets rather than new machinery.
+
 - [2026-08-27] [meta] Added a paired #122 acceptance-boundary replay that requires continuation only while task-local acceptance is unmet and rejects unrelated process/BUSY/dirty-tree/PR activity as a reason to widen completed scope.
 
 - [2026-08-27] [meta] Preserved the three manually recovered #155 WebGPT architecture artifacts byte-for-byte under `02 Evidence/issue155-recovered-webgpt-artifacts/`, matching the SHA-256 hashes recorded during the live-test review; no memory, Personal Instructions, MCP configuration, worker schedule, or policy changed.
