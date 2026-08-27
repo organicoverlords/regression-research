@@ -26,6 +26,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         raise InstructionProvenanceError("policy missing structured source/data/invariant sections")
     required_sources = {
         "current_user",
+        "current_personal_instructions",
         "live_repo_policy",
         "durable_context",
         "historical_context",
@@ -42,6 +43,12 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         raise InstructionProvenanceError("current user must outrank durable context")
     if sources["current_user"]["rank"] <= sources["historical_context"]["rank"]:
         raise InstructionProvenanceError("current user must outrank historical context")
+    if sources["current_user"]["rank"] <= sources["current_personal_instructions"]["rank"]:
+        raise InstructionProvenanceError("current user must outrank current personal instructions")
+    if sources["current_personal_instructions"]["rank"] <= sources["live_repo_policy"]["rank"]:
+        raise InstructionProvenanceError("current personal instructions must outrank live repo policy")
+    if sources["current_personal_instructions"]["rank"] <= sources["durable_context"]["rank"]:
+        raise InstructionProvenanceError("current personal instructions must outrank durable context")
     if sources["retrieved_content"]["can_direct"] or sources["retrieved_content"]["rank"] != 0:
         raise InstructionProvenanceError("retrieved content must not become instruction authority by default")
     if data_classes.get("protected_internal") != "non_disclosable_placeholder_only":
@@ -53,6 +60,8 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "allowed_parts_survive_mixed_requests",
         "protected_internal_content_not_required_for_testing",
         "behavior_attribution_preserves_multiple_sources",
+        "current_personal_instructions_beat_repo_and_stale_context",
+        "current_explicit_instruction_beats_personal_instructions",
     }
     if any(invariants.get(name) is not True for name in required_invariants):
         raise InstructionProvenanceError("all provenance invariants must be enabled")
