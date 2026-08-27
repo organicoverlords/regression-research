@@ -1,0 +1,31 @@
+﻿{
+  "version": 1,
+  "frozen_before_candidate": true,
+  "cases": [
+    {"id":"p01","cohort":"paraphrase","query":"the connector disappeared; should I assume the command or job died too?","expected":["mem-20260827-ab85c977"]},
+    {"id":"p02","cohort":"paraphrase","query":"why do failures cluster when one request has been running for about twenty five minutes?","expected":["mem-20260827-8a45d28e"]},
+    {"id":"p03","cohort":"paraphrase","query":"when I ask for a refresh, is acknowledging it enough without rereading anything?","expected":["mem-20260827-48fce445"]},
+    {"id":"p04","cohort":"paraphrase","query":"can a screenshot establish the hidden internal root cause rather than only what was visible?","expected":["mem-20260827-a4153dd1"]},
+    {"id":"p05","cohort":"paraphrase","query":"if proof is missing, should the investigation spread into unrelated areas?","expected":["mem-20260827-d5b341c6"]},
+    {"id":"p06","cohort":"paraphrase","query":"after the requested deliverable is complete, should newly noticed cleanup debt expand the job?","expected":["mem-20260827-220e4517"]},
+    {"id":"p07","cohort":"paraphrase","query":"when told to store findings at a specific destination, can you stop after explaining them in chat?","expected":["mem-20260827-252a15cc"]},
+    {"id":"p08","cohort":"paraphrase","query":"does a large number of simultaneous workers by itself prove the control plane regression cause?","expected":["mem-20260827-58787569"]},
+    {"id":"p09","cohort":"paraphrase","query":"is it safe to trim noisy working context without first isolating the effect experimentally?","expected":["mem-20260827-context-pruning-ab"]},
+    {"id":"p10","cohort":"paraphrase","query":"do not make the user walk through all of the diagnostic investigation just to get the answer","expected":["mem-20260827-5ab6b51a"]},
+    {"id":"p11","cohort":"paraphrase","query":"why do chained commands using double ampersands fail in old Windows PowerShell but work in pwsh?","expected":["mem-20260827-3fa939d7"]},
+    {"id":"p12","cohort":"paraphrase","query":"after building a searchable chat index, may the preserved raw source exports be discarded?","expected":["mem-20260827-a4b1730f"]},
+    {"id":"p13","cohort":"paraphrase","query":"after the user corrects the route, is it acceptable to continue on the previous path?","expected":["mem-20260827-7fc3c053"]},
+    {"id":"p14","cohort":"paraphrase","query":"should worker report wording be dictated by the evidence confidence taxonomy?","expected":["mem-20260827-b7525c20"]},
+    {"id":"p15","cohort":"paraphrase","query":"if work ends early, do not blame a time limit unless that cutoff was actually demonstrated","expected":["mem-20260827-a46bdf43"]},
+    {"id":"c01","cohort":"exact_control","query":"Refresh requires retrieval before completion","expected":["mem-20260827-48fce445"]},
+    {"id":"c02","cohort":"exact_control","query":"Tool-surface loss does not imply task or process loss","expected":["mem-20260827-ab85c977"]},
+    {"id":"c03","cohort":"exact_control","query":"Conversation corpus preserves originals; index is disposable","expected":["mem-20260827-a4b1730f"]},
+    {"id":"c04","cohort":"exact_control","query":"Windows PowerShell 5.1 rejects &&; pwsh 7 accepts it","expected":["mem-20260827-3fa939d7"]},
+    {"id":"c05","cohort":"exact_control","query":"Missing evidence localizes uncertainty; it does not widen scope","expected":["mem-20260827-d5b341c6"]},
+    {"id":"c06","cohort":"exact_control","query":"Do not prune working context without isolated A/B proof","expected":["mem-20260827-context-pruning-ab"]},
+    {"id":"n01","cohort":"abstain","query":"quasar spectroscopy redshift calibration","expected":[]},
+    {"id":"n02","cohort":"abstain","query":"sourdough starter hydration rye fermentation","expected":[]},
+    {"id":"n03","cohort":"abstain","query":"orchid repotting sphagnum root aeration","expected":[]},
+    {"id":"n04","cohort":"abstain","query":"marathon shoe carbon plate cushioning","expected":[]}
+  ]
+}

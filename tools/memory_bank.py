@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import secrets
 import sys
@@ -11,8 +12,10 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
+    from .memory_authority import annotate_memory, behavioral_authority
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
+    from memory_authority import annotate_memory, behavioral_authority
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -188,6 +191,7 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
             "title": derive_display_title(entry),
             "kind": entry["kind"],
             "scope": entry["scope"],
+            "authority": behavioral_authority(entry)["role"],
         }
         for entry in current[:effective_limit]
     ]
@@ -328,9 +332,22 @@ def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str
     }
 
 
+def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, strategy: str | None = None) -> list[dict[str, Any]]:
+    selected_strategy = (strategy or os.environ.get("MEMORY_RETRIEVAL_STRATEGY", "hybrid")).strip().casefold()
+    if selected_strategy == "legacy" or history:
+        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
+    if selected_strategy != "hybrid":
+        raise BankError(f"unknown memory retrieval strategy: {selected_strategy}")
+    try:
+        from .memory_hybrid import search_entries_hybrid
+    except ImportError:
+        from memory_hybrid import search_entries_hybrid
+    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=history)
+
+
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
     effective_limit = min(MAX_RECALL_LIMIT, max(0, int(limit)))
-    manual = search_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
+    manual = search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
     if history or not query.strip() or effective_limit == 0:
         return manual
 
@@ -436,13 +453,13 @@ def _main() -> int:
             _print_json(entry)
             return 0
         if args.command == "history":
-            _print_json(search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True))
+            _print_json([annotate_memory(entry) for entry in search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True)])
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
             return 0
         if args.command == "search":
-            _print_json(search_all_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history))
+            _print_json([annotate_memory(entry) for entry in search_all_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history)])
             return 0
     except BankError as exc:
         _print_json({"status": "REJECTED", "error": str(exc)})

@@ -1,0 +1,422 @@
+{
+  "bank_entries": 112,
+  "cases": [
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-ab85c977"
+      ],
+      "hits": [
+        "mem-20260825-memory-provenance-pointer",
+        "mem-20260827-3fa939d7",
+        "mem-20260827-69627953",
+        "mem-20260827-252a15cc",
+        "mem-20260827-807066be"
+      ],
+      "id": "p01",
+      "query": "the connector disappeared; should I assume the command or job died too?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-8a45d28e"
+      ],
+      "hits": [
+        "mem-20260827-ac83a23d",
+        "mem-20260825-3b82afd8",
+        "mem-20260827-5ab6b51a",
+        "mem-20260826-orchestration-incident-001",
+        "mem-20260827-69627953"
+      ],
+      "id": "p02",
+      "query": "why do failures cluster when one request has been running for about twenty five minutes?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-48fce445"
+      ],
+      "hits": [
+        "mem-20260827-b7525c20",
+        "mem-20260827-07cab6dc",
+        "mem-20260827-3260514c",
+        "mem-20260825-3b82afd8",
+        "mem-20260827-5ab6b51a"
+      ],
+      "id": "p03",
+      "query": "when I ask for a refresh, is acknowledging it enough without rereading anything?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-a4153dd1"
+      ],
+      "hits": [
+        "mem-20260827-ab85c977",
+        "mem-20260827-3260514c",
+        "mem-20260826-orchestration-incident-001",
+        "mem-20260827-5c891437",
+        "mem-20260827-07cab6dc"
+      ],
+      "id": "p04",
+      "query": "can a screenshot establish the hidden internal root cause rather than only what was visible?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-d5b341c6"
+      ],
+      "hits": [
+        "mem-20260827-7fc3c053",
+        "mem-20260825-bank-no-bootstrap",
+        "mem-20260827-5ab6b51a",
+        "mem-20260827-3fa939d7",
+        "mem-20260826-0743b23f"
+      ],
+      "id": "p05",
+      "query": "if proof is missing, should the investigation spread into unrelated areas?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-220e4517"
+      ],
+      "hits": [
+        "mem-20260827-220e4517",
+        "mem-20260827-context-pruning-ab",
+        "mem-20260827-7fc3c053",
+        "mem-20260827-5ab6b51a",
+        "mem-20260826-correction-regurgitation-incident"
+      ],
+      "id": "p06",
+      "query": "after the requested deliverable is complete, should newly noticed cleanup debt expand the job?",
+      "rank": 1
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-252a15cc"
+      ],
+      "hits": [
+        "mem-20260827-426aa029",
+        "mem-20260827-5ccc156a",
+        "mem-20260827-8a45d28e",
+        "mem-20260827-f063162f",
+        "mem-20260825-route-contradiction"
+      ],
+      "id": "p07",
+      "query": "when told to store findings at a specific destination, can you stop after explaining them in chat?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-58787569"
+      ],
+      "hits": [
+        "mem-20260827-ab85c977",
+        "mem-20260827-5ab6b51a",
+        "mem-20260826-correction-regurgitation-incident",
+        "mem-20260827-f063162f",
+        "mem-20260827-cecc8a66"
+      ],
+      "id": "p08",
+      "query": "does a large number of simultaneous workers by itself prove the control plane regression cause?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-context-pruning-ab"
+      ],
+      "hits": [
+        "mem-20260827-context-pruning-ab",
+        "mem-20260826-correction-regurgitation-incident",
+        "mem-20260827-3260514c",
+        "mem-20260825-bank-no-bootstrap",
+        "mem-20260827-5ab6b51a"
+      ],
+      "id": "p09",
+      "query": "is it safe to trim noisy working context without first isolating the effect experimentally?",
+      "rank": 1
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-5ab6b51a"
+      ],
+      "hits": [
+        "mem-20260827-95880107",
+        "mem-20260827-5ab6b51a",
+        "mem-20260825-no-magic-phrase",
+        "mem-20260827-807066be",
+        "mem-20260826-orchestration-incident-001"
+      ],
+      "id": "p10",
+      "query": "do not make the user walk through all of the diagnostic investigation just to get the answer",
+      "rank": 2
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-3fa939d7"
+      ],
+      "hits": [
+        "mem-20260827-f063162f",
+        "mem-20260827-3fa939d7",
+        "mem-20260827-context-pruning-ab",
+        "mem-20260827-5ab6b51a",
+        "mem-20260827-69627953"
+      ],
+      "id": "p11",
+      "query": "why do chained commands using double ampersands fail in old Windows PowerShell but work in pwsh?",
+      "rank": 2
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-a4b1730f"
+      ],
+      "hits": [
+        "mem-20260827-context-pruning-ab",
+        "mem-20260827-a4b1730f",
+        "mem-20260826-correction-regurgitation-incident",
+        "mem-20260825-contextrelay-excluded",
+        "mem-20260827-cecc8a66"
+      ],
+      "id": "p12",
+      "query": "after building a searchable chat index, may the preserved raw source exports be discarded?",
+      "rank": 2
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-7fc3c053"
+      ],
+      "hits": [
+        "mem-20260827-5ab6b51a",
+        "mem-20260826-correction-regurgitation-incident",
+        "mem-20260827-3260514c",
+        "mem-20260827-7fc3c053",
+        "mem-20260827-07cab6dc"
+      ],
+      "id": "p13",
+      "query": "after the user corrects the route, is it acceptable to continue on the previous path?",
+      "rank": 4
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-b7525c20"
+      ],
+      "hits": [
+        "mem-20260826-correction-regurgitation-incident",
+        "mem-20260827-252a15cc",
+        "mem-20260826-orchestration-incident-001",
+        "mem-20260825-memory-provenance-pointer",
+        "mem-20260827-5ab6b51a"
+      ],
+      "id": "p14",
+      "query": "should worker report wording be dictated by the evidence confidence taxonomy?",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "paraphrase",
+      "expected": [
+        "mem-20260827-a46bdf43"
+      ],
+      "hits": [
+        "mem-20260826-orchestration-incident-001",
+        "mem-20260827-f063162f",
+        "mem-20260827-cecc8a66",
+        "mem-20260826-0743b23f",
+        "mem-20260825-timing-not-inherited"
+      ],
+      "id": "p15",
+      "query": "if work ends early, do not blame a time limit unless that cutoff was actually demonstrated",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "exact_control",
+      "expected": [
+        "mem-20260827-48fce445"
+      ],
+      "hits": [
+        "mem-20260827-context-pruning-ab",
+        "mem-20260827-48fce445",
+        "mem-20260827-5ccc156a",
+        "mem-20260825-policy-live-state-current",
+        "mem-20260826-0743b23f"
+      ],
+      "id": "c01",
+      "query": "Refresh requires retrieval before completion",
+      "rank": 2
+    },
+    {
+      "abstained": false,
+      "cohort": "exact_control",
+      "expected": [
+        "mem-20260827-ab85c977"
+      ],
+      "hits": [
+        "mem-20260827-ab85c977",
+        "mem-20260826-cc0f45ce",
+        "mem-20260827-8a45d28e",
+        "mem-20260827-a4b1730f",
+        "mem-20260827-d5b341c6"
+      ],
+      "id": "c02",
+      "query": "Tool-surface loss does not imply task or process loss",
+      "rank": 1
+    },
+    {
+      "abstained": false,
+      "cohort": "exact_control",
+      "expected": [
+        "mem-20260827-a4b1730f"
+      ],
+      "hits": [
+        "mem-20260827-a4b1730f",
+        "mem-20260825-3b82afd8",
+        "mem-20260827-context-pruning-ab",
+        "mem-20260827-5c891437",
+        "mem-20260827-07cab6dc"
+      ],
+      "id": "c03",
+      "query": "Conversation corpus preserves originals; index is disposable",
+      "rank": 1
+    },
+    {
+      "abstained": false,
+      "cohort": "exact_control",
+      "expected": [
+        "mem-20260827-3fa939d7"
+      ],
+      "hits": [
+        "mem-20260827-3fa939d7",
+        "mem-20260827-ac83a23d",
+        "mem-20260825-memory-authority-reorders-only",
+        "mem-20260825-bank-no-bootstrap",
+        "mem-20260827-5ab6b51a"
+      ],
+      "id": "c04",
+      "query": "Windows PowerShell 5.1 rejects &&; pwsh 7 accepts it",
+      "rank": 1
+    },
+    {
+      "abstained": false,
+      "cohort": "exact_control",
+      "expected": [
+        "mem-20260827-d5b341c6"
+      ],
+      "hits": [
+        "mem-20260827-d5b341c6",
+        "mem-20260827-5ab6b51a",
+        "mem-20260825-task-anchor",
+        "mem-20260827-b7525c20",
+        "mem-20260826-cc0f45ce"
+      ],
+      "id": "c05",
+      "query": "Missing evidence localizes uncertainty; it does not widen scope",
+      "rank": 1
+    },
+    {
+      "abstained": false,
+      "cohort": "exact_control",
+      "expected": [
+        "mem-20260827-context-pruning-ab"
+      ],
+      "hits": [
+        "mem-20260827-context-pruning-ab",
+        "mem-20260827-3fa939d7",
+        "mem-20260825-observable-reasoning-only",
+        "mem-20260827-252a15cc",
+        "mem-20260827-9c50458e"
+      ],
+      "id": "c06",
+      "query": "Do not prune working context without isolated A/B proof",
+      "rank": 1
+    },
+    {
+      "abstained": true,
+      "cohort": "abstain",
+      "expected": [],
+      "hits": [],
+      "id": "n01",
+      "query": "quasar spectroscopy redshift calibration",
+      "rank": null
+    },
+    {
+      "abstained": true,
+      "cohort": "abstain",
+      "expected": [],
+      "hits": [],
+      "id": "n02",
+      "query": "sourdough starter hydration rye fermentation",
+      "rank": null
+    },
+    {
+      "abstained": false,
+      "cohort": "abstain",
+      "expected": [],
+      "hits": [
+        "mem-20260827-69627953",
+        "mem-20260827-cecc8a66"
+      ],
+      "id": "n03",
+      "query": "orchid repotting sphagnum root aeration",
+      "rank": null
+    },
+    {
+      "abstained": true,
+      "cohort": "abstain",
+      "expected": [],
+      "hits": [],
+      "id": "n04",
+      "query": "marathon shoe carbon plate cushioning",
+      "rank": null
+    }
+  ],
+  "fixture_version": 1,
+  "metrics": {
+    "abstain": {
+      "correct_abstention": 0.75,
+      "n": 4
+    },
+    "exact_control": {
+      "mrr": 0.9166666666666666,
+      "n": 6,
+      "recall_at_1": 0.8333333333333334,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0
+    },
+    "paraphrase": {
+      "mrr": 0.25,
+      "n": 15,
+      "recall_at_1": 0.13333333333333333,
+      "recall_at_3": 0.3333333333333333,
+      "recall_at_5": 0.4
+    }
+  }
+}
