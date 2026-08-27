@@ -1,6 +1,6 @@
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Map, Value};
 use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
@@ -20,7 +20,11 @@ const LOCK_RETRY: Duration = Duration::from_millis(10);
 struct Claim { actor: String, scope: String, timestamp: String }
 
 #[derive(Default, Deserialize, Serialize)]
-struct StoreFile { claims: Vec<Claim> }
+struct StoreFile {
+    claims: Vec<Claim>,
+    #[serde(flatten)]
+    metadata: Map<String, Value>,
+}
 
 struct StoreLock { path: PathBuf, file: Option<File> }
 

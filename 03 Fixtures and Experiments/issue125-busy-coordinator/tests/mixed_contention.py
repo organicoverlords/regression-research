@@ -20,6 +20,11 @@ for round_index in range(rounds):
     store = pathlib.Path(tempfile.gettempdir()) / f"busy-mixed-{os.getpid()}-{round_index}.json"
     for path in (store, pathlib.Path(str(store) + ".lock")):
         path.unlink(missing_ok=True)
+    checkpoint = f"issue125-round-{round_index}"
+    store.write_text(
+        json.dumps({"version": 2, "coordinator": {"jobs": {"alpha": {"checkpoint": checkpoint}}}, "claims": []}),
+        encoding="utf-8",
+    )
 
     def run(index):
         actor = f"actor-{round_index}-{index}"
@@ -40,9 +45,11 @@ for round_index in range(rounds):
 
     wins = sum(result.get("ok") is True for result in results)
     losses = sum(result.get("ok") is False and result.get("reason") == "scope_already_claimed" for result in results)
-    claims = json.loads(store.read_text(encoding="utf-8")).get("claims", [])
-    if wins != 1 or losses != contenders - 1 or len(claims) != 1:
-        failures.append({"round": round_index, "wins": wins, "losses": losses, "claims": claims, "results": results})
+    state = json.loads(store.read_text(encoding="utf-8"))
+    claims = state.get("claims", [])
+    metadata_preserved = state.get("version") == 2 and state.get("coordinator", {}).get("jobs", {}).get("alpha", {}).get("checkpoint") == checkpoint
+    if wins != 1 or losses != contenders - 1 or len(claims) != 1 or not metadata_preserved:
+        failures.append({"round": round_index, "wins": wins, "losses": losses, "claims": claims, "metadata_preserved": metadata_preserved, "results": results})
 
     store.unlink(missing_ok=True)
     pathlib.Path(str(store) + ".lock").unlink(missing_ok=True)

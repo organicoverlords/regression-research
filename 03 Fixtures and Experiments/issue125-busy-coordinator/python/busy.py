@@ -57,7 +57,7 @@ def load(store: Path):
     try:
         data = json.loads(store.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return []
+        return {"claims": []}
     except Exception:
         raise RuntimeError(f"cannot safely read BUSY store: {store}")
     claims = data.get("claims")
@@ -67,42 +67,47 @@ def load(store: Path):
     for c in claims:
         if isinstance(c, dict) and all(isinstance(c.get(k), str) for k in ("actor", "scope", "timestamp")):
             out.append({"actor": c["actor"], "scope": c["scope"], "timestamp": c["timestamp"]})
-    return out
+    data["claims"] = out
+    return data
 
 
-def persist(store: Path, claims):
+def persist(store: Path, state):
     store.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(str(store) + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps({"claims": claims}, indent=2) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, store)
 
 
 def list_claims(store: Path):
     with StoreLock(store):
-        return sorted(load(store), key=lambda c: c["scope"])
+        return sorted(load(store)["claims"], key=lambda c: c["scope"])
 
 
 def claim(store: Path, actor: str, scope: str):
     with StoreLock(store):
-        claims = load(store)
+        state = load(store)
+        claims = state["claims"]
         current = next((c for c in claims if c["scope"] == scope), None)
         if current and current["actor"] != actor:
             return {"ok": False, "reason": "scope_already_claimed", "claim": current}
         new = {"actor": actor, "scope": scope, "timestamp": now_iso()}
         claims = [c for c in claims if c["scope"] != scope] + [new]
-        persist(store, claims)
+        state["claims"] = claims
+        persist(store, state)
         return {"ok": True, "claim": new}
 
 
 def release(store: Path, actor: str, scope: str):
     with StoreLock(store):
-        claims = load(store)
+        state = load(store)
+        claims = state["claims"]
         current = next((c for c in claims if c["scope"] == scope), None)
         if current is None:
             return {"ok": False, "reason": "scope_not_claimed"}
         if current["actor"] != actor:
             return {"ok": False, "reason": "claim_belongs_to_another_actor", "claim": current}
-        persist(store, [c for c in claims if c["scope"] != scope])
+        state["claims"] = [c for c in claims if c["scope"] != scope]
+        persist(store, state)
         return {"ok": True, "released": current}
 
 

@@ -39,6 +39,8 @@ Result: **the ownership state is already transport-independent.** MCP is one cli
 
 The two implementations therefore interoperate on the same O_EXCL-style lock protocol without lost-update or double-winner behavior in this bounded test.
 
+The same 200-attempt proof seeds versioned coordinator/job checkpoint metadata before every contention round and verifies it survives every mixed Python/Rust write. `chatgpt-mcp-clean` PR #17 independently makes current MCP BUSY mutations preserve the same unknown top-level metadata.
+
 ## Startup comparison
 
 50 isolated `list` invocations per implementation on the same machine:
