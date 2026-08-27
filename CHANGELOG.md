@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ `standards/changelog.md`.
 
 ## [Unreleased]
+- [2026-08-27] [meta] Preserved the exact #122 Aug 25 12:22 pre-repair 11-entry memory block and 12:37 repaired 12-entry block byte-for-byte, proving the MCP-availability entry and BUSY read-side change directly from user-visible ChatPort messages rather than assistant diagnosis.
+
 - [2026-08-27] [meta] Corrected #122 rule provenance: the Aug 25 12:26 custom-instructions rewrite had removed the pre-existing MCP availability guard; after the 12:30 direct-chat failure, an external-agent repair restored that guard and added durable-memory entry `A TOOL IS AVAILABLE UNTIL I HAVE TRIED IT` before the 12:37 visible rule paste and 12:40 fresh-chat successes.
 
 - [2026-08-27] [meta] Preserved #122 negative evidence for the repaired MCP-rule activation question: local browser history/storage, clipboard-adjacent storage, raw activation terms, and first-turn context metadata contain no direct Settings-application witness, bounding further local archaeology without claiming the PI was never applied.
