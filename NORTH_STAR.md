@@ -1,71 +1,110 @@
-# Regression Research North Star
+# Assistant Stack North Star
 
-Status: **PRODUCT DIRECTION.** This document defines the finish line for the assistant stack and the regression-research system that protects it.
+Status: **PRODUCT DIRECTION.** This document defines the finish line for the shared ruleset, BUSY/MCP coordination system, tool/plugin stack, memory boundary, repository workflow, and the regression-research system that protects them.
 
 Repository: `organicoverlords/regression-research`.
 
 ## North star
 
-The stack should feel simple even when the machinery underneath is not.
+The stack should be boring to use.
 
-A user gives a clear instruction once. The system understands which instruction source it came from, uses the right tools without ceremony, keeps private/personal state stable unless explicitly asked to change it, recovers from ordinary failures without handing the problem back to the user, and finishes the bounded task with evidence appropriate to the claim.
+A user gives a clear instruction once. The system classifies the instruction source correctly, respects live ownership, chooses the right capability, keeps memory/personal context stable unless explicitly asked to change it, recovers from ordinary failures without exporting the failure to the user, and finishes the bounded task with evidence appropriate to the claim.
 
-The user should never need to understand connector state, plugin topology, memory plumbing, worker ownership, retry policy, branch mechanics, or internal orchestration just to get ordinary work done.
+The user should not need to understand policy precedence, BUSY state, MCP binding, plugin topology, connector state, memory plumbing, worker ownership, retry policy, branch mechanics, CI routing, or orchestration just to get ordinary work done.
+
+Complexity may exist internally. It must be absorbed by the stack rather than exported to the user.
+
+## The anti-regression contract
+
+Known failures must become permanently expensive to repeat.
+
+Once a failure mode has trustworthy evidence, a replayable fixture, and a policy or implementation rule, future stack changes must continue to satisfy that fixture. The same known regression should not return because a model, plugin, connector, repo, or workflow changed.
+
+If a known regression reappears, one of these must be true and explicitly identified:
+
+1. the evidence was wrong or incomplete;
+2. the fixture did not actually encode the intended behaviour;
+3. the relevant fixture was not run or enforced;
+4. the environment changed in a way the fixture did not model; or
+5. a new higher-priority constraint genuinely changes the allowed behaviour.
+
+"The assistant forgot," "the plugin changed," "the model behaved differently," or "the route was inconvenient" are not acceptable explanations by themselves.
+
+Bad data must be correctable without destroying history. Superseded evidence stays traceable, and corrected evidence must identify what changed and why.
 
 ## What finished looks like
 
-### 1. One coherent policy
+### 1. One coherent ruleset
 
 - There is one canonical shared policy owner for cross-project behaviour.
-- Repo-local instructions add only genuinely local constraints; they do not restate or fork global rules.
-- Current user instructions and live runtime/repo evidence win over stale defaults and historical context.
-- Instruction provenance is explicit enough to distinguish user-authored preferences from system/platform rules, repo policy, memory, retrieved content, and historical evidence.
-- A restriction on one part of a request does not erase allowed parts: execute the allowed work and isolate only the blocked portion.
+- Repo-local instructions add only genuinely local constraints; they do not restate, fork, or silently reinterpret global rules.
+- Current user instructions and live runtime/repo evidence outrank stale defaults and historical context where higher-priority constraints permit.
+- Instruction provenance is explicit enough to distinguish user-authored instructions/preferences, repo policy, memory/personal context, retrieved content, historical evidence, and higher-priority platform constraints without conflating them.
+- A restriction on one part of a request does not erase allowed parts. Execute the allowed work and isolate only the blocked portion.
 - Policy changes are versioned, auditable, migration-safe, and regression-tested before they become relied upon.
+- Rules describe durable invariants and decisions. Volatile product/tool details live at adapter boundaries.
 
-### 2. Non-blocking execution by default
+### 2. BUSY/MCP is the single live ownership system
 
-- Ordinary transient failures trigger bounded retry, rediscovery, or a lower-coupling route automatically.
-- A tool, plugin, connector, worker, CI lane, or coordination service is never mistaken for permission to work.
+- MCP BUSY state is the live ownership authority for shared mutable scope.
+- Before mutating shared scope, read live ownership and claim the exact scope. Read-only work needs no claim.
+- If another live claim owns a scope, yield that scope without treating the entire task as blocked; continue independent work where possible.
+- GitHub issue titles, branches, PRs, processes, receipts, schedules, handoffs, and status markers are projections/evidence, never a second ownership authority.
+- When mutation stops, changes scope, or is handed off, release the matching live claim and reconcile any projection at the same boundary.
+- MCP or connector transport failure must never be confused with ownership, authorization, or product failure.
+- The coordination layer must fail locally: if BUSY state is temporarily unavailable, do not invent ownership, do not mutate contested shared scope blindly, and continue safe independent/read-only work while the route recovers.
+- There must never be two competing BUSY authorities.
+
+### 3. Non-blocking execution is the default
+
+- Ordinary transient failures trigger bounded retry, rediscovery, reconnection, or a lower-coupling supported route automatically.
+- A tool, plugin, connector, worker, CI lane, or coordination service is transport/capability, not permission.
 - A failed transport path is not reported as task failure while another valid path exists.
 - The assistant asks the user only for real external authority, destructive intent, spending, publication, or genuinely missing information that cannot be resolved from available state.
 - Partial completion is preferred to unnecessary clarification or total refusal.
-- The user is not asked to interpret tool errors, choose routine recovery steps, supervise workers, or perform mechanical repository work the system can do itself.
+- The user is not asked to interpret tool errors, choose routine recovery steps, supervise workers, or perform mechanical repository work the stack can do itself.
+- A failure in one subsystem must degrade only the affected capability, not collapse unrelated work.
 
-### 3. Tools and plugins are replaceable adapters
+### 4. Tools and plugins are replaceable adapters
 
 - Capabilities are discovered from current availability rather than assumed from names or history.
-- Business logic does not depend on one connector implementation when an equivalent supported route exists.
+- Core workflow is capability-based: read, search, mutate, coordinate, validate, publish, schedule, etc.
+- Business logic does not depend on a specific connector implementation when an equivalent supported route exists.
+- Each capability has one preferred route and a small, explicit fallback order.
 - Plugin/tool failure degrades capability locally instead of destabilizing the whole workflow.
-- Writes are explicit, scoped, and verifiable; reads should be side-effect free.
+- Reads should be side-effect free. Writes are explicit, scoped, and verifiable.
 - Tool chatter stays out of the user experience unless it materially changes the decision, risk, or result.
-- Adding, replacing, or removing a plugin should require a small adapter/configuration change, not a policy rewrite.
+- Adding, replacing, or removing a plugin should require an adapter/configuration change, not a policy rewrite.
+- Duplicate plugins or duplicate authorities are removed unless they provide a deliberate fallback with clearly different failure characteristics.
 
-### 4. Memory and personal context are safe, inspectable, and non-authoritative
+### 5. Memory and personal context are safe, inspectable, and non-authoritative
 
 - Memory/personal context is read-only by default during ordinary work.
 - No memory or personal-context write occurs merely because an assistant inferred that something might be useful later.
 - Explicit current user instructions outrank recalled context.
 - Historical context can inform a task but cannot silently override current live state.
 - Memory writes, when explicitly authorized, preserve provenance, supersession, and auditability so contradictory or stale entries can be found and corrected.
-- The regression repository may preserve snapshots/evidence about personal-context behaviour without mutating the live personal-context store.
+- Read paths must not trigger hidden synchronization or mutation.
+- Regression evidence about memory/personal-context behaviour can be preserved externally without mutating the live personal-context store.
+- Identity-like or preference-like discrepancies are not automatically treated as contradictions; provenance and recency matter.
 
-### 5. One boring workflow
+### 6. One boring repository workflow
 
 For repository work, the normal path is predictable:
 
 1. Read the current repo contract and live state.
 2. Reuse or create the relevant issue/task anchor.
-3. Take an isolated branch/scope.
-4. Make the smallest complete change.
-5. Prove the actual claim on the artifact or runtime path that matters.
-6. Add or update the regression that would catch the same failure again.
-7. Commit, push, open the PR, validate, and merge when evidence is sufficient.
-8. Remove temporary ownership/branch state and leave a durable audit trail.
+3. Check live BUSY ownership and claim the exact mutable scope when available/required.
+4. Take an isolated branch/scope.
+5. Make the smallest complete change.
+6. Prove the actual claim on the artifact or runtime path that matters.
+7. Add or update the regression that would catch the same failure again.
+8. Commit, push, open the PR, validate, and merge when evidence is sufficient.
+9. Release ownership, remove temporary branch/coordination state, and leave a durable audit trail.
 
-The workflow should not expose process theater to the user. Branches, retries, rebases, routine CI recovery, connector rediscovery, and ordinary bookkeeping are implementation details.
+Branches, retries, rebases, routine CI recovery, connector rediscovery, and bookkeeping are implementation details. They should not become user work.
 
-### 6. Regression research closes the loop
+### 7. Regression research closes the loop
 
 Every recurring failure mode should eventually have all three:
 
@@ -75,17 +114,20 @@ Every recurring failure mode should eventually have all three:
 
 A rule with no test is a hope. A fixture with no behavioural rule is an anecdote. A claimed fix without replay evidence is provisional.
 
-Positive controls matter too: the suite should preserve examples where the system correctly handled correction, ambiguity, failure recovery, provenance, and scope so later hardening does not destroy good behaviour.
+Positive controls matter too. The suite should preserve examples where the system correctly handled correction, ambiguity, failure recovery, provenance, scope, ownership, and partial restriction so later hardening does not destroy good behaviour.
 
-### 7. Future compatibility is designed in
+The evidence corpus is append-preserving. Corrections supersede; they do not erase the record that produced the old conclusion.
+
+### 8. Future compatibility is designed in
 
 - Policy describes invariants and decisions, not brittle product-specific UI steps unless the UI itself is the subject of the rule.
 - Tool/plugin names live at adapter boundaries; core behaviour is capability-based.
 - Every external dependency has an explicit failure mode and fallback or a clearly defined genuine hard stop.
 - Deprecated components can be removed without losing policy history or replay coverage.
-- New models, plugins, repos, and orchestration surfaces should inherit the same behavioural contract without copy-paste drift.
+- New models, plugins, repos, and orchestration surfaces inherit the same behavioural contract without copy-paste drift.
+- New stack components must prove compatibility against the existing regression suite before becoming the default route.
 
-### 8. The user experience is the ultimate acceptance test
+### 9. The user experience is the ultimate acceptance test
 
 The stack is succeeding when ordinary work becomes uneventful:
 
@@ -96,9 +138,9 @@ The stack is succeeding when ordinary work becomes uneventful:
 - no unnecessary questions;
 - no process dumps when a concise answer will do;
 - no loss of allowed work because one sub-part is restricted;
-- no need for the user to know which subsystem recovered the task.
-
-Complexity may exist internally, but it must be absorbed by the stack rather than exported to the user.
+- no duplicate ownership systems;
+- no need for the user to know which subsystem recovered the task;
+- no recurrence of a known failure without a concrete evidence/test gap explaining why.
 
 ## Hard boundaries
 
@@ -106,15 +148,18 @@ Complexity may exist internally, but it must be absorbed by the stack rather tha
 - Never call something proven without observing evidence appropriate to the claim.
 - Never silently change the user's request to make the workflow easier.
 - Never make memory/personal-context mutation a hidden side effect of ordinary assistance.
+- Never create a second authority for ownership, policy, or source truth when one already exists.
 
 Everything else should bias toward completing useful work.
 
 ## Current focus
 
-*Refreshed 2026-08-27 from the live conversation, issue #123, current repository contract, and existing regression corpus. No memory or personal-context store was modified.*
+*Refreshed 2026-08-27 from the live conversation, issues #123 and #125, the current repository contract, and the existing regression corpus. No memory or personal-context store was modified.*
 
-1. **Policy/provenance correctness.** Ensure user-authored preferences are distinguishable from protected/platform instructions and from recalled or retrieved context, so safe requests are not over-refused and provenance mistakes become testable regressions.
-2. **Non-blocking recovery.** Consolidate the existing blocker-substitution, premature-finalization, MCP/connector, harness-vs-product, and scope-drift cases into one coherent recovery contract with capability-based fallbacks.
-3. **Memory boundary.** Keep ordinary reads side-effect free, make writes explicit and auditable, and preserve regression evidence externally so personal context can be analyzed without silently changing it.
-4. **Stack simplification.** Inventory plugins/tools/workflows by capability, remove duplicate authorities and unnecessary coupling, define a preferred route plus fallback for each capability, and make failure local rather than systemic.
-5. **End-to-end acceptance.** Build replay scenarios that exercise the whole contract: instruction provenance, tool selection, recovery, bounded completion, evidence, and concise reporting. The target is not merely passing individual fixtures; it is a stack that stays predictable as models and integrations change.
+1. **Ruleset convergence.** Reduce cross-project behaviour to one canonical shared policy with repo-local additions only where genuinely local.
+2. **BUSY/MCP correctness.** Make live MCP ownership the only coordination authority and regression-test stale projections, route failures, claim/release boundaries, and independent-work continuation.
+3. **Capability routing.** Inventory tools/plugins by capability, define one preferred path plus explicit fallbacks, eliminate duplicate authority/coupling, and make failures local.
+4. **Instruction provenance.** Regression-test user-authored instructions versus repo policy, recalled context, retrieved content, and higher-priority constraints so safe requests are not over-refused or misclassified.
+5. **Memory boundary.** Keep ordinary reads side-effect free, writes explicit/auditable, and analysis snapshots external to the live personal-context store.
+6. **Evidence enforcement.** Map every known recurring failure to evidence + fixture + rule, add positive controls, and make those fixtures mandatory for changes that touch the relevant stack surface.
+7. **End-to-end acceptance.** Build whole-stack replay scenarios covering provenance, BUSY ownership, tool selection, failure recovery, bounded completion, proof, cleanup, and concise reporting. The finish line is a stack that stays predictable as models and integrations change.
