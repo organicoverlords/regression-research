@@ -8,51 +8,78 @@
     "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
     "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory."
   ],
-  "total_records": 77,
-  "bank_records": 73,
+  "total_records": 151,
+  "bank_records": 147,
   "candidate_only_records": 4,
   "counts": {
     "dispositions": {
-      "CURRENT_DURABLE": 36,
+      "CURRENT_DURABLE": 79,
       "DUPLICATE_MERGED": 0,
       "EPHEMERAL/DO_NOT_RECALL": 0,
-      "HISTORICAL_DURABLE": 0,
-      "PROVISIONAL/NEEDS_EVIDENCE": 20,
-      "REJECTED": 1,
+      "HISTORICAL_DURABLE": 2,
+      "PROVISIONAL/NEEDS_EVIDENCE": 15,
+      "REJECTED": 4,
       "SENSITIVE_EXCLUDED": 0,
-      "SUPERSEDED": 20
+      "SUPERSEDED": 51
     },
     "states": {
-      "PROVEN": 49,
-      "PROVISIONAL": 23,
-      "REJECTED": 1
+      "PROVEN": 97,
+      "PROVISIONAL": 48,
+      "REJECTED": 2
     },
     "kinds": {
-      "correction": 12,
-      "decision": 10,
-      "fact": 5,
-      "lesson": 41,
+      "correction": 48,
+      "decision": 13,
+      "fact": 8,
+      "lesson": 65,
       "preference": 2,
-      "status": 3
+      "status": 11
     },
     "scopes": {
       "aitube": 1,
+      "assistant-context-integration": 1,
+      "assistant-context-provenance": 1,
+      "assistant-control-plane/bounded-debugging": 1,
+      "assistant-orchestration/bootstrap-regression-20260827": 1,
+      "assistant-orchestration/personal-instructions-checkpoint": 1,
+      "assistant-tooling/repeating-binding-security-20260827": 1,
+      "assistant-tooling/security-incident-20260827-capacity-probe": 1,
+      "assistant-tooling/tool-route-dispatch-anomaly-20260827": 1,
+      "assistant-work-procedure": 1,
       "chatgpt-personalization": 1,
-      "control-plane": 2,
-      "execution-context": 5,
-      "global": 17,
-      "mcp": 11,
+      "control-plane": 3,
+      "execution-context": 10,
+      "global": 18,
+      "issue125-security-routing": 1,
+      "issue125-security-routing-correction": 1,
+      "local-coder-mcp": 2,
+      "mcp": 16,
       "mcp-diagnostics": 1,
-      "memory": 13,
-      "memory-source-preservation": 1,
-      "orchestration": 7,
+      "mcp-scientific-comparison": 4,
+      "mcp-scientific-comparison/tool-drop-20260827-1653": 2,
+      "memory": 16,
+      "memory-governance": 3,
+      "memory-source-preservation": 2,
+      "memory-system": 1,
+      "orchestration": 8,
       "p3": 3,
       "p3-render-queue": 1,
-      "regression-research": 3,
-      "response-quality": 7
+      "personal-instructions-recovery-trial": 4,
+      "plugin-experiment-change-point": 1,
+      "regression-research": 4,
+      "regression-research#125 connector reliability": 1,
+      "response-quality": 26,
+      "response-quality/debugging-test-selection": 1,
+      "security-incident": 1,
+      "security-incident,lowvram3d,#46,tool-routing": 1,
+      "security-incident,lowvram3d,#49,pr89,tool-routing": 1,
+      "security-incident-handling": 1,
+      "timed-workers/policy-architecture": 1,
+      "tool-availability/checkpoint": 1,
+      "tool-routing": 1
     },
     "sensitivity": {
-      "CLEAR": 77
+      "CLEAR": 151
     }
   },
   "records": [
@@ -674,8 +701,8 @@
         "scope"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-23T10:40:00+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -685,9 +712,11 @@
         "regression"
       ],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-d5b341c6"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260825-no-fabricated-chat-id",
@@ -809,8 +838,8 @@
         "promise"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-21T12:00:00+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -820,9 +849,11 @@
         "regression"
       ],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-7fc3c053"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260825-observable-reasoning-only",
@@ -863,8 +894,8 @@
         "routing"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-21T12:00:00+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -874,9 +905,11 @@
         "regression"
       ],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-7fc3c053"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260825-memory-provenance-pointer",
@@ -1002,8 +1035,8 @@
         "hypothesis"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-25T15:17:27+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -1014,9 +1047,11 @@
         "github"
       ],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-58787569"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260825-681deb13",
@@ -1177,16 +1212,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T00:29:52+03:00",
       "event_date_hint": null,
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-3fa939d7"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-b7360bca",
@@ -1219,16 +1256,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T17:42:04+03:00",
       "event_date_hint": "2026-08-26",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-context-pruning-ab"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-caf3bdea",
@@ -1240,16 +1279,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T17:44:03+03:00",
       "event_date_hint": "2026-08-26",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-context-pruning-ab"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-faad6b90",
@@ -1307,16 +1348,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T19:33:31+03:00",
       "event_date_hint": "2026-08-26",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-ab85c977"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-eebe9041",
@@ -1437,16 +1480,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T22:09:12+03:00",
       "event_date_hint": "2026-08-26",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-a4b1730f"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-correction-regurgitation-incident",
@@ -1517,8 +1562,8 @@
         "communication"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T23:42:52+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -1530,9 +1575,11 @@
         "path"
       ],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-f059dbb6"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260826-a24f548c",
@@ -1783,16 +1830,18 @@
         "quick-note"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-26T23:56:54+03:00",
       "event_date_hint": "2026-08-26",
       "evidence": [],
       "source_classes": [],
       "supersedes": [],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-252a15cc"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-cecc8a66",
@@ -1836,8 +1885,8 @@
         "provenance"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T00:35:37+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -1851,9 +1900,11 @@
         "mem-20260825-696aa50d",
         "mem-20260826-46f7aa14"
       ],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-a4153dd1"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-8b1679de",
@@ -1897,8 +1948,8 @@
         "user-burden"
       ],
       "state": "PROVEN",
-      "disposition": "CURRENT_DURABLE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T00:35:37+03:00",
       "event_date_hint": null,
       "evidence": [
@@ -1915,9 +1966,11 @@
         "mem-20260826-4bd36d39",
         "mem-20260826-premature-finalization-user-handoff"
       ],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-8a19e602"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "CURRENT"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-1dd36ba0",
@@ -2022,8 +2075,8 @@
         "repair"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T00:58:58+03:00",
       "event_date_hint": "2026-08-27",
       "evidence": [
@@ -2035,9 +2088,11 @@
       "supersedes": [
         "mem-20260827-419d3aab"
       ],
-      "superseded_by": [],
+      "superseded_by": [
+        "mem-20260827-b7525c20"
+      ],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "mem-20260827-4a7287c6",
@@ -2053,8 +2108,8 @@
         "recurrence"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
-      "ordinary_recall": true,
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
       "write_timestamp": "2026-08-27T01:03:59+03:00",
       "event_date_hint": "2026-08-27",
       "evidence": [
@@ -2066,14 +2121,2103 @@
         "path"
       ],
       "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-b7525c20"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-807066be",
+      "source_layer": "BANK",
+      "title": "Successful MCP arrivals cannot measure non-arrival reliability",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "incident",
+        "slopwall",
+        "measurement",
+        "non-arrival",
+        "regression"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:10:31+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "report:01 Reports/2026-08-27_0108_EEST_mcp-successful-arrivals-denominator-slopwall_incident_report.md",
+        "conversation-screenshots:2026-08-27"
+      ],
+      "source_classes": [
+        "conversation-screenshots",
+        "report"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-bd390966",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 - spam versus concurrency causal oscillation",
+      "kind": "lesson",
+      "scope": "mcp",
+      "tags": [
+        "slopwall",
+        "rate-comparison",
+        "causal-inference"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T01:10:42+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-ac83a23d"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-refresh-memory-noop",
+      "source_layer": "BANK",
+      "title": "SLOPWALL - refresh memory was acknowledged without retrieval",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "memory-refresh",
+        "unsupported-execution-claim",
+        "active-task-continuity"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T01:10:58+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0110_EEST_refresh-memory-noop_slopwall_incident_report.md",
+        "02 Evidence/2026-08-27_0110_EEST_refresh_memory_noop_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-27_0110_EEST_refresh_memory_noop_next_action.json",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-48fce445"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-worker-report-explain-not-repair-0110",
+      "source_layer": "BANK",
+      "title": "SLOPWALL recurrence - worker report regression explained instead of repaired",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "worker-report-format",
+        "explanation-displaced-repair",
+        "policy-regression"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T01:16:36+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0110_EEST_worker-report-regression-explanation-instead-of-repair_slopwall_incident_report.md",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-b7525c20"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-3f88cd9a",
+      "source_layer": "BANK",
+      "title": "Quiet Aug 25 wall-clock rate was idle-dominated",
+      "kind": "correction",
+      "scope": "local-coder-mcp",
+      "tags": [
+        "mcp",
+        "workload",
+        "rate-comparison"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T01:24:24+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "C:\\Users\\Lauri\\Documents\\Codex\\2026-08-26\\dsa\\work\\mcp_transport_15m.csv; C:\\Users\\Lauri\\Documents\\Codex\\2026-08-26\\dsa\\work\\mcp_window_comparison.json; C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\keepalive\\supervisor.log"
+      ],
+      "source_classes": [
+        "c"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-ac83a23d"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-4a7e34f2",
+      "source_layer": "BANK",
+      "title": "Front-door generation probe caused two distinct 503s under backend delay",
+      "kind": "fact",
+      "scope": "local-coder-mcp",
+      "tags": [
+        "mcp",
+        "front-door",
+        "regression"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:24:34+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\front-door\\request.jsonl lines 11574-11589 and 11645-11660; C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\transport.jsonl lines 283124-283160 and 283244-283280; C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\src\\front-door.ts lines 151-177"
+      ],
+      "source_classes": [
+        "c"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-5ccc156a",
+      "source_layer": "BANK",
+      "title": "Semantic memory freshness must be repaired, not merely explained",
+      "kind": "correction",
+      "scope": "memory-system",
+      "tags": [
+        "slopwall",
+        "freshness",
+        "supersession",
+        "repair-before-explain"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:28:49+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "report:01 Reports/2026-08-27_0127_EEST_memory-semantic-freshness-explained-not-repaired_slopwall_incident_report.md",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "report"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-95880107",
+      "source_layer": "BANK",
+      "title": "SLOPWALL - corpus study became another template wall",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "corpus-study",
+        "template-reification",
+        "worker-report-format"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:38:03+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0133_EEST_corpus-study-template-wall_slopwall_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
       "superseded_by": [],
       "sensitivity": "CLEAR",
       "retrieval_value": "REVIEW"
     },
     {
+      "id": "mem-20260827-426aa029",
+      "source_layer": "BANK",
+      "title": "USER-APPROVED correction: Grey UI boxes in ordinary answers are Markdown inline…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:38:11+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-ac83a23d",
+      "source_layer": "BANK",
+      "title": "MCP rate comparison uses active work and client-visible failures",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "freshness",
+        "rate-comparison"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T01:43:00+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "transport-analysis:2026-08-27",
+        "user-correction:2026-08-27"
+      ],
+      "source_classes": [
+        "transport-analysis",
+        "user-correction"
+      ],
+      "supersedes": [
+        "mem-20260827-bd390966",
+        "mem-20260827-3f88cd9a"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-incident-scope-drift",
+      "source_layer": "BANK",
+      "title": "Incident capture must not recursively absorb unrelated failures",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "incident-report",
+        "scope-drift",
+        "task-substitution",
+        "completion-boundary"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T01:58:28+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0158_EEST_incident-capture-scope-drift_report.md",
+        "02 Evidence/2026-08-27_0158_EEST_incident_capture_scope_drift_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-27_0158_EEST_incident_capture_scope_drift_next_action.json",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-220e4517"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-a46bdf43",
+      "source_layer": "BANK",
+      "title": "Premature finalization must not be attributed to an unproven tool window",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "incident-report",
+        "premature-finalization",
+        "tool-window",
+        "completion-boundary"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T02:13:39+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0208_EEST_premature-finalization-false-tool-window_report.md",
+        "02 Evidence/2026-08-27_0208_EEST_premature_finalization_false_tool_window_boundary.txt",
+        "03 Fixtures and Experiments/2026-08-27_0208_EEST_premature_finalization_false_tool_window_next_action.json",
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-9b620329"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-9b620329",
+      "source_layer": "BANK",
+      "title": "Raw end-turn evidence confirms model-selected premature finalization",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "incident-report",
+        "premature-finalization",
+        "tool-window",
+        "end-turn",
+        "completion-boundary"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T02:17:12+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0216_EEST_model-selected-end-turn_tool-window-evidence_followup.md",
+        "02 Evidence/2026-08-27_0216_EEST_model_selected_end_turn_tool_window_metadata.txt",
+        "03 Fixtures and Experiments/2026-08-27_0216_EEST_model_selected_end_turn_tool_window.json",
+        "conversation:6a879813-0f8c-83eb-86d9-e741ecccc5da"
+      ],
+      "source_classes": [
+        "conversation",
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-a46bdf43"
+      ],
+      "superseded_by": [
+        "mem-20260827-8a45d28e"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-33a52d41",
+      "source_layer": "BANK",
+      "title": "Incident capture must stop at its bounded completion gate",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "incident-report",
+        "scope-drift",
+        "overprocessing",
+        "stopping-arbitration"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T02:29:57+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0227_EEST_incident-report-overprocessing-recurrence_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-220e4517"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-8a19e602",
+      "source_layer": "BANK",
+      "title": "Completion tail is bounded by requested scope",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "completion",
+        "scope",
+        "regression"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T03:13:14+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0227_EEST_incident-report-overprocessing-recurrence_incident_report.md",
+        "01 Reports/2026-08-27_0231_EEST_policy-reflex-scope-control_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-239d15ae"
+      ],
+      "superseded_by": [
+        "mem-20260827-220e4517"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-f2da82b6",
+      "source_layer": "BANK",
+      "title": "Direct 3000 still reproduces MCP Connection failed",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "mcp",
+        "direct-3000",
+        "rerun",
+        "connection-failed",
+        "correction"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T03:14:51+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "conversation:2026-08-27-current-chat fresh 20-pair direct-3000 rerun"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-f063162f",
+      "source_layer": "BANK",
+      "title": "INCIDENT 2026-08-27 03:24 EEST — GitHub/MCP/refresh tool-routing failure. After…",
+      "kind": "lesson",
+      "scope": "tool-routing",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T03:25:30+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-3260514c",
+      "source_layer": "BANK",
+      "title": "Startup bootstrap miss cascaded into correction-regurgitation",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "bootstrap",
+        "correction-integration",
+        "evidence-before-explanation"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T03:36:13+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_0335_EEST_bootstrap-miss-correction-regurgitation_slopwall_incident_report.md",
+        "03 Fixtures and Experiments/2026-08-27_0335_EEST_bootstrap-miss-correction-regurgitation_slopwall.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-d2fd0b55",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 03:59 EEST: after the user asked the assistant to investiga…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T04:02:09+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-5ab6b51a"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-07cab6dc",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 04:05 EEST: after the user said the answer was still skippi…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T04:06:53+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-1cc59356",
+      "source_layer": "BANK",
+      "title": "INCIDENT 2026-08-27 05:05 EEST: Library→Vault continuation repeatedly regressed…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T05:07:58+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-5c891437",
+      "source_layer": "BANK",
+      "title": "SLOPWALL 2026-08-27 05:06 EEST: after the user showed a screenshot proving the…",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T05:09:22+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-220e4517",
+      "source_layer": "BANK",
+      "title": "Completion scope beats discovered lifecycle debt",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "scope",
+        "completion-boundary"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:02:05+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-27_0158_EEST_incident-capture-scope-drift_report.md",
+        "01 Reports/2026-08-27_0227_EEST_incident-report-overprocessing-recurrence_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-incident-scope-drift",
+        "mem-20260827-33a52d41",
+        "mem-20260827-8a19e602"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-b7525c20",
+      "source_layer": "BANK",
+      "title": "Evidence labels do not define worker-report presentation",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "worker-report-format",
+        "evidence"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:02:05+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-27_0110_EEST_worker-report-regression-explanation-instead-of-repair_slopwall_incident_report.md",
+        "memory:mem-20260827-3f4034d2",
+        "memory:mem-20260827-4a7287c6"
+      ],
+      "source_classes": [
+        "memory",
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-3f4034d2",
+        "mem-20260827-4a7287c6",
+        "mem-20260827-worker-report-explain-not-repair-0110"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-252a15cc",
+      "source_layer": "BANK",
+      "title": "Persistence destination binds the next action",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "persistence",
+        "bootstrap",
+        "evidence"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:02:05+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-26_2351_EEST_memory-route-bootstrap-fabricated-success_incident_report.md",
+        "03 Fixtures and Experiments/2026-08-26-memory-route-bootstrap-fabricated-success.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-3c353335"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-d5b341c6",
+      "source_layer": "BANK",
+      "title": "Missing evidence localizes uncertainty; it does not widen scope",
+      "kind": "correction",
+      "scope": "global",
+      "tags": [
+        "evidence",
+        "scope"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:48:33+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260825-missing-metadata-no-widen"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-7fc3c053",
+      "source_layer": "BANK",
+      "title": "Route correction binds the next substantive action",
+      "kind": "correction",
+      "scope": "mcp",
+      "tags": [
+        "routing",
+        "correction",
+        "tool-discovery"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:48:33+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-21_browser_tool_routing_regression_analysis.txt"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260825-tool-prereq-before-promise",
+        "mem-20260825-tool-route-health-test"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-58787569",
+      "source_layer": "BANK",
+      "title": "Raw concurrency alone does not explain control-plane regression",
+      "kind": "correction",
+      "scope": "orchestration",
+      "tags": [
+        "runners",
+        "mcp",
+        "causality"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:48:33+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-25_five-day-control-plane-correlation.md",
+        "03 Fixtures and Experiments/five-day-control-plane-correlation-2026-08-25.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260825-22e6a820"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-f059dbb6",
+      "source_layer": "BANK",
+      "title": "Reject unapproved subjective preference synthesis as authority",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "rejected-analysis",
+        "preferences"
+      ],
+      "state": "REJECTED",
+      "disposition": "REJECTED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T09:48:33+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "memory:mem-20260826-021f5801",
+        "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md"
+      ],
+      "source_classes": [
+        "memory",
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-021f5801"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-a4153dd1",
+      "source_layer": "BANK",
+      "title": "Screenshots prove visible behavior boundaries, not hidden causality",
+      "kind": "correction",
+      "scope": "regression-research",
+      "tags": [
+        "screenshots",
+        "evidence",
+        "causality"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T09:48:33+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "02 Evidence/issue122/2026-08-25_1230-1244_behavior-boundary.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-a501e4a7"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-48fce445",
+      "source_layer": "BANK",
+      "title": "Refresh requires retrieval before completion",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "memory-refresh",
+        "false-completion",
+        "slopwall"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T10:28:33+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "02 Evidence/2026-08-26_slopwall_event_index.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-refresh-memory-noop"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-a4b1730f",
+      "source_layer": "BANK",
+      "title": "Conversation corpus preserves originals; index is disposable",
+      "kind": "correction",
+      "scope": "memory-source-preservation",
+      "tags": [
+        "corpus",
+        "provenance",
+        "source-preservation"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T10:28:41+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "tools/conversation_corpus.py",
+        "docs/conversation-search.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-8ad2b847"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-8a45d28e",
+      "source_layer": "BANK",
+      "title": "Whole-turn ~25-26 minute execution boundary; end_turn is not a cutoff discriminator",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "turn-limit",
+        "tool-window",
+        "end-turn",
+        "mcp-telemetry",
+        "incident-correction"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T10:40:38+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_1037_EEST_turn-execution-limit-correction.md",
+        "02 Evidence/2026-08-27_1037_EEST_turn-execution-limit-correlation.txt",
+        "screenshots:Näyttökuva 2026-08-27 100157.png,Näyttökuva 2026-08-27 100201.png"
+      ],
+      "source_classes": [
+        "path",
+        "screenshots"
+      ],
+      "supersedes": [
+        "mem-20260827-9b620329"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-3fa939d7",
+      "source_layer": "BANK",
+      "title": "Windows PowerShell 5.1 rejects &&; pwsh 7 accepts it",
+      "kind": "fact",
+      "scope": "control-plane",
+      "tags": [
+        "powershell",
+        "compatibility"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T10:49:11+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "github:organicoverlords/regression-research#87@issuecomment-5436023115"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [
+        "mem-20260826-631675c3"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-ab85c977",
+      "source_layer": "BANK",
+      "title": "Tool-surface loss does not imply task or process loss",
+      "kind": "correction",
+      "scope": "execution-context",
+      "tags": [
+        "mcp",
+        "recovery",
+        "process-continuity"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T10:50:45+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "02 Evidence/issue122/2026-08-25_1230_interruption-tool-discovery-boundary.md",
+        "02 Evidence/issue155-live-stack-evidence-20260827.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-b75d9ef8"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-5ab6b51a",
+      "source_layer": "BANK",
+      "title": "Investigation burden stays internal unless requested",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "burden-transfer",
+        "internal-analysis",
+        "slopwall"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T10:58:27+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "github:organicoverlords/regression-research#87@issuecomment-5436110055"
+      ],
+      "source_classes": [
+        "github"
+      ],
+      "supersedes": [
+        "mem-20260827-d2fd0b55"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-424d0a22",
+      "source_layer": "BANK",
+      "title": "Observed 2026-08-27: during issue #155 work, awareness of the ~24m45/~25m calle…",
+      "kind": "lesson",
+      "scope": "assistant-context-provenance",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T11:11:57+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-context-pruning-ab",
+      "source_layer": "BANK",
+      "title": "Do not prune working context without isolated A/B proof",
+      "kind": "correction",
+      "scope": "memory",
+      "tags": [
+        "context-pruning",
+        "user-constraint",
+        "ab-test",
+        "causal-uncertainty"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T11:59:45+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "02 Evidence/issue87/2026-08-26_1437-1443_context-pruning-user-boundary.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260826-55bcada9",
+        "mem-20260826-caf3bdea"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-69627953",
+      "source_layer": "BANK",
+      "title": "Observed during #125 standalone BUSY/connector work on 2026-08-27: MCP0 became…",
+      "kind": "lesson",
+      "scope": "regression-research#125 connector reliability",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T12:33:23+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-afce2baf",
+      "source_layer": "BANK",
+      "title": "Observed 2026-08-27 during regression-research #125 implementation: while build…",
+      "kind": "lesson",
+      "scope": "issue125-security-routing",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T12:51:22+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-9a770b5b"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-9a770b5b",
+      "source_layer": "BANK",
+      "title": "User correction outranks derived interpretation; security-warning incident was not a policy lesson",
+      "kind": "correction",
+      "scope": "memory-governance",
+      "tags": [
+        "authority",
+        "provenance",
+        "user-correction",
+        "no-silent-policy"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T13:04:15+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "user-instruction:2026-08-27-current-correction",
+        "user-screenshot:2026-08-27-conversation-access-warning"
+      ],
+      "source_classes": [
+        "user-instruction",
+        "user-screenshot"
+      ],
+      "supersedes": [
+        "mem-20260827-afce2baf"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-82092b15",
+      "source_layer": "BANK",
+      "title": "Correction to mem-20260827-afce2baf: do NOT interpret 'avoid unnecessary high-c…",
+      "kind": "lesson",
+      "scope": "issue125-security-routing-correction",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T13:08:15+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-d4e21c4c",
+      "source_layer": "BANK",
+      "title": "User instruction authority is independent of factual proof state",
+      "kind": "correction",
+      "scope": "memory-governance",
+      "tags": [
+        "authority",
+        "user-instruction",
+        "proof-gate",
+        "issue172"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T13:21:25+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "user-instruction:2026-08-27-current-correction",
+        "01 Reports/2026-08-27_1320_EEST_user-instruction-proof-gate_authority-regression_incident_report.md"
+      ],
+      "source_classes": [
+        "path",
+        "user-instruction"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-091235f4",
+      "source_layer": "BANK",
+      "title": "2026-08-27 #122 forensic incident: user observed ChatGPT/MCP being security-rou…",
+      "kind": "lesson",
+      "scope": "memory",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T13:39:29+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-dbbff625"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-dbdc49bf",
+      "source_layer": "BANK",
+      "title": "2026-08-27 #122 meta-incident: While investigating prior assistant/tool failure…",
+      "kind": "lesson",
+      "scope": "memory",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T13:56:58+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-dbbff625"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-dbbff625",
+      "source_layer": "BANK",
+      "title": "Assistant memory recorder must preserve verbatim source trail",
+      "kind": "correction",
+      "scope": "memory-governance",
+      "tags": [
+        "incident-forensics",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T14:04:26+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [
+        "mem-20260827-091235f4",
+        "mem-20260827-dbdc49bf"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-37454ef0",
+      "source_layer": "BANK",
+      "title": "Do not infer backend identity from newly visible tool namespaces",
+      "kind": "correction",
+      "scope": "assistant-context-integration",
+      "tags": [
+        "context-identity",
+        "tool-topology",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T14:08:42+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Live conversation on 2026-08-27: assistant described MCP0 as a third/new route; user immediately corrected 'mcp0 is the original'. Subsequent assistant acknowledged the category error."
+      ],
+      "source_classes": [
+        "live conversation on 2026-08-27"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-282e7b3f",
+      "source_layer": "BANK",
+      "title": "Multiple-plugin testing begins; plugin5 description marks the change point",
+      "kind": "status",
+      "scope": "plugin-experiment-change-point",
+      "tags": [
+        "plugins",
+        "connector-testing",
+        "change-point",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T14:13:43+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "Live conversation on 2026-08-27: multiple plugin surfaces were visible and exercised; plugin5 schema showed description 'please don't go crazy again'; user explicitly requested a memory marking this as the point when multiple-plugin testing begins."
+      ],
+      "source_classes": [
+        "live conversation on 2026-08-27"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-0bb9451f",
+      "source_layer": "BANK",
+      "title": "Do not substitute surrounding context for an unread supplied source",
+      "kind": "correction",
+      "scope": "response-quality",
+      "tags": [
+        "source-provenance",
+        "correction-integration",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T14:23:24+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-27_1420_EEST_link-source-provenance-lessonception_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-2a056ec1",
+      "source_layer": "BANK",
+      "title": "Old working Personal Instructions plus only Vault bootstrap shows first positive signal",
+      "kind": "status",
+      "scope": "personal-instructions-recovery-trial",
+      "tags": [
+        "personal-instructions",
+        "bootstrap",
+        "good-state-recovery",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T15:33:54+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Live conversation 2026-08-27: old working PI + memory bootstrap experiment and first positive bootstrap observation."
+      ],
+      "source_classes": [
+        "live conversation 2026-08-27"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-f3e85546"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-d4ca7a86",
+      "source_layer": "BANK",
+      "title": "Retain MCP tool-call evidence for scientific route comparison",
+      "kind": "decision",
+      "scope": "mcp-scientific-comparison",
+      "tags": [
+        "mcp",
+        "tool-logging",
+        "scientific-comparison",
+        "caller-id",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T15:33:55+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Live conversation 2026-08-27: explicit instruction to record MCP tool calls for scientific comparison."
+      ],
+      "source_classes": [
+        "live conversation 2026-08-27"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-f3e85546",
+      "source_layer": "BANK",
+      "title": "PI recovery: bootstrap, length and answer quality positive",
+      "kind": "status",
+      "scope": "personal-instructions-recovery-trial",
+      "tags": [
+        "personal-instructions",
+        "bootstrap",
+        "good-state-recovery",
+        "slopwall",
+        "response-length",
+        "response-quality",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T15:35:22+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Live conversation 2026-08-27: bootstrap first, acceptable answer length, answers judged good, slopwall next target."
+      ],
+      "source_classes": [
+        "live conversation 2026-08-27"
+      ],
+      "supersedes": [
+        "mem-20260827-2a056ec1"
+      ],
+      "superseded_by": [
+        "mem-20260827-29bec375"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-76bcbd74",
+      "source_layer": "BANK",
+      "title": "Prefer backup plugins over MCP0 during reliability trial",
+      "kind": "decision",
+      "scope": "mcp-scientific-comparison",
+      "tags": [
+        "mcp",
+        "plugin-routing",
+        "scientific-comparison",
+        "policy-change-point",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T15:42:35+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Shared policy source and 10 generated targets verified 2026-08-27; issue #125 change-point comment."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-6bb1f35b",
+      "source_layer": "BANK",
+      "title": "Project-health slopwall: first telemetry surface mistaken for completed diagnosis",
+      "kind": "lesson",
+      "scope": "response-quality",
+      "tags": [
+        "slopwall",
+        "verification",
+        "telemetry"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T15:47:34+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/incident_report_2026-08-27_1545_EEST_project_health_first-result-slopwall.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-3b28932e",
+      "source_layer": "BANK",
+      "title": "Security incident: capacity probe escalated past bounded need",
+      "kind": "lesson",
+      "scope": "assistant-tooling/security-incident-20260827-capacity-probe",
+      "tags": [
+        "security",
+        "mcp",
+        "tool-use"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T16:01:24+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "Current 2026-08-27 conversation and observed plugin/plugin2/plugin5 process cleanup."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-069be384",
+      "source_layer": "BANK",
+      "title": "Checkpoint: epistemic falsification block added for restored-block test",
+      "kind": "status",
+      "scope": "personal-instructions-recovery-trial",
+      "tags": [
+        "checkpoint",
+        "epistemic-block",
+        "falsification",
+        "old-restored-block",
+        "bootstrapper"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T16:28:27+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "conversation:2026-08-27-current-chat"
+      ],
+      "source_classes": [
+        "conversation"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-5bf14f1a",
+      "source_layer": "BANK",
+      "title": "Dedicated fleet-owner tier was a regression; restore flat timed-worker resilience",
+      "kind": "correction",
+      "scope": "timed-workers/policy-architecture",
+      "tags": [
+        "regression",
+        "timed-workers"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T16:33:54+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "agents PR #16; merge 2b2d1121574be43e4caa3ff5bec66921c9a0cc95; Test-PolicyToolSafety PASS; Test-FleetOrchestratorWorkflow PASS; policy block 6031/8000; automation peek showed P3 Asset Sprint 1-5 enabled"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-5ceac95b",
+      "source_layer": "BANK",
+      "title": "Passed security incident should not stall work",
+      "kind": "lesson",
+      "scope": "security-incident-handling",
+      "tags": [
+        "security",
+        "nonblocking",
+        "incident",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T16:51:06+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "The attempted inventory command returned a PowerShell ParserError and exit_code=1; no configuration-changing command ran."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-0627b4d0",
+      "source_layer": "BANK",
+      "title": "Multi-route tool dispatch anomaly recorded",
+      "kind": "status",
+      "scope": "assistant-tooling/tool-route-dispatch-anomaly-20260827",
+      "tags": [
+        "mcp",
+        "plugins",
+        "pre-dispatch",
+        "tool-context",
+        "technical-error-report"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T16:54:37+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_1546_EEST_multi-route-dispatch-context_error_report.md",
+        "02 Evidence/2026-08-27_1546_EEST_multi-route-dispatch-context_transport-evidence.txt"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-406a9fde",
+      "source_layer": "BANK",
+      "title": "Tool drops require immediate active-work snapshot",
+      "kind": "decision",
+      "scope": "mcp-scientific-comparison",
+      "tags": [
+        "mcp",
+        "tool-drop",
+        "incident-capture",
+        "active-task",
+        "client-side-failure",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "SUPERSEDED",
+      "ordinary_recall": false,
+      "write_timestamp": "2026-08-27T16:54:42+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Explicit user correction in live chat on 2026-08-27; prior Vault decision mem-20260827-d4ca7a86 required retention of MCP tool-call evidence but did not operationalize failure-boundary active-work capture."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [
+        "mem-20260827-36484d19"
+      ],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "HISTORICAL"
+    },
+    {
+      "id": "mem-20260827-edbf8bdd",
+      "source_layer": "BANK",
+      "title": "Captured live tool-drop context during memory-rule update",
+      "kind": "status",
+      "scope": "mcp-scientific-comparison/tool-drop-20260827-1653",
+      "tags": [
+        "mcp",
+        "plugin2",
+        "plugin5",
+        "502",
+        "process-owner-unavailable",
+        "failure-boundary",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T16:56:23+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Directly observed live tool responses on 2026-08-27; rule persistence independently verified as mem-20260827-406a9fde via MCP0 recent; incident absence checked directly in memory/memory-bank.jsonl before this append."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-36484d19",
+      "source_layer": "BANK",
+      "title": "Tool-drop capture is bounded and must never become a reporting loop",
+      "kind": "correction",
+      "scope": "mcp-scientific-comparison",
+      "tags": [
+        "mcp",
+        "tool-drop",
+        "incident-capture",
+        "circuit-breaker",
+        "nonblocking",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:00:24+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Explicit live user correction on 2026-08-27; shared AGENTS.md already states route failure is local and must not become the task."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [
+        "mem-20260827-406a9fde"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-b4e14064",
+      "source_layer": "BANK",
+      "title": "Fresh tool-drop correlation separates upstream 502 from intentional backend restart",
+      "kind": "status",
+      "scope": "mcp-scientific-comparison/tool-drop-20260827-1653",
+      "tags": [
+        "mcp",
+        "plugin2",
+        "plugin5",
+        "pre-server",
+        "backend-restart",
+        "recovery"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:02:14+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Owned clone-a/clone-b transport.jsonl correlation plus process receipts and direct recovery probes in the live 2026-08-27 turn."
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-55024959",
+      "source_layer": "BANK",
+      "title": "Do not replace the task stop condition",
+      "kind": "correction",
+      "scope": "assistant-work-procedure",
+      "tags": [
+        "regression",
+        "stop-condition",
+        "premature-convergence",
+        "acceptance-criteria",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:11:46+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "Assistant concluded after 57/57 clean requests per ingress that the useful next phase was normal work/log accumulation; user immediately corrected: '57 is nothing you should wait until you obvsrve the error'. Assistant then acknowledged it had replaced the actual stop condition with an intermediate proxy."
+      ],
+      "source_classes": [
+        "assistant concluded after 57/57 clean requests per ingress that the useful next phase was normal work/log accumulation; user immediately corrected"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-8911a156",
+      "source_layer": "BANK",
+      "title": "Regression: ignored exact bootstrap command and falsely inferred machine route unavailable",
+      "kind": "correction",
+      "scope": "assistant-orchestration/bootstrap-regression-20260827",
+      "tags": [
+        "regression",
+        "bootstrap",
+        "tool-grounding"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:13:18+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "Direct evidence: filtered MCP0 discovery for execute_command returned nothing; later unfiltered MCP0 exposed shell tools. Process 53ee32fb-853f-4664-8288-a51db0f72c9e ran `python tools\\memory_bank.py recent` in C:\\Users\\Lauri\\Desktop\\vault with exit_code 0. A later read_output network drop recovered by retrying the same process_id. Two failed append attempts wrote nothing: first due to multiline native-arg splitting, second because text exceeded the 2000-character bank limit."
+      ],
+      "source_classes": [
+        "direct evidence"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-9820ac37",
+      "source_layer": "BANK",
+      "title": "Slopwall: low-information test churn and false memory blocker",
+      "kind": "correction",
+      "scope": "response-quality/debugging-test-selection",
+      "tags": [
+        "slopwall",
+        "debugging",
+        "information-gain",
+        "test-design",
+        "incident-workflow"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:26:15+03:00",
+      "event_date_hint": null,
+      "evidence": [
+        "01 Reports/2026-08-27_1717_EEST_low-information-test-churn_slopwall_incident_report.md",
+        "03 Fixtures and Experiments/2026-08-27_1717_EEST_discriminating-debug-packet_replay_fixture.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-c012d870",
+      "source_layer": "BANK",
+      "title": "2026-08-27 17:29 EEST security incident marker. VERBATIM USER: \"security incide…",
+      "kind": "lesson",
+      "scope": "security-incident,lowvram3d,#46,tool-routing",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:31:48+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-c010944c",
+      "source_layer": "BANK",
+      "title": "Checkpoint. VERBATIM USER: 'add a memory vault note checkpoint i disabled all t…",
+      "kind": "lesson",
+      "scope": "tool-availability/checkpoint",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:33:18+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-cf5423b8",
+      "source_layer": "BANK",
+      "title": "Repeating tool-binding incident: stop canarying after first reproduced route failure",
+      "kind": "lesson",
+      "scope": "assistant-tooling/repeating-binding-security-20260827",
+      "tags": [
+        "security",
+        "mcp",
+        "tool-binding",
+        "bounded-failure"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:56:30+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_1745_EEST_repeating-tool-binding-security_incident_report.md",
+        "03 Fixtures and Experiments/2026-08-27_1745_EEST_repeating-tool-binding-security.json"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-e3a621b2",
+      "source_layer": "BANK",
+      "title": "Bound adjacent regressions; stop after a falsifier instead of churning",
+      "kind": "correction",
+      "scope": "assistant-control-plane/bounded-debugging",
+      "tags": [
+        "incident",
+        "churn",
+        "issue194"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T17:59:08+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [
+        "01 Reports/2026-08-27_1755_EEST_issue194-unbounded-causal-forensics-churn_incident_report.md"
+      ],
+      "source_classes": [
+        "path"
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-5cf7ac90",
+      "source_layer": "BANK",
+      "title": "2026-08-27 ~18:02 EEST security incident marker during LowVRAM #49 / PR #89 CI…",
+      "kind": "lesson",
+      "scope": "security-incident,lowvram3d,#49,pr89,tool-routing",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T18:03:59+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-4525b377",
+      "source_layer": "BANK",
+      "title": "Security incident marker during capture-helper repair",
+      "kind": "fact",
+      "scope": "security-incident",
+      "tags": [
+        "security",
+        "assistant-recorded",
+        "verbatim-source",
+        "mcp-debugging",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T18:08:32+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
+      "id": "mem-20260827-f5367852",
+      "source_layer": "BANK",
+      "title": "Checkpoint: user applied new chat-level Personal Instructions for bounded inves…",
+      "kind": "lesson",
+      "scope": "assistant-orchestration/personal-instructions-checkpoint",
+      "tags": [
+        "quick-note"
+      ],
+      "state": "PROVISIONAL",
+      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T18:23:03+03:00",
+      "event_date_hint": null,
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "REVIEW"
+    },
+    {
+      "id": "mem-20260827-29bec375",
+      "source_layer": "BANK",
+      "title": "PI recovery trial: early user-positive checkpoint only",
+      "kind": "status",
+      "scope": "personal-instructions-recovery-trial",
+      "tags": [
+        "personal-instructions",
+        "bootstrap",
+        "good-state-recovery",
+        "response-quality",
+        "assistant-recorded",
+        "verbatim-source"
+      ],
+      "state": "PROVEN",
+      "disposition": "CURRENT_DURABLE",
+      "ordinary_recall": true,
+      "write_timestamp": "2026-08-27T19:41:55+03:00",
+      "event_date_hint": "2026-08-27",
+      "evidence": [],
+      "source_classes": [],
+      "supersedes": [
+        "mem-20260827-f3e85546"
+      ],
+      "superseded_by": [],
+      "sensitivity": "CLEAR",
+      "retrieval_value": "CURRENT"
+    },
+    {
       "id": "memory-candidate-5d71b46dbf2ca7a8",
       "source_layer": "CANDIDATE",
       "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "candidate_review_path": "memory/migrations/2026-08-27-negative-feedback-candidate-dispositions.json",
+      "candidate_review_reason": "The marker criticizes the canned response template, while the extracted candidate is the assistant prior self-diagnosis about auditing durable context; the user does not validate that diagnosis as the criticized behavior.",
+      "candidate_review_evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-262:line-1337"
+      ],
       "title": "Candidate memory-candidate-5d71b46dbf2ca7a8",
       "kind": "lesson",
       "scope": "assistant-behavior",
@@ -2083,7 +4227,7 @@
         "negative-feedback"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "disposition": "REJECTED",
       "ordinary_recall": false,
       "write_timestamp": "2026-08-25T00:00:00+03:00",
       "event_date_hint": null,
@@ -2097,12 +4241,17 @@
       "supersedes": [],
       "superseded_by": [],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "memory-candidate-d3c87986ff7fedaa",
       "source_layer": "CANDIDATE",
       "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "candidate_review_path": "memory/migrations/2026-08-27-negative-feedback-candidate-dispositions.json",
+      "candidate_review_reason": "The assistant synthesis is grounded in two inspected source conversations and the next user turn explicitly accepts it before adding the more important canned-response failure. Preserve it as historical replay evidence, not ordinary recall.",
+      "candidate_review_evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-394:line-2324"
+      ],
       "title": "Candidate memory-candidate-d3c87986ff7fedaa",
       "kind": "lesson",
       "scope": "assistant-behavior",
@@ -2112,7 +4261,7 @@
         "negative-feedback"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "disposition": "HISTORICAL_DURABLE",
       "ordinary_recall": false,
       "write_timestamp": "2026-08-25T00:00:00+03:00",
       "event_date_hint": null,
@@ -2126,12 +4275,17 @@
       "supersedes": [],
       "superseded_by": [],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "memory-candidate-fe19358cb1769f31",
       "source_layer": "CANDIDATE",
       "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "candidate_review_path": "memory/migrations/2026-08-27-negative-feedback-candidate-dispositions.json",
+      "candidate_review_reason": "The candidate is a speculative assistant explanation about inference economics/routing, and the next user turn explicitly rejects the framing and redirects the investigation to deleted items. Do not promote assistant causal speculation into memory.",
+      "candidate_review_evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-494:line-2740"
+      ],
       "title": "Candidate memory-candidate-fe19358cb1769f31",
       "kind": "lesson",
       "scope": "assistant-behavior",
@@ -2141,7 +4295,7 @@
         "negative-feedback"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "disposition": "REJECTED",
       "ordinary_recall": false,
       "write_timestamp": "2026-08-25T00:00:00+03:00",
       "event_date_hint": null,
@@ -2155,12 +4309,17 @@
       "supersedes": [],
       "superseded_by": [],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     },
     {
       "id": "memory-candidate-21d6c6273d9a81d7",
       "source_layer": "CANDIDATE",
       "candidate_path": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+      "candidate_review_path": "memory/migrations/2026-08-27-negative-feedback-candidate-dispositions.json",
+      "candidate_review_reason": "The transcript directly shows the assistant ignored an explicit one-process handoff, and the user immediately confirms the handoff was explicit and calls out the repeated failure. Preserve as historical replay evidence without adding another ordinary-recall rule.",
+      "candidate_review_evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-1966:line-7853"
+      ],
       "title": "Candidate memory-candidate-21d6c6273d9a81d7",
       "kind": "lesson",
       "scope": "assistant-behavior",
@@ -2170,7 +4329,7 @@
         "negative-feedback"
       ],
       "state": "PROVISIONAL",
-      "disposition": "PROVISIONAL/NEEDS_EVIDENCE",
+      "disposition": "HISTORICAL_DURABLE",
       "ordinary_recall": false,
       "write_timestamp": "2026-08-25T00:00:00+03:00",
       "event_date_hint": null,
@@ -2184,17 +4343,17 @@
       "supersedes": [],
       "superseded_by": [],
       "sensitivity": "CLEAR",
-      "retrieval_value": "REVIEW"
+      "retrieval_value": "HISTORICAL"
     }
   ],
   "snapshot": {
     "semantics": "POINT_IN_TIME_SOURCE_RECEIPT",
     "hash_semantics": "UTF8_TEXT_NORMALIZED_LF_NO_BOM",
-    "source_fingerprint": "a8d4f1155f44fce136c11dc0dfd3f5da694709d8ce6948632bc3bc6fdb48cea1",
+    "source_fingerprint": "3d457bc103d26f88610f029f021e141b620f6907f5981b64b0e6973cb3134ab6",
     "sources": [
       {
         "path": "memory/memory-bank.jsonl",
-        "sha256": "73398c9906cbd1e57a4e6a7c6cbbbe2ffcabd8aed086f56b40cf93a4e9f127cb"
+        "sha256": "a1f4cf8f2d0a9e5d280ce610061eec2227f0bb3ff6d74f17d5f61160928d75a4"
       },
       {
         "path": "memory/migrations/2026-08-25-initial-candidates.jsonl",
@@ -2207,6 +4366,10 @@
       {
         "path": "memory/migrations/2026-08-25-population-candidates.jsonl",
         "sha256": "3713447a5bac64d5e1a33114dcc2d3278c661787c401614000390cbe932b264c"
+      },
+      {
+        "path": "memory/migrations/2026-08-27-negative-feedback-candidate-dispositions.json",
+        "sha256": "b0c8cc4b217ae99efd56c59b8cd56482fb8b2267f25558a981a099005f6d44f6"
       }
     ],
     "note": "Counts/dispositions describe these logical UTF-8 text sources after BOM removal and LF normalization. Regenerate the tool for the current bank; normal later appends do not invalidate this historical audit snapshot."
