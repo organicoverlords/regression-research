@@ -27,3 +27,8 @@ python .\tests\mixed_contention.py
 `coordinator_parity.py` proves cross-language idempotency, lifecycle continuation, exact ownership, lease expiry, legacy-refresh safety, metadata passthrough, and blocked/next-work handoff. `mixed_contention.py` races Python and Rust writers against the same lock/store.
 
 Do not add a dashboard, dispatcher UI, scoring system, workflow language, connector-specific ownership state, or another database. Normal user interaction remains an issue request, `go`, or `continue`.
+
+
+## Scout finding fan-in
+
+`handoff <actor> <parent-scope> --finding-id <id> --source <provenance> --summary <text>` creates a separate ready follow-up job at `<parent-scope>::handoff:<id>`. The job stores structured `handoff` provenance (`parent_scope`, `finding_id`, `reported_by`, `source`, `summary`, `reported_at`) and is selected by the existing `next` command. It does not require or create ownership of the parent scope, so a scout blocked by a real live owner can durably fan work in without weakening BUSY authority. Parent release, block, or completion does not remove the follow-up job.

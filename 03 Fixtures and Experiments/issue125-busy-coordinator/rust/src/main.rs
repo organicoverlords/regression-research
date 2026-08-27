@@ -345,6 +345,9 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
 struct Options {
     operation_id: Option<String>,
     checkpoint: Option<String>,
+    finding_id: Option<String>,
+    source: Option<String>,
+    summary: Option<String>,
     lease_seconds: i64,
 }
 
@@ -352,6 +355,7 @@ fn parse_options(
     args: &[String],
     allow_lease: bool,
     allow_checkpoint: bool,
+    allow_handoff: bool,
 ) -> Result<Options, String> {
     let mut options = Options {
         lease_seconds: DEFAULT_LEASE_SECONDS,
@@ -387,6 +391,23 @@ fn parse_options(
                     return Err("--lease-seconds must be positive".into());
                 }
             }
+            "--finding-id" if allow_handoff => {
+                index += 1;
+                options.finding_id = Some(
+                    args.get(index)
+                        .ok_or("--finding-id requires a value")?
+                        .clone(),
+                );
+            }
+            "--source" if allow_handoff => {
+                index += 1;
+                options.source = Some(args.get(index).ok_or("--source requires a value")?.clone());
+            }
+            "--summary" if allow_handoff => {
+                index += 1;
+                options.summary =
+                    Some(args.get(index).ok_or("--summary requires a value")?.clone());
+            }
             other => return Err(format!("unknown option: {other}")),
         }
         index += 1;
@@ -415,6 +436,15 @@ fn signature(
     }
     if include_lease {
         map.insert("lease_seconds".into(), json!(options.lease_seconds));
+    }
+    if let Some(finding_id) = &options.finding_id {
+        map.insert("finding_id".into(), json!(finding_id));
+    }
+    if let Some(source) = &options.source {
+        map.insert("source".into(), json!(source));
+    }
+    if let Some(summary) = &options.summary {
+        map.insert("summary".into(), json!(summary));
     }
     Value::Object(map)
 }
@@ -503,6 +533,55 @@ fn operate(
             persist(store, &state)?;
         }
         return Ok(replay);
+    }
+
+    if command == "handoff" {
+        let actor = actor.ok_or("actor required")?;
+        let finding = canonical_scope(
+            options
+                .finding_id
+                .as_deref()
+                .ok_or("--finding-id is required")?,
+        )?;
+        let source = options.source.as_deref().unwrap_or("").trim();
+        let summary = options.summary.as_deref().unwrap_or("").trim();
+        if source.is_empty() {
+            return Err("source must not be empty".into());
+        }
+        if summary.is_empty() {
+            return Err("summary must not be empty".into());
+        }
+        let follow_scope = format!("{scope}::handoff:{finding}");
+        let result = if let Some(job) = state.coordinator.jobs.get(&follow_scope) {
+            json!({"ok": false, "reason": "finding_id_conflict", "job": job})
+        } else {
+            let timestamp = now_iso();
+            let handoff = json!({
+                "parent_scope": scope,
+                "finding_id": finding,
+                "reported_by": actor,
+                "source": source,
+                "summary": summary,
+                "reported_at": timestamp,
+            });
+            let mut job = Job {
+                job_id: follow_scope.clone(),
+                scope: follow_scope.clone(),
+                state: "ready".into(),
+                owner: None,
+                lease_expires_at: None,
+                claim_timestamp: None,
+                checkpoint: Some(summary.into()),
+                updated_at: timestamp,
+                ..Job::default()
+            };
+            job.extra.insert("handoff".into(), handoff.clone());
+            state.coordinator.jobs.insert(follow_scope.clone(), job);
+            json!({"ok": true, "job": state.coordinator.jobs.get(&follow_scope), "handoff": handoff})
+        };
+        let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
+        persist(store, &state)?;
+        return Ok(result);
     }
 
     if matches!(command, "enqueue" | "ready") {
@@ -675,7 +754,7 @@ fn run() -> Result<(), String> {
     } else {
         default_store()
     };
-    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|enqueue|ready|next|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
+    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|enqueue|ready|handoff|next|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
     raw.remove(0);
     if matches!(command.as_str(), "list" | "sweep") {
         if !raw.is_empty() {
@@ -688,15 +767,30 @@ fn run() -> Result<(), String> {
             return Err("usage: busy-rs next <actor> [options]".into());
         }
         let actor = raw.remove(0);
-        let options = parse_options(&raw, true, false)?;
+        let options = parse_options(&raw, true, false, false)?;
         return print_json(&operate(&store, &command, Some(&actor), None, &options)?);
+    }
+    if command == "handoff" {
+        if raw.len() < 2 {
+            return Err("usage: busy-rs handoff <actor> <scope> --finding-id ID --source SOURCE --summary SUMMARY [--operation-id ID]".into());
+        }
+        let actor = raw.remove(0);
+        let scope = raw.remove(0);
+        let options = parse_options(&raw, false, false, true)?;
+        return print_json(&operate(
+            &store,
+            &command,
+            Some(&actor),
+            Some(&scope),
+            &options,
+        )?);
     }
     if matches!(command.as_str(), "enqueue" | "ready") {
         if raw.is_empty() {
             return Err(format!("usage: busy-rs {command} <scope> [options]"));
         }
         let scope = raw.remove(0);
-        let options = parse_options(&raw, false, true)?;
+        let options = parse_options(&raw, false, true, false)?;
         return print_json(&operate(&store, &command, None, Some(&scope), &options)?);
     }
     if raw.len() < 2 {
@@ -713,6 +807,7 @@ fn run() -> Result<(), String> {
             command.as_str(),
             "claim" | "heartbeat" | "block" | "complete"
         ),
+        false,
     )?;
     print_json(&operate(
         &store,
@@ -741,7 +836,6 @@ fn main() -> ExitCode {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -755,10 +849,14 @@ mod tests {
     #[test]
     fn option_parser_rejects_unsupported_or_invalid_values() {
         let lease = vec!["--lease-seconds".to_string(), "60".to_string()];
-        assert_eq!(parse_options(&lease, true, false).unwrap().lease_seconds, 60);
-        assert!(parse_options(&lease, false, false).is_err());
+        assert_eq!(
+            parse_options(&lease, true, false, false)
+                .unwrap()
+                .lease_seconds,
+            60
+        );
+        assert!(parse_options(&lease, false, false, false).is_err());
         let zero = vec!["--lease-seconds".to_string(), "0".to_string()];
-        assert!(parse_options(&zero, true, false).is_err());
+        assert!(parse_options(&zero, true, false, false).is_err());
     }
-
 }

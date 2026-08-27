@@ -123,6 +123,44 @@ for path in [store, store2, store3, store4, store5, store6]:
     path.unlink(missing_ok=True)
     pathlib.Path(str(path) + ".lock").unlink(missing_ok=True)
 
+# Scout fan-in: a finding becomes a separate ready job with durable provenance and
+# survives the parent owner's completion.
+store7 = new_store("handoff-fanin")
+assert run("py", store7, "claim", "owner", "repo#125:parent", "--operation-id", "parent-claim", "--lease-seconds", "60")["ok"] is True
+handoff = run(
+    "rs", store7, "handoff", "scout", "repo#125:parent",
+    "--finding-id", "finding-1",
+    "--source", "github:issue#125:comment-42",
+    "--summary", "actionable scout result",
+    "--operation-id", "handoff-1",
+)
+assert handoff["ok"] is True and handoff["job"]["state"] == "ready"
+follow_scope = handoff["job"]["scope"]
+assert follow_scope == "repo#125:parent::handoff:finding-1"
+assert handoff["handoff"]["reported_by"] == "scout"
+assert handoff["handoff"]["source"] == "github:issue#125:comment-42"
+assert run(
+    "py", store7, "handoff", "scout", "repo#125:parent",
+    "--finding-id", "finding-1",
+    "--source", "github:issue#125:comment-42",
+    "--summary", "actionable scout result",
+    "--operation-id", "handoff-1",
+) == handoff
+assert run("py", store7, "complete", "owner", "repo#125:parent", "--operation-id", "parent-complete", "--checkpoint", "parent:done")["ok"] is True
+claimed_finding = run("rs", store7, "next", "reconciler", "--operation-id", "next-finding", "--lease-seconds", "60")
+assert claimed_finding["ok"] is True and claimed_finding["claim"]["scope"] == follow_scope
+assert claimed_finding["job"]["handoff"]["source"] == "github:issue#125:comment-42"
+assert claimed_finding["job"]["handoff"]["summary"] == "actionable scout result"
+
+# Blocking one exact sub-job releases only that ownership; sibling work remains claimable.
+store8 = new_store("subjob-block-isolation")
+assert run("py", store8, "claim", "import-worker", "repo#99:import", "--operation-id", "import-claim", "--lease-seconds", "60")["ok"] is True
+assert run("rs", store8, "enqueue", "repo#99:analysis", "--operation-id", "analysis-enqueue", "--checkpoint", "independent")["ok"] is True
+assert run("rs", store8, "block", "import-worker", "repo#99:import", "--operation-id", "import-block", "--checkpoint", "waiting:source-quiescence")["ok"] is True
+next_sibling = run("py", store8, "next", "analysis-worker", "--operation-id", "analysis-next", "--lease-seconds", "60")
+assert next_sibling["ok"] is True and next_sibling["claim"]["scope"] == "repo#99:analysis"
+assert all(claim["scope"] != "repo#99:import" for claim in read(store8)["claims"])
+
 print(json.dumps({
     "result": "PASS",
     "cross_language_idempotency": True,
@@ -132,4 +170,6 @@ print(json.dumps({
     "legacy_refresh_guard": True,
     "passthrough_metadata": True,
     "queue_handoff": True,
+    "scout_fanin": True,
+    "subjob_block_isolation": True,
 }))
