@@ -8,6 +8,9 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [memory] Corrected per-conversation corpus search date summaries so ordinal-only DOM captures remain non-wall-clock evidence instead of appearing as 1970 events.
+
+
 - [2026-08-29] [memory] Added bounded task-scoped memory context, revision-preserving conversation-corpus refresh, expiry/project-aware recall filtering, and corrected wall-clock coverage for ordinal-only captures.
 
 

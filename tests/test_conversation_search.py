@@ -114,6 +114,23 @@ class ConversationSearchTests(unittest.TestCase):
         self.assertTrue(str(coverage["message_first"]).startswith("2025-"))
         self.assertTrue(str(coverage["message_last"]).startswith("2025-"))
 
+    def test_search_report_top_conversation_ignores_ordinal_only_duplicate_dates(self):
+        ordinal = conversation("c1", "Mixed capture", "mixed wallclock marker", "ordinal answer", 1)
+        ordinal["mapping"]["u"]["message"]["id"] = "dom-1"
+        current = conversation("c1", "Mixed capture", "mixed wallclock marker", "current answer", 1756080000)
+        current["mapping"]["u"]["message"]["id"] = "real-u1"
+        (self.old / "ordinal.json").write_text(json.dumps(ordinal), encoding="utf-8")
+        (self.new / "current.json").write_text(json.dumps(current), encoding="utf-8")
+        index_roots(self.db, [self.old, self.new])
+
+        report = search_report(self.db, "mixed wallclock marker", limit=4)
+        top = report["summary"]["top_conversations"][0]
+
+        self.assertEqual(report["summary"]["non_wall_clock_messages"], 1)
+        self.assertEqual(top["conversation_id"], "c1")
+        self.assertTrue(str(top["first_match"]).startswith("2025-"))
+        self.assertTrue(str(top["last_match"]).startswith("2025-"))
+
     def test_search_report_keeps_full_frequency_signal_but_bounds_diverse_context(self):
         conversations = [
             conversation(
