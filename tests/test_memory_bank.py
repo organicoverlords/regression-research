@@ -38,6 +38,16 @@ class MemoryBankValidationTests(unittest.TestCase):
             e = self.valid(); e[field] = [123]
             with self.subTest(field=field), self.assertRaises(BankError): validate_entry(e)
 
+    def test_project_and_expiry_validate(self):
+        e = self.valid()
+        e["project"] = "p3"
+        e["expires_at"] = "2099-08-21T10:00:00+03:00"
+        validate_entry(e)
+        bad = self.valid(); bad["expires_at"] = "2099-08-21T10:00:00"
+        with self.assertRaises(BankError): validate_entry(bad)
+        bad = self.valid(); bad["project"] = ""
+        with self.assertRaises(BankError): validate_entry(bad)
+
     def test_malformed_jsonl_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "bank.jsonl"; p.write_text('{"id":"x"}\nnot-json\n', encoding="utf-8")

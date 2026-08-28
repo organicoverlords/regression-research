@@ -33,6 +33,14 @@ class HybridMemoryTests(unittest.TestCase):
         ids = [e["id"] for e in search_entries_hybrid([old, rejected, new], "correct connector route")]
         self.assertEqual(ids, ["new"])
 
+    def test_expired_memory_stays_hidden(self):
+        expired = self.entry("expired", "connector routing target", title="Connector target")
+        expired["expires_at"] = "2026-08-01T00:00:00+03:00"
+        current = self.entry("current", "connector routing target", title="Connector target")
+        current["expires_at"] = "2099-08-01T00:00:00+03:00"
+        ids = [e["id"] for e in search_entries_hybrid([expired, current], "connector routing target")]
+        self.assertEqual(ids, ["current"])
+
     def test_deterministic(self):
         entries = [
             self.entry("a", "tool connection task process survives", title="Connection process continuity"),

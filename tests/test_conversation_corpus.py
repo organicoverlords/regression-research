@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from tools.conversation_corpus import backup, export_legacy_sqlite, import_source, verify
+from tools.conversation_corpus import backup, export_legacy_sqlite, import_source, sync_source, verify
 
 
 class ConversationCorpusTests(unittest.TestCase):
@@ -38,6 +38,55 @@ class ConversationCorpusTests(unittest.TestCase):
         self.assertEqual(second["reused"], 2)
         manifest = json.loads((self.root / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(len(manifest["files"]), 2)
+
+    def test_sync_source_adds_only_new_files_and_fast_reuses_unchanged(self):
+        a = self.source / "a.json"
+        a.write_text("one", encoding="utf-8")
+        import_source(self.source, "old", self.root)
+        b = self.source / "b.json"
+        b.write_text("two", encoding="utf-8")
+
+        result = sync_source(self.source, "old", self.root)
+        self.assertEqual(result["status"], "PROVEN")
+        self.assertEqual(result["copied"], 1)
+        self.assertEqual(result["reused"], 1)
+        self.assertEqual(result["fast_reused"], 1)
+        self.assertEqual((self.root / "raw" / "old" / "b.json").read_text(encoding="utf-8"), "two")
+        self.assertEqual(verify(self.root, hashes=True)["status"], "PROVEN")
+
+    def test_sync_source_preserves_changed_path_as_revision(self):
+        src = self.source / "a.json"
+        src.write_text("one", encoding="utf-8")
+        import_source(self.source, "old", self.root)
+        src.write_text("two-two", encoding="utf-8")
+        result = sync_source(self.source, "old", self.root)
+        self.assertEqual(result["revisions_copied"], 1)
+        self.assertEqual((self.root / "raw" / "old" / "a.json").read_text(encoding="utf-8"), "one")
+        revisions = list((self.root / "revisions" / "old").rglob("a.json"))
+        self.assertEqual(len(revisions), 1)
+        self.assertEqual(revisions[0].read_text(encoding="utf-8"), "two-two")
+        self.assertEqual(verify(self.root, hashes=True)["status"], "PROVEN")
+
+    def test_sync_source_rejects_tampered_canonical_baseline(self):
+        src = self.source / "a.json"
+        src.write_text("one", encoding="utf-8")
+        import_source(self.source, "old", self.root)
+        target = self.root / "raw" / "old" / "a.json"
+        target.write_text("tampered", encoding="utf-8")
+        src.write_text("new source bytes", encoding="utf-8")
+        with self.assertRaises(RuntimeError):
+            sync_source(self.source, "old", self.root)
+
+    def test_sync_source_never_deletes_canonical_file_missing_from_source(self):
+        src = self.source / "a.json"
+        src.write_text("one", encoding="utf-8")
+        import_source(self.source, "old", self.root)
+        src.unlink()
+        result = sync_source(self.source, "old", self.root)
+        self.assertEqual(result["copied"], 0)
+        self.assertEqual(result["preserved_missing_source_files"], 1)
+        self.assertTrue((self.root / "raw" / "old" / "a.json").is_file())
+        self.assertEqual(verify(self.root, hashes=True)["status"], "PROVEN")
 
     def test_import_refuses_to_overwrite_different_canonical_bytes(self):
         src = self.source / "a.json"

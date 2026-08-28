@@ -24,6 +24,16 @@ Search ordinary current memory and matching preserved historical conversation tu
 python tools\memory_bank.py search "MCP safety blocks" --scope mcp
 ```
 
+Build a task-scoped context pack for an assistant turn without dumping the whole bank:
+
+```powershell
+python tools\memory_bank.py context "p3 orchestrator: work on P3"
+```
+
+Add `--with-history` only when the task actually needs preserved full-conversation evidence. The default context path stays on the curated bank and does not fan out into the raw conversation corpus.
+
+`context` uses the same validated retrieval path but applies a hard prompt budget and separates behavioral authority, proven durable memory, and historical conversation evidence. PROVISIONAL and stored `status` matches are omitted from the default durable section; they remain available through explicit `search`/`history`. Historical frequency and excerpts are always advisory evidence, never authority. This is the preferred compact handoff surface when product-level ChatGPT memory/history is disabled.
+
 Inspect historical/rejected/superseded entries:
 
 ```powershell
@@ -41,8 +51,10 @@ This returns at most 10 titles by default (hard cap 20), newest first, without d
 Append one compact entry:
 
 ```powershell
-python tools\memory_bank.py append --kind lesson --scope p3 --tag fleet --tag convergence --text "Validated work must converge or retire." --state PROVEN --evidence "github:organicoverlords/p3#528"
+python tools\memory_bank.py append --kind lesson --scope p3 --project p3 --tag fleet --tag convergence --text "Validated work must converge or retire." --state PROVEN --evidence "github:organicoverlords/p3#528"
 ```
+
+New writes should set `--project` when a memory belongs to one project. Time-bounded facts/instructions may set `--expires-at <ISO-8601-with-offset>`; expired entries stay available to explicit history but are automatically excluded from ordinary recall, recent titles, hybrid retrieval, and behavioral authority. Stored `status` entries are also excluded from the default task context so live state is re-read instead of inherited.
 
 These are ordinary repository commands. MCP/local workers may invoke them when they have repo access, but MCP availability is not part of the memory contract.
 

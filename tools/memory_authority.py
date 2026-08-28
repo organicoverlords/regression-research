@@ -3,6 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Iterable
 
+try:
+    from .memory_lifecycle import is_expired
+except ImportError:
+    from memory_lifecycle import is_expired
+
 USER_PREFIXES = ("user-instruction:",)
 CANONICAL_PREFIXES = (
     "shared-policy:",
@@ -94,7 +99,7 @@ def current_entries(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     superseded = {old for entry in items for old in entry.get("supersedes", [])}
     return [
         entry for entry in items
-        if entry.get("state") != "REJECTED" and entry.get("id") not in superseded
+        if entry.get("state") != "REJECTED" and entry.get("id") not in superseded and not is_expired(entry)
     ]
 
 

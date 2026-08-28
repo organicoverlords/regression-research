@@ -93,6 +93,12 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
         self.assertNotIn(old["id"], selected_ids)
         self.assertIn(correction["id"], selected_ids)
 
+    def test_expired_user_instruction_does_not_remain_behavior_authority(self):
+        expired = self.e("expired-user", kind="correction", evidence=["user-instruction:old"])
+        expired["expires_at"] = "2026-08-01T00:00:00+03:00"
+        self.assertEqual(behavioral_context([expired]), [])
+        self.assertEqual(recent_title_entries([expired], limit=1), [])
+
     def test_recent_bootstrap_exposes_authority_label(self):
         user = self.e("user", kind="correction", evidence=["user-instruction:current"])
         recent = recent_title_entries([user], limit=1)

@@ -87,6 +87,145 @@ def _copy_verified(src: Path, dst: Path) -> tuple[int, str, bool]:
     return size, digest, True
 
 
+def _revision_storage(label: str, rel: Path, digest: str) -> str:
+    return (Path("revisions") / label / digest[:16] / rel).as_posix()
+
+
+def sync_source(
+    source: Path,
+    label: str,
+    root: Path = DEFAULT_ROOT,
+    *,
+    min_age_seconds: float = 0.0,
+) -> dict[str, Any]:
+    """Incrementally preserve a moving export source without rewriting history.
+
+    New paths become immutable baseline copies under ``raw/<label>``. If a source
+    path later changes bytes, the original canonical copy remains untouched and the
+    new bytes are stored under a content-addressed ``revisions/<label>`` path.
+    Files younger than ``min_age_seconds`` are deferred so active writers are not
+    snapshotted mid-write. Missing source files never delete canonical history.
+    """
+    source = source.resolve(strict=True)
+    if not label or Path(label).name != label or label in {".", ".."}:
+        raise ValueError("label must be one safe directory name")
+    if min_age_seconds < 0:
+        raise ValueError("min_age_seconds must be non-negative")
+
+    manifest = _load_manifest(root / "manifest.json")
+    rows = {_storage(row): row for row in manifest["files"]}
+    copied = reused = fast_reused = revisions_copied = revisions_reused = total = 0
+    deferred_unstable = 0
+    seen_baselines: set[str] = set()
+    candidates = list(_iter_files(source)) if source.is_dir() else [source]
+    now_ns = int(datetime.now(timezone.utc).timestamp() * 1_000_000_000)
+
+    for src in candidates:
+        rel = src.relative_to(source) if source.is_dir() else Path(src.name)
+        storage = (Path("raw") / label / rel).as_posix()
+        src_stat = src.stat()
+        age_seconds = max(0.0, (now_ns - src_stat.st_mtime_ns) / 1_000_000_000)
+        if age_seconds < min_age_seconds:
+            deferred_unstable += 1
+            continue
+        seen_baselines.add(storage)
+        total += src_stat.st_size
+        dst = root / storage
+        existing = rows.get(storage)
+
+        if existing is None:
+            size, digest, created = _copy_verified(src, dst)
+            copied += int(created)
+            reused += int(not created)
+            rows[storage] = {
+                "storage_path": storage,
+                "label": label,
+                "relative_path": rel.as_posix(),
+                "bytes": size,
+                "sha256": digest,
+                "kind": "source-copy",
+                "source_mtime_ns": src_stat.st_mtime_ns,
+            }
+            continue
+
+        if not dst.is_file():
+            raise RuntimeError(f"canonical target missing for manifest row: {dst}")
+        expected_size = int(existing.get("bytes", -1))
+        expected_digest = str(existing.get("sha256") or "")
+        dst_stat = dst.stat()
+        if (
+            expected_size == src_stat.st_size == dst_stat.st_size
+            and dst_stat.st_mtime_ns == src_stat.st_mtime_ns
+        ):
+            fast_reused += 1
+            reused += 1
+            continue
+
+        # Metadata changed. Verify the immutable baseline before deciding whether
+        # the source is merely touched or is a genuinely new revision.
+        if dst_stat.st_size != expected_size or _sha256(dst) != expected_digest:
+            raise RuntimeError(f"canonical target differs from manifest; refusing refresh: {dst}")
+        source_digest = _sha256(src)
+        if src_stat.st_size == expected_size and source_digest == expected_digest:
+            reused += 1
+            continue
+
+        revision_storage = _revision_storage(label, rel, source_digest)
+        revision_dst = root / revision_storage
+        size, digest, created = _copy_verified(src, revision_dst)
+        revisions_copied += int(created)
+        revisions_reused += int(not created)
+        reused += int(not created)
+        rows[revision_storage] = {
+            "storage_path": revision_storage,
+            "label": label,
+            "relative_path": rel.as_posix(),
+            "bytes": size,
+            "sha256": digest,
+            "kind": "source-revision",
+            "revision_of": storage,
+            "source_mtime_ns": src_stat.st_mtime_ns,
+        }
+
+    baseline_rows = {
+        storage for storage, row in rows.items()
+        if row.get("label") == label and row.get("kind") == "source-copy"
+    }
+    imports = [entry for entry in manifest.get("imports", []) if entry.get("label") != label]
+    imports.append({
+        "label": label,
+        "original_source": str(source),
+        "imported_at": _now(),
+        "files": len(candidates),
+        "bytes": total,
+        "mode": "revision-preserving-sync",
+        "deferred_unstable": deferred_unstable,
+    })
+    manifest.update({
+        "schema": "vault.memory-conversations.v2",
+        "updated_at": _now(),
+        "imports": sorted(imports, key=lambda x: x["label"]),
+        "files": sorted(rows.values(), key=_storage),
+    })
+    _write_manifest(root / "manifest.json", manifest)
+    return {
+        "status": "PROVEN",
+        "label": label,
+        "source": str(source),
+        "canonical": str(root / "raw" / label),
+        "files_seen": len(candidates),
+        "stable_files_seen": len(seen_baselines),
+        "bytes": total,
+        "copied": copied,
+        "reused": reused,
+        "fast_reused": fast_reused,
+        "revisions_copied": revisions_copied,
+        "revisions_reused": revisions_reused,
+        "deferred_unstable": deferred_unstable,
+        "preserved_missing_source_files": len(baseline_rows - seen_baselines),
+    }
+
+
 def import_source(source: Path, label: str, root: Path = DEFAULT_ROOT) -> dict[str, Any]:
     source = source.resolve(strict=True)
     if not label or Path(label).name != label or label in {".", ".."}:
@@ -188,12 +327,14 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     sub = parser.add_subparsers(dest="command", required=True)
     imp = sub.add_parser("import"); imp.add_argument("--source", type=Path, required=True); imp.add_argument("--label", required=True)
+    sync = sub.add_parser("sync"); sync.add_argument("--source", type=Path, required=True); sync.add_argument("--label", required=True); sync.add_argument("--min-age-seconds", type=float, default=0.0)
     recover = sub.add_parser("recover-legacy-sqlite"); recover.add_argument("--source-db", type=Path, required=True); recover.add_argument("--label", default="legacy-regression-sqlite")
     check = sub.add_parser("verify"); check.add_argument("--no-hash", action="store_true")
     save = sub.add_parser("backup"); save.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)
     args = parser.parse_args()
     try:
         if args.command == "import": result = import_source(args.source, args.label, args.root)
+        elif args.command == "sync": result = sync_source(args.source, args.label, args.root, min_age_seconds=args.min_age_seconds)
         elif args.command == "recover-legacy-sqlite": result = export_legacy_sqlite(args.source_db, args.root, args.label)
         elif args.command == "verify": result = verify(args.root, hashes=not args.no_hash)
         else: result = backup(args.root, args.backup_dir)
