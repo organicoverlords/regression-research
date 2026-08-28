@@ -583,12 +583,16 @@ def search_report(db: Path, query: str, literal: bool = False, limit: int = 8, c
             }
             for conv_id, title, count, first_seen, last_seen in conn.execute(
                 f"""
-                SELECT m.conversation_id,c.title,COUNT(*) AS match_count,MIN(m.created_at),MAX(m.created_at)
+                SELECT m.conversation_id,c.title,COUNT(*) AS match_count,
+                       MIN(CASE WHEN m.created_at>='2000-01-01T00:00:00Z' THEN m.created_at END),
+                       MAX(CASE WHEN m.created_at>='2000-01-01T00:00:00Z' THEN m.created_at END)
                 FROM query_matches q
                 JOIN messages m ON m.rowid=q.message_rowid
                 LEFT JOIN conversations c ON c.conversation_id=m.conversation_id
                 GROUP BY m.conversation_id,c.title
-                ORDER BY match_count DESC,COALESCE(MAX(m.created_at),'') DESC,m.conversation_id ASC
+                ORDER BY match_count DESC,
+                         COALESCE(MAX(CASE WHEN m.created_at>='2000-01-01T00:00:00Z' THEN m.created_at END),'') DESC,
+                         m.conversation_id ASC
                 LIMIT 5
                 """
             )
