@@ -76,6 +76,14 @@ Source classes are ranked in `sources.json`: current user instruction, live cano
 
 Ordinary `search` is intentionally narrow: blank unscoped searches return no entries, the default is 5 results, and the hard maximum is 8. Explicit `history` may expand to at most 20 entries. Individual entries are bounded to 2000 text characters, 12 tags, 16 evidence pointers, and 16 supersession pointers. Broader context requires an explicit follow-up search rather than one accidental dump.
 
+## Classification and normalization
+
+Every bank/candidate record can be classified through the bounded deterministic taxonomy documented in [`docs/memory-normalization.md`](../docs/memory-normalization.md). The classifier derives semantic category, primary domain, project/role/entity labels, durability, sensitivity and review reasons without changing claim state or authority. Project/role inference uses descriptors only; a project name mentioned only in the body does not silently re-scope a record.
+
+Ordinary recall excludes records classified as historical, ephemeral, expired or strongly sensitive, while explicit `history` preserves their evidence trail. `PROVISIONAL` remains explicit review work. New writes auto-fill `project` only when exactly one descriptor project can be inferred safely; explicit `--project` wins.
+
+Classify one bank record incrementally with `python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>`. Regenerate exhaustive #87 accounting with `python tools\memory_normalization_report.py --output <report.json>`. The normalization report is a derived point-in-time audit with source hashes, not another recall authority.
+
 ## Candidate extraction
 
 Prepare compact candidate records from bounded source snippets with python tools\extract_memory_candidates.py <sources.jsonl> <candidates.jsonl>. Source snippets declare source_id, source_class, scope, \timestamp, evidence, and content. The extractor recognizes corrections, decisions, lessons, status receipts, explicit RULE: lines, and standalone ALL-CAPS rules. Extracted claims remain PROVISIONAL until curation; extractor-only provenance fields are removed when candidates are migrated into the strict bank schema.

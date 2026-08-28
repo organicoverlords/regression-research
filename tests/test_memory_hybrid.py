@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 
 from tools.memory_hybrid import search_entries_hybrid
 
@@ -32,6 +32,15 @@ class HybridMemoryTests(unittest.TestCase):
         rejected = self.entry("bad", "connector route correction", title="Rejected connector route", state="REJECTED")
         ids = [e["id"] for e in search_entries_hybrid([old, rejected, new], "correct connector route")]
         self.assertEqual(ids, ["new"])
+
+    def test_ephemeral_and_sensitive_memory_stay_hidden(self):
+        ephemeral = self.entry("ephemeral", "worker tool checkpoint", title="Tool checkpoint")
+        ephemeral["kind"] = "status"
+        ephemeral["scope"] = "tool-availability/checkpoint"
+        secret = self.entry("secret", "token=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 worker tool checkpoint", title="Secret checkpoint")
+        current = self.entry("current", "worker tool checkpoint durable rule", title="Durable checkpoint rule")
+        ids = [e["id"] for e in search_entries_hybrid([ephemeral, secret, current], "worker tool checkpoint")]
+        self.assertEqual(ids, ["current"])
 
     def test_expired_memory_stays_hidden(self):
         expired = self.entry("expired", "connector routing target", title="Connector target")

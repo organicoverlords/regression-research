@@ -9,66 +9,23 @@ MAX_CONTEXT_CHARS = 12000
 MAX_ENTRY_TEXT = 450
 MAX_HISTORY_TEXT = 350
 
-PROJECT_MARKERS = {
-    "p3": ("p3",),
-    "tiny3d": ("tiny3d",),
-    "lowvram": ("lowvram", "lowvram3d"),
-}
-ROLE_MARKERS = {
-    "orchestrator": ("orchestrator",),
-    "worker": ("worker", "workers"),
-}
+try:
+    from .memory_classification import (
+        PROJECT_MARKERS, ROLE_MARKERS, token_words as _words,
+        projects_from_text as _projects_from_text, entry_projects as _entry_projects,
+        roles_from_text as _roles_from_text, entry_roles as _entry_roles,
+    )
+except ImportError:
+    from memory_classification import (
+        PROJECT_MARKERS, ROLE_MARKERS, token_words as _words,
+        projects_from_text as _projects_from_text, entry_projects as _entry_projects,
+        roles_from_text as _roles_from_text, entry_roles as _entry_roles,
+    )
+
 GENERIC_TASK_WORDS = {
     "a", "an", "are", "current", "do", "doing", "go", "how", "look", "looking",
     "on", "please", "status", "the", "things", "work",
 }
-
-
-def _words(value: Any) -> set[str]:
-    import re
-    return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
-
-
-def _projects_from_text(value: Any) -> set[str]:
-    words = _words(value)
-    found: set[str] = set()
-    for project, markers in PROJECT_MARKERS.items():
-        if any(marker in words for marker in markers):
-            found.add(project)
-    return found
-
-
-def _entry_projects(entry: dict[str, Any]) -> set[str]:
-    explicit = str(entry.get("project") or "").strip().casefold()
-    if explicit:
-        return {explicit}
-    # Infer project only from descriptors. Body text can mention another project as
-    # an example and must not silently re-scope a global rule.
-    fields = [entry.get("scope"), entry.get("title"), *(entry.get("tags") or [])]
-    found: set[str] = set()
-    for field in fields:
-        found.update(_projects_from_text(field))
-    return found
-
-
-def _roles_from_text(value: Any) -> set[str]:
-    words = _words(value)
-    found: set[str] = set()
-    for role, markers in ROLE_MARKERS.items():
-        if any(marker in words for marker in markers):
-            found.add(role)
-    return found
-
-
-def _entry_roles(entry: dict[str, Any]) -> set[str]:
-    # Restrict role inference to descriptors, not the memory body. Incident bodies
-    # often mention both actors and would otherwise over-classify everything.
-    fields = [entry.get("scope"), entry.get("title"), *(entry.get("tags") or [])]
-    found: set[str] = set()
-    for field in fields:
-        found.update(_roles_from_text(field))
-    return found
-
 
 def context_selectors(query: str) -> dict[str, set[str]]:
     return {"projects": _projects_from_text(query), "roles": _roles_from_text(query)}
@@ -104,6 +61,7 @@ def _clip(text: Any, limit: int) -> str:
 
 def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
     authority = dict(entry.get("behavioral_authority") or {})
+    classification = dict(entry.get("classification") or {})
     out = {
         "id": entry.get("id"),
         "title": entry.get("title") or _clip(entry.get("text"), 120),
@@ -116,6 +74,10 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
         "authority_scope": authority.get("authority_scope", "evidence_only"),
         "evidence": list(entry.get("evidence") or [])[:4],
     }
+    if classification:
+        out["semantic_category"] = classification.get("semantic_category")
+        out["primary_domain"] = classification.get("primary_domain")
+        out["durability"] = classification.get("durability")
     projects = sorted(_entry_projects(entry))
     if projects:
         out["projects"] = projects
