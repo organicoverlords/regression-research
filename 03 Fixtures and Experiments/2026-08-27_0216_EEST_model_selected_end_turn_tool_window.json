@@ -19,5 +19,7 @@
     "tool counts from comparable working turns",
     "unfinished executable integration debt"
   ],
-  "completion_condition": "A tool-window explanation is accepted only when concrete external-cutoff evidence exists; otherwise unfinished executable work remains active."
+  "completion_condition": "A tool-window explanation is accepted only when concrete external-cutoff evidence exists; otherwise unfinished executable work remains active.",
+  "capture_state": "pending",
+  "replay_ready": false
 }

@@ -33,5 +33,7 @@
     "Whether routine in-scope work remains when the final response is sent.",
     "Whether a concrete unavailable/failed tool boundary exists."
   ],
-  "completion_condition": "All accepted in-scope tail work is complete or a concrete tool/runtime blocker is observed and named."
+  "completion_condition": "All accepted in-scope tail work is complete or a concrete tool/runtime blocker is observed and named.",
+  "capture_state": "pending",
+  "replay_ready": false
 }

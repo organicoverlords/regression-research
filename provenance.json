@@ -291,6 +291,226 @@
         "raw_conversation_json_external_to_repo_but_hash_path_and_full_traversal_recorded"
       ],
       "notes": "Full user-supplied share was downloaded with the retired ChatPort one-shot collector, traversed on the complete active chain, and retained externally by exact path/hash. Evidence file records downloader shutdown proof and exact sequence/timing metrics."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_0110_EEST_worker-report-regression-explanation-instead-of-repair_slopwall_incident_report.md",
+      "title": "Incident report — worker-report regression answered with explanation instead of repair",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_0208_EEST_premature-finalization-false-tool-window_report.md",
+      "title": "Incident Report - Premature finalization falsely attributed to a tool-use window",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_0216_EEST_model-selected-end-turn_tool-window-evidence_followup.md",
+      "title": "Incident follow-up: raw end-turn evidence — 2026-08-27 02:16 EEST",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_1320_EEST_user-instruction-proof-gate_authority-regression_incident_report.md",
+      "title": "Incident: user instruction was incorrectly put behind a proof gate",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_1839_EEST_correction-integration-model-reset_incident_report.md",
+      "title": "Correction integration regression: local correction erased the working model",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_1924_EEST_issue123-startup-memory-acceptance.md",
+      "title": "Issue #123 startup-memory orchestration acceptance packet",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_2223_EEST_user-interrupt-pending-merge_security_incident.md",
+      "title": "Security incident ? user interrupt did not revoke an armed PR merge",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_issue174_tool-use-mistakes-pilot.md",
+      "title": "Issue #174 ? assistant tool-use mistake pilot",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_issue174_tool-use-mistakes-tranche2.md",
+      "title": "Issue #174 ? frozen random tranche 2",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-27_issue193_context-refresh-retrospective.md",
+      "title": "#193 retrospective matched-control analysis: context refresh and callable-tool loss",
+      "date": "2026-08-27T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-28_2013_EEST_stale-busy-authority-recurrence-prevention_report.md",
+      "title": "Stale BUSY authority recurrence: root cause and permanent prevention",
+      "date": "2026-08-28T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
     }
   ],
   "orphan_evidence": [

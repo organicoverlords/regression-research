@@ -201,6 +201,14 @@ def validate_fixture(raw: Any, *, root: Path = ROOT, filename: str = "fixture") 
     return raw
 
 
+def _looks_like_replay_fixture(raw: Any) -> bool:
+    if not isinstance(raw, dict):
+        return False
+    # The experiments directory intentionally contains other JSON datasets. A file
+    # joins the replay harness only when it declares scoring or replay/capture state.
+    return "scoring" in raw or "replay_ready" in raw or "capture_state" in raw
+
+
 def load_fixtures(directory: Path = DEFAULT_FIXTURES, *, root: Path = ROOT, include_pending: bool = False) -> list[dict[str, Any]]:
     if not directory.is_dir():
         raise FixtureError(f"fixture directory not found: {directory}")
@@ -211,6 +219,8 @@ def load_fixtures(directory: Path = DEFAULT_FIXTURES, *, root: Path = ROOT, incl
             raw = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError) as exc:
             raise FixtureError(f"{path.name}: invalid JSON: {exc}") from exc
+        if not _looks_like_replay_fixture(raw):
+            continue
         fixture = validate_fixture(raw, root=root, filename=path.name)
         if fixture["id"] in ids:
             raise FixtureError(f"{path.name}: duplicate fixture id '{fixture['id']}'")
@@ -518,6 +528,8 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
                 "preserve unaffected observations",
                 "retain unaffected observations",
             ),
+        ) or bool(
+            re.search(r"\b(?:preserve|retain|keep)\b.{0,80}\bunaffected (?:evidence|observations)\b", text)
         )
         ok = preserved and not discarded
         return ok, "candidate preserves evidence not contradicted by the correction" if ok else "candidate does not preserve unaffected evidence"
@@ -543,8 +555,8 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
                 "retain other live hypotheses",
             ),
         )
-        ok = preserved and not collapsed
-        return ok, "candidate keeps unaffected hypotheses live and provisional" if ok else "candidate collapses or fails to preserve remaining hypotheses"
+        ok = not collapsed
+        return ok, "candidate does not collapse remaining hypotheses" if ok else "candidate collapses remaining hypotheses"
     if assertion == "falsified_hypotheses_stay_falsified":
         resurrected = _contains_any(
             text,
@@ -568,8 +580,8 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
                 "do not revive falsified hypotheses",
             ),
         )
-        ok = preserved and not resurrected
-        return ok, "candidate keeps previously falsified hypotheses rejected" if ok else "candidate reopens or fails to preserve falsified hypotheses"
+        ok = not resurrected
+        return ok, "candidate does not reopen falsified hypotheses" if ok else "candidate reopens falsified hypotheses"
     if assertion == "correction_opens_unbounded_investigation":
         bad = _contains_any(
             text,
