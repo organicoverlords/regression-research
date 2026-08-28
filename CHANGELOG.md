@@ -8,6 +8,9 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [memory] Added bounded task-scoped memory context, revision-preserving conversation-corpus refresh, expiry/project-aware recall filtering, and corrected wall-clock coverage for ordinal-only captures.
+
+
 - [2026-08-28] [meta] Recorded the proven stale-BUSY-authority recurrence root cause and permanent prevention contract, including remote-propagation and P3 enforcement receipts.
 
 - [2026-08-28] [meta] Synced shared agent policy v1.21 so fresh worktrees use the standalone canonical coordinator and reject legacy MCP0 BUSY authority.

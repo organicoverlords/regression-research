@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-29] [memory] Added bounded task-scoped memory context, revision-preserving conversation-corpus refresh, expiry/project-aware recall filtering, and corrected wall-clock coverage for ordinal-only captures.
 - [2026-08-27] [security] Recorded the PR #215 interrupt-authority incident and added a replay guard requiring user interrupts to revoke pending state-changing authority before a separate post-interrupt mutation action.
 - [2026-08-27] [memory] Reclassified the stale Personal-Instructions checkpoint as historical evidence under current live-authority precedence; effective #87 provisionals are now 7.
 - [2026-08-27] [memory] Replaced the tool-routing incident provisional with the tracked connector-binding/fallback boundary and refreshed #87 for a concurrent timed-worker provisional; effective provisionals remain 8.
 - [2026-08-27] [memory] Replaced the worker-launch live-authority provisional with verbatim current user instructions and removed unrelated operational extras; effective #87 provisionals are now 8.
-- [2026-08-27] [memory] Consolidated the paired P3 #595 LFS-hydration provisionals from live issue evidence, preserving the hidden security mechanism as unknown; effective #87 provisionals are now 9 after one concurrent worker-launch provisional.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

@@ -78,6 +78,8 @@ class MemoryCliTests(unittest.TestCase):
                 sys.executable,str(cli),"--bank",str(bank),"record",
                 "--kind","lesson","--scope","memory-governance",
                 "--title","Verbatim recorder provenance",
+                "--project","p3",
+                "--expires-at","2099-08-21T10:00:00+03:00",
                 "--text","Assistant memories keep source transcript and interpretation separate.",
                 "--source-message",source1,"--source-message",source2,
                 "--turn-task","make it permanent that the original actual words are always included in every assistant recorder memory so there is no ambiguity afterwards",
@@ -93,6 +95,8 @@ class MemoryCliTests(unittest.TestCase):
             self.assertEqual(created["turn_task"],"make it permanent that the original actual words are always included in every assistant recorder memory so there is no ambiguity afterwards")
             self.assertEqual(created["interpretation"],"The user wants accumulated verbatim provenance, not cleaned-up paraphrases.")
             self.assertEqual(created["confidence"],99)
+            self.assertEqual(created["project"],"p3")
+            self.assertEqual(created["expires_at"],"2099-08-21T10:00:00+03:00")
             self.assertIn("assistant-recorded",created["tags"])
             self.assertIn("verbatim-source",created["tags"])
             found=subprocess.run([sys.executable,str(cli),"--bank",str(bank),"history","versoin"],cwd=root,text=True,capture_output=True,check=True)

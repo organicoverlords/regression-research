@@ -58,4 +58,14 @@ Rebuild search only from the canonical Vault corpus:
 python tools\conversation_search_refresh.py
 ```
 
+For routine catch-up after an already-registered export source has gained new files, use the revision-preserving corpus refresh:
+
+```powershell
+python tools\conversation_corpus_refresh.py
+```
+
+The refresh reads the source paths already recorded in the canonical corpus manifest. New stable paths are copied into the canonical corpus; a changed source path never overwrites the first preserved bytes and is instead stored as a content-addressed revision. Files modified within the default two-minute quiescence window are deferred. Missing source files never delete canonical history. The search index is then updated incrementally; `--rebuild-index` remains available for an explicit atomic full rebuild and `--full-verify` for a full hash sweep.
+
+This closes the moving-source gap without making Downloads a runtime search dependency: Downloads are acquisition sources, the Vault remains canonical, and ordinary recall still searches only preserved Vault bytes.
+
 Original source files are never deleted, moved, renamed, overwritten, or treated as disposable. The private corpus itself is also never committed to Git.

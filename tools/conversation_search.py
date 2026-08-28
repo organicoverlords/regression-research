@@ -357,6 +357,15 @@ def ingest_source(conn: sqlite3.Connection, item: SourceItem, force: bool = Fals
 
 def coverage_report(conn: sqlite3.Connection) -> dict[str, Any]:
     roles = {role: count for role, count in conn.execute("SELECT role,COUNT(*) FROM messages GROUP BY role ORDER BY role")}
+    message_first, message_last, non_wall_clock_messages = conn.execute(
+        """
+        SELECT
+          MIN(CASE WHEN created_at>='2000-01-01T00:00:00Z' THEN created_at END),
+          MAX(CASE WHEN created_at>='2000-01-01T00:00:00Z' THEN created_at END),
+          SUM(CASE WHEN created_at IS NULL OR created_at<'2000-01-01T00:00:00Z' THEN 1 ELSE 0 END)
+        FROM messages
+        """
+    ).fetchone()
     return {
         "sources": conn.execute("SELECT COUNT(*) FROM sources").fetchone()[0],
         "sources_with_conversations": conn.execute("SELECT COUNT(*) FROM sources WHERE status='ok'").fetchone()[0],
@@ -365,8 +374,9 @@ def coverage_report(conn: sqlite3.Connection) -> dict[str, Any]:
         "conversations": conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0],
         "messages": conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0],
         "roles": roles,
-        "message_first": conn.execute("SELECT MIN(created_at) FROM messages WHERE created_at IS NOT NULL").fetchone()[0],
-        "message_last": conn.execute("SELECT MAX(created_at) FROM messages WHERE created_at IS NOT NULL").fetchone()[0],
+        "message_first": message_first,
+        "message_last": message_last,
+        "non_wall_clock_messages": int(non_wall_clock_messages or 0),
     }
 
 

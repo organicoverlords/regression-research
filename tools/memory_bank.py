@@ -13,9 +13,13 @@ from typing import Any
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from .memory_authority import annotate_memory, behavioral_authority
+    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from .memory_lifecycle import is_expired, parse_expiry
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from memory_authority import annotate_memory, behavioral_authority
+    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from memory_lifecycle import is_expired, parse_expiry
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -64,6 +68,15 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError(f"invalid kind: {entry['kind']}")
     if entry["state"] not in STATES:
         raise BankError(f"invalid state: {entry['state']}")
+    if "project" in entry and (not isinstance(entry["project"], str) or not entry["project"].strip()):
+        raise BankError("project must be a non-empty string when present")
+    if "expires_at" in entry:
+        if not isinstance(entry["expires_at"], str) or not entry["expires_at"].strip():
+            raise BankError("expires_at must be a non-empty ISO-8601 string when present")
+        try:
+            parse_expiry(entry)
+        except ValueError as exc:
+            raise BankError(str(exc)) from exc
     try:
         parsed = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
     except ValueError as exc:
@@ -191,7 +204,7 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
     if effective_limit == 0:
         return []
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
-    current = [entry for entry in entries if entry["state"] != "REJECTED" and entry["id"] not in superseded]
+    current = [entry for entry in entries if entry["state"] != "REJECTED" and entry["id"] not in superseded and not is_expired(entry)]
     current.sort(
         key=lambda entry: (
             datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
@@ -248,7 +261,7 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     ranked: list[tuple[float, int, datetime, dict[str, Any]]] = []
     registry = source_registry or load_source_registry()
     for entry in entries:
-        if not history and (entry["state"] == "REJECTED" or entry["id"] in superseded):
+        if not history and (entry["state"] == "REJECTED" or entry["id"] in superseded or is_expired(entry)):
             continue
         searchable_text = "\n".join([
             entry["text"],
@@ -367,6 +380,60 @@ def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: s
     return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=history)
 
 
+def search_context_memory(
+    entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
+    tags: list[str] | None = None, limit: int = MAX_RECALL_LIMIT,
+) -> list[dict[str, Any]]:
+    effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
+    selectors = context_selectors(query)
+    filtered = [entry for entry in entries if entry_matches_selectors(entry, selectors)]
+    projects = selectors.get("projects") or set()
+    residual = context_residual_query(query)
+
+    if not projects:
+        if len(_tokens(residual)) < 2:
+            return []
+        return search_memory_entries(filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False)
+
+    project_entries: list[dict[str, Any]] = []
+    ambient_entries: list[dict[str, Any]] = []
+    for entry in filtered:
+        labels = entry_context_labels(entry)
+        if labels["projects"] & projects:
+            project_entries.append(entry)
+        elif not labels["projects"]:
+            ambient_entries.append(entry)
+
+    project_target = max(1, (effective_limit * 3 + 3) // 4)
+    if len(_tokens(residual)) >= 1:
+        # The project selector is already established mechanically, so rank inside
+        # the project subset by the substantive remainder instead of generic words
+        # such as 'work on'.
+        project_hits = search_memory_entries(project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False)
+    else:
+        # Generic 'work on <project>' needs durable orientation, not semantic noise.
+        superseded = {old for entry in project_entries for old in entry.get("supersedes", [])}
+        project_hits = [
+            entry for entry in project_entries
+            if entry.get("state") == "PROVEN"
+            and entry.get("id") not in superseded
+            and not is_expired(entry)
+            and entry.get("kind") not in {"status", "fact"}
+            and bool(entry.get("evidence"))
+        ]
+        project_hits.sort(
+            key=lambda entry: datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00")),
+            reverse=True,
+        )
+        project_hits = project_hits[:project_target]
+
+    remaining = effective_limit - len(project_hits)
+    ambient_hits: list[dict[str, Any]] = []
+    if remaining > 0 and len(_tokens(residual)) >= 2:
+        ambient_hits = search_memory_entries(ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False)
+    return [*project_hits, *ambient_hits]
+
+
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
     effective_limit = min(MAX_RECALL_LIMIT, max(0, int(limit)))
     manual = search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
@@ -426,6 +493,8 @@ def _main() -> int:
     append.add_argument("--scope", required=True)
     append.add_argument("--tag", action="append", default=[])
     append.add_argument("--title")
+    append.add_argument("--project")
+    append.add_argument("--expires-at")
     append.add_argument("--text", required=True)
     append.add_argument("--state", required=True, choices=sorted(STATES))
     append.add_argument("--evidence", action="append", default=[])
@@ -437,6 +506,8 @@ def _main() -> int:
     record.add_argument("--scope", required=True)
     record.add_argument("--tag", action="append", default=[])
     record.add_argument("--title")
+    record.add_argument("--project")
+    record.add_argument("--expires-at")
     record.add_argument("--text", required=True, help="compact memory summary")
     record.add_argument("--source-message", action="append", required=True, help="verbatim user message; repeat in chronological order")
     record.add_argument("--turn-task", help="verbatim user task that opened the long execution turn, when relevant")
@@ -454,6 +525,14 @@ def _main() -> int:
     search.add_argument("--tag", action="append", default=[])
     search.add_argument("--limit", type=int, default=DEFAULT_RECALL_LIMIT)
     search.add_argument("--history", action="store_true")
+
+    context = sub.add_parser("context", help="build a compact task-scoped context pack from curated memory and historical corpus")
+    context.add_argument("query")
+    context.add_argument("--scope")
+    context.add_argument("--tag", action="append", default=[])
+    context.add_argument("--limit", type=int, default=MAX_RECALL_LIMIT)
+    context.add_argument("--max-chars", type=int, default=DEFAULT_CONTEXT_CHARS)
+    context.add_argument("--with-history", action="store_true", help="also search the preserved full-conversation corpus")
 
     history = sub.add_parser("history")
     history.add_argument("query", nargs="?", default="")
@@ -487,7 +566,12 @@ def _main() -> int:
             missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
             if missing_supersedes:
                 raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
-            entry = append_entry(args.bank, {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes})
+            values = {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes}
+            if args.project:
+                values["project"] = args.project
+            if args.expires_at:
+                values["expires_at"] = args.expires_at
+            entry = append_entry(args.bank, values)
             _print_json(entry)
             return 0
         if args.command == "record":
@@ -507,6 +591,10 @@ def _main() -> int:
                 "source_messages": args.source_message, "interpretation": args.interpretation,
                 "confidence": args.confidence, "confidence_reason": args.confidence_reason,
             }
+            if args.project:
+                values["project"] = args.project
+            if args.expires_at:
+                values["expires_at"] = args.expires_at
             if args.turn_task:
                 values["turn_task"] = args.turn_task
             entry = append_entry(args.bank, values)
@@ -517,6 +605,17 @@ def _main() -> int:
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
+            return 0
+        if args.command == "context":
+            selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
+            hits = [annotate_memory(entry) for entry in selected]
+            if args.with_history:
+                report = conversation_history_report(args.query, limit=min(3, args.limit))
+                summary = _conversation_summary_entry(args.query, report.get("summary") or {})
+                if summary is not None:
+                    hits.append(summary)
+                hits.extend(list(report.get("hits") or [])[:2])
+            _print_json(build_context_pack(args.query, hits, max_chars=args.max_chars))
             return 0
         if args.command == "search":
             _print_json([annotate_memory(entry) for entry in search_all_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history)])

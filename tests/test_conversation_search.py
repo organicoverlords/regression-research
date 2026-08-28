@@ -101,6 +101,19 @@ class ConversationSearchTests(unittest.TestCase):
         new_hits = search_db(self.db, "newer unique")
         self.assertEqual(new_hits[0]["conversation_id"], "c2")
 
+    def test_coverage_does_not_treat_dom_order_ordinals_as_1970_dates(self):
+        ordinal = conversation("c-ordinal", "Ordinal capture", "ordinal message", "ordinal answer", 1)
+        current = conversation("c-current", "Current capture", "current message", "current answer", 1756080000)
+        (self.new / "coverage-dates.json").write_text(json.dumps([ordinal, current]), encoding="utf-8")
+
+        report = index_roots(self.db, [self.new])
+        coverage = report["coverage"]
+
+        self.assertEqual(coverage["non_wall_clock_messages"], 2)
+        self.assertNotEqual(coverage["message_first"], "1970-01-01T00:00:01Z")
+        self.assertTrue(str(coverage["message_first"]).startswith("2025-"))
+        self.assertTrue(str(coverage["message_last"]).startswith("2025-"))
+
     def test_search_report_keeps_full_frequency_signal_but_bounds_diverse_context(self):
         conversations = [
             conversation(
