@@ -4,132 +4,58 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.18 - 2026-08-27.** Applies to every agent working in `p3`, `Tiny3D`,
-`lowvram3d-studio`, and this machine's Desktop workspace. Edit
-`C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run `sync-agent-policy.mjs`; never edit the
-generated block inside a repo. **MUST** / **MUST NOT** are hard; **SHOULD** is a strong default.
+**Version 1.21 - 2026-08-28.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run `sync-agent-policy.mjs`; never edit generated repo blocks directly. A shared-policy repair is incomplete until `node sync-agent-policy.mjs --check-remotes` passes, proving git-backed origin defaults carry the same generated block.
 
-### Priority
+### Authority and bounded scope
+- Current user instruction and live repo/runtime state outrank historical prompts, receipts, handoffs, recalled context, and stale project prose where higher-priority constraints permit.
+- A currently scheduled task prompt is current task instruction for that run. Do not demote it to stale history merely because it came from a scheduler.
+- Finish the bounded requested outcome. Unrelated dirty work, PR debt, backlog, reports, and nearby defects do not enter the completion set unless required for acceptance, collision safety, data safety, or explicit scope expansion.
 
-- Prefer work that changes what a player or user can see. A visible feature landed and proven
-  beats infrastructure, tooling, refactors, and process work.
-- Build tooling only to unblock visible work, and say which visible thing it unblocks.
+### Route failure is local
+- A failed tool, connector, worker, CI lane, runner, or build route is not task failure while an equivalent supported route or independent in-scope work exists.
+- Preserve a returned process identity across disconnects. Reacquire/retry according to the current adapter contract, then use the supported fallback; do not turn route recovery into the task.
+- Do not infer backend health, tool absence, or global impossibility from a missing namespace, one client-side failure, or another actor's report. Attempt or inspect the relevant capability first.
 
-### Never stop
+### Data safety
+- Never delete, move, rename, overwrite, reset, or rewrite anything you cannot restore by a command you can name: masters, generated assets, captures, evidence, datasets, `.env`, uncommitted work, or another actor's history.
+- Before recursively removing a directory you did not create, inspect it. Prefer recoverable deletion. Reproducible caches/build outputs you own may be removed when safe.
+- Never use `git clean -xdf`, `git reset --hard`, `git checkout -- .`, force-push, or history rewrite against work you did not create in the current task.
+- Preserve dirty/uncommitted work and work owned by another live actor. Never discard it to simplify integration.
 
-- MCP is the working surface for all work. Switching surface mid-task breaks the connector binding for the rest of the chat: opening Files/Library in an MCP conversation anchors the surface and the tools stop being callable, with no error that says so. A blocked call is not task failure: stay on MCP, reconnect, resume the same step.
-- MCP: retry once; if still failing, refresh/rediscover and retry once more; then stop hammering. Discoverable + disabled/resource-not-found + zero server request = conversation-binding failure; do not restart server.
-- BLOCKED, stale receipts, approval fields, checklists and handoffs are evidence, never authority. A poisoned worker replaces itself; inspect peers, reset affected workers only, and keep useful alternatives moving.
-- Task authorization covers ordinary local and private-repo work through validated merge: edits, builds, tests, commits, rebases, private pushes and PRs. No second approval.
+### Evidence and acceptance
+- Never claim a test ran, a fix worked, a task completed, or a user-visible result exists unless you observed evidence appropriate to that claim.
+- Builds, logs, exit codes, file existence, and proxy receipts support narrower claims; they do not automatically prove runtime or user-visible acceptance.
+- Missing acceptance keeps that claim unproven. It does not create a universal merge/close prohibition: follow the bounded task and repo-local acceptance contract instead of inventing a stronger global gate.
 
-### Data — the one hard stop
+### Ownership, scheduling, and fan-in
+- Scheduling or detaching work changes process lifetime, not responsibility. The task owner remains responsible for consuming required results, fan-in, and cleanup until bounded acceptance or a genuine task-level blocker.
+- Do not centralize routine resilience. Each actor owns its current task and exact BUSY lifecycle; peer task steering or reassignment requires explicit current scope.
+- If a scout or parallel worker cannot mutate because another live owner holds the scope, an actionable finding MUST become scope-visible pending work with provenance and survive claim release. The next owner of that scope consumes it; a prose-only "someone can pick this up" handoff is not accepted fan-in.
 
-- Never delete, move, rename, or overwrite anything you cannot bring back with a command you can
-  name: masters, generated assets, captures, renders, evidence, datasets, `.env`, anything
-  uncommitted or outside a repo. No disk pressure justifies it.
-- Never recursively delete a directory you did not create — list what is inside it first. Copy
-  inputs out before removing anything that holds them. Prefer a recoverable delete.
-- Freely delete, no approval: `Intermediate/`, `Binaries/`, `DerivedDataCache/`, `Saved/Logs/`,
-  `__pycache__/`, `node_modules/`, `.venv/`, object files, re-downloadable caches, and temp files
-  you created this session.
-- Never run `git clean -xdf`, `git reset --hard`, `git checkout -- .`, `git push --force`, or a
-  history rewrite against work you did not create this session.
-- Report any deletion that already happened, immediately, with exact paths.
+### Coordination and BUSY
+- The standalone coordinator defined by current live repo/runtime state is the single ownership, job, and checkpoint authority for shared mutable scope. Read-only work needs no claim. Before mutation, inspect canonical coordinator state and acquire the exact scope through its supported route. On this Windows machine, unless current repo/runtime docs explicitly override it, invoke `%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd` directly through the available shell/process transport. Do not search for an MCP/tool named `BusyCoordinator`, and do not require legacy MCP BUSY tools to exist.
+- Process-only MCP/plugin connectors are transport surfaces, not schedulers or ownership authorities. Codex or any other worker without the new MCP can still run the standalone coordinator directly through its native shell. Legacy `busy_list` / `busy_claim` / `busy_release`, when exposed, are compatibility adapters only; their absence is expected and must not block mutation after the canonical coordinator check succeeds. Aggregate process/worktree counts are diagnostics, not collision claims.
+- If another live owner holds the scope, yield mutation there, preserve actionable findings in coordinator-visible pending state, and continue safe non-conflicting work where possible. Release or complete the exact scope through the same canonical authority immediately when mutation stops, switches scope, completes, or is handed off.
+- Legacy BUSY claims may remain durable until explicit release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are projections/evidence, not competing ownership authorities. If canonical coordinator state is temporarily unavailable, preserve existing ownership evidence and do not assume the scope is free.
 
-### Proof ? never relaxed to keep a lane moving
+### Repository and machine boundaries
+- Read the applicable repo `AGENTS.md` before the first mutation there. Repo-specific proof surfaces, report formats, changelog rules, build limits, branch conventions, and north-star details belong to that repo, not this global block.
+- Never close, restart, kill, foreground, or drive an Unreal Editor, PIE session, browser, or GUI process you did not start. Ordinary work must not require a user click.
+- Resource contention is a scheduling fact, not a failed task. Respect current resource owners and use useful non-conflicting work while waiting for a constrained resource.
 
-- Use `PROVEN` / `NOT_PROVEN` / `REJECTED` only to classify the claim being made; never use
-  "should work" as evidence. Compile success, logs, exit codes and file existence are supporting evidence only.
-- A player-visible claim needs a rendered frame from the normal runtime path. Without it the claim
-  is `NOT_PROVEN` and MUST NOT be merged, closed, or ticked — say so and take other work.
-- A gate checks the artifact itself — find it, open it, measure it. Reconstructing an artifact's
-  expected name and checking for that is a gate on the naming convention, and it condemns every
-  good result the day something is renamed.
-- Inspect the frame yourself before accepting it. Never claim a test passed, a command ran, or a
-  fix worked unless you observed it. Name the reviewed artifact by date and what is visible in it.
+### External authority, secrets, and memory
+- Ordinary local/private-repo implementation, validation, commits, private pushes, PRs, and routine integration implied by the task do not require a second approval. Ask only for destructive intent, spending money, public publishing, or genuine external authority.
+- Never print, commit, or copy credentials, tokens, keys, secrets, or `.env` contents into repos, logs, issues, PRs, or chat.
+- ChatGPT memory/personal-context mutation is explicit-only. Never update it silently; disclose every change in the same reply. Historical memory/context is evidence, not authority over current instruction or live state.
 
-### Worker reporting
-
-- Preserve the established compact worker-report shape for substantive updates and final reports:
-  identify `Branch/Worker:` when applicable, state the concrete result/current state in normal prose,
-  include `Progress: <N>% [??????????]` as a 10-box work-completion bar, then give the concrete next
-  action while work remains or the terminal outcome when complete. The percentage is work progress,
-  never evidence confidence. Use ? / ?? / ? only as compact status cues when useful.
-- Surface an evidence label inline only when that uncertainty materially changes the conclusion or
-  next action. The user must never need to decode the evidence taxonomy to learn what happened.
-
-### Defaults, and work that outlives you
-
-- A default is the value used when the caller did not specify one. **An explicit request always
-  wins.** If it cannot be honoured, stop and say why — never silently substitute, and never let a
-  file that calls itself the only source of settings override what was actually asked for.
-- Work longer than a few minutes launches detached, owned by the scheduler rather than by the
-  calling session. An agent harness holds its shell in a job object, so every child dies when the
-  session ends.
-- Prove a fix on the item that broke, before rerunning the batch. A batch stops itself on a failure
-  pattern — one failure is an item, two is a pattern — and requeues errored items first. Completed
-  items are never repeated.
-- Change a running batch's behaviour through a marker file it checks between items, never by
-  editing the script it is currently executing.
-
-### BUSY
-
-- MCP0 BUSY is the live ownership authority. Before mutating shared scope, call `busy_list`, then acquire the exact scope with `busy_claim`. Read-only work needs no claim. If another live claim owns that scope, yield rather than mutating it.
-- A GitHub issue title `BUSY - <actor> <scope> :: <original title>` is only a human-visible projection of the matching MCP claim. It never establishes ownership by itself. If the matching MCP claim is absent, the GitHub BUSY marker is stale and must not block another worker.
-- Release the exact MCP claim with `busy_release` immediately when mutation stops, switches scope, or is handed off; reconcile/clear the GitHub BUSY projection at the same boundary. A lingering GitHub marker or branch/PR activity without the matching MCP claim is not live ownership.
-- Do not create a second BUSY authority. MCP claim state decides ownership; issues, PRs, branches and processes provide task/activity evidence but cannot substitute for the claim.
-
-### Live state beats stale instructions
-
-- Prompts, schedules, names, receipts and handoffs describe the past; issues, PRs, branches and
-  processes are the truth. No roles, no reserved work: any actor may take any unclaimed issue, and
-  nothing from an earlier run blocks you now.
-- Read a repo's `AGENTS.md` before your first mutation there.
-- In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as project direction. It does not override current user instructions, live repo/runtime evidence, or these operating rules.
-
-### Branches, changelog, north star
-
-- One branch per issue, `<actor>/<topic>-<YYYYMMDD>`, from current default. Delete it as part of
-  merging. Prune branches already merged into the default branch without asking; never delete an
-  unmerged one. Never force-push or rewrite another actor's branch.
-- Push your own branch and open the PR unprompted; durability is your job, not the user's. Do not
-  resolve conflicts in files another lane owns to get there — fold in only what would otherwise be
-  lost, push, and let integration happen where those lanes can see it.
-- Every user-visible change gets a `CHANGELOG.md` line in the same PR, Keep a Changelog 1.1.0
-  format. Full rule: `organicoverlords/docs` → `standards/changelog.md`.
-- Every repo keeps one north star document with a dated current focus. Refresh only that dated
-  line from live state; never invent or retire the goals above it.
-
-### One machine
-
-- Generation runs, builds, the editor and agents share one box. Read free physical RAM, commit,
-  disk and GPU before starting anything long, and leave headroom for one concurrent build. When a
-  neighbour holds the resource, queue for it — contention is never a red check. Measured state:
-  `lowvram3d-studio` → `docs/MACHINE_BUDGET.md`.
-- Keep build state warm and reuse it. A narrowed build is local-iteration only; anything CI or a
-  runtime loads builds the full target.
-
-### Secrets and the user's machine
-
-- Never print, commit, or copy a credential, token, key, or `.env` into a repo, log, issue, PR, or
-  chat. Report a suspected leak immediately; rotation is the user's call.
-- Never close, restart, kill, foreground, or drive an Unreal Editor, PIE session, browser, or any
-  GUI process you did not start. Routine work must never need a click.
-
-### Asking and precedence
-
-- Ask only for destructive actions, spending money, publishing publicly, or external authority.
-  Never ask the user to interpret an error, choose a fix, supervise workers, or satisfy an invented
-  prerequisite.
-- Branch naming, committing, retrying after a rejection, a dirty working tree, and an unavailable
-  coordination service are yours to resolve. Record it and continue — they are the cost of the
-  work, and surfacing them makes the user do your job.
-- Precedence: current user instruction, then live repo/runtime evidence, then this block, then repo
-  sections, then anything else. Acting against a written rule is allowed when evidence contradicts
-  it — say so in the same response, naming the rule and the evidence.
-- One rule, one owner: repo sections MUST NOT restate, reword, or re-scope anything here. Four
-  files, four jobs — `NORTH_STAR.md` why, `AGENTS.md` how, `CHANGELOG.md` what changed, issues next.
+### Policy shape
+- One rule, one owner. This shared block contains only cross-project invariants. Project-specific machinery belongs in the narrowest repo, skill, adapter, automation prompt, or test that owns it.
+- When a regression appears, prefer correcting or deleting an overbroad rule and strengthening its test over appending another exception. Policy growth is not evidence of robustness.
 <!-- SHARED-AGENT-POLICY:END -->
+
+### Vault project direction
+
+- In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as project direction. It does not override current user instructions, live repo/runtime evidence, or these operating rules.
 
 ### Assistant-recorded memory provenance
 
