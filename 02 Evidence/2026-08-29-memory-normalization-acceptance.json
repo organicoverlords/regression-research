@@ -1,0 +1,738 @@
+{
+  "schema_version": 1,
+  "status": "PROVEN",
+  "normalization_snapshot_fingerprint": "d6f9d154f5ad19545f333f2fb9b44ea17b8815e9c7019989479a253dbc6af8b6",
+  "bank_records": 230,
+  "candidate_only_records": 4,
+  "review_queue_count": 24,
+  "uncategorized_count": 0,
+  "ambiguous_count": 0,
+  "exact_duplicate_group_count": 0,
+  "queries": [
+    {
+      "id": "p3",
+      "query": "p3 build",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260827-aeeb9ef6",
+          "kind": "lesson",
+          "scope": "orchestration/p3-build-admission",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "WORKFLOW_POLICY",
+            "primary_domain": "project:p3",
+            "projects": [
+              "p3"
+            ],
+            "roles": [],
+            "entities": [
+              "p3"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260828-f223d0ea",
+          "kind": "lesson",
+          "scope": "p3/build",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "INCIDENT",
+            "primary_domain": "project:p3",
+            "projects": [
+              "p3"
+            ],
+            "roles": [],
+            "entities": [
+              "p3"
+            ],
+            "durability": "REVIEW",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "REVIEW",
+            "review_reasons": [
+              "claim_state_provisional"
+            ]
+          }
+        },
+        {
+          "id": "mem-20260828-083db0ff",
+          "kind": "lesson",
+          "scope": "p3/build",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "WORKFLOW_POLICY",
+            "primary_domain": "project:p3",
+            "projects": [
+              "p3"
+            ],
+            "roles": [],
+            "entities": [
+              "p3"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260828-8538ed10",
+          "kind": "lesson",
+          "scope": "p3/build-system",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "WORKFLOW_POLICY",
+            "primary_domain": "project:p3",
+            "projects": [
+              "p3"
+            ],
+            "roles": [],
+            "entities": [
+              "p3",
+              "unreal"
+            ],
+            "durability": "REVIEW",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "REVIEW",
+            "review_reasons": [
+              "claim_state_provisional"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tiny3d",
+      "query": "work on tiny3d",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260828-8bf25ae2",
+          "kind": "lesson",
+          "scope": "assistant-orchestration/control-plane-safety",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "INCIDENT",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "tiny3d"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260828-72eb9022",
+          "kind": "lesson",
+          "scope": "control-plane",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "INCIDENT",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "busycoordinator",
+              "chatgpt",
+              "mcp",
+              "tiny3d"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-6bb1f35b",
+          "kind": "lesson",
+          "scope": "response-quality",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "INCIDENT",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "mcp",
+              "p3",
+              "tiny3d"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "lowvram",
+      "query": "lowvram tool routing",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260827-5ef85ab8",
+          "kind": "fact",
+          "scope": "security-incident,lowvram3d,#46,tool-routing",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "FACT",
+            "primary_domain": "project:lowvram",
+            "projects": [
+              "lowvram"
+            ],
+            "roles": [],
+            "entities": [
+              "lowvram"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-bb597813",
+          "kind": "fact",
+          "scope": "security-incident,lowvram3d,#49,pr89,tool-routing",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "FACT",
+            "primary_domain": "project:lowvram",
+            "projects": [
+              "lowvram"
+            ],
+            "roles": [],
+            "entities": [
+              "lowvram"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-route-contradiction",
+          "kind": "lesson",
+          "scope": "mcp",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "LESSON",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-7fc3c053",
+          "kind": "correction",
+          "scope": "mcp",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-mcp-nonarrival",
+          "kind": "lesson",
+          "scope": "mcp",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "LESSON",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "chatgpt",
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "query": "mcp connector routing",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260827-d14ff1dc",
+          "kind": "correction",
+          "scope": "tool-routing/binding-failure",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "github",
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-5ceac95b",
+          "kind": "lesson",
+          "scope": "security-incident-handling",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "INCIDENT",
+            "primary_domain": "global",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-mcp-nonarrival",
+          "kind": "lesson",
+          "scope": "mcp",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "LESSON",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "chatgpt",
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-6d3f0534",
+          "kind": "correction",
+          "scope": "machine-routing/failure-recovery",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "machine-ops",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-route-contradiction",
+          "kind": "lesson",
+          "scope": "mcp",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "LESSON",
+            "primary_domain": "mcp-control-plane",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "user-correction",
+      "query": "user correction current instruction",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260827-d4e21c4c",
+          "kind": "correction",
+          "scope": "memory-governance",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-9a770b5b",
+          "kind": "correction",
+          "scope": "memory-governance",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "chatgpt",
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-current-wins",
+          "kind": "lesson",
+          "scope": "global",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "WORKFLOW_POLICY",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-a7207d58",
+          "kind": "correction",
+          "scope": "worker-launch/live-authority",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "global",
+            "projects": [],
+            "roles": [
+              "worker"
+            ],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260828-e0fecf46",
+          "kind": "correction",
+          "scope": "assistant-orchestration/slopwall-failed-instruction-repair-20260828",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "vault"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "incident",
+      "query": "slopwall incident",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260826-correction-regurgitation-incident",
+          "kind": "correction",
+          "scope": "response-quality",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260827-9820ac37",
+          "kind": "correction",
+          "scope": "response-quality/debugging-test-selection",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "chatgpt",
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260828-a673a15c",
+          "kind": "correction",
+          "scope": "assistant-orchestration/slopwall-coordinator-awareness-20260828-followup",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260828-0f9d9237",
+          "kind": "lesson",
+          "scope": "slopwall",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "INCIDENT",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "busycoordinator",
+              "chatgpt",
+              "github",
+              "mcp",
+              "p3",
+              "tiny3d"
+            ],
+            "durability": "REVIEW",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "REVIEW",
+            "review_reasons": [
+              "claim_state_provisional"
+            ]
+          }
+        },
+        {
+          "id": "mem-20260828-051a7d36",
+          "kind": "correction",
+          "scope": "assistant-orchestration/slopwall-system-design-reflex-20260828",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "CORRECTION",
+            "primary_domain": "assistant-orchestration",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "decision",
+      "query": "memory bank journal",
+      "status": "PROVEN",
+      "hits": [
+        {
+          "id": "mem-20260825-bank-journal",
+          "kind": "decision",
+          "scope": "memory",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "DECISION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "chatgpt",
+              "mcp"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-bank-no-bootstrap",
+          "kind": "decision",
+          "scope": "memory",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "DECISION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-3b82afd8",
+          "kind": "decision",
+          "scope": "memory",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "DECISION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-memory-provenance-pointer",
+          "kind": "decision",
+          "scope": "memory",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "DECISION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        },
+        {
+          "id": "mem-20260825-seed-legacy",
+          "kind": "decision",
+          "scope": "memory",
+          "classification": {
+            "schema_version": 1,
+            "semantic_category": "DECISION",
+            "primary_domain": "memory-system",
+            "projects": [],
+            "roles": [],
+            "entities": [
+              "chatgpt"
+            ],
+            "durability": "DURABLE",
+            "sensitivity": "CLEAR",
+            "expired": false,
+            "confidence": "HIGH",
+            "review_reasons": []
+          }
+        }
+      ]
+    }
+  ],
+  "lifecycle_check": {
+    "status": "PROVEN",
+    "checkpoint_id": "mem-20260828-35e240c8",
+    "ordinary_recall_contains_checkpoint": false,
+    "explicit_history_contains_checkpoint": true
+  },
+  "candidate_review_check": {
+    "status": "PROVEN",
+    "candidate_ids": [
+      "memory-candidate-5d71b46dbf2ca7a8",
+      "memory-candidate-d3c87986ff7fedaa",
+      "memory-candidate-fe19358cb1769f31",
+      "memory-candidate-21d6c6273d9a81d7"
+    ],
+    "all_have_final_review_receipt": true
+  },
+  "accounting_check": {
+    "status": "PROVEN"
+  }
+}

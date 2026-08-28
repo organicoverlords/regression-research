@@ -100,6 +100,19 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual([x["id"] for x in pack["durable_memory"]], ["orch"])
         self.assertEqual(pack["omitted"]["role_mismatch_matches"], 1)
 
+    def test_context_exposes_compact_classification(self):
+        hit = {
+            "id": "classified", "timestamp": "2026-08-27T10:00:00+03:00",
+            "kind": "lesson", "scope": "p3/build", "project": "p3", "tags": [],
+            "text": "P3 build lesson", "state": "PROVEN", "evidence": ["report:x"], "supersedes": [],
+        }
+        from tools.memory_authority import annotate_memory
+        pack = build_context_pack("p3 build", [annotate_memory(hit)])
+        record = pack["durable_memory"][0]
+        self.assertEqual(record["primary_domain"], "project:p3")
+        self.assertEqual(record["semantic_category"], "PROJECT_LESSON")
+        self.assertEqual(record["durability"], "DURABLE")
+
     def test_blank_query_rejected(self):
         with self.assertRaises(ValueError):
             build_context_pack("   ", [])

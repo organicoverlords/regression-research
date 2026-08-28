@@ -1,4 +1,4 @@
-﻿import json
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,6 +35,16 @@ class MemoryBankRecallTests(unittest.TestCase):
         self.assertEqual([e["id"] for e in search_entries([expired,future],"queue")],["future"])
         hist=search_entries([expired,future],"",history=True,limit=10)
         self.assertEqual({e["id"] for e in hist},{"expired","future"})
+
+    def test_ephemeral_and_sensitive_records_are_history_only(self):
+        ephemeral=self.entry("ephemeral","2026-08-20T10:00:00+03:00","tool availability checkpoint",scope="tool-availability/checkpoint")
+        ephemeral["kind"]="status"
+        sensitive=self.entry("secret","2026-08-20T10:00:00+03:00","token=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+        current=self.entry("current","2026-08-20T10:00:00+03:00","checkpoint token handling rule")
+        ordinary={e["id"] for e in search_entries([ephemeral,sensitive,current],"checkpoint token",limit=10)}
+        self.assertEqual(ordinary,{"current"})
+        hist={e["id"] for e in search_entries([ephemeral,sensitive,current],"",history=True,limit=10)}
+        self.assertEqual(hist,{"ephemeral","secret","current"})
 
     def test_rejected_and_superseded_hidden_by_default(self):
         old=self.entry("old","2026-08-20T10:00:00+03:00","6KB threshold",state="REJECTED")

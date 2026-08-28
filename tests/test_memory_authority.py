@@ -99,6 +99,17 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
         self.assertEqual(behavioral_context([expired]), [])
         self.assertEqual(recent_title_entries([expired], limit=1), [])
 
+    def test_sensitive_user_instruction_is_not_behavior_authority(self):
+        secret = self.e("secret-user", kind="correction", evidence=["user-instruction:current"])
+        secret["text"] = "token=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        self.assertEqual(behavioral_context([secret]), [])
+
+    def test_recent_titles_hide_ephemeral_checkpoint(self):
+        checkpoint = self.e("checkpoint", kind="status")
+        checkpoint["scope"] = "tool-availability/checkpoint"
+        current = self.e("current", kind="lesson", evidence=["regression:x"], ts="2026-08-27T11:00:00+03:00")
+        self.assertEqual([item["id"] for item in recent_title_entries([checkpoint, current], limit=10)], ["current"])
+
     def test_recent_bootstrap_exposes_authority_label(self):
         user = self.e("user", kind="correction", evidence=["user-instruction:current"])
         recent = recent_title_entries([user], limit=1)

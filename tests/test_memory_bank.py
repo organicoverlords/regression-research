@@ -1,4 +1,4 @@
-﻿import json
+import json
 import tempfile
 import unittest
 from contextlib import nullcontext
@@ -37,6 +37,25 @@ class MemoryBankValidationTests(unittest.TestCase):
         for field in ("tags", "evidence", "supersedes"):
             e = self.valid(); e[field] = [123]
             with self.subTest(field=field), self.assertRaises(BankError): validate_entry(e)
+
+    def test_append_infers_single_project_from_scope(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "bank.jsonl"
+            created = append_entry(path, {
+                "kind": "lesson", "scope": "p3/build", "tags": [],
+                "text": "Build rule", "state": "PROVEN", "evidence": [], "supersedes": [],
+            })
+            self.assertEqual(created["project"], "p3")
+            self.assertEqual(load_bank(path)[0]["project"], "p3")
+
+    def test_append_does_not_infer_project_from_body_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "bank.jsonl"
+            created = append_entry(path, {
+                "kind": "lesson", "scope": "global", "tags": [],
+                "text": "P3 appears only in this body example", "state": "PROVEN", "evidence": [], "supersedes": [],
+            })
+            self.assertNotIn("project", created)
 
     def test_project_and_expiry_validate(self):
         e = self.valid()

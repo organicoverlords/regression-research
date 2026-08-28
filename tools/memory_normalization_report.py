@@ -1,19 +1,31 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
 try:
     from .memory_bank import DEFAULT_BANK, derive_display_title, load_bank
-    from .durable_memory_adapter import _is_sensitive
+    from .memory_classification import (
+        DOMAINS,
+        DURABILITIES,
+        SEMANTIC_CATEGORIES,
+        SENSITIVITIES,
+        classify_entry,
+    )
 except ImportError:
     from memory_bank import DEFAULT_BANK, derive_display_title, load_bank
-    from durable_memory_adapter import _is_sensitive
+    from memory_classification import (
+        DOMAINS,
+        DURABILITIES,
+        SEMANTIC_CATEGORIES,
+        SENSITIVITIES,
+        classify_entry,
+    )
 
 DISPOSITIONS = (
     "CURRENT_DURABLE",
@@ -27,6 +39,7 @@ DISPOSITIONS = (
 )
 
 _DATE_RE = re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
+_NORMALIZE_RE = re.compile(r"[^a-z0-9]+")
 
 
 def _source_classes(evidence: list[str]) -> list[str]:
@@ -38,11 +51,19 @@ def _source_classes(evidence: list[str]) -> list[str]:
     return sorted(out)
 
 
-def _disposition(entry: dict[str, Any], superseded: set[str]) -> str:
+def _disposition(entry: dict[str, Any], superseded: set[str], classification: dict[str, Any]) -> str:
     if entry["state"] == "REJECTED":
         return "REJECTED"
     if entry["id"] in superseded:
         return "SUPERSEDED"
+    if classification["sensitivity"] == "EXCLUDE":
+        return "SENSITIVE_EXCLUDED"
+    if classification["durability"] == "EPHEMERAL":
+        return "EPHEMERAL/DO_NOT_RECALL"
+    if classification["expired"] or (
+        classification["durability"] == "HISTORICAL" and entry["state"] == "PROVEN"
+    ):
+        return "HISTORICAL_DURABLE"
     if entry["state"] == "PROVISIONAL":
         return "PROVISIONAL/NEEDS_EVIDENCE"
     return "CURRENT_DURABLE"
@@ -121,6 +142,39 @@ def _read_candidate_dispositions(root: Path, candidate_ids: set[str]) -> dict[st
     return out
 
 
+def _duplicate_groups(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    buckets: dict[tuple[str, str, str], list[str]] = defaultdict(list)
+    for entry in entries:
+        normalized = _NORMALIZE_RE.sub(" ", str(entry.get("text") or "").casefold()).strip()
+        if not normalized:
+            continue
+        key = (str(entry.get("kind") or ""), str(entry.get("scope") or "").casefold(), normalized)
+        buckets[key].append(entry["id"])
+    return [
+        {"ids": sorted(ids), "count": len(ids)}
+        for ids in buckets.values()
+        if len(ids) > 1
+    ]
+
+
+def _record_base(entry: dict[str, Any], classification: dict[str, Any]) -> dict[str, Any]:
+    match = _DATE_RE.search(str(entry.get("text") or ""))
+    return {
+        "semantic_category": classification["semantic_category"],
+        "primary_domain": classification["primary_domain"],
+        "projects": classification["projects"],
+        "roles": classification["roles"],
+        "entities": classification["entities"],
+        "durability": classification["durability"],
+        "classification_confidence": classification["confidence"],
+        "classification_review_reasons": classification["review_reasons"],
+        "sensitivity": classification["sensitivity"],
+        "expired": classification["expired"],
+        "write_timestamp": entry.get("timestamp"),
+        "event_date_hint": match.group(1) if match else None,
+    }
+
+
 def build_report(
     entries: list[dict[str, Any]],
     candidate_entries: list[dict[str, Any]] | None = None,
@@ -133,94 +187,135 @@ def build_report(
     superseded = set(superseded_by)
 
     records: list[dict[str, Any]] = []
-    sensitivity_counts: Counter[str] = Counter()
-    for entry in entries:
-        match = _DATE_RE.search(entry.get("text", ""))
-        sensitive = _is_sensitive(entry.get("text", ""), {"tags": entry.get("tags", [])})
-        sensitivity = "REVIEW" if sensitive else "CLEAR"
-        sensitivity_counts[sensitivity] += 1
-        disposition = _disposition(entry, superseded)
-        records.append(
-            {
-                "id": entry["id"],
-                "source_layer": "BANK",
-                "title": entry.get("title") or derive_display_title(entry),
-                "kind": entry["kind"],
-                "scope": entry["scope"],
-                "tags": entry.get("tags", []),
-                "state": entry["state"],
-                "disposition": disposition,
-                "ordinary_recall": disposition in {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"},
-                "write_timestamp": entry["timestamp"],
-                "event_date_hint": match.group(1) if match else None,
-                "evidence": entry.get("evidence", []),
-                "source_classes": _source_classes(entry.get("evidence", [])),
-                "supersedes": entry.get("supersedes", []),
-                "superseded_by": sorted(superseded_by.get(entry["id"], [])),
-                "sensitivity": sensitivity,
-                "retrieval_value": (
-                    "CURRENT" if disposition == "CURRENT_DURABLE"
-                    else "REVIEW" if disposition == "PROVISIONAL/NEEDS_EVIDENCE"
-                    else "HISTORICAL"
-                ),
-            }
-        )
-
     candidate_dispositions = candidate_dispositions or {}
+
+    for entry in entries:
+        classification = classify_entry(entry)
+        disposition = _disposition(entry, superseded, classification)
+        record = {
+            "id": entry["id"],
+            "source_layer": "BANK",
+            "title": entry.get("title") or derive_display_title(entry),
+            "kind": entry["kind"],
+            "scope": entry["scope"],
+            "tags": entry.get("tags", []),
+            "state": entry["state"],
+            "disposition": disposition,
+            "ordinary_recall": disposition in {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"}
+            and classification["durability"] not in {"EPHEMERAL", "HISTORICAL"}
+            and classification["sensitivity"] != "EXCLUDE",
+            "evidence": entry.get("evidence", []),
+            "source_classes": _source_classes(entry.get("evidence", [])),
+            "supersedes": entry.get("supersedes", []),
+            "superseded_by": sorted(superseded_by.get(entry["id"], [])),
+            "retrieval_value": (
+                "CURRENT" if disposition == "CURRENT_DURABLE"
+                else "REVIEW" if disposition == "PROVISIONAL/NEEDS_EVIDENCE"
+                else "HISTORICAL"
+            ),
+            **_record_base(entry, classification),
+        }
+        records.append(record)
+
     for entry in candidate_entries or []:
-        text = str(entry.get("text", ""))
-        sensitive = _is_sensitive(text, {"tags": entry.get("tags", [])})
-        sensitivity = "REVIEW" if sensitive else "CLEAR"
-        sensitivity_counts[sensitivity] += 1
         state = str(entry.get("state") or "PROVISIONAL")
         review = candidate_dispositions.get(entry["id"])
+        classification = classify_entry(entry)
         disposition = (
             str(review["disposition"])
             if review is not None
-            else "REJECTED" if state == "REJECTED" else "PROVISIONAL/NEEDS_EVIDENCE"
+            else "REJECTED" if state == "REJECTED"
+            else "SENSITIVE_EXCLUDED" if classification["sensitivity"] == "EXCLUDE"
+            else "PROVISIONAL/NEEDS_EVIDENCE"
         )
         source_class = str(entry.get("source_class") or "candidate").casefold()
         evidence = [str(item) for item in entry.get("evidence", [])]
         event_source = entry.get("source_timestamp") or entry.get("timestamp")
         event_match = _DATE_RE.search(str(event_source or ""))
-        records.append(
-            {
-                "id": entry["id"],
-                "source_layer": "CANDIDATE",
-                "candidate_path": entry.get("_candidate_path"),
-                "candidate_review_path": review.get("_review_path") if review else None,
-                "candidate_review_reason": review.get("reason") if review else None,
-                "candidate_review_evidence": list(review.get("evidence") or []) if review else [],
-                "title": entry.get("title") or f"Candidate {entry['id']}",
-                "kind": entry.get("kind", "lesson"),
-                "scope": entry.get("scope", "global"),
-                "tags": entry.get("tags", []),
-                "state": state,
-                "disposition": disposition,
-                "ordinary_recall": False,
-                "write_timestamp": entry.get("timestamp"),
-                "event_date_hint": event_match.group(1) if event_match else None,
-                "evidence": evidence,
-                "source_classes": sorted(set(_source_classes(evidence) + [source_class])),
-                "supersedes": entry.get("supersedes", []),
-                "superseded_by": [],
-                "sensitivity": sensitivity,
-                "retrieval_value": "REVIEW" if disposition == "PROVISIONAL/NEEDS_EVIDENCE" else "HISTORICAL",
-            }
-        )
+        record = {
+            "id": entry["id"],
+            "source_layer": "CANDIDATE",
+            "candidate_path": entry.get("_candidate_path"),
+            "candidate_review_path": review.get("_review_path") if review else None,
+            "candidate_review_reason": review.get("reason") if review else None,
+            "candidate_review_evidence": list(review.get("evidence") or []) if review else [],
+            "title": entry.get("title") or f"Candidate {entry['id']}",
+            "kind": entry.get("kind", "lesson"),
+            "scope": entry.get("scope", "global"),
+            "tags": entry.get("tags", []),
+            "state": state,
+            "disposition": disposition,
+            "ordinary_recall": False,
+            "evidence": evidence,
+            "source_classes": sorted(set(_source_classes(evidence) + [source_class])),
+            "supersedes": entry.get("supersedes", []),
+            "superseded_by": [],
+            "retrieval_value": "REVIEW" if disposition == "PROVISIONAL/NEEDS_EVIDENCE" else "HISTORICAL",
+            **_record_base(entry, classification),
+        }
+        record["event_date_hint"] = event_match.group(1) if event_match else None
+        records.append(record)
 
     disposition_counts = Counter(record["disposition"] for record in records)
     for name in DISPOSITIONS:
         disposition_counts.setdefault(name, 0)
+
+    review_queue: list[dict[str, Any]] = []
+    ambiguous_records: list[dict[str, Any]] = []
+    for record in records:
+        # Historical/superseded/rejected records stay classified but are not active review work.
+        if record["disposition"] not in {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE", "SENSITIVE_EXCLUDED"}:
+            continue
+        reasons = list(record.get("classification_review_reasons") or [])
+        if record["disposition"] == "PROVISIONAL/NEEDS_EVIDENCE" and "claim_state_provisional" not in reasons:
+            reasons.append("claim_state_provisional")
+        if record["source_layer"] == "CANDIDATE" and not record.get("candidate_review_path"):
+            reasons.append("candidate_missing_final_review")
+        reasons = sorted(set(reasons))
+        if reasons:
+            item = {"id": record["id"], "source_layer": record["source_layer"], "reasons": reasons}
+            review_queue.append(item)
+            if any(reason in {"multiple_project_descriptors", "sensitivity_pattern_requires_review", "proven_record_classifies_as_hypothesis", "secret_like_value"} for reason in reasons):
+                ambiguous_records.append(item)
+
+    uncategorized = [
+        record["id"] for record in records
+        if record["semantic_category"] not in SEMANTIC_CATEGORIES
+        or record["primary_domain"] not in DOMAINS
+        or record["durability"] not in DURABILITIES
+        or record["sensitivity"] not in SENSITIVITIES
+    ]
+
+    source_counter: Counter[str] = Counter()
+    project_counter: Counter[str] = Counter()
+    role_counter: Counter[str] = Counter()
+    for record in records:
+        source_counter.update(record["source_classes"] or ["none"])
+        project_counter.update(record["projects"] or ["none"])
+        role_counter.update(record["roles"] or ["none"])
+
+    duplicate_groups = _duplicate_groups(entries)
+    supersession_edges = [
+        {"source": entry["id"], "target": old_id}
+        for entry in entries for old_id in entry.get("supersedes", [])
+    ]
+
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "authority": "DERIVED_AUDIT_ONLY",
+        "taxonomy": {
+            "semantic_categories": list(SEMANTIC_CATEGORIES),
+            "domains": list(DOMAINS),
+            "durabilities": list(DURABILITIES),
+            "sensitivities": list(SENSITIVITIES),
+            "dispositions": list(DISPOSITIONS),
+        },
         "notes": [
             "This report is mechanically derived from the append-only memory bank and is not a second recall authority.",
+            "Classification is bounded and deterministic; ambiguous/sensitive/provisional records are surfaced in review_queue instead of silently promoted.",
             "A committed JSON report is a point-in-time evidence snapshot, not a perpetually current mirror; run this tool again for current state.",
-            "PROVISIONAL records remain explicit review items; rejected/superseded records remain historically searchable.",
             "event_date_hint is only the first YYYY-MM-DD found in the memory text, not an independently proven timestamp.",
-            "sensitivity=REVIEW is conservative triage only and does not rewrite or delete the source memory.",
+            "Sensitive EXCLUDE records are excluded from current disposition; REVIEW is conservative triage and requires human/assistant review.",
         ],
         "total_records": len(records),
         "bank_records": len(entries),
@@ -230,8 +325,23 @@ def build_report(
             "states": dict(sorted(Counter(entry["state"] for entry in entries).items())),
             "kinds": dict(sorted(Counter(entry["kind"] for entry in entries).items())),
             "scopes": dict(sorted(Counter(entry["scope"] for entry in entries).items())),
-            "sensitivity": dict(sorted(sensitivity_counts.items())),
+            "semantic_categories": dict(sorted(Counter(record["semantic_category"] for record in records).items())),
+            "domains": dict(sorted(Counter(record["primary_domain"] for record in records).items())),
+            "projects": dict(sorted(project_counter.items())),
+            "roles": dict(sorted(role_counter.items())),
+            "durability": dict(sorted(Counter(record["durability"] for record in records).items())),
+            "sensitivity": dict(sorted(Counter(record["sensitivity"] for record in records).items())),
+            "source_classes": dict(sorted(source_counter.items())),
         },
+        "duplicate_and_supersession": {
+            "exact_duplicate_groups": duplicate_groups,
+            "exact_duplicate_group_count": len(duplicate_groups),
+            "supersession_edges": supersession_edges,
+            "supersession_edge_count": len(supersession_edges),
+        },
+        "review_queue": review_queue,
+        "ambiguous_records": ambiguous_records,
+        "uncategorized": uncategorized,
         "records": records,
     }
 
@@ -252,7 +362,12 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(payload, encoding="utf-8", newline="\n")
     else:
-        print(payload, end="")
+        stream = getattr(__import__("sys").stdout, "buffer", None)
+        if stream is None:
+            print(json.dumps(report, ensure_ascii=True, indent=2))
+        else:
+            stream.write(payload.encode("utf-8", "backslashreplace"))
+            stream.flush()
     return 0
 
 

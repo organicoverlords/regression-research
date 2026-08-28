@@ -5,8 +5,10 @@ from typing import Any, Iterable
 
 try:
     from .memory_lifecycle import is_expired
+    from .memory_classification import classify_entry
 except ImportError:
     from memory_lifecycle import is_expired
+    from memory_classification import classify_entry
 
 USER_PREFIXES = ("user-instruction:",)
 CANONICAL_PREFIXES = (
@@ -91,6 +93,7 @@ def behavioral_authority(entry: dict[str, Any]) -> dict[str, Any]:
 def annotate_memory(entry: dict[str, Any]) -> dict[str, Any]:
     annotated = dict(entry)
     annotated["behavioral_authority"] = behavioral_authority(entry)
+    annotated["classification"] = classify_entry(entry)
     return annotated
 
 
@@ -99,7 +102,11 @@ def current_entries(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     superseded = {old for entry in items for old in entry.get("supersedes", [])}
     return [
         entry for entry in items
-        if entry.get("state") != "REJECTED" and entry.get("id") not in superseded and not is_expired(entry)
+        if entry.get("state") != "REJECTED"
+        and entry.get("id") not in superseded
+        and not is_expired(entry)
+        and classify_entry(entry)["sensitivity"] != "EXCLUDE"
+        and classify_entry(entry)["durability"] not in {"EPHEMERAL", "HISTORICAL"}
     ]
 
 

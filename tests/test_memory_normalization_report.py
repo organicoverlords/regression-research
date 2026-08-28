@@ -1,4 +1,4 @@
-﻿import json
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,6 +26,25 @@ class MemoryNormalizationReportTests(unittest.TestCase):
         self.assertEqual(by_id["d"]["disposition"], "REJECTED")
         self.assertFalse(by_id["d"]["ordinary_recall"])
         self.assertEqual(set(report["counts"]["dispositions"]), set(DISPOSITIONS))
+
+    def test_report_emits_bounded_classification_and_review_queue(self):
+        entries = [
+            {"id":"p3","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"p3/build","tags":[],"text":"P3 build workflow rule","state":"PROVEN","evidence":["report:x"],"supersedes":[]},
+            {"id":"checkpoint","timestamp":"2026-08-26T12:00:00+03:00","kind":"status","scope":"tool-availability/checkpoint","tags":[],"text":"Point in time tool checkpoint","state":"PROVEN","evidence":["report:y"],"supersedes":[]},
+            {"id":"review","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"mcp","tags":[],"text":"Possible routing theory","state":"PROVISIONAL","evidence":[],"supersedes":[]},
+        ]
+        report = build_report(entries)
+        by_id = {record["id"]: record for record in report["records"]}
+        self.assertEqual(report["schema_version"], 2)
+        self.assertEqual(by_id["p3"]["projects"], ["p3"])
+        self.assertEqual(by_id["p3"]["primary_domain"], "project:p3")
+        self.assertEqual(by_id["checkpoint"]["disposition"], "EPHEMERAL/DO_NOT_RECALL")
+        self.assertFalse(by_id["checkpoint"]["ordinary_recall"])
+        self.assertIn("review", {item["id"] for item in report["review_queue"]})
+        self.assertEqual(report["uncategorized"], [])
+        self.assertIn("semantic_categories", report["counts"])
+        self.assertIn("domains", report["counts"])
+        self.assertIn("durability", report["counts"])
 
     def test_final_candidate_disposition_resolves_review_without_entering_recall(self):
         entries = [{"id":"bank","timestamp":"2026-08-26T12:00:00+03:00","kind":"lesson","scope":"global","tags":[],"text":"bank","state":"PROVEN","evidence":[],"supersedes":[]}]

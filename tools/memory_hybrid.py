@@ -18,6 +18,7 @@ try:
         source_relevance,
     )
     from .memory_lifecycle import is_expired
+    from .memory_classification import classify_entry
 except ImportError:
     from memory_bank import (
         DEFAULT_HISTORY_LIMIT,
@@ -30,6 +31,7 @@ except ImportError:
         source_relevance,
     )
     from memory_lifecycle import is_expired
+    from memory_classification import classify_entry
 
 BM25_K1 = 1.2
 BM25_B = 0.75
@@ -87,7 +89,11 @@ def _eligible_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
     return [
         entry for entry in entries
-        if entry.get("state") != "REJECTED" and entry.get("id") not in superseded and not is_expired(entry)
+        if entry.get("state") != "REJECTED"
+        and entry.get("id") not in superseded
+        and not is_expired(entry)
+        and classify_entry(entry)["sensitivity"] != "EXCLUDE"
+        and classify_entry(entry)["durability"] not in {"EPHEMERAL", "HISTORICAL"}
     ]
 
 

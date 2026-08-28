@@ -15,11 +15,13 @@ try:
     from .memory_authority import annotate_memory, behavioral_authority
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
+    from .memory_classification import classify_entry, infer_single_project
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from memory_authority import annotate_memory, behavioral_authority
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
+    from memory_classification import classify_entry, infer_single_project
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -175,6 +177,10 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
     entry.setdefault("timestamp", now.isoformat(timespec="seconds"))
     if not entry.get("title"):
         entry.pop("title", None)
+    if not entry.get("project"):
+        inferred_project = infer_single_project(entry)
+        if inferred_project:
+            entry["project"] = inferred_project
     validate_entry(entry)
     if _is_canonical_bank(path):
         with sync_lock(path):
@@ -199,12 +205,23 @@ def derive_display_title(entry: dict[str, Any]) -> str:
     return text[: MAX_DERIVED_TITLE_CHARS - 1].rstrip() + "…"
 
 
+def _ordinary_recall_eligible(entry: dict[str, Any], superseded: set[str]) -> bool:
+    if entry.get("state") == "REJECTED" or entry.get("id") in superseded or is_expired(entry):
+        return False
+    classification = classify_entry(entry)
+    if classification["sensitivity"] == "EXCLUDE":
+        return False
+    if classification["durability"] in {"EPHEMERAL", "HISTORICAL"}:
+        return False
+    return True
+
+
 def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None) -> list[dict[str, Any]]:
     effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, DEFAULT_RECENT_TITLES_LIMIT if limit is None else limit))
     if effective_limit == 0:
         return []
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
-    current = [entry for entry in entries if entry["state"] != "REJECTED" and entry["id"] not in superseded and not is_expired(entry)]
+    current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
     current.sort(
         key=lambda entry: (
             datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
@@ -261,7 +278,7 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     ranked: list[tuple[float, int, datetime, dict[str, Any]]] = []
     registry = source_registry or load_source_registry()
     for entry in entries:
-        if not history and (entry["state"] == "REJECTED" or entry["id"] in superseded or is_expired(entry)):
+        if not history and not _ordinary_recall_eligible(entry, superseded):
             continue
         searchable_text = "\n".join([
             entry["text"],
@@ -396,33 +413,48 @@ def search_context_memory(
         return search_memory_entries(filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False)
 
     project_entries: list[dict[str, Any]] = []
+    entity_project_entries: list[dict[str, Any]] = []
     ambient_entries: list[dict[str, Any]] = []
     for entry in filtered:
         labels = entry_context_labels(entry)
         if labels["projects"] & projects:
             project_entries.append(entry)
         elif not labels["projects"]:
-            ambient_entries.append(entry)
+            # Secondary entity labels may recover cross-project/global memories that
+            # genuinely mention the requested project without re-scoping them as that
+            # project's authority. They are fallback context, never primary metadata.
+            entities = set(classify_entry(entry).get("entities") or [])
+            if entities & projects:
+                entity_project_entries.append(entry)
+            else:
+                ambient_entries.append(entry)
 
     project_target = max(1, (effective_limit * 3 + 3) // 4)
     if len(_tokens(residual)) >= 1:
         # The project selector is already established mechanically, so rank inside
-        # the project subset by the substantive remainder instead of generic words
-        # such as 'work on'.
+        # the explicit project subset first, then use entity-linked cross-project
+        # evidence to fill unused project slots.
         project_hits = search_memory_entries(project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False)
+        remaining_project = project_target - len(project_hits)
+        if remaining_project > 0:
+            project_hits.extend(search_memory_entries(entity_project_entries, residual, scope=scope, tags=tags, limit=remaining_project, history=False))
     else:
         # Generic 'work on <project>' needs durable orientation, not semantic noise.
-        superseded = {old for entry in project_entries for old in entry.get("supersedes", [])}
+        candidates = [*project_entries, *entity_project_entries]
+        superseded = {old for entry in candidates for old in entry.get("supersedes", [])}
         project_hits = [
-            entry for entry in project_entries
+            entry for entry in candidates
             if entry.get("state") == "PROVEN"
             and entry.get("id") not in superseded
-            and not is_expired(entry)
+            and _ordinary_recall_eligible(entry, superseded)
             and entry.get("kind") not in {"status", "fact"}
             and bool(entry.get("evidence"))
         ]
         project_hits.sort(
-            key=lambda entry: datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00")),
+            key=lambda entry: (
+                1 if (entry_context_labels(entry)["projects"] & projects) else 0,
+                datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00")),
+            ),
             reverse=True,
         )
         project_hits = project_hits[:project_target]
