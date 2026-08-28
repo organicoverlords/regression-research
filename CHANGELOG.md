@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-28] [meta] Recorded the proven stale-BUSY-authority recurrence root cause and permanent prevention contract, including remote-propagation and P3 enforcement receipts.
+
 - [2026-08-28] [meta] Synced shared agent policy v1.21 so fresh worktrees use the standalone canonical coordinator and reject legacy MCP0 BUSY authority.
 
 - [2026-08-27] [security] Recorded the PR #215 interrupt-authority incident and added a replay guard requiring user interrupts to revoke pending state-changing authority before a separate post-interrupt mutation action.
