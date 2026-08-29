@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-bed7e092ac947e30",
+  "title": "Worker-launch supervision hang failure report",
+  "source_report": "01 Reports/2026-08-29_0836_EEST_worker-launch-supervision-hang-failure_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}

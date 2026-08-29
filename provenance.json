@@ -511,6 +511,26 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexed to preserve complete report coverage. No provenance links were inferred where no direct mapping was already established."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-29_0836_EEST_worker-launch-supervision-hang-failure_report.md",
+      "title": "Worker-launch supervision hang failure report",
+      "date": "2026-08-29T08:36:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexed to repair the report-coverage omission in c5b1c1. No provenance links were inferred where no direct mapping was already established."
     }
   ],
   "orphan_evidence": [
