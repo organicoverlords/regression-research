@@ -58,6 +58,12 @@ New writes should set `--project` when a memory belongs to one project. Time-bou
 
 These are ordinary repository commands. MCP/local workers may invoke them when they have repo access, but MCP availability is not part of the memory contract.
 
+## Behavioral authority is explicitly typed
+
+`user-instruction:` evidence is provenance: it proves that the user authored or approved the stored statement. It does **not** mean the record is a behavior rule. A user-authored record may alter assistant behavior only when it has both `user-instruction:` provenance and the separate `behavior_rule: true` type (CLI: `--behavior-rule`). A `preference`, `decision`, or `correction` without that type remains advisory evidence, including historical checkpoints and user-authored event records.
+
+Entries created before the `behavior_rule` field existed are not rewritten. The bounded `memory/behavior-rule-types.json` registry names only the immutable legacy IDs that were already established as behavior rules. Absence from that registry means no legacy behavior type. This registry supplies type metadata only; it does not supply user provenance or rule content. Canonical repo policy remains a separate authority path derived from explicit policy provenance.
+
 ## Shared continuity and timeline views
 
 The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. Read commands (`recent`, `search`, `context`, `orient`, `timeline`) are local, side-effect free, and do not claim BUSY/ownership, create queues, or require a daemon. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.

@@ -390,7 +390,9 @@ def build_orientation(
             "kind": entry.get("kind"),
             "title": _title(entry),
             "text": _clip(entry.get("text"), 360),
+            "behavior_rule_type": bool(authority.get("may_change_behavior")),
             "authority_role": authority.get("role"),
+            "authority_basis": authority.get("basis"),
             "precedence": authority.get("precedence"),
         }
 
@@ -412,7 +414,7 @@ def build_orientation(
             "source": "curated memory plus optional local Git history; no full-conversation archive or download dependency",
             "repo_history": "read-only local Git projection; no network fetch and no automatic memory write",
             "follow_up": "use timeline/context/live sources before treating an incident or project event as current truth",
-            "behavior_profile": "current explicit user-authored behavior only; current user instruction still wins",
+            "behavior_profile": "current explicitly typed user-authored behavior rules only; user provenance alone is not a behavior type; current user instruction still wins",
             "canonical_policy_profile": "current canonical repo policy kept separate from user-authored behavior",
         },
         "behavior_profile": behavior,

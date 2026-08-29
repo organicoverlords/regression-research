@@ -1,0 +1,25 @@
+﻿{
+  "schema_version": 1,
+  "purpose": "Explicit behavior-rule type metadata for immutable memory records created before the behavior_rule field existed. Membership grants type only; user provenance is still required for USER_EXPLICIT authority. Absence means not a behavior rule.",
+  "behavior_rule_ids": [
+    "mem-20260829-82b351cd",
+    "mem-20260829-dc8f589a",
+    "mem-20260829-c7b2539a",
+    "mem-20260829-f8a09d2b",
+    "mem-20260829-bc8848aa",
+    "mem-20260829-d38a8b65",
+    "mem-20260829-62e394c6",
+    "mem-20260829-49cf4f6b",
+    "mem-20260829-d262b833",
+    "mem-20260829-d9cee13b",
+    "mem-20260829-15f349c0",
+    "mem-20260829-628eac70",
+    "mem-20260829-df29555e",
+    "mem-20260829-a9c57933",
+    "mem-20260829-3e8b16f7",
+    "mem-20260829-b53668c4",
+    "mem-20260829-c959fb9e",
+    "mem-20260827-d4e21c4c",
+    "mem-20260825-role-executive"
+  ]
+}

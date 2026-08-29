@@ -74,6 +74,13 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError(f"invalid kind: {entry['kind']}")
     if entry["state"] not in STATES:
         raise BankError(f"invalid state: {entry['state']}")
+    if "behavior_rule" in entry:
+        if not isinstance(entry["behavior_rule"], bool):
+            raise BankError("behavior_rule must be a boolean when present")
+        if entry["behavior_rule"] and entry["kind"] not in {"decision", "lesson", "preference", "correction"}:
+            raise BankError("behavior_rule=true requires decision, lesson, preference, or correction kind")
+        if entry["behavior_rule"] and not any(str(item).startswith("user-instruction:") for item in entry.get("evidence", [])):
+            raise BankError("behavior_rule=true requires explicit user-instruction provenance")
     if "project" in entry and (not isinstance(entry["project"], str) or not entry["project"].strip()):
         raise BankError("project must be a non-empty string when present")
     if "thread" in entry and (not isinstance(entry["thread"], str) or not entry["thread"].strip()):
@@ -564,6 +571,7 @@ def _main() -> int:
     append.add_argument("--evidence", action="append", default=[])
     append.add_argument("--supersedes", action="append", default=[])
     append.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
+    append.add_argument("--behavior-rule", action="store_true", help="explicitly type this user-authored memory as a behavior rule")
 
     record = sub.add_parser("record", help="save an assistant-authored memory with verbatim user provenance")
     record.add_argument("--kind", required=True, choices=sorted(KINDS))
@@ -584,6 +592,7 @@ def _main() -> int:
     record.add_argument("--evidence", action="append", default=[])
     record.add_argument("--supersedes", action="append", default=[])
     record.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
+    record.add_argument("--behavior-rule", action="store_true", help="explicitly type this user-authored memory as a behavior rule")
 
     search = sub.add_parser("search")
     search.add_argument("query", nargs="?", default="")
@@ -642,7 +651,7 @@ def _main() -> int:
             tags = ["quick-note"]
             if text.casefold().startswith(("error:", "error ")):
                 tags.append("error")
-            values = {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": []}
+            values = {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": [], "behavior_rule": False}
             if args.event_at:
                 values["event_at"] = args.event_at
             if args.thread:
@@ -659,7 +668,7 @@ def _main() -> int:
             missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
             if missing_supersedes:
                 raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
-            values = {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes}
+            values = {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": bool(args.behavior_rule)}
             if args.project:
                 values["project"] = args.project
             if args.expires_at:
@@ -684,7 +693,7 @@ def _main() -> int:
                 "kind": args.kind, "scope": args.scope,
                 "tags": [*args.tag, "assistant-recorded", "verbatim-source"],
                 "title": args.title, "text": args.text, "state": args.state,
-                "evidence": args.evidence, "supersedes": args.supersedes,
+                "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": bool(args.behavior_rule),
                 "source_messages": args.source_message, "interpretation": args.interpretation,
                 "confidence": args.confidence, "confidence_reason": args.confidence_reason,
             }
