@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-29] [orchestration] Routed indirect capability providers through whole-stack acceptance so a usable process-backed repository path remains executable, while a failed indirect provider degrades only its capability and independent work continues.
 - [2026-08-29] [hygiene] Removed committed merge-conflict markers from CHANGELOG.md, preserved both competing timeline entries, and added validation so conflict markers cannot land again.
 - [2026-08-29] [memory] Made ChatGPT fresh-session live orientation a hard pre-response gate across the Personal Instructions bridge, bootstrap payload, and SessionStart hook; clean scans stay silent, abnormal scans lead, and later status-dependent answers re-check live state.
 - [2026-08-29] [memory] Cut bootstrap authority/classification overhead by filtering cheap currentness first, classifying only behavior-authoritative candidates once, and preserving byte-identical bootstrap output with regression coverage.
 - [2026-08-29] [hygiene] Indexed both newly merged 08:36 reports (worker-launch supervision and positive required-context startup) with pending replay coverage records so repository provenance validation remains complete.
-- [2026-08-29] [orchestration] Replaced silent worker-launch waiting with a five-worker arm/report/work/verify loop: all five workers are armed up front, Worker 1 launches immediately, the supervising chat reports setup before doing repo work, then verifies and repairs Worker 1 until its real local-tool/work-start proof is healthy.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
