@@ -90,6 +90,11 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("Preserve Workers 2-5 unless current evidence shows the whole generation shares the defect", template)
         self.assertNotIn("Exactly four recurring workers per fresh generation", template)
         self.assertNotIn("fresh four-worker generation", template)
+        self.assertIn("admitted target worktree's `AGENTS.md`", template)
+        self.assertIn("Treat `origin/main` as convergence context, not as a substitute for the worktree-local repository contract", template)
+        self.assertNotIn("origin/main:AGENTS.md", template)
+        self.assertNotIn("origin/main:docs/WORK_COORDINATION.md", template)
+        self.assertNotIn("origin/main:docs/v2/WORKER_START_HERE.md", template)
 
     def test_bootstrap_has_a_bounded_startup_budget(self):
         rendered = json.dumps(build_behavior_bootstrap(load_bank()), ensure_ascii=False)
