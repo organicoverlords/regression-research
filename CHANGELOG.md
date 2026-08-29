@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [coordination] Required exact durable BusyCoordinator admission before substantive investigation while preserving claim-free bounded read-only orientation, preventing duplicate long-running analysis on the same #194 scope.
+
 - [2026-08-29] [coordination] Bounded BusyCoordinator completed-job history to the newest 256 records, with deterministic oldest-first pruning and Python/Rust parity coverage so finished work cannot grow canonical coordinator state indefinitely (#194).
 
 - [2026-08-29] [coordination] Reduced the BusyCoordinator handoff summary cap to 4,096 characters and added installed `.cmd` wrapper coverage so documented provenance maxima remain reachable on Windows instead of failing at the shell command-line limit (#194).

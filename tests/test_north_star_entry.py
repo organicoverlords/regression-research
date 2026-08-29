@@ -10,11 +10,27 @@ DIRECTIVE = (
     "evidence, or these operating rules."
 )
 
+INVESTIGATION_ADMISSION = (
+    "- Bounded read-only orientation may remain unclaimed. Before crossing into substantive "
+    "investigation or analysis on an exact issue/scope, acquire that exact durable scope in the "
+    "standalone BusyCoordinator; if another live owner already holds it, yield that scope and "
+    "choose non-duplicative work."
+)
+
 
 class NorthStarEntryTests(unittest.TestCase):
     def test_agents_requires_current_north_star_before_substantive_stack_work(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertEqual(agents.count(DIRECTIVE), 1)
+
+
+    def test_substantive_investigation_requires_exact_durable_admission(self):
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(agents.count(INVESTIGATION_ADMISSION), 1)
+        self.assertIn("Bounded read-only orientation may remain unclaimed", INVESTIGATION_ADMISSION)
+        self.assertIn("acquire that exact durable scope", INVESTIGATION_ADMISSION)
+        self.assertIn("standalone BusyCoordinator", INVESTIGATION_ADMISSION)
+        self.assertIn("yield that scope", INVESTIGATION_ADMISSION)
 
     def test_north_star_exposes_current_project_direction_and_finish_line(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
