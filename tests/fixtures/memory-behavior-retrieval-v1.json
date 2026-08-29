@@ -120,8 +120,8 @@
     {
       "id": "dev-07",
       "cohort": "development",
-      "query": "for a fresh worker generation launch four workers with the first one ASAP and verify it really started before trusting the schedule",
-      "expected": "mem-20260829-59cf4996"
+      "query": "arm all five fresh workers, launch worker one immediately, report the arm, work on repos instead of waiting, then verify and repair until worker one is healthy",
+      "expected": "mem-20260829-d3594411"
     },
     {
       "id": "dev-08",

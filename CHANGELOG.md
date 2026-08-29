@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [orchestration] Replaced silent worker-launch waiting with a five-worker arm/report/work/verify loop: all five workers are armed up front, Worker 1 launches immediately, the supervising chat reports setup before doing repo work, then verifies and repairs Worker 1 until its real local-tool/work-start proof is healthy.
+
 - [2026-08-29] [memory] Restored the fresh-session startup contract to the Vault bootstrap so fresh chats perform bounded live orientation, repair obvious operational failures, report only material startup deltas, and continue useful work automatically without repeating the sweep after post-compaction rehydration.
 
 - [2026-08-29] [hygiene] Classified remaining local temp and continuity-checkpoint artifacts into explicit review buckets so the Vault WIP inventory no longer hides unknown files behind an unclassified count.
