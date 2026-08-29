@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [orchestration] Routed indirect capability providers through whole-stack acceptance so a usable process-backed repository path remains executable, while a failed indirect provider degrades only its capability and independent work continues.
+
 - [2026-08-29] [meta] Kept swarm worker repository authority worktree-local: startup now reads policy from the admitted target worktree, treats origin/main as convergence context only, and preserves foreign dirty state instead of substituting remote policy.
 
 - [2026-08-29] [hygiene] Removed committed merge-conflict markers from CHANGELOG.md, preserved both competing timeline entries, and added validation so conflict markers cannot land again.

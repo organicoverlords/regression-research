@@ -23,6 +23,7 @@ class StackAcceptanceTests(unittest.TestCase):
             constraints=scenario.get("constraints", []),
             available_roles=scenario.get("available_roles", {}),
             failed_roles=scenario.get("failed_roles", {}),
+            role_providers=scenario.get("role_providers", {}),
             live_claims=scenario.get("live_claims", []),
             projections=scenario.get("projections", []),
             coordination_available=scenario.get("coordination_available", True),
@@ -115,6 +116,45 @@ class StackAcceptanceTests(unittest.TestCase):
         self.assertEqual(by_id["memory-read"]["disposition"], "execute")
         self.assertEqual(by_id["memory-write"]["disposition"], "authorization_required")
         self.assertIsNone(by_id["memory-write"]["route"])
+
+    def test_indirect_provider_route_keeps_repository_work_executable(self):
+        result = plan_request(
+            actor="assistant",
+            directives=[{"source_class": "current_user", "directive": True, "text": "continue repository work"}],
+            parts=[{
+                "id": "repo-read",
+                "action": "read",
+                "data_class": "repo_or_runtime_evidence",
+                "capability": "source_read",
+                "operation": "read_only",
+                "scope": "repo:issue-125",
+            }],
+            available_roles={"source_read": ["process_execution"]},
+            role_providers={"source_read": {"process_execution": ["verified_local_read"]}},
+        )
+        outcome = result["allowed"][0]
+        self.assertEqual(outcome["disposition"], "execute")
+        self.assertEqual(outcome["route"]["adapter_role"], "verified_local_read")
+        self.assertEqual(result["overall"], "execute_all")
+
+    def test_failed_indirect_provider_degrades_only_that_part(self):
+        result = plan_request(
+            actor="assistant",
+            directives=[{"source_class": "current_user", "directive": True, "text": "continue allowed work"}],
+            parts=[
+                {"id": "repo-read", "action": "read", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:issue-125"},
+                {"id": "runtime-check", "action": "validate", "data_class": "repo_or_runtime_evidence", "capability": "runtime_validate", "operation": "read_only", "scope": "runtime:issue-125"},
+            ],
+            available_roles={"source_read": ["process_execution"], "runtime_validate": ["local_runtime_validation"]},
+            failed_roles={"source_read": ["process_execution"]},
+            role_providers={"source_read": {"process_execution": ["verified_local_read"]}},
+        )
+        by_id = {item["id"]: item for item in result["allowed"]}
+        self.assertEqual(by_id["repo-read"]["disposition"], "degraded")
+        self.assertEqual(by_id["runtime-check"]["disposition"], "execute")
+        self.assertEqual(result["overall"], "partial_progress")
+        self.assertEqual(result["work_cycle"]["execute_now"], ["runtime-check"])
+        self.assertEqual(result["work_cycle"]["queued"], ["repo-read"])
 
     def test_protected_boundary_uses_placeholder_not_literal_internal_content(self):
         scenario = next(item for item in self.fixture["scenarios"] if item["id"] == "mixed-provenance-partial-execution")

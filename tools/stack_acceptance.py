@@ -18,6 +18,7 @@ def _part_outcome(
     actor: str,
     available_roles: dict[str, list[str]],
     failed_roles: dict[str, list[str]],
+    role_providers: dict[str, dict[str, list[str]]],
     live_claims: Iterable[dict[str, Any]],
     projections: Iterable[dict[str, Any]],
     coordination_available: bool,
@@ -47,6 +48,7 @@ def _part_outcome(
         capability,
         available_roles.get(capability, []),
         failed_roles=failed_roles.get(capability, []),
+        role_providers=role_providers.get(capability, {}),
         policy=capability_policy,
     )
     if route["status"] != "selected":
@@ -131,6 +133,7 @@ def plan_request(
     constraints: Iterable[dict[str, Any]] = (),
     available_roles: dict[str, list[str]] | None = None,
     failed_roles: dict[str, list[str]] | None = None,
+    role_providers: dict[str, dict[str, list[str]]] | None = None,
     live_claims: Iterable[dict[str, Any]] = (),
     projections: Iterable[dict[str, Any]] = (),
     coordination_available: bool = True,
@@ -146,6 +149,7 @@ def plan_request(
     projections = list(projections)
     available_roles = dict(available_roles or {})
     failed_roles = dict(failed_roles or {})
+    role_providers = dict(role_providers or {})
 
     current_directive = resolve_directive(directives)
     partition = partition_request(parts, constraints)
@@ -157,6 +161,7 @@ def plan_request(
             actor=actor,
             available_roles=available_roles,
             failed_roles=failed_roles,
+            role_providers=role_providers,
             live_claims=live_claims,
             projections=projections,
             coordination_available=coordination_available,
