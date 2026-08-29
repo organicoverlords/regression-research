@@ -11,20 +11,20 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from .memory_authority import annotate_memory, behavioral_authority, behavioral_context
+    from .memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
+    from .memory_authority import (AUTHORITY_REGISTRY, ROLE_CANONICAL, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
-    from .memory_timeline import build_orientation, build_recurrence_context, build_timeline
+    from .memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 except ImportError:
-    from memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from memory_authority import annotate_memory, behavioral_authority, behavioral_context
+    from memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
+    from memory_authority import (AUTHORITY_REGISTRY, ROLE_CANONICAL, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
-    from memory_timeline import build_orientation, build_recurrence_context, build_timeline
+    from memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
     from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
@@ -192,7 +192,7 @@ def _append_entry_file(path: Path, entry: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
-def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
+def _prepare_entry(values: dict[str, Any]) -> dict[str, Any]:
     entry = dict(values)
     now = datetime.now().astimezone()
     entry.setdefault("id", f"mem-{now:%Y%m%d}-{secrets.token_hex(4)}")
@@ -204,6 +204,13 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
         if inferred_project:
             entry["project"] = inferred_project
     validate_entry(entry)
+    if classify_entry(entry)["sensitivity"] == "EXCLUDE":
+        raise BankError("sensitive memory content rejected before write")
+    return entry
+
+
+def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
+    entry = _prepare_entry(values)
     if _is_canonical_bank(path):
         with sync_lock(path):
             _sync_canonical_locked(path, strict=False)
@@ -211,6 +218,98 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
             _sync_canonical_locked(path, strict=True)
             return saved
     return _append_entry_file(path, entry)
+
+
+def _is_canonical_authority_registry(path: Path) -> bool:
+    try:
+        return path.resolve() == AUTHORITY_REGISTRY.resolve()
+    except OSError:
+        return False
+
+
+def append_behavior_entry(path: Path, values: dict[str, Any], registry_path: Path) -> dict[str, Any]:
+    """Trusted record path: persist a verbatim user rule and curate it in the same sync commit."""
+    entry = _prepare_entry(values)
+    errors = authority_curation_errors(entry, ROLE_USER)
+    if errors:
+        raise BankError("behavior authority curation rejected: " + "; ".join(errors))
+    canonical = _is_canonical_bank(path) and _is_canonical_authority_registry(registry_path)
+    if canonical:
+        with sync_lock(path):
+            _sync_canonical_locked(path, strict=False)
+            saved = _append_entry_file(path, entry)
+            try:
+                result = sync_behavior_bundle(
+                    path, registry_path, add_user_ids={entry["id"]}, publish=True
+                )
+            except MemorySyncError as exc:
+                raise BankError(
+                    "local behavior memory and authority curation were saved; canonical sync NOT_PROVEN: "
+                    f"{exc}; do not append a duplicate"
+                ) from exc
+            configure_authority_registry(registry_path)
+            if result.get("pushed"):
+                print("MEMORY_BEHAVIOR_SYNC " + json.dumps(result, ensure_ascii=False), file=sys.stderr)
+            if behavioral_authority(saved).get("role") != ROLE_USER:
+                raise BankError("behavior rule persisted but USER_EXPLICIT authority was not established")
+            return saved
+
+    original_bank = path.read_bytes() if path.exists() else None
+    original_registry = registry_path.read_bytes() if registry_path.exists() else None
+    try:
+        saved = _append_entry_file(path, entry)
+        entries = _read_bank_file(path)
+        curate_authority_registry_local(entries, entry["id"], ROLE_USER, path=registry_path)
+        if behavioral_authority(saved).get("role") != ROLE_USER:
+            raise BankError("behavior rule persisted but USER_EXPLICIT authority was not established")
+        return saved
+    except Exception:
+        if original_bank is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(original_bank)
+        if original_registry is None:
+            registry_path.unlink(missing_ok=True)
+        else:
+            registry_path.write_bytes(original_registry)
+        configure_authority_registry(registry_path if registry_path.exists() else AUTHORITY_REGISTRY)
+        raise
+
+
+def promote_authority_entry(
+    bank_path: Path, registry_path: Path, memory_id: str, role: str
+) -> dict[str, Any]:
+    entries = load_bank(bank_path)
+    by_id = {entry["id"]: entry for entry in entries}
+    entry = by_id.get(memory_id)
+    if entry is None:
+        raise BankError(f"memory id not found: {memory_id}")
+    errors = authority_curation_errors(entry, role)
+    if errors:
+        raise BankError("authority promotion rejected: " + "; ".join(errors))
+    canonical = _is_canonical_bank(bank_path) and _is_canonical_authority_registry(registry_path)
+    if canonical:
+        with sync_lock(bank_path):
+            try:
+                sync_behavior_bundle(
+                    bank_path, registry_path,
+                    add_user_ids={memory_id} if role == ROLE_USER else set(),
+                    add_policy_ids={memory_id} if role == ROLE_CANONICAL else set(),
+                    publish=True,
+                )
+            except MemorySyncError as exc:
+                raise BankError(f"authority promotion sync NOT_PROVEN: {exc}") from exc
+        configure_authority_registry(registry_path)
+    else:
+        try:
+            curate_authority_registry_local(entries, memory_id, role, path=registry_path)
+        except ValueError as exc:
+            raise BankError(str(exc)) from exc
+    authority = behavioral_authority(entry)
+    expected = ROLE_USER if role == ROLE_USER else ROLE_CANONICAL
+    if authority.get("role") != expected:
+        raise BankError(f"promotion completed but authority is {authority.get('role')}, expected {expected}")
+    return annotate_memory(entry)
 
 
 def _tokens(value: str) -> set[str]:
@@ -427,6 +526,27 @@ def search_behavior_memory(
     return search_memory_entries(behavioral_context(entries), query, limit=effective_limit, history=False)
 
 
+def _merge_behavior_context(
+    behavior_hits: list[dict[str, Any]], ordinary_hits: list[dict[str, Any]], limit: int
+) -> list[dict[str, Any]]:
+    """Reserve up to two relevant procedural slots before advisory context."""
+    selected: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for entry in behavior_hits[: min(2, limit)]:
+        ident = str(entry.get("id") or "")
+        if ident and ident not in seen:
+            selected.append(entry)
+            seen.add(ident)
+    for entry in ordinary_hits:
+        ident = str(entry.get("id") or "")
+        if ident and ident not in seen:
+            selected.append(entry)
+            seen.add(ident)
+        if len(selected) >= limit:
+            break
+    return selected[:limit]
+
+
 def search_context_memory(
     entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
     tags: list[str] | None = None, limit: int = MAX_RECALL_LIMIT,
@@ -453,7 +573,16 @@ def search_context_memory(
                 behavior_entries, residual, scope=scope, tags=tags,
                 limit=effective_limit, history=False,
             )
-        return search_memory_entries(filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False)
+        behavior_entries = [
+            entry for entry in filtered if behavioral_authority(entry).get("may_change_behavior")
+        ]
+        behavior_hits = search_memory_entries(
+            behavior_entries, residual, scope=scope, tags=tags, limit=min(2, effective_limit), history=False
+        )
+        ordinary_hits = search_memory_entries(
+            filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False
+        )
+        return _merge_behavior_context(behavior_hits, ordinary_hits, effective_limit)
 
     project_entries: list[dict[str, Any]] = []
     entity_project_entries: list[dict[str, Any]] = []
@@ -506,7 +635,16 @@ def search_context_memory(
     ambient_hits: list[dict[str, Any]] = []
     if remaining > 0 and len(_tokens(residual)) >= 2:
         ambient_hits = search_memory_entries(ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False)
-    return [*project_hits, *ambient_hits]
+    ordinary_hits = [*project_hits, *ambient_hits]
+    if len(_tokens(residual)) >= 2:
+        behavior_entries = [
+            entry for entry in filtered if behavioral_authority(entry).get("may_change_behavior")
+        ]
+        behavior_hits = search_memory_entries(
+            behavior_entries, residual, scope=scope, tags=tags, limit=min(2, effective_limit), history=False
+        )
+        return _merge_behavior_context(behavior_hits, ordinary_hits, effective_limit)
+    return ordinary_hits[:effective_limit]
 
 
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
@@ -556,8 +694,14 @@ def _print_json(value: Any) -> None:
 def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
+    parser.add_argument("--authority-registry", type=Path, default=AUTHORITY_REGISTRY)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
+    sub.add_parser("authority-validate", help="validate authority registry against the current bank")
+    promote_behavior = sub.add_parser("promote-behavior", help="curate an existing trusted typed user rule as USER_EXPLICIT")
+    promote_behavior.add_argument("memory_id")
+    promote_policy = sub.add_parser("promote-policy", help="curate an existing canonical-policy record")
+    promote_policy.add_argument("memory_id")
 
     note = sub.add_parser("note", help="save a quick durable note")
     note.add_argument("text")
@@ -579,7 +723,6 @@ def _main() -> int:
     append.add_argument("--evidence", action="append", default=[])
     append.add_argument("--supersedes", action="append", default=[])
     append.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
-    append.add_argument("--behavior-rule", action="store_true", help="explicitly type this user-authored memory as a behavior rule")
 
     record = sub.add_parser("record", help="save an assistant-authored memory with verbatim user provenance")
     record.add_argument("--kind", required=True, choices=sorted(KINDS))
@@ -621,12 +764,13 @@ def _main() -> int:
     context.add_argument("--max-chars", type=int, default=DEFAULT_CONTEXT_CHARS)
     context.add_argument("--with-history", action="store_true", help="also search the preserved full-conversation corpus")
 
-    orient = sub.add_parser("orient", help="compact fresh-chat continuity index from curated memory plus optional local Git history")
+    sub.add_parser("bootstrap", help="complete compact behavior constitution for fresh-chat or post-compaction rehydration")
+
+    orient = sub.add_parser("orient", help="richer continuity view with recent/project history; use bootstrap for mandatory behavior")
     orient.add_argument("--project", action="append", default=[])
     orient.add_argument("--recent-events", type=int, default=8)
     orient.add_argument("--error-threads", type=int, default=4)
     orient.add_argument("--project-events", type=int, default=3)
-    orient.add_argument("--behavior-rules", type=int, default=32, help="maximum current behavior-authority records included in fresh-chat orientation")
     orient.add_argument("--repo-events", type=int, default=12, help="maximum local Git commits read per repo")
     orient.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH", help="explicit local Git repo; repeatable")
     orient.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
@@ -654,9 +798,20 @@ def _main() -> int:
 
     args = parser.parse_args()
     try:
+        configure_authority_registry(args.authority_registry)
         entries = load_bank(args.bank)
         if args.command == "validate":
             _print_json({"status": "PROVEN", "entries": len(entries)})
+            return 0
+        if args.command == "authority-validate":
+            result = validate_authority_registry(entries, path=args.authority_registry)
+            _print_json(result)
+            return 0 if result.get("status") == "PROVEN" else 2
+        if args.command == "promote-behavior":
+            _print_json(promote_authority_entry(args.bank, args.authority_registry, args.memory_id, ROLE_USER))
+            return 0
+        if args.command == "promote-policy":
+            _print_json(promote_authority_entry(args.bank, args.authority_registry, args.memory_id, ROLE_CANONICAL))
             return 0
         if args.command == "note":
             text = args.text.strip()
@@ -680,7 +835,7 @@ def _main() -> int:
             missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
             if missing_supersedes:
                 raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
-            values = {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": bool(args.behavior_rule)}
+            values = {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": False}
             if args.project:
                 values["project"] = args.project
             if args.expires_at:
@@ -719,8 +874,15 @@ def _main() -> int:
                 values["thread"] = args.thread
             if args.turn_task:
                 values["turn_task"] = args.turn_task
-            entry = append_entry(args.bank, values)
+            if args.behavior_rule:
+                entry = append_behavior_entry(args.bank, values, args.authority_registry)
+                print(f"BEHAVIOR_AUTHORITY USER_EXPLICIT {entry['id']}", file=sys.stderr)
+            else:
+                entry = append_entry(args.bank, values)
             _print_json(entry)
+            return 0
+        if args.command == "bootstrap":
+            _print_json(build_behavior_bootstrap(entries))
             return 0
         if args.command == "orient":
             projects = args.project or ["p3", "tiny3d", "lowvram"]
@@ -734,7 +896,7 @@ def _main() -> int:
                 repo_history = collect_repo_history(specs, limit_per_repo=args.repo_events)
             _print_json(build_orientation(
                 entries, projects=projects, recent_events=args.recent_events, error_threads=args.error_threads,
-                project_events=args.project_events, behavior_rules=args.behavior_rules, repo_events=repo_history["events"], repo_snapshots=repo_history["repo_snapshots"],
+                project_events=args.project_events, repo_events=repo_history["events"], repo_snapshots=repo_history["repo_snapshots"],
             ))
             return 0
         if args.command == "timeline":

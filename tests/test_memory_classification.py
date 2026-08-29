@@ -66,6 +66,14 @@ class MemoryClassificationTests(unittest.TestCase):
         self.assertEqual(generic["sensitivity"], "REVIEW")
         self.assertIn("sensitivity_pattern_requires_review", generic["review_reasons"])
 
+    def test_sensitivity_rejects_natural_language_password_and_bearer_token(self):
+        password = classify_entry(self.entry(text="my password is CorrectHorseBatteryStaple123!"))
+        bearer = classify_entry(self.entry(text="Bearer abcdefghijklmnopqrstuvwxyz0123456789"))
+        self.assertEqual(password["sensitivity"], "EXCLUDE")
+        self.assertEqual(bearer["sensitivity"], "EXCLUDE")
+        self.assertEqual(classify_entry(self.entry(text="password is confidential"))["sensitivity"], "CLEAR")
+        self.assertEqual(classify_entry(self.entry(text="Bearer authentication token"))["sensitivity"], "CLEAR")
+
     def test_sensitivity_scans_verbatim_source_messages(self):
         entry = self.entry(text="safe summary")
         entry.update({

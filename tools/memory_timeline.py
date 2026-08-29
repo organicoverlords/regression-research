@@ -312,6 +312,37 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
 
 
 
+def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Return the complete current behavioral constitution without history/project payload."""
+    authorized = behavioral_context(list(entries))
+
+    def item(entry: dict[str, Any]) -> dict[str, Any]:
+        authority = dict(entry.get("behavioral_authority") or {})
+        return {
+            "id": entry.get("id"),
+            "title": _title(entry),
+            "scope": entry.get("scope"),
+            "text": str(entry.get("text") or ""),
+            "authority_role": authority.get("role"),
+            "precedence": authority.get("precedence"),
+        }
+
+    user_rules = [item(entry) for entry in authorized if (entry.get("behavioral_authority") or {}).get("role") == "USER_EXPLICIT"]
+    policies = [item(entry) for entry in authorized if (entry.get("behavioral_authority") or {}).get("role") == "CANONICAL_POLICY"]
+    return {
+        "schema_version": 1,
+        "purpose": "mandatory behavior bootstrap / post-compaction rehydration",
+        "contract": {
+            "complete_behavior_semantics": True,
+            "history_included": False,
+            "live_status_included": False,
+            "follow_up": "use context/timeline/live sources only when the task needs them",
+        },
+        "behavior_profile": user_rules,
+        "canonical_policy_profile": policies,
+    }
+
+
 def build_orientation(
     entries: Iterable[dict[str, Any]], *, projects: Iterable[str] = ("p3", "tiny3d", "lowvram"),
     recent_events: int = 8, error_threads: int = 4, project_events: int = 3, behavior_rules: int = 32,

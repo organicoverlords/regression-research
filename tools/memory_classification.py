@@ -79,6 +79,10 @@ _STRONG_SENSITIVE_PATTERNS = (
     re.compile(r"\bgho_[A-Za-z0-9]{20,}\b"),
     re.compile(r"\bsk-[A-Za-z0-9]{10,}\b"),
     re.compile(r"\b(?:password|passwd|api[_ -]?key|token)\s*[:=]\s*\S+", re.I),
+    re.compile(r"\b(?:password|passwd)\s+(?:is|was)\s+[\"']?(?=[^\s\"']{8,})(?=[^\s\"']*[A-Za-z])(?=[^\s\"']*\d)[^\s\"']+", re.I),
+    re.compile(r"\b(?:api[_ -]?key|access[_ -]?token|auth[_ -]?token|token)\s+(?:is|was)\s+[\"']?[A-Za-z0-9._~+/=-]{16,}", re.I),
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{20,}", re.I),
+    re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
     re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     re.compile(r"\b\d{4}(?:[\s-]\d{4}){3}\b"),
 )

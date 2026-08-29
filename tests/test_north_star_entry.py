@@ -28,6 +28,13 @@ class NorthStarEntryTests(unittest.TestCase):
         ):
             self.assertIn(required, north_star)
 
+    def test_north_star_uses_standalone_coordinator_not_mcp_or_busy_as_authority(self):
+        north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
+        self.assertIn("standalone BusyCoordinator", north_star)
+        self.assertIn("transports, not ownership authorities", north_star)
+        self.assertNotIn("Check live BUSY ownership", north_star)
+        self.assertNotIn("Make live MCP ownership the only coordination authority", north_star)
+
     def test_orientation_keeps_north_star_distinct_from_operating_authority(self):
         self.assertIn("project direction", DIRECTIVE)
         self.assertIn("does not override current user instructions", DIRECTIVE)

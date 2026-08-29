@@ -8,3 +8,7 @@ __pycache__/
 
 # Private full-conversation corpus (canonical local Vault data)
 memory/conversations/
+# Private/disposable local forensic working copies; preserve source evidence elsewhere before cleanup.
+/tmp-*.sqlite
+/tmp-cloudflare-ab*/
+/tmp-current-chat-cdp.mjs

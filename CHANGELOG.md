@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [memory] Closed the post-#232 authority and continuity gaps: trusted behavior-rule writes now curate authority atomically, normal context reserves procedural rules, secret-like values are rejected at ingress, startup uses a bounded complete behavior bootstrap, and canonical verification covers the memory stack.
+
 - [2026-08-29] [memory] Split persisted behavior-rule type from user provenance so historical user-authored corrections, decisions, and preferences cannot enter the behavior profile without explicit rule typing.
 
 - [2026-08-29] [memory] Added deterministic user-message rule-candidate cataloging, current behavior-profile bootstrap projection, and single-token recall for explicitly authorized behavior triggers; promoted the recovered old work/proof stack into current Vault behavior without adding any conversation-download dependency.

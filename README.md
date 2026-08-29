@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-29] [memory] Closed the post-#232 authority and continuity gaps: trusted behavior-rule writes now curate authority atomically, normal context reserves procedural rules, secret-like values are rejected at ingress, startup uses a bounded complete behavior bootstrap, and canonical verification covers the memory stack.
 - [2026-08-29] [memory] Split persisted behavior-rule type from user provenance so historical user-authored corrections, decisions, and preferences cannot enter the behavior profile without explicit rule typing.
 - [2026-08-29] [memory] Added deterministic user-message rule-candidate cataloging, current behavior-profile bootstrap projection, and single-token recall for explicitly authorized behavior triggers; promoted the recovered old work/proof stack into current Vault behavior without adding any conversation-download dependency.
 - [2026-08-29] [memory] Preserved the compact persistent-rule coverage used to migrate away from built-in GPT memory without making full-chat downloads or volatile machine snapshots continuity dependencies.
 - [2026-08-29] [memory] Balanced local-Git continuity projection so compact project orientation always reserves landed `origin/main` history separately from active swarm/lane history.
-- [2026-08-29] [memory] Added shared Vault continuity timelines over curated memory and read-only local Git history, including project/error views, mainline-versus-lane commit visibility, vague recurrence lookup, and zero full-conversation-download runtime dependency.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
@@ -19,6 +19,8 @@ Operating rules live in each project's `AGENTS.md`, generated from
 `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
 
 Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
+
+Run `python tools/wip_hygiene.py` for a separate non-destructive inventory of untracked research WIP, quarantine, and ignored private/temp state; this status does not redefine the canonical tracked evidence corpus.
 
 ## Layout
 

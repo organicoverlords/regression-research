@@ -87,7 +87,7 @@ _CONCEPT_GROUPS = (
     ("compact", "concise", "compress", "compressed", "compression", "brief"),
     ("report", "reports", "reporting"),
     ("hypothesis", "hypotheses", "theory", "theories"),
-    ("agreement", "agree", "agreed", "accept", "accepted", "mirror"),
+    ("agreement", "agree", "agreed", "agreeing", "accept", "accepted", "mirror"),
 )
 _CONCEPT_ALIAS = {alias: group[0] for group in _CONCEPT_GROUPS for alias in group}
 _NUMBER_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
