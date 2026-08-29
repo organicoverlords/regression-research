@@ -310,7 +310,8 @@ def annotate_memory(entry: dict[str, Any]) -> dict[str, Any]:
     return annotated
 
 
-def current_entries(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def _cheap_current_entries(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Apply currentness checks that do not require semantic classification."""
     items = list(entries)
     superseded = {old for entry in items for old in entry.get("supersedes", [])}
     return [
@@ -318,27 +319,47 @@ def current_entries(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         if entry.get("state") != "REJECTED"
         and entry.get("id") not in superseded
         and not is_expired(entry)
-        and classify_entry(entry)["sensitivity"] != "EXCLUDE"
-        and classify_entry(entry)["durability"] not in {"EPHEMERAL", "HISTORICAL"}
     ]
+
+
+def current_entries(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    for entry in _cheap_current_entries(entries):
+        classification = classify_entry(entry)
+        if classification["sensitivity"] == "EXCLUDE":
+            continue
+        if classification["durability"] in {"EPHEMERAL", "HISTORICAL"}:
+            continue
+        selected.append(entry)
+    return selected
 
 
 def behavioral_context(entries: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return only current memories allowed to alter behavior.
 
     Relevance must be applied separately. This function is the policy firewall.
+    Behavioral authority is intentionally checked before expensive semantic
+    classification so advisory evidence does not pay the bootstrap hot-path cost.
     """
     selected: list[tuple[int, datetime, str, dict[str, Any]]] = []
-    for entry in current_entries(entries):
+    for entry in _cheap_current_entries(entries):
         authority = behavioral_authority(entry)
         if not authority["may_change_behavior"]:
             continue
+        classification = classify_entry(entry)
+        if classification["sensitivity"] == "EXCLUDE":
+            continue
+        if classification["durability"] in {"EPHEMERAL", "HISTORICAL"}:
+            continue
+        annotated = dict(entry)
+        annotated["behavioral_authority"] = authority
+        annotated["classification"] = classification
         stamp = datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00"))
         selected.append((
             int(authority["precedence"]),
             stamp,
             str(entry.get("id") or ""),
-            annotate_memory(entry),
+            annotated,
         ))
     selected.sort(key=lambda item: (-item[0], -item[1].timestamp(), item[2]))
     return [entry for _, _, _, entry in selected]
