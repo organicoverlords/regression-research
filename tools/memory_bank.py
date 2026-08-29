@@ -423,8 +423,21 @@ def search_context_memory(
     residual = context_residual_query(query)
 
     if not projects:
-        if len(_tokens(residual)) < 2:
+        residual_tokens = _tokens(residual)
+        if not residual_tokens:
             return []
+        if len(residual_tokens) < 2:
+            # Single-token context queries remain closed to ordinary memory to avoid
+            # broad accidental dumps, but an explicitly authorized behavioral rule
+            # may be a deliberate trigger (for example, a user-defined stop word).
+            behavior_entries = [
+                entry for entry in filtered
+                if behavioral_authority(entry).get("may_change_behavior")
+            ]
+            return search_memory_entries(
+                behavior_entries, residual, scope=scope, tags=tags,
+                limit=effective_limit, history=False,
+            )
         return search_memory_entries(filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False)
 
     project_entries: list[dict[str, Any]] = []
@@ -592,6 +605,7 @@ def _main() -> int:
     orient.add_argument("--recent-events", type=int, default=8)
     orient.add_argument("--error-threads", type=int, default=4)
     orient.add_argument("--project-events", type=int, default=3)
+    orient.add_argument("--behavior-rules", type=int, default=32, help="maximum current behavior-authority records included in fresh-chat orientation")
     orient.add_argument("--repo-events", type=int, default=12, help="maximum local Git commits read per repo")
     orient.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH", help="explicit local Git repo; repeatable")
     orient.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
@@ -699,7 +713,7 @@ def _main() -> int:
                 repo_history = collect_repo_history(specs, limit_per_repo=args.repo_events)
             _print_json(build_orientation(
                 entries, projects=projects, recent_events=args.recent_events, error_threads=args.error_threads,
-                project_events=args.project_events, repo_events=repo_history["events"], repo_snapshots=repo_history["repo_snapshots"],
+                project_events=args.project_events, behavior_rules=args.behavior_rules, repo_events=repo_history["events"], repo_snapshots=repo_history["repo_snapshots"],
             ))
             return 0
         if args.command == "timeline":

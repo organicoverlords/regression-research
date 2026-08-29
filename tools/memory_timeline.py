@@ -10,8 +10,10 @@ from typing import Any, Iterable
 
 try:
     from .memory_classification import classify_entry, projects_from_text, token_words
+    from .memory_authority import behavioral_context
 except ImportError:
     from memory_classification import classify_entry, projects_from_text, token_words
+    from memory_authority import behavioral_context
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
@@ -312,7 +314,7 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
 
 def build_orientation(
     entries: Iterable[dict[str, Any]], *, projects: Iterable[str] = ("p3", "tiny3d", "lowvram"),
-    recent_events: int = 8, error_threads: int = 4, project_events: int = 3,
+    recent_events: int = 8, error_threads: int = 4, project_events: int = 3, behavior_rules: int = 32,
     repo_events: Iterable[dict[str, Any]] | None = None, repo_snapshots: Iterable[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build one compact fresh-chat continuity index from curated memory plus optional local Git history."""
@@ -380,6 +382,28 @@ def build_orientation(
     recent = [*eligible_memory, *eligible_repo]
     recent.sort(key=lambda event: (_dt(str(event["event_at"])), str(event["id"])), reverse=True)
 
+    def compact_behavior(entry: dict[str, Any]) -> dict[str, Any]:
+        authority = dict(entry.get("behavioral_authority") or {})
+        return {
+            "id": entry.get("id"),
+            "scope": entry.get("scope"),
+            "kind": entry.get("kind"),
+            "title": _title(entry),
+            "text": _clip(entry.get("text"), 360),
+            "authority_role": authority.get("role"),
+            "precedence": authority.get("precedence"),
+        }
+
+    authorized = behavioral_context(items)
+    behavior = [
+        compact_behavior(entry) for entry in authorized
+        if (entry.get("behavioral_authority") or {}).get("role") == "USER_EXPLICIT"
+    ][:max(0, int(behavior_rules))]
+    canonical_policy = [
+        compact_behavior(entry) for entry in authorized
+        if (entry.get("behavioral_authority") or {}).get("role") == "CANONICAL_POLICY"
+    ][:8]
+
     return {
         "schema_version": 1,
         "authority": "DERIVED_HISTORY_ONLY",
@@ -388,7 +412,11 @@ def build_orientation(
             "source": "curated memory plus optional local Git history; no full-conversation archive or download dependency",
             "repo_history": "read-only local Git projection; no network fetch and no automatic memory write",
             "follow_up": "use timeline/context/live sources before treating an incident or project event as current truth",
+            "behavior_profile": "current explicit user-authored behavior only; current user instruction still wins",
+            "canonical_policy_profile": "current canonical repo policy kept separate from user-authored behavior",
         },
+        "behavior_profile": behavior,
+        "canonical_policy_profile": canonical_policy,
         "recent_events": recent[: max(2, recent_events * 2)],
         "recent_error_threads": error_index,
         "projects": project_index,

@@ -15,6 +15,18 @@ class MemoryContextRetrievalTests(unittest.TestCase):
             out["project"] = project
         return out
 
+    def test_single_token_can_recall_only_explicit_behavior(self):
+        behavior = self.entry("rule", "slopwall incident capture rule", scope="assistant-orchestration/slopwall")
+        behavior["kind"] = "preference"
+        behavior["evidence"] = ["user-instruction:test"]
+        advisory = self.entry("incident", "slopwall historical incident")
+        hits = search_context_memory([advisory, behavior], "slopwall", limit=8)
+        self.assertEqual([hit["id"] for hit in hits], ["rule"])
+
+    def test_single_token_without_explicit_behavior_stays_closed(self):
+        advisory = self.entry("incident", "slopwall historical incident")
+        self.assertEqual(search_context_memory([advisory], "slopwall", limit=8), [])
+
     def test_named_project_gets_reserved_recall_budget(self):
         globals_ = [self.entry(f"g{i}", f"build routing generic note {i}") for i in range(12)]
         project = self.entry("p3-specific", "p3 build routing project note", project="p3", scope="p3/build")
