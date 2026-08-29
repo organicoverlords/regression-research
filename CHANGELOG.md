@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [coordination] Made BusyCoordinator queue selection age-first so older ready jobs are claimed before lexicographically earlier newer scopes.
+
 - [2026-08-29] [meta] Bounded BUSY coordinator handoff provenance (`source` 2,048 chars; `summary` 8,192 chars) with Python/Rust parity regression coverage so one scout finding cannot grow canonical coordinator state without limit (#194).
 
 - [2026-08-29] [orchestration] Routed indirect capability providers through whole-stack acceptance so a usable process-backed repository path remains executable, while a failed indirect provider degrades only its capability and independent work continues.

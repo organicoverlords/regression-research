@@ -214,10 +214,13 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                     persist(store, state)
                 return replay
             result = {"ok": False, "reason": "no_actionable_job", "expired": swept}
-            for scope in sorted(state["coordinator"]["jobs"]):
-                job = job_for(state, scope)
-                if not job or job.get("state") != "ready" or claim_for(state, scope):
-                    continue
+            ready_jobs = sorted(
+                (job for job in state["coordinator"]["jobs"].values()
+                 if job.get("state") == "ready" and not claim_for(state, job["scope"])),
+                key=lambda job: (job.get("updated_at") or "", job["scope"]),
+            )
+            for job in ready_jobs:
+                scope = job["scope"]
                 timestamp = iso()
                 claim = {"actor": actor, "scope": scope, "timestamp": timestamp}
                 state["claims"].append(claim)
