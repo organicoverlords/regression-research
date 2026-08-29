@@ -3,6 +3,8 @@ import json
 import unittest
 from pathlib import Path, PurePosixPath
 
+from tools.provenance import canonical_report_paths
+
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "01 Reports"
@@ -32,7 +34,7 @@ class TaxonomyMatrixTests(unittest.TestCase):
     def test_every_current_report_is_mapped_without_transcript_copy(self):
         rows = self.rows()
         mapped = {row["incident_report"] for row in rows}
-        reports = {f"01 Reports/{path.name}" for path in REPORTS.iterdir() if path.suffix in {".md", ".txt"}}
+        reports = canonical_report_paths(ROOT)
         self.assertEqual(mapped, reports)
         self.assertTrue(all("90 Raw Transcripts" not in row["observable_evidence"] for row in rows))
 

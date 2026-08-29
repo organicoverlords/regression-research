@@ -4,6 +4,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+import tools.memory_authority as memory_authority
 
 from tools.memory_timeline import build_orientation, build_recurrence_context, build_timeline, needs_timeline_fallback
 
@@ -12,6 +15,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MemoryTimelineTests(unittest.TestCase):
+    def setUp(self):
+        synthetic_users = {"rule", "user", *(f"rule-{i}" for i in range(40))}
+        synthetic_policies = {"policy"}
+        user_patch = patch.object(memory_authority, "VERIFIED_USER_AUTHORITY_IDS", memory_authority.VERIFIED_USER_AUTHORITY_IDS | synthetic_users)
+        policy_patch = patch.object(memory_authority, "VERIFIED_CANONICAL_AUTHORITY_IDS", memory_authority.VERIFIED_CANONICAL_AUTHORITY_IDS | synthetic_policies)
+        user_patch.start(); policy_patch.start()
+        self.addCleanup(user_patch.stop); self.addCleanup(policy_patch.stop)
+
     @staticmethod
     def e(memory_id, timestamp, text, *, kind="lesson", scope="global", state="PROVEN", title=None, tags=None, evidence=None, supersedes=None, project=None, event_at=None):
         out = {
@@ -103,15 +114,16 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["user"])
         self.assertEqual([item["id"] for item in orientation["canonical_policy_profile"]], ["policy"])
 
-    def test_orientation_behavior_profile_is_bounded(self):
+    def test_orientation_never_silently_evicts_behavior_rules(self):
         rules = []
-        for index in range(5):
-            rule = self.e(f"rule-{index}", f"2026-08-2{index+1}T10:00:00+03:00", f"Rule {index}", kind="preference")
+        for index in range(33):
+            rule = self.e(f"rule-{index}", f"2026-08-{(index % 28) + 1:02d}T10:00:00+03:00", f"Rule {index}", kind="preference")
             rule["evidence"] = ["user-instruction:test"]
             rule["behavior_rule"] = True
             rules.append(rule)
         orientation = build_orientation(rules, projects=[], behavior_rules=2)
-        self.assertEqual(len(orientation["behavior_profile"]), 2)
+        self.assertEqual(len(orientation["behavior_profile"]), 33)
+        self.assertEqual({item["id"] for item in orientation["behavior_profile"]}, {rule["id"] for rule in rules})
 
     def test_orientation_prioritizes_explicit_project_events_over_incidental_mentions(self):
         explicit = self.e("p3-explicit", "2026-08-28T20:00:00+03:00", "P3 durable event", scope="p3/build", project="p3")

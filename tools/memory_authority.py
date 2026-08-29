@@ -26,7 +26,9 @@ ROLE_CANONICAL = "CANONICAL_POLICY"
 ROLE_ADVISORY = "ADVISORY_EVIDENCE"
 ROLE_INACTIVE = "INACTIVE_HISTORY"
 BEHAVIOR_RULE_KINDS = {"preference", "decision", "correction", "lesson"}
-LEGACY_BEHAVIOR_TYPES = Path(__file__).resolve().parents[1] / "memory" / "behavior-rule-types.json"
+ROOT = Path(__file__).resolve().parents[1]
+LEGACY_BEHAVIOR_TYPES = ROOT / "memory" / "behavior-rule-types.json"
+AUTHORITY_REGISTRY = ROOT / "memory" / "behavior-authority-registry.json"
 
 
 def _load_legacy_behavior_rule_ids() -> frozenset[str]:
@@ -39,6 +41,24 @@ def _load_legacy_behavior_rule_ids() -> frozenset[str]:
 
 
 LEGACY_BEHAVIOR_RULE_IDS = _load_legacy_behavior_rule_ids()
+
+
+def _load_authority_registry() -> tuple[frozenset[str], frozenset[str]]:
+    try:
+        payload = json.loads(AUTHORITY_REGISTRY.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return frozenset(), frozenset()
+    if not isinstance(payload, dict):
+        return frozenset(), frozenset()
+    users = payload.get("user_explicit_ids", [])
+    policies = payload.get("canonical_policy_ids", [])
+    return (
+        frozenset(item for item in users if isinstance(item, str) and item.strip()),
+        frozenset(item for item in policies if isinstance(item, str) and item.strip()),
+    )
+
+
+VERIFIED_USER_AUTHORITY_IDS, VERIFIED_CANONICAL_AUTHORITY_IDS = _load_authority_registry()
 
 
 def _evidence_has_prefix(entry: dict[str, Any], prefixes: tuple[str, ...]) -> bool:
@@ -87,6 +107,15 @@ def behavioral_authority(entry: dict[str, Any]) -> dict[str, Any]:
                 "authority_scope": "evidence_only",
                 "claim_state": state,
             }
+        if str(entry.get("id") or "") not in VERIFIED_USER_AUTHORITY_IDS:
+            return {
+                "role": ROLE_ADVISORY,
+                "may_change_behavior": False,
+                "precedence": 0,
+                "basis": "user_behavior_authority_not_curated",
+                "authority_scope": "evidence_only",
+                "claim_state": state,
+            }
         return {
             "role": ROLE_USER,
             "may_change_behavior": True,
@@ -104,6 +133,14 @@ def behavioral_authority(entry: dict[str, Any]) -> dict[str, Any]:
             "authority_scope": "evidence_only",
         }
     if _evidence_has_prefix(entry, CANONICAL_PREFIXES):
+        if str(entry.get("id") or "") not in VERIFIED_CANONICAL_AUTHORITY_IDS:
+            return {
+                "role": ROLE_ADVISORY,
+                "may_change_behavior": False,
+                "precedence": 0,
+                "basis": "canonical_policy_authority_not_curated",
+                "authority_scope": "evidence_only",
+            }
         return {
             "role": ROLE_CANONICAL,
             "may_change_behavior": True,

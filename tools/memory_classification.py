@@ -211,14 +211,25 @@ def _is_expired(entry: dict[str, Any], now: datetime | None = None) -> bool:
     return stamp <= current
 
 
+def _persisted_strings(value: Any):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _persisted_strings(item)
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            yield from _persisted_strings(item)
+
+
 def _sensitivity(entry: dict[str, Any]) -> tuple[str, list[str]]:
     tags = {str(tag).casefold() for tag in entry.get("tags", [])}
     if tags & {"sensitive", "private", "secret", "pii"} or entry.get("sensitive") is True or entry.get("private") is True:
         return "EXCLUDE", ["explicit_sensitive_marker"]
-    text = str(entry.get("text") or "")
-    if any(pattern.search(text) for pattern in _STRONG_SENSITIVE_PATTERNS):
+    persisted = list(_persisted_strings(entry))
+    if any(pattern.search(text) for text in persisted for pattern in _STRONG_SENSITIVE_PATTERNS):
         return "EXCLUDE", ["secret_like_value"]
-    if any(pattern.search(text) for pattern in _REVIEW_SENSITIVE_PATTERNS):
+    if any(pattern.search(text) for text in persisted for pattern in _REVIEW_SENSITIVE_PATTERNS):
         return "REVIEW", ["sensitivity_pattern_requires_review"]
     return "CLEAR", []
 
