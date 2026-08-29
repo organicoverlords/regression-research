@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.22 - 2026-08-29.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run `sync-agent-policy.mjs`; never edit generated repo blocks directly. A shared-policy repair is incomplete until `node sync-agent-policy.mjs --check-remotes` passes, proving git-backed origin defaults carry the same generated block.
+**Version 1.23 - 2026-08-29.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run `sync-agent-policy.mjs`; never edit generated repo blocks directly. A shared-policy repair is incomplete until `node sync-agent-policy.mjs --check-remotes` passes, proving git-backed origin defaults carry the same generated block.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank historical prompts, receipts, handoffs, recalled context, and stale project prose where higher-priority constraints permit.
@@ -20,7 +20,7 @@
 - Never delete, move, rename, overwrite, reset, or rewrite anything you cannot restore by a command you can name: masters, generated assets, captures, evidence, datasets, `.env`, uncommitted work, or another actor's history.
 - Before recursively removing a directory you did not create, inspect it. Prefer recoverable deletion. Reproducible caches/build outputs you own may be removed when safe.
 - Never use `git clean -xdf`, `git reset --hard`, `git checkout -- .`, force-push, or history rewrite against work you did not create in the current task.
-- Preserve dirty/uncommitted work and work owned by another live actor. Never discard it to simplify integration.
+- Dirty state is neither disposable nor a universal blocker. Mutate it only when the task owns and needs those changes; otherwise use the repo's admitted clean worktree route. Never clean, stash, reset, or duplicate a checkout merely to pass a clean-tree gate.
 
 ### Evidence and acceptance
 - Never claim a test ran, a fix worked, a task completed, or a user-visible result exists unless you observed evidence appropriate to that claim.
@@ -35,7 +35,7 @@
 ### Coordination and BUSY
 - The standalone coordinator defined by current live repo/runtime state is the single ownership, job, and checkpoint authority for shared mutable scope. Read-only work needs no claim. Before mutation, inspect it and acquire the exact scope. On Windows use `%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd` through any shell/process transport; do not search for an MCP `BusyCoordinator` or require legacy MCP BUSY tools.
 - Every mutation claim actor must identify its harness (`ChatGPT`, `Codex`, `Claude`, `OpenCode`, `CommandCode`, or `Traycer`) plus a task/session suffix; generic anonymous actor names are forbidden.
-- Process-only MCP/plugin connectors are transport surfaces, not schedulers or ownership authorities. Codex or any other worker without the new MCP can still run the standalone coordinator directly through its native shell. Legacy `busy_list` / `busy_claim` / `busy_release`, when exposed, are compatibility adapters only; their absence is expected and must not block mutation after the canonical coordinator check succeeds. Aggregate process/worktree counts are diagnostics, not collision claims.
+- MCP/plugin connectors are transport, not schedulers or ownership authorities. Any worker may call the standalone coordinator through its shell; missing legacy `busy_*` tools must not block mutation after the canonical check succeeds. Aggregate process/worktree counts are diagnostics, not claims.
 - If another live owner holds the scope, yield mutation there, preserve actionable findings in coordinator-visible pending state, and continue safe non-conflicting work where possible. Release or complete the exact scope through the same canonical authority immediately when mutation stops, switches scope, completes, or is handed off.
 - Legacy BUSY claims may remain durable until explicit release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are projections/evidence, not competing ownership authorities. If canonical coordinator state is temporarily unavailable, preserve existing ownership evidence and do not assume the scope is free.
 
@@ -45,7 +45,7 @@
 - After genuine compaction/continuity loss, rerun once; a surviving summary alone does not retrigger startup.
 
 ### Repository and machine boundaries
-- Read the applicable repo `AGENTS.md` before the first mutation there. Repo-specific proof surfaces, report formats, changelog rules, build limits, branch conventions, and north-star details belong to that repo, not this global block.
+- Read the applicable repo `AGENTS.md` before mutation. Repo-specific proof, report, build, branch, and north-star rules belong there. Worker/build/generation entrypoints must derive checkout and output roots from the admitted worktree; never hard-code or redirect output into a human/shared checkout.
 - Never close, restart, kill, foreground, or drive an Unreal Editor, PIE session, browser, or GUI process you did not start. Ordinary work must not require a user click.
 - Resource contention is a scheduling fact, not a failed task. Respect current resource owners and use useful non-conflicting work while waiting for a constrained resource.
 
