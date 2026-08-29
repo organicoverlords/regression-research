@@ -249,12 +249,31 @@ assert snapshot_py["legacy_only_claims"][0]["scope"] == "legacy-only"
 store10.unlink(missing_ok=True)
 pathlib.Path(str(store10) + ".lock").unlink(missing_ok=True)
 
+# Legacy-only dead-owner recovery is compare-and-swap guarded: a refreshed claim cannot be stolen.
+for kind, other in (("py", "rs"), ("rs", "py")):
+    recovery_store = new_store(f"legacy-recovery-{kind}")
+    original = {"actor": "legacy-owner", "scope": "legacy-recovery", "timestamp": "2026-08-29T00:00:00.000Z"}
+    recovery_store.write_text(json.dumps({"claims": [original]}, indent=2) + "\n", encoding="utf-8")
+    stale = run(kind, recovery_store, "recover", "legacy-owner", "legacy-recovery", "--expected-claim-timestamp", "2026-08-28T23:59:59.000Z", "--operation-id", f"{kind}-stale-recover")
+    assert stale["ok"] is False and stale["reason"] == "claim_changed"
+    assert read(recovery_store)["claims"] == [original]
+    recovered = run(kind, recovery_store, "recover", "legacy-owner", "legacy-recovery", "--expected-claim-timestamp", original["timestamp"], "--operation-id", f"{kind}-recover")
+    assert recovered["ok"] is True and recovered["job"]["state"] == "ready"
+    assert read(recovery_store)["claims"] == []
+    picked = run(other, recovery_store, "next", "replacement-owner", "--operation-id", f"{kind}-replacement")
+    assert picked["ok"] is True and picked["claim"]["scope"] == "legacy-recovery"
+    managed_attempt = run(kind, recovery_store, "recover", "replacement-owner", "legacy-recovery", "--expected-claim-timestamp", picked["claim"]["timestamp"], "--operation-id", f"{kind}-managed-recover")
+    assert managed_attempt["ok"] is False and managed_attempt["reason"] == "managed_claim_use_lease_sweep"
+    recovery_store.unlink(missing_ok=True)
+    pathlib.Path(str(recovery_store) + ".lock").unlink(missing_ok=True)
+
 print(json.dumps({
     "result": "PASS",
     "cross_language_idempotency": True,
     "cross_language_lifecycle": True,
     "exact_ownership": True,
     "lease_expiry": True,
+    "legacy_dead_owner_recovery": True,
     "legacy_refresh_guard": True,
     "passthrough_metadata": True,
     "queue_handoff": True,

@@ -247,7 +247,8 @@ def sweep_expired(state: dict) -> tuple[list[dict], bool]:
 def operate(store: Path, command: str, actor: str | None = None, raw_scope: str | None = None,
             *, lease_seconds: int = DEFAULT_LEASE_S, checkpoint: str | None = None,
             operation_id: str | None = None, finding_id: str | None = None,
-            source: str | None = None, summary: str | None = None, limit: int = 8) -> dict:
+            source: str | None = None, summary: str | None = None, limit: int = 8,
+            expected_claim_timestamp: str | None = None) -> dict:
     with StoreLock(store):
         state = load_state(store)
         swept, sweep_changed = sweep_expired(state)
@@ -261,6 +262,50 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
             if command == "snapshot":
                 return snapshot_state(state, actor=actor, raw_scope=raw_scope, limit=limit, expired=swept)
             return {"ok": True, "expired": swept}
+
+        if command == "recover":
+            if actor is None:
+                raise ValueError("expected owner required")
+            if raw_scope is None:
+                raise ValueError("scope required")
+            if not expected_claim_timestamp:
+                raise ValueError("--expected-claim-timestamp required")
+            scope = canonical_scope(raw_scope)
+            signature = {
+                "command": command,
+                "expected_owner": actor,
+                "scope": scope,
+                "expected_claim_timestamp": expected_claim_timestamp,
+            }
+            replay = idempotent(state, operation_id, signature)
+            if replay is not None:
+                if state_changed:
+                    persist(store, state)
+                return replay
+            current = claim_for(state, scope)
+            job = job_for(state, scope)
+            if current is None:
+                result = {"ok": False, "reason": "scope_not_claimed"}
+            elif current.get("actor") != actor or current.get("timestamp") != expected_claim_timestamp:
+                result = {"ok": False, "reason": "claim_changed", "claim": current}
+            elif job is not None:
+                result = {"ok": False, "reason": "managed_claim_use_lease_sweep", "claim": current, "job": job}
+            else:
+                state["claims"] = [c for c in state["claims"] if c.get("scope") != scope]
+                timestamp = iso()
+                state["coordinator"]["jobs"][scope] = {
+                    "job_id": scope,
+                    "scope": scope,
+                    "state": "ready",
+                    "owner": None,
+                    "lease_expires_at": None,
+                    "claim_timestamp": expected_claim_timestamp,
+                    "updated_at": timestamp,
+                }
+                result = {"ok": True, "recovered": current, "job": state["coordinator"]["jobs"][scope]}
+            result = remember(state, operation_id, signature, result)
+            persist(store, state)
+            return result
 
         if command == "next":
             if actor is None:
@@ -470,6 +515,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     sub.add_parser("sweep")
+    recover = sub.add_parser("recover")
+    recover.add_argument("actor")
+    recover.add_argument("scope")
+    recover.add_argument("--expected-claim-timestamp", required=True)
+    recover.add_argument("--operation-id")
     snapshot = sub.add_parser("snapshot")
     snapshot.add_argument("--actor")
     snapshot.add_argument("--scope")
@@ -509,6 +559,8 @@ def main() -> int:
             result = operate(args.store, args.cmd)
         elif args.cmd == "snapshot":
             result = operate(args.store, args.cmd, args.actor, args.scope, limit=args.limit)
+        elif args.cmd == "recover":
+            result = operate(args.store, args.cmd, args.actor, args.scope, operation_id=args.operation_id, expected_claim_timestamp=args.expected_claim_timestamp)
         elif args.cmd == "next":
             result = operate(args.store, args.cmd, args.actor, lease_seconds=args.lease_seconds, operation_id=args.operation_id)
         elif args.cmd == "handoff":
