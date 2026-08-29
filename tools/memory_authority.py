@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
+from pathlib import Path
 from typing import Any, Iterable
 
 try:
@@ -23,7 +25,20 @@ ROLE_USER = "USER_EXPLICIT"
 ROLE_CANONICAL = "CANONICAL_POLICY"
 ROLE_ADVISORY = "ADVISORY_EVIDENCE"
 ROLE_INACTIVE = "INACTIVE_HISTORY"
-BEHAVIOR_KINDS = {"preference", "decision", "correction"}
+BEHAVIOR_RULE_KINDS = {"preference", "decision", "correction", "lesson"}
+LEGACY_BEHAVIOR_TYPES = Path(__file__).resolve().parents[1] / "memory" / "behavior-rule-types.json"
+
+
+def _load_legacy_behavior_rule_ids() -> frozenset[str]:
+    try:
+        payload = json.loads(LEGACY_BEHAVIOR_TYPES.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return frozenset()
+    ids = payload.get("behavior_rule_ids", []) if isinstance(payload, dict) else []
+    return frozenset(item for item in ids if isinstance(item, str) and item.strip())
+
+
+LEGACY_BEHAVIOR_RULE_IDS = _load_legacy_behavior_rule_ids()
 
 
 def _evidence_has_prefix(entry: dict[str, Any], prefixes: tuple[str, ...]) -> bool:
@@ -48,20 +63,35 @@ def behavioral_authority(entry: dict[str, Any]) -> dict[str, Any]:
             "basis": "rejected",
             "authority_scope": "none",
         }
-    if str(entry.get("kind") or "") not in BEHAVIOR_KINDS:
-        return {
-            "role": ROLE_ADVISORY,
-            "may_change_behavior": False,
-            "precedence": 0,
-            "basis": "kind_not_behavioral",
-            "authority_scope": "evidence_only",
-        }
-    if _evidence_has_prefix(entry, USER_PREFIXES):
+    has_user_provenance = _evidence_has_prefix(entry, USER_PREFIXES)
+    explicit_behavior_type = entry.get("behavior_rule") is True
+    legacy_behavior_type = str(entry.get("id") or "") in LEGACY_BEHAVIOR_RULE_IDS
+    is_behavior_rule = explicit_behavior_type or legacy_behavior_type
+
+    if has_user_provenance:
+        if not is_behavior_rule:
+            return {
+                "role": ROLE_ADVISORY,
+                "may_change_behavior": False,
+                "precedence": 0,
+                "basis": "user_provenance_without_behavior_rule_type",
+                "authority_scope": "evidence_only",
+                "claim_state": state,
+            }
+        if str(entry.get("kind") or "") not in BEHAVIOR_RULE_KINDS:
+            return {
+                "role": ROLE_ADVISORY,
+                "may_change_behavior": False,
+                "precedence": 0,
+                "basis": "behavior_rule_type_invalid_for_kind",
+                "authority_scope": "evidence_only",
+                "claim_state": state,
+            }
         return {
             "role": ROLE_USER,
             "may_change_behavior": True,
             "precedence": 100,
-            "basis": "explicit_user_instruction",
+            "basis": "explicit_behavior_rule_type" if explicit_behavior_type else "legacy_behavior_rule_type_registry",
             "authority_scope": "behavior_only",
             "claim_state": state,
         }

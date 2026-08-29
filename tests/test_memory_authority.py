@@ -17,8 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MemoryAuthorityFirewallTests(unittest.TestCase):
-    def e(self, ident, *, kind="lesson", state="PROVEN", evidence=None, supersedes=None, ts="2026-08-27T10:00:00+03:00"):
-        return {
+    def e(self, ident, *, kind="lesson", state="PROVEN", evidence=None, supersedes=None, ts="2026-08-27T10:00:00+03:00", behavior_rule=None):
+        entry = {
             "id": ident,
             "timestamp": ts,
             "kind": kind,
@@ -29,6 +29,9 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
             "evidence": evidence or [],
             "supersedes": supersedes or [],
         }
+        if behavior_rule is not None:
+            entry["behavior_rule"] = behavior_rule
+        return entry
 
     def test_proven_is_not_behavioral_authority_by_itself(self):
         lesson = self.e("assistant-derived", state="PROVEN", evidence=["regression:incident-1"])
@@ -41,17 +44,24 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
         auth = behavioral_authority(entry)
         self.assertEqual(auth["role"], ROLE_ADVISORY)
         self.assertFalse(auth["may_change_behavior"])
-        self.assertEqual(auth["basis"], "kind_not_behavioral")
+        self.assertEqual(auth["basis"], "user_provenance_without_behavior_rule_type")
+
+    def test_user_provenance_and_behaviorish_kind_do_not_imply_behavior_rule(self):
+        entry = self.e("checkpoint", kind="correction", evidence=["user-instruction:captured"])
+        auth = behavioral_authority(entry)
+        self.assertEqual(auth["role"], ROLE_ADVISORY)
+        self.assertFalse(auth["may_change_behavior"])
+        self.assertEqual(auth["basis"], "user_provenance_without_behavior_rule_type")
 
     def test_direct_user_instruction_does_not_require_proven_state(self):
-        entry = self.e("user-direct", kind="correction", state="PROVISIONAL", evidence=["user-instruction:captured"])
+        entry = self.e("user-direct", kind="correction", state="PROVISIONAL", evidence=["user-instruction:captured"], behavior_rule=True)
         auth = behavioral_authority(entry)
         self.assertEqual(auth["role"], ROLE_USER)
         self.assertTrue(auth["may_change_behavior"])
         self.assertEqual(auth["claim_state"], "PROVISIONAL")
 
     def test_explicit_user_instruction_is_behavior_authority_not_external_truth(self):
-        entry = self.e("user", kind="correction", evidence=["user-instruction:current"])
+        entry = self.e("user", kind="correction", evidence=["user-instruction:current"], behavior_rule=True)
         auth = behavioral_authority(entry)
         self.assertEqual(auth["role"], ROLE_USER)
         self.assertTrue(auth["may_change_behavior"])
@@ -64,43 +74,59 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
         self.assertTrue(auth["may_change_behavior"])
 
     def test_proven_derived_lesson_cannot_override_provisional_direct_user_instruction(self):
-        direct = self.e("direct", kind="correction", state="PROVISIONAL", evidence=["user-instruction:current"], ts="2026-08-20T10:00:00+03:00")
+        direct = self.e("direct", kind="correction", state="PROVISIONAL", evidence=["user-instruction:current"], ts="2026-08-20T10:00:00+03:00", behavior_rule=True)
         derived = self.e("derived", kind="lesson", state="PROVEN", evidence=["regression:incident"], ts="2026-08-27T10:00:00+03:00")
         selected = behavioral_context([derived, direct])
         self.assertEqual([e["id"] for e in selected], ["direct"])
 
     def test_user_authority_precedes_canonical_and_advisory_is_excluded(self):
-        user = self.e("user", kind="correction", evidence=["user-instruction:current"], ts="2026-08-20T10:00:00+03:00")
+        user = self.e("user", kind="correction", evidence=["user-instruction:current"], ts="2026-08-20T10:00:00+03:00", behavior_rule=True)
         policy = self.e("policy", kind="decision", evidence=["repo-policy:AGENTS.md"], ts="2026-08-27T10:00:00+03:00")
         lesson = self.e("lesson", evidence=["regression:incident"])
         self.assertEqual([e["id"] for e in behavioral_context([lesson, policy, user])], ["user", "policy"])
 
     def test_superseded_policy_candidate_cannot_survive_firewall(self):
         wrong = self.e("wrong", state="PROVISIONAL")
-        correction = self.e("correct", kind="correction", evidence=["user-instruction:current"], supersedes=["wrong"])
+        correction = self.e("correct", kind="correction", evidence=["user-instruction:current"], supersedes=["wrong"], behavior_rule=True)
         selected = behavioral_context([wrong, correction])
         self.assertEqual([e["id"] for e in selected], ["correct"])
 
-    def test_real_security_warning_incident_is_governed_correctly(self):
+    def test_real_security_warning_correction_is_evidence_not_behavior_policy(self):
         entries = load_bank()
         old = next(e for e in entries if e["id"] == "mem-20260827-afce2baf")
         correction = next(e for e in entries if e["id"] == "mem-20260827-9a770b5b")
         self.assertFalse(behavioral_authority(old)["may_change_behavior"])
-        self.assertEqual(behavioral_authority(old)["role"], ROLE_ADVISORY)
-        self.assertTrue(behavioral_authority(correction)["may_change_behavior"])
-        self.assertEqual(behavioral_authority(correction)["role"], ROLE_USER)
+        self.assertFalse(behavioral_authority(correction)["may_change_behavior"])
+        self.assertEqual(behavioral_authority(correction)["role"], ROLE_ADVISORY)
         selected_ids = {e["id"] for e in behavioral_context(entries)}
         self.assertNotIn(old["id"], selected_ids)
-        self.assertIn(correction["id"], selected_ids)
+        self.assertNotIn(correction["id"], selected_ids)
+
+    def test_real_bridge_checkpoint_is_not_in_behavior_context(self):
+        entries = load_bank()
+        checkpoint = next(e for e in entries if e["id"] == "mem-20260829-ceddffb0")
+        auth = behavioral_authority(checkpoint)
+        self.assertEqual(auth["role"], ROLE_ADVISORY)
+        self.assertFalse(auth["may_change_behavior"])
+        self.assertEqual(auth["basis"], "user_provenance_without_behavior_rule_type")
+        self.assertNotIn(checkpoint["id"], {e["id"] for e in behavioral_context(entries)})
+
+    def test_legacy_type_registry_preserves_known_pre_schema_behavior_rule(self):
+        entries = load_bank()
+        rule = next(e for e in entries if e["id"] == "mem-20260825-role-executive")
+        auth = behavioral_authority(rule)
+        self.assertEqual(auth["role"], ROLE_USER)
+        self.assertTrue(auth["may_change_behavior"])
+        self.assertEqual(auth["basis"], "legacy_behavior_rule_type_registry")
 
     def test_expired_user_instruction_does_not_remain_behavior_authority(self):
-        expired = self.e("expired-user", kind="correction", evidence=["user-instruction:old"])
+        expired = self.e("expired-user", kind="correction", evidence=["user-instruction:old"], behavior_rule=True)
         expired["expires_at"] = "2026-08-01T00:00:00+03:00"
         self.assertEqual(behavioral_context([expired]), [])
         self.assertEqual(recent_title_entries([expired], limit=1), [])
 
     def test_sensitive_user_instruction_is_not_behavior_authority(self):
-        secret = self.e("secret-user", kind="correction", evidence=["user-instruction:current"])
+        secret = self.e("secret-user", kind="correction", evidence=["user-instruction:current"], behavior_rule=True)
         secret["text"] = "token=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
         self.assertEqual(behavioral_context([secret]), [])
 
@@ -111,7 +137,7 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in recent_title_entries([checkpoint, current], limit=10)], ["current"])
 
     def test_recent_bootstrap_exposes_authority_label(self):
-        user = self.e("user", kind="correction", evidence=["user-instruction:current"])
+        user = self.e("user", kind="correction", evidence=["user-instruction:current"], behavior_rule=True)
         recent = recent_title_entries([user], limit=1)
         self.assertEqual(recent[0]["authority"], ROLE_USER)
 

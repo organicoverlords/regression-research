@@ -54,7 +54,7 @@ Required fields:
 }
 ```
 
-Optional fields may include `expires_at` for genuinely time-bound memories and `project` when a scope spans multiple subprojects. No credentials, secrets, raw transcripts, huge logs, or temporary tool output belong in entries.
+Optional fields may include `expires_at` for genuinely time-bound memories, `project` when a scope spans multiple subprojects, and `behavior_rule` as an explicit boolean type marker. `user-instruction:` evidence records provenance only; it does not imply `behavior_rule: true`. No credentials, secrets, raw transcripts, huge logs, or temporary tool output belong in entries.
 
 ## Semantics
 
@@ -66,6 +66,10 @@ Optional fields may include `expires_at` for genuinely time-bound memories and `
 - `preference`: stable user preference explicitly established by the user.
 - `status`: durable project state likely to matter across conversations.
 - `correction`: explicit correction of an earlier memory or rule.
+
+### Behavior-rule type
+
+Behavioral authority is a separate axis from authorship and memory kind. A user-authored `preference`, `decision`, `correction`, or `lesson` changes persisted assistant behavior only when both `user-instruction:` provenance and `behavior_rule: true` are explicitly present. User provenance without that type is evidence, not policy. Immutable records created before this field existed may be typed only by the bounded legacy ID registry in `memory/behavior-rule-types.json`; unlisted legacy records default to non-behavioral.
 
 ### States
 

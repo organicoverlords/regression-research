@@ -86,14 +86,18 @@ class MemoryTimelineTests(unittest.TestCase):
     def test_orientation_includes_current_explicit_behavior_profile(self):
         rule = self.e("rule", "2026-08-29T10:00:00+03:00", "Keep working until the bounded task is done.", kind="preference")
         rule["evidence"] = ["user-instruction:test"]
+        rule["behavior_rule"] = True
         advisory = self.e("advisory", "2026-08-29T09:00:00+03:00", "Historical suggestion", kind="lesson")
         orientation = build_orientation([advisory, rule], projects=[], behavior_rules=8)
         self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["rule"])
         self.assertEqual(orientation["behavior_profile"][0]["authority_role"], "USER_EXPLICIT")
-        self.assertIn("explicit user-authored behavior", orientation["contract"]["behavior_profile"])
+        self.assertTrue(orientation["behavior_profile"][0]["behavior_rule_type"])
+        self.assertEqual(orientation["behavior_profile"][0]["authority_basis"], "explicit_behavior_rule_type")
+        self.assertIn("explicitly typed user-authored behavior", orientation["contract"]["behavior_profile"])
 
     def test_orientation_keeps_canonical_policy_separate_from_user_behavior(self):
         user_rule = self.e("user", "2026-08-29T10:00:00+03:00", "User rule", kind="preference", evidence=["user-instruction:test"])
+        user_rule["behavior_rule"] = True
         policy = self.e("policy", "2026-08-29T11:00:00+03:00", "Repo policy", kind="decision", evidence=["repo-policy:test"])
         orientation = build_orientation([policy, user_rule], projects=[])
         self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["user"])
@@ -104,6 +108,7 @@ class MemoryTimelineTests(unittest.TestCase):
         for index in range(5):
             rule = self.e(f"rule-{index}", f"2026-08-2{index+1}T10:00:00+03:00", f"Rule {index}", kind="preference")
             rule["evidence"] = ["user-instruction:test"]
+            rule["behavior_rule"] = True
             rules.append(rule)
         orientation = build_orientation(rules, projects=[], behavior_rules=2)
         self.assertEqual(len(orientation["behavior_profile"]), 2)

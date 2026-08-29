@@ -19,6 +19,7 @@ class MemoryContextRetrievalTests(unittest.TestCase):
         behavior = self.entry("rule", "slopwall incident capture rule", scope="assistant-orchestration/slopwall")
         behavior["kind"] = "preference"
         behavior["evidence"] = ["user-instruction:test"]
+        behavior["behavior_rule"] = True
         advisory = self.entry("incident", "slopwall historical incident")
         hits = search_context_memory([advisory, behavior], "slopwall", limit=8)
         self.assertEqual([hit["id"] for hit in hits], ["rule"])
