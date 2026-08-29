@@ -30,6 +30,8 @@ STACK_PATHS = {
     "tests/fixtures/stack-acceptance-scenarios.json",
     "tests/test_stack_acceptance.py",
     "tools/replay_scoring.py",
+    "tools/evidence_bundle.py",
+    "tests/test_evidence_bundle.py",
     "tools/connector_reliability.py",
     "tests/test_connector_reliability.py",
     "tests/test_north_star_entry.py",
@@ -145,6 +147,7 @@ def verify_stack() -> None:
             "tools/busy_authority.py",
             "tools/stack_acceptance.py",
             "tools/replay_scoring.py",
+            "tools/evidence_bundle.py",
             "tools/connector_reliability.py",
         ]
     )
@@ -157,6 +160,7 @@ def verify_stack() -> None:
             "tests.test_instruction_provenance",
             "tests.test_busy_authority",
             "tests.test_stack_acceptance",
+            "tests.test_evidence_bundle",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue123_startup_memory_acceptance",
             "tests.test_connector_reliability",

@@ -10,6 +10,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"NORTH_STAR.md"}), ["stack"])
         self.assertEqual(select_areas({"AGENTS.md"}), ["stack"])
         self.assertEqual(select_areas({"tools/connector_reliability.py"}), ["stack"])
+        self.assertEqual(select_areas({"tools/evidence_bundle.py"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
         self.assertEqual(select_areas({"tools/memory_authority.py"}), ["memory"])
         self.assertEqual(select_areas({"tools/wip_hygiene.py"}), ["memory"])

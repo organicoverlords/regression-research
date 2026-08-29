@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [evidence] Added deterministic content-bound evidence manifests that tie regression artifacts to an immutable Git commit and SHA-256 digests, with read-only verification that rejects stale or tampered proof (#125).
 - [2026-08-30] [coordination] Converged whole-stack acceptance on the standalone BusyCoordinator authority and made substantive investigation an explicit exact-scope admission operation while preserving claim-free bounded orientation (#125).
 - [2026-08-29] [routing] Added a replay regression proving one failed/restricted capability stays local and does not terminate unrelated allowed repository work when no equivalent fallback exists (#125).
 - [2026-08-29] [coordination] Added compare-and-swap recovery for legacy-only BUSY claims: externally proven dead owners can be released into the ready queue only when the observed owner and claim timestamp still match, while managed claims remain lease-controlled (#194).
 - [2026-08-29] [coordination] Required exact durable BusyCoordinator admission before substantive investigation while preserving claim-free bounded read-only orientation, preventing duplicate long-running analysis on the same #194 scope.
-- [2026-08-29] [coordination] Bounded BusyCoordinator completed-job history to the newest 256 records, with deterministic oldest-first pruning and Python/Rust parity coverage so finished work cannot grow canonical coordinator state indefinitely (#194).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
@@ -19,6 +19,8 @@ Operating rules live in each project's `AGENTS.md`, generated from
 `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
 
 Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
+
+Use `python tools/evidence_bundle.py create --output <manifest.json> <artifact...>` to bind regression proof to the current Git commit and artifact SHA-256 digests; `python tools/evidence_bundle.py verify <manifest.json>` re-checks that evidence read-only and rejects stale or tampered subjects.
 
 Run `python tools/wip_hygiene.py` for a separate non-destructive inventory of untracked research WIP, quarantine, and ignored private/temp state; this status does not redefine the canonical tracked evidence corpus.
 
