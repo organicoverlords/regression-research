@@ -12,6 +12,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"tools/connector_reliability.py"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
         self.assertEqual(select_areas({"tools/memory_authority.py"}), ["memory"])
+        self.assertEqual(select_areas({"tools/wip_hygiene.py"}), ["memory"])
         self.assertEqual(select_areas({"memory/behavior-authority-registry.json"}), ["memory"])
         self.assertEqual(select_areas({"README.md"}), [])
 

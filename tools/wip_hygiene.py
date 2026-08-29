@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE_PREFIXES = ("01 Reports/", "02 Evidence/", "03 Fixtures and Experiments/", "04 Operating Contracts/")
 PRIVATE_TEMP_PREFIXES = ("tmp-cloudflare-ab",)
 PRIVATE_TEMP_NAMES = {"tmp-main-brave-history.sqlite", "tmp-chatport-history-copy.sqlite", "tmp-current-chat-cdp.mjs"}
+LOCAL_TEMP_PREFIXES = ("tmp_",)
+LOCAL_CHECKPOINT_NAMES = {"CONTEXT_PRUNE_SAFEPOINT.txt"}
 
 
 def normalize(path: str) -> str:
@@ -30,6 +32,10 @@ def classify_path(path: str) -> str:
         return "quarantine"
     if path.startswith(("tests/", "tools/", "memory/")):
         return "code_or_memory_wip"
+    if name in LOCAL_CHECKPOINT_NAMES:
+        return "continuity_checkpoint_review"
+    if name.startswith(LOCAL_TEMP_PREFIXES):
+        return "local_temp_review"
     return "unclassified"
 
 
@@ -58,7 +64,7 @@ def inventory(root: Path = ROOT) -> dict:
         "bytes": dict(sorted(bytes_by_bucket.items())),
         "ignored_private_local": sorted(ignored_private),
         "unclassified": sorted(path for path in untracked if classify_path(path) == "unclassified"),
-        "contract": "research_wip is visible but does not enter canonical provenance/replay semantics until tracked; private temp is ignored, not deleted",
+        "contract": "research WIP, local checkpoints, and local temp review stay visible but non-canonical until deliberately integrated; private temp is ignored, not deleted",
     }
 
 

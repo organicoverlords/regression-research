@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [hygiene] Classified remaining local temp and continuity-checkpoint artifacts into explicit review buckets so the Vault WIP inventory no longer hides unknown files behind an unclassified count.
+
 - [2026-08-29] [memory] Closed the post-#232 authority and continuity gaps: trusted behavior-rule writes now curate authority atomically, normal context reserves procedural rules, secret-like values are rejected at ingress, startup uses a bounded complete behavior bootstrap, and canonical verification covers the memory stack.
 
 - [2026-08-29] [memory] Split persisted behavior-rule type from user provenance so historical user-authored corrections, decisions, and preferences cannot enter the behavior profile without explicit rule typing.
