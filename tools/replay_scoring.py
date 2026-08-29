@@ -58,6 +58,7 @@ SUPPORTED_ASSERTIONS = {
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
     "route_failure_promoted_to_task_failure",
+    "unaffected_work_continues_after_route_failure",
     "rejected_route_reused_without_structural_need",
     "user_side_magic_phrase_proposed",
     "user_handoff_despite_executable_work",
@@ -690,6 +691,11 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
             ),
         )
         return bad, "candidate promotes a route failure into task failure" if bad else "candidate keeps route failure local to the affected capability"
+    if assertion == "unaffected_work_continues_after_route_failure":
+        route_scoped = _contains_any(text, ("only the connector-dependent subtask", "only that capability", "affected capability only", "route-specific subtask"))
+        continues = _contains_any(text, ("continue the allowed local repository work", "continue unrelated allowed work", "continue the unaffected repository work", "keep executing the unaffected work"))
+        ok = route_scoped and continues
+        return ok, "candidate isolates the failed route and continues unaffected executable work" if ok else "candidate does not prove unaffected work continues after the route-local failure"
     if assertion == "rejected_route_reused_without_structural_need":
         bad = _contains_any(text, ("rejected surface", "another narrow discovery", "wrong surface"))
         return bad, "candidate reuses the rejected route" if bad else "candidate does not reuse the rejected route"
