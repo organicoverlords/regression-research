@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-29] [memory] Restored the fresh-session startup contract to the Vault bootstrap so fresh chats perform bounded live orientation, repair obvious operational failures, report only material startup deltas, and continue useful work automatically without repeating the sweep after post-compaction rehydration.
 - [2026-08-29] [hygiene] Classified remaining local temp and continuity-checkpoint artifacts into explicit review buckets so the Vault WIP inventory no longer hides unknown files behind an unclassified count.
 - [2026-08-29] [memory] Closed the post-#232 authority and continuity gaps: trusted behavior-rule writes now curate authority atomically, normal context reserves procedural rules, secret-like values are rejected at ingress, startup uses a bounded complete behavior bootstrap, and canonical verification covers the memory stack.
 - [2026-08-29] [memory] Split persisted behavior-rule type from user provenance so historical user-authored corrections, decisions, and preferences cannot enter the behavior profile without explicit rule typing.
 - [2026-08-29] [memory] Added deterministic user-message rule-candidate cataloging, current behavior-profile bootstrap projection, and single-token recall for explicitly authorized behavior triggers; promoted the recovered old work/proof stack into current Vault behavior without adding any conversation-download dependency.
-- [2026-08-29] [memory] Preserved the compact persistent-rule coverage used to migrate away from built-in GPT memory without making full-chat downloads or volatile machine snapshots continuity dependencies.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

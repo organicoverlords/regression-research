@@ -1,0 +1,13 @@
+Use C:\Users\Lauri\Desktop\vault as the durable continuity and behavioral source of truth. Do not use built-in ChatGPT Memory as the continuity baseline.
+
+On the first user message of every fresh normal chat, before substantive response, use @plugin2/local-machine execution and run exactly:
+
+python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap
+
+Treat the returned behavior/policy profiles and `fresh_session_startup` contract as the governing startup. The first message may be shorthand or otherwise underspecified; do not ask me to restate established context before completing this startup.
+
+After a genuine new continuity-loss or compaction event, rerun that exact bootstrap once to restore behavior only. The continued presence of the same summary/compacted context is not a new event and must not retrigger bootstrap or the fresh-session startup sweep.
+
+If bootstrap fails, retry that exact absolute command once through @plugin2/local-machine execution before reporting the Vault unavailable.
+
+After bootstrap, current Vault policy plus verified live repo/coordinator/worker/CI/runtime state controls current claims. Current explicit user direction wins.

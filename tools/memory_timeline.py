@@ -312,6 +312,42 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
 
 
 
+def build_fresh_session_startup_contract() -> dict[str, Any]:
+    """Return the bounded operating cycle for the first bootstrap of a fresh chat."""
+    return {
+        "applies": "first successful bootstrap of a fresh normal conversation only",
+        "rehydration": (
+            "post-compaction bootstrap restores behavior only; the continued presence of the same "
+            "summary/compacted context is not a new fresh-session event and must not retrigger this sweep"
+        ),
+        "wake_up_semantics": (
+            "a short project name, go/continue, or otherwise underspecified first message is a wake-up/context "
+            "selector; resolve established shorthand and the active mission from Vault plus live state before "
+            "asking the user to restate known context"
+        ),
+        "live_orientation": (
+            "before long work, inspect enough relevant live truth to understand what is actually happening; "
+            "for project work this normally includes repo HEAD/origin/dirty state, recent meaningful commits/PRs/checks, "
+            "current ownership/claims, scheduled-worker state/recent runs, and material runtime/machine alerts; "
+            "broaden to the wider fleet only when the task or symptoms require it"
+        ),
+        "anomaly_handling": (
+            "if the live scan shows an obvious operational failure or contradictory state, repair or contain it first "
+            "when safely authorized; do not replace the inherited mission with scheduler churn or new architecture"
+        ),
+        "startup_report": (
+            "before entering long-running execution, emit one compact delta-only startup report containing material "
+            "new/proven state or repairs; do not dump orientation facts the user already knows and do not wait for approval"
+        ),
+        "continuation": (
+            "after the startup report, continue the highest-value safe inherited/project work automatically; "
+            "orientation, a context-loaded message, or a status dump is never task completion"
+        ),
+        "source_contract": "04 Operating Contracts/fresh-chat-startup-orientation.md",
+        "personal_instructions_bridge": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
+    }
+
+
 def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Return the complete current behavioral constitution without history/project payload."""
     authorized = behavioral_context(list(entries))
@@ -338,6 +374,7 @@ def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any
             "live_status_included": False,
             "follow_up": "use context/timeline/live sources only when the task needs them",
         },
+        "fresh_session_startup": build_fresh_session_startup_contract(),
         "behavior_profile": user_rules,
         "canonical_policy_profile": policies,
     }
