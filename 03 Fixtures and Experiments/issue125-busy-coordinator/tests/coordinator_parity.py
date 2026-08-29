@@ -152,6 +152,24 @@ assert claimed_finding["ok"] is True and claimed_finding["claim"]["scope"] == fo
 assert claimed_finding["job"]["handoff"]["source"] == "github:issue#125:comment-42"
 assert claimed_finding["job"]["handoff"]["summary"] == "actionable scout result"
 
+# Handoff provenance is bounded so one finding cannot grow the canonical coordinator store without limit.
+store9 = new_store("handoff-bounds")
+for kind, field, value, expected in [
+    ("py", "--source", "s" * 2049, "source exceeds 2048 characters"),
+    ("rs", "--summary", "x" * 8193, "summary exceeds 8192 characters"),
+]:
+    args = [
+        "handoff", "scout", "repo#194:parent",
+        "--finding-id", f"oversized-{kind}",
+        "--source", "source:ok",
+        "--summary", "summary ok",
+    ]
+    args[args.index(field) + 1] = value
+    failure = run(kind, store9, *args, expect=1)
+    assert failure == expected
+assert not store9.exists(), "rejected handoffs must not create coordinator state"
+pathlib.Path(str(store9) + ".lock").unlink(missing_ok=True)
+
 # Blocking one exact sub-job releases only that ownership; sibling work remains claimable.
 store8 = new_store("subjob-block-isolation")
 assert run("py", store8, "claim", "import-worker", "repo#99:import", "--operation-id", "import-claim", "--lease-seconds", "60")["ok"] is True
