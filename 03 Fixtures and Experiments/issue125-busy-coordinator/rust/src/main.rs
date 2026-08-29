@@ -496,6 +496,7 @@ struct Options {
     summary: Option<String>,
     lease_seconds: i64,
     limit: usize,
+    expected_claim_timestamp: Option<String>,
 }
 
 fn parse_snapshot_options(args: &[String]) -> Result<(Option<String>, Option<String>, usize), String> {
@@ -533,6 +534,7 @@ fn parse_options(
     allow_lease: bool,
     allow_checkpoint: bool,
     allow_handoff: bool,
+    allow_recovery: bool,
 ) -> Result<Options, String> {
     let mut options = Options {
         lease_seconds: DEFAULT_LEASE_SECONDS,
@@ -584,6 +586,12 @@ fn parse_options(
                 index += 1;
                 options.summary =
                     Some(args.get(index).ok_or("--summary requires a value")?.clone());
+            }
+            "--expected-claim-timestamp" if allow_recovery => {
+                index += 1;
+                options.expected_claim_timestamp = Some(
+                    args.get(index).ok_or("--expected-claim-timestamp requires a value")?.clone(),
+                );
             }
             other => return Err(format!("unknown option: {other}")),
         }
@@ -657,6 +665,56 @@ fn operate(
             persist(store, &state)?;
         }
         return Ok(json!({"ok": true, "expired": swept}));
+    }
+
+    if command == "recover" {
+        let expected_owner = actor.ok_or("expected owner required")?;
+        let scope = canonical_scope(raw_scope.ok_or("scope required")?)?;
+        let expected_timestamp = options
+            .expected_claim_timestamp
+            .as_ref()
+            .ok_or("--expected-claim-timestamp required")?;
+        let sig = json!({
+            "command": command,
+            "expected_owner": expected_owner,
+            "scope": scope,
+            "expected_claim_timestamp": expected_timestamp,
+        });
+        if let Some(replay) = idempotent(&state, options.operation_id.as_deref(), &sig) {
+            if state_changed { persist(store, &state)?; }
+            return Ok(replay);
+        }
+        let current = claim_index(&state, &scope).map(|index| state.claims[index].clone());
+        let existing_job = state.coordinator.jobs.get(&scope).cloned();
+        let result = match current {
+            None => json!({"ok": false, "reason": "scope_not_claimed"}),
+            Some(claim) if claim.actor != expected_owner || claim.timestamp != *expected_timestamp => {
+                json!({"ok": false, "reason": "claim_changed", "claim": claim})
+            }
+            Some(claim) if existing_job.is_some() => {
+                json!({"ok": false, "reason": "managed_claim_use_lease_sweep", "claim": claim, "job": existing_job})
+            }
+            Some(claim) => {
+                state.claims.retain(|item| item.scope != scope);
+                let timestamp = now_iso();
+                let job = Job {
+                    job_id: scope.clone(),
+                    scope: scope.clone(),
+                    state: "ready".into(),
+                    owner: None,
+                    lease_expires_at: None,
+                    claim_timestamp: Some(expected_timestamp.clone()),
+                    checkpoint: None,
+                    updated_at: timestamp,
+                    extra: BTreeMap::new(),
+                };
+                state.coordinator.jobs.insert(scope.clone(), job.clone());
+                json!({"ok": true, "recovered": claim, "job": job})
+            }
+        };
+        let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
+        persist(store, &state)?;
+        return Ok(result);
     }
 
     if command == "next" {
@@ -949,7 +1007,7 @@ fn run() -> Result<(), String> {
     } else {
         default_store()
     };
-    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|snapshot|enqueue|ready|handoff|next|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
+    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|snapshot|enqueue|ready|handoff|next|recover|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
     raw.remove(0);
     if command == "snapshot" {
         let (actor, scope, limit) = parse_snapshot_options(&raw)?;
@@ -971,12 +1029,24 @@ fn run() -> Result<(), String> {
         }
         return print_json(&operate(&store, &command, None, None, &Options::default())?);
     }
+    if command == "recover" {
+        if raw.len() < 2 {
+            return Err("usage: busy-rs recover <expected-owner> <scope> --expected-claim-timestamp TIMESTAMP [--operation-id ID]".into());
+        }
+        let actor = raw.remove(0);
+        let scope = raw.remove(0);
+        let options = parse_options(&raw, false, false, false, true)?;
+        if options.expected_claim_timestamp.is_none() {
+            return Err("--expected-claim-timestamp required".into());
+        }
+        return print_json(&operate(&store, &command, Some(&actor), Some(&scope), &options)?);
+    }
     if command == "next" {
         if raw.is_empty() {
             return Err("usage: busy-rs next <actor> [options]".into());
         }
         let actor = raw.remove(0);
-        let options = parse_options(&raw, true, false, false)?;
+        let options = parse_options(&raw, true, false, false, false)?;
         return print_json(&operate(&store, &command, Some(&actor), None, &options)?);
     }
     if command == "handoff" {
@@ -985,7 +1055,7 @@ fn run() -> Result<(), String> {
         }
         let actor = raw.remove(0);
         let scope = raw.remove(0);
-        let options = parse_options(&raw, false, false, true)?;
+        let options = parse_options(&raw, false, false, true, false)?;
         return print_json(&operate(
             &store,
             &command,
@@ -999,7 +1069,7 @@ fn run() -> Result<(), String> {
             return Err(format!("usage: busy-rs {command} <scope> [options]"));
         }
         let scope = raw.remove(0);
-        let options = parse_options(&raw, false, true, false)?;
+        let options = parse_options(&raw, false, true, false, false)?;
         return print_json(&operate(&store, &command, None, Some(&scope), &options)?);
     }
     if raw.len() < 2 {
@@ -1016,6 +1086,7 @@ fn run() -> Result<(), String> {
             command.as_str(),
             "claim" | "heartbeat" | "block" | "complete"
         ),
+        false,
         false,
     )?;
     print_json(&operate(
@@ -1059,13 +1130,13 @@ mod tests {
     fn option_parser_rejects_unsupported_or_invalid_values() {
         let lease = vec!["--lease-seconds".to_string(), "60".to_string()];
         assert_eq!(
-            parse_options(&lease, true, false, false)
+            parse_options(&lease, true, false, false, false)
                 .unwrap()
                 .lease_seconds,
             60
         );
-        assert!(parse_options(&lease, false, false, false).is_err());
+        assert!(parse_options(&lease, false, false, false, false).is_err());
         let zero = vec!["--lease-seconds".to_string(), "0".to_string()];
-        assert!(parse_options(&zero, true, false, false).is_err());
+        assert!(parse_options(&zero, true, false, false, false).is_err());
     }
 }

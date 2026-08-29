@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [coordination] Added compare-and-swap recovery for legacy-only BUSY claims: externally proven dead owners can be released into the ready queue only when the observed owner and claim timestamp still match, while managed claims remain lease-controlled (#194).
+
 - [2026-08-29] [coordination] Required exact durable BusyCoordinator admission before substantive investigation while preserving claim-free bounded read-only orientation, preventing duplicate long-running analysis on the same #194 scope.
 
 - [2026-08-29] [coordination] Bounded BusyCoordinator completed-job history to the newest 256 records, with deterministic oldest-first pruning and Python/Rust parity coverage so finished work cannot grow canonical coordinator state indefinitely (#194).
