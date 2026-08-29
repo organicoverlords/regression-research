@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-29] [memory] Split persisted behavior-rule type from user provenance so historical user-authored corrections, decisions, and preferences cannot enter the behavior profile without explicit rule typing.
 - [2026-08-29] [memory] Added deterministic user-message rule-candidate cataloging, current behavior-profile bootstrap projection, and single-token recall for explicitly authorized behavior triggers; promoted the recovered old work/proof stack into current Vault behavior without adding any conversation-download dependency.
 - [2026-08-29] [memory] Preserved the compact persistent-rule coverage used to migrate away from built-in GPT memory without making full-chat downloads or volatile machine snapshots continuity dependencies.
 - [2026-08-29] [memory] Balanced local-Git continuity projection so compact project orientation always reserves landed `origin/main` history separately from active swarm/lane history.
 - [2026-08-29] [memory] Added shared Vault continuity timelines over curated memory and read-only local Git history, including project/error views, mainline-versus-lane commit visibility, vague recurrence lookup, and zero full-conversation-download runtime dependency.
-- [2026-08-29] [memory] Completed #87 corpus-wide normalization machinery: bounded semantic/domain/project/role/durability/sensitivity classification, lifecycle-gated recall, incremental project classification for new writes, explicit review queues, and full current audit/acceptance receipts.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
