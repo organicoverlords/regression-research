@@ -56,6 +56,19 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(by_sha[lane]["repo_state"], "LANE")
             self.assertFalse(by_sha[lane]["on_origin_main"])
 
+    def test_busy_lane_cannot_crowd_mainline_out_of_small_window(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = self.make_repo(Path(d))
+            main = self.commit(repo, "main.txt", "landed", "2026-08-28T10:00:00+03:00")
+            subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", main], check=True)
+            self.commit(repo, "lane1.txt", "lane one", "2026-08-29T01:00:00+03:00")
+            newest_lane = self.commit(repo, "lane2.txt", "lane two", "2026-08-29T02:00:00+03:00")
+            events = git_commit_events(RepoSpec("p3", repo), limit=1)
+            self.assertEqual(len(events), 2)
+            by_state = {event["repo_state"]: event for event in events}
+            self.assertEqual(by_state["MAINLINE"]["sha"], main)
+            self.assertEqual(by_state["LANE"]["sha"], newest_lane)
+
     def test_operator_live_is_only_repo_path_discovery(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [memory] Balanced local-Git continuity projection so compact project orientation always reserves landed `origin/main` history separately from active swarm/lane history.
+
 - [2026-08-29] [memory] Added shared Vault continuity timelines over curated memory and read-only local Git history, including project/error views, mainline-versus-lane commit visibility, vague recurrence lookup, and zero full-conversation-download runtime dependency.
 
 - [2026-08-29] [memory] Completed #87 corpus-wide normalization machinery: bounded semantic/domain/project/role/durability/sensitivity classification, lifecycle-gated recall, incremental project classification for new writes, explicit review queues, and full current audit/acceptance receipts.
