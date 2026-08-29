@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [memory] Made ChatGPT fresh-session live orientation a hard pre-response gate across the Personal Instructions bridge, bootstrap payload, and SessionStart hook; clean scans stay silent, abnormal scans lead, and later status-dependent answers re-check live state.
+
 - [2026-08-29] [meta] Synced the shared coordinator identity policy so every mutation claim actor names its harness plus a task/session suffix.
 - [2026-08-29] [memory] Cut bootstrap authority/classification overhead by filtering cheap currentness first, classifying only behavior-authoritative candidates once, and preserving byte-identical bootstrap output with regression coverage.
 
