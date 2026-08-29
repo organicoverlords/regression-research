@@ -63,6 +63,8 @@
 
 - In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as project direction. It does not override current user instructions, live repo/runtime evidence, or these operating rules.
 
+- Bounded read-only orientation may remain unclaimed. Before crossing into substantive investigation or analysis on an exact issue/scope, acquire that exact durable scope in the standalone BusyCoordinator; if another live owner already holds it, yield that scope and choose non-duplicative work.
+
 ### Assistant-recorded memory provenance
 
 - Every new memory written by an assistant MUST use `python tools/memory_bank.py record`, not the free-form `note`/`append` path.
