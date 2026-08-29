@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project are documented in this file.
 
@@ -10,11 +10,10 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-29] [meta] Kept swarm worker repository authority worktree-local: startup now reads policy from the admitted target worktree, treats origin/main as convergence context only, and preserves foreign dirty state instead of substituting remote policy.
 
-<<<<<<< HEAD
+- [2026-08-29] [hygiene] Removed committed merge-conflict markers from CHANGELOG.md, preserved both competing timeline entries, and added validation so conflict markers cannot land again.
+
 - [2026-08-29] [meta] Fixed fresh-worker reset policy so a bugged/poisoned fleet requires a fresh five-worker generation, all five workers arm in one setup pass, stale four-worker template rules are rejected, and Worker 1 live execution remains the acceptance gate.
-=======
 - [2026-08-29] [meta] Recorded the slopwall where a premature fixed claim and overstructured response violated the existing compact-presentation rule, and tightened that rule through the behavior memory bank.
->>>>>>> origin/main
 
 - [2026-08-29] [memory] Made ChatGPT fresh-session live orientation a hard pre-response gate across the Personal Instructions bridge, bootstrap payload, and SessionStart hook; clean scans stay silent, abnormal scans lead, and later status-dependent answers re-check live state.
 
