@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [coordination] Converged whole-stack acceptance on the standalone BusyCoordinator authority and made substantive investigation an explicit exact-scope admission operation while preserving claim-free bounded orientation (#125).
 - [2026-08-29] [routing] Added a replay regression proving one failed/restricted capability stays local and does not terminate unrelated allowed repository work when no equivalent fallback exists (#125).
 - [2026-08-29] [coordination] Added compare-and-swap recovery for legacy-only BUSY claims: externally proven dead owners can be released into the ready queue only when the observed owner and claim timestamp still match, while managed claims remain lease-controlled (#194).
 - [2026-08-29] [coordination] Required exact durable BusyCoordinator admission before substantive investigation while preserving claim-free bounded read-only orientation, preventing duplicate long-running analysis on the same #194 scope.
 - [2026-08-29] [coordination] Bounded BusyCoordinator completed-job history to the newest 256 records, with deterministic oldest-first pruning and Python/Rust parity coverage so finished work cannot grow canonical coordinator state indefinitely (#194).
-- [2026-08-29] [coordination] Reduced the BusyCoordinator handoff summary cap to 4,096 characters and added installed `.cmd` wrapper coverage so documented provenance maxima remain reachable on Windows instead of failing at the shell command-line limit (#194).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

@@ -1,7 +1,13 @@
 {
   "schema_version": "1.0",
-  "live_authority": "mcp_busy_claim",
-  "projection_surfaces": ["github_issue_title", "github_issue_comment", "branch", "pull_request", "process"],
+  "live_authority": "standalone_busy_coordinator",
+  "projection_surfaces": [
+    "github_issue_title",
+    "github_issue_comment",
+    "branch",
+    "pull_request",
+    "process"
+  ],
   "invariants": {
     "one_live_authority": true,
     "projection_never_creates_ownership": true,
@@ -10,6 +16,7 @@
     "shared_mutation_requires_exact_live_claim": true,
     "other_owner_claim_requires_yield": true,
     "coordination_outage_creates_no_fallback_authority": true,
-    "read_only_and_independent_work_continue_during_coordination_outage": true
+    "read_only_and_independent_work_continue_during_coordination_outage": true,
+    "substantive_investigation_requires_exact_live_claim": true
   }
 }
