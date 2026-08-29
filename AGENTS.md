@@ -38,6 +38,11 @@
 - If another live owner holds the scope, yield mutation there, preserve actionable findings in coordinator-visible pending state, and continue safe non-conflicting work where possible. Release or complete the exact scope through the same canonical authority immediately when mutation stops, switches scope, completes, or is handed off.
 - Legacy BUSY claims may remain durable until explicit release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are projections/evidence, not competing ownership authorities. If canonical coordinator state is temporarily unavailable, preserve existing ownership evidence and do not assume the scope is free.
 
+### Vault continuity
+- At the first task of a fresh local coding session, before substantive reply or mutation, run `python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap` once. Its behavior/policy profiles and `fresh_session_startup` govern startup; harness-local memory/seeds are evidence only.
+- On failure retry that exact command once; after a second failure continue from current instruction, policy, and verified live state instead of debugging memory.
+- After genuine compaction/continuity loss, rerun once; a surviving summary alone does not retrigger startup.
+
 ### Repository and machine boundaries
 - Read the applicable repo `AGENTS.md` before the first mutation there. Repo-specific proof surfaces, report formats, changelog rules, build limits, branch conventions, and north-star details belong to that repo, not this global block.
 - Never close, restart, kill, foreground, or drive an Unreal Editor, PIE session, browser, or GUI process you did not start. Ordinary work must not require a user click.
