@@ -16,12 +16,16 @@ try:
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
+    from .memory_timeline import build_orientation, build_recurrence_context, build_timeline
+    from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from memory_authority import annotate_memory, behavioral_authority
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
+    from memory_timeline import build_orientation, build_recurrence_context, build_timeline
+    from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -72,6 +76,8 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError(f"invalid state: {entry['state']}")
     if "project" in entry and (not isinstance(entry["project"], str) or not entry["project"].strip()):
         raise BankError("project must be a non-empty string when present")
+    if "thread" in entry and (not isinstance(entry["thread"], str) or not entry["thread"].strip()):
+        raise BankError("thread must be a non-empty string when present")
     if "expires_at" in entry:
         if not isinstance(entry["expires_at"], str) or not entry["expires_at"].strip():
             raise BankError("expires_at must be a non-empty ISO-8601 string when present")
@@ -79,6 +85,15 @@ def validate_entry(entry: dict[str, Any]) -> None:
             parse_expiry(entry)
         except ValueError as exc:
             raise BankError(str(exc)) from exc
+    if "event_at" in entry:
+        if not isinstance(entry["event_at"], str) or not entry["event_at"].strip():
+            raise BankError("event_at must be a non-empty ISO-8601 string when present")
+        try:
+            event_at = datetime.fromisoformat(entry["event_at"].replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise BankError("event_at must be ISO-8601") from exc
+        if event_at.tzinfo is None:
+            raise BankError("event_at must include a timezone offset")
     try:
         parsed = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
     except ValueError as exc:
@@ -519,6 +534,8 @@ def _main() -> int:
     note = sub.add_parser("note", help="save a quick durable note")
     note.add_argument("text")
     note.add_argument("--scope", default="global")
+    note.add_argument("--event-at")
+    note.add_argument("--thread")
 
     append = sub.add_parser("append")
     append.add_argument("--kind", required=True, choices=sorted(KINDS))
@@ -527,6 +544,8 @@ def _main() -> int:
     append.add_argument("--title")
     append.add_argument("--project")
     append.add_argument("--expires-at")
+    append.add_argument("--event-at")
+    append.add_argument("--thread")
     append.add_argument("--text", required=True)
     append.add_argument("--state", required=True, choices=sorted(STATES))
     append.add_argument("--evidence", action="append", default=[])
@@ -540,6 +559,8 @@ def _main() -> int:
     record.add_argument("--title")
     record.add_argument("--project")
     record.add_argument("--expires-at")
+    record.add_argument("--event-at")
+    record.add_argument("--thread")
     record.add_argument("--text", required=True, help="compact memory summary")
     record.add_argument("--source-message", action="append", required=True, help="verbatim user message; repeat in chronological order")
     record.add_argument("--turn-task", help="verbatim user task that opened the long execution turn, when relevant")
@@ -566,6 +587,27 @@ def _main() -> int:
     context.add_argument("--max-chars", type=int, default=DEFAULT_CONTEXT_CHARS)
     context.add_argument("--with-history", action="store_true", help="also search the preserved full-conversation corpus")
 
+    orient = sub.add_parser("orient", help="compact fresh-chat continuity index from curated memory plus optional local Git history")
+    orient.add_argument("--project", action="append", default=[])
+    orient.add_argument("--recent-events", type=int, default=8)
+    orient.add_argument("--error-threads", type=int, default=4)
+    orient.add_argument("--project-events", type=int, default=3)
+    orient.add_argument("--repo-events", type=int, default=12, help="maximum local Git commits read per repo")
+    orient.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH", help="explicit local Git repo; repeatable")
+    orient.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
+    orient.add_argument("--no-repos", action="store_true", help="disable local Git projection")
+
+    timeline_cmd = sub.add_parser("timeline", help="derived chronological continuity view over memory and optional local Git events")
+    timeline_cmd.add_argument("query", nargs="?", default="")
+    timeline_cmd.add_argument("--view", choices=("general", "project", "errors"), default="general")
+    timeline_cmd.add_argument("--project")
+    timeline_cmd.add_argument("--thread")
+    timeline_cmd.add_argument("--limit", type=int, default=20)
+    timeline_cmd.add_argument("--with-repos", action="store_true", help="merge read-only local Git commit events into general/project views")
+    timeline_cmd.add_argument("--repo-events", type=int, default=20)
+    timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
+    timeline_cmd.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
+
     history = sub.add_parser("history")
     history.add_argument("query", nargs="?", default="")
     history.add_argument("--scope")
@@ -586,7 +628,12 @@ def _main() -> int:
             tags = ["quick-note"]
             if text.casefold().startswith(("error:", "error ")):
                 tags.append("error")
-            entry = append_entry(args.bank, {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": []})
+            values = {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": []}
+            if args.event_at:
+                values["event_at"] = args.event_at
+            if args.thread:
+                values["thread"] = args.thread
+            entry = append_entry(args.bank, values)
             _print_json(entry)
             return 0
         if args.command == "append":
@@ -603,6 +650,10 @@ def _main() -> int:
                 values["project"] = args.project
             if args.expires_at:
                 values["expires_at"] = args.expires_at
+            if args.event_at:
+                values["event_at"] = args.event_at
+            if args.thread:
+                values["thread"] = args.thread
             entry = append_entry(args.bank, values)
             _print_json(entry)
             return 0
@@ -627,10 +678,43 @@ def _main() -> int:
                 values["project"] = args.project
             if args.expires_at:
                 values["expires_at"] = args.expires_at
+            if args.event_at:
+                values["event_at"] = args.event_at
+            if args.thread:
+                values["thread"] = args.thread
             if args.turn_task:
                 values["turn_task"] = args.turn_task
             entry = append_entry(args.bank, values)
             _print_json(entry)
+            return 0
+        if args.command == "orient":
+            projects = args.project or ["p3", "tiny3d", "lowvram"]
+            repo_history = {"events": [], "repo_snapshots": []}
+            if not args.no_repos:
+                specs = [parse_repo_arg(value) for value in args.repo]
+                if not specs:
+                    vault_root = Path(__file__).resolve().parents[1]
+                    operator_live = args.operator_live or default_operator_live(vault_root)
+                    specs = discover_repo_specs(operator_live, vault_root=vault_root)
+                repo_history = collect_repo_history(specs, limit_per_repo=args.repo_events)
+            _print_json(build_orientation(
+                entries, projects=projects, recent_events=args.recent_events, error_threads=args.error_threads,
+                project_events=args.project_events, repo_events=repo_history["events"], repo_snapshots=repo_history["repo_snapshots"],
+            ))
+            return 0
+        if args.command == "timeline":
+            repo_events = []
+            if args.with_repos:
+                specs = [parse_repo_arg(value) for value in args.repo]
+                if not specs:
+                    vault_root = Path(__file__).resolve().parents[1]
+                    operator_live = args.operator_live or default_operator_live(vault_root)
+                    specs = discover_repo_specs(operator_live, vault_root=vault_root)
+                repo_events = collect_repo_history(specs, limit_per_repo=args.repo_events)["events"]
+            _print_json(build_timeline(
+                entries, view=args.view, project=args.project, query=args.query, thread=args.thread,
+                limit=args.limit, repo_events=repo_events,
+            ))
             return 0
         if args.command == "history":
             _print_json([annotate_memory(entry) for entry in search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True)])
@@ -647,7 +731,8 @@ def _main() -> int:
                 if summary is not None:
                     hits.append(summary)
                 hits.extend(list(report.get("hits") or [])[:2])
-            _print_json(build_context_pack(args.query, hits, max_chars=args.max_chars))
+            timeline = build_recurrence_context(entries, args.query)
+            _print_json(build_context_pack(args.query, hits, timeline=timeline, max_chars=args.max_chars))
             return 0
         if args.command == "search":
             _print_json([annotate_memory(entry) for entry in search_all_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history)])

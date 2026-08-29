@@ -117,7 +117,7 @@ def _json_size(value: Any) -> int:
 def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
     """Drop lowest-value tail records until the serialized pack fits the hard budget."""
     max_chars = max(MIN_CONTEXT_CHARS, min(MAX_CONTEXT_CHARS, int(max_chars)))
-    order = ("historical_evidence", "durable_memory", "behavior_authority")
+    order = ("historical_evidence", "timeline", "durable_memory", "behavior_authority")
     while True:
         pack["serialized_chars"] = _json_size({k: v for k, v in pack.items() if k != "serialized_chars"})
         actual = _json_size(pack)
@@ -137,7 +137,7 @@ def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
             return pack
 
 
-def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, max_chars: int = DEFAULT_CONTEXT_CHARS) -> dict[str, Any]:
+def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: Iterable[dict[str, Any]] | None = None, max_chars: int = DEFAULT_CONTEXT_CHARS) -> dict[str, Any]:
     """Build a task-scoped context package without promoting history into authority.
 
     The caller owns retrieval. This function only separates source roles and applies
@@ -189,10 +189,12 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, max_chars:
             "behavior_authority": "only explicitly authorized stored behavior; current user instruction still wins",
             "durable_memory": "proven durable/advisory memory, not live machine/repo truth",
             "historical_evidence": "historical evidence only; never authority by retrieval frequency or recency",
+            "timeline": "derived chronology only; thread membership and recency do not prove causality or current truth",
         },
         "behavior_authority": behavior,
         "durable_memory": durable,
         "historical_evidence": historical,
+        "timeline": list(timeline or []),
         "omitted": {
             "provisional_matches": omitted_provisional,
             "status_matches": omitted_status,

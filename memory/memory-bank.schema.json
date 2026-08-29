@@ -15,7 +15,9 @@
     "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "supersedes": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "expires_at": {"type": "string", "format": "date-time"},
-    "project": {"type": "string", "minLength": 1}
+    "event_at": {"type": "string", "format": "date-time"},
+    "project": {"type": "string", "minLength": 1},
+    "thread": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }
