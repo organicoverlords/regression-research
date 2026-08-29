@@ -113,6 +113,13 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual(record["semantic_category"], "PROJECT_LESSON")
         self.assertEqual(record["durability"], "DURABLE")
 
+    def test_recurrence_timeline_is_a_separate_non_authoritative_section(self):
+        timeline = [{"thread_id": "scope:error", "event_count": 2, "events": [{"id": "a"}, {"id": "b"}]}]
+        pack = build_context_pack("this error again", [], timeline=timeline)
+        self.assertEqual(pack["timeline"], timeline)
+        self.assertIn("chronology", pack["contract"]["timeline"])
+        self.assertEqual(pack["behavior_authority"], [])
+
     def test_blank_query_rejected(self):
         with self.assertRaises(ValueError):
             build_context_pack("   ", [])

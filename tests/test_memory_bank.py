@@ -67,6 +67,25 @@ class MemoryBankValidationTests(unittest.TestCase):
         bad = self.valid(); bad["project"] = ""
         with self.assertRaises(BankError): validate_entry(bad)
 
+    def test_thread_validates_nonempty(self):
+        e = self.valid()
+        e["thread"] = "incident-family-42"
+        validate_entry(e)
+        bad = self.valid()
+        bad["thread"] = ""
+        with self.assertRaises(BankError):
+            validate_entry(bad)
+
+    def test_event_at_validates_timezone(self):
+        e = self.valid()
+        e["event_at"] = "2026-08-28T20:00:00+03:00"
+        validate_entry(e)
+        bad = self.valid()
+        bad["event_at"] = "2026-08-28T20:00:00"
+        with self.assertRaises(BankError):
+            validate_entry(bad)
+
+
     def test_malformed_jsonl_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "bank.jsonl"; p.write_text('{"id":"x"}\nnot-json\n', encoding="utf-8")

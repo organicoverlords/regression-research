@@ -58,11 +58,37 @@ New writes should set `--project` when a memory belongs to one project. Time-bou
 
 These are ordinary repository commands. MCP/local workers may invoke them when they have repo access, but MCP availability is not part of the memory contract.
 
+## Shared continuity and timeline views
+
+The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. Read commands (`recent`, `search`, `context`, `orient`, `timeline`) are local, side-effect free, and do not claim BUSY/ownership, create queues, or require a daemon. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
+
+Build a compact fresh-chat orientation from curated memory plus whatever canonical local Git repositories are available:
+
+```powershell
+python tools\memory_bank.py orient
+```
+
+`orient` uses `operator-live.json` only as an optional repository-path registry. Commit events are read directly from each local Git object database; dashboard `recent_progress` is not accepted as commit evidence. Missing repos degrade independently instead of blocking orientation. Mainline (`origin/main`) commits and unmerged lane commits are labeled separately so swarm activity stays visible without being mistaken for landed state.
+
+Inspect chronology directly:
+
+```powershell
+python tools\memory_bank.py timeline --view general --with-repos
+python tools\memory_bank.py timeline --view project --project p3 --with-repos
+python tools\memory_bank.py timeline --view errors
+```
+
+The timeline is a derived projection, not another journal. Vault records retain meaning, claim state, evidence, supersession, and explicit incident/thread membership; local Git contributes observed commit chronology. Git commits are never automatically promoted into memory or interpreted as fixes/causes merely because their titles contain words such as `fix` or `error`.
+
+New durable/event writes may optionally supply `--event-at <ISO-8601-with-offset>` when the event occurred earlier than it was recorded and `--thread <stable-id>` when an explicit cross-scope relationship is known. Otherwise chronology falls back to the record timestamp and conservative specific-scope grouping. Broad scopes do not imply one incident.
+
+The normal continuity path has **no full-conversation download dependency**. Current work is distilled into Vault records as it happens. The preserved full-conversation corpus is legacy/forensic evidence only and is consulted only through explicit history retrieval; its absence or age must not block startup, project work, error recurrence lookup, or timeline construction.
+
 ## Durability and GitHub mirror
 
-A successful canonical memory write is not fully handed off until GitHub `main` contains it. Canonical `memory_bank.py` reads and writes therefore reconcile with `origin/main` automatically: entries are merged by immutable memory ID, remote-only entries are pulled into the local bank, and local-only entries are published through an isolated memory-only commit. Unrelated dirty files and unrelated local branch commits are never staged into that synchronization commit.
+A successful canonical memory write is not fully handed off until GitHub `main` contains it. Canonical **writes** reconcile with `origin/main` automatically: entries are merged by immutable memory ID, remote-only entries are pulled into the local bank, and local-only entries are published through an isolated memory-only commit. Canonical reads intentionally do not fetch, reconcile, claim, or mutate anything; they read the local snapshot and degrade locally. Unrelated dirty files and unrelated local branch commits are never staged into a synchronization commit.
 
-Canonical `note` and `append` operations run under a bounded local sync lock, reconcile before writing, then publish after writing. A racing `main` update is fetched and retried without overwriting either side. After a proven sync, a checkout that tracks `origin/main` is fast-forwarded when Git can preserve unrelated dirty work; the memory-only fallback advances the branch only when the working bank exactly matches the remote result, so a successful write does not normally leave the canonical checkout one commit behind or the bank spuriously dirty. If the local append succeeds but GitHub publication cannot be proven, the command fails visibly with an explicit `local memory was saved` message; do not append a duplicate. Any later canonical CLI call retries pending reconciliation.
+Canonical `note`, `append`, and `record` operations run under a bounded local sync lock, reconcile before writing, then publish after writing. That lock protects atomic file/Git reconciliation only; it is not task ownership, a worker lease, or a second coordinator. A racing `main` update is fetched and retried without overwriting either side. After a proven sync, a checkout that tracks `origin/main` is fast-forwarded when Git can preserve unrelated dirty work; the memory-only fallback advances the branch only when the working bank exactly matches the remote result, so a successful write does not normally leave the canonical checkout one commit behind or the bank spuriously dirty. If the local append succeeds but GitHub publication cannot be proven, the command fails visibly with an explicit `local memory was saved` message; do not append a duplicate. Any later canonical CLI call retries pending reconciliation.
 
 A GitHub-only worker may read the bank directly from `main`. Before changing `memory-bank.jsonl` through GitHub, it must start from current `main`, preserve append-only history, and merge the coherent memory-only change promptly rather than leaving it stranded on a worker branch. The next canonical local CLI call imports remote-only entries automatically.
 
