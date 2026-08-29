@@ -11,16 +11,18 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"AGENTS.md"}), ["stack"])
         self.assertEqual(select_areas({"tools/connector_reliability.py"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
+        self.assertEqual(select_areas({"tools/memory_authority.py"}), ["memory"])
+        self.assertEqual(select_areas({"memory/behavior-authority-registry.json"}), ["memory"])
         self.assertEqual(select_areas({"README.md"}), [])
 
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
             select_areas({"tools/verify.py"}),
-            ["stack", "conversation"],
+            ["stack", "memory", "conversation"],
         )
 
     def test_all_runs_every_area(self):
-        self.assertEqual(select_areas(set(), run_all=True), ["stack", "conversation"])
+        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation"])
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):

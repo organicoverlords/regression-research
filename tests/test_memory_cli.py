@@ -58,7 +58,7 @@ class MemoryCliTests(unittest.TestCase):
             self.assertIn("error",created["tags"])
             self.assertEqual(len(bank.read_text(encoding="utf-8").splitlines()),1)
 
-    def test_append_cli_defaults_nonbehavioral_and_requires_explicit_behavior_flag(self):
+    def test_append_cli_is_nonbehavioral_and_rejects_behavior_flag(self):
         root=Path(__file__).resolve().parents[1]
         cli=root/"tools"/"memory_bank.py"
         with tempfile.TemporaryDirectory() as d:
@@ -66,8 +66,9 @@ class MemoryCliTests(unittest.TestCase):
             base=[sys.executable,str(cli),"--bank",str(bank),"append","--kind","preference","--scope","assistant-orchestration/test","--text","Test behavior type","--state","PROVEN","--evidence","user-instruction:test"]
             ordinary=subprocess.run(base,cwd=root,text=True,capture_output=True,check=True)
             self.assertFalse(json.loads(ordinary.stdout)["behavior_rule"])
-            typed=subprocess.run(base+["--behavior-rule"],cwd=root,text=True,capture_output=True,check=True)
-            self.assertTrue(json.loads(typed.stdout)["behavior_rule"])
+            typed=subprocess.run(base+["--behavior-rule"],cwd=root,text=True,capture_output=True)
+            self.assertNotEqual(typed.returncode,0)
+            self.assertIn("unrecognized arguments: --behavior-rule",typed.stderr)
 
     def test_recent_alias_matches_recent_titles(self):
         root=Path(__file__).resolve().parents[1]

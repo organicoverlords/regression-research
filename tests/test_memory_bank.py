@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_bank import BankError, append_entry, load_bank, validate_entry
+from tools.memory_bank import BankError, append_behavior_entry, append_entry, load_bank, validate_entry
 
 
 class MemoryBankValidationTests(unittest.TestCase):
@@ -21,6 +21,30 @@ class MemoryBankValidationTests(unittest.TestCase):
             "evidence": ["github:chatgpt-mcp-clean#7"],
             "supersedes": [],
         }
+
+    def test_sensitive_value_is_rejected_before_write(self):
+        with tempfile.TemporaryDirectory() as raw:
+            bank = Path(raw) / "bank.jsonl"
+            entry = self.valid()
+            entry["text"] = "my password is CorrectHorseBatteryStaple123!"
+            with self.assertRaisesRegex(BankError, "sensitive memory content rejected before write"):
+                append_entry(bank, entry)
+            self.assertFalse(bank.exists())
+
+    def test_sensitive_verbatim_source_is_rejected_before_write(self):
+        with tempfile.TemporaryDirectory() as raw:
+            bank = Path(raw) / "bank.jsonl"
+            entry = self.valid()
+            entry.update({
+                "tags": ["assistant-recorded", "verbatim-source"],
+                "source_messages": ["Bearer abcdefghijklmnopqrstuvwxyz0123456789"],
+                "interpretation": "safe summary",
+                "confidence": 100,
+                "confidence_reason": "test",
+            })
+            with self.assertRaisesRegex(BankError, "sensitive memory content rejected before write"):
+                append_entry(bank, entry)
+            self.assertFalse(bank.exists())
 
     def test_valid_entry_and_utf8(self):
         validate_entry(self.valid())
@@ -135,6 +159,40 @@ class MemoryBankValidationTests(unittest.TestCase):
             self.assertEqual(sync.call_count, 2)
             self.assertFalse(sync.call_args_list[0].kwargs["strict"])
             self.assertTrue(sync.call_args_list[1].kwargs["strict"])
+
+    def test_canonical_behavior_record_uses_bundle_sync_for_bank_and_registry(self):
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        values.update({
+            "kind": "preference",
+            "tags": ["assistant-recorded", "verbatim-source"],
+            "evidence": ["user-instruction:test"],
+            "behavior_rule": True,
+            "source_messages": ["keep the task intact"],
+            "interpretation": "Direct behavior rule.",
+            "confidence": 100,
+            "confidence_reason": "Explicit user instruction.",
+        })
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "bank.jsonl"
+            registry = Path(d) / "authority.json"
+            bank.write_text("", encoding="utf-8")
+            registry.write_text('{"schema_version":1,"purpose":"test","user_explicit_ids":[],"canonical_policy_ids":[]}\n', encoding="utf-8")
+            with patch("tools.memory_bank._is_canonical_bank", return_value=True), patch(
+                "tools.memory_bank._is_canonical_authority_registry", return_value=True
+            ), patch("tools.memory_bank.sync_lock", side_effect=lambda path: nullcontext()), patch(
+                "tools.memory_bank._sync_canonical_locked"
+            ) as bank_sync, patch("tools.memory_bank.sync_behavior_bundle") as bundle_sync, patch(
+                "tools.memory_bank.configure_authority_registry"
+            ), patch("tools.memory_bank.behavioral_authority", return_value={"role": "USER_EXPLICIT"}):
+                bundle_sync.return_value = {"pushed": 1}
+                saved = append_behavior_entry(bank, values, registry)
+            self.assertTrue(saved["behavior_rule"])
+            bank_sync.assert_called_once_with(bank, strict=False)
+            self.assertEqual(bundle_sync.call_count, 1)
+            self.assertEqual(bundle_sync.call_args.kwargs["add_user_ids"], {saved["id"]})
+            self.assertTrue(bundle_sync.call_args.kwargs["publish"])
 
     def test_assistant_recorded_requires_verbatim_provenance(self):
         e = self.valid()

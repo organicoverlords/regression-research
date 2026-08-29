@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, _write_bank, merge_bank_entries
+from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, _write_bank, merge_authority_registries, merge_bank_entries
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -11,6 +11,20 @@ class MemoryGitSyncTests(unittest.TestCase):
         remote = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}]
         local = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}, {"id": "c", "text": "local"}]
         self.assertEqual(merge_bank_entries(remote, local), remote + [local[-1]])
+
+    def test_authority_registry_merge_preserves_remote_and_local_curation(self):
+        remote = {"schema_version": 1, "purpose": "test", "user_explicit_ids": ["a"], "canonical_policy_ids": ["p1"]}
+        local = {"schema_version": 1, "purpose": "test", "user_explicit_ids": ["a", "b"], "canonical_policy_ids": ["p2"]}
+        merged = merge_authority_registries(remote, local)
+        self.assertEqual(merged["user_explicit_ids"], ["a", "b"])
+        self.assertEqual(merged["canonical_policy_ids"], ["p1", "p2"])
+
+    def test_authority_registry_merge_rejects_schema_conflict(self):
+        with self.assertRaises(MemorySyncError):
+            merge_authority_registries(
+                {"schema_version": 1, "user_explicit_ids": [], "canonical_policy_ids": []},
+                {"schema_version": 2, "user_explicit_ids": [], "canonical_policy_ids": []},
+            )
 
     def test_same_id_with_different_content_is_rejected(self):
         with self.assertRaises(MemorySyncError):

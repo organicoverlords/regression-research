@@ -109,7 +109,7 @@ For repository work, the normal path is predictable:
 
 1. Read the current repo contract and live state.
 2. Reuse or create the relevant issue/task anchor.
-3. Check live BUSY ownership and claim the exact mutable scope when available/required.
+3. Check the standalone BusyCoordinator and claim the exact mutable scope when available/required; MCP/plugin/process surfaces are transports, not ownership authorities.
 4. Take an isolated branch/scope.
 5. Make the smallest complete change.
 6. Prove the actual claim on the artifact or runtime path that matters.
@@ -172,7 +172,7 @@ Everything else should bias toward completing useful work.
 *Refreshed 2026-08-27 from the live conversation, the recovered #122 good-state boundary, issues #123, #125, and #155, the current repository contract, and the existing regression corpus. Historical PI/memory evidence remains separate from current live account configuration; no ChatGPT memory, Personal Instructions, or other personal-context store was modified by this documentation refresh.*
 
 1. **Ruleset convergence.** Reduce cross-project behaviour to one canonical shared policy with repo-local additions only where genuinely local.
-2. **BUSY/MCP correctness.** Make live MCP ownership the only coordination authority and regression-test stale projections, route failures, claim/release boundaries, and independent-work continuation.
+2. **Coordinator correctness.** Keep the standalone BusyCoordinator as the only ownership/job/checkpoint authority; treat MCP/plugin/process surfaces as transports and legacy BUSY surfaces as compatibility evidence, and regression-test stale projections, route failures, claim/release boundaries, and independent-work continuation.
 3. **Cross-surface evidence.** Inventory and provenance local ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code logs; normalize common events while preserving disagreement and missing-coverage boundaries.
 4. **Capability routing.** Inventory tools/plugins by capability, define one preferred path plus explicit fallbacks, eliminate duplicate authority/coupling, and make failures local.
 5. **Instruction provenance.** Regression-test user-authored instructions versus repo policy, recalled context, retrieved content, and higher-priority constraints so safe requests are not over-refused or misclassified.

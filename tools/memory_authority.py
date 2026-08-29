@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -29,6 +30,7 @@ BEHAVIOR_RULE_KINDS = {"preference", "decision", "correction", "lesson"}
 ROOT = Path(__file__).resolve().parents[1]
 LEGACY_BEHAVIOR_TYPES = ROOT / "memory" / "behavior-rule-types.json"
 AUTHORITY_REGISTRY = ROOT / "memory" / "behavior-authority-registry.json"
+_ACTIVE_AUTHORITY_REGISTRY = AUTHORITY_REGISTRY
 
 
 def _load_legacy_behavior_rule_ids() -> frozenset[str]:
@@ -43,9 +45,10 @@ def _load_legacy_behavior_rule_ids() -> frozenset[str]:
 LEGACY_BEHAVIOR_RULE_IDS = _load_legacy_behavior_rule_ids()
 
 
-def _load_authority_registry() -> tuple[frozenset[str], frozenset[str]]:
+def _load_authority_registry(path: Path | None = None) -> tuple[frozenset[str], frozenset[str]]:
+    target = Path(path or _ACTIVE_AUTHORITY_REGISTRY)
     try:
-        payload = json.loads(AUTHORITY_REGISTRY.read_text(encoding="utf-8-sig"))
+        payload = json.loads(target.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         return frozenset(), frozenset()
     if not isinstance(payload, dict):
@@ -59,6 +62,149 @@ def _load_authority_registry() -> tuple[frozenset[str], frozenset[str]]:
 
 
 VERIFIED_USER_AUTHORITY_IDS, VERIFIED_CANONICAL_AUTHORITY_IDS = _load_authority_registry()
+
+
+def configure_authority_registry(path: Path | None = None) -> Path:
+    """Select and reload the registry used by authority classification in this process."""
+    global _ACTIVE_AUTHORITY_REGISTRY, VERIFIED_USER_AUTHORITY_IDS, VERIFIED_CANONICAL_AUTHORITY_IDS
+    _ACTIVE_AUTHORITY_REGISTRY = Path(path or AUTHORITY_REGISTRY).resolve()
+    VERIFIED_USER_AUTHORITY_IDS, VERIFIED_CANONICAL_AUTHORITY_IDS = _load_authority_registry(_ACTIVE_AUTHORITY_REGISTRY)
+    return _ACTIVE_AUTHORITY_REGISTRY
+
+
+def authority_registry_payload(path: Path | None = None) -> dict[str, Any]:
+    target = Path(path or _ACTIVE_AUTHORITY_REGISTRY)
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"authority registry is unreadable: {target}") from exc
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise ValueError("authority registry schema_version must be 1")
+    for key in ("user_explicit_ids", "canonical_policy_ids"):
+        values = payload.get(key)
+        if not isinstance(values, list) or any(not isinstance(item, str) or not item.strip() for item in values):
+            raise ValueError(f"authority registry {key} must be an array of non-empty strings")
+        if len(values) != len(set(values)):
+            raise ValueError(f"authority registry {key} contains duplicate ids")
+    return payload
+
+
+def _write_authority_registry_local(path: Path, payload: dict[str, Any]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + ".curate-tmp")
+    temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    os.replace(temp, path)
+
+
+def authority_curation_errors(entry: dict[str, Any], role: str) -> list[str]:
+    errors: list[str] = []
+    ident = str(entry.get("id") or "")
+    if role == ROLE_USER:
+        if entry.get("state") == "REJECTED":
+            errors.append("rejected records cannot be promoted")
+        if entry.get("behavior_rule") is not True:
+            errors.append("behavior_rule must be true")
+        if str(entry.get("kind") or "") not in BEHAVIOR_RULE_KINDS:
+            errors.append("kind is not valid for a behavior rule")
+        if not _evidence_has_prefix(entry, USER_PREFIXES):
+            errors.append("user-instruction provenance is required")
+        tags = {str(tag) for tag in entry.get("tags", [])}
+        if not {"assistant-recorded", "verbatim-source"}.issubset(tags):
+            errors.append("trusted promotion requires assistant-recorded verbatim provenance")
+        source_messages = entry.get("source_messages")
+        if not isinstance(source_messages, list) or not source_messages or any(not isinstance(item, str) or not item.strip() for item in source_messages):
+            errors.append("trusted promotion requires non-empty source_messages")
+    elif role == ROLE_CANONICAL:
+        if entry.get("state") != "PROVEN":
+            errors.append("canonical policy must be PROVEN")
+        if not _evidence_has_prefix(entry, CANONICAL_PREFIXES):
+            errors.append("canonical policy provenance is required")
+    else:
+        errors.append(f"unsupported authority role: {role}")
+    if not ident:
+        errors.append("memory id is required")
+    return errors
+
+
+def curate_authority_registry_local(
+    entries: Iterable[dict[str, Any]], memory_id: str, role: str, *, path: Path | None = None
+) -> dict[str, Any]:
+    target = Path(path or _ACTIVE_AUTHORITY_REGISTRY)
+    by_id = {str(entry.get("id")): entry for entry in entries}
+    entry = by_id.get(memory_id)
+    if entry is None:
+        raise ValueError(f"memory id not found: {memory_id}")
+    errors = authority_curation_errors(entry, role)
+    if errors:
+        raise ValueError("; ".join(errors))
+    payload = authority_registry_payload(target)
+    user_ids = set(payload["user_explicit_ids"] )
+    policy_ids = set(payload["canonical_policy_ids"] )
+    if role == ROLE_USER:
+        if memory_id in policy_ids:
+            raise ValueError("memory id is already curated as canonical policy")
+        user_ids.add(memory_id)
+    else:
+        if memory_id in user_ids:
+            raise ValueError("memory id is already curated as explicit user behavior")
+        policy_ids.add(memory_id)
+    payload["user_explicit_ids"] = sorted(user_ids)
+    payload["canonical_policy_ids"] = sorted(policy_ids)
+    _write_authority_registry_local(target, payload)
+    configure_authority_registry(target)
+    return payload
+
+
+def validate_authority_registry(entries: Iterable[dict[str, Any]], *, path: Path | None = None) -> dict[str, Any]:
+    target = Path(path or _ACTIVE_AUTHORITY_REGISTRY)
+    try:
+        payload = authority_registry_payload(target)
+    except ValueError as exc:
+        return {"status": "REJECTED", "errors": [str(exc)], "user_ids": 0, "policy_ids": 0}
+    items = list(entries)
+    by_id = {str(entry.get("id")): entry for entry in items}
+    errors: list[str] = []
+    user_ids = list(payload["user_explicit_ids"] )
+    policy_ids = list(payload["canonical_policy_ids"] )
+    overlap = sorted(set(user_ids) & set(policy_ids))
+    if overlap:
+        errors.append("ids present in both authority roles: " + ", ".join(overlap))
+    for ident in user_ids:
+        entry = by_id.get(ident)
+        if entry is None:
+            errors.append(f"user authority id missing from bank: {ident}")
+            continue
+        if not _evidence_has_prefix(entry, USER_PREFIXES):
+            errors.append(f"user authority id lacks user provenance: {ident}")
+        if str(entry.get("kind") or "") not in BEHAVIOR_RULE_KINDS:
+            errors.append(f"user authority id has invalid kind: {ident}")
+        if entry.get("behavior_rule") is not True and ident not in LEGACY_BEHAVIOR_RULE_IDS:
+            errors.append(f"user authority id lacks behavior type: {ident}")
+    for ident in policy_ids:
+        entry = by_id.get(ident)
+        if entry is None:
+            errors.append(f"canonical policy id missing from bank: {ident}")
+            continue
+        if entry.get("state") != "PROVEN":
+            errors.append(f"canonical policy id is not PROVEN: {ident}")
+        if not _evidence_has_prefix(entry, CANONICAL_PREFIXES):
+            errors.append(f"canonical policy id lacks canonical provenance: {ident}")
+    typed_uncurated = sorted(
+        str(entry.get("id")) for entry in current_entries(items)
+        if entry.get("behavior_rule") is True
+        and _evidence_has_prefix(entry, USER_PREFIXES)
+        and str(entry.get("id")) not in set(user_ids)
+    )
+    if typed_uncurated:
+        errors.append("current typed user behavior rules are uncurated: " + ", ".join(typed_uncurated))
+    return {
+        "status": "PROVEN" if not errors else "REJECTED",
+        "errors": errors,
+        "user_ids": len(user_ids),
+        "policy_ids": len(policy_ids),
+        "typed_uncurated": typed_uncurated,
+    }
 
 
 def _evidence_has_prefix(entry: dict[str, Any], prefixes: tuple[str, ...]) -> bool:

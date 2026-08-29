@@ -39,6 +39,34 @@ STACK_PATHS = {
     "tests/test_issue123_startup_memory_acceptance.py",
 }
 
+
+MEMORY_PATHS = {
+    "memory/behavior-authority-registry.json",
+    "memory/README.md",
+    "docs/assistant-stack-architecture.md",
+    "tools/memory_authority.py",
+    "tools/memory_bank.py",
+    "tools/memory_classification.py",
+    "tools/memory_git_sync.py",
+    "tools/memory_hybrid.py",
+    "tools/memory_timeline.py",
+    "tools/benchmark_memory_behavior_retrieval.py",
+    "tools/benchmark_memory_retrieval.py",
+    "tools/provenance.py",
+    "tests/fixtures/memory-behavior-retrieval-v1.json",
+    "tests/test_memory_authority.py",
+    "tests/test_memory_authority_pipeline.py",
+    "tests/test_memory_bank.py",
+    "tests/test_memory_bootstrap.py",
+    "tests/test_memory_classification.py",
+    "tests/test_memory_context_retrieval.py",
+    "tests/test_memory_git_sync.py",
+    "tests/test_memory_retrieval_quality.py",
+    "tests/test_memory_timeline.py",
+    "tests/test_provenance_index.py",
+    "tests/test_taxonomy_matrix.py",
+}
+
 CONVERSATION_PATHS = {
     "tools/conversation_search.py",
     "tools/conversation_search_refresh.py",
@@ -75,10 +103,12 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "conversation"]
+        return ["stack", "memory", "conversation"]
     selected = []
     if changed & STACK_PATHS:
         selected.append("stack")
+    if changed & MEMORY_PATHS:
+        selected.append("memory")
     if changed & CONVERSATION_PATHS:
         selected.append("conversation")
     return selected
@@ -133,6 +163,48 @@ def verify_stack() -> None:
         ]
     )
     print("ASSISTANT_STACK_POLICY_PROVEN")
+
+
+def verify_memory() -> None:
+    run(
+        [
+            sys.executable,
+            "-m",
+            "py_compile",
+            "tools/memory_authority.py",
+            "tools/memory_bank.py",
+            "tools/memory_classification.py",
+            "tools/memory_git_sync.py",
+            "tools/memory_hybrid.py",
+            "tools/memory_timeline.py",
+            "tools/benchmark_memory_behavior_retrieval.py",
+            "tools/benchmark_memory_retrieval.py",
+            "tools/provenance.py",
+        ]
+    )
+    run([sys.executable, "tools/memory_bank.py", "validate"])
+    run([sys.executable, "tools/memory_bank.py", "authority-validate"])
+    run([sys.executable, "tools/provenance.py", "validate"])
+    run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_memory_authority.py",
+            "tests/test_memory_authority_pipeline.py",
+            "tests/test_memory_bank.py",
+            "tests/test_memory_bootstrap.py",
+            "tests/test_memory_classification.py",
+            "tests/test_memory_context_retrieval.py",
+            "tests/test_memory_git_sync.py",
+            "tests/test_memory_retrieval_quality.py",
+            "tests/test_memory_timeline.py",
+            "tests/test_provenance_index.py",
+            "tests/test_taxonomy_matrix.py",
+        ]
+    )
+    print("MEMORY_AUTHORITY_RETRIEVAL_PROVEN")
 
 
 def verify_conversation() -> None:
@@ -197,6 +269,8 @@ def main() -> int:
     for area in areas:
         if area == "stack":
             verify_stack()
+        elif area == "memory":
+            verify_memory()
         elif area == "conversation":
             verify_conversation()
 
