@@ -1,0 +1,121 @@
+{
+  "schema": "memory-behavior-retrieval-v1",
+  "created_at": "2026-08-29",
+  "purpose": "Paraphrase coverage across every active USER_EXPLICIT behavior rule. holdout-* queries were written before their first retrieval result was observed and were not used to tune the retriever.",
+  "cases": [
+    {
+      "id": "dev-01",
+      "cohort": "development",
+      "query": "keep reports concise without doing less work",
+      "expected": "mem-20260829-c7b2539a"
+    },
+    {
+      "id": "dev-02",
+      "cohort": "development",
+      "query": "a correction should not make you abandon the task you were already doing",
+      "expected": "mem-20260829-f8a09d2b"
+    },
+    {
+      "id": "dev-03",
+      "cohort": "development",
+      "query": "new user messages should interrupt ongoing work immediately",
+      "expected": "mem-20260829-3e8b16f7"
+    },
+    {
+      "id": "dev-04",
+      "cohort": "development",
+      "query": "do not accept my causal theory just because I suggested it",
+      "expected": "mem-20260829-15f349c0"
+    },
+    {
+      "id": "dev-05",
+      "cohort": "development",
+      "query": "if a tool path breaks, continue through another usable route rather than declaring the task dead",
+      "expected": "mem-20260829-d38a8b65"
+    },
+    {
+      "id": "dev-06",
+      "cohort": "development",
+      "query": "verify live state before making claims about what is currently true",
+      "expected": "mem-20260829-d9cee13b"
+    },
+    {
+      "id": "holdout-01",
+      "cohort": "holdout",
+      "query": "if an emergency memory save happens before telling me, it still has to be disclosed immediately afterward",
+      "expected": "mem-20260829-82b351cd"
+    },
+    {
+      "id": "holdout-02",
+      "cohort": "holdout",
+      "query": "don't call a tool unavailable until you have actually tried to use that route",
+      "expected": "mem-20260829-dc8f589a"
+    },
+    {
+      "id": "holdout-03",
+      "cohort": "holdout",
+      "query": "handle the technical coordination yourself instead of making me babysit it",
+      "expected": "mem-20260829-bc8848aa"
+    },
+    {
+      "id": "holdout-04",
+      "cohort": "holdout",
+      "query": "when a repair doesn't work, inspect the exact failing path instead of trying random changes",
+      "expected": "mem-20260829-62e394c6"
+    },
+    {
+      "id": "holdout-05",
+      "cohort": "holdout",
+      "query": "do the actual work before giving me progress updates and finish the bounded job",
+      "expected": "mem-20260829-49cf4f6b"
+    },
+    {
+      "id": "holdout-06",
+      "cohort": "holdout",
+      "query": "check that the validator exercised the real production path, not merely that output looks right",
+      "expected": "mem-20260829-d262b833"
+    },
+    {
+      "id": "holdout-07",
+      "cohort": "holdout",
+      "query": "a short prompt can still require deep analysis if the task is difficult",
+      "expected": "mem-20260829-628eac70"
+    },
+    {
+      "id": "holdout-08",
+      "cohort": "holdout",
+      "query": "do not disable scheduled workers merely because one run is blocked",
+      "expected": "mem-20260829-df29555e"
+    },
+    {
+      "id": "holdout-09",
+      "cohort": "holdout",
+      "query": "use the tool call that can settle the question rather than lots of low-value probes",
+      "expected": "mem-20260829-a9c57933"
+    },
+    {
+      "id": "holdout-10",
+      "cohort": "holdout",
+      "query": "my instruction governs your behavior even if its factual claim has not been proven",
+      "expected": "mem-20260827-d4e21c4c"
+    },
+    {
+      "id": "holdout-11",
+      "cohort": "holdout",
+      "query": "when I say slopwall, record the incident but keep working on the original task",
+      "expected": "mem-20260829-c959fb9e"
+    },
+    {
+      "id": "holdout-12",
+      "cohort": "holdout",
+      "query": "don't change my personality or style setting unless I explicitly ask",
+      "expected": "mem-20260829-b53668c4"
+    },
+    {
+      "id": "holdout-13",
+      "cohort": "holdout",
+      "query": "I choose the direction and judge the result; you handle planning execution verification and coordination",
+      "expected": "mem-20260825-role-executive"
+    }
+  ]
+}

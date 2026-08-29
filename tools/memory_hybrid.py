@@ -36,7 +36,7 @@ except ImportError:
 BM25_K1 = 1.2
 BM25_B = 0.75
 RRF_K = 60.0
-RRF_WEIGHTS = {"legacy": 0.30, "bm25": 0.40, "char": 0.15, "association": 0.15}
+RRF_WEIGHTS = {"legacy": 0.0, "bm25": 0.70, "char": 0.30, "association": 0.0}
 MIN_QUERY_COVERAGE = 0.45
 MAX_ASSOCIATION_DOC_FRACTION = 0.35
 ASSOCIATIONS_PER_QUERY_TERM = 3
@@ -56,15 +56,67 @@ _STOPWORDS = {
 _WORD_RE = re.compile(r"[\w]+", flags=re.UNICODE)
 _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
 
+# Small domain-neutral concept normalization for natural paraphrases.  These
+# aliases affect relevance only; they never grant authority.  Keep groups broad
+# enough to be useful outside a benchmark case and narrow enough to preserve
+# abstention.
+_CONCEPT_GROUPS = (
+    ("execution", "command", "commands", "job", "jobs", "task", "tasks", "process", "processes", "request", "requests", "turn", "turns"),
+    ("loss", "lost", "lose", "losing", "disappear", "disappeared", "disappears", "died", "dead", "drop", "dropped", "disconnect", "disconnected"),
+    ("proof", "prove", "proven", "evidence", "demonstrate", "demonstrated", "establish", "established", "verify", "verified"),
+    ("retrieve", "retrieval", "reread", "rereading", "reload", "refresh", "refreshing"),
+    ("scope", "area", "areas", "unrelated", "adjacent"),
+    ("expand", "spread", "widen", "widened", "expansion", "expanded"),
+    ("complete", "completed", "completion", "finish", "finished", "done", "ends", "ended"),
+    ("persist", "persistence", "store", "stored", "save", "saved", "preserve", "preserved"),
+    ("concurrency", "simultaneous", "simultaneously", "parallel", "concurrent"),
+    ("worker", "workers", "runner", "runners", "agent", "agents"),
+    ("prune", "trim", "trimming", "pruned", "pruning"),
+    ("isolate", "isolated", "isolating", "experiment", "experimental", "experimentally"),
+    ("investigation", "diagnostic", "diagnostics", "debug", "debugging", "investigate", "investigating"),
+    ("route", "routing", "path", "paths"),
+    ("correction", "correct", "corrects", "corrected", "correcting"),
+    ("presentation", "wording", "format", "formatting", "phrasing"),
+    ("define", "defined", "defines", "dictate", "dictated", "govern", "governed"),
+    ("label", "labels", "taxonomy", "classification"),
+    ("cause", "causal", "causality", "rootcause"),
+    ("internal", "hidden", "underlying"),
+    ("acknowledge", "acknowledged", "acknowledging", "acknowledgement", "acknowledgment"),
+    ("burden", "walk", "reconstruct", "reconstruction"),
+    ("answer", "answering", "conclusion", "deliverable", "response"),
+    ("compact", "concise", "compress", "compressed", "compression", "brief"),
+    ("report", "reports", "reporting"),
+    ("hypothesis", "hypotheses", "theory", "theories"),
+    ("agreement", "agree", "agreed", "accept", "accepted", "mirror"),
+)
+_CONCEPT_ALIAS = {alias: group[0] for group in _CONCEPT_GROUPS for alias in group}
+_NUMBER_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+_NUMBER_ONES = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9}
+
+
+def _normalise_number_words(tokens: list[str]) -> list[str]:
+    out: list[str] = []
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token in _NUMBER_TENS and i + 1 < len(tokens) and tokens[i + 1] in _NUMBER_ONES:
+            out.append(str(_NUMBER_TENS[token] + _NUMBER_ONES[tokens[i + 1]]))
+            i += 2
+            continue
+        out.append(token)
+        i += 1
+    return out
+
 
 def _word_tokens(value: str) -> list[str]:
     out: list[str] = []
-    for token in _WORD_RE.findall(value.casefold()):
+    raw_tokens = _normalise_number_words(_WORD_RE.findall(value.casefold()))
+    for token in raw_tokens:
         if token in _STOPWORDS:
             continue
         if len(token) < 2 and not token.isdigit():
             continue
-        out.append(token)
+        out.append(_CONCEPT_ALIAS.get(token, token))
     return out
 
 

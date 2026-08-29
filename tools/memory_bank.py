@@ -12,7 +12,7 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from .memory_authority import annotate_memory, behavioral_authority
+    from .memory_authority import annotate_memory, behavioral_authority, behavioral_context
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
@@ -20,7 +20,7 @@ try:
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from memory_authority import annotate_memory, behavioral_authority
+    from memory_authority import annotate_memory, behavioral_authority, behavioral_context
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
@@ -419,6 +419,14 @@ def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: s
     return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=history)
 
 
+def search_behavior_memory(
+    entries: list[dict[str, Any]], query: str, *, limit: int = MAX_RECALL_LIMIT,
+) -> list[dict[str, Any]]:
+    """Search only current behavior-authority records; authority is decided before relevance."""
+    effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
+    return search_memory_entries(behavioral_context(entries), query, limit=effective_limit, history=False)
+
+
 def search_context_memory(
     entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
     tags: list[str] | None = None, limit: int = MAX_RECALL_LIMIT,
@@ -601,6 +609,10 @@ def _main() -> int:
     search.add_argument("--limit", type=int, default=DEFAULT_RECALL_LIMIT)
     search.add_argument("--history", action="store_true")
 
+    behavior = sub.add_parser("behavior-search", help="search only current behavior-authority records")
+    behavior.add_argument("query")
+    behavior.add_argument("--limit", type=int, default=MAX_RECALL_LIMIT)
+
     context = sub.add_parser("context", help="build a compact task-scoped context pack from curated memory and historical corpus")
     context.add_argument("query")
     context.add_argument("--scope")
@@ -744,6 +756,9 @@ def _main() -> int:
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
+            return 0
+        if args.command == "behavior-search":
+            _print_json([annotate_memory(entry) for entry in search_behavior_memory(entries, args.query, limit=args.limit)])
             return 0
         if args.command == "context":
             selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
