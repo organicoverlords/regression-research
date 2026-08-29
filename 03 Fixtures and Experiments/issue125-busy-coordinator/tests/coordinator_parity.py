@@ -190,6 +190,42 @@ for kind in ("py", "rs"):
     store9.unlink(missing_ok=True)
     pathlib.Path(str(store9) + ".lock").unlink(missing_ok=True)
 
+# Completed history is bounded while live/ready state is preserved.
+for kind in ("py", "rs"):
+    retention_store = new_store(f"completed-retention-{kind}")
+    jobs = {}
+    for index in range(259):
+        scope = f"completed-{index:03d}"
+        jobs[scope] = {
+            "job_id": scope,
+            "scope": scope,
+            "state": "completed",
+            "owner": None,
+            "lease_expires_at": None,
+            "updated_at": f"2026-08-29T00:{index // 60:02d}:{index % 60:02d}.000Z",
+        }
+    jobs["keep-ready"] = {
+        "job_id": "keep-ready",
+        "scope": "keep-ready",
+        "state": "ready",
+        "owner": None,
+        "lease_expires_at": None,
+        "updated_at": "2026-08-29T00:00:00.000Z",
+    }
+    retention_store.write_text(json.dumps({
+        "claims": [],
+        "coordinator": {"version": 1, "jobs": jobs, "operations": {}},
+    }, indent=2) + "\n", encoding="utf-8")
+    assert run(kind, retention_store, "sweep") == {"ok": True, "expired": []}
+    retained = read(retention_store)["coordinator"]["jobs"]
+    completed_scopes = sorted(scope for scope, job in retained.items() if job["state"] == "completed")
+    assert len(completed_scopes) == 256
+    assert completed_scopes[0] == "completed-003"
+    assert completed_scopes[-1] == "completed-258"
+    assert retained["keep-ready"]["state"] == "ready"
+    retention_store.unlink(missing_ok=True)
+    pathlib.Path(str(retention_store) + ".lock").unlink(missing_ok=True)
+
 # Snapshot is a compact read projection with Python/Rust parity, including legacy-only claims.
 store10 = new_store("snapshot-parity")
 assert run("py", store10, "enqueue", "b-ready", "--operation-id", "snapshot-ready")["ok"] is True
@@ -222,6 +258,7 @@ print(json.dumps({
     "legacy_refresh_guard": True,
     "passthrough_metadata": True,
     "queue_handoff": True,
+    "completed_retention": True,
     "scout_fanin": True,
     "subjob_block_isolation": True,
     "snapshot_parity": True,
