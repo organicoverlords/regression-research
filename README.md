@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-29] [coordination] Upstreamed the live BusyCoordinator snapshot projection with Python/Rust/install parity so runtime convergence preserves snapshot visibility alongside queue-aging and handoff-bound fixes (#194).
 - [2026-08-29] [coordination] Made BusyCoordinator queue selection age-first so older ready jobs are claimed before lexicographically earlier newer scopes.
 - [2026-08-29] [orchestration] Routed indirect capability providers through whole-stack acceptance so a usable process-backed repository path remains executable, while a failed indirect provider degrades only its capability and independent work continues.
 - [2026-08-29] [hygiene] Removed committed merge-conflict markers from CHANGELOG.md, preserved both competing timeline entries, and added validation so conflict markers cannot land again.
 - [2026-08-29] [memory] Made ChatGPT fresh-session live orientation a hard pre-response gate across the Personal Instructions bridge, bootstrap payload, and SessionStart hook; clean scans stay silent, abnormal scans lead, and later status-dependent answers re-check live state.
-- [2026-08-29] [memory] Cut bootstrap authority/classification overhead by filtering cheap currentness first, classifying only behavior-authoritative candidates once, and preserving byte-identical bootstrap output with regression coverage.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

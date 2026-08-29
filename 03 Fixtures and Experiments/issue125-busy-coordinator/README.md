@@ -9,7 +9,9 @@ Two interchangeable implementations are kept deliberately feature-equivalent:
 
 Both operate on the same canonical `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json` plus its existing atomic `.lock`. They preserve unknown top-level metadata so current MCP0 and either standalone implementation can coexist during rollout.
 
-Supported coordinator operations are `list`, `sweep`, `enqueue`, `ready`, `next`, `claim`, `heartbeat`, `release`, `block`, `complete`, and `inspect`. Job identity is the canonical trimmed scope string. Optional operation IDs make retries idempotent across connector/runtime changes. Leases are renewable; expired coordinator-owned work returns to `ready`; a newer legacy/MCP claim timestamp disables automatic expiry rather than deleting newer ownership. Block/complete persist a checkpoint and release ownership automatically.
+Supported coordinator operations are `list`, `sweep`, `snapshot`, `enqueue`, `ready`, `next`, `claim`, `heartbeat`, `release`, `block`, `complete`, and `inspect`. Job identity is the canonical trimmed scope string. Optional operation IDs make retries idempotent across connector/runtime changes. Leases are renewable; expired coordinator-owned work returns to `ready`; a newer legacy/MCP claim timestamp disables automatic expiry rather than deleting newer ownership. Block/complete persist a checkpoint and release ownership automatically.
+
+`snapshot` is a bounded read projection of live coordinator state: job-state counts, legacy-only claims, ready/blocked work, optional actor ownership, and optional exact-scope focus. Its result limit is clamped to 1-32 entries and is feature-equivalent across Python and Rust.
 
 The tool apps are separate from MCP. They are intended to be invoked through an existing process tool or directly from the local machine; neither implementation is registered as a GPT/MCP tool. The MCP connectors remain interchangeable transport entrances, not ownership systems.
 
@@ -22,10 +24,11 @@ Verification:
 cargo build --release --manifest-path .\rust\Cargo.toml
 cargo test --manifest-path .\rust\Cargo.toml
 python .\tests\coordinator_parity.py
+python .\tests\install_compatibility.py
 python .\tests\mixed_contention.py
 ```
 
-`coordinator_parity.py` proves cross-language idempotency, lifecycle continuation, exact ownership, lease expiry, legacy-refresh safety, metadata passthrough, and blocked/next-work handoff. `mixed_contention.py` races Python and Rust writers against the same lock/store.
+`coordinator_parity.py` proves cross-language idempotency, lifecycle continuation, exact ownership, lease expiry, legacy-refresh safety, metadata passthrough, snapshot parity, and blocked/next-work handoff. `install_compatibility.py` proves installation preserves coordinator state and Python/Rust snapshot parity. `mixed_contention.py` races Python and Rust writers against the same lock/store.
 
 Do not add a dashboard, dispatcher UI, scoring system, workflow language, connector-specific ownership state, or another database. Normal user interaction remains an issue request, `go`, or `continue`.
 

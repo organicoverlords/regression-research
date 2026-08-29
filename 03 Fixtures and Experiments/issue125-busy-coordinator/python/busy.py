@@ -118,6 +118,45 @@ def job_for(state: dict, scope: str):
     return job if isinstance(job, dict) else None
 
 
+def compact_job(job: dict) -> dict:
+    return {
+        key: job.get(key)
+        for key in ("scope", "state", "owner", "checkpoint", "lease_expires_at", "updated_at")
+        if job.get(key) is not None
+    }
+
+
+def snapshot_state(state: dict, *, actor: str | None = None, raw_scope: str | None = None,
+                   limit: int = 8, expired: list[dict] | None = None) -> dict:
+    limit = max(1, min(limit, 32))
+    jobs = [job for job in state["coordinator"]["jobs"].values() if isinstance(job, dict)]
+    jobs.sort(key=lambda job: str(job.get("scope", "")))
+    counts = {name: sum(1 for job in jobs if job.get("state") == name) for name in ("active", "ready", "blocked", "completed")}
+    claims = sorted(state["claims"], key=lambda claim: claim["scope"])
+    job_scopes = {str(job.get("scope")) for job in jobs}
+    legacy_only = [claim for claim in claims if claim["scope"] not in job_scopes]
+
+    result = {
+        "ok": True,
+        "counts": {**counts, "claims": len(claims), "legacy_only_claims": len(legacy_only)},
+        "ready": [compact_job(job) for job in jobs if job.get("state") == "ready"][:limit],
+        "blocked": [compact_job(job) for job in jobs if job.get("state") == "blocked"][:limit],
+        "legacy_only_claims": legacy_only[:limit],
+    }
+    active = [job for job in jobs if job.get("state") == "active"]
+    if actor:
+        result["owned"] = [compact_job(job) for job in active if job.get("owner") == actor][:limit]
+        result["active_other"] = [compact_job(job) for job in active if job.get("owner") != actor][:limit]
+    else:
+        result["active"] = [compact_job(job) for job in active][:limit]
+    if raw_scope:
+        scope = canonical_scope(raw_scope)
+        result["focus"] = {"scope": scope, "job": job_for(state, scope), "claim": claim_for(state, scope)}
+    if expired:
+        result["expired"] = expired[:limit]
+    return result
+
+
 def prune_operations(state: dict) -> None:
     ops = state["coordinator"]["operations"]
     if len(ops) <= MAX_OPERATIONS:
@@ -193,15 +232,17 @@ def sweep_expired(state: dict) -> tuple[list[dict], bool]:
 def operate(store: Path, command: str, actor: str | None = None, raw_scope: str | None = None,
             *, lease_seconds: int = DEFAULT_LEASE_S, checkpoint: str | None = None,
             operation_id: str | None = None, finding_id: str | None = None,
-            source: str | None = None, summary: str | None = None) -> dict:
+            source: str | None = None, summary: str | None = None, limit: int = 8) -> dict:
     with StoreLock(store):
         state = load_state(store)
         swept, sweep_changed = sweep_expired(state)
-        if command in {"list", "sweep"}:
+        if command in {"list", "sweep", "snapshot"}:
             if sweep_changed:
                 persist(store, state)
             if command == "list":
                 return {"claims": sorted(state["claims"], key=lambda c: c["scope"])}
+            if command == "snapshot":
+                return snapshot_state(state, actor=actor, raw_scope=raw_scope, limit=limit, expired=swept)
             return {"ok": True, "expired": swept}
 
         if command == "next":
@@ -412,6 +453,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     sub.add_parser("sweep")
+    snapshot = sub.add_parser("snapshot")
+    snapshot.add_argument("--actor")
+    snapshot.add_argument("--scope")
+    snapshot.add_argument("--limit", type=int, default=8)
     nxt = sub.add_parser("next")
     nxt.add_argument("actor")
     nxt.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_S)
@@ -445,6 +490,8 @@ def main() -> int:
     try:
         if args.cmd in {"list", "sweep"}:
             result = operate(args.store, args.cmd)
+        elif args.cmd == "snapshot":
+            result = operate(args.store, args.cmd, args.actor, args.scope, limit=args.limit)
         elif args.cmd == "next":
             result = operate(args.store, args.cmd, args.actor, lease_seconds=args.lease_seconds, operation_id=args.operation_id)
         elif args.cmd == "handoff":

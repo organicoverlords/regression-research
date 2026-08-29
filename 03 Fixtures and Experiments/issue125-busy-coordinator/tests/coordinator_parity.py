@@ -190,6 +190,29 @@ for kind in ("py", "rs"):
     store9.unlink(missing_ok=True)
     pathlib.Path(str(store9) + ".lock").unlink(missing_ok=True)
 
+# Snapshot is a compact read projection with Python/Rust parity, including legacy-only claims.
+store10 = new_store("snapshot-parity")
+assert run("py", store10, "enqueue", "b-ready", "--operation-id", "snapshot-ready")["ok"] is True
+assert run("rs", store10, "claim", "owner-a", "a-active", "--operation-id", "snapshot-active", "--lease-seconds", "60", "--checkpoint", "working")["ok"] is True
+assert run("py", store10, "claim", "owner-b", "c-blocked", "--operation-id", "snapshot-block-claim")["ok"] is True
+assert run("rs", store10, "block", "owner-b", "c-blocked", "--operation-id", "snapshot-block", "--checkpoint", "waiting")["ok"] is True
+assert run("py", store10, "claim", "owner-c", "d-completed", "--operation-id", "snapshot-complete-claim")["ok"] is True
+assert run("rs", store10, "complete", "owner-c", "d-completed", "--operation-id", "snapshot-complete", "--checkpoint", "done")["ok"] is True
+state10 = read(store10)
+state10["claims"].append({"actor": "legacy-worker", "scope": "legacy-only", "timestamp": "2026-08-29T00:00:00.000Z"})
+store10.write_text(json.dumps(state10, indent=2) + "\n", encoding="utf-8")
+snapshot_py = run("py", store10, "snapshot", "--actor", "owner-a", "--scope", "a-active", "--limit", "2")
+snapshot_rs = run("rs", store10, "snapshot", "--actor", "owner-a", "--scope", "a-active", "--limit", "2")
+assert snapshot_rs == snapshot_py
+assert snapshot_py["counts"] == {"active": 1, "ready": 1, "blocked": 1, "completed": 1, "claims": 2, "legacy_only_claims": 1}
+assert snapshot_py["owned"][0]["scope"] == "a-active" and snapshot_py["active_other"] == []
+assert snapshot_py["focus"]["claim"]["actor"] == "owner-a"
+assert snapshot_py["ready"][0]["scope"] == "b-ready"
+assert snapshot_py["blocked"][0]["scope"] == "c-blocked"
+assert snapshot_py["legacy_only_claims"][0]["scope"] == "legacy-only"
+store10.unlink(missing_ok=True)
+pathlib.Path(str(store10) + ".lock").unlink(missing_ok=True)
+
 print(json.dumps({
     "result": "PASS",
     "cross_language_idempotency": True,
@@ -201,4 +224,5 @@ print(json.dumps({
     "queue_handoff": True,
     "scout_fanin": True,
     "subjob_block_isolation": True,
+    "snapshot_parity": True,
 }))
