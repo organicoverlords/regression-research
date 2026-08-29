@@ -128,6 +128,12 @@
       "cohort": "development",
       "query": "in normal chat avoid bullet lists and arrow-heavy formatting; write compact cohesive prose unless I ask for a list",
       "expected": "mem-20260829-ac91b225"
+    },
+    {
+      "id": "holdout-14",
+      "cohort": "holdout",
+      "query": "before you answer me in a new chat, first check the live status even if I only said hi",
+      "expected": "mem-20260829-506148d9"
     }
   ]
 }

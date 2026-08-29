@@ -19,7 +19,12 @@ class MemoryBootstrapTests(unittest.TestCase):
         }
         self.assertEqual(actual, expected)
         self.assertTrue(payload["contract"]["complete_behavior_semantics"])
+        self.assertIn("behavior/policy load only", payload["contract"]["completion_boundary"])
         self.assertFalse(payload["contract"]["history_included"])
+        self.assertFalse(payload["contract"]["live_status_included"])
+        self.assertIn("assistant must close the live-status gap", payload["contract"]["live_status_gap_owner"])
+        self.assertNotIn("only when the task needs them", payload["contract"]["follow_up"])
+        self.assertIn("before the first substantive response", payload["contract"]["follow_up"])
         self.assertNotIn("recent_events", payload)
         self.assertNotIn("projects", payload)
 
@@ -28,15 +33,31 @@ class MemoryBootstrapTests(unittest.TestCase):
         startup = payload["fresh_session_startup"]
         self.assertIn("fresh normal conversation only", startup["applies"])
         self.assertIn("must not retrigger this sweep", startup["rehydration"])
-        self.assertIn("wake-up/context selector", startup["wake_up_semantics"])
+        self.assertIn("first user message itself triggers startup", startup["wake_up_semantics"])
+        self.assertIn("first substantive response", startup["response_gate"])
+        self.assertIn("immediately after bootstrap", startup["live_orientation"])
         self.assertIn("scheduled-worker state/recent runs", startup["live_orientation"])
         self.assertIn("recent meaningful commits/PRs/checks", startup["live_orientation"])
+        self.assertIn("stay quiet about the sweep", startup["orientation_reporting"])
         self.assertIn("repair or contain it first", startup["anomaly_handling"])
-        self.assertIn("compact delta-only startup report", startup["startup_report"])
+        self.assertIn("re-check the relevant live sources", startup["current_status_refresh"])
+        self.assertEqual(
+            startup["authority_cross_references"],
+            ["assistant-orchestration/user-burden", "assistant-orchestration/tool-availability"],
+        )
+        self.assertIn("lead with the fire", startup["startup_report"])
         self.assertIn("status dump is never task completion", startup["continuation"])
         self.assertEqual(startup["source_contract"], "04 Operating Contracts/fresh-chat-startup-orientation.md")
         self.assertTrue((Path(__file__).resolve().parents[1] / startup["source_contract"]).is_file())
         self.assertTrue((Path(__file__).resolve().parents[1] / startup["personal_instructions_bridge"]).is_file())
+
+    def test_personal_instructions_bridge_requires_pre_response_live_orientation(self):
+        bridge = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").read_text(encoding="utf-8")
+        self.assertIn("before the first substantive answer", bridge)
+        self.assertIn("Do this even for a greeting", bridge)
+        self.assertIn("Do not decide the scan is unnecessary before acquiring it", bridge)
+        self.assertIn("If the bounded scan is clean, stay quiet about it", bridge)
+        self.assertIn("Re-check relevant live repo/coordinator/worker/CI/runtime state", bridge)
 
     def test_bootstrap_uses_current_five_worker_launch_supervision_rule(self):
         payload = build_behavior_bootstrap(load_bank())

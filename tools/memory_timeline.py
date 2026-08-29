@@ -321,26 +321,43 @@ def build_fresh_session_startup_contract() -> dict[str, Any]:
             "summary/compacted context is not a new fresh-session event and must not retrigger this sweep"
         ),
         "wake_up_semantics": (
-            "a short project name, go/continue, or otherwise underspecified first message is a wake-up/context "
-            "selector; resolve established shorthand and the active mission from Vault plus live state before "
-            "asking the user to restate known context"
+            "the first user message itself triggers startup even when it is only a greeting, short project name, "
+            "go/continue, status question, or otherwise underspecified wake-up/context selector; resolve established "
+            "shorthand and the active mission from Vault plus live state before asking the user to restate known context"
+        ),
+        "response_gate": (
+            "do not send the first substantive response until the bounded live orientation has been attempted through "
+            "the available relevant routes and the material current status is known; a greeting or short exchange does not bypass this gate"
         ),
         "live_orientation": (
-            "before long work, inspect enough relevant live truth to understand what is actually happening; "
-            "for project work this normally includes repo HEAD/origin/dirty state, recent meaningful commits/PRs/checks, "
-            "current ownership/claims, scheduled-worker state/recent runs, and material runtime/machine alerts; "
-            "broaden to the wider fleet only when the task or symptoms require it"
+            "immediately after bootstrap and before the first substantive response, always inspect enough relevant live truth "
+            "to understand what is actually happening; for project work this normally includes repo HEAD/origin/dirty state, "
+            "recent meaningful commits/PRs/checks, current ownership/claims, scheduled-worker state/recent runs, and material "
+            "runtime/machine alerts; do not pre-judge the scan as unnecessary, and broaden to the wider fleet only when the task, "
+            "active alerts, or observed symptoms require it"
+        ),
+        "orientation_reporting": (
+            "if the bounded scan is clean, stay quiet about the sweep; if it exposes a material abnormality, lead the first "
+            "substantive response with that abnormality and any safe containment already performed"
         ),
         "anomaly_handling": (
             "if the live scan shows an obvious operational failure or contradictory state, repair or contain it first "
             "when safely authorized; do not replace the inherited mission with scheduler churn or new architecture"
         ),
+        "current_status_refresh": (
+            "after startup, re-check the relevant live sources before any later answer whose correctness depends on current "
+            "repo/coordinator/worker/CI/runtime status; an earlier snapshot is timestamped evidence, not permanent authority"
+        ),
+        "authority_cross_references": [
+            "assistant-orchestration/user-burden",
+            "assistant-orchestration/tool-availability",
+        ],
         "startup_report": (
-            "before entering long-running execution, emit one compact delta-only startup report containing material "
-            "new/proven state or repairs; do not dump orientation facts the user already knows and do not wait for approval"
+            "report only material abnormal proven state or repairs: stay silent when clean, and when abnormal lead with the fire; "
+            "do not dump the orientation transcript or facts the user already knows"
         ),
         "continuation": (
-            "after the startup report, continue the highest-value safe inherited/project work automatically; "
+            "after any necessary abnormality report, continue the highest-value safe inherited/project work automatically; "
             "orientation, a context-loaded message, or a status dump is never task completion"
         ),
         "source_contract": "04 Operating Contracts/fresh-chat-startup-orientation.md",
@@ -370,9 +387,11 @@ def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any
         "purpose": "mandatory behavior bootstrap / post-compaction rehydration",
         "contract": {
             "complete_behavior_semantics": True,
+            "completion_boundary": "complete_behavior_semantics means the behavior/policy load only; fresh-chat live orientation remains outstanding until verified",
             "history_included": False,
             "live_status_included": False,
-            "follow_up": "use context/timeline/live sources only when the task needs them",
+            "live_status_gap_owner": "assistant must close the live-status gap with a bounded relevant scan before the first substantive response of a fresh chat",
+            "follow_up": "always acquire the bounded fresh-chat live orientation before the first substantive response; thereafter re-check live sources before any answer whose correctness depends on current status; report only material abnormality",
         },
         "fresh_session_startup": build_fresh_session_startup_contract(),
         "behavior_profile": user_rules,

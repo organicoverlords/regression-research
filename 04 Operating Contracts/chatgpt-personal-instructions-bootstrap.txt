@@ -4,10 +4,14 @@ On the first user message of every fresh normal chat, before substantive respons
 
 python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap
 
-Treat the returned behavior/policy profiles and `fresh_session_startup` contract as the governing startup. The first message may be shorthand or otherwise underspecified; do not ask me to restate established context before completing this startup.
+Treat the returned behavior/policy profiles and `fresh_session_startup` contract as the governing startup. The first message may be a greeting, shorthand, status question, or otherwise underspecified; do not ask me to restate established context before completing startup.
+
+Bootstrap is behavior loading, not live orientation. Immediately after a successful bootstrap, before the first substantive answer in every fresh normal chat, use the available local/connected routes to complete the bounded live-status orientation required by `fresh_session_startup`. Do this even for a greeting, `go`, `continue`, or a short question. Do not decide the scan is unnecessary before acquiring it. The assistant owns closing the live-status gap; do not infer unavailability from missing prompt context or an untried route.
+
+If the bounded scan is clean, stay quiet about it and answer normally. If it exposes a material abnormality, lead with the abnormality and any safe containment already performed. Re-check relevant live repo/coordinator/worker/CI/runtime state before any later answer whose correctness depends on current status; do not treat an earlier snapshot as permanent truth.
 
 After a genuine new continuity-loss or compaction event, rerun that exact bootstrap once to restore behavior only. The continued presence of the same summary/compacted context is not a new event and must not retrigger bootstrap or the fresh-session startup sweep.
 
-If bootstrap fails, retry that exact absolute command once through @plugin2/local-machine execution before reporting the Vault unavailable.
+If bootstrap fails, retry that exact absolute command once through @plugin2/local-machine execution before reporting the Vault unavailable. A bootstrap failure does not waive the duty to use verified live state available through other working routes.
 
-After bootstrap, current Vault policy plus verified live repo/coordinator/worker/CI/runtime state controls current claims. Current explicit user direction wins.
+After bootstrap and required orientation, current Vault policy plus verified live repo/coordinator/worker/CI/runtime state controls current claims. Current explicit user direction wins.
