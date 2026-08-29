@@ -15,7 +15,7 @@ Supported coordinator operations are `list`, `sweep`, `snapshot`, `enqueue`, `re
 
 The tool apps are separate from MCP. They are intended to be invoked through an existing process tool or directly from the local machine; neither implementation is registered as a GPT/MCP tool. The MCP connectors remain interchangeable transport entrances, not ownership systems.
 
-`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` without changing the canonical store.
+`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` by default without changing the canonical store; generated wrappers resolve their installed Python/Rust payload relative to the wrapper location so alternate destinations remain self-contained.
 The installer also overwrites the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` entrypoint with the current Python implementation so older callers cannot retain a destructive claims-only writer.
 
 Verification:
@@ -35,4 +35,4 @@ Do not add a dashboard, dispatcher UI, scoring system, workflow language, connec
 
 ## Scout finding fan-in
 
-`handoff <actor> <parent-scope> --finding-id <id> --source <provenance> --summary <text>` creates a separate ready follow-up job at `<parent-scope>::handoff:<id>`. The job stores structured `handoff` provenance (`parent_scope`, `finding_id`, `reported_by`, `source`, `summary`, `reported_at`) and is selected by the existing `next` command. It does not require or create ownership of the parent scope, so a scout blocked by a real live owner can durably fan work in without weakening BUSY authority. Parent release, block, or completion does not remove the follow-up job. Handoff provenance is bounded at 2,048 characters for `source` and 8,192 characters for `summary` so a single finding cannot grow the canonical coordinator store without limit.
+`handoff <actor> <parent-scope> --finding-id <id> --source <provenance> --summary <text>` creates a separate ready follow-up job at `<parent-scope>::handoff:<id>`. The job stores structured `handoff` provenance (`parent_scope`, `finding_id`, `reported_by`, `source`, `summary`, `reported_at`) and is selected by the existing `next` command. It does not require or create ownership of the parent scope, so a scout blocked by a real live owner can durably fan work in without weakening BUSY authority. Parent release, block, or completion does not remove the follow-up job. Handoff provenance is bounded at 2,048 characters for `source` and 4,096 characters for `summary` so a single finding cannot grow the canonical coordinator store without limit and the documented maxima remain callable through the canonical Windows `.cmd` wrappers.

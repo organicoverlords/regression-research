@@ -21,7 +21,7 @@ const LOCK_RETRY: Duration = Duration::from_millis(10);
 const DEFAULT_LEASE_SECONDS: i64 = 3600;
 const MAX_OPERATIONS: usize = 512;
 const MAX_HANDOFF_SOURCE_CHARS: usize = 2048;
-const MAX_HANDOFF_SUMMARY_CHARS: usize = 8192;
+const MAX_HANDOFF_SUMMARY_CHARS: usize = 4096;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 struct Claim {

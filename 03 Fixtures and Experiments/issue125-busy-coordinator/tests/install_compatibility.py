@@ -64,6 +64,48 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     }
     assert py_view["focus"]["claim"]["actor"] == "actor-a"
 
+    # Canonical Windows .cmd wrappers must be able to carry the documented
+    # maximum provenance payload and reject one character above the summary bound.
+    for kind, wrapper in [
+        ("py", destination / "busy-python.cmd"),
+        ("rs", destination / "busy-rust.cmd"),
+    ]:
+        max_store = base / f"handoff-max-{kind}.json"
+        max_handoff = subprocess.run(
+            [
+                "cmd.exe", "/d", "/c", str(wrapper),
+                "--store", str(max_store),
+                "handoff", "scout", "repo#194:parent",
+                "--finding-id", f"max-{kind}",
+                "--source", "s" * 2048,
+                "--summary", "x" * 4096,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert max_handoff.returncode == 0, max_handoff.stderr or max_handoff.stdout
+        max_state = json.loads(max_store.read_text(encoding="utf-8"))
+        max_job = max_state["coordinator"]["jobs"][f"repo#194:parent::handoff:max-{kind}"]
+        assert len(max_job["handoff"]["source"]) == 2048
+        assert len(max_job["handoff"]["summary"]) == 4096
+
+        over_store = base / f"handoff-over-{kind}.json"
+        over_handoff = subprocess.run(
+            [
+                "cmd.exe", "/d", "/c", str(wrapper),
+                "--store", str(over_store),
+                "handoff", "scout", "repo#194:parent",
+                "--finding-id", f"over-{kind}",
+                "--source", "source:ok",
+                "--summary", "x" * 4097,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert over_handoff.returncode == 1
+        assert over_handoff.stderr.strip() == "summary exceeds 4096 characters"
+        assert not over_store.exists(), "rejected wrapper handoff must not create coordinator state"
+
     released = subprocess.run(
         [sys.executable, str(legacy), "--store", str(store), "release", "actor-a", "scope-a"],
         capture_output=True,
@@ -79,4 +121,5 @@ print(json.dumps({
     "legacy_entrypoint_overwritten": True,
     "coordinator_preserved": True,
     "snapshot_parity": True,
+    "cmd_handoff_bounds": True,
 }))
