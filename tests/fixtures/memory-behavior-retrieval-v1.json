@@ -108,8 +108,8 @@
     {
       "id": "holdout-12",
       "cohort": "holdout",
-      "query": "don't change my personality or style setting unless I explicitly ask",
-      "expected": "mem-20260829-b53668c4"
+      "query": "for a small status or yes-no answer, lead with the answer and keep it to one short paragraph without bullets or arrows",
+      "expected": "mem-20260829-43f1fd47"
     },
     {
       "id": "holdout-13",
@@ -134,6 +134,12 @@
       "cohort": "holdout",
       "query": "before you answer me in a new chat, first check the live status even if I only said hi",
       "expected": "mem-20260829-506148d9"
+    },
+    {
+      "id": "dev-09",
+      "cohort": "development",
+      "query": "if the current worker fleet is bugged, replace it with five fresh workers in one setup pass and use worker one execution as the acceptance gate",
+      "expected": "mem-20260829-bf3bcb41"
     }
   ]
 }

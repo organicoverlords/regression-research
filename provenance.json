@@ -551,6 +551,67 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexed from the coordinator handoff after the merged report broke current-main provenance validation. No missing provenance links were inferred."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-29_armworkers-orchestration-fiasco-root-cause_report.md",
+      "title": "Armworkers orchestration fiasco root-cause report",
+      "date": "2026-08-29T00:00:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Historical armworkers analysis retained for incident provenance; its worker-mode decision language is explicitly superseded by the current fresh-worker launch contract."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-29_1014_EEST_fresh-worker-reset-policy-conflict_incident_report.md",
+      "title": "Incident Report ? Fresh-worker reset policy conflict",
+      "date": "2026-08-29T10:14:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [
+        "04 Operating Contracts/fresh-worker-generation-launch.md"
+      ],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked"
+      ],
+      "notes": "Records the policy conflict that misclassified a user-confirmed bugged fleet as a rearm; current contract and regression coverage are linked directly."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-29_1042_EEST_slopwall-premature-fixed-and-text-shape.md",
+      "title": "Slopwall incident: premature fixed claim and text-shape failure",
+      "date": "2026-08-29T10:42:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Records the premature fixed claim and compact-presentation failure; the durable behavior correction is preserved in the memory bank and regression retrieval fixture."
     }
   ],
   "orphan_evidence": [

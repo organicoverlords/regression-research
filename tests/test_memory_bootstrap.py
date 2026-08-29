@@ -64,6 +64,9 @@ class MemoryBootstrapTests(unittest.TestCase):
         active = {item["id"]: item["text"] for item in payload["behavior_profile"]}
         self.assertIn("mem-20260829-d3594411", active)
         self.assertNotIn("mem-20260829-59cf4996", active)
+        self.assertIn("mem-20260829-bf3bcb41", active)
+        self.assertNotIn("mem-20260827-fb095ec2", active)
+        self.assertNotIn("mem-20260828-ca3fc66a", active)
         rule = active["mem-20260829-d3594411"]
         self.assertIn("arm all five workers", rule)
         self.assertIn("reports the arm immediately", rule)
@@ -76,6 +79,17 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("Do not hang around waiting for Worker 1", contract)
         self.assertIn("A failed first launch starts an immediate repair loop", contract)
         self.assertIn("do not create a verifier timer as a substitute", contract)
+        self.assertIn("bugged, poisoned, stale, contaminated", contract)
+        self.assertIn("already sufficient justification for replacement", contract)
+        self.assertIn("Arming all five fresh workers is one setup pass", contract)
+
+        template = (Path(__file__).resolve().parents[1] / "templates/P3-V2-SWARM-TEMPLATE.md").read_text(encoding="utf-8-sig")
+        self.assertIn("fresh five-worker P3 V2 generations", template)
+        self.assertIn("Exactly five recurring workers per fresh generation", template)
+        self.assertIn("Workers 2-5 are armed in the same setup pass as Worker 1", template)
+        self.assertIn("Preserve Workers 2-5 unless current evidence shows the whole generation shares the defect", template)
+        self.assertNotIn("Exactly four recurring workers per fresh generation", template)
+        self.assertNotIn("fresh four-worker generation", template)
 
     def test_bootstrap_has_a_bounded_startup_budget(self):
         rendered = json.dumps(build_behavior_bootstrap(load_bank()), ensure_ascii=False)
