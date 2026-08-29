@@ -11,6 +11,8 @@ LOCK_STALE_S = 15.0
 LOCK_RETRY_S = 0.01
 DEFAULT_LEASE_S = 3600
 MAX_OPERATIONS = 512
+MAX_HANDOFF_SOURCE_CHARS = 2048
+MAX_HANDOFF_SUMMARY_CHARS = 8192
 
 
 def default_store() -> Path:
@@ -248,6 +250,10 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                 raise ValueError("source must not be empty")
             if not summary_value:
                 raise ValueError("summary must not be empty")
+            if len(source_value) > MAX_HANDOFF_SOURCE_CHARS:
+                raise ValueError(f"source exceeds {MAX_HANDOFF_SOURCE_CHARS} characters")
+            if len(summary_value) > MAX_HANDOFF_SUMMARY_CHARS:
+                raise ValueError(f"summary exceeds {MAX_HANDOFF_SUMMARY_CHARS} characters")
             scope = f"{parent_scope}::handoff:{finding}"
             signature = {
                 "command": command,

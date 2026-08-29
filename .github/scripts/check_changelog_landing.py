@@ -12,6 +12,9 @@ TIMELINE_EXEMPT_PATHS = {"memory/memory-bank.jsonl"}
 
 
 def unreleased_lines(changelog: str) -> list[str]:
+    marker = re.search(r"(?m)^(<<<<<<< .+|=======|>>>>>>> .+)$", changelog)
+    if marker:
+        raise SystemExit(f"CHANGELOG_LANDING_FAIL: CHANGELOG contains merge-conflict marker: {marker.group(0)}")
     if "`r`n" in changelog:
         raise SystemExit("CHANGELOG_LANDING_FAIL: CHANGELOG contains literal PowerShell `r`n escapes")
     lines = changelog.splitlines()

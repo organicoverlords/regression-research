@@ -20,6 +20,8 @@ const LOCK_STALE: Duration = Duration::from_secs(15);
 const LOCK_RETRY: Duration = Duration::from_millis(10);
 const DEFAULT_LEASE_SECONDS: i64 = 3600;
 const MAX_OPERATIONS: usize = 512;
+const MAX_HANDOFF_SOURCE_CHARS: usize = 2048;
+const MAX_HANDOFF_SUMMARY_CHARS: usize = 8192;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 struct Claim {
@@ -554,6 +556,12 @@ fn operate(
         }
         if summary.is_empty() {
             return Err("summary must not be empty".into());
+        }
+        if source.chars().count() > MAX_HANDOFF_SOURCE_CHARS {
+            return Err(format!("source exceeds {MAX_HANDOFF_SOURCE_CHARS} characters"));
+        }
+        if summary.chars().count() > MAX_HANDOFF_SUMMARY_CHARS {
+            return Err(format!("summary exceeds {MAX_HANDOFF_SUMMARY_CHARS} characters"));
         }
         let follow_scope = format!("{scope}::handoff:{finding}");
         let result = if let Some(job) = state.coordinator.jobs.get(&follow_scope) {
