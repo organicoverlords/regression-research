@@ -83,6 +83,31 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(by_id["linked"]["project_linkage"], "ENTITY_MENTION")
         self.assertEqual(by_id["linked"]["projects"], [])
 
+    def test_orientation_includes_current_explicit_behavior_profile(self):
+        rule = self.e("rule", "2026-08-29T10:00:00+03:00", "Keep working until the bounded task is done.", kind="preference")
+        rule["evidence"] = ["user-instruction:test"]
+        advisory = self.e("advisory", "2026-08-29T09:00:00+03:00", "Historical suggestion", kind="lesson")
+        orientation = build_orientation([advisory, rule], projects=[], behavior_rules=8)
+        self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["rule"])
+        self.assertEqual(orientation["behavior_profile"][0]["authority_role"], "USER_EXPLICIT")
+        self.assertIn("explicit user-authored behavior", orientation["contract"]["behavior_profile"])
+
+    def test_orientation_keeps_canonical_policy_separate_from_user_behavior(self):
+        user_rule = self.e("user", "2026-08-29T10:00:00+03:00", "User rule", kind="preference", evidence=["user-instruction:test"])
+        policy = self.e("policy", "2026-08-29T11:00:00+03:00", "Repo policy", kind="decision", evidence=["repo-policy:test"])
+        orientation = build_orientation([policy, user_rule], projects=[])
+        self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["user"])
+        self.assertEqual([item["id"] for item in orientation["canonical_policy_profile"]], ["policy"])
+
+    def test_orientation_behavior_profile_is_bounded(self):
+        rules = []
+        for index in range(5):
+            rule = self.e(f"rule-{index}", f"2026-08-2{index+1}T10:00:00+03:00", f"Rule {index}", kind="preference")
+            rule["evidence"] = ["user-instruction:test"]
+            rules.append(rule)
+        orientation = build_orientation(rules, projects=[], behavior_rules=2)
+        self.assertEqual(len(orientation["behavior_profile"]), 2)
+
     def test_orientation_prioritizes_explicit_project_events_over_incidental_mentions(self):
         explicit = self.e("p3-explicit", "2026-08-28T20:00:00+03:00", "P3 durable event", scope="p3/build", project="p3")
         newer_link = self.e("p3-mentioned", "2026-08-29T02:00:00+03:00", "Global incident mentioning P3", scope="assistant-orchestration/incident")

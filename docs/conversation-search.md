@@ -69,3 +69,15 @@ The refresh reads the source paths already recorded in the canonical corpus mani
 This closes the moving-source gap without making Downloads a runtime search dependency: Downloads are acquisition sources, the Vault remains canonical, and ordinary recall still searches only preserved Vault bytes.
 
 Original source files are never deleted, moved, renamed, overwritten, or treated as disposable. The private corpus itself is also never committed to Git.
+## Deterministic user-message catalog
+
+The preserved corpus can be deterministically projected into a user-authored-message catalog without downloading or ingesting anything new:
+
+```powershell
+python tools\user_message_catalog.py summary
+python tools\user_message_catalog.py build
+```
+
+The output lives under `.state/user-message-catalog/` and is rebuildable/private local state. Every indexed `role=user` message receives its existing stable message UID, timestamp/order metadata, source locators, a content hash, and conservative rule-candidate signals. Candidate classification is forensic only: it never grants behavioral authority by itself. Promotion into current behavior still requires explicit user authority and curated memory records.
+
+This catalog closes the old recovery handoff gap: swarm/forensic extraction can enumerate historical rule candidates deterministically, while fresh-chat behavior consumes only the compact current behavior records in the Vault. It does not make the legacy full-conversation archive a runtime dependency and it does not create any ChatGPT download mechanism.
