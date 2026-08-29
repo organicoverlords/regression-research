@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [meta] Synced the shared coordinator identity policy so every mutation claim actor names its harness plus a task/session suffix.
+
 - [2026-08-29] [meta] Recorded the positive control that required Vault bootstrap and governing shared-policy/RED ALERT context were loaded before the conditional incident-report decision.
 
 - [2026-08-29] [meta] Synced the shared Vault-continuity policy so fresh coding sessions bootstrap from the Vault while retaining standalone BusyCoordinator authority.
