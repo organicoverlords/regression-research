@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [coordination] Upstreamed the live BusyCoordinator snapshot projection with Python/Rust/install parity so runtime convergence preserves snapshot visibility alongside queue-aging and handoff-bound fixes (#194).
+
 - [2026-08-29] [coordination] Made BusyCoordinator queue selection age-first so older ready jobs are claimed before lexicographically earlier newer scopes.
 
 - [2026-08-29] [meta] Bounded BUSY coordinator handoff provenance (`source` 2,048 chars; `summary` 8,192 chars) with Python/Rust parity regression coverage so one scout finding cannot grow canonical coordinator state without limit (#194).

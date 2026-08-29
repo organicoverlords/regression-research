@@ -239,6 +239,130 @@ fn claim_index(state: &StoreFile, scope: &str) -> Option<usize> {
     state.claims.iter().position(|claim| claim.scope == scope)
 }
 
+fn compact_job(job: &Job) -> Value {
+    let mut map = Map::new();
+    map.insert("scope".into(), json!(job.scope));
+    map.insert("state".into(), json!(job.state));
+    if let Some(owner) = &job.owner {
+        map.insert("owner".into(), json!(owner));
+    }
+    if let Some(checkpoint) = &job.checkpoint {
+        map.insert("checkpoint".into(), json!(checkpoint));
+    }
+    if let Some(lease) = &job.lease_expires_at {
+        map.insert("lease_expires_at".into(), json!(lease));
+    }
+    map.insert("updated_at".into(), json!(job.updated_at));
+    Value::Object(map)
+}
+
+fn snapshot_state(
+    state: &StoreFile,
+    actor: Option<&str>,
+    raw_scope: Option<&str>,
+    limit: usize,
+    expired: &[Value],
+) -> Result<Value, String> {
+    let limit = limit.clamp(1, 32);
+    let mut jobs: Vec<&Job> = state.coordinator.jobs.values().collect();
+    jobs.sort_by(|a, b| a.scope.cmp(&b.scope));
+
+    let count_state = |name: &str| jobs.iter().filter(|job| job.state == name).count();
+    let mut claims = state.claims.clone();
+    claims.sort_by(|a, b| a.scope.cmp(&b.scope));
+    let legacy_only: Vec<Claim> = claims
+        .iter()
+        .filter(|claim| !state.coordinator.jobs.contains_key(&claim.scope))
+        .cloned()
+        .collect();
+    let ready: Vec<Value> = jobs
+        .iter()
+        .filter(|job| job.state == "ready")
+        .take(limit)
+        .map(|job| compact_job(job))
+        .collect();
+    let blocked: Vec<Value> = jobs
+        .iter()
+        .filter(|job| job.state == "blocked")
+        .take(limit)
+        .map(|job| compact_job(job))
+        .collect();
+
+    let mut result = Map::new();
+    result.insert("ok".into(), json!(true));
+    result.insert(
+        "counts".into(),
+        json!({
+            "active": count_state("active"),
+            "ready": count_state("ready"),
+            "blocked": count_state("blocked"),
+            "completed": count_state("completed"),
+            "claims": claims.len(),
+            "legacy_only_claims": legacy_only.len(),
+        }),
+    );
+    result.insert("ready".into(), Value::Array(ready));
+    result.insert("blocked".into(), Value::Array(blocked));
+    result.insert(
+        "legacy_only_claims".into(),
+        json!(legacy_only.into_iter().take(limit).collect::<Vec<_>>()),
+    );
+
+    let active: Vec<&Job> = jobs.iter().copied().filter(|job| job.state == "active").collect();
+    if let Some(actor) = actor {
+        result.insert(
+            "owned".into(),
+            Value::Array(
+                active
+                    .iter()
+                    .copied()
+                    .filter(|job| job.owner.as_deref() == Some(actor))
+                    .take(limit)
+                    .map(compact_job)
+                    .collect(),
+            ),
+        );
+        result.insert(
+            "active_other".into(),
+            Value::Array(
+                active
+                    .iter()
+                    .copied()
+                    .filter(|job| job.owner.as_deref() != Some(actor))
+                    .take(limit)
+                    .map(compact_job)
+                    .collect(),
+            ),
+        );
+    } else {
+        result.insert(
+            "active".into(),
+            Value::Array(active.into_iter().take(limit).map(compact_job).collect()),
+        );
+    }
+
+    if let Some(raw_scope) = raw_scope {
+        let scope = canonical_scope(raw_scope)?;
+        let job = state
+            .coordinator
+            .jobs
+            .get(&scope)
+            .map(|job| json!(job))
+            .unwrap_or(Value::Null);
+        let claim = claim_index(state, &scope)
+            .map(|index| json!(&state.claims[index]))
+            .unwrap_or(Value::Null);
+        result.insert("focus".into(), json!({"scope": scope, "job": job, "claim": claim}));
+    }
+    if !expired.is_empty() {
+        result.insert(
+            "expired".into(),
+            Value::Array(expired.iter().take(limit).cloned().collect()),
+        );
+    }
+    Ok(Value::Object(result))
+}
+
 fn prune_operations(state: &mut StoreFile) {
     if state.coordinator.operations.len() <= MAX_OPERATIONS {
         return;
@@ -351,6 +475,37 @@ struct Options {
     source: Option<String>,
     summary: Option<String>,
     lease_seconds: i64,
+    limit: usize,
+}
+
+fn parse_snapshot_options(args: &[String]) -> Result<(Option<String>, Option<String>, usize), String> {
+    let mut actor = None;
+    let mut scope = None;
+    let mut limit = 8_i64;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--actor" => {
+                index += 1;
+                actor = Some(args.get(index).ok_or("--actor requires a value")?.clone());
+            }
+            "--scope" => {
+                index += 1;
+                scope = Some(args.get(index).ok_or("--scope requires a value")?.clone());
+            }
+            "--limit" => {
+                index += 1;
+                limit = args
+                    .get(index)
+                    .ok_or("--limit requires a value")?
+                    .parse::<i64>()
+                    .map_err(|_| "invalid --limit")?;
+            }
+            other => return Err(format!("unknown option: {other}")),
+        }
+        index += 1;
+    }
+    Ok((actor, scope, limit.clamp(1, 32) as usize))
 }
 
 fn parse_options(
@@ -468,6 +623,12 @@ fn operate(
         }
         state.claims.sort_by(|a, b| a.scope.cmp(&b.scope));
         return Ok(json!({"claims": state.claims}));
+    }
+    if command == "snapshot" {
+        if sweep_changed {
+            persist(store, &state)?;
+        }
+        return snapshot_state(&state, actor, raw_scope, options.limit, &swept);
     }
     if command == "sweep" {
         if sweep_changed {
@@ -766,8 +927,22 @@ fn run() -> Result<(), String> {
     } else {
         default_store()
     };
-    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|enqueue|ready|handoff|next|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
+    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|snapshot|enqueue|ready|handoff|next|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
     raw.remove(0);
+    if command == "snapshot" {
+        let (actor, scope, limit) = parse_snapshot_options(&raw)?;
+        let options = Options {
+            limit,
+            ..Options::default()
+        };
+        return print_json(&operate(
+            &store,
+            &command,
+            actor.as_deref(),
+            scope.as_deref(),
+            &options,
+        )?);
+    }
     if matches!(command.as_str(), "list" | "sweep") {
         if !raw.is_empty() {
             return Err(format!("usage: busy-rs {command}"));
