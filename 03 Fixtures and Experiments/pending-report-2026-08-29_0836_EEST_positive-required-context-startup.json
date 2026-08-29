@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-91534b1bae8fd0d5",
+  "title": "Positive control - required-context startup succeeded",
+  "source_report": "01 Reports/2026-08-29_0836_EEST_positive-required-context-startup.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established by this provenance repair."
+}
