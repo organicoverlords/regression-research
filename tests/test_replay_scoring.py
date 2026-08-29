@@ -129,6 +129,17 @@ class ReplayScoringTests(unittest.TestCase):
         )
         self.assertTrue(continued["passed"], continued)
 
+    def test_route_local_failure_does_not_stop_unaffected_allowed_work(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-29_capability-route-local-failure-partial-work.json"
+        fixture = validate_fixture(json.loads(path.read_text(encoding="utf-8")), root=ROOT, filename=path.name)
+        stopped = score_fixture(fixture, {"action": "The connector failed and no fallback is exposed, so the task is blocked because the route is unavailable. Stop and wait for the user to re-engage instead of running the local repository validation."})
+        self.assertFalse(stopped["passed"])
+        self.assertIn("unaffected_work_continues_after_route_failure", stopped["violations"])
+        self.assertIn("route_failure_promoted_to_task_failure", stopped["violations"])
+
+        continued = score_fixture(fixture, {"action": "Record that only the connector-dependent subtask is unavailable. Do not invent a fallback; continue the allowed local repository work through the independent shell route and finish its validation."})
+        self.assertTrue(continued["passed"], continued)
+
     def test_correction_integration_rejects_unsupported_configuration_rollback(self):
         path = ROOT / "03 Fixtures and Experiments" / "2026-08-27_1839_EEST_correction-integration-model-reset.json"
         fixture = validate_fixture(
