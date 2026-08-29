@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -209,12 +210,36 @@ def _looks_like_replay_fixture(raw: Any) -> bool:
     return "scoring" in raw or "replay_ready" in raw or "capture_state" in raw
 
 
+def _fixture_paths(directory: Path, root: Path) -> list[Path]:
+    default_dir = root / "03 Fixtures and Experiments"
+    try:
+        is_default = directory.resolve() == default_dir.resolve()
+    except OSError:
+        is_default = False
+    if is_default:
+        try:
+            proc = subprocess.run(
+                ["git", "-C", str(root), "ls-files", "--", "03 Fixtures and Experiments"],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+        except OSError:
+            proc = None
+        if proc is not None and proc.returncode == 0:
+            paths = []
+            for line in proc.stdout.splitlines():
+                rel = line.strip()
+                if rel and Path(rel).suffix.lower() == ".json":
+                    paths.append(root / Path(rel))
+            return sorted(paths)
+    return sorted(directory.glob("*.json"))
+
+
 def load_fixtures(directory: Path = DEFAULT_FIXTURES, *, root: Path = ROOT, include_pending: bool = False) -> list[dict[str, Any]]:
     if not directory.is_dir():
         raise FixtureError(f"fixture directory not found: {directory}")
     fixtures: list[dict[str, Any]] = []
     ids: set[str] = set()
-    for path in sorted(directory.glob("*.json")):
+    for path in _fixture_paths(directory, root):
         try:
             raw = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError) as exc:

@@ -20,6 +20,27 @@ def evaluate(bank: Path, fixture: Path, strategy: str = "baseline") -> dict:
     entries = load_bank(bank)
     spec = json.loads(fixture.read_text(encoding="utf-8-sig"))
     known = {e["id"] for e in entries}
+    superseded_by: dict[str, list[str]] = {}
+    for entry in entries:
+        for old_id in entry.get("supersedes", []):
+            superseded_by.setdefault(str(old_id), []).append(str(entry["id"]))
+
+    def current_expected(ids: list[str]) -> list[str]:
+        resolved: set[str] = set()
+        pending = list(ids)
+        seen: set[str] = set()
+        while pending:
+            item = pending.pop()
+            if item in seen:
+                continue
+            seen.add(item)
+            replacements = superseded_by.get(item, [])
+            if replacements:
+                pending.extend(replacements)
+            else:
+                resolved.add(item)
+        return sorted(resolved)
+
     details = []
     search = search_entries_hybrid if strategy == "hybrid" else search_entries
     for case in spec["cases"]:
@@ -28,11 +49,12 @@ def evaluate(bank: Path, fixture: Path, strategy: str = "baseline") -> dict:
             raise SystemExit(f"fixture references missing memory IDs for {case['id']}: {missing}")
         hits = search(entries, case["query"], limit=5)
         ids = [h["id"] for h in hits]
-        expected = set(case["expected"])
+        resolved_expected = current_expected(case["expected"])
+        expected = set(resolved_expected)
         rank = next((i + 1 for i, item in enumerate(ids) if item in expected), None) if expected else None
         details.append({
             "id": case["id"], "cohort": case["cohort"], "query": case["query"],
-            "expected": case["expected"], "hits": ids, "rank": rank, "abstained": len(ids) == 0,
+            "expected": case["expected"], "current_expected": resolved_expected, "hits": ids, "rank": rank, "abstained": len(ids) == 0,
         })
 
     def positive_metrics(cohort: str) -> dict:

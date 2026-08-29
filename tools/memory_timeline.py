@@ -397,14 +397,16 @@ def build_orientation(
         }
 
     authorized = behavioral_context(items)
+    # Governing rules are never silently evicted by a presentation budget.
+    # The behavior_rules argument remains accepted for CLI compatibility only.
     behavior = [
         compact_behavior(entry) for entry in authorized
         if (entry.get("behavioral_authority") or {}).get("role") == "USER_EXPLICIT"
-    ][:max(0, int(behavior_rules))]
+    ]
     canonical_policy = [
         compact_behavior(entry) for entry in authorized
         if (entry.get("behavioral_authority") or {}).get("role") == "CANONICAL_POLICY"
-    ][:8]
+    ]
 
     return {
         "schema_version": 1,

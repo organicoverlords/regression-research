@@ -1,9 +1,16 @@
 import unittest
+from unittest.mock import patch
 
+import tools.memory_authority as memory_authority
 from tools.memory_bank import search_context_memory
 
 
 class MemoryContextRetrievalTests(unittest.TestCase):
+    def setUp(self):
+        authority_patch = patch.object(memory_authority, "VERIFIED_USER_AUTHORITY_IDS", memory_authority.VERIFIED_USER_AUTHORITY_IDS | {"rule"})
+        authority_patch.start()
+        self.addCleanup(authority_patch.stop)
+
     @staticmethod
     def entry(ident, text, *, project=None, scope="global"):
         out = {

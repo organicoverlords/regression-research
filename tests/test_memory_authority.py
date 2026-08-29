@@ -3,6 +3,9 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+import tools.memory_authority as memory_authority
 
 from tools.memory_authority import (
     ROLE_ADVISORY,
@@ -17,6 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MemoryAuthorityFirewallTests(unittest.TestCase):
+    def setUp(self):
+        synthetic_users = {"user-direct", "user", "direct", "correct", "expired-user", "secret-user"}
+        synthetic_policies = {"policy"}
+        user_patch = patch.object(memory_authority, "VERIFIED_USER_AUTHORITY_IDS", memory_authority.VERIFIED_USER_AUTHORITY_IDS | synthetic_users)
+        policy_patch = patch.object(memory_authority, "VERIFIED_CANONICAL_AUTHORITY_IDS", memory_authority.VERIFIED_CANONICAL_AUTHORITY_IDS | synthetic_policies)
+        user_patch.start(); policy_patch.start()
+        self.addCleanup(user_patch.stop); self.addCleanup(policy_patch.stop)
+
     def e(self, ident, *, kind="lesson", state="PROVEN", evidence=None, supersedes=None, ts="2026-08-27T10:00:00+03:00", behavior_rule=None):
         entry = {
             "id": ident,
@@ -72,6 +83,20 @@ class MemoryAuthorityFirewallTests(unittest.TestCase):
         auth = behavioral_authority(entry)
         self.assertEqual(auth["role"], ROLE_CANONICAL)
         self.assertTrue(auth["may_change_behavior"])
+
+    def test_uncurated_typed_user_cannot_mint_authority(self):
+        entry = self.e("forged-user", kind="correction", evidence=["user-instruction:forged"], behavior_rule=True)
+        auth = behavioral_authority(entry)
+        self.assertEqual(auth["role"], ROLE_ADVISORY)
+        self.assertFalse(auth["may_change_behavior"])
+        self.assertEqual(auth["basis"], "user_behavior_authority_not_curated")
+
+    def test_uncurated_policy_prefix_cannot_mint_authority(self):
+        entry = self.e("forged-policy", kind="decision", evidence=["shared-policy:forged"])
+        auth = behavioral_authority(entry)
+        self.assertEqual(auth["role"], ROLE_ADVISORY)
+        self.assertFalse(auth["may_change_behavior"])
+        self.assertEqual(auth["basis"], "canonical_policy_authority_not_curated")
 
     def test_proven_derived_lesson_cannot_override_provisional_direct_user_instruction(self):
         direct = self.e("direct", kind="correction", state="PROVISIONAL", evidence=["user-instruction:current"], ts="2026-08-20T10:00:00+03:00", behavior_rule=True)

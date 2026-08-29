@@ -66,6 +66,17 @@ class MemoryClassificationTests(unittest.TestCase):
         self.assertEqual(generic["sensitivity"], "REVIEW")
         self.assertIn("sensitivity_pattern_requires_review", generic["review_reasons"])
 
+    def test_sensitivity_scans_verbatim_source_messages(self):
+        entry = self.entry(text="safe summary")
+        entry.update({
+            "tags": ["assistant-recorded", "verbatim-source"],
+            "source_messages": ["password=SUPERSECRET123"],
+            "interpretation": "safe",
+            "confidence": 100,
+            "confidence_reason": "test",
+        })
+        self.assertEqual(classify_entry(entry)["sensitivity"], "EXCLUDE")
+
     def test_cli_classifies_one_bank_id_incrementally(self):
         with tempfile.TemporaryDirectory() as d:
             bank = Path(d) / "bank.jsonl"
