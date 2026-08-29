@@ -14,6 +14,11 @@ class WipHygieneTests(unittest.TestCase):
         self.assertEqual(classify_path("tmp-cloudflare-ab/cloudflared.log"), "private_temp")
         self.assertEqual(classify_path("tmp-current-chat-cdp.mjs"), "private_temp")
 
+    def test_local_temp_and_checkpoint_artifacts_are_explicit_review_buckets(self):
+        self.assertEqual(classify_path("tmp_pi_new.png"), "local_temp_review")
+        self.assertEqual(classify_path("tmp_slopwall_wordforword_index.txt"), "local_temp_review")
+        self.assertEqual(classify_path("CONTEXT_PRUNE_SAFEPOINT.txt"), "continuity_checkpoint_review")
+
     def test_unknown_wip_is_not_silently_ignored(self):
         self.assertEqual(classify_path("mystery-output.bin"), "unclassified")
 
