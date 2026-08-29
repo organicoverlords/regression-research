@@ -592,6 +592,26 @@
         "evidence_file_not_linked"
       ],
       "notes": "Records the policy conflict that misclassified a user-confirmed bugged fleet as a rearm; current contract and regression coverage are linked directly."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-29_1042_EEST_slopwall-premature-fixed-and-text-shape.md",
+      "title": "Slopwall incident: premature fixed claim and text-shape failure",
+      "date": "2026-08-29T10:42:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_linked",
+        "evidence_file_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Records the premature fixed claim and compact-presentation failure; the durable behavior correction is preserved in the memory bank and regression retrieval fixture."
     }
   ],
   "orphan_evidence": [
