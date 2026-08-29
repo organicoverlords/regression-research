@@ -20,6 +20,7 @@ const LOCK_STALE: Duration = Duration::from_secs(15);
 const LOCK_RETRY: Duration = Duration::from_millis(10);
 const DEFAULT_LEASE_SECONDS: i64 = 3600;
 const MAX_OPERATIONS: usize = 512;
+const MAX_COMPLETED_JOBS: usize = 256;
 const MAX_HANDOFF_SOURCE_CHARS: usize = 2048;
 const MAX_HANDOFF_SUMMARY_CHARS: usize = 4096;
 
@@ -380,6 +381,25 @@ fn prune_operations(state: &mut StoreFile) {
     }
 }
 
+fn prune_completed_jobs(state: &mut StoreFile) -> bool {
+    let mut completed: Vec<(String, String)> = state
+        .coordinator
+        .jobs
+        .iter()
+        .filter(|(_, job)| job.state == "completed")
+        .map(|(scope, job)| (scope.clone(), job.updated_at.clone()))
+        .collect();
+    if completed.len() <= MAX_COMPLETED_JOBS {
+        return false;
+    }
+    completed.sort_by(|a, b| (a.1.as_str(), a.0.as_str()).cmp(&(b.1.as_str(), b.0.as_str())));
+    let remove_count = completed.len() - MAX_COMPLETED_JOBS;
+    for (scope, _) in completed.into_iter().take(remove_count) {
+        state.coordinator.jobs.remove(&scope);
+    }
+    true
+}
+
 fn idempotent(state: &StoreFile, operation_id: Option<&str>, signature: &Value) -> Option<Value> {
     let id = operation_id?;
     let current = state.coordinator.operations.get(id)?;
@@ -616,22 +636,24 @@ fn operate(
     let _lock = StoreLock::acquire(store).map_err(|e| e.to_string())?;
     let mut state = load(store)?;
     let (swept, sweep_changed) = sweep_expired(&mut state);
+    let retention_changed = prune_completed_jobs(&mut state);
+    let state_changed = sweep_changed || retention_changed;
 
     if command == "list" {
-        if sweep_changed {
+        if state_changed {
             persist(store, &state)?;
         }
         state.claims.sort_by(|a, b| a.scope.cmp(&b.scope));
         return Ok(json!({"claims": state.claims}));
     }
     if command == "snapshot" {
-        if sweep_changed {
+        if state_changed {
             persist(store, &state)?;
         }
         return snapshot_state(&state, actor, raw_scope, options.limit, &swept);
     }
     if command == "sweep" {
-        if sweep_changed {
+        if state_changed {
             persist(store, &state)?;
         }
         return Ok(json!({"ok": true, "expired": swept}));
@@ -645,7 +667,7 @@ fn operate(
         sig_map.insert("lease_seconds".into(), json!(options.lease_seconds));
         let sig = Value::Object(sig_map);
         if let Some(replay) = idempotent(&state, options.operation_id.as_deref(), &sig) {
-            if sweep_changed {
+            if state_changed {
                 persist(store, &state)?;
             }
             return Ok(replay);
@@ -696,7 +718,7 @@ fn operate(
         include_checkpoint,
     );
     if let Some(replay) = idempotent(&state, options.operation_id.as_deref(), &sig) {
-        if sweep_changed {
+        if state_changed {
             persist(store, &state)?;
         }
         return Ok(replay);

@@ -11,6 +11,7 @@ LOCK_STALE_S = 15.0
 LOCK_RETRY_S = 0.01
 DEFAULT_LEASE_S = 3600
 MAX_OPERATIONS = 512
+MAX_COMPLETED_JOBS = 256
 MAX_HANDOFF_SOURCE_CHARS = 2048
 MAX_HANDOFF_SUMMARY_CHARS = 4096
 
@@ -166,6 +167,20 @@ def prune_operations(state: dict) -> None:
         ops.pop(key, None)
 
 
+def prune_completed_jobs(state: dict) -> bool:
+    jobs = state["coordinator"]["jobs"]
+    completed = [
+        (scope, job) for scope, job in jobs.items()
+        if isinstance(job, dict) and job.get("state") == "completed"
+    ]
+    if len(completed) <= MAX_COMPLETED_JOBS:
+        return False
+    completed.sort(key=lambda item: (str(item[1].get("updated_at", "")), item[0]))
+    for scope, _ in completed[: len(completed) - MAX_COMPLETED_JOBS]:
+        jobs.pop(scope, None)
+    return True
+
+
 def idempotent(state: dict, operation_id: str | None, signature: dict):
     if not operation_id:
         return None
@@ -236,8 +251,10 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
     with StoreLock(store):
         state = load_state(store)
         swept, sweep_changed = sweep_expired(state)
+        retention_changed = prune_completed_jobs(state)
+        state_changed = sweep_changed or retention_changed
         if command in {"list", "sweep", "snapshot"}:
-            if sweep_changed:
+            if state_changed:
                 persist(store, state)
             if command == "list":
                 return {"claims": sorted(state["claims"], key=lambda c: c["scope"])}
@@ -251,7 +268,7 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
             signature = {"command": command, "actor": actor, "lease_seconds": lease_seconds}
             replay = idempotent(state, operation_id, signature)
             if replay is not None:
-                if sweep_changed:
+                if state_changed:
                     persist(store, state)
                 return replay
             result = {"ok": False, "reason": "no_actionable_job", "expired": swept}
@@ -306,7 +323,7 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
             }
             replay = idempotent(state, operation_id, signature)
             if replay is not None:
-                if sweep_changed:
+                if state_changed:
                     persist(store, state)
                 return replay
             existing = job_for(state, scope)
@@ -351,7 +368,7 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
             signature["lease_seconds"] = lease_seconds
         replay = idempotent(state, operation_id, signature)
         if replay is not None:
-            if sweep_changed:
+            if state_changed:
                 persist(store, state)
             return replay
 
