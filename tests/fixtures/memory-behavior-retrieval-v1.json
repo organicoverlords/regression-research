@@ -102,8 +102,8 @@
     {
       "id": "holdout-11",
       "cohort": "holdout",
-      "query": "when I say slopwall, record the incident but keep working on the original task",
-      "expected": "mem-20260829-c959fb9e"
+      "query": "when I call out a slopwall, write a fresh incident report for that occurrence and then resume the original task",
+      "expected": "mem-20260829-d7598b39"
     },
     {
       "id": "holdout-12",
