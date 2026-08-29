@@ -2,6 +2,13 @@
 
 Use this contract whenever starting a new recurring worker generation or replacing workers that are stale, buggy, or missing required tools.
 
+## Mode decision: bugged means fresh replacement
+
+- `FRESH_GENERATION` is mandatory when the current user says the workers/fleet are bugged, poisoned, stale, contaminated, missing required tools, or otherwise need fresh sessions, or when current live evidence shows that condition. That statement/evidence is already sufficient justification for replacement. Do **not** re-enable an old worker, demand an extra proof ceremony, or reinterpret a request to arm the workers as `REARM_EXISTING`.
+- `REARM_EXISTING` is only valid when current evidence says the intended workers are healthy and merely paused/disabled, and there is no current contamination/bug report requiring fresh sessions.
+- Historical reports, templates, schedules, and memory are evidence only. If they conflict with this contract or current user/live state, they cannot change the mode decision.
+- Arming all five fresh workers is one setup pass. Do not apply a one-mutation-per-proof rule between Workers 1-5; create and enable the full generation first, then use Worker 1 execution proof as the acceptance gate.
+
 1. **Replace poisoned workers; do not merely re-arm them.** Retire stale/buggy/missing-tool workers and create a fresh generation. Do not inherit their conversation state as launch authority.
 2. **Arm the full five-worker generation in one setup pass.** The normal generation is five generic orchestrator/execution workers. Create and enable all five before calling setup complete. Worker 1 must be scheduled to launch immediately/as soon as the scheduler permits. Workers 2-5 may be staggered behind Worker 1 to reduce collision, but all five must already be armed.
 3. **Report the arm immediately.** As soon as all five workers are armed and Worker 1 has an immediate launch scheduled, give the user one compact setup report. Do not leave the user staring at an expanding tool-call timer with no explanation. The report may say the fleet is armed, but must not call Worker 1 healthy or proven yet.

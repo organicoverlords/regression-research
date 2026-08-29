@@ -1,6 +1,6 @@
-﻿# P3 V2 Swarm Canonical Template
+# P3 V2 Swarm Canonical Template
 
-Status: canonical local template for fresh four-worker P3 V2 generations.
+Status: canonical local template for fresh five-worker P3 V2 generations.
 
 
 ## ARMING GATE
@@ -13,13 +13,13 @@ Status: canonical local template for fresh four-worker P3 V2 generations.
 - Issues and PRs are work queues, not chatter surfaces: read them locally; mutate them only for concrete engineering actions such as creating a real missing North-Star work item, publishing a ready PR, updating the exact work item when materially needed, or merging proven work. Do not post routine progress/status spam.
 
 ## Swarm cadence and launch acceptance
-- Exactly four recurring workers per fresh generation.
+- Exactly five recurring workers per fresh generation.
 - Worker 1 launches as soon as practical. Never insert an arbitrary 12-minute pre-launch wait when testing a fresh generation.
-- Workers 2-4 stay held until Worker 1 has produced live acceptance proof; after acceptance, stagger their launches behind Worker 1 to avoid burst concurrency.
+- Workers 2-5 are armed in the same setup pass as Worker 1. They may be staggered behind Worker 1 to avoid burst concurrency, but they are not held pending Worker 1 acceptance.
 - Each worker repeats hourly after its accepted launch slot.
 - Schedule/enabled state is setup, not proof. Accept Worker 1 only after observing that the timer fired, `@plugin2` actually executed, local `git` and local `gh` succeeded, repo/head/remote identity was captured, and a real bounded work scope was selected/begun.
 - While Worker 1 is launching, the supervising ChatGPT run keeps doing useful P3 work and verifies Worker 1 before ending. Use a one-shot self-wakeup only if the supervising run cannot remain active through the launch window.
-- If Worker 1 fires without live tool proof, immediately treat the generation as unaccepted: keep Workers 2-4 held, retire the failed Worker 1, and diagnose the exact scheduled-tool route before another generation attempt. Never hope that a later hourly recurrence fixes it.
+- If Worker 1 fires without live tool proof, immediately treat Worker 1 as unaccepted: retire/recreate that failed Worker 1 and repeat the launch-proof loop. Preserve Workers 2-5 unless current evidence shows the whole generation shares the defect. Never hope that a later hourly recurrence fixes it.
 - Workers remain enabled continuously after acceptance unless the user explicitly says to stop them or the recurring mission is truly complete.
 - Finishing or blocking one task never disables, pauses, deletes, or reschedules a healthy accepted worker.
 
@@ -32,7 +32,7 @@ A worker conversation is considered tool/session-poisoned when its recent output
 - A report that OpenAI safety/tool routing blocked the local machine route before startup and the worker therefore cannot establish repo truth.
 - Repeated status-only runs with no substantive project work because the conversation's tools/routes are contaminated or unavailable.
 
-When such poisoning is observed, do not debug the worker conversation. Preserve its useful work, retire/disable that automation, and create a brand-new automation so the next run receives a fresh tool session. If several workers share the same contaminated generation/template, retire that contaminated generation and recreate a fresh four-worker generation under the launch-acceptance gate. Keep the swarm running; reset is not a stop command.
+When such poisoning is observed, do not debug the worker conversation. Preserve its useful work, retire/disable that automation, and create a brand-new automation so the next run receives a fresh tool session. If several workers share the same contaminated generation/template, retire that contaminated generation and recreate a fresh five-worker generation under the launch-acceptance gate. Keep the swarm running; reset is not a stop command.
 
 ## Core worker contract
 Every worker uses this same generic orchestrator/executor contract. Do not hard-code domain lanes into the launch prompt; choose live work from current PRs/issues and coordinator truth.
