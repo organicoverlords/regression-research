@@ -285,6 +285,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ### Changed
 
+- [2026-08-29] [meta] Retired the destructive legacy BUSY install entrypoint and normalized coordinator installation so all installed writer paths preserve the standalone coordinator durability contract (#194, PR #196).
+
 - [2026-08-27] Normalized the append-only memory corpus by collapsing four stale/duplicate clusters through supersession, added a derived exhaustive audit over all bank plus candidate-only records, reconciled an incoming unindexed incident report, and made committed audits self-identifying point-in-time normalized-text source receipts so later appends and Git/Windows line-ending conversion cannot masquerade as part of an older snapshot (#87).
 - [2026-08-27] Extended the `slopwall` corpus with four timestamp-bound prior-turn occurrences, raising the confirmed lower bound to 16 lexical occurrences and 12 corrective interventions while keeping incomplete contexts unscored (#89).
 - [2026-08-27] Added on-demand full-text conversation-corpus search over preserved ChatPort/local-exporter exports with deduplicated provenance, corpus-wide match counts and distribution, bounded cross-conversation sampling, and an incremental local index (#99).
