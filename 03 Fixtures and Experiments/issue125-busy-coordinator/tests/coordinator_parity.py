@@ -161,6 +161,17 @@ next_sibling = run("py", store8, "next", "analysis-worker", "--operation-id", "a
 assert next_sibling["ok"] is True and next_sibling["claim"]["scope"] == "repo#99:analysis"
 assert all(claim["scope"] != "repo#99:import" for claim in read(store8)["claims"])
 
+# Queue selection is age-first, not lexicographic by scope.
+for kind in ("py", "rs"):
+    store9 = new_store(f"age-first-{kind}")
+    assert run(kind, store9, "enqueue", "z-oldest", "--operation-id", f"{kind}-enqueue-old")["ok"] is True
+    time.sleep(0.02)
+    assert run(kind, store9, "enqueue", "a-newer", "--operation-id", f"{kind}-enqueue-new")["ok"] is True
+    picked = run(kind, store9, "next", f"{kind}-age-worker", "--operation-id", f"{kind}-age-next")
+    assert picked["ok"] is True and picked["claim"]["scope"] == "z-oldest"
+    store9.unlink(missing_ok=True)
+    pathlib.Path(str(store9) + ".lock").unlink(missing_ok=True)
+
 print(json.dumps({
     "result": "PASS",
     "cross_language_idempotency": True,

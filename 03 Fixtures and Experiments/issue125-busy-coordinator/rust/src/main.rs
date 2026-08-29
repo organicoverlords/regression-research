@@ -488,9 +488,13 @@ fn operate(
             return Ok(replay);
         }
         let mut result = json!({"ok": false, "reason": "no_actionable_job", "expired": swept});
-        let ready_scope = state.coordinator.jobs.iter().find_map(|(scope, job)| {
-            (job.state == "ready" && claim_index(&state, scope).is_none()).then(|| scope.clone())
-        });
+        let ready_scope = state
+            .coordinator
+            .jobs
+            .iter()
+            .filter(|(scope, job)| job.state == "ready" && claim_index(&state, scope).is_none())
+            .min_by_key(|(scope, job)| (job.updated_at.clone(), (*scope).clone()))
+            .map(|(scope, _)| scope.clone());
         if let Some(scope) = ready_scope {
             let timestamp = now_iso();
             let claim = Claim {
