@@ -206,6 +206,76 @@
         "overall": "partial_progress",
         "dispositions": {"repo-evidence": "execute", "context-cleanup": "authorization_required"}
       }
+    },
+    {
+      "id": "substantive-investigation-needs-exact-admission",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "inspect the issue and then investigate the failure"}
+      ],
+      "parts": [
+        {"id": "bounded-orientation", "action": "inspect", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:issue-125"},
+        {"id": "deep-investigation", "action": "analyze", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "substantive_investigation", "scope": "repo:issue-125"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"bounded-orientation": "execute", "deep-investigation": "claim_required"}
+      }
+    },
+    {
+      "id": "coordination-outage-defers-investigation-not-orientation",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "keep useful read-only orientation going even if coordination is unavailable"}
+      ],
+      "parts": [
+        {"id": "bounded-orientation", "action": "inspect", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:issue-125"},
+        {"id": "deep-investigation", "action": "analyze", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "substantive_investigation", "scope": "repo:issue-125"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": false,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"bounded-orientation": "execute", "deep-investigation": "defer_substantive_investigation"}
+      }
+    },
+    {
+      "id": "substantive-investigation-yields-to-live-owner",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "investigate issue 125"}
+      ],
+      "parts": [
+        {"id": "deep-investigation", "action": "analyze", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "substantive_investigation", "scope": "repo:issue-125"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [
+        {"scope": "repo:issue-125", "owner": "worker-b", "live": true}
+      ],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "degraded_without_total_refusal",
+        "dispositions": {"deep-investigation": "yield"}
+      }
     }
   ]
 }

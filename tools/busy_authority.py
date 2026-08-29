@@ -19,8 +19,8 @@ def load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
 def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
     if policy.get("schema_version") != "1.0":
         raise BusyAuthorityError("unsupported BUSY ownership schema")
-    if policy.get("live_authority") != "mcp_busy_claim":
-        raise BusyAuthorityError("MCP BUSY claim must be the live authority")
+    if policy.get("live_authority") != "standalone_busy_coordinator":
+        raise BusyAuthorityError("standalone BusyCoordinator must be the live authority")
     projections = policy.get("projection_surfaces")
     if not isinstance(projections, list) or not projections:
         raise BusyAuthorityError("projection surfaces are required")
@@ -31,6 +31,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "stale_projection_non_blocking",
         "read_only_requires_claim",
         "shared_mutation_requires_exact_live_claim",
+        "substantive_investigation_requires_exact_live_claim",
         "other_owner_claim_requires_yield",
         "coordination_outage_creates_no_fallback_authority",
         "read_only_and_independent_work_continue_during_coordination_outage",
@@ -98,7 +99,7 @@ def admit_operation(
     policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     policy = validate_policy(policy or load_policy())
-    if operation not in {"read_only", "independent_mutation", "shared_mutation"}:
+    if operation not in {"read_only", "substantive_investigation", "independent_mutation", "shared_mutation"}:
         raise BusyAuthorityError(f"unknown operation: {operation}")
 
     if operation in {"read_only", "independent_mutation"}:
@@ -110,8 +111,13 @@ def admit_operation(
         }
 
     if not coordination_available:
+        decision = (
+            "defer_substantive_investigation"
+            if operation == "substantive_investigation"
+            else "defer_shared_mutation"
+        )
         return {
-            "decision": "defer_shared_mutation",
+            "decision": decision,
             "reason": "coordination_unavailable_no_fallback_authority",
             "scope": scope,
             "operation": operation,
@@ -121,7 +127,11 @@ def admit_operation(
     if state["state"] == "unclaimed":
         return {
             "decision": "claim_required",
-            "reason": "shared_scope_unclaimed",
+            "reason": (
+                "substantive_investigation_requires_exact_claim"
+                if operation == "substantive_investigation"
+                else "shared_scope_unclaimed"
+            ),
             "scope": scope,
             "operation": operation,
             "stale_projections": state["stale_projections"],

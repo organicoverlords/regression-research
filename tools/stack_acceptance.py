@@ -73,6 +73,7 @@ def _part_outcome(
     disposition_by_decision = {
         "allow": "execute",
         "defer_shared_mutation": "defer_shared_mutation",
+        "defer_substantive_investigation": "defer_substantive_investigation",
         "claim_required": "claim_required",
         "yield": "yield",
     }
@@ -93,6 +94,7 @@ def _part_outcome(
 _RETRYABLE_WORK_DISPOSITIONS = {
     "yield",
     "defer_shared_mutation",
+    "defer_substantive_investigation",
     "degraded",
     "authorization_required",
 }
