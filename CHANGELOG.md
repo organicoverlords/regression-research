@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-29] [coordination] Reduced the BusyCoordinator handoff summary cap to 4,096 characters and added installed `.cmd` wrapper coverage so documented provenance maxima remain reachable on Windows instead of failing at the shell command-line limit (#194).
+
 - [2026-08-29] [coordination] Upstreamed the live BusyCoordinator snapshot projection with Python/Rust/install parity so runtime convergence preserves snapshot visibility alongside queue-aging and handoff-bound fixes (#194).
 
 - [2026-08-29] [coordination] Made BusyCoordinator queue selection age-first so older ready jobs are claimed before lexicographically earlier newer scopes.

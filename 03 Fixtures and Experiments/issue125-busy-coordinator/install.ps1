@@ -13,11 +13,11 @@ cargo build --release --manifest-path $rustManifest
 Copy-Item (Join-Path $root 'rust\target\release\busy-coordinator.exe') (Join-Path $rustDir 'busy-coordinator.exe') -Force
 @"
 @echo off
-python "%LOCALAPPDATA%\BusyCoordinator\python\busy.py" %*
+python "%~dp0python\busy.py" %*
 "@ | Set-Content -Encoding ascii (Join-Path $Destination 'busy-python.cmd')
 @"
 @echo off
-"%LOCALAPPDATA%\BusyCoordinator\rust\busy-coordinator.exe" %*
+"%~dp0rust\busy-coordinator.exe" %*
 "@ | Set-Content -Encoding ascii (Join-Path $Destination 'busy-rust.cmd')
 Write-Output "INSTALLED=$Destination"
 Write-Output "PYTHON=$(Join-Path $pythonDir 'busy.py')"

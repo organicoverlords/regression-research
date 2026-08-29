@@ -156,7 +156,7 @@ assert claimed_finding["job"]["handoff"]["summary"] == "actionable scout result"
 store9 = new_store("handoff-bounds")
 for kind, field, value, expected in [
     ("py", "--source", "s" * 2049, "source exceeds 2048 characters"),
-    ("rs", "--summary", "x" * 8193, "summary exceeds 8192 characters"),
+    ("rs", "--summary", "x" * 4097, "summary exceeds 4096 characters"),
 ]:
     args = [
         "handoff", "scout", "repo#194:parent",
