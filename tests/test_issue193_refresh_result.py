@@ -53,6 +53,13 @@ class Issue193RefreshResultTests(unittest.TestCase):
         )
         self.assertEqual(classify(data), "SUPPORT_H1")
 
+    def test_two_treatment_changes_without_control_are_reproduction_only(self):
+        data = record(
+            pair("treatment", "t1", True, False),
+            pair("treatment", "t2", True, False),
+        )
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
     def test_single_treatment_change_is_reproduction_only(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
         self.assertEqual(classify(data), "REPRODUCTION_ONLY")
