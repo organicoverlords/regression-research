@@ -85,7 +85,7 @@
       "id": "holdout-08",
       "cohort": "holdout",
       "query": "do not disable scheduled workers merely because one run is blocked",
-      "expected": "mem-20260830-fc6b5bba"
+      "expected": "mem-20260830-31beca08"
     },
     {
       "id": "holdout-09",
@@ -120,8 +120,8 @@
     {
       "id": "dev-07",
       "cohort": "development",
-      "query": "arm all five fresh workers, launch worker one immediately, report the arm, work on repos instead of waiting, then verify and repair until worker one is healthy",
-      "expected": "mem-20260830-fc6b5bba"
+      "query": "keep the recurring worker fleet at a hard maximum of five, preserve healthy slots, and replace a bad slot one-for-one without creating a sixth worker",
+      "expected": "mem-20260830-31beca08"
     },
     {
       "id": "dev-08",
@@ -138,8 +138,8 @@
     {
       "id": "dev-09",
       "cohort": "development",
-      "query": "if the current worker fleet is bugged, replace it with five fresh workers in one setup pass and use worker one execution as the acceptance gate",
-      "expected": "mem-20260830-fc6b5bba"
+      "query": "the tool surface is flaky, so refresh or rediscover it repeatedly as needed without a one-refresh ceiling while preserving the active task and process ids",
+      "expected": "mem-20260830-31beca08"
     }
   ]
 }

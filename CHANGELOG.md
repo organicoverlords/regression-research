@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [orchestration] Made five the hard enabled recurring-worker cap, required one-for-one replacement while preserving healthy slots, and aligned flaky tool-surface recovery with repeatable refresh/re-discovery semantics (#267).
+
 - [2026-08-30] [routing] Hardened capability-provider graph inputs so generator-backed indirect routes remain reachable and accidental string iterables are rejected instead of being split into fabricated character roles (#125).
 
 - [2026-08-30] [memory] Realigned bootstrap and retrieval regressions with the latest recurring-worker authority correction so synchronized behavior updates cannot leave main's memory verification stale (#125).
