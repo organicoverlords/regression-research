@@ -117,6 +117,8 @@ For repository work, the normal path is predictable:
 8. Commit, push, open the PR, validate, and merge when evidence is sufficient.
 9. Release ownership, remove temporary branch/coordination state, and leave a durable audit trail.
 
+Historical caution, 2026-08-30: repository cleanup removed **470 remote branches** that had accumulated across the stack: Vault 45, Agents 8, LowVRAM 54, Tiny3D 68, and P3 295. No single branch created the failure. The accumulated temporary state made finished work look active, multiplied plausible sources of truth, and turned ordinary repository orientation into archaeology. This is evidence for the cleanup boundary above, not a new policy layer: temporary Git state should end when its bounded work ends.
+
 Branches, retries, rebases, routine CI recovery, connector rediscovery, and bookkeeping are implementation details. They should not become user work.
 
 ### 7. Regression research closes the loop
