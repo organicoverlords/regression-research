@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Restored the fresh-chat startup order to behavior bootstrap → bounded 20-item recent-memory glance → live orientation → response, with the same bounded glance in the verified Library fallback and a 32 KB payload regression (#125).
+
 - [2026-08-30] [memory] Added retrieval coverage for the user-authorized large-architecture review gate so timed-worker RFC-before-implementation behavior stays regression-enforced.
 
 - [2026-08-30] [coordination] Enriched the standalone BusyCoordinator audit sidecar with bounded returned-state and deterministic transition projections, so per-scope history preserves claim/job/checkpoint outcomes without changing the canonical ownership core or adding another history database (#125).

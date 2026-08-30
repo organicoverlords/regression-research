@@ -2,6 +2,8 @@
 
 Machine-readable authority: `04 Operating Contracts/fresh-chat-startup-contract.json`. This document explains that contract; the bootstrap payload loads the JSON directly so prose and executable startup semantics cannot silently fork.
 
+Fresh normal-chat sequence: **complete behavior bootstrap → consume the bounded 20-item recent-memory glance → acquire bounded live status → respond**. The memory glance is historical orientation only; current user direction and verified live state win.
+
 This contract defines the first operating cycle of a fresh normal ChatGPT conversation. It is deliberately separate from Personal Instructions. Personal Instructions must both reach the Vault bootstrap and require this live orientation before the first substantive answer. The maintained bridge text is `04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt`.
 
 A fresh-chat bootstrap is not task completion and is not live orientation. The first user message may be a greeting, a project name, `go`, `continue`, another established shorthand, a status question, or an underspecified wake-up message. That first message triggers the startup sweep; it never bypasses it. Resolve what is already known from the Vault and current live state instead of asking the operator to restate established context.

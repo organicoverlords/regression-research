@@ -13,7 +13,7 @@ from tools.chatgpt_bootstrap_artifact import (
     write_artifact_copy,
 )
 from tools.memory_authority import AUTHORITY_REGISTRY, behavioral_context
-from tools.memory_bank import DEFAULT_BANK, load_bank
+from tools.memory_bank import DEFAULT_BANK, build_startup_bootstrap, load_bank, recent_title_entries
 from tools.memory_timeline import build_behavior_bootstrap, build_fresh_session_startup_contract
 
 
@@ -45,7 +45,9 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("must not retrigger this sweep", startup["rehydration"])
         self.assertIn("first user message itself triggers startup", startup["wake_up_semantics"])
         self.assertIn("first substantive response", startup["response_gate"])
-        self.assertIn("immediately after bootstrap", startup["live_orientation"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "recent_memory_glance", "live_orientation", "response"])
+        self.assertIn("up to 20", startup["recent_memory_glance"])
+        self.assertIn("after the bounded recent-memory glance", startup["live_orientation"])
         self.assertIn("scheduled-worker state/recent runs", startup["live_orientation"])
         self.assertIn("recent meaningful commits/PRs/checks", startup["live_orientation"])
         self.assertIn("stay quiet about the sweep", startup["orientation_reporting"])
@@ -72,6 +74,8 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_personal_instructions_bridge_requires_pre_response_live_orientation(self):
         bridge = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").read_text(encoding="utf-8")
         self.assertIn("before the first substantive answer", bridge)
+        self.assertIn("recent_memory_glance", bridge)
+        self.assertIn("up to 20", bridge)
         self.assertIn("Do this even for a greeting", bridge)
         self.assertIn("Do not decide the scan is unnecessary before acquiring it", bridge)
         self.assertIn("If the bounded scan is clean, stay quiet about it", bridge)
@@ -97,7 +101,10 @@ class MemoryBootstrapTests(unittest.TestCase):
         artifact = build_chatgpt_bootstrap_artifact()
         self.assertEqual(artifact["artifact_schema_version"], 1)
         self.assertEqual(artifact["library_path"], DEFAULT_LIBRARY_PATH)
-        self.assertEqual(artifact["payload"], build_behavior_bootstrap(load_bank()))
+        entries = load_bank()
+        self.assertEqual(artifact["payload"], build_startup_bootstrap(entries))
+        self.assertEqual(artifact["payload"]["recent_memory_glance"]["entries"], recent_title_entries(entries, limit=20))
+        self.assertLessEqual(len(artifact["payload"]["recent_memory_glance"]["entries"]), 20)
         self.assertTrue(artifact["payload"]["contract"]["complete_behavior_semantics"])
         self.assertFalse(artifact["payload"]["contract"]["history_included"])
         self.assertFalse(artifact["payload"]["contract"]["live_status_included"])
@@ -191,9 +198,10 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertNotIn("origin/main:docs/WORK_COORDINATION.md", template)
         self.assertNotIn("origin/main:docs/v2/WORKER_START_HERE.md", template)
 
-    def test_bootstrap_has_a_bounded_startup_budget(self):
-        rendered = json.dumps(build_behavior_bootstrap(load_bank()), ensure_ascii=False)
-        self.assertLessEqual(len(rendered), 20000)
+    def test_startup_bootstrap_fits_plugin2_read_window(self):
+        rendered = json.dumps(build_startup_bootstrap(load_bank()), ensure_ascii=False)
+        self.assertLessEqual(len(rendered), 32000)
+        self.assertIn("recent_memory_glance", rendered)
 
 
 if __name__ == "__main__":
