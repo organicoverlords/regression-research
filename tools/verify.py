@@ -90,6 +90,8 @@ VERIFIER_PATHS = {
     "tools/verify.py",
     "tests/test_verify.py",
     ".github/workflows/changelog-landing.yml",
+    "tools/stack_map_guard.py",
+    "tests/test_stack_map_guard.py",
 }
 
 
@@ -135,9 +137,15 @@ def verify_changelog(base_ref: str | None) -> None:
     run(command)
 
 
+def verify_stack_map(base_ref: str | None) -> None:
+    if not base_ref:
+        return
+    run([sys.executable, "tools/stack_map_guard.py", "--base-ref", base_ref])
+
+
 def verify_entrypoint() -> None:
-    run([sys.executable, "-m", "py_compile", "tools/verify.py"])
-    run([sys.executable, "-m", "unittest", "tests.test_verify", "-v"])
+    run([sys.executable, "-m", "py_compile", "tools/verify.py", "tools/stack_map_guard.py"])
+    run([sys.executable, "-m", "unittest", "tests.test_verify", "tests.test_stack_map_guard", "-v"])
     print("VERIFICATION_ENTRYPOINT_PROVEN")
 
 
@@ -165,6 +173,7 @@ def verify_stack() -> None:
             "tests.test_instruction_provenance",
             "tests.test_busy_authority",
             "tests.test_stack_acceptance",
+            "tests.test_assistant_stack_capability_map",
             "tests.test_evidence_bundle",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue123_startup_memory_acceptance",
@@ -285,6 +294,7 @@ def main() -> int:
     areas = select_areas(changed, run_all=run_all)
 
     verify_changelog(args.base_ref)
+    verify_stack_map(args.base_ref)
     verify_entrypoint()
     for area in areas:
         if area == "stack":

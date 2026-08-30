@@ -1,215 +1,88 @@
-# Assistant stack — human map
+# Assistant stack — user map
 
-Status: **descriptive map, not authority**. Current user instruction and the named source/live authority always win if this document disagrees.
+Status: **mandatory descriptive orientation, not authority**. Current user instruction and named live/source authorities always win if this map disagrees.
 
-This is the map to look at when asking **“what are all these pieces, and who owns what?”** The companion [capability index](assistant-stack-capability-map.md) has exact paths, commands, boundaries, live-overlay notes, and the #271 duplicate-design regression.
+This is the map for the user. It deliberately hides implementation levels. The detailed assistant reference is [`assistant-stack-capability-map.md`](assistant-stack-capability-map.md).
 
-## 1. What you should have to think about
-
-```mermaid
-flowchart LR
-  U["YOU\nstate the goal"] --> C["ChatGPT\nfigures out the stack"]
-  C --> W["Workers\nperform bounded work"]
-  W --> R["Repos / tools / runtime\nreal engineering"]
-  R --> P["Proof\nGit / GitHub / CI / runtime"]
-  P --> C
-  C --> U
-
-  C -. "uses invisibly" .-> B["BusyCoordinator\nownership + jobs + checkpoints + handoffs"]
-  C -. "uses invisibly" .-> V["Vault + policy + repo docs\ncontinuity + rules"]
-  C -. "uses invisibly" .-> T["Replaceable transports\nplugin2 / Remote Desktop Commander"]
-
-  classDef user fill:#111827,color:#fff,stroke:#111827,stroke-width:3px;
-  classDef visible fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px;
-  classDef hidden fill:#f8fafc,stroke:#64748b,stroke-width:2px,stroke-dasharray:5 4;
-  class U user;
-  class C,W,R,P visible;
-  class B,V,T hidden;
-```
-
-**Target:** during normal use, you mainly see the top loop. The lower boxes are implementation details unless something genuinely requires your decision.
-
-## 2. Authority map — who is allowed to answer which question
-
-```mermaid
-flowchart TB
-  U["Current user instruction\nCURRENT GOAL / OVERRIDE"]
-  SP["Canonical shared policy\nCROSS-PROJECT INVARIANTS"]
-  AG["Repo AGENTS.md\nREPO-LOCAL RULES"]
-  NS["NORTH_STAR / equivalent\nPROJECT DIRECTION"]
-  BC["Standalone BusyCoordinator\nCLAIMS / JOBS / CHECKPOINTS / HANDOFFS"]
-  GIT["Local filesystem + Git\nLOCAL BYTES / BRANCH / HEAD / DIRTY"]
-  GH["GitHub\nREMOTE ISSUE / PR / PUBLISHED REVISION"]
-  CI["Exact CI run\nCI RESULT"]
-  RT["Exact runtime / artifact\nRUNTIME + USER-VISIBLE TRUTH"]
-
-  U --> SP
-  SP --> AG
-  U --> NS
-  AG --> BC
-  NS --> BC
-  BC --> GIT
-  GIT --> GH
-  GH --> CI
-  GIT --> RT
-  CI --> RT
-
-  classDef authority fill:#fef3c7,stroke:#b45309,stroke-width:3px;
-  class U,SP,AG,NS,BC,GIT,GH,CI,RT authority;
-```
-
-This is a **question-to-owner map**, not one universal precedence chain. BusyCoordinator owns mutation ownership but cannot override Git about the actual HEAD; Git cannot override your current instruction; a stale handoff cannot override any of them.
-
-## 3. Execution map — how work actually gets done
+## The whole system
 
 ```mermaid
 flowchart LR
-  C["ChatGPT / worker"] -->|"read rules"| RULES["Shared policy + AGENTS + NORTH_STAR"]
-  C -->|"read continuity"| CTX["Vault bootstrap / bounded context"]
-  C -->|"inspect / claim / checkpoint / handoff"| BC["BusyCoordinator"]
-  C -->|"execute"| ROUTE{"available process route"}
-  ROUTE --> MCP["ChatGPTMcpClean / plugin2"]
-  ROUTE --> RDC["Remote Desktop Commander"]
-  MCP --> LOCAL["Local files / Git / tools / builds"]
-  RDC --> LOCAL
-  LOCAL -->|"publish/fetch"| GH["GitHub"]
-  GH --> CI["GitHub Actions"]
-  LOCAL --> RT["Runtime / artifact proof"]
-  CI --> E["Evidence"]
-  RT --> E
-  LOCAL --> E
-  E --> C
-
-  classDef authority fill:#fef3c7,stroke:#b45309,stroke-width:3px;
-  classDef route fill:#cffafe,stroke:#0e7490,stroke-width:2px,stroke-dasharray:5 3;
-  classDef context fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px;
-  classDef evidence fill:#e5e7eb,stroke:#374151,stroke-width:2px;
-  class BC,RULES authority;
-  class MCP,RDC,ROUTE route;
-  class CTX context;
-  class LOCAL,GH,CI,RT,E evidence;
+  U["YOU\nstate the goal"] --> C["CHATGPT\nKNOW what matters"]
+  C --> W["WORK\nCOORDINATE + EXECUTE + RECOVER"]
+  W --> P["PROOF\nGit + GitHub + CI + runtime"]
+  P --> R["RESULT\nreported back to you"]
+  R --> U
 ```
 
-The important split is **authority vs transport**. plugin2 or Remote Desktop Commander can carry a command; neither becomes owner of the work. Scheduler wakeups also do not create mutation ownership.
+**Normal expectation:** you say what you want once. ChatGPT absorbs the internal mechanics and returns a proven result.
 
-## 4. Observability map — source versus projection
+You should not have to choose or repair BusyCoordinator, workers, worktrees, MCP/plugin routes, memory plumbing, CI lanes, Git branches, schedulers, or progress projections during ordinary work.
 
-```mermaid
-flowchart LR
-  BC["BusyCoordinator"] -.-> OP["operator-live.json"]
-  GIT["Git / worktrees"] -.-> OP
-  CI["CI / runners"] -.-> OP
-  MACH["Machine resources"] -.-> OP
-  EVENTS["Worker progress events"] -.-> BOARD["DevProgressBoard"]
-  OP -.-> BOARD
-  GH["GitHub"] -.-> BOARD
-  GIT -.-> BOARD
+## The five internal responsibilities
 
-  OP -. "orientation" .-> C["ChatGPT / workers"]
-  BOARD -. "human progress view" .-> U["User"]
+1. **KNOW** — understand your current instruction, applicable rules, relevant continuity, and current live state.
+2. **COORDINATE** — avoid duplicate/conflicting mutation and resume existing work instead of recreating it.
+3. **EXECUTE** — use an available supported route and do the bounded engineering work.
+4. **RECOVER** — handle route/tool/worker failures internally when another safe path exists.
+5. **PROVE** — use Git, GitHub, CI, runtime, or artifact evidence appropriate to the claim before reporting success.
 
-  classDef source fill:#fef3c7,stroke:#b45309,stroke-width:2px;
-  classDef projection fill:#dcfce7,stroke:#15803d,stroke-width:2px,stroke-dasharray:4 3;
-  class BC,GIT,CI,MACH,GH source;
-  class OP,BOARD projection;
-```
+## What sits underneath — only when you need to know
 
-`operator-live.json` and DevProgressBoard are useful because they **reconcile and display**. They do not write authority back into BusyCoordinator, Git, GitHub, CI, runtime, or project policy.
-
-
-## 5. Product/data map — what the engineering stack is building
-
-```mermaid
-flowchart LR
-  IMG["Input image / source"] --> LOW["LowVRAM 3D Pipeline\ngeometry + textures + provenance"]
-  LOW --> LIB["Asset Library\ncanonical catalog + presentation"]
-  LOW --> LAB["TinyLab\nanalysis + qualification + compile/package"]
-  LIB --> P3["P3\nreal-game integration + final runtime acceptance"]
-  LAB --> P3
-  T3D["Tiny3D\nanimation / asset engineering repo"] --> P3
-
-  Q["Tiny3D ↔ TinyLab relationship\nNOT YET PROVEN"] -.-> T3D
-  Q -.-> LAB
-
-  classDef product fill:#ecfccb,stroke:#4d7c0f,stroke-width:2px;
-  classDef unknown fill:#fff7ed,stroke:#c2410c,stroke-width:2px,stroke-dasharray:4 3;
-  class IMG,LOW,LIB,LAB,T3D,P3 product;
-  class Q unknown;
-```
-
-The current DevProgressBoard explicitly models `LowVRAM -> Asset Library + TinyLab -> P3`. Tiny3D is separately present as a live Git repo and animation/asset work surface. The map does **not** invent the Tiny3D/TinyLab relationship.
-
-## 6. Quick ownership lookup
-
-| If you need to know / do... | Go to | Do **not** treat as owner |
+| Responsibility | Main internal pieces | What they are for |
 |---|---|---|
-| What are we doing now? | Current user instruction | memory, old handoff, old issue |
-| What rules apply everywhere? | Canonical shared policy | duplicated repo prose |
-| What rules apply in this repo? | Current repo `AGENTS.md` | global map / board |
-| What direction is this project heading? | `NORTH_STAR.md` / equivalent | worker recency |
-| Who owns this mutable scope? | **BusyCoordinator** | branch, process, issue title, scheduler |
-| What work is ready/active/blocked? | **BusyCoordinator jobs** | board status / labels |
-| Where did this scope leave off? | **BusyCoordinator checkpoint** | a new resume database |
-| How is actionable pending work handed off? | **BusyCoordinator `handoff`** | prose-only comment |
-| How do we run a local command? | available transport: plugin2 / RDC / shell | transport as ownership |
-| What bytes/branch/HEAD are actually local? | filesystem + Git/worktree | GitHub prose / memory |
-| What is published remotely? | GitHub | local branch alone |
-| Did CI pass this artifact? | exact workflow/run | expected outcome |
-| Does it work in the product/runtime? | exact runtime/artifact proof | source inspection alone |
-| What should a fresh chat know about behavior? | Vault `bootstrap` | full historical bank |
-| What happened historically? | Vault/regression corpus | history as live truth |
-| What is the near-live overall status? | `operator-live.json` | projection as authority |
-| What should I look at for product progress? | DevProgressBoard | board as coordinator |
-| When should a worker wake? | ChatGPT Automations | schedule as work claim |
+| KNOW | Library-delivered behavior generated from Vault, Vault memory/policy, shared policy, repo `AGENTS.md`, `NORTH_STAR`, live orientation | Context, rules and current truth |
+| COORDINATE | **Standalone BusyCoordinator** | Claims, jobs, checkpoints, handoffs and recovery |
+| EXECUTE | Workers + plugin2/ChatGPTMcpClean + Remote Desktop Commander + local tools | Carry out work through replaceable routes |
+| RECOVER | Capability routing + checkpoints/handoffs + current live state | Continue safely when one route or worker fails |
+| PROVE | Filesystem/Git, GitHub, CI, runtime/artifacts, current/recent Commander-MCP activity | Establish what actually happened; worker activity uses a bounded recent evidence window |
 
+`operator-live.json` and DevProgressBoard are **views**, not authorities. They help humans and assistants see state; they do not get to redefine ownership, Git state, CI truth, runtime truth, or your instruction.
 
-## 7. Component directory
+A BusyCoordinator claim tells us who owns a mutation scope; it does **not** prove active work. Worker status uses a just-checked Commander/MCP activity surface and a bounded recent window (normally five minutes): in-flight work or a continuing stream of recent completed work events tied to the scope counts as active, without requiring a child process at the exact sampling instant.
 
-- **User/current instruction** — owns the current goal and genuine external decisions.
-- **ChatGPT direct chat** — orchestrates; consumes authorities and evidence but does not replace them.
-- **ChatGPT Automations** — timed recurrence only.
-- **Execution workers** — perform bounded engineering under the same authorities.
-- **Vault/regression-research** — behavior bootstrap, durable history, regression evidence, fixtures and stack research.
-- **ChatGPT PI/saved memory** — separate product context; explicit-write only; not Vault/live repo truth.
-- **Canonical shared policy** — one logical owner of cross-project behavioral invariants.
-- **Repo `AGENTS.md`** — repo-local operating contract.
-- **`NORTH_STAR.md` / equivalent** — project direction and finish line.
-- **Standalone BusyCoordinator** — one live owner of claims, jobs, checkpoints, handoffs and recovery.
-- **BusyCoordinator canonical store** — `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json`; durable coordinator state, not a file to hand-edit around the coordinator.
-- **ChatGPTMcpClean / plugin2** — stable process transport/front door; coordination stays outside it.
-- **Remote Desktop Commander** — alternate authorized machine/files/process transport.
-- **Local filesystem + Git/worktrees** — local bytes, branch, HEAD, dirty state, commit truth.
-- **GitHub** — remote issue/PR/published-revision and workflow record.
-- **GitHub Actions / self-hosted runners** — artifact-specific CI evidence.
-- **Runtime / Unreal / exact artifact** — actual runtime and user-visible proof when observed.
-- **`operator-live.json`** — near-live machine/coordinator/repo/runner projection for orientation.
-- **DevProgressBoard** — deterministic human-facing product progress projection.
-- **LowVRAM 3D Pipeline** — generator: image/source to geometry, textures and provenance.
-- **Asset Library** — canonical production catalog, naming, presentation and view coverage.
-- **TinyLab** — analysis/qualification/compilation/package stage as modeled by DevProgressBoard.
-- **Tiny3D** — separate observed Git repo for animation/asset engineering; relation to TinyLab remains unresolved.
-- **P3** — final game integration and real runtime acceptance.
+## Product pipeline
 
+```mermaid
+flowchart LR
+  LOW["LowVRAM 3D Pipeline"] --> LIB["Asset Library"]
+  LOW --> LAB["TinyLab"]
+  LIB --> P3["P3"]
+  LAB --> P3
+  T3D["Tiny3D\nrelationship to TinyLab not yet proven"] --> P3
+```
 
-## 8. The #271 mistake this map must prevent
+The explicit board flow remains `LowVRAM -> Asset Library + TinyLab -> P3`. Tiny3D is a separate observed asset/animation engineering repo feeding P3; its exact relationship to TinyLab remains intentionally unresolved until proven.
 
-We proposed a new resume/context concept containing a registry, structured checkpoints and resume packets. Live inspection later showed that BusyCoordinator already had the key resumability machinery: jobs, checkpoints, `snapshot`, `inspect`, `next`, `recover`, and `handoff` creating a resumable ready child job.
+## The rule that prevents more #271s
 
-So the missing thing was **visibility of an existing capability**, not another runtime system.
+Before anyone adds stack machinery, ask one question: **who already owns this capability?**
 
-Before any future cross-stack component is proposed:
+If the capability already exists, use it. If a small field/command is genuinely missing, extend the existing owner. If the problem is only visibility, fix the map/read view. Do not create a second authority, database, queue, coordinator, resume system, or synchronized copy by default.
 
-1. name the missing capability as a verb: `handoff`, `checkpoint`, `schedule`, `execute`, `publish`, `validate`, `remember`, `observe`, etc.;
-2. use this map to find its current owner;
-3. inspect/test the owner before designing anything;
-4. if the capability already exists, reuse it;
-5. if only its visibility is bad, improve this map/read view;
-6. if a real field/command is missing, add the smallest thing at the existing owner;
-7. reject any design that creates a second authoritative copy by default.
+#271 is the regression example: a new resume/context design was proposed before live inspection showed BusyCoordinator already had jobs, checkpoints, `snapshot`, `inspect`, `next`, `recover`, and `handoff`.
 
+## How this map stays current
 
-## 9. Detailed reference
+The compact version of this model is embedded as mandatory `stack_map_glance` reading in the generated Library behavior artifact. Vault remains canonical; the Library artifact is the primary fresh-chat delivery projection and the local Vault bootstrap is fallback.
 
-For exact paths, commands, BusyCoordinator contract details, live-overlay observations, known drift, implementation repositories, and unresolved seams, use [assistant-stack-capability-map.md](assistant-stack-capability-map.md). For machine consumption use [assistant-stack-capability-map.json](assistant-stack-capability-map.json).
+For stack/architecture/control-plane work, assistants must read the detailed [`assistant-stack-capability-map.md`](assistant-stack-capability-map.md) before designing or mutating the stack.
 
-The standalone overview diagram source is [assistant-stack-capability-map.mmd](assistant-stack-capability-map.mmd).
+Repository verification runs `tools/stack_map_guard.py`. If declared stack-defining files change, the same change must refresh both this human map and [`assistant-stack-capability-map.json`](assistant-stack-capability-map.json). Ordinary product/feature changes are deliberately outside that gate.
+
+The map is descriptive. A fresh chat still performs live orientation after behavior delivery, map reading, and bounded memory refresh because dynamic worker, coordinator, repo, CI, machine and runtime state can change without changing the architecture.
+
+## Current convergence program
+
+Recent 2026-08-30 work is one program rather than many unrelated layers:
+
+- #275 made capability ownership discoverable so existing mechanisms are reused.
+- #276 restored a deterministic startup sequence instead of making the user recover context manually.
+- #279 made behavioral/policy changes auditable rather than silently accumulating.
+- #280 locked the bootstrap-failure boundary so continuity trouble degrades locally.
+- #281 now makes worker status depend on fresh execution proof; ownership claims/checkpoints no longer count as positive liveness or progress evidence.
+- #285 merged the Library-primary delivery boundary: generated Library behavior is primary for fresh chats, while Vault remains canonical/fallback and supplies bounded memory enrichment. Repository merge and external Library publication are separate proof states.
+- #288 corrected worker status to a bounded recent Commander/MCP activity window; ownership metadata remains zero-weight for liveness.
+- Current P3 workspace-pool work aims to hide physical Unreal workspace/build mechanics behind logical work.
+
+All of these serve the same target: **complexity may exist internally; it should not become user work.**

@@ -44,10 +44,11 @@ Different questions intentionally have different authorities. There is no single
 | Remote issue/PR/published revision | GitHub | `gh`, connector/API | BUSY/coordinator state |
 | CI result | Exact GitHub Actions workflow/run | operator projection | â€œtests should passâ€ prose |
 | Runtime/product behavior | Exact runtime/artifact observation | logs/captures/test receipts | source inspection alone |
-| Fresh-session behavior continuity | Vault `memory_bank.py bootstrap` | complete Library fallback when required | full memory bank, project history |
+| Fresh-session behavior delivery | **Generated Library artifact** from canonical Vault | `/Agent Bootstrap/chatgpt-bootstrap.json`; Vault `memory_bank.py bootstrap` fallback | hand-authored Library behavior, built-in Memory, full history dump |
 | Historical/regression evidence | Vault / regression-research corpus | `context`, `timeline`, `orient`, reports/fixtures | live operational truth |
 | Product progress presentation | DevProgressBoard derived state | browser, status/operator feeds | product/repo authority |
 | Timed recurrence | ChatGPT Automations | scheduler state | mutation ownership |
+| Worker activity status | Bounded recent Commander/MCP activity evidence | in-flight work or recent completed tool/command/test/output events tied to scope, normally within five minutes | BusyCoordinator claim/lease/heartbeat/checkpoint, schedule, enabled flag, old snapshot |
 
 ## Component map
 
@@ -64,7 +65,9 @@ Different questions intentionally have different authorities. There is no single
 
 **Vault / regression-research** at `C:\Users\Lauri\Desktop\vault` owns the external behavior bootstrap, durable historical evidence, regression corpus, reports and fixtures. Historical memory is evidence rather than live repo/runtime truth.
 
-**`tools/memory_bank.py`** provides separate read paths: `bootstrap` for the compact fresh-session behavior constitution; `context` for bounded task recall; `timeline` for chronology; and `orient` for richer diagnostics. Ordinary reads are side-effect free.
+**Generated ChatGPT Library artifact** at `/Agent Bootstrap/chatgpt-bootstrap.json` is the primary fresh-chat behavior delivery surface. It is generated from Vault authority and must verify as complete; it is a projection, not a second behavioral authority. If it is unavailable or incomplete, `tools/memory_bank.py bootstrap` is the behavior-delivery fallback. After behavior delivery, `recent-titles --limit 20` refreshes bounded historical orientation from Vault when available.
+
+**`tools/memory_bank.py`** also provides `context` for bounded task recall, `timeline` for chronology, and `orient` for richer diagnostics. Ordinary reads are side-effect free.
 
 **ChatGPT Personal Instructions / saved memory** are separate product-level context surfaces. They are not the Vault, and Vault evidence does not prove or silently mutate current product configuration.
 
@@ -99,6 +102,10 @@ A route failure is local: losing one transport must not redefine the task, decla
 
 **Local runtime / Unreal / exact artifact proof** owns claims about actual runtime or user-visible behavior when observed. Builds, source inspection and CI are narrower evidence unless the repo acceptance contract says otherwise.
 
+### Worker status: execution proof, not ownership
+
+**`tools/live_worker_status.py`** classifies bounded recent Commander/MCP activity evidence for user-facing worker-status answers. A BusyCoordinator claim, lease, heartbeat, or checkpoint is collision/ownership state only and has zero positive liveness or progress weight. Active work is proven by a just-checked activity surface showing either in-flight work or a continuing stream of recent completed tool/command/test/output events tied to that worker/scope, normally within five minutes; a child process need not exist at the exact sampling instant. If neither in-flight nor recent-window activity is observed, the answer is `not working`; if the activity surface cannot be inspected, the answer is `unverified`.
+
 ### Read models and observability
 
 **DevProgressBoard** at `C:\Users\Lauri\Desktop\DevProgressBoard` is a deterministic derived product-progress board. Workers append facts; reconciliation derives visible state. AI summaries are optional and do not replace its event ledger or live Git/GitHub probes.
@@ -124,14 +131,30 @@ A separate live Git repo, **Tiny3D** at `C:\Users\Lauri\Desktop\tiny3d`, is also
 - **DevProgressBoard**: local deterministic product-progress/read-model implementation.
 - **P3 / Tiny3D / LowVRAM**: product engineering repos with their own local authority and proof requirements.
 
-## Live overlay observed 2026-08-30 15:38:10 EEST
+## Live overlay observed 2026-08-30 16:59:13 EEST
 
 These values are intentionally timestamped and must not be copied into durable authority rules:
 
-- Coordinator available: yes; **7 active / 12 ready / 0 blocked**; 27 legacy-only claims.
+- Coordinator available: yes; **2 active / 24 ready / 0 blocked**; 27 legacy-only claims.
 - Five enabled recurring ChatGPT repo workers: Alder, Cedar, Ember, Harbor, Juniper.
-- C: **54.6 GB free**; RAM about **2.1 / 15.3 GB free/total**; GPU 1383 / 6144 MB used.
-- P3: 15 worktrees in the operator snapshot. Tiny3D: 26. LowVRAM: 8.
+- C: **99.9 GB free**; RAM about **1.6 / 15.3 GB free/total**; GPU 1363 / 6144 MB used.
+- GitHub Actions: **3 queued / 0 in progress**; 27 runners registered, 16 online, 0 busy.
+
+## Current convergence program
+
+The latest work is one simplification program rather than a collection of new user-facing levels:
+
+- **#275**: capability ownership map so existing mechanisms are discovered before new ones are proposed.
+- **#276**: deterministic fresh-chat startup with bounded memory orientation.
+- **#279**: auditable behavior/policy change history.
+- **#280**: bootstrap failure remains a local continuity degradation rather than taking over the task.
+- **#281 merged**: worker status now requires fresh current execution proof; coordinator claims/leases/heartbeats/checkpoints have zero positive liveness or progress weight.
+- **#285 merged**: generated Library behavior is the primary fresh-chat delivery surface while Vault remains canonical and the local bootstrap remains fallback; external Library publication/verification is a distinct post-merge delivery state.
+- **#288 merged**: worker status now uses a bounded recent Commander/MCP activity window rather than an instantaneous child-process snapshot; coordinator ownership metadata remains zero-weight.
+- **`p3:ue-workspace-pool-architecture` active/unmerged**: decouple logical work from physical Unreal workspace/build mechanics; this remains project-local rather than assistant-stack authority.
+
+These changes all serve the #125 acceptance target: internal complexity may exist, but the user should not have to understand or repair it during ordinary work.
+
 ## Known drift and unresolved seams
 
 1. [`assistant-stack-architecture.md`](assistant-stack-architecture.md) is a **2026-08-27 historical snapshot**, not current topology. It still names `MCP0 BUSY` and records one enabled timed worker at its observation boundary.
