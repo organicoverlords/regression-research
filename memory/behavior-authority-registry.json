@@ -6,6 +6,7 @@
     "mem-20260827-d4e21c4c",
     "mem-20260829-15767f7b",
     "mem-20260829-15f349c0",
+    "mem-20260829-1f6d75a4",
     "mem-20260829-3e8b16f7",
     "mem-20260829-43f1fd47",
     "mem-20260829-49cf4f6b",
@@ -29,7 +30,8 @@
     "mem-20260829-d9cee13b",
     "mem-20260829-dc8f589a",
     "mem-20260829-df29555e",
-    "mem-20260829-f8a09d2b"
+    "mem-20260829-f8a09d2b",
+    "mem-20260830-fc6b5bba"
   ],
   "canonical_policy_ids": [
     "mem-20260825-bank-no-bootstrap",
