@@ -75,8 +75,18 @@ def ensure_output_does_not_alias_artifacts(root: Path, output: Path, manifest: d
         if not isinstance(record, dict):
             continue
         normalized = normalize_repo_path(str(record.get("path", "")))
-        if output_path == repo_file(root, normalized).resolve():
+        artifact_path = repo_file(root, normalized)
+        if output_path == artifact_path.resolve():
             raise ValueError(f"output path must not overwrite a bound artifact: {normalized}")
+        if output.exists():
+            try:
+                aliases_artifact = output.samefile(artifact_path)
+            except OSError as exc:
+                raise ValueError(
+                    f"cannot determine whether output aliases a bound artifact: {normalized}"
+                ) from exc
+            if aliases_artifact:
+                raise ValueError(f"output path must not overwrite a bound artifact: {normalized}")
 
 
 def build_manifest(root: Path, paths: list[str], commit: str) -> dict[str, object]:

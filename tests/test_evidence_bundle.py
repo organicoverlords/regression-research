@@ -88,6 +88,22 @@ class EvidenceBundleTests(unittest.TestCase):
                 ensure_output_does_not_alias_artifacts(root, artifact, manifest)
             self.assertEqual(artifact.read_bytes(), before)
 
+    def test_create_rejects_hardlink_output_alias(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            artifact = root / "proof.txt"
+            output = root / "bundle.json"
+            artifact.write_text("proof\n", encoding="utf-8")
+            try:
+                output.hardlink_to(artifact)
+            except OSError as exc:
+                self.skipTest(f"hard links unavailable: {exc}")
+            manifest = build_manifest(root, ["proof.txt"], "commit-a")
+            before = artifact.read_bytes()
+            with self.assertRaisesRegex(ValueError, "must not overwrite a bound artifact"):
+                ensure_output_does_not_alias_artifacts(root, output, manifest)
+            self.assertEqual(artifact.read_bytes(), before)
+
     def test_rejects_empty_manifest(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
