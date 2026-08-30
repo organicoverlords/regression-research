@@ -61,7 +61,7 @@ The target is a corpus rich enough that a future regression can normally be comp
 
 ### 2. BUSY/MCP is the single live ownership system
 
-- The standalone BusyCoordinator defined by current live repo/runtime state is the live ownership authority for shared mutable scope; MCP/plugin/process surfaces are transports, not competing ownership authorities.
+- The standalone BusyCoordinator defined by current live repo/runtime state is the live ownership authority for shared mutable scope; MCP/plugin/process surfaces are transports, not ownership authorities.
 - Before mutating shared scope, read live ownership and claim the exact scope. Read-only work needs no claim.
 - If another live claim owns a scope, yield that scope without treating the entire task as blocked; continue independent work where possible.
 - GitHub issue titles, branches, PRs, processes, receipts, schedules, handoffs, and status markers are projections/evidence, never a second ownership authority.

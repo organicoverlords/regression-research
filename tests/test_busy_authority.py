@@ -62,43 +62,18 @@ class BusyAuthorityTests(unittest.TestCase):
         self.assertFalse(state["proves_worker_execution"])
         self.assertTrue(self.policy["invariants"]["ownership_claim_never_proves_worker_execution"])
 
-    def test_substantive_investigation_requires_exact_live_claim(self):
-        unclaimed = admit_operation(
-            "worker-a", "repo:issue-125", "substantive_investigation", [], policy=self.policy
-        )
-        self.assertEqual(unclaimed["decision"], "claim_required")
-        self.assertEqual(unclaimed["reason"], "substantive_investigation_requires_exact_claim")
-
-        owned = admit_operation(
-            "worker-a",
-            "repo:issue-125",
-            "substantive_investigation",
-            [{"scope": "repo:issue-125", "owner": "worker-a", "live": True}],
-            policy=self.policy,
-        )
-        self.assertEqual(owned["decision"], "allow")
-
-        other_owner = admit_operation(
-            "worker-a",
-            "repo:issue-125",
-            "substantive_investigation",
-            [{"scope": "repo:issue-125", "owner": "worker-b", "live": True}],
-            policy=self.policy,
-        )
-        self.assertEqual(other_owner["decision"], "yield")
-        self.assertEqual(other_owner["owner"], "worker-b")
-
-    def test_coordination_outage_defers_substantive_investigation_only(self):
-        result = admit_operation(
-            "worker-a",
-            "repo:issue-125",
-            "substantive_investigation",
-            [],
-            coordination_available=False,
-            policy=self.policy,
-        )
-        self.assertEqual(result["decision"], "defer_substantive_investigation")
-        self.assertEqual(result["reason"], "coordination_unavailable_no_fallback_authority")
+    def test_substantive_investigation_is_read_only_for_busy_ownership(self):
+        for coordination_available in (True, False):
+            result = admit_operation(
+                "worker-a",
+                "repo:issue-125",
+                "substantive_investigation",
+                [{"scope": "repo:issue-125", "owner": "worker-b", "live": True}],
+                coordination_available=coordination_available,
+                policy=self.policy,
+            )
+            self.assertEqual(result["decision"], "allow")
+            self.assertEqual(result["reason"], "claim_not_required")
 
     def test_coordination_outage_creates_no_second_authority(self):
         projection = {"surface": "github_issue_title", "scope": "repo:file-a", "owner": "worker-a"}

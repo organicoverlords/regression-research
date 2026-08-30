@@ -31,7 +31,6 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "stale_projection_non_blocking",
         "read_only_requires_claim",
         "shared_mutation_requires_exact_live_claim",
-        "substantive_investigation_requires_exact_live_claim",
         "other_owner_claim_requires_yield",
         "coordination_outage_creates_no_fallback_authority",
         "read_only_and_independent_work_continue_during_coordination_outage",
@@ -107,7 +106,7 @@ def admit_operation(
     if operation not in {"read_only", "substantive_investigation", "independent_mutation", "shared_mutation"}:
         raise BusyAuthorityError(f"unknown operation: {operation}")
 
-    if operation in {"read_only", "independent_mutation"}:
+    if operation in {"read_only", "substantive_investigation", "independent_mutation"}:
         return {
             "decision": "allow",
             "reason": "claim_not_required",
@@ -116,13 +115,8 @@ def admit_operation(
         }
 
     if not coordination_available:
-        decision = (
-            "defer_substantive_investigation"
-            if operation == "substantive_investigation"
-            else "defer_shared_mutation"
-        )
         return {
-            "decision": decision,
+            "decision": "defer_shared_mutation",
             "reason": "coordination_unavailable_no_fallback_authority",
             "scope": scope,
             "operation": operation,
@@ -132,11 +126,7 @@ def admit_operation(
     if state["state"] == "unclaimed":
         return {
             "decision": "claim_required",
-            "reason": (
-                "substantive_investigation_requires_exact_claim"
-                if operation == "substantive_investigation"
-                else "shared_scope_unclaimed"
-            ),
+            "reason": "shared_scope_unclaimed",
             "scope": scope,
             "operation": operation,
             "stale_projections": state["stale_projections"],

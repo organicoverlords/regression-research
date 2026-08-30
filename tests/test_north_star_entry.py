@@ -15,11 +15,10 @@ ROUTE_RECOVERY = "no fixed retry-count cutoff and no tight-looping"
 BOOTSTRAP_CONTINUE = "If its route fails, use the repeatable recovery rule above and continue safe work from current instruction, policy, and live state. One or two failures are not terminal."
 
 
-INVESTIGATION_ADMISSION = (
-    "- Bounded read-only orientation may remain unclaimed. Before crossing into substantive "
-    "investigation or analysis on an exact issue/scope, acquire that exact durable scope in the "
-    "standalone BusyCoordinator; if another live owner already holds it, yield that scope and "
-    "choose non-duplicative work."
+INVESTIGATION_BOUNDARY = (
+    "- Read-only investigation and analysis remain unclaimed. Use the standalone BusyCoordinator "
+    "for mutation according to the shared coordination rule; do not create claims merely to think, "
+    "inspect, or answer."
 )
 
 BIG_CHANGE_INTERRUPT = (
@@ -46,13 +45,12 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertNotIn("On failure retry that exact command once", agents)
         self.assertNotIn("after a second failure continue from current instruction", agents)
 
-    def test_substantive_investigation_requires_exact_durable_admission(self):
+    def test_read_only_investigation_never_claims_busy(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(INVESTIGATION_ADMISSION), 1)
-        self.assertIn("Bounded read-only orientation may remain unclaimed", INVESTIGATION_ADMISSION)
-        self.assertIn("acquire that exact durable scope", INVESTIGATION_ADMISSION)
-        self.assertIn("standalone BusyCoordinator", INVESTIGATION_ADMISSION)
-        self.assertIn("yield that scope", INVESTIGATION_ADMISSION)
+        self.assertEqual(agents.count(INVESTIGATION_BOUNDARY), 1)
+        self.assertIn("Read-only investigation and analysis remain unclaimed", INVESTIGATION_BOUNDARY)
+        self.assertIn("standalone BusyCoordinator", INVESTIGATION_BOUNDARY)
+        self.assertIn("do not create claims merely to think, inspect, or answer", INVESTIGATION_BOUNDARY)
 
 
     def test_large_worker_changes_recheck_current_interrupt_state(self):

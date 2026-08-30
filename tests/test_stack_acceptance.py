@@ -156,35 +156,31 @@ class StackAcceptanceTests(unittest.TestCase):
         self.assertEqual(result["work_cycle"]["execute_now"], ["runtime-check"])
         self.assertEqual(result["work_cycle"]["queued"], ["repo-read"])
 
-    def test_substantive_investigation_requires_claim_after_bounded_orientation(self):
+    def test_substantive_investigation_needs_no_busy_claim(self):
         scenario = next(
             item
             for item in self.fixture["scenarios"]
-            if item["id"] == "substantive-investigation-needs-exact-admission"
+            if item["id"] == "substantive-investigation-needs-no-busy-claim"
         )
         result = self.run_scenario(scenario)
         by_id = {item["id"]: item for item in result["allowed"]}
         self.assertEqual(by_id["bounded-orientation"]["disposition"], "execute")
-        self.assertEqual(by_id["deep-investigation"]["disposition"], "claim_required")
-        self.assertEqual(result["work_cycle"]["execute_now"], ["bounded-orientation"])
-        self.assertEqual(result["work_cycle"]["claim_now"], ["deep-investigation"])
+        self.assertEqual(by_id["deep-investigation"]["disposition"], "execute")
+        self.assertEqual(result["work_cycle"]["execute_now"], ["bounded-orientation", "deep-investigation"])
+        self.assertEqual(result["work_cycle"]["claim_now"], [])
 
-    def test_coordination_outage_keeps_orientation_but_defers_investigation(self):
+    def test_coordination_outage_does_not_block_read_only_investigation(self):
         scenario = next(
             item
             for item in self.fixture["scenarios"]
-            if item["id"] == "coordination-outage-defers-investigation-not-orientation"
+            if item["id"] == "coordination-outage-does-not-block-investigation"
         )
         result = self.run_scenario(scenario)
         by_id = {item["id"]: item for item in result["allowed"]}
         self.assertEqual(by_id["bounded-orientation"]["disposition"], "execute")
-        self.assertEqual(
-            by_id["deep-investigation"]["disposition"],
-            "defer_substantive_investigation",
-        )
-        self.assertEqual(result["work_cycle"]["execute_now"], ["bounded-orientation"])
-        self.assertEqual(result["work_cycle"]["queued"], ["deep-investigation"])
-        self.assertTrue(result["work_cycle"]["redirect_after_current"])
+        self.assertEqual(by_id["deep-investigation"]["disposition"], "execute")
+        self.assertEqual(result["work_cycle"]["execute_now"], ["bounded-orientation", "deep-investigation"])
+        self.assertEqual(result["work_cycle"]["queued"], [])
 
     def test_protected_boundary_uses_placeholder_not_literal_internal_content(self):
         scenario = next(item for item in self.fixture["scenarios"] if item["id"] == "mixed-provenance-partial-execution")
