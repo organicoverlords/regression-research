@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Kept the exact Vault bootstrap fallback under the 32 KB process-read window by compacting its JSON wire format and redundant startup prose without dropping behavior rules or the 20-item recent-memory glance.
+
 - [2026-08-30] [research] Required #193 treatment binding-loss evidence to keep the sibling route healthy and show no matching local request arrival before contributing to SUPPORT_H1.
 
 - [2026-08-30] [meta] Synced shared agent policy v1.25 so temporary Git state is closed after work instead of accumulating as repository storage.
