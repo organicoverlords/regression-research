@@ -1,9 +1,11 @@
+import ctypes
 import json
 import os
 import pathlib
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -35,6 +37,39 @@ def new_store(name):
 
 def read(store):
     return json.loads(store.read_text(encoding="utf-8"))
+
+
+def hold_without_delete_share(path, seconds=0.15):
+    if os.name != "nt":
+        return None
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p]
+    create_file.restype = ctypes.c_void_p
+    handle = create_file(str(path), 0x80000000, 0x00000001 | 0x00000002, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    def release():
+        time.sleep(seconds)
+        kernel32.CloseHandle(ctypes.c_void_p(handle))
+    thread = threading.Thread(target=release, daemon=True)
+    thread.start()
+    return thread
+
+
+# A supported observer that denies delete-sharing may transiently block Windows atomic replace.
+# Both implementations must preserve single-store authority and retry the same atomic replace.
+if os.name == "nt":
+    for kind in ("py", "rs"):
+        replace_store = new_store(f"replace-share-{kind}")
+        replace_store.write_text(json.dumps({"claims": [], "coordinator": {"version": 1, "jobs": {}, "operations": {}}}, indent=2) + "\n", encoding="utf-8")
+        observer = hold_without_delete_share(replace_store)
+        result = run(kind, replace_store, "claim", f"{kind}-replace-worker", f"replace-{kind}", "--operation-id", f"replace-{kind}-op")
+        assert result["ok"] is True
+        observer.join(timeout=1.0)
+        assert read(replace_store)["claims"][0]["scope"] == f"replace-{kind}"
+        replace_store.unlink(missing_ok=True)
+        pathlib.Path(str(replace_store) + ".lock").unlink(missing_ok=True)
 
 
 # Cross-language idempotency and lifecycle continuation.

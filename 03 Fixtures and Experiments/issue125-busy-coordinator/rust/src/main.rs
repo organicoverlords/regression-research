@@ -18,6 +18,8 @@ use windows_sys::Win32::Storage::FileSystem::{
 const LOCK_TIMEOUT: Duration = Duration::from_secs(2);
 const LOCK_STALE: Duration = Duration::from_secs(15);
 const LOCK_RETRY: Duration = Duration::from_millis(10);
+const REPLACE_TIMEOUT: Duration = Duration::from_millis(500);
+const REPLACE_RETRY: Duration = Duration::from_millis(10);
 const DEFAULT_LEASE_SECONDS: i64 = 3600;
 const MAX_OPERATIONS: usize = 512;
 const MAX_COMPLETED_JOBS: usize = 256;
@@ -208,19 +210,25 @@ fn persist(store: &Path, state: &StoreFile) -> Result<(), String> {
     fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
     let src = wide_null(tmp.as_os_str());
     let dst = wide_null(store.as_os_str());
-    let ok = unsafe {
-        MoveFileExW(
-            src.as_ptr(),
-            dst.as_ptr(),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-        )
-    };
-    if ok == 0 {
+    let deadline = Instant::now() + REPLACE_TIMEOUT;
+    loop {
+        let ok = unsafe {
+            MoveFileExW(
+                src.as_ptr(),
+                dst.as_ptr(),
+                MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+            )
+        };
+        if ok != 0 {
+            return Ok(());
+        }
         let error = io::Error::last_os_error();
-        let _ = fs::remove_file(&tmp);
-        return Err(format!("cannot replace BUSY store: {error}"));
+        if !matches!(error.raw_os_error(), Some(5 | 32)) || Instant::now() >= deadline {
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("cannot replace BUSY store: {error}"));
+        }
+        thread::sleep(REPLACE_RETRY);
     }
-    Ok(())
 }
 
 fn now_iso() -> String {
