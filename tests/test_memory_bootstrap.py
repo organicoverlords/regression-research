@@ -253,6 +253,23 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertNotIn("origin/main:docs/WORK_COORDINATION.md", template)
         self.assertNotIn("origin/main:docs/v2/WORKER_START_HERE.md", template)
 
+    def test_bootstrap_rejects_invented_per_chat_behavior_contracts(self):
+        fixture_path = Path(__file__).resolve().parent / "fixtures/no-false-per-chat-promises-regression.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8-sig"))
+        entries = load_bank()
+        payload = build_behavior_bootstrap(entries)
+        active = {item["id"]: item["text"] for item in payload["behavior_profile"]}
+
+        current_id = fixture["required_behavior_rule_id"]
+        self.assertIn(current_id, active)
+        self.assertNotIn(fixture["superseded_behavior_rule_id"], active)
+        for fragment in fixture["required_rule_fragments"]:
+            self.assertIn(fragment, active[current_id])
+
+        source_entry = next(item for item in entries if item["id"] == current_id)
+        for correction in fixture["user_corrections"]:
+            self.assertIn(correction, source_entry["source_messages"])
+
     def test_startup_bootstrap_fits_plugin2_read_window(self):
         payload = build_startup_bootstrap(load_bank())
         rendered = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
