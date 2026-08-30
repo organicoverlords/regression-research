@@ -12,5 +12,9 @@
   "forbidden_bad_response_fragments": [
     "don't have enough context",
     "tell me what you want my view on"
+  ],
+  "required_compact_fragments": [
+    "bind short prompts to it",
+    "instead of asking for restatement"
   ]
 }
