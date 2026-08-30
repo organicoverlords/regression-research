@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [orchestration] Bounded ChatGPT tool-schema discovery: reuse loaded schemas, discover only the narrowest missing function, and enumerate a connector only when broad capability discovery is genuinely required.
 - [2026-08-30] [orchestration] Bound fresh-chat short prompts to the inherited mission after bootstrap/live orientation, including the compact Library delivery projection, and added a replay fixture for the contextless `What do you think` regression.
 - [2026-08-30] [memory] Compacted the generated ChatGPT Library bootstrap to a hard 15,000-byte ceiling while preserving every active behavior and canonical-policy text; redundant Vault-owned rule metadata is no longer duplicated in the delivery artifact.
 - [2026-08-30] [memory] Made false per-chat stack ownership and continuity promises a durable regression: active behavior now forbids assistant-invented chat-local contracts unless backed by current user direction or verified canonical stack state, with the incident captured as a replay fixture.
 - [2026-08-30] [orchestration] Aligned the ChatGPT Personal Instructions bridge with Library-first behavior delivery, required behavior load before any visible assistant prose, and removed the obsolete fixed retry-once cutoff in favor of repeatable bounded route recovery (#125).
-- [2026-08-30] [memory] Kept the exact Vault bootstrap fallback under the 32 KB process-read window by compacting its JSON wire format and redundant startup prose without dropping behavior rules or the 20-item recent-memory glance.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

@@ -60,7 +60,7 @@ def _compact_payload() -> dict[str, Any]:
         "policy": [item["text"] for item in full["canonical_policy_profile"]],
         "startup": {
             "sequence": full["fresh_session_startup"]["startup_sequence"],
-            "fresh": "First message triggers startup. Apply this contract, consume Atlas, refresh up to 20 recent Vault titles when available (else embedded fallback), then inspect relevant live truth before the first substantive reply. Resolve the active mission and bind short prompts to it instead of asking for restatement. Stack/infra work requires Atlas inventory plus relevant lookups. Stay silent if clean; lead with material abnormality and safe containment if not.",
+            "fresh": "First message triggers startup. Apply contract; consume Atlas; refresh up to 20 recent Vault titles when available (else embedded fallback); inspect relevant live truth before the first substantive reply. Resolve the active mission and bind short prompts to it instead of asking for restatement. Reuse loaded tool schemas; if a required function is missing, discover that narrow function only; enumerate a connector only when broad capability discovery is required. Stack/infra work requires Atlas inventory plus relevant lookups. Stay silent if clean; lead with material abnormality and safe containment.",
             "later": "Compaction restores behavior only. Re-check live sources for later status answers. Worker activity needs current execution evidence (~5 min); claims, leases, checkpoints, schedules, and enabled flags alone prove nothing.",
         },
         "atlas": full["stack_atlas_glance"],

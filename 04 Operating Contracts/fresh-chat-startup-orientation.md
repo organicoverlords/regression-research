@@ -4,6 +4,8 @@ The Vault is the canonical behavior/policy/memory source. The generated Library 
 
 Fresh normal-chat sequence: **Library behavior delivery -> bounded Vault recent-memory refresh -> bounded live status -> respond**. If Library behavior delivery is unavailable or incomplete, the exact Vault `memory_bank.py bootstrap` command is the behavior fallback. If the post-behavior Vault recent-memory read fails, use the artifact's embedded bounded glance when present and continue; memory enrichment failure does not remove already-loaded behavior.
 
+Tool-schema discovery is bounded too. Reuse function schemas already loaded in the conversation. If a required function is missing, discover the narrowest specific function/query available; do not refresh or enumerate an entire connector namespace unless the task genuinely requires broad capability discovery. A missing binding may justify targeted discovery, not a wholesale schema reload.
+
 Personal Instructions are the stable bridge into this sequence. They must point to the generated Library behavior artifact first, keep Vault as canonical/fallback, and require live orientation before the first substantive answer. The maintained bridge text is `04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt`.
 
 A fresh-chat bootstrap is not task completion and is not live orientation. The first user message may be a greeting, a project name, `go`, `continue`, another established shorthand, a status question, or an underspecified wake-up message. That first message triggers the startup sweep; it never bypasses it. Resolve what is already known from delivered behavior, bounded Vault memory when available, and current live state instead of asking the operator to restate established context.

@@ -53,6 +53,12 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "stack_atlas_glance", "recent_memory_glance", "live_orientation", "response"])
         self.assertIn("up to 20", startup["recent_memory_glance"])
         self.assertIn("embedded compact Stack Atlas entrypoint", startup["stack_atlas_glance"])
+        self.assertIn("schemas already loaded", startup["tool_schema_discovery"])
+        self.assertIn("narrowest specific function/query", startup["tool_schema_discovery"])
+        self.assertIn("do not refresh or enumerate a whole connector namespace", startup["tool_schema_discovery"])
+        compact_fresh = build_chatgpt_bootstrap_artifact()["payload"]["startup"]["fresh"]
+        self.assertIn("Reuse loaded tool schemas", compact_fresh)
+        self.assertIn("discover that narrow function only", compact_fresh)
         self.assertIn("after the bounded recent-memory glance", startup["live_orientation"])
         self.assertIn("scheduled-worker state/recent runs", startup["live_orientation"])
         self.assertIn("recent meaningful commits/PRs/checks", startup["live_orientation"])
