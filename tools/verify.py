@@ -46,6 +46,9 @@ MEMORY_PATHS = {
     "memory/behavior-authority-registry.json",
     "memory/README.md",
     "docs/assistant-stack-architecture.md",
+    "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
+    "04 Operating Contracts/chatgpt-bootstrap-distribution.md",
+    "tools/chatgpt_bootstrap_artifact.py",
     "tools/memory_authority.py",
     "tools/memory_bank.py",
     "tools/memory_classification.py",
@@ -177,6 +180,7 @@ def verify_memory() -> None:
             sys.executable,
             "-m",
             "py_compile",
+            "tools/chatgpt_bootstrap_artifact.py",
             "tools/memory_authority.py",
             "tools/memory_bank.py",
             "tools/memory_classification.py",
@@ -192,6 +196,10 @@ def verify_memory() -> None:
     run([sys.executable, "tools/memory_bank.py", "validate"])
     run([sys.executable, "tools/memory_bank.py", "authority-validate"])
     run([sys.executable, "tools/provenance.py", "validate"])
+    with tempfile.TemporaryDirectory(prefix="chatgpt-bootstrap-verify-") as temp_dir:
+        artifact = str(Path(temp_dir) / "chatgpt-bootstrap.json")
+        run([sys.executable, "tools/chatgpt_bootstrap_artifact.py", "render", "--output", artifact])
+        run([sys.executable, "tools/chatgpt_bootstrap_artifact.py", "verify", artifact])
     run(
         [
             sys.executable,
