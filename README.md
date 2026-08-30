@@ -1,4 +1,4 @@
-﻿# Regression Research
+# Regression Research
 
 <!-- CHANGELOG-LANDING:BEGIN -->
 ## Project timeline
