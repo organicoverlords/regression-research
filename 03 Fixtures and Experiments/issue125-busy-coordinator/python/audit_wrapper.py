@@ -8,6 +8,8 @@ import time
 
 EXTRA_COMMANDS = {"contract", "log", "audit"}
 MAX_AUDIT_DETAIL_CHARS = 2048
+MAX_AUDIT_CHECKPOINT_CHARS = 1024
+MAX_AUDIT_EXPIRED_ITEMS = 32
 DEFAULT_AUDIT_MAX_BYTES = 5 * 1024 * 1024
 DEFAULT_AUDIT_BACKUPS = 3
 META_VALUE_FLAGS = {
@@ -241,6 +243,97 @@ def parse_result(stdout: str, stderr: str) -> dict | None:
     return None
 
 
+def bounded_checkpoint(value: object) -> tuple[str | None, bool, int | None]:
+    if not isinstance(value, str):
+        return None, False, None
+    chars = len(value)
+    if chars <= MAX_AUDIT_CHECKPOINT_CHARS:
+        return value, False, chars
+    return value[:MAX_AUDIT_CHECKPOINT_CHARS], True, chars
+
+
+def compact_claim_projection(value: object) -> dict | None:
+    if not isinstance(value, dict):
+        return None
+    projected = {key: value.get(key) for key in ("actor", "scope", "timestamp") if value.get(key) is not None}
+    return projected or None
+
+
+def compact_handoff_projection(value: object) -> dict | None:
+    if not isinstance(value, dict):
+        return None
+    keys = ("parent_scope", "finding_id", "reported_by", "reported_at")
+    projected = {key: value.get(key) for key in keys if value.get(key) is not None}
+    return projected or None
+
+
+def compact_job_projection(value: object) -> dict | None:
+    if not isinstance(value, dict):
+        return None
+    keys = ("job_id", "scope", "state", "owner", "lease_expires_at", "claim_timestamp", "updated_at")
+    projected = {key: value.get(key) for key in keys if key in value}
+    checkpoint, truncated, chars = bounded_checkpoint(value.get("checkpoint"))
+    if checkpoint is not None:
+        projected["checkpoint"] = checkpoint
+        if truncated:
+            projected["checkpoint_truncated"] = True
+            projected["checkpoint_chars"] = chars
+    handoff = compact_handoff_projection(value.get("handoff"))
+    if handoff is not None:
+        projected["handoff"] = handoff
+    return projected or None
+
+
+def result_projection(result: object) -> dict | None:
+    if not isinstance(result, dict):
+        return None
+    projected: dict = {}
+    job = compact_job_projection(result.get("job"))
+    if job is not None:
+        projected["job"] = job
+    for key in ("claim", "recovered", "released", "block", "complete"):
+        claim = compact_claim_projection(result.get(key))
+        if claim is not None:
+            projected[key] = claim
+    handoff = compact_handoff_projection(result.get("handoff"))
+    if handoff is not None:
+        projected["handoff"] = handoff
+    expired = result.get("expired")
+    if isinstance(expired, list):
+        items = [compact_claim_projection(item) for item in expired[:MAX_AUDIT_EXPIRED_ITEMS]]
+        projected["expired"] = [item for item in items if item is not None]
+        if len(expired) > MAX_AUDIT_EXPIRED_ITEMS:
+            projected["expired_truncated"] = True
+            projected["expired_count"] = len(expired)
+    return projected or None
+
+
+def transition_projection(command: str | None, result: object) -> dict | None:
+    if not isinstance(result, dict) or not result.get("ok"):
+        return None
+    if command not in {"recover", "handoff", "enqueue", "ready", "next", "claim", "heartbeat", "release", "block", "complete"}:
+        return None
+    transition: dict = {}
+    job = result.get("job")
+    if isinstance(job, dict) and isinstance(job.get("state"), str):
+        transition["state"] = job["state"]
+        transition["owner"] = job.get("owner")
+    elif command in {"claim", "heartbeat"}:
+        transition["state"] = "active"
+        claim = result.get("claim")
+        if isinstance(claim, dict):
+            transition["owner"] = claim.get("actor")
+    elif command == "block":
+        transition["state"] = "blocked"
+        transition["owner"] = None
+    elif command == "complete":
+        transition["state"] = "completed"
+        transition["owner"] = None
+    elif command == "release":
+        transition["claim_released"] = True
+    return transition or None
+
+
 def coordinator_event(command: str | None, command_args: list[str], result: dict | None,
                       returncode: int, meta: dict, duration_ms: float, error_text: str) -> dict:
     actor, scope = event_identity(command, command_args, result)
@@ -248,6 +341,7 @@ def coordinator_event(command: str | None, command_args: list[str], result: dict
     reason = result.get("reason") if isinstance(result, dict) else None
     if not reason and returncode != 0:
         reason = error_text.strip().splitlines()[-1] if error_text.strip() else f"exit_{returncode}"
+    checkpoint, checkpoint_truncated, checkpoint_chars = bounded_checkpoint(find_option(command_args, "--checkpoint"))
     event = {
         "schema": 1,
         "event_type": "coordinator_command",
@@ -256,8 +350,13 @@ def coordinator_event(command: str | None, command_args: list[str], result: dict
         "actor": actor,
         "scope": scope,
         "operation_id": find_option(command_args, "--operation-id"),
+        "checkpoint": checkpoint,
+        "checkpoint_truncated": True if checkpoint_truncated else None,
+        "checkpoint_chars": checkpoint_chars if checkpoint_truncated else None,
         "ok": ok,
         "reason": reason,
+        "result_projection": result_projection(result),
+        "transition": transition_projection(command, result),
         "tool": meta.get("tool"),
         "model": meta.get("model"),
         "tokens": reported_tokens(meta),
