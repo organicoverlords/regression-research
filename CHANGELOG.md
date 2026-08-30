@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Added retrieval coverage for the user-authorized large-architecture review gate so timed-worker RFC-before-implementation behavior stays regression-enforced.
+
 - [2026-08-30] [coordination] Enriched the standalone BusyCoordinator audit sidecar with bounded returned-state and deterministic transition projections, so per-scope history preserves claim/job/checkpoint outcomes without changing the canonical ownership core or adding another history database (#125).
 
 - [2026-08-30] [memory] Single-sourced the fresh-chat startup operating cycle in a machine-readable contract loaded directly by bootstrap generation, preventing executable startup semantics from silently drifting from their declared authority (#125).
