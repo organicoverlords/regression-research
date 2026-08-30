@@ -23,6 +23,18 @@ class Issue174SampleGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate episode keys"):
             validate_samples(self.pilot, tranche2)
 
+    def test_missing_coded_column_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        pilot[0].pop("source_snapshot_file")
+        with self.assertRaisesRegex(ValueError, "coded schema drift"):
+            validate_samples(pilot, self.tranche2)
+
+    def test_unexpected_coded_column_is_rejected(self):
+        tranche2 = copy.deepcopy(self.tranche2)
+        tranche2[0]["reviewer_note"] = "not part of the frozen coding schema"
+        with self.assertRaisesRegex(ValueError, "coded schema drift"):
+            validate_samples(self.pilot, tranche2)
+
     def test_mistake_requires_counterfactual(self):
         pilot = copy.deepcopy(self.pilot)
         row = next(row for row in pilot if row["coding_status"] == "MISTAKE")
