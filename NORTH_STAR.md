@@ -105,17 +105,13 @@ The target is a corpus rich enough that a future regression can normally be comp
 
 ### 6. One boring repository workflow
 
-For repository work, the normal path is predictable:
+For repository work, use the smallest safe path that proves the requested outcome:
 
-1. Read the current repo contract and live state.
-2. Reuse or create the relevant issue/task anchor.
-3. Check the standalone BusyCoordinator and claim the exact mutable scope when available/required; MCP/plugin/process surfaces are transports, not ownership authorities.
-4. Take an isolated branch/scope.
-5. Make the smallest complete change.
-6. Prove the actual claim on the artifact or runtime path that matters.
-7. Add or update the regression that would catch the same failure again.
-8. Commit, push, open the PR, validate, and merge when evidence is sufficient.
-9. Release ownership, remove temporary branch/coordination state, and leave a durable audit trail.
+1. Inspect only the contract and live state needed for the change.
+2. Make the smallest complete change while preserving unrelated work.
+3. Run focused proof. Escalate to an issue, claim, isolated branch/worktree, PR, broad CI, or publication only when collision risk, change risk, repository enforcement, or the actual delivery path requires it.
+
+Control-plane machinery is conditional, not a checklist. A small low-risk change should stay small.
 
 Historical caution, 2026-08-30: repository cleanup removed **470 remote branches** that had accumulated across the stack: Vault 45, Agents 8, LowVRAM 54, Tiny3D 68, and P3 295. No single branch created the failure. The accumulated temporary state made finished work look active, multiplied plausible sources of truth, and turned ordinary repository orientation into archaeology. This is evidence for the cleanup boundary above, not a new policy layer: temporary Git state should end when its bounded work ends.
 
