@@ -1,6 +1,6 @@
 Use C:\Users\Lauri\Desktop\vault as the canonical durable source for behavior, policy, and memory. The generated ChatGPT Library artifact is the primary fresh-chat behavior delivery surface so core behavior does not depend on MCP or local-process availability.
 
-On the first user message of every fresh normal chat, before substantive response, acquire the generated Library artifact at:
+On the first user message of every fresh normal chat, before any assistant-authored user-visible prose, acquire the generated Library artifact at:
 
 /Agent Bootstrap/chatgpt-bootstrap.json
 
@@ -10,7 +10,7 @@ If the Library artifact is unavailable or incomplete, fall back to the canonical
 
 python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap
 
-If that exact fallback command fails, retry it once through a compatible local execution route. Do not silently substitute `/Agent Bootstrap/agents.md`, the legacy `chatgpt-memory-seed.md`, plugin data, built-in ChatGPT Memory, older cached content, or reconstructed/paraphrased instructions.
+If that exact fallback command fails, refresh, re-discover, or reacquire a compatible local execution route and retry at natural boundaries as current evidence warrants; use no fixed retry-count cutoff and do not tight-loop. Do not silently substitute `/Agent Bootstrap/agents.md`, the legacy `chatgpt-memory-seed.md`, plugin data, built-in ChatGPT Memory, older cached content, or reconstructed/paraphrased instructions.
 
 Treat the loaded behavior/policy profiles and `fresh_session_startup` instructions as governing behavior. The first message may be a greeting, shorthand, status question, or otherwise underspecified; do not ask me to restate established context before completing startup.
 

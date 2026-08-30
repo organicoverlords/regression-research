@@ -8,6 +8,9 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [orchestration] Aligned the ChatGPT Personal Instructions bridge with Library-first behavior delivery, required behavior load before any visible assistant prose, and removed the obsolete fixed retry-once cutoff in favor of repeatable bounded route recovery (#125).
+
+
 - [2026-08-30] [memory] Kept the exact Vault bootstrap fallback under the 32 KB process-read window by compacting its JSON wire format and redundant startup prose without dropping behavior rules or the 20-item recent-memory glance.
 
 - [2026-08-30] [research] Required #193 treatment binding-loss evidence to keep the sibling route healthy and show no matching local request arrival before contributing to SUPPORT_H1.
@@ -445,6 +448,9 @@ Delete the headings you do not use. Keep this section at the top at all times.
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
   2. Open a fresh empty `## [Unreleased]
+
+- [2026-08-30] [orchestration] Aligned the ChatGPT Personal Instructions bridge with Library-first behavior delivery, required behavior load before any visible assistant prose, and removed the obsolete fixed retry-once cutoff in favor of repeatable bounded route recovery (#125).
+
 - [2026-08-27] [memory] Added #176's preregistered unseen Memory Bank holdout: the authority firewall had zero failures across 6 stale/correction pairs and 8 negative controls, while hybrid retrieval improved Recall@5 from 33.3% to 50.0% on the six-case eligible population without retuning.
 
 
