@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [orchestration] Added a boundary-only worker interrupt check before large or hard-to-reverse mutations/landing so newer user stops and superseding coordinator handoffs cannot be ignored from stale task state (#125).
+
 - [2026-08-30] [regression] Reverted the unauthorized mandatory stack-map bootstrap/CI enforcement from PR #289 while preserving the descriptive map and the previously merged worker-activity evidence fix.
 
 - [2026-08-30] [orchestration] Corrected live-worker status to use a bounded recent Commander/MCP activity window instead of an instantaneous child-process snapshot; claims remain zero-weight and progress still counts only concrete work output (#125).
