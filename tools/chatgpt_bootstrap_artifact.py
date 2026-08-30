@@ -44,9 +44,16 @@ def build_chatgpt_bootstrap_artifact() -> dict[str, Any]:
     """Build the generated ChatGPT distribution artifact from canonical Vault authority."""
     payload = build_startup_bootstrap(load_bank(DEFAULT_BANK))
     return {
-        "artifact_schema_version": 1,
-        "purpose": "verified distribution cache of the canonical Vault startup bootstrap",
+        "artifact_schema_version": 2,
+        "purpose": "primary fresh-chat behavior delivery generated from canonical Vault authority",
         "library_path": DEFAULT_LIBRARY_PATH,
+        "delivery_contract": {
+            "canonical_authority": "Vault",
+            "fresh_chat_behavior_role": "primary",
+            "behavior_requires_mcp": False,
+            "vault_bootstrap_role": "fallback behavior delivery when Library is unavailable or incomplete",
+            "embedded_recent_memory_glance_role": "bounded fallback orientation snapshot; refresh from Vault after behavior when available",
+        },
         "source": {
             "behavior_bank": _source_descriptor(DEFAULT_BANK),
             "authority_registry": _source_descriptor(AUTHORITY_REGISTRY),
@@ -64,6 +71,21 @@ def render_artifact_bytes() -> bytes:
         separators=(",", ":"),
     )
     return (text + "\n").encode("utf-8")
+
+
+def publication_plan() -> dict[str, Any]:
+    data = render_artifact_bytes()
+    artifact = build_chatgpt_bootstrap_artifact()
+    return {
+        "status": "EXPECTED_LIBRARY_ARTIFACT",
+        "library_path": DEFAULT_LIBRARY_PATH,
+        "bytes": len(data),
+        "sha256": _sha256(data),
+        "delivery_role": artifact["delivery_contract"]["fresh_chat_behavior_role"],
+        "canonical_authority": artifact["delivery_contract"]["canonical_authority"],
+        "source": artifact["source"],
+        "acceptance": "retrieve the published Library copy and require byte-exact verify=PROVEN",
+    }
 
 
 def write_artifact_copy(path: Path, data: bytes) -> None:
@@ -108,10 +130,15 @@ def main() -> int:
     render = sub.add_parser("render", help="render the canonical generated artifact")
     render.add_argument("--output", type=Path)
 
+    sub.add_parser("publication-plan", help="describe the exact Library artifact the publisher worker must expose")
+
     verify = sub.add_parser("verify", help="compare a Library/downloaded copy byte-for-byte")
     verify.add_argument("copy", type=Path)
 
     args = parser.parse_args()
+    if args.command == "publication-plan":
+        _print_json(publication_plan())
+        return 0
     if args.command == "render":
         data = render_artifact_bytes()
         if args.output:
