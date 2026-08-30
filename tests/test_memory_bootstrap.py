@@ -1,4 +1,4 @@
-import hashlib
+﻿import hashlib
 import json
 import tempfile
 import unittest
@@ -119,28 +119,28 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("zero positive weight", bridge)
         self.assertIn("claim timestamps may delimit", bridge)
         self.assertIn(DEFAULT_LIBRARY_PATH, bridge)
-        self.assertIn("primary fresh-chat behavior delivery surface", bridge)
-        self.assertIn("core behavior does not depend on MCP", bridge)
+        self.assertIn("transport fallback cache", bridge)
+        self.assertIn("execute exactly through a compatible local route", bridge)
         self.assertIn("before any assistant-authored user-visible prose", bridge)
-        self.assertIn("no fixed retry-count cutoff", bridge)
-        self.assertNotIn("retry it once", bridge)
-        self.assertLess(bridge.index(DEFAULT_LIBRARY_PATH), bridge.index("memory_bank.py bootstrap"))
+        self.assertNotIn("no fixed retry-count cutoff", bridge)
+        self.assertIn("retry it once", bridge)
+        self.assertLess(bridge.index("memory_bank.py bootstrap"), bridge.index(DEFAULT_LIBRARY_PATH))
         self.assertIn("recent-titles --limit 20", bridge)
         self.assertIn("stack_atlas_glance", bridge)
         self.assertIn("deep-lookup every relevant component", bridge)
         self.assertIn("memory read is enrichment, not a behavior gate", bridge)
-        self.assertNotIn("transport fallback, not a second behavioral authority", bridge)
+        self.assertIn("transport fallback cache, not a second behavioral authority", bridge)
         self.assertIn("continue from current user instruction", bridge)
         self.assertIn("/Agent Bootstrap/agents.md", bridge)
         self.assertIn("legacy `chatgpt-memory-seed.md`", bridge)
 
     def test_distribution_contract_requires_primary_library_publisher_acceptance(self):
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
-        self.assertIn("primary fresh-chat behavior delivery surface", contract)
+        self.assertIn("transport fallback cache", contract)
         self.assertIn("stack_atlas_glance", contract)
         self.assertIn("compact Stack Atlas", contract)
-        self.assertIn("core behavior independent of MCP/local-process availability", contract)
-        self.assertIn("Library behavior -> compact Stack Atlas -> Vault recent-memory refresh -> live orientation -> response", contract)
+        self.assertIn("retry it once through a compatible local execution route", contract)
+        self.assertIn("Vault behavior bootstrap -> compact Stack Atlas -> Vault recent-memory refresh -> live orientation -> response", contract)
         self.assertIn("Library publisher worker contract", contract)
         self.assertIn("publication-plan", contract)
         self.assertIn("restorable previous copies", contract)
@@ -186,7 +186,7 @@ class MemoryBootstrapTests(unittest.TestCase):
         rendered = render_artifact_bytes()
         self.assertEqual(plan["status"], "EXPECTED_LIBRARY_ARTIFACT")
         self.assertEqual(plan["library_path"], DEFAULT_LIBRARY_PATH)
-        self.assertEqual(plan["delivery_role"], "primary")
+        self.assertEqual(plan["delivery_role"], "fallback")
         self.assertEqual(plan["canonical_authority"], "Vault")
         self.assertEqual(plan["bytes"], len(rendered))
         self.assertEqual(plan["sha256"], hashlib.sha256(rendered).hexdigest().upper())
