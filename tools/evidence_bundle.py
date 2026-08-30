@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
+import tempfile
 from pathlib import Path, PurePosixPath
 
 SCHEMA_VERSION = 1
@@ -157,7 +159,18 @@ def canonical_json(manifest: dict[str, object]) -> str:
 
 
 def write_manifest(path: Path, manifest: dict[str, object]) -> None:
-    path.write_bytes(canonical_json(manifest).encode("utf-8"))
+    payload = canonical_json(manifest).encode("utf-8")
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def load_manifest(path: Path) -> dict[str, object]:
