@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Removed two curated retrieval cases that targeted behavior rules explicitly superseded by the temporary response-gate rule.
+
 - [2026-08-30] [research] Required #193 supporting controls to remain callable in both paired samples so a stable failed control cannot promote treatment reproductions to SUPPORT_H1.
 - [2026-08-30] [memory] Normalized continuity paraphrases so correction-as-delta behavior remains retrievable instead of being displaced by newer generic task rules.
 
