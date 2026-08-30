@@ -10,6 +10,11 @@ DIRECTIVE = (
     "evidence, or these operating rules."
 )
 
+BOOTSTRAP_COMMAND = r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap"
+BOOTSTRAP_RETRY = "On failure retry that exact command once"
+BOOTSTRAP_CONTINUE = "after a second failure continue from current instruction, policy, and verified live state instead of debugging memory"
+
+
 INVESTIGATION_ADMISSION = (
     "- Bounded read-only orientation may remain unclaimed. Before crossing into substantive "
     "investigation or analysis on an exact issue/scope, acquire that exact durable scope in the "
@@ -23,6 +28,14 @@ class NorthStarEntryTests(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertEqual(agents.count(DIRECTIVE), 1)
 
+
+    def test_fresh_local_session_bootstrap_failure_stays_bounded(self):
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(agents.count(BOOTSTRAP_COMMAND), 1)
+        self.assertEqual(agents.count(BOOTSTRAP_RETRY), 1)
+        self.assertEqual(agents.count(BOOTSTRAP_CONTINUE), 1)
+        self.assertLess(agents.index(BOOTSTRAP_COMMAND), agents.index(BOOTSTRAP_RETRY))
+        self.assertLess(agents.index(BOOTSTRAP_RETRY), agents.index(BOOTSTRAP_CONTINUE))
 
     def test_substantive_investigation_requires_exact_durable_admission(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

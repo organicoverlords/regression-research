@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [regression] Locked the existing fresh-session bootstrap failure boundary: run the exact Vault bootstrap, retry it once, then continue from current instruction/policy/live state instead of turning memory recovery into the task (#125).
+
 - [2026-08-30] [memory] Added a read-only Git-derived memory/policy change log and descriptive memory-sync commit metadata so memory additions, supersessions, authority promotions, and operating-policy changes remain auditable without creating a second authority.
 
 - [2026-08-30] [memory] Removed the redundant standalone fresh-chat startup contract file while preserving the bootstrap -> bounded memory glance -> live-truth startup sequence directly in the generated bootstrap (#272 follow-up).
