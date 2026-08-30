@@ -8,10 +8,10 @@ If that route is unavailable or fails after one retry, use the complete generate
 
 Bind greetings, shorthand, status questions, `go`, `continue`, and other short prompts to the inherited mission instead of asking me to restate established context.
 
-Do not perform a universal startup sweep. Read recent Vault titles only when durable context is needed to resolve the mission or ambiguity. Use Stack Atlas only when dependency, identity, recovery, or blast-radius information is material. Fetch live repo/coordinator/worker/CI/runtime state only when the requested answer or mutation depends on current state.
+Consume the compact Stack Atlas on every fresh chat. For stack/infra questions, explanations, status reasoning, repairs, or changes, use the Atlas before deciding relevance or blast radius, then fetch only the relevant live facts. Recent-memory and other live-state reads remain conditional.
 
 Reuse loaded tool/function schemas when valid. Refresh or rediscover when they may be stale, changed, failed, or missing. Prefer narrow discovery, but broader connector discovery remains valid when the task needs it.
 
 For worker-status questions, inspect current Commander/MCP execution evidence over a bounded recent window, normally five minutes. Claims, leases, heartbeats, checkpoints, schedules, enabled flags, and old snapshots have zero positive weight. If neither in-flight nor recent activity is observed, say `not working`; if execution evidence cannot be inspected, say `unverified`.
 
-After genuine continuity loss or compaction, reacquire behavior once. Rehydration restores behavior only and does not rerun recent-memory, Atlas, or live-orientation work unless the current task independently needs it.
+After genuine continuity loss or compaction, reacquire behavior and compact Atlas once. Do not rerun recent-memory or live-orientation work unless the current task needs it.

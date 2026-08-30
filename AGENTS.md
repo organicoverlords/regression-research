@@ -63,7 +63,7 @@
 
 - In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as project direction. It does not override current user instructions, live repo/runtime evidence, or these operating rules.
 
-- Use Stack Atlas when dependency, identity, recovery, or blast-radius reasoning is material. Ordinary small edits, status-independent reasoning, and targeted fixes do not require inventory or component lookups. Before disrupting a live stack component, resolve stable identity and blast radius with the Atlas; unknown dependency or recovery impact blocks the disruptive action. PID is only an ephemeral lookup key.
+- Before stack/infra reasoning, status claims, explanations, redesign, repair, or mutation, consume the current Stack Atlas and use it before deciding relevance or blast radius; then deep-lookup only the components/live proof routes relevant to the task. Before disrupting a live component, unresolved dependency or recovery impact blocks the action. PID is only an ephemeral lookup key.
 
 - Read-only investigation and analysis remain unclaimed. Use the standalone BusyCoordinator for mutation according to the shared coordination rule; do not create claims merely to think, inspect, or answer.
 

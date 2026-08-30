@@ -107,7 +107,7 @@ The target is a corpus rich enough that a future regression can normally be comp
 
 For repository work, use the smallest safe path that proves the requested outcome:
 
-1. Inspect only the contract and live state needed for the change.
+1. For stack/infra work, consult the Stack Atlas first; then inspect only the contract and live state the map and task make relevant.
 2. Make the smallest complete change while preserving unrelated work.
 3. Run focused proof. Escalate to an issue, claim, isolated branch/worktree, PR, broad CI, or publication only when collision risk, change risk, repository enforcement, or the actual delivery path requires it.
 
