@@ -1,4 +1,4 @@
-﻿import hashlib
+import hashlib
 import json
 import tempfile
 import unittest
@@ -55,12 +55,12 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("otherwise skip it", startup["recent_memory_glance"])
         self.assertIn("only when dependency, identity, recovery, or blast-radius matters", startup["stack_atlas_glance"])
         self.assertIn("needs no inventory", startup["stack_atlas_glance"])
-        self.assertIn("schemas already loaded", startup["tool_schema_discovery"])
-        self.assertIn("narrowest specific function/query", startup["tool_schema_discovery"])
-        self.assertIn("do not refresh or enumerate a whole connector namespace", startup["tool_schema_discovery"])
+        self.assertIn("reuse loaded schemas when valid", startup["tool_schema_discovery"])
+        self.assertIn("prefer narrow discovery", startup["tool_schema_discovery"])
+        self.assertIn("refresh when stale, changed, failed, or missing", startup["tool_schema_discovery"])
         compact_fresh = build_chatgpt_bootstrap_artifact()["payload"]["startup"]["fresh"]
-        self.assertIn("Reuse loaded tool schemas", compact_fresh)
-        self.assertIn("discover that narrow function only", compact_fresh)
+        self.assertIn("Reuse valid schemas", compact_fresh)
+        self.assertIn("refresh when stale/changed/failed/missing", compact_fresh)
         self.assertIn("inspect only the live facts", startup["live_orientation"])
         self.assertIn("no mandatory fresh-chat fleet/repo/worker/CI scan", startup["live_orientation"])
         self.assertIn("small status-independent edits", startup["live_orientation"])
@@ -113,7 +113,7 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("Recent Vault titles only when durable context is needed", bridge.replace("recent Vault titles", "Recent Vault titles"))
         self.assertIn("Use Stack Atlas only when", bridge)
         self.assertIn("live repo/coordinator/worker/CI/runtime state only when", bridge)
-        self.assertIn("Reuse tool/function schemas already loaded", bridge)
+        self.assertIn("Reuse loaded tool/function schemas when valid", bridge)
         self.assertIn("normally five minutes", bridge)
         self.assertIn("zero positive weight", bridge)
         self.assertIn(DEFAULT_LIBRARY_PATH, bridge)

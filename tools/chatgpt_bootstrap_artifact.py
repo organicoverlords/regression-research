@@ -60,7 +60,7 @@ def _compact_payload() -> dict[str, Any]:
         "policy": [item["text"] for item in full["canonical_policy_profile"]],
         "startup": {
             "sequence": full["fresh_session_startup"]["startup_sequence"],
-            "fresh": "Load behavior; resolve mission and bind short prompts to it instead of asking for restatement. Fetch memory/Atlas/live only when needed. Reuse loaded tool schemas; if missing, discover that narrow function only; enumerate connectors only for broad discovery.",
+            "fresh": "Load behavior; resolve mission and bind short prompts to it instead of asking for restatement. Fetch memory/Atlas/live only when needed. Reuse valid schemas; refresh when stale/changed/failed/missing; prefer narrow discovery; broader discovery when needed.",
             "later": "Compaction restores behavior; fetch state when needed. Worker activity needs execution evidence; coordination metadata proves nothing.",
         },
         "atlas": full["stack_atlas_glance"],

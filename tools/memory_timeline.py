@@ -321,7 +321,7 @@ def build_fresh_session_startup_contract() -> dict[str, Any]:
         "startup_sequence": ["behavior_delivery", "relevant_context", "response"],
         "behavior_delivery_primary": "/Agent Bootstrap/chatgpt-bootstrap.json via ChatGPT Files/Library; when complete, core behavior does not depend on MCP/local-process availability",
         "behavior_delivery_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap through a compatible local execution route only when the Library artifact is unavailable or incomplete",
-        "tool_schema_discovery": "reuse tool/function schemas already loaded in the conversation; when a required function is missing, discover the narrowest specific function/query available; do not refresh or enumerate a whole connector namespace unless broad capability discovery is genuinely required",
+        "tool_schema_discovery": "reuse loaded schemas when valid; refresh when stale, changed, failed, or missing; prefer narrow discovery, but use broader connector discovery when needed",
         "stack_atlas_glance": "use Stack Atlas only when dependency, identity, recovery, or blast-radius matters; small status-independent work needs no inventory",
         "recent_memory_glance": r"refresh up to 20 newest eligible Vault titles/metadata only when recent durable context is needed to resolve the active mission or ambiguity; otherwise skip it; on failure use embedded recent_memory_glance when relevant and continue",
         "response_gate": "behavior delivery is the only universal startup prerequisite; Atlas, recent-memory, and live checks are conditional on the actual answer or mutation and must not delay simple replies as ceremony",

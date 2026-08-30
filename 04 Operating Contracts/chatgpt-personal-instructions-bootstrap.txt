@@ -10,7 +10,7 @@ Bind greetings, shorthand, status questions, `go`, `continue`, and other short p
 
 Do not perform a universal startup sweep. Read recent Vault titles only when durable context is needed to resolve the mission or ambiguity. Use Stack Atlas only when dependency, identity, recovery, or blast-radius information is material. Fetch live repo/coordinator/worker/CI/runtime state only when the requested answer or mutation depends on current state.
 
-Reuse tool/function schemas already loaded in the conversation. If a required function is missing, discover the narrowest specific function/query available; do not enumerate a whole connector unless broad capability discovery is genuinely required.
+Reuse loaded tool/function schemas when valid. Refresh or rediscover when they may be stale, changed, failed, or missing. Prefer narrow discovery, but broader connector discovery remains valid when the task needs it.
 
 For worker-status questions, inspect current Commander/MCP execution evidence over a bounded recent window, normally five minutes. Claims, leases, heartbeats, checkpoints, schedules, enabled flags, and old snapshots have zero positive weight. If neither in-flight nor recent activity is observed, say `not working`; if execution evidence cannot be inspected, say `unverified`.
 
