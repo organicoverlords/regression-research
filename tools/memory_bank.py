@@ -698,8 +698,9 @@ def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str |
     return selected_manual + [summary_entry] + selected_conversations
 
 
-def _print_json(value: Any) -> None:
-    payload = json.dumps(value, ensure_ascii=False) + "\n"
+def _print_json(value: Any, *, compact: bool = False) -> None:
+    separators = (",", ":") if compact else None
+    payload = json.dumps(value, ensure_ascii=False, separators=separators) + "\n"
     stream = getattr(sys.stdout, "buffer", None)
     if stream is None:
         print(json.dumps(value, ensure_ascii=True))
@@ -903,7 +904,7 @@ def _main() -> int:
             _print_json(entry)
             return 0
         if args.command == "bootstrap":
-            _print_json(build_startup_bootstrap(entries))
+            _print_json(build_startup_bootstrap(entries), compact=True)
             return 0
         if args.command == "orient":
             projects = args.project or ["p3", "tiny3d", "lowvram"]

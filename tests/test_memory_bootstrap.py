@@ -251,8 +251,10 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertNotIn("origin/main:docs/v2/WORKER_START_HERE.md", template)
 
     def test_startup_bootstrap_fits_plugin2_read_window(self):
-        rendered = json.dumps(build_startup_bootstrap(load_bank()), ensure_ascii=False)
+        payload = build_startup_bootstrap(load_bank())
+        rendered = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         self.assertLessEqual(len(rendered), 32000)
+        self.assertEqual(json.loads(rendered), payload)
         self.assertIn("recent_memory_glance", rendered)
         self.assertIn("stack_atlas_glance", rendered)
 
