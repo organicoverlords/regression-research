@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.evidence_bundle import (
     build_manifest,
@@ -66,6 +67,18 @@ class EvidenceBundleTests(unittest.TestCase):
             write_manifest(output, manifest)
             self.assertEqual(output.read_bytes(), canonical_json(manifest).encode("utf-8"))
             self.assertNotIn(b"\r\n", output.read_bytes())
+
+    def test_write_manifest_preserves_existing_output_when_publish_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            output = root / "bundle.json"
+            output.write_bytes(b"last-known-good\n")
+            manifest = {"schema": 1, "subject": {"commit": "abc123"}, "artifacts": [{"path": "proof.txt", "sha256": "00", "size": 0}]}
+            with mock.patch("tools.evidence_bundle.os.replace", side_effect=OSError("publish failed")):
+                with self.assertRaisesRegex(OSError, "publish failed"):
+                    write_manifest(output, manifest)
+            self.assertEqual(output.read_bytes(), b"last-known-good\n")
+            self.assertEqual(list(root.glob(f".{output.name}.*.tmp")), [])
 
     def test_verify_is_read_only(self):
         with tempfile.TemporaryDirectory() as td:
