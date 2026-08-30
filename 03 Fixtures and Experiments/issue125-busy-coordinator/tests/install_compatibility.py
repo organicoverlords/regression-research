@@ -64,11 +64,78 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     }
     assert py_view["focus"]["claim"]["actor"] == "actor-a"
 
+    # Both installed wrappers expose the same versioned contract and audit sidecar
+    # while retaining the current canonical core command surface (including recover).
+    wrappers = {
+        "py": destination / "busy-python.cmd",
+        "rs": destination / "busy-rust.cmd",
+    }
+    contract_views = {}
+    for kind, wrapper in wrappers.items():
+        contract_run = subprocess.run(
+            ["cmd.exe", "/d", "/c", str(wrapper), "contract"],
+            capture_output=True, text=True,
+        )
+        assert contract_run.returncode == 0, contract_run.stderr or contract_run.stdout
+        contract_views[kind] = json.loads(contract_run.stdout)
+        assert contract_views[kind]["contract_version"] == 2
+        assert contract_views[kind]["authority"] == "standalone_busy_coordinator"
+        assert "recover" in contract_views[kind]["required_commands"]
+        assert {"contract", "log", "audit"}.issubset(contract_views[kind]["required_commands"])
+        help_run = subprocess.run(
+            ["cmd.exe", "/d", "/c", str(wrapper), "--help"],
+            capture_output=True, text=True,
+        )
+        assert help_run.returncode == 0, help_run.stderr or help_run.stdout
+        for command in ("recover", "contract", "log", "audit"):
+            assert command in help_run.stdout
+    assert contract_views["py"]["required_commands"] == contract_views["rs"]["required_commands"]
+
+    py_heartbeat = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["py"]),
+         "--store", str(store), "heartbeat", "actor-a", "scope-a",
+         "--lease-seconds", "60", "--tool", "DesktopCommander",
+         "--model", "GPT-5.6-Sol", "--input-tokens", "10", "--output-tokens", "5"],
+        capture_output=True, text=True,
+    )
+    assert py_heartbeat.returncode == 0, py_heartbeat.stderr or py_heartbeat.stdout
+    rs_heartbeat = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["rs"]),
+         "--store", str(store), "heartbeat", "actor-a", "scope-a",
+         "--lease-seconds", "60", "--tool", "DesktopCommander",
+         "--model", "GPT-5.6-Sol", "--total-tokens", "20"],
+        capture_output=True, text=True,
+    )
+    assert rs_heartbeat.returncode == 0, rs_heartbeat.stderr or rs_heartbeat.stdout
+    tool_log = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["rs"]),
+         "--store", str(store), "log", "actor-a", "scope-a",
+         "--action", "build", "--target", "fixture", "--detail", "sidecar-proof",
+         "--duration-ms", "12.5", "--tool", "DesktopCommander", "--model", "GPT-5.6-Sol"],
+        capture_output=True, text=True,
+    )
+    assert tool_log.returncode == 0, tool_log.stderr or tool_log.stdout
+    audit_run = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["py"]),
+         "--store", str(store), "audit", "--limit", "20", "--actor", "actor-a"],
+        capture_output=True, text=True,
+    )
+    assert audit_run.returncode == 0, audit_run.stderr or audit_run.stdout
+    audit = json.loads(audit_run.stdout)
+    assert audit["malformed"] == 0
+    command_events = [event for event in audit["events"] if event.get("event_type") == "coordinator_command"]
+    assert any(event.get("command") == "heartbeat" and event.get("tool") == "DesktopCommander"
+               and event.get("tokens", {}).get("input") == 10 for event in command_events)
+    assert any(event.get("command") == "heartbeat" and event.get("tokens", {}).get("total") == 20
+               for event in command_events)
+    assert any(event.get("event_type") == "tool_event" and event.get("command") == "build"
+               and event.get("detail") == "sidecar-proof" for event in audit["events"])
+
     # Canonical Windows .cmd wrappers must be able to carry the documented
     # maximum provenance payload and reject one character above the summary bound.
     for kind, wrapper in [
-        ("py", destination / "busy-python.cmd"),
-        ("rs", destination / "busy-rust.cmd"),
+        ("py", wrappers["py"]),
+        ("rs", wrappers["rs"]),
     ]:
         max_store = base / f"handoff-max-{kind}.json"
         max_handoff = subprocess.run(
@@ -121,5 +188,7 @@ print(json.dumps({
     "legacy_entrypoint_overwritten": True,
     "coordinator_preserved": True,
     "snapshot_parity": True,
+    "contract_wrapper_parity": True,
+    "audit_sidecar": True,
     "cmd_handoff_bounds": True,
 }))
