@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [policy] Synced shared agent policy v1.24 and corrected the North Star so standalone BusyCoordinator is the sole live ownership authority while MCP/plugin/process surfaces remain transports.
+
 - [2026-08-30] [research] Required the preregistered #193 caller/process identity measurement in paired result records and rejected malformed identity values before classification.
 
 - [2026-08-30] [research] Rejected contradictory #193 result evidence where callable recipients carry client errors or uncallable recipients omit the observed client error class.

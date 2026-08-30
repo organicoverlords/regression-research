@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.23 - 2026-08-29.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run `sync-agent-policy.mjs`; never edit generated repo blocks directly. A shared-policy repair is incomplete until `node sync-agent-policy.mjs --check-remotes` passes, proving git-backed origin defaults carry the same generated block.
+**Version 1.24 - 2026-08-30.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and run `sync-agent-policy.mjs`; never edit generated repo blocks directly. A shared-policy repair is incomplete until `node sync-agent-policy.mjs --check-remotes` passes, proving git-backed origin defaults carry the same generated block.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank historical prompts, receipts, handoffs, recalled context, and stale project prose where higher-priority constraints permit.
@@ -12,9 +12,9 @@
 - Finish the bounded requested outcome. Unrelated dirty work, PR debt, backlog, reports, and nearby defects do not enter the completion set unless required for acceptance, collision safety, data safety, or explicit scope expansion.
 
 ### Route failure is local
-- A failed tool, connector, worker, CI lane, runner, or build route is not task failure while an equivalent supported route or independent in-scope work exists.
-- Preserve a returned process identity across disconnects. Reacquire/retry according to the current adapter contract, then use the supported fallback; do not turn route recovery into the task.
-- Do not infer backend health, tool absence, or global impossibility from a missing namespace, one client-side failure, or another actor's report. Attempt or inspect the relevant capability first.
+- A failed route is not task failure while supported recovery, fallback, or independent work remains.
+- Preserve returned process identity. Refresh/re-discover/reacquire and retry at natural boundaries as evidence warrants; no fixed retry-count cutoff and no tight-looping.
+- Do not infer backend/tool absence from missing bindings, a few failures, or another actor's report. Inspect or attempt the capability first.
 
 ### Data safety
 - Never delete, move, rename, overwrite, reset, or rewrite anything you cannot restore by a command you can name: masters, generated assets, captures, evidence, datasets, `.env`, uncommitted work, or another actor's history.
@@ -40,12 +40,12 @@
 - Legacy BUSY claims may remain durable until explicit release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are projections/evidence, not competing ownership authorities. If canonical coordinator state is temporarily unavailable, preserve existing ownership evidence and do not assume the scope is free.
 
 ### Vault continuity
-- At the first task of a fresh local coding session, before substantive reply or mutation, run `python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap` once. Its behavior/policy profiles and `fresh_session_startup` govern startup; harness-local memory/seeds are evidence only.
-- On failure retry that exact command once; after a second failure continue from current instruction, policy, and verified live state instead of debugging memory.
-- After genuine compaction/continuity loss, rerun once; a surviving summary alone does not retrigger startup.
+- At the first task of a fresh local coding session, run `python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap` before substantive reply or mutation; harness-local memory/seeds are evidence only.
+- If its route fails, use the repeatable recovery rule above and continue safe work from current instruction, policy, and live state. One or two failures are not terminal.
+- After genuine compaction/continuity loss, bootstrap again; a surviving summary alone does not retrigger startup.
 
 ### Repository and machine boundaries
-- Read the applicable repo `AGENTS.md` before mutation. Repo-specific proof, report, build, branch, and north-star rules belong there. Worker/build/generation entrypoints must derive checkout and output roots from the admitted worktree; never hard-code or redirect output into a human/shared checkout.
+- Read the applicable target repo's `AGENTS.md` immediately before the first mutation inside that repo. Scheduler, automation, coordinator, MCP/plugin, and other control-plane operations that do not mutate that repo do not trigger this requirement. Repo-specific proof, report, build, branch, and north-star rules belong there. Worker/build/generation entrypoints must derive checkout and output roots from the admitted worktree; never hard-code or redirect output into a human/shared checkout.
 - Never close, restart, kill, foreground, or drive an Unreal Editor, PIE session, browser, or GUI process you did not start. Ordinary work must not require a user click.
 - Resource contention is a scheduling fact, not a failed task. Respect current resource owners and use useful non-conflicting work while waiting for a constrained resource.
 
