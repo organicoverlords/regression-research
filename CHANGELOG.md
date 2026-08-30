@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [meta] Added a detailed assistant-stack capability/authority map and regression guard preserving BusyCoordinator ownership of jobs, checkpoints, handoffs, and recovery, using #271 as the duplicate-design failure case.
+
 - [2026-08-30] [memory] Restored the fresh-chat startup order to behavior bootstrap → bounded 20-item recent-memory glance → live orientation → response, with the same bounded glance in the verified Library fallback and a 32 KB payload regression (#125).
 
 - [2026-08-30] [memory] Added retrieval coverage for the user-authorized large-architecture review gate so timed-worker RFC-before-implementation behavior stays regression-enforced.
