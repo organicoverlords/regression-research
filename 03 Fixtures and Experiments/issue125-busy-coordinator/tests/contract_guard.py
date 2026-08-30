@@ -176,6 +176,15 @@ def main() -> int:
     py_commands = parse_python_commands()
     rs_commands = parse_rust_commands()
     extras = wrapper_extra_commands()
+    spec = importlib.util.spec_from_file_location("busy_audit_wrapper_limits", WRAPPER_SOURCE)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("cannot load wrapper source for limits")
+    wrapper_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(wrapper_module)
+    if int(contract["limits"]["max_audit_checkpoint_chars"]) != wrapper_module.MAX_AUDIT_CHECKPOINT_CHARS:
+        errors.append("manifest_audit_checkpoint_limit_mismatch")
+    if int(contract["limits"]["max_audit_expired_items"]) != wrapper_module.MAX_AUDIT_EXPIRED_ITEMS:
+        errors.append("manifest_audit_expired_limit_mismatch")
 
     if required != core_required | extras:
         errors.append("manifest_required_commands_do_not_match_core_plus_wrapper_extensions")

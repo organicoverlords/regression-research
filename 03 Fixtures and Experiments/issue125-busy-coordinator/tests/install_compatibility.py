@@ -125,11 +125,47 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     assert audit["malformed"] == 0
     command_events = [event for event in audit["events"] if event.get("event_type") == "coordinator_command"]
     assert any(event.get("command") == "heartbeat" and event.get("tool") == "DesktopCommander"
-               and event.get("tokens", {}).get("input") == 10 for event in command_events)
+               and event.get("tokens", {}).get("input") == 10
+               and event.get("result_projection", {}).get("claim", {}).get("actor") == "actor-a"
+               and event.get("transition", {}).get("state") == "active"
+               and event.get("transition", {}).get("owner") == "actor-a"
+               for event in command_events)
     assert any(event.get("command") == "heartbeat" and event.get("tokens", {}).get("total") == 20
                for event in command_events)
     assert any(event.get("event_type") == "tool_event" and event.get("command") == "build"
                and event.get("detail") == "sidecar-proof" for event in audit["events"])
+
+    transition_store = base / "transition.json"
+    long_checkpoint = "c" * 1100
+    claim_transition = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["py"]), "--store", str(transition_store),
+         "claim", "actor-transition", "scope-transition", "--checkpoint", long_checkpoint],
+        capture_output=True, text=True,
+    )
+    assert claim_transition.returncode == 0, claim_transition.stderr or claim_transition.stdout
+    block_transition = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["rs"]), "--store", str(transition_store),
+         "block", "actor-transition", "scope-transition", "--checkpoint", "blocked-for-proof"],
+        capture_output=True, text=True,
+    )
+    assert block_transition.returncode == 0, block_transition.stderr or block_transition.stdout
+    transition_audit_run = subprocess.run(
+        ["cmd.exe", "/d", "/c", str(wrappers["py"]), "--store", str(transition_store),
+         "audit", "--scope", "scope-transition", "--limit", "10"],
+        capture_output=True, text=True,
+    )
+    assert transition_audit_run.returncode == 0, transition_audit_run.stderr or transition_audit_run.stdout
+    transition_events = json.loads(transition_audit_run.stdout)["events"]
+    claim_event = next(event for event in transition_events if event.get("command") == "claim")
+    assert claim_event["transition"] == {"state": "active", "owner": "actor-transition"}
+    assert claim_event["result_projection"]["claim"]["scope"] == "scope-transition"
+    assert len(claim_event["checkpoint"]) == 1024
+    assert claim_event["checkpoint_truncated"] is True
+    assert claim_event["checkpoint_chars"] == 1100
+    block_event = next(event for event in transition_events if event.get("command") == "block")
+    assert block_event["transition"] == {"state": "blocked", "owner": None}
+    assert block_event["result_projection"]["block"]["actor"] == "actor-transition"
+    assert block_event["checkpoint"] == "blocked-for-proof"
 
     # Canonical Windows .cmd wrappers must be able to carry the documented
     # maximum provenance payload and reject one character above the summary bound.

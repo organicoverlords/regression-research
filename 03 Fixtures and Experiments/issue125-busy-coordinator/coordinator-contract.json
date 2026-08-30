@@ -54,7 +54,9 @@
     "max_snapshot_items": 32,
     "max_audit_detail_chars": 2048,
     "default_audit_max_bytes": 5242880,
-    "default_audit_backups": 3
+    "default_audit_backups": 3,
+    "max_audit_checkpoint_chars": 1024,
+    "max_audit_expired_items": 32
   },
   "invariants": [
     "one canonical claims store",
