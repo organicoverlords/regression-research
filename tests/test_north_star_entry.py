@@ -11,8 +11,8 @@ DIRECTIVE = (
 )
 
 BOOTSTRAP_COMMAND = r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap"
-BOOTSTRAP_RETRY = "On failure retry that exact command once"
-BOOTSTRAP_CONTINUE = "after a second failure continue from current instruction, policy, and verified live state instead of debugging memory"
+ROUTE_RECOVERY = "no fixed retry-count cutoff and no tight-looping"
+BOOTSTRAP_CONTINUE = "If its route fails, use the repeatable recovery rule above and continue safe work from current instruction, policy, and live state. One or two failures are not terminal."
 
 
 INVESTIGATION_ADMISSION = (
@@ -41,10 +41,10 @@ class NorthStarEntryTests(unittest.TestCase):
     def test_fresh_local_session_bootstrap_failure_stays_bounded(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertEqual(agents.count(BOOTSTRAP_COMMAND), 1)
-        self.assertEqual(agents.count(BOOTSTRAP_RETRY), 1)
+        self.assertEqual(agents.count(ROUTE_RECOVERY), 1)
         self.assertEqual(agents.count(BOOTSTRAP_CONTINUE), 1)
-        self.assertLess(agents.index(BOOTSTRAP_COMMAND), agents.index(BOOTSTRAP_RETRY))
-        self.assertLess(agents.index(BOOTSTRAP_RETRY), agents.index(BOOTSTRAP_CONTINUE))
+        self.assertNotIn("On failure retry that exact command once", agents)
+        self.assertNotIn("after a second failure continue from current instruction", agents)
 
     def test_substantive_investigation_requires_exact_durable_admission(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

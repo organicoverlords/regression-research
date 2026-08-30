@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [policy] Synced shared agent policy v1.24 and corrected the North Star so standalone BusyCoordinator is the sole live ownership authority while MCP/plugin/process surfaces remain transports.
 - [2026-08-30] [research] Required the preregistered #193 caller/process identity measurement in paired result records and rejected malformed identity values before classification.
 - [2026-08-30] [research] Rejected contradictory #193 result evidence where callable recipients carry client errors or uncallable recipients omit the observed client error class.
 - [2026-08-30] [research] Kept #193 binding-loss classification directional: treatment recovery from uncallable to callable no longer counts as evidence for refresh-induced binding loss.
 - [2026-08-30] [research] Hardened #193 paired-result validation to reject malformed measurement types and contaminated pre-refresh baselines before classification.
-- [2026-08-30] [research] Hardened #193 paired-result validation so control/treatment records cannot mix model or configuration, preserving the preregistered same-model comparison.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
