@@ -1,10 +1,15 @@
 from __future__ import annotations
-import argparse, json, re
+import argparse, hashlib, json, re
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 INVENTORY_GLOB='2026-08-26_library_screenshot_shard_*.jsonl'
 OCCURRENCE_GLOB='*_library_screenshot_text_occurrences_*.jsonl'
+
+def canonical_text_sha256(path:Path)->str:
+    text=path.read_text(encoding='utf-8-sig',errors='replace')
+    canonical=text.replace('\r\n','\n').replace('\r','\n').encode('utf-8')
+    return hashlib.sha256(canonical).hexdigest()
 
 def _load_jsonl(path:Path)->list[dict]:
     return [json.loads(x) for x in path.read_text(encoding='utf-8-sig').splitlines() if x.strip()]

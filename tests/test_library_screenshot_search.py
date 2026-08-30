@@ -1,5 +1,5 @@
 from pathlib import Path
-from tools.library_screenshot_search import search, _rows
+from tools.library_screenshot_search import search, _rows, canonical_text_sha256
 from tools.build_library_screenshot_occurrences import scrub
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -84,8 +84,15 @@ def test_reconciled_duplicates_keep_separate_occurrences_and_exact_targets():
         assert len(r.get('image_sha256',''))==64
 
 
+def test_canonical_text_sha256_is_newline_portable(tmp_path):
+    lf=tmp_path/'lf.txt'; crlf=tmp_path/'crlf.txt'
+    lf.write_bytes(b'alpha\nbeta\n')
+    crlf.write_bytes(b'alpha\r\nbeta\r\n')
+    assert canonical_text_sha256(lf)==canonical_text_sha256(crlf)
+
+
 def test_all_occurrence_text_hashes_match_indexed_files():
-    import hashlib, json
+    import json
     ledgers=sorted((ROOT/'02 Evidence').glob('*_library_screenshot_text_occurrences_*.jsonl'))
     rows=[]
     for ledger in ledgers:
@@ -94,7 +101,7 @@ def test_all_occurrence_text_hashes_match_indexed_files():
     for row in rows:
         path=ROOT / row['text_path']
         assert path.is_file(), row['text_path']
-        assert hashlib.sha256(path.read_bytes()).hexdigest()==row['text_sha256'], row['filename']
+        assert canonical_text_sha256(path)==row['text_sha256'], row['filename']
 
 
 def test_page4_occurrence_ledger_is_fully_reconciled():
