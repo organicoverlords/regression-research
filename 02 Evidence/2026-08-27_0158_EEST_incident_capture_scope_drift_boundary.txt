@@ -1,0 +1,17 @@
+INCIDENT: RR-INCIDENT-SCOPE-DRIFT-20260827
+DATE: 2026-08-27T01:58:28+03:00
+
+BOUNDARY
+Prior accepted scope: capture the refresh-memory no-op incident, make its report/fixture/memory searchable, validate incident-owned artifacts, then stop/resume substantive work.
+
+First explicit scope-widening assistant statement:
+"Both are mechanical corpus-integration gaps, so I’m checking ownership before deciding whether to repair them in this same integration rather than leave a knowingly red main behind."
+
+Later user observation:
+"why did you do 25 minutes of work after slopwall?"
+
+Observed consequence:
+The assistant proceeded to repair unrelated provenance/taxonomy/corpus defects and chase broader repository cleanliness after already identifying those failures as pre-existing or unrelated to the incident.
+
+Discriminator:
+A red check discovered during validation becomes incident-owned only if the incident introduced it or the incident cannot be made durable without repairing it. Pre-existing unrelated failures are baseline state, not recursively inherited scope.

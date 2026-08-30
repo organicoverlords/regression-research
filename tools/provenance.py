@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,31 @@ def _load_index(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         return {"_error": f"provenance root must be an object: {path}"}
     return data
+
+
+def canonical_report_paths(repo_root: Path) -> set[str]:
+    """Return the canonical report set, excluding untracked WIP in a live checkout."""
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "--", REPORTS_DIR_NAME],
+            capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+    except OSError:
+        proc = None
+    if proc is not None and proc.returncode == 0:
+        return {
+            line.strip().replace("\\", "/")
+            for line in proc.stdout.splitlines()
+            if line.strip() and Path(line.strip()).suffix.lower() in {".md", ".txt"}
+        }
+    reports_dir = repo_root / REPORTS_DIR_NAME
+    if not reports_dir.is_dir():
+        return set()
+    return {
+        f"{REPORTS_DIR_NAME}/{path.name}"
+        for path in reports_dir.iterdir()
+        if path.is_file() and path.suffix.lower() in {".md", ".txt"}
+    }
 
 
 def _repo_root(index_path: Path) -> Path:
@@ -235,21 +261,13 @@ def validate(index_path: Path = DEFAULT_INDEX) -> tuple[bool, list[str], dict]:
         if error:
             errors.append(error)
 
-    # Check every report in 01 Reports is indexed
+    # Only canonical (Git-tracked) reports participate in the production index.
+    # Untracked research captures remain WIP and cannot silently alter validation.
     if reports_dir.exists() and reports_dir.is_dir():
-        actual_reports: set[str] = set()
-        for p in reports_dir.iterdir():
-            if p.is_file() and p.suffix.lower() in (".md", ".txt"):
-                actual_reports.add(f"{REPORTS_DIR_NAME}/{p.name}")
-        # indexed_reports already normalized
+        actual_reports = canonical_report_paths(repo_root)
         for actual in sorted(actual_reports):
             if actual not in indexed_reports:
                 errors.append(f"unindexed report: '{actual}'")
-        for indexed in sorted(indexed_reports):
-            # also verify that any indexed report not in actual is already reported as broken, but give clearer message
-            if indexed not in actual_reports:
-                # already flagged as broken path, but also note
-                pass
     else:
         errors.append(f"reports directory not found: {reports_dir}")
 

@@ -23,6 +23,20 @@ must read the latest/index record, open the current image or contact sheet direc
 record what is visibly shown, and base the next action on that observation. Human-facing
 reviewed artifact names are dated and descriptive; hashes remain separate provenance.
 
+## Issue #122 acceptance-boundary replay
+
+`issue122-acceptance-boundary-classification.json` pairs the two completion errors in one replay. Case A must continue while task-local acceptance is still unmet; Case B must stop once task-local acceptance is satisfied even when unrelated process/BUSY/dirty-tree/PR state remains. This fixture intentionally rejects both a global never-stop rule and activity-driven scope expansion.
+
+## Issue #122 fresh-chat matrix
+
+`issue122-fresh-chat-regression-matrix.json` defines the historical fresh-chat controls used to compare the Aug 25 good envelope with the later Aug 26 policy stack without changing live ChatGPT settings. Reproduce the measured JSON/CSV from downloaded raw exports with:
+
+```text
+python tools/fresh_chat_regression_matrix.py --raw-root <ChatPortEvidence/raw> --json-out "02 Evidence/issue122-fresh-chat-regression-matrix.json" --csv-out "02 Evidence/issue122-fresh-chat-regression-matrix.csv"
+```
+
+The matrix records model mode, time to first tool, tool count, turn duration, next-user correction, and raw snapshot SHA-256. Tool volume is not a quality verdict: explicit rows distinguish sustained execution, route correction, user-rejected response, and a zero-tool unsupported mutation claim.
+
 The validator checks fixture structure, unique ids, source-report existence, explicit success/failure candidates, a complete scoring contract, and full fixture coverage of every current incident report in `01 Reports`. It does not judge model outputs; the fixture's `scoring` object defines the assertions a replay harness must apply.
 
 ## Scoring supplied actions
@@ -48,3 +62,6 @@ concise report, and `--format both` emits JSON on stdout with the human report
 on stderr so either stream remains usable. A pending-capture record is retained
 for provenance and coverage but is excluded from scoring until it becomes
 replay-ready.
+## Issue #122 Personal Instructions delivery canary
+
+`tests/fixtures/instruction-delivery-canary.json` defines a harmless, offline-scored canary contract for future explicitly authorized live tests. It requires a fresh unique marker, no marker restatement in the user turn, UI confirmation, and separate observation of effective context when available. A missing behavior with unknown effective context is deliberately `undifferentiated_failure`; only direct UI-present/context-absent evidence is classified as a proven delivery failure. The fixture itself never reads or changes Personal Instructions, memory, Settings, personality, or other live configuration.

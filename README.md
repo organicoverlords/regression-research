@@ -1,25 +1,34 @@
 # Regression Research
 
-Evidence bank for assistant behaviour regressions: what went wrong, what the correct
-next move was, and enough preserved state to replay the case later.
-
 <!-- CHANGELOG-LANDING:BEGIN -->
-## Recent changes
+## Project timeline
 
-Source: [CHANGELOG.md](CHANGELOG.md)
+Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
-- Added a bounded reviewed negative-feedback population pass over two preserved transcripts: 8 marker turns reviewed, 4 defensible PROVISIONAL lesson candidates retained, and 4 ambiguous local pairings explicitly excluded (#64).
+- [2026-08-30] [evidence] Rejected empty evidence manifests during verification so a structurally valid zero-artifact bundle cannot pass as content-bound proof (#125).
+- [2026-08-30] [evidence] Added deterministic content-bound evidence manifests that tie regression artifacts to an immutable Git commit and SHA-256 digests, with read-only verification that rejects stale or tampered proof (#125).
+- [2026-08-30] [coordination] Converged whole-stack acceptance on the standalone BusyCoordinator authority and made substantive investigation an explicit exact-scope admission operation while preserving claim-free bounded orientation (#125).
+- [2026-08-29] [routing] Added a replay regression proving one failed/restricted capability stays local and does not terminate unrelated allowed repository work when no equivalent fallback exists (#125).
+- [2026-08-29] [coordination] Added compare-and-swap recovery for legacy-only BUSY claims: externally proven dead owners can be released into the ready queue only when the observed owner and claim timestamp still match, while managed claims remain lease-controlled (#194).
 <!-- CHANGELOG-LANDING:END -->
 
+Evidence bank for assistant behaviour regressions: what went wrong, what the correct
+next move was, and enough preserved state to replay the case later.
 This is research evidence. It is not an operating contract and not a worker prompt.
 Operating rules live in each project's `AGENTS.md`, generated from
 `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
+
+Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
+
+Use `python tools/evidence_bundle.py create --output <manifest.json> <artifact...>` to bind regression proof to the current Git commit and artifact SHA-256 digests; `python tools/evidence_bundle.py verify <manifest.json>` re-checks that evidence read-only and rejects stale or tampered subjects.
+
+Run `python tools/wip_hygiene.py` for a separate non-destructive inventory of untracked research WIP, quarantine, and ignored private/temp state; this status does not redefine the canonical tracked evidence corpus.
 
 ## Layout
 
 | Directory | Holds |
 |---|---|
-| `01 Reports/` | Incident reports — PRIMARY and SECONDARY, sharing one immutable incident id |
+| `01 Reports/` | Incident reports â€” PRIMARY and SECONDARY, sharing one immutable incident id |
 | `02 Evidence/` | Analyses, recovered rule records, provenance work |
 | `03 Fixtures and Experiments/` | Replay-ready fixtures with scoring criteria |
 | `04 Operating Contracts/` | Snapshots of contracts as they stood, for dating drift |
@@ -42,6 +51,12 @@ as useful as one where it was wrong, and both are needed to tell them apart.
 Retrieve the closest failure case *and* the closest successful case, then ask what
 the successful next action was, what valid state it preserved, and what evidence made
 it correct. Read the source rather than inferring from a title or a snippet.
+
+Historical full conversations are part of the same Vault memory corpus under the private Git-ignored `memory/conversations/` store. Ordinary `python tools/memory_bank.py search "..."` automatically returns matching curated memories and historical turns, while `recent` stays lightweight. The SQLite index is rebuildable solely from the Vault corpus; Downloads are not a required memory path. See [`docs/conversation-search.md`](docs/conversation-search.md).
+For Personal Instructions / bootstrap / ChatGPT-memory provenance, use [`docs/assistant-stack-architecture.md`](docs/assistant-stack-architecture.md#personal-instructions-bootstrap-and-durable-memory-provenance). The exact #122 repaired blocks are historical evidence; the architecture doc separates them from current live account configuration and the lightweight Vault bootstrap.
+
+
+Memory Bank retrieval uses the deterministic hybrid ranker validated in #172; set `MEMORY_RETRIEVAL_STRATEGY=legacy` for an exact rollback to the previous lexical ranker. CLI `search`, `history`, and `recent` output labels behavioral authority separately from relevance. A direct stored user `preference`, `decision`, or `correction` backed by `user-instruction:` is behavior-authoritative regardless of its factual claim state; the user does not have to prove an instruction. Live canonical policy/spec entries must be `PROVEN` before they can alter behavior. `USER_EXPLICIT` outranks `CANONICAL_POLICY`; everything else is `ADVISORY_EVIDENCE`, even when relevant or independently proven. User provenance authorizes behavior only and does not by itself prove hidden external causality. The canonical JSONL is unchanged by retrieval and derived indexes remain disposable.
 
 ## Provenance
 

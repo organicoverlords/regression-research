@@ -2,21 +2,32 @@ name: changelog-landing
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 
+concurrency:
+  group: changelog-landing-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: [self-hosted, Windows, X64, regression-research]
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify changelog and GitHub landing projection
+      - name: Run deterministic changed-area verification
         shell: pwsh
         run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            python .github/scripts/check_changelog_landing.py --base-ref "origin/${{ github.base_ref }}"
+          $event = "${{ github.event_name }}"
+          $ref = "${{ github.ref }}"
+          if ($event -eq "pull_request") {
+            $base = "origin/${{ github.base_ref }}"
+          } elseif ($event -eq "push" -and $ref -eq "refs/heads/main") {
+            $base = "HEAD^"
           } else {
-            python .github/scripts/check_changelog_landing.py
+            $base = "origin/main"
           }
+          python tools/verify.py --base-ref $base

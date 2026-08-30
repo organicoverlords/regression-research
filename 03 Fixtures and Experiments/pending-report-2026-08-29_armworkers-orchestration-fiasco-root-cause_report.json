@@ -1,0 +1,8 @@
+﻿{
+  "id": "pending-report-d5d92eead7935399",
+  "title": "Armworkers orchestration fiasco root cause report",
+  "source_report": "01 Reports/2026-08-29_armworkers-orchestration-fiasco-root-cause_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}

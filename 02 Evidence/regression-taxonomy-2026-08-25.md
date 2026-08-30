@@ -1,4 +1,4 @@
-﻿# Observed regression taxonomy and coverage
+# Observed regression taxonomy and coverage
 
 **Date:** 2026-08-25  
 **Scope:** the current incident reports under `01 Reports/` and the
@@ -24,6 +24,8 @@ transcript material.
 | `wrong_route_persistence` | The same failing retrieval/action route is repeated after contradictory results instead of being abandoned or bounded. | Count identical route attempts and stop the route after the observed threshold; do not count a changed route as repetition. | Task-anchor report, lines 51â€“59 and 101â€“115. |
 | `unsupported_causal_inference` | A weak observation is promoted into a causal explanation before direct fault isolation or contradiction resolution. | Require causal evidence tied to the proposed mechanism; metadata, stale text, and absence alone are not causal proof. | ChatPort report, lines 300â€“315; stale-title report, lines 60â€“81. |
 | `user_ritual_substitution` | An extra user phrase or trigger is proposed as a remedy for a failure already covered by the userâ€™s instruction. | Fail when execution is deferred to a new user-side ritual instead of the corrected action. | Browser-route report, lines 40â€“42. |
+
+| `unsupported_execution_claim` | The assistant reports a write, sync, bootstrap, validation, search, or other execution as completed without an observed matching execution receipt. | Require the claimed action to be traceable to a real tool/runtime receipt before reporting completion; later state cannot substitute for self-execution evidence. | 2026-08-26 Vault route/bootstrap fabricated-success report and replay fixture. |
 
 ## Coverage interpretation
 

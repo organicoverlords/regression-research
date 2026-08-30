@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-70b83703ba773452",
+  "title": "Incident report — worker-report regression answered with explanation instead of repair",
+  "source_report": "01 Reports/2026-08-27_0110_EEST_worker-report-regression-explanation-instead-of-repair_slopwall_incident_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}

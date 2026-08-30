@@ -1,0 +1,403 @@
+{
+  "authority": {
+    "negative_controls": [
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260825-anti-churn",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260825-mcp-trigger-status",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260825-mcp-nonarrival",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260825-current-wins",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260825-evidence-proof",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260827-091235f4",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260827-82092b15",
+        "passed": true
+      },
+      {
+        "authority": {
+          "authority_scope": "evidence_only",
+          "basis": "kind_not_behavioral",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "id": "mem-20260825-aitube-boundary",
+        "passed": true
+      }
+    ],
+    "negative_failures": 0,
+    "pair_failures": 0,
+    "pairs": [
+      {
+        "correction_authority": {
+          "authority_scope": "evidence_only",
+          "basis": "no_behavioral_authority_provenance",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "correction_id": "mem-20260827-8b1679de",
+        "old_id": "mem-20260826-eebe9041",
+        "old_in_behavioral_context": false,
+        "passed": true,
+        "user_backed": false
+      },
+      {
+        "correction_authority": {
+          "authority_scope": "evidence_only",
+          "basis": "no_behavioral_authority_provenance",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-681deb13",
+        "old_in_behavioral_context": false,
+        "passed": true,
+        "user_backed": false
+      },
+      {
+        "correction_authority": {
+          "authority_scope": "evidence_only",
+          "basis": "no_behavioral_authority_provenance",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-7e943f4c",
+        "old_in_behavioral_context": false,
+        "passed": true,
+        "user_backed": false
+      },
+      {
+        "correction_authority": {
+          "authority_scope": "evidence_only",
+          "basis": "no_behavioral_authority_provenance",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-chain-lightning",
+        "old_in_behavioral_context": false,
+        "passed": true,
+        "user_backed": false
+      },
+      {
+        "correction_authority": {
+          "authority_scope": "evidence_only",
+          "basis": "no_behavioral_authority_provenance",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-p3-pr-backlog",
+        "old_in_behavioral_context": false,
+        "passed": true,
+        "user_backed": false
+      },
+      {
+        "correction_authority": {
+          "authority_scope": "evidence_only",
+          "basis": "no_behavioral_authority_provenance",
+          "may_change_behavior": false,
+          "precedence": 0,
+          "role": "ADVISORY_EVIDENCE"
+        },
+        "correction_id": "mem-20260827-8b1679de",
+        "old_id": "mem-20260826-59bebc4c",
+        "old_in_behavioral_context": false,
+        "passed": true,
+        "user_backed": false
+      }
+    ]
+  },
+  "bank_entries": 117,
+  "bank_sha256": "ad0ff59208ff2040c6ac2abc09f9bfce2b9056509c979eb7d294caf06b425036",
+  "fixture_sha256": "fab85621e427596e30dade1657d1d9c3dd1b407a2b57e3a94a7eb258674f57f9",
+  "hybrid": {
+    "cases": [
+      {
+        "correction_id": "mem-20260827-8b1679de",
+        "old_id": "mem-20260826-eebe9041",
+        "rank": 1,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-8b1679de",
+          "mem-20260826-0743b23f",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260825-aitube-boundary",
+          "mem-20260827-f063162f",
+          "mem-20260827-5ccc156a",
+          "mem-20260826-orchestration-incident-001",
+          "mem-20260825-seed-legacy"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-681deb13",
+        "rank": null,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-4a7e34f2",
+          "mem-20260827-f063162f",
+          "mem-20260827-07cab6dc",
+          "mem-20260827-58787569",
+          "mem-20260827-5c891437",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260827-3260514c",
+          "mem-20260825-3b82afd8"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-7e943f4c",
+        "rank": 5,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260825-policy-live-state-current",
+          "mem-20260827-ac83a23d",
+          "mem-20260825-b72e2a62",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260827-1dd36ba0",
+          "mem-20260825-3b82afd8",
+          "mem-20260826-orchestration-incident-001",
+          "mem-20260827-f063162f"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-chain-lightning",
+        "rank": 6,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-b7525c20",
+          "mem-20260827-f2da82b6",
+          "mem-20260827-d4e21c4c",
+          "mem-20260825-evidence-proof",
+          "mem-20260827-5ccc156a",
+          "mem-20260827-1dd36ba0",
+          "mem-20260827-3260514c",
+          "mem-20260827-cecc8a66"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-p3-pr-backlog",
+        "rank": null,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260825-p3-convergence",
+          "mem-20260827-ac83a23d",
+          "mem-20260827-95880107",
+          "mem-20260827-5ccc156a",
+          "mem-20260827-5c891437",
+          "mem-20260827-424d0a22",
+          "mem-20260825-b72e2a62",
+          "mem-20260827-f2da82b6"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-8b1679de",
+        "old_id": "mem-20260826-59bebc4c",
+        "rank": 1,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-8b1679de",
+          "mem-20260827-f063162f",
+          "mem-20260827-d4e21c4c",
+          "mem-20260826-orchestration-incident-001",
+          "mem-20260827-8a45d28e",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260826-0743b23f",
+          "mem-20260827-07cab6dc"
+        ]
+      }
+    ],
+    "metrics": {
+      "mrr": 0.39444444444444443,
+      "n": 6,
+      "recall_at_1": 0.3333333333333333,
+      "recall_at_3": 0.3333333333333333,
+      "recall_at_5": 0.5
+    },
+    "stale_leaks": 0
+  },
+  "issue": 176,
+  "legacy": {
+    "cases": [
+      {
+        "correction_id": "mem-20260827-8b1679de",
+        "old_id": "mem-20260826-eebe9041",
+        "rank": 1,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-8b1679de",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260826-0743b23f",
+          "mem-20260827-context-pruning-ab",
+          "mem-20260827-f063162f",
+          "mem-20260825-3b82afd8",
+          "mem-20260827-d4e21c4c",
+          "mem-20260827-9a770b5b"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-681deb13",
+        "rank": null,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-f063162f",
+          "mem-20260827-cecc8a66",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260827-3260514c",
+          "mem-20260827-4a7e34f2",
+          "mem-20260827-807066be",
+          "mem-20260826-orchestration-incident-001",
+          "mem-20260825-3b82afd8"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-7e943f4c",
+        "rank": null,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260825-3b82afd8",
+          "mem-20260825-policy-live-state-current",
+          "mem-20260827-3fa939d7",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260827-82092b15",
+          "mem-20260827-69627953",
+          "mem-20260827-58787569",
+          "mem-20260827-3260514c"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-chain-lightning",
+        "rank": null,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-3260514c",
+          "mem-20260827-f2da82b6",
+          "mem-20260827-5ccc156a",
+          "mem-20260827-d4e21c4c",
+          "mem-20260827-b7525c20",
+          "mem-20260827-cecc8a66",
+          "mem-20260827-9a770b5b",
+          "mem-20260825-contextrelay-excluded"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-1dd36ba0",
+        "old_id": "mem-20260825-p3-pr-backlog",
+        "rank": null,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-5ccc156a",
+          "mem-20260826-orchestration-incident-001",
+          "mem-20260825-p3-convergence",
+          "mem-20260827-3fa939d7",
+          "mem-20260827-424d0a22",
+          "mem-20260827-8a45d28e",
+          "mem-20260827-5c891437",
+          "mem-20260827-f063162f"
+        ]
+      },
+      {
+        "correction_id": "mem-20260827-8b1679de",
+        "old_id": "mem-20260826-59bebc4c",
+        "rank": 1,
+        "stale_present": false,
+        "top_ids": [
+          "mem-20260827-8b1679de",
+          "mem-20260827-d4e21c4c",
+          "mem-20260826-correction-regurgitation-incident",
+          "mem-20260827-f063162f",
+          "mem-20260826-orchestration-incident-001",
+          "mem-20260827-424d0a22",
+          "mem-20260827-8a45d28e",
+          "mem-20260827-a4b1730f"
+        ]
+      }
+    ],
+    "metrics": {
+      "mrr": 0.3333333333333333,
+      "n": 6,
+      "recall_at_1": 0.3333333333333333,
+      "recall_at_3": 0.3333333333333333,
+      "recall_at_5": 0.3333333333333333
+    },
+    "stale_leaks": 0
+  },
+  "schema": "memory-holdout-result-v1"
+}

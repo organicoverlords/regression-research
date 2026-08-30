@@ -1,0 +1,83 @@
+# Unified memory corpus
+
+The Vault has one recall system with two source classes:
+
+- `memory/memory-bank.jsonl`: compact, manually curated future memories added when the user explicitly asks.
+- `memory/conversations/`: the preserved historical full-conversation corpus used for behavioral/regression analysis.
+
+`memory/conversations/` is private local data, ignored by Git, and is the canonical owner of the historical transcript bytes. Downloads and legacy tool directories are preservation sources only; workers must not depend on those paths after migration.
+
+The rebuildable SQLite FTS5 index is `C:\Users\Lauri\Desktop\vault\.state\conversation-search\conversations.sqlite3`. It is disposable and may always be rebuilt from `memory/conversations/`.
+
+## Search
+
+Ordinary memory recall automatically includes matching historical turns:
+
+```powershell
+python tools\memory_bank.py search "MCP routing failure"
+```
+
+Manual memory hits and bounded full-conversation hits are returned together. Startup `recent` remains lightweight and reads only curated memory titles.
+
+Direct transcript analysis is also available when corpus-wide counts or explicit literal matching are needed:
+
+```powershell
+python tools\conversation_search.py search "slopwall"
+python tools\conversation_search.py search "exact historical phrase" --literal
+```
+
+`discover` is a read-only inventory command for locating preservation sources under a Downloads directory. It does not index those paths:
+
+```powershell
+python tools\conversation_search.py discover --downloads C:\Users\Lauri\Downloads
+```
+
+`index` accepts repeatable explicit `--root` values, or uses the canonical Vault corpus when no root is supplied. It has no Downloads shortcut. For the normal canonical rebuild, use `conversation_search_refresh.py` as documented below.
+
+## Preservation and recovery
+
+`tools\conversation_corpus.py` performs explicit one-time preservation operations. It never runs a download queue and never continuously ingests ChatGPT history.
+
+The migration preserves source bytes before deriving anything. The current historical set includes the surviving ChatPort raw corpus, the remaining LocalExporter slice, the legacy regression SQLite itself, and self-contained conversation JSON recovered from that SQLite so conversations survive even if the old database path disappears.
+
+Verify the canonical corpus with hashes:
+
+```powershell
+python tools\conversation_corpus.py verify
+```
+
+Create a separately checksummed backup with:
+
+```powershell
+python tools\conversation_corpus.py backup
+```
+
+Rebuild search only from the canonical Vault corpus:
+
+```powershell
+python tools\conversation_search_refresh.py
+```
+
+For routine catch-up after an already-registered export source has gained new files, use the revision-preserving corpus refresh:
+
+```powershell
+python tools\conversation_corpus_refresh.py
+```
+
+The refresh reads the source paths already recorded in the canonical corpus manifest. New stable paths are copied into the canonical corpus; a changed source path never overwrites the first preserved bytes and is instead stored as a content-addressed revision. Files modified within the default two-minute quiescence window are deferred. Missing source files never delete canonical history. The search index is then updated incrementally; `--rebuild-index` remains available for an explicit atomic full rebuild and `--full-verify` for a full hash sweep.
+
+This closes the moving-source gap without making Downloads a runtime search dependency: Downloads are acquisition sources, the Vault remains canonical, and ordinary recall still searches only preserved Vault bytes.
+
+Original source files are never deleted, moved, renamed, overwritten, or treated as disposable. The private corpus itself is also never committed to Git.
+## Deterministic user-message catalog
+
+The preserved corpus can be deterministically projected into a user-authored-message catalog without downloading or ingesting anything new:
+
+```powershell
+python tools\user_message_catalog.py summary
+python tools\user_message_catalog.py build
+```
+
+The output lives under `.state/user-message-catalog/` and is rebuildable/private local state. Every indexed `role=user` message receives its existing stable message UID, timestamp/order metadata, source locators, a content hash, and conservative rule-candidate signals. Candidate classification is forensic only: it never grants behavioral authority by itself. Promotion into current behavior still requires explicit user authority and curated memory records.
+
+This catalog closes the old recovery handoff gap: swarm/forensic extraction can enumerate historical rule candidates deterministically, while fresh-chat behavior consumes only the compact current behavior records in the Vault. It does not make the legacy full-conversation archive a runtime dependency and it does not create any ChatGPT download mechanism.

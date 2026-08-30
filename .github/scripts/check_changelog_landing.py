@@ -1,46 +1,114 @@
 #!/usr/bin/env python3
 import argparse
+import re
 import subprocess
+from datetime import date
 from pathlib import Path
 
 BEGIN = "<!-- CHANGELOG-LANDING:BEGIN -->"
 END = "<!-- CHANGELOG-LANDING:END -->"
+DATED = re.compile(r"^- \[(\d{4}-\d{2}-\d{2})\] (.+\S)$")
+TIMELINE_EXEMPT_PATHS = {"memory/memory-bank.jsonl"}
 
 
-def recent_entries(changelog: str) -> list[str]:
+def unreleased_lines(changelog: str) -> list[str]:
+    marker = re.search(r"(?m)^(<<<<<<< .+|=======|>>>>>>> .+)$", changelog)
+    if marker:
+        raise SystemExit(f"CHANGELOG_LANDING_FAIL: CHANGELOG contains merge-conflict marker: {marker.group(0)}")
+    if "`r`n" in changelog:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: CHANGELOG contains literal PowerShell `r`n escapes")
     lines = changelog.splitlines()
     try:
         start = lines.index("## [Unreleased]") + 1
     except ValueError:
         raise SystemExit("CHANGELOG_LANDING_FAIL: missing ## [Unreleased]")
-    entries = []
+    out = []
     for line in lines[start:]:
         if line.startswith("## "):
             break
-        if line.startswith("- "):
-            entries.append(line)
-    return entries[:1]
+        out.append(line)
+    return out
+
+
+def recent_entries(changelog: str) -> list[str]:
+    entries = []
+    for position, line in enumerate(unreleased_lines(changelog)):
+        match = DATED.match(line)
+        if not match:
+            continue
+        try:
+            stamp = date.fromisoformat(match.group(1))
+        except ValueError:
+            raise SystemExit(f"CHANGELOG_LANDING_FAIL: invalid timeline date: {line}")
+        if match.group(2).startswith("[meta] "):
+            continue
+        entries.append((stamp, position, line))
+    if not entries:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: no visible dated project entries under [Unreleased]")
+    entries.sort(key=lambda item: item[1])
+    entries.sort(key=lambda item: item[0], reverse=True)
+    return [line for _, _, line in entries[:5]]
+
 
 def projection(changelog: str) -> str:
-    entries = recent_entries(changelog)
-    if not entries:
-        entries = ["- No unreleased changes recorded."]
     return "\n".join([
         BEGIN,
-        "## Recent changes",
+        "## Project timeline",
         "",
-        "Source: [CHANGELOG.md](CHANGELOG.md)",
+        "Canonical history: [CHANGELOG.md](CHANGELOG.md)",
         "",
-        *entries,
+        *recent_entries(changelog),
         END,
     ])
 
 
+def without_projection(readme: str) -> str:
+    if BEGIN not in readme and END not in readme:
+        return readme
+    if BEGIN not in readme or END not in readme:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: malformed README projection markers")
+    before, tail = readme.split(BEGIN, 1)
+    _, after = tail.split(END, 1)
+    return (before.rstrip() + "\n" + after.lstrip("\r\n")).rstrip() + "\n"
+
+
+def projected_readme(readme: str, changelog: str) -> str:
+    clean = without_projection(readme)
+    lines = clean.splitlines()
+    if not lines or not lines[0].startswith("# "):
+        raise SystemExit("CHANGELOG_LANDING_FAIL: README must start with an H1")
+    rest = "\n".join(lines[1:]).lstrip("\r\n")
+    result = lines[0] + "\n\n" + projection(changelog) + "\n"
+    if rest:
+        result += "\n" + rest.rstrip() + "\n"
+    return result
+
+
 def changed_files(base_ref: str, root: Path) -> set[str]:
-    out = subprocess.check_output(
-        ["git", "diff", "--name-only", f"{base_ref}...HEAD"], text=True, cwd=root
-    )
+    out = subprocess.check_output(["git", "diff", "--name-only", f"{base_ref}...HEAD"], text=True, encoding="utf-8", cwd=root)
     return {line.strip() for line in out.splitlines() if line.strip()}
+
+
+def added_dated_entries(base_ref: str, root: Path) -> list[str]:
+    out = subprocess.check_output(
+        ["git", "diff", "--unified=0", f"{base_ref}...HEAD", "--", "CHANGELOG.md"],
+        text=True, encoding="utf-8",
+        cwd=root,
+    )
+    added = []
+    for raw in out.splitlines():
+        if not raw.startswith("+") or raw.startswith("+++"):
+            continue
+        line = raw[1:]
+        match = DATED.match(line)
+        if not match:
+            continue
+        try:
+            date.fromisoformat(match.group(1))
+        except ValueError:
+            raise SystemExit(f"CHANGELOG_LANDING_FAIL: invalid added timeline date: {line}")
+        added.append(line)
+    return added
 
 
 def main() -> int:
@@ -53,29 +121,29 @@ def main() -> int:
     readme_path = root / "README.md"
     changelog = changelog_path.read_text(encoding="utf-8")
     readme = readme_path.read_text(encoding="utf-8")
-    expected = projection(changelog)
-
-    if BEGIN not in readme or END not in readme:
-        raise SystemExit("CHANGELOG_LANDING_FAIL: README projection markers missing")
-    before, tail = readme.split(BEGIN, 1)
-    _, after = tail.split(END, 1)
-    actual = BEGIN + tail.split(END, 1)[0] + END
+    if readme.count("## Project timeline") != 1:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: README must contain exactly one Project timeline")
+    if "<!-- SHARED-AGENT-POLICY:BEGIN -->" in readme or "<!-- SHARED-AGENT-POLICY:END -->" in readme:
+        raise SystemExit("CHANGELOG_LANDING_FAIL: README contains misplaced shared-agent-policy markers")
+    expected = projected_readme(readme, changelog)
     if args.write:
-        readme_path.write_text(before + expected + after, encoding="utf-8")
-        readme = readme_path.read_text(encoding="utf-8")
-        actual = expected
-    if actual != expected:
+        readme_path.write_text(expected, encoding="utf-8")
+        readme = expected
+    if readme != expected:
         raise SystemExit(
-            "CHANGELOG_LANDING_FAIL: README recent-changes projection is stale; "
+            "CHANGELOG_LANDING_FAIL: README Project timeline is stale or not immediately after H1; "
             "run .github/scripts/check_changelog_landing.py --write"
         )
     if args.base_ref:
         changed = changed_files(args.base_ref, root)
-        non_changelog = changed - {"CHANGELOG.md"}
-        if non_changelog and "CHANGELOG.md" not in changed:
-            raise SystemExit(
-                "CHANGELOG_LANDING_FAIL: repository changed without CHANGELOG.md update"
-            )
+        substantive = changed - {"CHANGELOG.md"} - TIMELINE_EXEMPT_PATHS
+        if substantive:
+            if "CHANGELOG.md" not in changed:
+                raise SystemExit("CHANGELOG_LANDING_FAIL: substantive PR changed without CHANGELOG.md")
+            if not added_dated_entries(args.base_ref, root):
+                raise SystemExit(
+                    "CHANGELOG_LANDING_FAIL: substantive PR needs a newly added '- [YYYY-MM-DD] ...' timeline bullet"
+                )
     print("CHANGELOG_LANDING_PASS")
     return 0
 

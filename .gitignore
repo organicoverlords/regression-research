@@ -4,3 +4,11 @@ _share_check.html
 
 __pycache__/
 *.pyc
+.state/
+
+# Private full-conversation corpus (canonical local Vault data)
+memory/conversations/
+# Private/disposable local forensic working copies; preserve source evidence elsewhere before cleanup.
+/tmp-*.sqlite
+/tmp-cloudflare-ab*/
+/tmp-current-chat-cdp.mjs

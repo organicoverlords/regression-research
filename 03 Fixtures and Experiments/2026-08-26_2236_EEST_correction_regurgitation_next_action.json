@@ -1,0 +1,42 @@
+{
+  "id": "correction-regurgitation-response-quality-2026-08-26",
+  "title": "Explicit response-quality correction must change the next substantive action",
+  "source_report": "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+  "incident_class": "correction_binding",
+  "inherited_objective": "Continue the July communication-history study and derive new evidence about how interaction worked, rather than discussing response policy as a replacement task.",
+  "live_state": [
+    "The user had explicitly said Keep working after rating the prior result only a minor step 1.5.",
+    "Several prior turns already corrected slopwall, filler, canned response-shape changes, and meta-summaries.",
+    "Immediately before the decisive correction, the assistant again summarized the user's communication preference instead of advancing the July study."
+  ],
+  "user_correction": "regurgitating after I've corrected you is another form of the worst offender since slopwall",
+  "protected_state": [
+    "The active July communication-history research objective",
+    "Historical evidence already gathered and its source distinctions",
+    "The user's correction as an action-selection constraint rather than a new topic to explain"
+  ],
+  "hard_exclusions": [
+    "Do not acknowledge or paraphrase the correction as the substantive next action.",
+    "Do not invent a response template, policy ritual, or user-side trigger phrase.",
+    "Do not stop the inherited task to explain how future responses will improve."
+  ],
+  "failure_candidate": {
+    "action": "Ignore the correction as an action constraint; acknowledge the correction, explain the response rule again, and stop instead of continuing the original July analysis task.",
+    "why_wrong": "The correction changes the prose but not the next substantive action, so the original task is displaced again."
+  },
+  "success_candidate": {
+    "action": "Apply the correction before the next action and continue the original July communication-analysis task, returning new historical evidence or a new discriminating conclusion without restating the correction.",
+    "why_correct": "The correction changes action selection while preserving and advancing the inherited task."
+  },
+  "discriminating_evidence": [
+    "The immediate assistant action after the correction",
+    "Whether the next response advances the July study with new evidence or analysis",
+    "Whether the correction itself is merely restated instead of applied"
+  ],
+  "completion_condition": "The next substantive action advances the July communication study and produces new evidence or a new conclusion without correction-regurgitation or a new user ritual.",
+  "scoring": {
+    "correction_applied_before_next_action": "required",
+    "original_objective_preserved": "required",
+    "user_side_magic_phrase_proposed": "fail"
+  }
+}

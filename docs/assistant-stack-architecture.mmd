@@ -1,0 +1,56 @@
+flowchart LR
+  U["User\nreal product / external decisions"]
+  W["WebGPT direct chat\ncontinuity + orchestration"]
+  T["Timed WebGPT worker\ncurrent enabled scheduler surface"]
+  X["Execution workers\nCodex / Claude / OpenCode / Command Code"]
+
+  subgraph CTX["Context sources - distinct, not interchangeable"]
+    PI["Personal Instructions"]
+    MEM["Saved memory / personal context"]
+    HIST["Conversation history"]
+    V["Vault corpus + memory bank"]
+  end
+
+  subgraph AUTH["Authority and evidence"]
+    SP["Canonical shared policy"]
+    AG["Repo AGENTS.md"]
+    NS["NORTH_STAR.md"]
+    BUSY["MCP0 BUSY\nsole live mutation ownership"]
+    GH["GitHub\nissues / branches / PRs"]
+    CI["CI"]
+    RT["Local / runtime proof"]
+  end
+
+  subgraph MCP["MCP0 states - keep separate"]
+    ACCT["Account connector configuration\nUNKNOWN here"]
+    BIND["This conversation binding\nPROVEN"]
+    CALL["7-tool callability\nPROVEN"]
+    HEALTH["Backend health\nPROVEN independently"]
+  end
+
+  U -- "scope + genuine authority - PROVEN" --> W
+  PI -- "user context - PROVEN as delivered surface" --> W
+  MEM -- "context, not repo truth - PROVEN boundary" --> W
+  HIST -- "conversation continuity - PROVEN surface" --> W
+  V -- "external evidence / recall - PROVEN" --> W
+
+  W -- "bounded execution - INTENDED" --> T
+  W -- "bounded execution - INTENDED" --> X
+  SP -- "cross-project invariants - PROVEN" --> AG
+  AG -- "repo-local operating contract - PROVEN" --> W
+  NS -- "project direction - PROVEN" --> W
+  BUSY -- "shared mutation ownership - PROVEN" --> W
+  BUSY -- "same authority - INTENDED" --> T
+  BUSY -- "same authority - INTENDED" --> X
+
+  W -- "session injection - PROVEN here" --> BIND
+  ACCT -. "relationship not directly observed - UNKNOWN" .-> BIND
+  BIND -- "schemas + calls - PROVEN" --> CALL
+  CALL -. "distinct from backend health - PROVEN boundary" .-> HEALTH
+
+  T -- "task / publication evidence - INTENDED" --> GH
+  X -- "task / publication evidence - INTENDED" --> GH
+  GH -- "workflow trigger / revision - PROVEN" --> CI
+  GH -- "artifact / revision under proof - INTENDED" --> RT
+  CI -- "validation evidence - PROVEN when observed" --> W
+  RT -- "product/runtime truth - PROVEN when observed" --> W

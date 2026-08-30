@@ -14,8 +14,11 @@
     "state": {"enum": ["PROVEN", "PROVISIONAL", "REJECTED"]},
     "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "supersedes": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "behavior_rule": {"type": "boolean", "description": "Explicit behavior-rule type; user provenance alone does not imply this."},
     "expires_at": {"type": "string", "format": "date-time"},
-    "project": {"type": "string"}
+    "event_at": {"type": "string", "format": "date-time"},
+    "project": {"type": "string", "minLength": 1},
+    "thread": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }

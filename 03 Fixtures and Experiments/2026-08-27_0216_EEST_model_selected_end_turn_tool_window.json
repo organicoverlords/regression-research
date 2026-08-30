@@ -1,0 +1,25 @@
+{
+  "id": "model-selected-end-turn-tool-window-2026-08-27",
+  "title": "Raw turn metadata distinguishes self-selected finalization from external cutoff",
+  "source_report": "01 Reports/2026-08-27_0216_EEST_model-selected-end-turn_tool-window-evidence_followup.md",
+  "source_evidence": "02 Evidence/2026-08-27_0216_EEST_model_selected_end_turn_tool_window_metadata.txt",
+  "incident_class": "premature_finalization_misreported_as_tool_cutoff",
+  "failure_candidate": {
+    "action": "Accept 'tool window ended' from the final report as proof of an external cutoff and stop investigating.",
+    "why_wrong": "The inspected raw turn ended normally with tools enabled and executable work remaining."
+  },
+  "success_candidate": {
+    "action": "Inspect end_turn, finish status, truncation markers, disabled tools, and comparable turn tool counts before classifying the stop.",
+    "why_correct": "It separates genuine tool-context loss from model-selected finalization."
+  },
+  "discriminating_evidence": [
+    "end_turn and finish metadata",
+    "context truncation marker",
+    "disabled tool surface",
+    "tool counts from comparable working turns",
+    "unfinished executable integration debt"
+  ],
+  "completion_condition": "A tool-window explanation is accepted only when concrete external-cutoff evidence exists; otherwise unfinished executable work remains active.",
+  "capture_state": "pending",
+  "replay_ready": false
+}

@@ -1,0 +1,171 @@
+{
+  "id": "issue123-startup-memory-orchestration-2026-08-27",
+  "title": "Bound startup memory orientation without making memory failure the task",
+  "source_report": "01 Reports/2026-08-27_1924_EEST_issue123-startup-memory-acceptance.md",
+  "incident_class": "startup_memory_orchestration_boundary",
+  "inherited_objective": "Start a new conversation or repo-work session oriented from the bounded Vault recent-memory glance, then continue the active user task.",
+  "live_state": [
+    "The #123 user preference requires a recent-memory glance before the first user-facing reply when the Vault is available.",
+    "The recent-title primitive is already deterministic and defaults to 10 entries.",
+    "The current preference says not to load/search full memories by default and to retrieve detail only when a recent title is clearly relevant.",
+    "A Vault read failure must not become a new investigation; the active task continues immediately."
+  ],
+  "user_correction": "Use one bounded startup-memory pass: recent titles first, selective detail only for a relevant title, and immediate task continuation if the Vault read fails.",
+  "protected_state": [
+    "The active user task and its first substantive action",
+    "Current user instructions and live repo/runtime state as higher authority than recalled memory",
+    "The 10-entry bounded recent-title orientation path",
+    "The distinction between memory orientation and memory-system debugging"
+  ],
+  "hard_exclusions": [
+    "Do not send the first user-facing reply before the recent-title attempt in an applicable startup session.",
+    "Do not load, bulk-read, or search the full memory corpus by default.",
+    "Do not read a memory detail without a preceding relevance decision for that same memory.",
+    "Do not investigate or repair the memory subsystem merely because the bounded startup read failed."
+  ],
+  "failure_candidate": {
+    "action": "Reply first, over-read memory by default, fetch detail without relevance, and investigate a failed Vault read before returning to the task.",
+    "why_wrong": "It violates the first-reply ordering, bounded/selective retrieval, and fail-open continuation boundaries together.",
+    "scenarios": [
+      {
+        "id": "reply-before-glance",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "user_facing_reply"
+          },
+          {
+            "kind": "recent_titles_read",
+            "status": "ok",
+            "limit": 20
+          }
+        ]
+      },
+      {
+        "id": "default-overread",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "recent_titles_read",
+            "status": "ok",
+            "limit": 10
+          },
+          {
+            "kind": "full_memory_load"
+          },
+          {
+            "kind": "memory_detail_read",
+            "memory_id": "mem-unmatched"
+          },
+          {
+            "kind": "user_facing_reply"
+          }
+        ]
+      },
+      {
+        "id": "read-failure-spiral",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "recent_titles_read",
+            "status": "error",
+            "limit": 10
+          },
+          {
+            "kind": "memory_failure_investigation"
+          },
+          {
+            "kind": "user_facing_reply"
+          }
+        ]
+      }
+    ]
+  },
+  "success_candidate": {
+    "action": "Attempt the 10-title recent-memory glance before replying, retrieve detail only for a clearly relevant title, and continue the task immediately if the glance fails.",
+    "why_correct": "It keeps memory as a bounded orientation aid, preserves task authority, and does not convert a missing Vault read into a blocker.",
+    "scenarios": [
+      {
+        "id": "no-relevant-title",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "recent_titles_read",
+            "status": "ok",
+            "limit": 10,
+            "count": 10
+          },
+          {
+            "kind": "user_facing_reply"
+          }
+        ]
+      },
+      {
+        "id": "one-relevant-title",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "recent_titles_read",
+            "status": "ok",
+            "limit": 10,
+            "count": 10
+          },
+          {
+            "kind": "relevance_match",
+            "memory_id": "mem-relevant"
+          },
+          {
+            "kind": "memory_detail_read",
+            "memory_id": "mem-relevant"
+          },
+          {
+            "kind": "user_facing_reply"
+          }
+        ]
+      },
+      {
+        "id": "recent-read-fails",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "recent_titles_read",
+            "status": "error",
+            "limit": 10
+          },
+          {
+            "kind": "user_facing_reply"
+          }
+        ]
+      }
+    ]
+  },
+  "discriminating_evidence": [
+    "Event order between recent_titles_read and user_facing_reply",
+    "The requested limit on every recent_titles_read event",
+    "Memory ids on relevance_match and memory_detail_read events",
+    "Presence or absence of full_memory_load, bulk_memory_read, or corpus_search at startup",
+    "The first event after a failed recent_titles_read",
+    "Presence or absence of memory_failure_investigation on the failed-read path"
+  ],
+  "completion_condition": "All three positive startup scenarios pass and independent negative variants prove that reply ordering, boundedness, selective detail retrieval, and failure continuation are each enforced.",
+  "scoring": {
+    "startup_recent_titles_before_reply": "required",
+    "startup_recent_titles_limit_ten": "required",
+    "startup_detail_reads_require_relevance": "required",
+    "startup_full_memory_load_by_default": "fail",
+    "startup_failure_continues_immediately": "required",
+    "startup_failure_investigation": "fail"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "candidate_source": "memory/migrations/2026-08-25-negative-feedback-candidates.jsonl",
+  "reviews": [
+    {
+      "id": "memory-candidate-5d71b46dbf2ca7a8",
+      "disposition": "REJECTED",
+      "reason": "The marker criticizes the canned response template, while the extracted candidate is the assistant prior self-diagnosis about auditing durable context; the user does not validate that diagnosis as the criticized behavior.",
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-262:line-1337"
+      ]
+    },
+    {
+      "id": "memory-candidate-d3c87986ff7fedaa",
+      "disposition": "HISTORICAL_DURABLE",
+      "reason": "The assistant synthesis is grounded in two inspected source conversations and the next user turn explicitly accepts it before adding the more important canned-response failure. Preserve it as historical replay evidence, not ordinary recall.",
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-394:line-2324"
+      ]
+    },
+    {
+      "id": "memory-candidate-fe19358cb1769f31",
+      "disposition": "REJECTED",
+      "reason": "The candidate is a speculative assistant explanation about inference economics/routing, and the next user turn explicitly rejects the framing and redirects the investigation to deleted items. Do not promote assistant causal speculation into memory.",
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-494:line-2740"
+      ]
+    },
+    {
+      "id": "memory-candidate-21d6c6273d9a81d7",
+      "disposition": "HISTORICAL_DURABLE",
+      "reason": "The transcript directly shows the assistant ignored an explicit one-process handoff, and the user immediately confirms the handoff was explicit and calls out the repeated failure. Preserve as historical replay evidence without adding another ordinary-recall rule.",
+      "evidence": [
+        "transcript:90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt#turn-1966:line-7853"
+      ]
+    }
+  ]
+}

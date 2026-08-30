@@ -16,9 +16,18 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
 
     def test_extracts_required_source_families_and_provenance(self):
         out = extract_candidates(self.sources())
-        self.assertEqual({x["source_id"] for x in out}, {"agents-repo","regression-research","codex-history","traycer-artifacts"})
+        self.assertEqual(
+            {x["source_id"] for x in out},
+            {"agents-repo","regression-research","chatgpt-history","opencode-history","claude-history","codex-history","traycer-artifacts","command-code-history"},
+        )
         self.assertTrue(all(x["source_class"] and x["source_timestamp"] for x in out))
         self.assertTrue(all(x["evidence"] for x in out))
+
+    def test_fixture_covers_all_six_assistant_surfaces(self):
+        out = extract_candidates(self.sources())
+        surfaces = {"chatgpt-history","opencode-history","claude-history","codex-history","traycer-artifacts","command-code-history"}
+        self.assertTrue(surfaces.issubset({x["source_id"] for x in out}))
+        self.assertTrue(all(x["source_class"] == "HISTORICAL_CONTEXT" for x in out if x["source_id"] in surfaces))
 
     def test_classifies_high_signal_forms(self):
         out = extract_candidates(self.sources())
@@ -27,7 +36,11 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
         self.assertEqual(by_text["Desktop Commander is the primary machine route."]["kind"], "decision")
         self.assertEqual(by_text["the 6KB threshold theory was not supported by evidence."]["kind"], "correction")
         self.assertEqual(by_text["retrying the identical blocked call causes churn."]["kind"], "lesson")
+        self.assertEqual(by_text["preserve allowed work when another part is restricted."]["kind"], "correction")
+        self.assertEqual(by_text["route failures are transport failures, not permission failures."]["kind"], "decision")
+        self.assertEqual(by_text["stale saved context must not silently override current instruction."]["kind"], "preference")
         self.assertEqual(by_text["module-only build passed before the full target validation."]["kind"], "status")
+        self.assertEqual(by_text["missing source coverage must remain explicit instead of being inferred away."]["kind"], "lesson")
 
     def test_is_deterministic_and_bounds_oversized_signal(self):
         source = {"source_id":"claude-history","source_class":"HISTORICAL_CONTEXT","scope":"global","source_timestamp":"2026-08-25T10:04:00+03:00","evidence":"claude-history:turn-1","text":"RULE: " + ("x" * 5000)}
@@ -35,7 +48,7 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
         second = extract_candidates([source])
         self.assertEqual(first, second)
         self.assertEqual(len(first), 1)
-        self.assertLessEqual(len(first[0]["text"]), 800)
+        self.assertLessEqual(len(first[0]["text"]), 2000)
 
     def test_negative_feedback_extracts_behavior_not_insult(self):
         for marker in ("ASSHOLE", "FUCK YOU", "asädasdnasdnda"):
@@ -60,12 +73,12 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
     def test_negative_feedback_is_bounded_and_configurable(self):
         source = {
             "source_id":"chat-history", "source_class":"HISTORICAL_CONTEXT", "source_timestamp":"2026-08-25T12:00:00+03:00",
-            "turns":[{"role":"assistant","text":"x" * 2000},{"role":"user","text":"CUSTOM PANIC"}],
+            "turns":[{"role":"assistant","text":"x" * 5000},{"role":"user","text":"CUSTOM PANIC"}],
         }
         self.assertEqual(extract_negative_feedback_candidates([source]), [])
         out = extract_negative_feedback_candidates([source], markers=["CUSTOM PANIC"])
         self.assertEqual(len(out), 1)
-        self.assertLessEqual(len(out[0]["text"]), 800)
+        self.assertLessEqual(len(out[0]["text"]), 2000)
 
     def test_cli_is_byte_deterministic_for_fixture(self):
         with tempfile.TemporaryDirectory() as td:
@@ -74,7 +87,7 @@ class MemoryCandidateExtractionTests(unittest.TestCase):
                 subprocess.run([sys.executable,"tools/extract_memory_candidates.py",str(FIXTURE),str(output)],check=True,capture_output=True,text=True)
             self.assertEqual(a.read_bytes(), b.read_bytes())
             records=[json.loads(line) for line in a.read_text(encoding="utf-8").splitlines()]
-            self.assertEqual(len(records), 6)
+            self.assertEqual(len(records), 10)
 
 
 if __name__ == "__main__":

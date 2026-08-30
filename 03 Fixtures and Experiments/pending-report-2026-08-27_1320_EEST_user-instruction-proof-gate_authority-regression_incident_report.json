@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-2af85ea6bed7d1ad",
+  "title": "Incident: user instruction was incorrectly put behind a proof gate",
+  "source_report": "01 Reports/2026-08-27_1320_EEST_user-instruction-proof-gate_authority-regression_incident_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}

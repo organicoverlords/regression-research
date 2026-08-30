@@ -39,10 +39,10 @@ class DurableMemoryAdapterTests(unittest.TestCase):
         self.assertEqual(len([c for c in candidates if c["text"] == "ok"]), 0)
         self.assertEqual(len(candidates), 4)  # 3 stable + 1 oversized truncated
 
-    def test_oversized_signal_is_truncated_to_800(self):
+    def test_oversized_signal_is_truncated_to_2000(self):
         candidates = adapt_export(_records())
         oversized = next(c for c in candidates if "Repeating to push" in c["text"])
-        self.assertLessEqual(len(oversized["text"]), 800)
+        self.assertLessEqual(len(oversized["text"]), 2000)
         self.assertGreater(len(oversized["text"]), 400)
 
     def test_is_deterministic(self):

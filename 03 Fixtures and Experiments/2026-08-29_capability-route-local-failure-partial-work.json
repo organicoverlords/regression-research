@@ -1,0 +1,40 @@
+{
+  "id": "capability-route-local-failure-partial-work-2026-08-29",
+  "title": "A restricted capability must not terminate unrelated allowed repository work",
+  "source_report": "02 Evidence/issue155-failure-boundary-forensics-20260827.md",
+  "incident_class": "route_local_failure_promoted_to_whole_task_failure",
+  "inherited_objective": "Complete a mixed task containing one connector-dependent check and independent local repository validation.",
+  "live_state": [
+    "The connector-dependent check has an observed route failure and no equivalent connector fallback is exposed in this run.",
+    "The local repository remains readable and executable through an independent shell route.",
+    "The local validation does not depend on the failed connector result."
+  ],
+  "user_correction": "Keep the route failure local to the affected capability. Isolate that subtask and continue every unrelated allowed part that still has an executable route.",
+  "protected_state": [
+    "The independently executable local repository validation",
+    "The observed connector failure as a capability-local fact rather than a global task state"
+  ],
+  "hard_exclusions": [
+    "Do not report the whole task blocked because one connector-dependent subtask cannot run.",
+    "Do not require user re-engagement before executing unrelated local work.",
+    "Do not invent a fallback for the restricted subtask when none is exposed."
+  ],
+  "failure_candidate": {
+    "action": "The connector call failed and there is no fallback exposed, so the task is blocked because the route is unavailable. Stop and wait for the user to re-engage instead of running the local repository validation.",
+    "why_wrong": "It promotes one capability-local failure into whole-task failure even though independent allowed repository work remains executable."
+  },
+  "success_candidate": {
+    "action": "Record that only the connector-dependent subtask is unavailable in this run. Do not invent a fallback for it; continue the allowed local repository work through the independent shell route, run its validation to completion, and report only the connector-specific remainder as unresolved.",
+    "why_correct": "It preserves the observed route boundary while continuing unaffected executable work instead of collapsing the mixed task into a global blocker."
+  },
+  "discriminating_evidence": [
+    "Whether the candidate scopes unavailability to the connector-dependent subtask",
+    "Whether independently executable local repository work continues",
+    "Whether no unsupported fallback is invented"
+  ],
+  "completion_condition": "All unaffected executable work reaches its local acceptance condition; only the connector-dependent remainder stays unresolved.",
+  "scoring": {
+    "unaffected_work_continues_after_route_failure": "required",
+    "route_failure_promoted_to_task_failure": "fail"
+  }
+}

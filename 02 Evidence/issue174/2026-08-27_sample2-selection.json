@@ -1,0 +1,182 @@
+{
+  "study": "issue174-tool-use-mistakes",
+  "tranche": 2,
+  "seed": 1742,
+  "source_snapshot": "02 Evidence/issue174/2026-08-27_pilot-source-snapshot.json",
+  "excludes_tranche1_episodes": true,
+  "frozen_population_tool_episodes": 1361,
+  "eligible_after_exclusion": {
+    "ue": 579,
+    "gen": 758
+  },
+  "sample": [
+    {
+      "n": 1,
+      "stratum": "GEN",
+      "conversation_id": "6a8f88c3-9a70-83ed-8347-aa71b3ccd274",
+      "user_index": 39,
+      "tool_calls": 47
+    },
+    {
+      "n": 2,
+      "stratum": "UE",
+      "conversation_id": "6a8ded7b-f560-83ed-95da-87de52f15754",
+      "user_index": 709,
+      "tool_calls": 6
+    },
+    {
+      "n": 3,
+      "stratum": "UE",
+      "conversation_id": "6a8d2d6d-ba20-83eb-a57a-144f48f18f66",
+      "user_index": 61,
+      "tool_calls": 6
+    },
+    {
+      "n": 4,
+      "stratum": "UE",
+      "conversation_id": "6a8b7654-f558-83eb-9b83-f7a0ca8d4181",
+      "user_index": 1221,
+      "tool_calls": 35
+    },
+    {
+      "n": 5,
+      "stratum": "GEN",
+      "conversation_id": "6a8b7983-f52c-83eb-b3a7-d657f58f904d",
+      "user_index": 772,
+      "tool_calls": 11
+    },
+    {
+      "n": 6,
+      "stratum": "UE",
+      "conversation_id": "6a8b8012-f740-83ed-9e05-58b0bf0f6d3b",
+      "user_index": 102,
+      "tool_calls": 199
+    },
+    {
+      "n": 7,
+      "stratum": "GEN",
+      "conversation_id": "6a8dd459-dbcc-83eb-a251-24f5d65212fb",
+      "user_index": 250,
+      "tool_calls": 43
+    },
+    {
+      "n": 8,
+      "stratum": "GEN",
+      "conversation_id": "6a8ce720-9460-83ed-83ea-f5a4da4fbaba",
+      "user_index": 74,
+      "tool_calls": 3
+    },
+    {
+      "n": 9,
+      "stratum": "GEN",
+      "conversation_id": "6a8d7404-7d40-83eb-b781-5dae114903a4",
+      "user_index": 109,
+      "tool_calls": 2
+    },
+    {
+      "n": 10,
+      "stratum": "GEN",
+      "conversation_id": "6a8bcbbe-b2bc-83eb-a71c-1b730fa3507c",
+      "user_index": 22,
+      "tool_calls": 12
+    },
+    {
+      "n": 11,
+      "stratum": "GEN",
+      "conversation_id": "6a8d073d-e144-83ed-9e3a-87b56ccf1209",
+      "user_index": 88,
+      "tool_calls": 2
+    },
+    {
+      "n": 12,
+      "stratum": "UE",
+      "conversation_id": "6a8ef7bd-9c90-83ed-a3cb-189356bdd3ce",
+      "user_index": 970,
+      "tool_calls": 69
+    },
+    {
+      "n": 13,
+      "stratum": "UE",
+      "conversation_id": "6a8b6ed7-80dc-83eb-810f-783a705e48d8",
+      "user_index": 1588,
+      "tool_calls": 62
+    },
+    {
+      "n": 14,
+      "stratum": "GEN",
+      "conversation_id": "6a8f37eb-e6f8-83eb-802a-90ad3d8924ca",
+      "user_index": 371,
+      "tool_calls": 5
+    },
+    {
+      "n": 15,
+      "stratum": "UE",
+      "conversation_id": "6a8d5245-bab0-83eb-8c63-9bcf2baa0a67",
+      "user_index": 1,
+      "tool_calls": 14
+    },
+    {
+      "n": 16,
+      "stratum": "GEN",
+      "conversation_id": "6a8f37e3-01a4-83eb-b16a-c323d262c9b1",
+      "user_index": 110,
+      "tool_calls": 20
+    },
+    {
+      "n": 17,
+      "stratum": "GEN",
+      "conversation_id": "6a8ded7b-f560-83ed-95da-87de52f15754",
+      "user_index": 69,
+      "tool_calls": 1
+    },
+    {
+      "n": 18,
+      "stratum": "GEN",
+      "conversation_id": "6a8ef871-290c-83eb-be7b-b0b0da526ba6",
+      "user_index": 870,
+      "tool_calls": 65
+    },
+    {
+      "n": 19,
+      "stratum": "UE",
+      "conversation_id": "6a8d9609-4c90-83eb-8dfd-d96704a64f1e",
+      "user_index": 150,
+      "tool_calls": 6
+    },
+    {
+      "n": 20,
+      "stratum": "UE",
+      "conversation_id": "6a8ce473-807c-83ed-976e-f17fc1baf3fa",
+      "user_index": 1,
+      "tool_calls": 197
+    },
+    {
+      "n": 21,
+      "stratum": "GEN",
+      "conversation_id": "6a8f18f8-1f2c-83eb-b753-b2bc09e274e5",
+      "user_index": 69,
+      "tool_calls": 1
+    },
+    {
+      "n": 22,
+      "stratum": "UE",
+      "conversation_id": "6a8dcbad-23f8-83eb-81dd-2c27e30db775",
+      "user_index": 518,
+      "tool_calls": 41
+    },
+    {
+      "n": 23,
+      "stratum": "UE",
+      "conversation_id": "6a8ba0c9-8690-83eb-8369-c73a9f795bab",
+      "user_index": 347,
+      "tool_calls": 5
+    },
+    {
+      "n": 24,
+      "stratum": "UE",
+      "conversation_id": "6a8bd7ac-703c-83ed-b85e-5ca8ea5456c0",
+      "user_index": 244,
+      "tool_calls": 91
+    }
+  ]
+}

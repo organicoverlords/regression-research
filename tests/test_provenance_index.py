@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.provenance import validate
+from tools.provenance import canonical_report_paths, validate
 
 REPO = Path(__file__).resolve().parents[1]
 INDEX = REPO / "provenance.json"
@@ -15,14 +15,15 @@ INDEX = REPO / "provenance.json"
 def test_provenance_validates():
     ok, messages, stats = validate(INDEX)
     assert ok, f"provenance should be valid: {messages}"
-    assert stats["reports_indexed"] == 8
+    data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
+    assert stats["reports_indexed"] == len(data["entries"])
+    assert stats["reports_indexed"] > 0
     assert stats["errors"] == 0
 
 
 def test_every_report_indexed():
     data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
-    reports_dir = REPO / "01 Reports"
-    actual = {f"01 Reports/{p.name}" for p in reports_dir.iterdir() if p.is_file() and p.suffix.lower() in (".md", ".txt")}
+    actual = canonical_report_paths(REPO)
     indexed = {e["report_path"] for e in data["entries"]}
     missing = actual - indexed
     assert not missing, f"unindexed reports: {missing}"

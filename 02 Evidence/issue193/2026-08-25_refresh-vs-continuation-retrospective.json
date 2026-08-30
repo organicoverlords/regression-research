@@ -1,0 +1,157 @@
+{
+  "schema": "issue193-refresh-retrospective-v1",
+  "source_kind": "primary_raw_chatport_export",
+  "source_root": "C:\\Users\\Lauri\\Downloads\\ChatPortEvidence\\raw\\2026-08-25",
+  "analysis": "retrospective_nonrandomized_quasi_experiment",
+  "treatments": [
+    {
+      "conversation_id": "6a8d6312-cb44-83eb-b788-e213ce1ed9b0",
+      "title": "Memory regression work",
+      "snapshot_file": "20260827T041001Z_6a8d6312-cb44-83eb-b788-e213ce1ed9b0_sha256-46a81870383e.json",
+      "snapshot_sha256": "46a81870383e6076c5379422b86eb0153255a7e94e6cb39e2a95be3dce68ce75",
+      "active_ancestry_contains_refresh": true,
+      "refresh_time_utc": "2026-08-25T09:50:24.034000+00:00",
+      "pca_context_citations_present_during_refresh_turn": true,
+      "max_pca_citation_count_on_refresh_turn": 4,
+      "continuation_prompt": "go",
+      "continuation_time_utc": "2026-08-25T09:51:30.103000+00:00",
+      "first_visible_route_loss_time_utc": "2026-08-25T09:52:10.538363+00:00",
+      "seconds_continuation_to_visible_loss": 40.435,
+      "loss_excerpt": "Remote publication already existed when I resumed: commit `6bcd19e` is pushed and PR #24 is open. The GitHub connector dropped during discovery, so I switched route to the local `gh` client instead of stalling; I’m checking exact-head CI/mergeability now."
+    },
+    {
+      "conversation_id": "6a8d6340-474c-83eb-ba55-b89cd5c7a5da",
+      "title": "Memory Work Completed",
+      "snapshot_file": "20260827T041022Z_6a8d6340-474c-83eb-ba55-b89cd5c7a5da_sha256-63e74ab9f1b7.json",
+      "snapshot_sha256": "63e74ab9f1b72c7474c15e3945326b7425543fe5f15d8084516acac54f7cb570",
+      "active_ancestry_contains_refresh": true,
+      "refresh_time_utc": "2026-08-25T09:50:33.357000+00:00",
+      "pca_context_citations_present_during_refresh_turn": true,
+      "max_pca_citation_count_on_refresh_turn": 18,
+      "continuation_prompt": "go",
+      "continuation_time_utc": "2026-08-25T09:51:35.483000+00:00",
+      "first_visible_route_loss_time_utc": "2026-08-25T09:52:03.665451+00:00",
+      "seconds_continuation_to_visible_loss": 28.182,
+      "loss_excerpt": "I can’t execute the repo lane in this turn because the previously exposed MCP0/GitHub connector schemas dropped from the active tool surface during the refresh. I attempted rediscovery; MCP0 is not currently registered.\n\nLive continuation target remains regres"
+    }
+  ],
+  "same_time_control": {
+    "conversation_id": "6a8d6330-6fcc-83eb-8ffa-b62f6a7ae074",
+    "title": "Work on P3",
+    "snapshot_file": "20260827T040919Z_6a8d6330-6fcc-83eb-8ffa-b62f6a7ae074_sha256-d32b46bbfda6.json",
+    "snapshot_sha256": "d32b46bbfda6755b0c58b34724a1fde2e4d20333bb34580fafd697570bfe3a73",
+    "control_window_utc": [
+      "2026-08-25T09:50:24+00:00",
+      "2026-08-25T09:52:11+00:00"
+    ],
+    "refresh_nodes_any_mapping": 1,
+    "refresh_nodes_on_current_node_ancestry": 0,
+    "tool_calls_in_window": 12,
+    "tool_results_in_window": 12,
+    "tool_result_status_counts": {
+      "finished_successfully": 12
+    },
+    "mcp0_call_paths": [
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/start_process",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/start_process",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output",
+      "/MCP0/link_6a8cd2c6b94c819187100b56f9f9cb3c/read_output"
+    ]
+  },
+  "later_continuation_controls": [
+    {
+      "conversation_id": "6a8d6b94-7f78-83eb-8212-295c07e46af6",
+      "title": "Work on P3 Completed",
+      "snapshot_file": "20260827T040715Z_6a8d6b94-7f78-83eb-8212-295c07e46af6_sha256-e66a939b873d.json",
+      "snapshot_sha256": "e66a939b873d0e01602bf2cea956666b8a22551b098a7b6ee5c1e2ba50ad435b",
+      "create_time_utc": "2026-08-25T10:16:53.984854+00:00",
+      "first_prompt": "work on p3",
+      "continuation_prompt": "go",
+      "post_continuation_tool_calls": 55,
+      "connector_loss_signals": [],
+      "classified_route_loss": false
+    },
+    {
+      "conversation_id": "6a8d6b98-e258-83eb-8dd1-6e70428e7260",
+      "title": "Approve Authority Fix",
+      "snapshot_file": "20260827T040633Z_6a8d6b98-e258-83eb-8dd1-6e70428e7260_sha256-074611a2cb0f.json",
+      "snapshot_sha256": "074611a2cb0ffd35c49e9ba5cfba3617acd2cceed342261e0f56e28c8a2c6a42",
+      "create_time_utc": "2026-08-25T10:16:59.948561+00:00",
+      "first_prompt": "work on memory",
+      "continuation_prompt": "go",
+      "post_continuation_tool_calls": 44,
+      "connector_loss_signals": [],
+      "classified_route_loss": false
+    },
+    {
+      "conversation_id": "6a8d6b9f-4858-83eb-bee2-9703ba3f7cfa",
+      "title": "P3 PR consolidation",
+      "snapshot_file": "20260827T040654Z_6a8d6b9f-4858-83eb-bee2-9703ba3f7cfa_sha256-acd060a0951d.json",
+      "snapshot_sha256": "acd060a0951d08f3733a17ca33b82f8b5286988cf1156d4d0cb99da002c30234",
+      "create_time_utc": "2026-08-25T10:17:04.879407+00:00",
+      "first_prompt": "work on p3",
+      "continuation_prompt": "go",
+      "post_continuation_tool_calls": 63,
+      "connector_loss_signals": [],
+      "classified_route_loss": false
+    },
+    {
+      "conversation_id": "6a8d6d92-e4b4-83eb-8c9f-0722fcdd8d0a",
+      "title": "P3 Creeps PR Update",
+      "snapshot_file": "20260827T040612Z_6a8d6d92-e4b4-83eb-8c9f-0722fcdd8d0a_sha256-af40e7ad8702.json",
+      "snapshot_sha256": "af40e7ad8702bc8d2ee819850525482f4fd2daa98bc043a94c3a56b994dfa82d",
+      "create_time_utc": "2026-08-25T10:25:29.866495+00:00",
+      "first_prompt": "work on p3",
+      "continuation_prompt": "gogo",
+      "post_continuation_tool_calls": 65,
+      "connector_loss_signals": [],
+      "classified_route_loss": false
+    },
+    {
+      "conversation_id": "6a8d735b-1fb0-83eb-9d4f-bd6e4824b391",
+      "title": "P3 CI Test Fix",
+      "snapshot_file": "20260827T040531Z_6a8d735b-1fb0-83eb-9d4f-bd6e4824b391_sha256-01e89e6e6937.json",
+      "snapshot_sha256": "01e89e6e6937b960a0d2008096cde04facebe377862c18a7ae67a5b09be1a4cb",
+      "create_time_utc": "2026-08-25T10:50:07.161804+00:00",
+      "first_prompt": "go work on p3",
+      "continuation_prompt": "go",
+      "post_continuation_tool_calls": 64,
+      "connector_loss_signals": [],
+      "classified_route_loss": false
+    },
+    {
+      "conversation_id": "6a8d81b4-d1b8-83eb-b164-757db310a46f",
+      "title": "Memory system work",
+      "snapshot_file": "20260827T040121Z_6a8d81b4-d1b8-83eb-b164-757db310a46f_sha256-358732cc39dd.json",
+      "snapshot_sha256": "358732cc39dd5074c766320576d0d2f119e04e452c071df4abee963431def11f",
+      "create_time_utc": "2026-08-25T11:51:21.518194+00:00",
+      "first_prompt": "work on memory",
+      "continuation_prompt": "go",
+      "post_continuation_tool_calls": 32,
+      "connector_loss_signals": [],
+      "classified_route_loss": false
+    }
+  ],
+  "descriptive_counts": {
+    "refresh_treatment_route_loss": 2,
+    "refresh_treatment_total": 2,
+    "later_control_route_loss": 0,
+    "later_control_total": 6,
+    "risk_difference_percentage_points": 100.0,
+    "exploratory_one_sided_fisher_exact_p": 0.03571428571428571
+  },
+  "interpretation": {
+    "observed": "Both current-ancestry memory lanes that received explicit refresh your memory showed connector/tool-surface loss on the next continuation; the contemporaneous non-refreshed current P3 ancestry completed 12 MCP0 calls with 12 finished_successfully tool results across the same wall-clock window; six later go/gogo controls retained active tool execution with no connector-loss signal.",
+    "inferred": "The evidence supports an association between the refresh/PCA context-retrieval turn and subsequent conversation-scoped tool binding loss and weakens a common 12:50 platform outage explanation.",
+    "not_proven": "Causal effect of refresh/PCA on tool binding. The comparison is retrospective, non-randomized, task-confounded, selected after the historical event, and the preregistered prospective #193 treatment has not run.",
+    "branch_note": "ChatGPT exports contain branches. The same-time P3 mapping contains a refresh branch, but current_node ancestry contains zero refresh nodes; this analysis follows current_node ancestry for active-branch claims."
+  }
+}

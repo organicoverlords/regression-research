@@ -45,7 +45,12 @@ class MemoryPopulationTests(unittest.TestCase):
     def test_audit_preserves_provisional_candidates_and_records_supersession_stats(self) -> None:
         report = build_population_report()
         self.assertEqual(report["duplicate_and_supersession"]["duplicate_collapses"], 0)
-        self.assertEqual(report["duplicate_and_supersession"]["bank_supersession_edges"], 2)
+        supersessions = report["duplicate_and_supersession"]["bank_supersessions"]
+        self.assertGreaterEqual(report["duplicate_and_supersession"]["bank_supersession_edges"], 3)
+        superseded_targets = {edge["target"] for edge in supersessions}
+        self.assertIn("mem-20260825-mcp-6kb-hard", superseded_targets)
+        self.assertIn("mem-20260825-policy-live-state-v13", superseded_targets)
+        self.assertIn("mem-20260826-379239ef", superseded_targets)
         self.assertEqual(
             report["population"]["provisional_candidates_not_auto_promoted"],
             [

@@ -1,0 +1,281 @@
+{
+  "schema_version": "1.0",
+  "scenarios": [
+    {
+      "id": "mixed-provenance-partial-execution",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "historical_context", "directive": true, "text": "old behavior"},
+        {"source_class": "current_user", "directive": true, "text": "summarize only what I set"}
+      ],
+      "parts": [
+        {"id": "user-settings", "action": "summarize", "data_class": "user_authored", "capability": "source_read", "operation": "read_only", "scope": "context:user-settings"},
+        {"id": "protected-placeholder", "action": "disclose", "data_class": "protected_internal", "capability": "source_read", "operation": "read_only", "scope": "context:protected"}
+      ],
+      "constraints": [
+        {"id": "protected-boundary", "blocks_data_classes": ["protected_internal"]}
+      ],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"user-settings": "execute", "protected-placeholder": "blocked"}
+      }
+    },
+    {
+      "id": "repository-fallback-with-live-claim",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "durable_context", "directive": true, "text": "use the old route"},
+        {"source_class": "current_user", "directive": true, "text": "finish the repo task"}
+      ],
+      "parts": [
+        {"id": "repo-change", "action": "mutate", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "shared_mutation", "scope": "repo:policy-fixture"}
+      ],
+      "constraints": [],
+      "available_roles": {"repository_mutate": ["repo_native_write", "verified_local_repo_write"]},
+      "failed_roles": {"repository_mutate": ["repo_native_write"]},
+      "live_claims": [
+        {"scope": "repo:policy-fixture", "owner": "assistant", "live": true}
+      ],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "execute_all",
+        "dispositions": {"repo-change": "execute"},
+        "adapter_roles": {"repo-change": "verified_local_repo_write"}
+      }
+    },
+    {
+      "id": "coordination-outage-is-local",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "continue useful work"}
+      ],
+      "parts": [
+        {"id": "evidence-read", "action": "summarize", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:evidence"},
+        {"id": "shared-edit", "action": "mutate", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "shared_mutation", "scope": "repo:shared"}
+      ],
+      "constraints": [],
+      "available_roles": {
+        "source_read": ["source_native_read"],
+        "repository_mutate": ["repo_native_write"]
+      },
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [
+        {"surface": "github_issue_title", "scope": "repo:shared", "owner": "worker-b"}
+      ],
+      "coordination_available": false,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"evidence-read": "execute", "shared-edit": "defer_shared_mutation"}
+      }
+    },
+    {
+      "id": "coordination-outage-allows-isolated-branch-but-defers-main-merge",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "keep working without exporting coordination failures to me"}
+      ],
+      "parts": [
+        {"id": "isolated-branch-edit", "action": "mutate", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "independent_mutation", "scope": "branch:chatgpt/regression-fix"},
+        {"id": "merge-main", "action": "merge", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "shared_mutation", "scope": "repo:main"}
+      ],
+      "constraints": [],
+      "available_roles": {"repository_mutate": ["repo_native_write"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [
+        {"surface": "pull_request", "scope": "repo:main", "owner": "assistant"}
+      ],
+      "coordination_available": false,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"isolated-branch-edit": "execute", "merge-main": "defer_shared_mutation"}
+      }
+    },
+    {
+      "id": "stale-projection-never-becomes-owner",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "make the isolated change"}
+      ],
+      "parts": [
+        {"id": "shared-edit", "action": "mutate", "data_class": "repo_or_runtime_evidence", "capability": "repository_mutate", "operation": "shared_mutation", "scope": "repo:file-a"}
+      ],
+      "constraints": [],
+      "available_roles": {"repository_mutate": ["repo_native_write"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [
+        {"surface": "github_issue_title", "scope": "repo:file-a", "owner": "worker-b"}
+      ],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "degraded_without_total_refusal",
+        "dispositions": {"shared-edit": "claim_required"}
+      }
+    },
+    {
+      "id": "memory-write-needs-explicit-authorization",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "audit this context without editing it"}
+      ],
+      "parts": [
+        {"id": "memory-read", "action": "inspect", "data_class": "historical_user_context", "capability": "memory_read", "operation": "read_only", "scope": "memory:user-context"},
+        {"id": "memory-write", "action": "update", "data_class": "user_authored", "capability": "memory_write", "operation": "independent_mutation", "scope": "memory:user-context"}
+      ],
+      "constraints": [],
+      "available_roles": {
+        "memory_read": ["side_effect_free_memory_read"],
+        "memory_write": ["audited_memory_write"]
+      },
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"memory-read": "execute", "memory-write": "authorization_required"}
+      }
+    },
+    {
+      "id": "natural-explicit-memory-authorization-is-enough",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "yes, update that saved entry"}
+      ],
+      "parts": [
+        {"id": "memory-write", "action": "update", "data_class": "user_authored", "capability": "memory_write", "operation": "independent_mutation", "scope": "memory:user-context"}
+      ],
+      "constraints": [],
+      "available_roles": {"memory_write": ["audited_memory_write"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": true,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "execute_all",
+        "dispositions": {"memory-write": "execute"},
+        "adapter_roles": {"memory-write": "audited_memory_write"}
+      }
+    },
+    {
+      "id": "mixed-context-generations-preserve-current-authority",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "historical_context", "directive": true, "text": "old worker-report convention"},
+        {"source_class": "historical_context", "directive": true, "text": "stale GitHub-first routing rule"},
+        {"source_class": "durable_context", "directive": true, "text": "saved historical operating preference"},
+        {"source_class": "live_repo_policy", "directive": true, "text": "current repo-local mutation rule"},
+        {"source_class": "current_personal_instructions", "directive": true, "text": "current standing user instruction: preserve current authority and do not normalize live user context during research"},
+        {"source_class": "current_user", "directive": true, "text": "Research issue 122 only; do not modify live memory, Personal Instructions, Settings, personality, or other user configuration."}
+      ],
+      "parts": [
+        {"id": "repo-evidence", "action": "inspect", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:regression-research#122"},
+        {"id": "context-cleanup", "action": "update", "data_class": "user_authored", "capability": "memory_write", "operation": "independent_mutation", "scope": "memory:user-context"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"], "memory_write": ["audited_memory_write"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"repo-evidence": "execute", "context-cleanup": "authorization_required"}
+      }
+    },
+    {
+      "id": "substantive-investigation-needs-exact-admission",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "inspect the issue and then investigate the failure"}
+      ],
+      "parts": [
+        {"id": "bounded-orientation", "action": "inspect", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:issue-125"},
+        {"id": "deep-investigation", "action": "analyze", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "substantive_investigation", "scope": "repo:issue-125"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"bounded-orientation": "execute", "deep-investigation": "claim_required"}
+      }
+    },
+    {
+      "id": "coordination-outage-defers-investigation-not-orientation",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "keep useful read-only orientation going even if coordination is unavailable"}
+      ],
+      "parts": [
+        {"id": "bounded-orientation", "action": "inspect", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "read_only", "scope": "repo:issue-125"},
+        {"id": "deep-investigation", "action": "analyze", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "substantive_investigation", "scope": "repo:issue-125"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [],
+      "projections": [],
+      "coordination_available": false,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "partial_progress",
+        "dispositions": {"bounded-orientation": "execute", "deep-investigation": "defer_substantive_investigation"}
+      }
+    },
+    {
+      "id": "substantive-investigation-yields-to-live-owner",
+      "actor": "assistant",
+      "directives": [
+        {"source_class": "current_user", "directive": true, "text": "investigate issue 125"}
+      ],
+      "parts": [
+        {"id": "deep-investigation", "action": "analyze", "data_class": "repo_or_runtime_evidence", "capability": "source_read", "operation": "substantive_investigation", "scope": "repo:issue-125"}
+      ],
+      "constraints": [],
+      "available_roles": {"source_read": ["source_native_read"]},
+      "failed_roles": {},
+      "live_claims": [
+        {"scope": "repo:issue-125", "owner": "worker-b", "live": true}
+      ],
+      "projections": [],
+      "coordination_available": true,
+      "explicit_user_authorization": false,
+      "expected": {
+        "directive_source": "current_user",
+        "overall": "degraded_without_total_refusal",
+        "dispositions": {"deep-investigation": "yield"}
+      }
+    }
+  ]
+}
