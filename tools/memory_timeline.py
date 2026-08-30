@@ -313,56 +313,12 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
 
 
 def build_fresh_session_startup_contract() -> dict[str, Any]:
-    """Return the bounded operating cycle for the first bootstrap of a fresh chat."""
-    return {
-        "applies": "first successful bootstrap of a fresh normal conversation only",
-        "rehydration": (
-            "post-compaction bootstrap restores behavior only; the continued presence of the same "
-            "summary/compacted context is not a new fresh-session event and must not retrigger this sweep"
-        ),
-        "wake_up_semantics": (
-            "the first user message itself triggers startup even when it is only a greeting, short project name, "
-            "go/continue, status question, or otherwise underspecified wake-up/context selector; resolve established "
-            "shorthand and the active mission from Vault plus live state before asking the user to restate known context"
-        ),
-        "response_gate": (
-            "do not send the first substantive response until the bounded live orientation has been attempted through "
-            "the available relevant routes and the material current status is known; a greeting or short exchange does not bypass this gate"
-        ),
-        "live_orientation": (
-            "immediately after bootstrap and before the first substantive response, always inspect enough relevant live truth "
-            "to understand what is actually happening; for project work this normally includes repo HEAD/origin/dirty state, "
-            "recent meaningful commits/PRs/checks, current ownership/claims, scheduled-worker state/recent runs, and material "
-            "runtime/machine alerts; do not pre-judge the scan as unnecessary, and broaden to the wider fleet only when the task, "
-            "active alerts, or observed symptoms require it"
-        ),
-        "orientation_reporting": (
-            "if the bounded scan is clean, stay quiet about the sweep; if it exposes a material abnormality, lead the first "
-            "substantive response with that abnormality and any safe containment already performed"
-        ),
-        "anomaly_handling": (
-            "if the live scan shows an obvious operational failure or contradictory state, repair or contain it first "
-            "when safely authorized; do not replace the inherited mission with scheduler churn or new architecture"
-        ),
-        "current_status_refresh": (
-            "after startup, re-check the relevant live sources before any later answer whose correctness depends on current "
-            "repo/coordinator/worker/CI/runtime status; an earlier snapshot is timestamped evidence, not permanent authority"
-        ),
-        "authority_cross_references": [
-            "assistant-orchestration/user-burden",
-            "assistant-orchestration/tool-availability",
-        ],
-        "startup_report": (
-            "report only material abnormal proven state or repairs: stay silent when clean, and when abnormal lead with the fire; "
-            "do not dump the orientation transcript or facts the user already knows"
-        ),
-        "continuation": (
-            "after any necessary abnormality report, continue the highest-value safe inherited/project work automatically; "
-            "orientation, a context-loaded message, or a status dump is never task completion"
-        ),
-        "source_contract": "04 Operating Contracts/fresh-chat-startup-orientation.md",
-        "personal_instructions_bridge": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
-    }
+    """Load the single machine-readable operating cycle for a fresh chat."""
+    path = Path(__file__).resolve().parents[1] / "04 Operating Contracts" / "fresh-chat-startup-contract.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"fresh-session startup contract must be an object: {path}")
+    return payload
 
 
 def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any]:

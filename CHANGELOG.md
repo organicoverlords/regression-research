@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Single-sourced the fresh-chat startup operating cycle in a machine-readable contract loaded directly by bootstrap generation, preventing executable startup semantics from silently drifting from their declared authority (#125).
+
 - [2026-08-30] [coordination] Versioned the standalone BusyCoordinator contract and added a shared append-only audit/contract wrapper plus read-only invariant guard, preserving the canonical Python/Rust ownership core, recover semantics, bounded state, and single-authority store (#125).
 
 - [2026-08-30] [memory] Added regression coverage that the concurrent five-worker-cap behavior record stays superseded after authority consolidation (#125).
