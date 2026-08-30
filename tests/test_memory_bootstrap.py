@@ -1,9 +1,17 @@
+import hashlib
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from tools.memory_authority import behavioral_context
-from tools.memory_bank import load_bank
+from tools.chatgpt_bootstrap_artifact import (
+    DEFAULT_LIBRARY_PATH,
+    build_chatgpt_bootstrap_artifact,
+    render_artifact_bytes,
+    verify_artifact_copy,
+)
+from tools.memory_authority import AUTHORITY_REGISTRY, behavioral_context
+from tools.memory_bank import DEFAULT_BANK, load_bank
 from tools.memory_timeline import build_behavior_bootstrap
 
 
@@ -58,6 +66,43 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("Do not decide the scan is unnecessary before acquiring it", bridge)
         self.assertIn("If the bounded scan is clean, stay quiet about it", bridge)
         self.assertIn("Re-check relevant live repo/coordinator/worker/CI/runtime state", bridge)
+        self.assertIn(DEFAULT_LIBRARY_PATH, bridge)
+        self.assertIn("transport fallback, not a second behavioral authority", bridge)
+        self.assertIn("continue from current user instruction", bridge)
+        self.assertIn("/Agent Bootstrap/agents.md", bridge)
+        self.assertIn("legacy `chatgpt-memory-seed.md`", bridge)
+
+    def test_generated_distribution_is_exact_bootstrap_with_source_provenance(self):
+        artifact = build_chatgpt_bootstrap_artifact()
+        self.assertEqual(artifact["artifact_schema_version"], 1)
+        self.assertEqual(artifact["library_path"], DEFAULT_LIBRARY_PATH)
+        self.assertEqual(artifact["payload"], build_behavior_bootstrap(load_bank()))
+        self.assertTrue(artifact["payload"]["contract"]["complete_behavior_semantics"])
+        self.assertFalse(artifact["payload"]["contract"]["history_included"])
+        self.assertFalse(artifact["payload"]["contract"]["live_status_included"])
+
+        for key, path in (("behavior_bank", DEFAULT_BANK), ("authority_registry", AUTHORITY_REGISTRY)):
+            data = path.read_bytes()
+            descriptor = artifact["source"][key]
+            self.assertEqual(descriptor["bytes"], len(data))
+            self.assertEqual(descriptor["sha256"], hashlib.sha256(data).hexdigest().upper())
+
+        self.assertEqual(render_artifact_bytes(), render_artifact_bytes())
+
+    def test_generated_distribution_verification_is_byte_exact(self):
+        expected = render_artifact_bytes()
+        with tempfile.TemporaryDirectory() as td:
+            copy = Path(td) / "chatgpt-bootstrap.json"
+            copy.write_bytes(expected)
+            proven = verify_artifact_copy(copy)
+            self.assertEqual(proven["status"], "PROVEN")
+            self.assertEqual(proven["expected_sha256"], proven["actual_sha256"])
+            self.assertEqual(proven["expected_bytes"], proven["actual_bytes"])
+
+            copy.write_bytes(expected + b" ")
+            mismatch = verify_artifact_copy(copy)
+            self.assertEqual(mismatch["status"], "MISMATCH")
+            self.assertNotEqual(mismatch["expected_sha256"], mismatch["actual_sha256"])
 
     def test_bootstrap_uses_current_five_worker_launch_supervision_rule(self):
         payload = build_behavior_bootstrap(load_bank())
