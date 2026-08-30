@@ -45,9 +45,13 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("must not retrigger this sweep", startup["rehydration"])
         self.assertIn("first user message itself triggers startup", startup["wake_up_semantics"])
         self.assertIn("first substantive response", startup["response_gate"])
-        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "recent_memory_glance", "live_orientation", "response"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "stack_map_glance", "recent_memory_glance", "live_orientation", "response"])
+        self.assertTrue(startup["stack_map_glance"]["mandatory"])
+        self.assertEqual(startup["stack_map_glance"]["assistant_operating_model"], ["KNOW", "COORDINATE", "EXECUTE", "RECOVER", "PROVE"])
+        self.assertIn("existing capability owner", startup["stack_map_glance"]["reading_rule"])
+        self.assertIn("CI enforces", startup["stack_map_glance"]["maintenance_rule"])
         self.assertIn("up to 20", startup["recent_memory_glance"])
-        self.assertIn("after the bounded recent-memory glance", startup["live_orientation"])
+        self.assertIn("after the mandatory stack-map glance and bounded recent-memory glance", startup["live_orientation"])
         self.assertIn("scheduled-worker state/recent runs", startup["live_orientation"])
         self.assertIn("recent meaningful commits/PRs/checks", startup["live_orientation"])
         self.assertIn("stay quiet about the sweep", startup["orientation_reporting"])
@@ -73,12 +77,15 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_fresh_session_startup_is_bootstrap_owned_not_an_external_contract(self):
         with patch("tools.memory_timeline.Path.read_text", side_effect=AssertionError("external startup contract read")):
             startup = build_fresh_session_startup_contract()
-        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "recent_memory_glance", "live_orientation", "response"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "stack_map_glance", "recent_memory_glance", "live_orientation", "response"])
         self.assertNotIn("source_contract", startup)
 
     def test_personal_instructions_bridge_requires_pre_response_live_orientation(self):
         bridge = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").read_text(encoding="utf-8")
         self.assertIn("before the first substantive answer", bridge)
+        self.assertIn("stack_map_glance", bridge)
+        self.assertIn("assistant-stack-human-map.md", bridge)
+        self.assertIn("assistant-stack-capability-map.md", bridge)
         self.assertIn("recent_memory_glance", bridge)
         self.assertIn("up to 20", bridge)
         self.assertIn("Do this even for a greeting", bridge)

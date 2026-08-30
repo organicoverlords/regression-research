@@ -48,6 +48,7 @@ Different questions intentionally have different authorities. There is no single
 | Historical/regression evidence | Vault / regression-research corpus | `context`, `timeline`, `orient`, reports/fixtures | live operational truth |
 | Product progress presentation | DevProgressBoard derived state | browser, status/operator feeds | product/repo authority |
 | Timed recurrence | ChatGPT Automations | scheduler state | mutation ownership |
+| Worker `working now` status | Fresh current execution surface | running automation/run/session/process or in-flight command tied to scope | BusyCoordinator claim/lease/heartbeat/checkpoint, schedule, enabled flag, prior snapshot |
 
 ## Component map
 
@@ -99,6 +100,10 @@ A route failure is local: losing one transport must not redefine the task, decla
 
 **Local runtime / Unreal / exact artifact proof** owns claims about actual runtime or user-visible behavior when observed. Builds, source inspection and CI are narrower evidence unless the repo acceptance contract says otherwise.
 
+### Worker status: execution proof, not ownership
+
+**`tools/live_worker_status.py`** classifies fresh execution evidence for user-facing worker-status answers. A BusyCoordinator claim, lease, heartbeat, or checkpoint is collision/ownership state only and has zero positive liveness or progress weight. `Working now` requires a just-checked running automation/run/session/process or in-flight tool/command tied to that worker/scope. If the execution surface is inspectable and none is running, the answer is `not working now`; if it cannot be inspected, the answer is `unverified`.
+
 ### Read models and observability
 
 **DevProgressBoard** at `C:\Users\Lauri\Desktop\DevProgressBoard` is a deterministic derived product-progress board. Workers append facts; reconciliation derives visible state. AI summaries are optional and do not replace its event ledger or live Git/GitHub probes.
@@ -132,6 +137,20 @@ These values are intentionally timestamped and must not be copied into durable a
 - Five enabled recurring ChatGPT repo workers: Alder, Cedar, Ember, Harbor, Juniper.
 - C: **54.6 GB free**; RAM about **2.1 / 15.3 GB free/total**; GPU 1383 / 6144 MB used.
 - P3: 15 worktrees in the operator snapshot. Tiny3D: 26. LowVRAM: 8.
+## Current convergence program
+
+The latest work is one simplification program rather than a collection of new user-facing levels:
+
+- **#275**: capability ownership map so existing mechanisms are discovered before new ones are proposed.
+- **#276**: deterministic fresh-chat startup with bounded memory orientation.
+- **#279**: auditable behavior/policy change history.
+- **#280**: bootstrap failure remains a local continuity degradation rather than taking over the task.
+- **#281 merged**: worker status now requires fresh current execution proof; coordinator claims/leases/heartbeats/checkpoints have zero positive liveness or progress weight.
+- **`regression-research#125-library-primary-behavior-delivery` active/unmerged**: reconcile primary fresh-chat behavior delivery while keeping Vault canonical; it is not current authority until landed.
+- **`p3:ue-workspace-pool-architecture` active/unmerged**: decouple logical work from physical Unreal workspace/build mechanics; this remains project-local rather than assistant-stack authority.
+
+These changes all serve the #125 acceptance target: internal complexity may exist, but the user should not have to understand or repair it during ordinary work.
+
 ## Known drift and unresolved seams
 
 1. [`assistant-stack-architecture.md`](assistant-stack-architecture.md) is a **2026-08-27 historical snapshot**, not current topology. It still names `MCP0 BUSY` and records one enabled timed worker at its observation boundary.
