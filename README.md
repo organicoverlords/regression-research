@@ -6,10 +6,10 @@
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
 - [2026-08-30] [research] Added executable validation for #193 paired refresh-binding results, including exact stimulus/canary checks and a guard that SUPPORT_H1 requires at least one stable control plus two independent treatment changes.
+- [2026-08-30] [regression] Kept behavior-retrieval fixtures curated instead of exhaustive so recording a new user rule does not automatically create mandatory repository maintenance; missing fixture coverage remains diagnostic while existing fixture quality stays enforced (#125).
 - [2026-08-30] [memory] Restored the intended #125 delivery boundary: generated Library behavior is primary for fresh chats and independent of MCP, Vault remains canonical/fallback and supplies bounded memory enrichment, and the Library publisher now has an exact render/compare/verify contract.
 - [2026-08-30] [regression] Locked provider-local process fallback so one failed launch surface cannot hide a still-working sibling process route or the standalone coordinator reached through it (#125).
 - [2026-08-30] [memory] Added retrieval-quality coverage for the newly authorized independent worker-proof behavior rule so every active user rule remains represented in the behavior retrieval benchmark (#125).
-- [2026-08-30] [orchestration] Restored worker status to live execution truth: claims/leases/heartbeats/checkpoints now carry zero positive status or progress weight, status requires a just-checked execution surface, and progress counts only concrete work produced during the relevant claim window (#125).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

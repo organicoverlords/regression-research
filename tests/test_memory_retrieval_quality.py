@@ -1,7 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 from tools.benchmark_memory_retrieval import DEFAULT_BANK, DEFAULT_FIXTURE, evaluate as evaluate_general
-from tools.benchmark_memory_behavior_retrieval import evaluate as evaluate_behavior
+from tools import benchmark_memory_behavior_retrieval as behavior_benchmark
 from tools.memory_bank import load_bank, search_context_memory
 
 
@@ -23,12 +24,30 @@ class MemoryRetrievalQualityTests(unittest.TestCase):
                 ids = [entry["id"] for entry in search_context_memory(entries, query, limit=8)]
                 self.assertIn(expected, ids[:2])
 
-    def test_behavior_retrieval_covers_all_active_user_rules(self):
-        result=evaluate_behavior()
-        self.assertEqual(result["coverage"]["missing"],[])
+    def test_behavior_retrieval_quality_for_curated_cases(self):
+        result=behavior_benchmark.evaluate()
         self.assertEqual(result["coverage"]["stale"],[])
         self.assertGreaterEqual(result["all"]["recall_at_8"],0.95)
         self.assertGreaterEqual(result["holdout"]["recall_at_8"],0.95)
+
+    def test_new_active_rule_does_not_require_fixture_update(self):
+        original = behavior_benchmark.behavioral_context
+
+        def with_unrepresented_rule(entries):
+            return [
+                *original(entries),
+                {
+                    "id": "mem-synthetic-new-rule",
+                    "behavioral_authority": {"role": behavior_benchmark.ROLE_USER},
+                },
+            ]
+
+        with patch.object(behavior_benchmark, "behavioral_context", side_effect=with_unrepresented_rule):
+            result = behavior_benchmark.evaluate()
+
+        self.assertIn("mem-synthetic-new-rule", result["coverage"]["missing"])
+        self.assertGreaterEqual(result["all"]["recall_at_8"], 0.95)
+        self.assertGreaterEqual(result["holdout"]["recall_at_8"], 0.95)
 
 
 if __name__ == "__main__": unittest.main()
