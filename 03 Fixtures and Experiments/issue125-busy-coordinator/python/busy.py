@@ -9,6 +9,8 @@ from pathlib import Path
 LOCK_TIMEOUT_S = 2.0
 LOCK_STALE_S = 15.0
 LOCK_RETRY_S = 0.01
+REPLACE_TIMEOUT_S = 0.5
+REPLACE_RETRY_S = 0.01
 DEFAULT_LEASE_S = 3600
 MAX_OPERATIONS = 512
 MAX_COMPLETED_JOBS = 256
@@ -107,7 +109,16 @@ def persist(store: Path, state: dict) -> None:
     store.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(str(store) + f".{os.getpid()}.tmp")
     tmp.write_text(json.dumps(state, indent=2, sort_keys=False) + "\n", encoding="utf-8")
-    os.replace(tmp, store)
+    deadline = time.monotonic() + REPLACE_TIMEOUT_S
+    while True:
+        try:
+            os.replace(tmp, store)
+            return
+        except PermissionError:
+            if time.monotonic() >= deadline:
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(REPLACE_RETRY_S)
 
 
 def claim_for(state: dict, scope: str):
