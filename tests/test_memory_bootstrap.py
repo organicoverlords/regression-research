@@ -129,19 +129,22 @@ class MemoryBootstrapTests(unittest.TestCase):
             self.assertEqual(output.read_bytes(), original)
             self.assertEqual(list(output.parent.glob(f".{output.name}.*.tmp")), [])
 
-    def test_bootstrap_uses_current_five_worker_launch_supervision_rule(self):
+    def test_bootstrap_uses_current_recurring_worker_recovery_rule(self):
         payload = build_behavior_bootstrap(load_bank())
         active = {item["id"]: item["text"] for item in payload["behavior_profile"]}
-        self.assertIn("mem-20260829-d3594411", active)
-        self.assertNotIn("mem-20260829-59cf4996", active)
-        self.assertIn("mem-20260829-bf3bcb41", active)
-        self.assertNotIn("mem-20260827-fb095ec2", active)
-        self.assertNotIn("mem-20260828-ca3fc66a", active)
-        rule = active["mem-20260829-d3594411"]
-        self.assertIn("arm all five workers", rule)
-        self.assertIn("reports the arm immediately", rule)
-        self.assertIn("repo work instead of silently waiting", rule)
-        self.assertIn("repeat work-and-verify until Worker 1 is proven healthy", rule)
+        self.assertIn("mem-20260830-fc6b5bba", active)
+        for superseded in (
+            "mem-20260829-d3594411",
+            "mem-20260829-bf3bcb41",
+            "mem-20260829-1f6d75a4",
+        ):
+            self.assertNotIn(superseded, active)
+        rule = active["mem-20260830-fc6b5bba"]
+        self.assertIn("one bounded status read", rule)
+        self.assertIn("preserve healthy slots", rule)
+        self.assertIn("Refresh/re-discovery/reload is repeatable", rule)
+        self.assertIn("do not impose a one-refresh ceiling", rule)
+        self.assertIn("Workers never administer their own recurrence or siblings", rule)
 
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
         self.assertIn("Arm the full five-worker generation", contract)
