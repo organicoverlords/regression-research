@@ -70,6 +70,20 @@ class CapabilityRoutingTests(unittest.TestCase):
         self.assertEqual(result["status"], "degraded")
         self.assertEqual(result["fallback_mode"], "no_second_authority")
 
+    def test_generator_failed_provider_does_not_get_consumed_before_reachability(self):
+        fixture = json.loads(
+            (ROOT / "tests" / "fixtures" / "capability-routing-indirect-route.json").read_text(encoding="utf-8")
+        )
+        result = select_adapter(
+            fixture["capability"],
+            fixture["visible_roles"],
+            role_providers=fixture["role_providers"],
+            failed_roles=(role for role in ["process_execution"]),
+            policy=self.policy,
+        )
+        self.assertEqual(result["status"], "degraded")
+        self.assertEqual(result["fallback_mode"], "no_second_authority")
+
     def test_reachable_roles_expand_only_from_reachable_providers(self):
         reachable = resolve_reachable_roles(
             {"outer_transport"},
@@ -79,6 +93,27 @@ class CapabilityRoutingTests(unittest.TestCase):
             },
         )
         self.assertEqual(reachable, {"outer_transport", "process_execution", "live_ownership"})
+
+    def test_role_provider_generators_survive_validation_and_remain_reachable(self):
+        reachable = resolve_reachable_roles(
+            {"outer_transport"},
+            role_providers={
+                "outer_transport": (role for role in ["process_execution"]),
+                "process_execution": (role for role in ["live_ownership"]),
+            },
+        )
+        self.assertEqual(reachable, {"outer_transport", "process_execution", "live_ownership"})
+
+    def test_string_role_provider_is_rejected_instead_of_split_into_characters(self):
+        with self.assertRaisesRegex(CapabilityRoutingError, "iterable of role strings, not a string"):
+            resolve_reachable_roles(
+                {"outer_transport"},
+                role_providers={"outer_transport": "live_ownership"},
+            )
+
+    def test_string_available_roles_is_rejected(self):
+        with self.assertRaisesRegex(CapabilityRoutingError, "iterable of role strings, not a string"):
+            resolve_reachable_roles("outer_transport")
 
     def test_one_capability_failure_does_not_collapse_another(self):
         failed_source = select_adapter("source_read", set(), policy=self.policy)

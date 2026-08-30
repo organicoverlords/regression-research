@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [routing] Hardened capability-provider graph inputs so generator-backed indirect routes remain reachable and accidental string iterables are rejected instead of being split into fabricated character roles (#125).
+
 - [2026-08-30] [memory] Realigned bootstrap and retrieval regressions with the latest recurring-worker authority correction so synchronized behavior updates cannot leave main's memory verification stale (#125).
 
 - [2026-08-30] [memory] Published generated ChatGPT bootstrap fallback files atomically so an interrupted replacement cannot destroy the last-known-good Library transport artifact (#125).

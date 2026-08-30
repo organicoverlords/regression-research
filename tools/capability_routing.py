@@ -83,22 +83,33 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
     return policy
 
 
+def _normalize_role_iterable(roles: Iterable[str], *, label: str) -> list[str]:
+    if isinstance(roles, (str, bytes)):
+        raise CapabilityRoutingError(f"{label} must be an iterable of role strings, not a string")
+    normalized = list(roles)
+    if any(not isinstance(role, str) or not role for role in normalized):
+        raise CapabilityRoutingError(f"{label} must contain only non-empty strings")
+    return normalized
+
+
 def resolve_reachable_roles(
     available_roles: Iterable[str],
     *,
     role_providers: Mapping[str, Iterable[str]] | None = None,
     failed_roles: Iterable[str] = (),
 ) -> set[str]:
-    failed = set(failed_roles)
-    reachable = {role for role in available_roles if role not in failed}
-    providers = role_providers or {}
+    failed = set(_normalize_role_iterable(failed_roles, label="failed_roles"))
+    available = _normalize_role_iterable(available_roles, label="available_roles")
+    reachable = {role for role in available if role not in failed}
 
-    for provider, provided_roles in providers.items():
+    providers: dict[str, list[str]] = {}
+    for provider, provided_roles in (role_providers or {}).items():
         if not isinstance(provider, str) or not provider:
             raise CapabilityRoutingError("role provider names must be non-empty strings")
-        provided = list(provided_roles)
-        if any(not isinstance(role, str) or not role for role in provided):
-            raise CapabilityRoutingError(f"{provider}: provided roles must be non-empty strings")
+        providers[provider] = _normalize_role_iterable(
+            provided_roles,
+            label=f"{provider}: provided roles",
+        )
 
     changed = True
     while changed:
@@ -126,7 +137,7 @@ def select_adapter(
     capabilities = policy["capabilities"]
     if capability not in capabilities:
         raise CapabilityRoutingError(f"unknown capability: {capability}")
-    failed = set(failed_roles)
+    failed = set(_normalize_role_iterable(failed_roles, label="failed_roles"))
     available = resolve_reachable_roles(
         available_roles,
         role_providers=role_providers,
