@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [orchestration] Aligned the ChatGPT Personal Instructions bridge with Library-first behavior delivery, required behavior load before any visible assistant prose, and removed the obsolete fixed retry-once cutoff in favor of repeatable bounded route recovery (#125).
 - [2026-08-30] [memory] Kept the exact Vault bootstrap fallback under the 32 KB process-read window by compacting its JSON wire format and redundant startup prose without dropping behavior rules or the 20-item recent-memory glance.
 - [2026-08-30] [research] Required #193 treatment binding-loss evidence to keep the sibling route healthy and show no matching local request arrival before contributing to SUPPORT_H1.
 - [2026-08-30] [coordination] BusyCoordinator now retries transient Windows atomic-replace access/share failures in both Python and Rust while preserving one canonical store; parity coverage reproduces a concurrent observer that temporarily denies delete sharing (#305).
 - [2026-08-30] [orchestration] Added the derived operational Stack Atlas with mandatory compact bootstrap awareness, deep component runbooks, stable-identity blast-radius lookup, and a regression for the Commander/BusyCoordinator lock incident.
-- [2026-08-30] [memory] Removed two curated retrieval cases that targeted behavior rules explicitly superseded by the temporary response-gate rule.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
