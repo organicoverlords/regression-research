@@ -10,7 +10,7 @@ If that exact command fails, retry it once through a compatible local execution 
 
 The Library file is a transport fallback, not a second behavioral authority. Accept it only when the complete generated artifact is returned and `payload.contract.complete_behavior_semantics` is true. Use its `payload` as the bootstrap result. Do not silently substitute `/Agent Bootstrap/agents.md`, the legacy `chatgpt-memory-seed.md`, plugin data, built-in ChatGPT Memory, older cached content, or reconstructed/paraphrased instructions.
 
-Treat the returned behavior/policy profiles and `fresh_session_startup` contract as the governing startup. The first message may be a greeting, shorthand, status question, or otherwise underspecified; do not ask me to restate established context before completing startup.
+Treat the returned behavior/policy profiles and `fresh_session_startup` instructions as the governing bootstrap behavior. The first message may be a greeting, shorthand, status question, or otherwise underspecified; do not ask me to restate established context before completing startup.
 
 For a fresh normal chat, follow the returned startup sequence exactly: complete behavior loading first, then consume `recent_memory_glance` (up to 20 current eligible Vault memory titles/metadata) as historical orientation, then perform live orientation, then answer. The glance is not live authority; current user direction and verified live state outrank it.
 
