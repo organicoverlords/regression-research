@@ -22,8 +22,6 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-30] [orchestration] Restored worker status to live execution truth: claims/leases/heartbeats/checkpoints now carry zero positive status or progress weight, status requires a just-checked execution surface, and progress counts only concrete work produced during the relevant claim window (#125).
 
-- [2026-08-30] [meta] Made the assistant-stack map mandatory fresh-chat behavior-delivery orientation, split user-facing simplicity from the detailed assistant capability index, and added a CI freshness guard requiring both maps to move with declared stack-defining changes (#125).
-
 - [2026-08-30] [regression] Locked the existing fresh-session bootstrap failure boundary: run the exact Vault bootstrap, retry it once, then continue from current instruction/policy/live state instead of turning memory recovery into the task (#125).
 
 - [2026-08-30] [memory] Added a read-only Git-derived memory/policy change log and descriptive memory-sync commit metadata so memory additions, supersessions, authority promotions, and operating-policy changes remain auditable without creating a second authority.
