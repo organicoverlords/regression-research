@@ -1,0 +1,15 @@
+{
+  "processes": [
+    {"pid": 17208, "ppid": 17120, "name": "pwsh.exe", "command_line": "pwsh.exe -File C:\\Users\\Lauri\\AppData\\Local\\DesktopCommanderFallback\\watchdog.ps1"},
+    {"pid": 30120, "ppid": 17208, "name": "node.exe", "command_line": "node.exe C:\\Users\\Lauri\\AppData\\Local\\DesktopCommanderFallback\\app\\node_modules\\@wonderwhy-er\\desktop-commander\\dist\\index.js remote --persist-session"},
+    {"pid": 29864, "ppid": 30120, "name": "node.exe", "command_line": "node.exe C:\\Users\\Lauri\\AppData\\Local\\DesktopCommanderFallback\\app\\node_modules\\@wonderwhy-er\\desktop-commander\\dist\\index.js"},
+    {"pid": 29752, "ppid": 21748, "name": "powershell.exe", "command_line": "powershell.exe -File C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\keepalive.ps1 -Role FrontDoor -Port 3003"},
+    {"pid": 30508, "ppid": 29752, "name": "node.exe", "command_line": "node.exe C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\dist\\front-door.js"}
+  ],
+  "ports": [
+    {"pid": 30508, "address": "127.0.0.1", "port": 3003}
+  ],
+  "resource_observations": [
+    {"pid": 29864, "path": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\busy-claims.json", "relation": "open_handle_blocked_atomic_replace", "source": "incident evidence"}
+  ]
+}

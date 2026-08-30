@@ -12,12 +12,16 @@ from typing import Any
 try:
     from .memory_authority import AUTHORITY_REGISTRY
     from .memory_bank import DEFAULT_BANK, build_startup_bootstrap, load_bank
+    from .stack_atlas import atlas_publication_plan
 except ImportError:
     from memory_authority import AUTHORITY_REGISTRY
     from memory_bank import DEFAULT_BANK, build_startup_bootstrap, load_bank
+    from stack_atlas import atlas_publication_plan
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LIBRARY_PATH = "/Agent Bootstrap/chatgpt-bootstrap.json"
+STACK_ATLAS_SOURCE = ROOT / "tools" / "stack_atlas.py"
+CAPABILITY_POLICY_SOURCE = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 
 
 def _sha256(data: bytes) -> str:
@@ -57,6 +61,8 @@ def build_chatgpt_bootstrap_artifact() -> dict[str, Any]:
         "source": {
             "behavior_bank": _source_descriptor(DEFAULT_BANK),
             "authority_registry": _source_descriptor(AUTHORITY_REGISTRY),
+            "stack_atlas": _source_descriptor(STACK_ATLAS_SOURCE),
+            "capability_policy": _source_descriptor(CAPABILITY_POLICY_SOURCE),
         },
         "payload": payload,
     }
@@ -85,6 +91,7 @@ def publication_plan() -> dict[str, Any]:
         "canonical_authority": artifact["delivery_contract"]["canonical_authority"],
         "source": artifact["source"],
         "acceptance": "retrieve the published Library copy and require byte-exact verify=PROVEN",
+        "stack_atlas": atlas_publication_plan(),
     }
 
 

@@ -2,6 +2,8 @@
 
 Use this contract whenever starting a new recurring worker generation or replacing workers that are stale, buggy, or missing required tools.
 
+Every worker must consume the generated bootstrap `stack_atlas_glance` entrypoint before substantive work. Before any stack/infra reasoning, status claim, redesign, repair, or mutation, it must load the Atlas inventory from `stack_atlas_glance.library` (local fallback only when proven current), then deep-lookup every relevant Atlas component and use the named live-status/proof routes. Unknown identity, dependency, supervisor, recovery, or blast radius blocks disruptive action. This is a compact directory load, not a fleet-wide live scan.
+
 ## Hard capacity: five workers total
 
 - **Five is a hard maximum for the recurring worker fleet.** Never have more than five enabled recurring repo workers, even temporarily during replacement, recovery, verification, or generation turnover.

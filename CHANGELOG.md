@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [orchestration] Added the derived operational Stack Atlas with mandatory compact bootstrap awareness, deep component runbooks, stable-identity blast-radius lookup, and a regression for the Commander/BusyCoordinator lock incident.
+
 - [2026-08-30] [memory] Normalized continuity paraphrases so correction-as-delta behavior remains retrievable instead of being displaced by newer generic task rules.
 
 - [2026-08-30] [policy] Synced shared agent policy v1.24 and corrected the North Star so standalone BusyCoordinator is the sole live ownership authority while MCP/plugin/process surfaces remain transports.
