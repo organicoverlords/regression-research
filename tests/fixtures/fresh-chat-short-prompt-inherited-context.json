@@ -1,0 +1,16 @@
+{
+  "incident_id": "INC-20260830-234517-EEST-6b84ba",
+  "user_prompt": "What do you think",
+  "observed_failure": "After a full startup/bootstrap, the assistant asked the user to provide context instead of using the inherited task and just-loaded live state.",
+  "bad_response": "I don't have enough context yet to form a useful opinion. Tell me what you want my view on.",
+  "required_wake_up_fragments": [
+    "bind the first answer to it",
+    "short prompts use that inherited context",
+    "instead of asking for restatement"
+  ],
+  "required_behavior_fragment": "Treat short prompts as intent signals.",
+  "forbidden_bad_response_fragments": [
+    "don't have enough context",
+    "tell me what you want my view on"
+  ]
+}

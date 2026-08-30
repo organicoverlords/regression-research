@@ -76,6 +76,19 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertTrue((root / startup["documentation"]).is_file())
         self.assertTrue((root / startup["personal_instructions_bridge"]).is_file())
 
+    def test_fresh_chat_short_prompt_binds_to_inherited_context(self):
+        fixture_path = Path(__file__).resolve().parent / "fixtures/fresh-chat-short-prompt-inherited-context.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        payload = build_behavior_bootstrap(load_bank())
+        wake_up = payload["fresh_session_startup"]["wake_up_semantics"]
+        for fragment in fixture["required_wake_up_fragments"]:
+            self.assertIn(fragment, wake_up)
+        active_text = "\n".join(item["text"] for item in payload["behavior_profile"])
+        self.assertIn(fixture["required_behavior_fragment"], active_text)
+        lowered_bad = fixture["bad_response"].lower()
+        for fragment in fixture["forbidden_bad_response_fragments"]:
+            self.assertIn(fragment, lowered_bad)
+
     def test_fresh_session_startup_is_bootstrap_owned_not_an_external_contract(self):
         with patch("tools.memory_timeline.Path.read_text", side_effect=AssertionError("external startup contract read")):
             startup = build_fresh_session_startup_contract()

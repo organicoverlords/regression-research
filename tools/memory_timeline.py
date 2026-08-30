@@ -317,7 +317,7 @@ def build_fresh_session_startup_contract() -> dict[str, Any]:
     return {
         "applies": "first successful behavior delivery of a fresh normal conversation only",
         "rehydration": "post-compaction restores behavior only; the same summary/compacted context is not a new fresh session and must not retrigger this sweep",
-        "wake_up_semantics": "the first user message itself triggers startup, including greetings, project shorthand, go/continue, status questions, or underspecified wake-ups; resolve known shorthand and active mission from durable context plus live state before asking for restatement",
+        "wake_up_semantics": "the first user message itself triggers startup, including greetings, shorthand, go/continue, status questions, or underspecified wake-ups; resolve the active mission from durable context plus live state and bind the first answer to it; short prompts use that inherited context instead of asking for restatement",
         "startup_sequence": ["behavior_delivery", "stack_atlas_glance", "recent_memory_glance", "live_orientation", "response"],
         "behavior_delivery_primary": "/Agent Bootstrap/chatgpt-bootstrap.json via ChatGPT Files/Library; when complete, core behavior does not depend on MCP/local-process availability",
         "behavior_delivery_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap through a compatible local execution route only when the Library artifact is unavailable or incomplete",
