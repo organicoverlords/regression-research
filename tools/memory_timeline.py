@@ -343,11 +343,11 @@ def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any
         "purpose": "mandatory behavior bootstrap / post-compaction rehydration",
         "contract": {
             "complete_behavior_semantics": True,
-            "completion_boundary": "complete_behavior_semantics means the behavior/policy load only; fresh-chat live orientation remains outstanding until verified",
+            "completion_boundary": "complete_behavior_semantics means the behavior/policy load only; fresh-chat startup then consumes the bounded recent-memory glance before live orientation",
             "history_included": False,
             "live_status_included": False,
             "live_status_gap_owner": "assistant must close the live-status gap with a bounded relevant scan before the first substantive response of a fresh chat",
-            "follow_up": "always acquire the bounded fresh-chat live orientation before the first substantive response; thereafter re-check live sources before any answer whose correctness depends on current status; report only material abnormality",
+            "follow_up": "for a fresh chat, consume the bounded recent-memory glance after behavior loading, then acquire the bounded live orientation before the first substantive response; thereafter re-check live sources before any answer whose correctness depends on current status; report only material abnormality",
         },
         "fresh_session_startup": build_fresh_session_startup_contract(),
         "behavior_profile": user_rules,

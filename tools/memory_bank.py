@@ -363,6 +363,18 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
     ]
 
 
+def build_startup_bootstrap(entries: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return one bounded fresh-chat startup payload: behavior plus recent-memory glance."""
+    items = list(entries)
+    payload = build_behavior_bootstrap(items)
+    payload["recent_memory_glance"] = {
+        "limit": MAX_RECENT_TITLES_LIMIT,
+        "role": "bounded historical orientation only; current user direction and verified live state outrank it",
+        "entries": recent_title_entries(items, limit=MAX_RECENT_TITLES_LIMIT),
+    }
+    return payload
+
+
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
     if not path.is_file():
         return {"classes": {}, "sources": []}
@@ -882,7 +894,7 @@ def _main() -> int:
             _print_json(entry)
             return 0
         if args.command == "bootstrap":
-            _print_json(build_behavior_bootstrap(entries))
+            _print_json(build_startup_bootstrap(entries))
             return 0
         if args.command == "orient":
             projects = args.project or ["p3", "tiny3d", "lowvram"]

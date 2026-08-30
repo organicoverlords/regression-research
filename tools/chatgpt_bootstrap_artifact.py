@@ -11,12 +11,10 @@ from typing import Any
 
 try:
     from .memory_authority import AUTHORITY_REGISTRY
-    from .memory_bank import DEFAULT_BANK, load_bank
-    from .memory_timeline import build_behavior_bootstrap
+    from .memory_bank import DEFAULT_BANK, build_startup_bootstrap, load_bank
 except ImportError:
     from memory_authority import AUTHORITY_REGISTRY
-    from memory_bank import DEFAULT_BANK, load_bank
-    from memory_timeline import build_behavior_bootstrap
+    from memory_bank import DEFAULT_BANK, build_startup_bootstrap, load_bank
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LIBRARY_PATH = "/Agent Bootstrap/chatgpt-bootstrap.json"
@@ -44,10 +42,10 @@ def _source_descriptor(path: Path) -> dict[str, Any]:
 
 def build_chatgpt_bootstrap_artifact() -> dict[str, Any]:
     """Build the generated ChatGPT distribution artifact from canonical Vault authority."""
-    payload = build_behavior_bootstrap(load_bank(DEFAULT_BANK))
+    payload = build_startup_bootstrap(load_bank(DEFAULT_BANK))
     return {
         "artifact_schema_version": 1,
-        "purpose": "verified distribution cache of the canonical Vault behavior bootstrap",
+        "purpose": "verified distribution cache of the canonical Vault startup bootstrap",
         "library_path": DEFAULT_LIBRARY_PATH,
         "source": {
             "behavior_bank": _source_descriptor(DEFAULT_BANK),
