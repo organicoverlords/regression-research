@@ -94,6 +94,21 @@ class CapabilityRoutingTests(unittest.TestCase):
         )
         self.assertEqual(reachable, {"outer_transport", "process_execution", "live_ownership"})
 
+    def test_failed_process_provider_keeps_sibling_provider_reachable(self):
+        result = select_adapter(
+            "coordination",
+            {"direct_process_start", "interactive_process_session"},
+            failed_roles={"direct_process_start"},
+            role_providers={
+                "direct_process_start": ["process_execution"],
+                "interactive_process_session": ["process_execution"],
+                "process_execution": ["live_ownership"],
+            },
+            policy=self.policy,
+        )
+        self.assertEqual(result["status"], "selected")
+        self.assertEqual(result["adapter_role"], "live_ownership")
+
     def test_role_provider_generators_survive_validation_and_remain_reachable(self):
         reachable = resolve_reachable_roles(
             {"outer_transport"},
