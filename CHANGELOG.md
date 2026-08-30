@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-30] [coordination] BusyCoordinator now retries transient Windows atomic-replace access/share failures in both Python and Rust while preserving one canonical store; parity coverage reproduces a concurrent observer that temporarily denies delete sharing (#305).
 
+- [2026-08-30] [meta] Recorded the 470-remote-branch cleanup as historical evidence for the existing repository cleanup boundary: finished work must stop presenting temporary Git state as active work.
+
 - [2026-08-30] [orchestration] Added the derived operational Stack Atlas with mandatory compact bootstrap awareness, deep component runbooks, stable-identity blast-radius lookup, and a regression for the Commander/BusyCoordinator lock incident.
 
 - [2026-08-30] [memory] Removed two curated retrieval cases that targeted behavior rules explicitly superseded by the temporary response-gate rule.
