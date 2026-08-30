@@ -1,0 +1,518 @@
+{
+    "schema":  "assistant-stack-capability-map.v1",
+    "status":  "DESCRIPTIVE_INDEX_NOT_AUTHORITY",
+    "observed_at":  "2026-08-30T15:38:10.0191136+03:00",
+    "precedence":  "Current user instruction and cited live/source authority outrank this map.",
+    "design_guard":  "Before proposing a component, resolve the capability here and inspect its current owner. Reuse, minimally extend the owner, or do nothing before adding a layer.",
+    "capabilities":  [
+                         {
+                             "id":  "current_intent",
+                             "owner":  "current_user_instruction",
+                             "reads":  [
+                                           "current_conversation"
+                                       ],
+                             "never_authority":  [
+                                                     "memory",
+                                                     "old_issue",
+                                                     "old_handoff"
+                                                 ]
+                         },
+                         {
+                             "id":  "cross_project_policy",
+                             "owner":  "canonical_shared_policy",
+                             "reads":  [
+                                           "generated_repo_policy_blocks"
+                                       ],
+                             "never_authority":  [
+                                                     "worker_prompt",
+                                                     "project_prose"
+                                                 ]
+                         },
+                         {
+                             "id":  "repo_local_rules",
+                             "owner":  "repo_AGENTS_md",
+                             "reads":  [
+                                           "local_checkout",
+                                           "github_file"
+                                       ],
+                             "never_authority":  [
+                                                     "progress_board",
+                                                     "global_map"
+                                                 ]
+                         },
+                         {
+                             "id":  "project_direction",
+                             "owner":  "repo_NORTH_STAR_or_equivalent_plus_user_priority",
+                             "reads":  [
+                                           "docs",
+                                           "board_summary"
+                                       ],
+                             "never_authority":  [
+                                                     "worker_recency",
+                                                     "issue_number"
+                                                 ]
+                         },
+                         {
+                             "id":  "mutation_ownership",
+                             "owner":  "standalone_busy_coordinator",
+                             "reads":  [
+                                           "snapshot",
+                                           "inspect",
+                                           "operator_live_projection"
+                                       ],
+                             "never_authority":  [
+                                                     "github_title",
+                                                     "branch",
+                                                     "process",
+                                                     "schedule"
+                                                 ]
+                         },
+                         {
+                             "id":  "jobs_queue",
+                             "owner":  "standalone_busy_coordinator",
+                             "reads":  [
+                                           "snapshot",
+                                           "next",
+                                           "operator_live_projection"
+                                       ],
+                             "never_authority":  [
+                                                     "issue_label",
+                                                     "board_status"
+                                                 ]
+                         },
+                         {
+                             "id":  "checkpoint",
+                             "owner":  "standalone_busy_coordinator",
+                             "reads":  [
+                                           "job.checkpoint",
+                                           "inspect",
+                                           "operator_live_projection"
+                                       ],
+                             "never_authority":  [
+                                                     "resume_packet_copy"
+                                                 ]
+                         },
+                         {
+                             "id":  "handoff",
+                             "owner":  "standalone_busy_coordinator",
+                             "reads":  [
+                                           "handoff_record",
+                                           "ready_child_job",
+                                           "checkpoint"
+                                       ],
+                             "never_authority":  [
+                                                     "prose_only_handoff"
+                                                 ]
+                         },
+                         {
+                             "id":  "process_execution",
+                             "owner":  "replaceable_process_transport",
+                             "reads":  [
+                                           "ChatGPTMcpClean_plugin2",
+                                           "Remote_Desktop_Commander",
+                                           "native_shell"
+                                       ],
+                             "never_authority":  [
+                                                     "transport_identity"
+                                                 ]
+                         },
+                         {
+                             "id":  "local_code_state",
+                             "owner":  "filesystem_and_git_worktree",
+                             "reads":  [
+                                           "operator_live_projection"
+                                       ],
+                             "never_authority":  [
+                                                     "github_issue_prose",
+                                                     "memory"
+                                                 ]
+                         },
+                         {
+                             "id":  "remote_publication",
+                             "owner":  "github",
+                             "reads":  [
+                                           "gh",
+                                           "connector_api"
+                                       ],
+                             "never_authority":  [
+                                                     "coordinator_state"
+                                                 ]
+                         },
+                         {
+                             "id":  "ci_proof",
+                             "owner":  "exact_github_actions_run",
+                             "reads":  [
+                                           "operator_live_projection",
+                                           "workflow_ui"
+                                       ],
+                             "never_authority":  [
+                                                     "expected_test_result"
+                                                 ]
+                         },
+                         {
+                             "id":  "runtime_proof",
+                             "owner":  "exact_runtime_or_artifact_observation",
+                             "reads":  [
+                                           "logs",
+                                           "captures",
+                                           "test_receipts"
+                                       ],
+                             "never_authority":  [
+                                                     "source_inspection_alone"
+                                                 ]
+                         },
+                         {
+                             "id":  "fresh_session_behavior",
+                             "owner":  "vault_memory_bank_bootstrap",
+                             "reads":  [
+                                           "local_bootstrap",
+                                           "complete_library_fallback_when_required"
+                                       ],
+                             "never_authority":  [
+                                                     "full_memory_dump",
+                                                     "project_history"
+                                                 ]
+                         },
+                         {
+                             "id":  "historical_regression_evidence",
+                             "owner":  "vault_regression_research_corpus",
+                             "reads":  [
+                                           "context",
+                                           "timeline",
+                                           "orient",
+                                           "reports",
+                                           "fixtures"
+                                       ],
+                             "never_authority":  [
+                                                     "live_operational_state"
+                                                 ]
+                         },
+                         {
+                             "id":  "product_progress_projection",
+                             "owner":  "DevProgressBoard_derived_state",
+                             "reads":  [
+                                           "browser",
+                                           "status",
+                                           "operator_feeds"
+                                       ],
+                             "never_authority":  [
+                                                     "repo_or_product_truth"
+                                                 ]
+                         },
+                         {
+                             "id":  "timed_recurrence",
+                             "owner":  "ChatGPT_Automations",
+                             "reads":  [
+                                           "scheduler_state"
+                                       ],
+                             "never_authority":  [
+                                                     "mutation_ownership"
+                                                 ]
+                         }
+                     ],
+    "components":  [
+                       {
+                           "id":  "user",
+                           "role":  "authority",
+                           "path":  "current conversation",
+                           "owns":  [
+                                        "current goal",
+                                        "scope changes",
+                                        "genuine external authority"
+                                    ]
+                       },
+                       {
+                           "id":  "chatgpt_direct",
+                           "role":  "orchestrator",
+                           "path":  "current ChatGPT session",
+                           "owns":  [
+                                        "bounded orchestration",
+                                        "route selection",
+                                        "evidence reconciliation"
+                                    ]
+                       },
+                       {
+                           "id":  "chatgpt_automations",
+                           "role":  "scheduler",
+                           "path":  "ChatGPT automation service",
+                           "owns":  [
+                                        "timed wakeups",
+                                        "recurrence"
+                                    ]
+                       },
+                       {
+                           "id":  "execution_workers",
+                           "role":  "executor",
+                           "path":  "ChatGPT/Codex/Claude/OpenCode/Command-Code/Traycer",
+                           "owns":  [
+                                        "bounded execution"
+                                    ]
+                       },
+                       {
+                           "id":  "vault",
+                           "role":  "context_evidence",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\vault",
+                           "owns":  [
+                                        "behavior bootstrap",
+                                        "history",
+                                        "regression evidence"
+                                    ]
+                       },
+                       {
+                           "id":  "memory_bank",
+                           "role":  "context_reader",
+                           "path":  "vault\\tools\\memory_bank.py",
+                           "owns":  [
+                                        "bootstrap",
+                                        "bounded context",
+                                        "timeline",
+                                        "orientation"
+                                    ]
+                       },
+                       {
+                           "id":  "shared_policy",
+                           "role":  "authority",
+                           "path":  "C:\\Users\\Lauri\\.agents\\SHARED-AGENT-POLICY.md",
+                           "owns":  [
+                                        "cross-project invariants"
+                                    ]
+                       },
+                       {
+                           "id":  "repo_agents",
+                           "role":  "authority",
+                           "path":  "repo-local AGENTS.md",
+                           "owns":  [
+                                        "repo-local operating rules"
+                                    ]
+                       },
+                       {
+                           "id":  "north_star",
+                           "role":  "authority",
+                           "path":  "repo-local NORTH_STAR/equivalent",
+                           "owns":  [
+                                        "project direction"
+                                    ]
+                       },
+                       {
+                           "id":  "busy_coordinator",
+                           "role":  "authority",
+                           "path":  "%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd",
+                           "owns":  [
+                                        "claims",
+                                        "jobs",
+                                        "checkpoints",
+                                        "handoffs",
+                                        "recovery"
+                                    ]
+                       },
+                       {
+                           "id":  "busy_store",
+                           "role":  "authority_store",
+                           "path":  "%LOCALAPPDATA%\\ChatGPTMcpClean\\.state\\busy-claims.json",
+                           "owns":  [
+                                        "durable coordinator state"
+                                    ]
+                       },
+                       {
+                           "id":  "chatgpt_mcp_clean",
+                           "role":  "transport",
+                           "path":  "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean",
+                           "owns":  [
+                                        "process transport",
+                                        "front door",
+                                        "process receipts"
+                                    ]
+                       },
+                       {
+                           "id":  "remote_desktop_commander",
+                           "role":  "transport",
+                           "path":  "connected Desktop Commander",
+                           "owns":  [
+                                        "machine/files/process transport"
+                                    ]
+                       },
+                       {
+                           "id":  "local_git",
+                           "role":  "source_truth",
+                           "path":  "per-repo filesystem/.git/worktrees",
+                           "owns":  [
+                                        "local bytes",
+                                        "branch",
+                                        "HEAD",
+                                        "dirty state"
+                                    ]
+                       },
+                       {
+                           "id":  "github",
+                           "role":  "publication_evidence",
+                           "path":  "organicoverlords/*",
+                           "owns":  [
+                                        "remote repo state",
+                                        "issues",
+                                        "PRs",
+                                        "published revisions"
+                                    ]
+                       },
+                       {
+                           "id":  "github_actions",
+                           "role":  "validation_evidence",
+                           "path":  "GitHub Actions + self-hosted runners",
+                           "owns":  [
+                                        "workflow/run evidence"
+                                    ]
+                       },
+                       {
+                           "id":  "runtime",
+                           "role":  "product_evidence",
+                           "path":  "project-specific runtime/artifacts",
+                           "owns":  [
+                                        "observed runtime behavior"
+                                    ]
+                       },
+                       {
+                           "id":  "dev_progress_board",
+                           "role":  "read_model",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\DevProgressBoard",
+                           "owns":  [
+                                        "derived product-progress presentation"
+                                    ]
+                       },
+                       {
+                           "id":  "operator_live",
+                           "role":  "read_model",
+                           "path":  "DevProgressBoard\\state\\operator-live.json",
+                           "owns":  [
+                                        "near-live machine/coordinator/repo/runner projection"
+                                    ]
+                       },
+                       {
+                           "id":  "lowvram",
+                           "role":  "product",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\lowvram3d-repo",
+                           "remote":  "organicoverlords/lowvram3d-studio",
+                           "owns":  [
+                                        "3D generation"
+                                    ]
+                       },
+                       {
+                           "id":  "asset_library",
+                           "role":  "product",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\PIPELINE_RESULTS_LIBRARY",
+                           "owns":  [
+                                        "canonical asset catalog"
+                                    ]
+                       },
+                       {
+                           "id":  "tinylab",
+                           "role":  "product",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\TinyLab",
+                           "owns":  [
+                                        "analysis",
+                                        "qualification",
+                                        "rig/physics compilation",
+                                        "P3-ready package"
+                                    ]
+                       },
+                       {
+                           "id":  "tiny3d",
+                           "role":  "product_repo",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\tiny3d",
+                           "owns":  [
+                                        "observed animation/asset engineering"
+                                    ],
+                           "boundary":  "relationship to TinyLab NOT_PROVEN"
+                       },
+                       {
+                           "id":  "p3",
+                           "role":  "product",
+                           "path":  "C:\\Users\\Lauri\\Documents\\Unreal Projects\\p3",
+                           "remote":  "organicoverlords/p3",
+                           "owns":  [
+                                        "final game integration",
+                                        "runtime acceptance"
+                                    ]
+                       },
+                       {
+                           "id":  "regression_research",
+                           "role":  "stack_repo",
+                           "path":  "C:\\Users\\Lauri\\Desktop\\vault",
+                           "remote":  "organicoverlords/regression-research",
+                           "owns":  [
+                                        "stack regression research",
+                                        "Vault history",
+                                        "shared-stack acceptance"
+                                    ]
+                       }
+                   ],
+    "product_dependencies":  [
+                                 [
+                                     "lowvram",
+                                     "asset_library"
+                                 ],
+                                 [
+                                     "lowvram",
+                                     "tinylab"
+                                 ],
+                                 [
+                                     "asset_library",
+                                     "p3"
+                                 ],
+                                 [
+                                     "tinylab",
+                                     "p3"
+                                 ],
+                                 [
+                                     "tiny3d",
+                                     "p3"
+                                 ]
+                             ],
+    "live_overlay":  {
+                         "coordinator":  {
+                                             "available":  true,
+                                             "active":  7,
+                                             "ready":  12,
+                                             "blocked":  0,
+                                             "legacy_only_claims":  27
+                                         },
+                         "enabled_recurring_workers":  [
+                                                           "Alder",
+                                                           "Cedar",
+                                                           "Ember",
+                                                           "Harbor",
+                                                           "Juniper"
+                                                       ],
+                         "machine":  {
+                                         "c_free_gb":  54.6,
+                                         "ram_free_gb":  2.1,
+                                         "ram_total_gb":  15.3,
+                                         "gpu_used_mb":  1383,
+                                         "gpu_total_mb":  6144
+                                     },
+                         "github_actions":  {
+                                                "queued":  3,
+                                                "in_progress":  0,
+                                                "registered_runners":  27,
+                                                "online_runners":  16,
+                                                "busy_runners":  0
+                                            },
+                         "worktree_counts":  {
+                                                 "p3":  15,
+                                                 "tiny3d":  26,
+                                                 "lowvram":  8
+                                             }
+                     },
+    "known_gaps":  [
+                       "assistant-stack-architecture.md is a dated 2026-08-27 snapshot and still names MCP0 BUSY plus a one-worker scheduler snapshot",
+                       "NORTH_STAR.md contains historical BUSY/MCP wording while current AGENTS/current-focus/live contract identify standalone BusyCoordinator",
+                       "DevProgressBoard intentionally models the product pipeline rather than the whole assistant stack",
+                       "TinyLab and Tiny3D relationship is not proven by the inspected current sources",
+                       "dynamic machine/worker counts must remain timestamped overlays rather than structural authority"
+                   ],
+    "negative_example":  {
+                             "issue":  "organicoverlords/regression-research#271",
+                             "proposed":  "derived resume/context layer with registry, structured checkpoints and resume packets",
+                             "missed_existing":  "BusyCoordinator already exposes jobs, checkpoint, snapshot, inspect, next, recover and handoff; handoff creates a ready child job with source/provenance and checkpoint",
+                             "failure_class":  "capability_invisibility_from_stale_or_incomplete_architecture_map",
+                             "required_future_behavior":  "resolve capability owner and inspect its current interface before proposing a cross-stack component"
+                         }
+}
