@@ -8,6 +8,7 @@ from pathlib import Path
 from tools.chatgpt_bootstrap_artifact import (
     DEFAULT_LIBRARY_PATH,
     build_chatgpt_bootstrap_artifact,
+    publication_plan,
     render_artifact_bytes,
     verify_artifact_copy,
     write_artifact_copy,
@@ -45,7 +46,7 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("must not retrigger this sweep", startup["rehydration"])
         self.assertIn("first user message itself triggers startup", startup["wake_up_semantics"])
         self.assertIn("first substantive response", startup["response_gate"])
-        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "recent_memory_glance", "live_orientation", "response"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "recent_memory_glance", "live_orientation", "response"])
         self.assertIn("up to 20", startup["recent_memory_glance"])
         self.assertIn("after the bounded recent-memory glance", startup["live_orientation"])
         self.assertIn("scheduled-worker state/recent runs", startup["live_orientation"])
@@ -73,7 +74,7 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_fresh_session_startup_is_bootstrap_owned_not_an_external_contract(self):
         with patch("tools.memory_timeline.Path.read_text", side_effect=AssertionError("external startup contract read")):
             startup = build_fresh_session_startup_contract()
-        self.assertEqual(startup["startup_sequence"], ["behavior_bootstrap", "recent_memory_glance", "live_orientation", "response"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "recent_memory_glance", "live_orientation", "response"])
         self.assertNotIn("source_contract", startup)
 
     def test_personal_instructions_bridge_requires_pre_response_live_orientation(self):
@@ -89,25 +90,34 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("zero positive weight", bridge)
         self.assertIn("claim timestamps may delimit", bridge)
         self.assertIn(DEFAULT_LIBRARY_PATH, bridge)
-        self.assertIn("transport fallback, not a second behavioral authority", bridge)
+        self.assertIn("primary fresh-chat behavior delivery surface", bridge)
+        self.assertIn("core behavior does not depend on MCP", bridge)
+        self.assertLess(bridge.index(DEFAULT_LIBRARY_PATH), bridge.index("memory_bank.py bootstrap"))
+        self.assertIn("recent-titles --limit 20", bridge)
+        self.assertIn("memory read is enrichment, not a behavior gate", bridge)
+        self.assertNotIn("transport fallback, not a second behavioral authority", bridge)
         self.assertIn("continue from current user instruction", bridge)
         self.assertIn("/Agent Bootstrap/agents.md", bridge)
         self.assertIn("legacy `chatgpt-memory-seed.md`", bridge)
 
-    def test_distribution_contract_requires_single_variable_live_promotion_canary(self):
+    def test_distribution_contract_requires_primary_library_publisher_acceptance(self):
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
-        self.assertIn("landed Vault revision", contract)
-        self.assertIn("restorable before snapshot", contract)
-        self.assertIn("Change one live variable at a time", contract)
-        self.assertIn("instruction-delivery-canary.json", contract)
-        self.assertIn("same-model fresh-chat", contract)
-        self.assertIn("byte-exact `PROVEN` verification", contract)
-        self.assertIn("Restore the previous Library bytes", contract)
-        self.assertIn("does not make Library a semantic authority", contract)
+        self.assertIn("primary fresh-chat behavior delivery surface", contract)
+        self.assertIn("core behavior independent of MCP/local-process availability", contract)
+        self.assertIn("Library behavior -> Vault recent-memory refresh -> live orientation -> response", contract)
+        self.assertIn("Library publisher worker contract", contract)
+        self.assertIn("publication-plan", contract)
+        self.assertIn("restorable previous Library copy", contract)
+        self.assertIn("verify <copy>` to return `PROVEN`", contract)
+        self.assertIn("green repository check must not be described as proof", contract)
+        self.assertIn("do not require repeated Personal-Instructions edits", contract)
 
     def test_generated_distribution_is_exact_bootstrap_with_source_provenance(self):
         artifact = build_chatgpt_bootstrap_artifact()
-        self.assertEqual(artifact["artifact_schema_version"], 1)
+        self.assertEqual(artifact["artifact_schema_version"], 2)
+        self.assertEqual(artifact["delivery_contract"]["fresh_chat_behavior_role"], "primary")
+        self.assertFalse(artifact["delivery_contract"]["behavior_requires_mcp"])
+        self.assertEqual(artifact["delivery_contract"]["canonical_authority"], "Vault")
         self.assertEqual(artifact["library_path"], DEFAULT_LIBRARY_PATH)
         entries = load_bank()
         self.assertEqual(artifact["payload"], build_startup_bootstrap(entries))
@@ -124,6 +134,17 @@ class MemoryBootstrapTests(unittest.TestCase):
             self.assertEqual(descriptor["sha256"], hashlib.sha256(data).hexdigest().upper())
 
         self.assertEqual(render_artifact_bytes(), render_artifact_bytes())
+
+    def test_publication_plan_exposes_exact_primary_library_delivery_target(self):
+        plan = publication_plan()
+        rendered = render_artifact_bytes()
+        self.assertEqual(plan["status"], "EXPECTED_LIBRARY_ARTIFACT")
+        self.assertEqual(plan["library_path"], DEFAULT_LIBRARY_PATH)
+        self.assertEqual(plan["delivery_role"], "primary")
+        self.assertEqual(plan["canonical_authority"], "Vault")
+        self.assertEqual(plan["bytes"], len(rendered))
+        self.assertEqual(plan["sha256"], hashlib.sha256(rendered).hexdigest().upper())
+        self.assertIn("byte-exact", plan["acceptance"])
 
     def test_generated_distribution_verification_is_byte_exact(self):
         expected = render_artifact_bytes()
