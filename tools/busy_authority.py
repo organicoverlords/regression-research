@@ -35,6 +35,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "other_owner_claim_requires_yield",
         "coordination_outage_creates_no_fallback_authority",
         "read_only_and_independent_work_continue_during_coordination_outage",
+        "ownership_claim_never_proves_worker_execution",
     }
     if not isinstance(invariants, dict) or required - set(invariants):
         raise BusyAuthorityError("missing BUSY invariants")
@@ -74,6 +75,8 @@ def resolve_scope(
             "scope": scope,
             "owner": owner,
             "authority": policy["live_authority"],
+            "authority_scope": "ownership_only",
+            "proves_worker_execution": False,
             "consistent_projections": consistent,
             "stale_projections": stale,
         }
@@ -83,6 +86,8 @@ def resolve_scope(
         "scope": scope,
         "owner": None,
         "authority": policy["live_authority"],
+        "authority_scope": "ownership_only",
+        "proves_worker_execution": False,
         "consistent_projections": [],
         "stale_projections": matching_projections,
     }

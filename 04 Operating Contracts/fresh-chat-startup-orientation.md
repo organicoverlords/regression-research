@@ -16,6 +16,10 @@ If the orientation is clean, stay quiet about the sweep and answer normally. If 
 
 After startup, re-check the relevant live sources before any later answer whose correctness depends on current repo/coordinator/worker/CI/runtime state. A previously acquired snapshot is evidence with a timestamp, not permanent authority.
 
+For a user-facing worker-status question, inspect the current execution surface immediately before answering. Only a currently running automation/run/session/process or in-flight tool/command tied to that worker/scope can prove `working now`. Claims, leases, heartbeats, checkpoints, schedules, branches, PRs, commits, reports, and prior snapshots have zero positive weight for liveness and must never make the answer look healthy or complete. If no current execution is observed, answer `not working now`; if the execution surface itself cannot be inspected, answer `unverified`.
+
+When the user asks about progress or whether useful work happened, measure concrete output during the relevant work window: completed commands/tools/tests, created commits, written artifacts, PR updates, or other direct work products. Claim timestamps may delimit that measurement window, but claim existence itself adds zero evidence. Reconcile collision-control state separately and never substitute it for the live-work answer.
+
 For long execution, continue automatically with the highest-value safe inherited or project work after any necessary abnormality report. Do not dump the orientation transcript or facts the operator already knows. A context-loaded message, status dump, plan, or orientation summary is never a successful end state while useful work remains.
 
 Post-compaction rehydration is different. Re-running `bootstrap` after a genuine new continuity-loss event restores governing behavior; it does not repeat the fresh-session sweep merely because the same summary or compacted context remains visible. A genuinely new fresh session still requires a new pre-response live orientation.

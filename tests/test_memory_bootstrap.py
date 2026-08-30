@@ -53,6 +53,11 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("stay quiet about the sweep", startup["orientation_reporting"])
         self.assertIn("repair or contain it first", startup["anomaly_handling"])
         self.assertIn("re-check the relevant live sources", startup["current_status_refresh"])
+        self.assertIn("immediately before answering", startup["worker_status_truth"])
+        self.assertIn("zero positive weight", startup["worker_status_truth"])
+        self.assertIn("claim timestamps may delimit", startup["worker_progress_truth"])
+        self.assertIn("actual work", startup["worker_progress_truth"])
+        self.assertIn("never present coordinator active", startup["worker_status_reporting"])
         self.assertEqual(
             startup["authority_cross_references"],
             ["assistant-orchestration/user-burden", "assistant-orchestration/tool-availability"],
@@ -80,6 +85,9 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("Do not decide the scan is unnecessary before acquiring it", bridge)
         self.assertIn("If the bounded scan is clean, stay quiet about it", bridge)
         self.assertIn("Re-check relevant live repo/coordinator/worker/CI/runtime state", bridge)
+        self.assertIn("inspect current execution immediately before answering", bridge)
+        self.assertIn("zero positive weight", bridge)
+        self.assertIn("claim timestamps may delimit", bridge)
         self.assertIn(DEFAULT_LIBRARY_PATH, bridge)
         self.assertIn("transport fallback, not a second behavioral authority", bridge)
         self.assertIn("continue from current user instruction", bridge)

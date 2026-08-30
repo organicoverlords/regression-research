@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "id": "claim-only",
+      "execution_visibility": true,
+      "evidence": [{"kind": "claim", "current": true}],
+      "expected_status": "not_working",
+      "working_now": false,
+      "expected_work_events": 0
+    },
+    {
+      "id": "heartbeat-only",
+      "execution_visibility": true,
+      "evidence": [{"kind": "heartbeat", "current": true}],
+      "expected_status": "not_working",
+      "working_now": false,
+      "expected_work_events": 0
+    },
+    {
+      "id": "coordinator-metadata-only",
+      "execution_visibility": true,
+      "evidence": [
+        {"kind": "coordinator_active", "current": true},
+        {"kind": "lease", "current": true},
+        {"kind": "checkpoint", "current": true}
+      ],
+      "expected_status": "not_working",      "working_now": false,
+      "expected_work_events": 0
+    },
+    {
+      "id": "running-process",
+      "execution_visibility": true,
+      "evidence": [
+        {"kind": "claim", "current": true},
+        {"kind": "running_process", "current": true, "scope_match": true}
+      ],
+      "expected_status": "working",
+      "working_now": true,
+      "expected_work_events": 0
+    },
+    {
+      "id": "real-work-during-claim",
+      "execution_visibility": true,
+      "evidence": [
+        {"kind": "running_process", "current": true, "scope_match": true},
+        {"kind": "command_completed", "within_claim_window": true, "at": "2026-08-30T12:00:00Z"},
+        {"kind": "tool_completed", "within_claim_window": true, "at": "2026-08-30T12:01:00Z"},
+        {"kind": "test_completed", "within_claim_window": true, "at": "2026-08-30T12:02:00Z"},
+        {"kind": "test_completed", "within_claim_window": true, "at": "2026-08-30T12:03:00Z"},
+        {"kind": "commit_created", "within_claim_window": true, "at": "2026-08-30T12:04:00Z"}
+      ],
+      "expected_status": "working",
+      "working_now": true,
+      "expected_work_events": 5,      "expected_work_by_kind": {
+        "command_completed": 1,
+        "commit_created": 1,
+        "test_completed": 2,
+        "tool_completed": 1
+      },
+      "expected_last_work_at": "2026-08-30T12:04:00Z"
+    },
+    {
+      "id": "completed-work-but-not-working-now",
+      "execution_visibility": true,
+      "evidence": [
+        {"kind": "command_completed", "within_claim_window": true},
+        {"kind": "commit_created", "within_claim_window": true}
+      ],
+      "expected_status": "not_working",
+      "working_now": false,
+      "expected_work_events": 2,
+      "expected_work_by_kind": {
+        "command_completed": 1,
+        "commit_created": 1
+      }
+    },
+    {
+      "id": "work-before-claim-does-not-count",
+      "execution_visibility": true,
+      "evidence": [{"kind": "command_completed", "within_claim_window": false}],
+      "expected_status": "not_working",
+      "working_now": false,      "expected_work_events": 0
+    },
+    {
+      "id": "mismatched-process",
+      "execution_visibility": true,
+      "evidence": [{"kind": "running_process", "current": true, "scope_match": false}],
+      "expected_status": "not_working",
+      "working_now": false,
+      "expected_work_events": 0
+    },
+    {
+      "id": "no-execution-visibility",
+      "execution_visibility": false,
+      "evidence": [{"kind": "claim", "current": true}],
+      "expected_status": "unverified",
+      "working_now": false,
+      "expected_work_events": 0
+    }
+  ]
+}
