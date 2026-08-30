@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [memory] Added regression coverage that the concurrent five-worker-cap behavior record stays superseded after authority consolidation (#125).
 - [2026-08-30] [orchestration] Made five the hard enabled recurring-worker cap, required one-for-one replacement while preserving healthy slots, and aligned flaky tool-surface recovery with repeatable refresh/re-discovery semantics (#267).
 - [2026-08-30] [routing] Hardened capability-provider graph inputs so generator-backed indirect routes remain reachable and accidental string iterables are rejected instead of being split into fabricated character roles (#125).
 - [2026-08-30] [memory] Realigned bootstrap and retrieval regressions with the latest recurring-worker authority correction so synchronized behavior updates cannot leave main's memory verification stale (#125).
 - [2026-08-30] [memory] Published generated ChatGPT bootstrap fallback files atomically so an interrupted replacement cannot destroy the last-known-good Library transport artifact (#125).
-- [2026-08-30] [evidence] Published evidence manifests atomically through a same-directory fsynced temporary file so failed replacement cannot destroy the last-known-good proof (#125).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

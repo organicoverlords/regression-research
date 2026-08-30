@@ -136,6 +136,7 @@ class MemoryBootstrapTests(unittest.TestCase):
         for superseded in (
             "mem-20260830-fc6b5bba",
             "mem-20260830-767675cf",
+            "mem-20260830-a2f3f2fe",
             "mem-20260829-d3594411",
             "mem-20260829-bf3bcb41",
             "mem-20260829-1f6d75a4",
