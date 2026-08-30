@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [evidence] Prevented evidence-bundle creation from overwriting an artifact that the same manifest claims to bind, including path aliases that resolve to the same file (#125).
+
 - [2026-08-27] [evidence] Added timestamped full-text ChatGPT Library screenshot occurrence search with frequency counts and temporal neighbors; exact duplicate screenshots remain separate occurrences, and credential-like extracted text is redacted before indexing (#86).
 
 - [2026-08-26] [evidence] Added the first resumable ChatGPT Library screenshot inventory shard with stable file IDs, visual-review classifications, byte-proven duplicate targets, and a rate-limit-safe coverage report (#86).

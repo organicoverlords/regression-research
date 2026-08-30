@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [evidence] Prevented evidence-bundle creation from overwriting an artifact that the same manifest claims to bind, including path aliases that resolve to the same file (#125).
 - [2026-08-30] [evidence] Rejected empty evidence manifests during verification so a structurally valid zero-artifact bundle cannot pass as content-bound proof (#125).
 - [2026-08-30] [evidence] Added deterministic content-bound evidence manifests that tie regression artifacts to an immutable Git commit and SHA-256 digests, with read-only verification that rejects stale or tampered proof (#125).
 - [2026-08-30] [coordination] Converged whole-stack acceptance on the standalone BusyCoordinator authority and made substantive investigation an explicit exact-scope admission operation while preserving claim-free bounded orientation (#125).
 - [2026-08-29] [routing] Added a replay regression proving one failed/restricted capability stays local and does not terminate unrelated allowed repository work when no equivalent fallback exists (#125).
-- [2026-08-29] [coordination] Added compare-and-swap recovery for legacy-only BUSY claims: externally proven dead owners can be released into the ready queue only when the observed owner and claim timestamp still match, while managed claims remain lease-controlled (#194).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

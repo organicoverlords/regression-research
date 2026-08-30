@@ -7,6 +7,7 @@ from pathlib import Path
 from tools.evidence_bundle import (
     build_manifest,
     canonical_json,
+    ensure_output_does_not_alias_artifacts,
     resolve_commit,
     verify_manifest,
     verify_subject_bindings,
@@ -65,6 +66,17 @@ class EvidenceBundleTests(unittest.TestCase):
             manifest = build_manifest(root, ["proof.txt"], "commit-a")
             before = artifact.read_bytes()
             self.assertEqual(verify_manifest(root, manifest, "commit-a"), [])
+            self.assertEqual(artifact.read_bytes(), before)
+
+    def test_create_rejects_output_that_aliases_bound_artifact(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            artifact = root / "proof.txt"
+            artifact.write_text("proof\n", encoding="utf-8")
+            manifest = build_manifest(root, ["proof.txt"], "commit-a")
+            before = artifact.read_bytes()
+            with self.assertRaisesRegex(ValueError, "must not overwrite a bound artifact"):
+                ensure_output_does_not_alias_artifacts(root, artifact, manifest)
             self.assertEqual(artifact.read_bytes(), before)
 
     def test_rejects_empty_manifest(self):
