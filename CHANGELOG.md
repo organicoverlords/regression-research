@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [regression] Reverted the unauthorized mandatory stack-map bootstrap/CI enforcement from PR #289 while preserving the descriptive map and the previously merged worker-activity evidence fix.
+
 - [2026-08-30] [orchestration] Corrected live-worker status to use a bounded recent Commander/MCP activity window instead of an instantaneous child-process snapshot; claims remain zero-weight and progress still counts only concrete work output (#125).
 
 - [2026-08-30] [research] Added executable validation for #193 paired refresh-binding results, including exact stimulus/canary checks and a guard that SUPPORT_H1 requires at least one stable control plus two independent treatment changes.
@@ -21,8 +23,6 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 - [2026-08-30] [memory] Added retrieval-quality coverage for the newly authorized independent worker-proof behavior rule so every active user rule remains represented in the behavior retrieval benchmark (#125).
 
 - [2026-08-30] [orchestration] Restored worker status to live execution truth: claims/leases/heartbeats/checkpoints now carry zero positive status or progress weight, status requires a just-checked execution surface, and progress counts only concrete work produced during the relevant claim window (#125).
-
-- [2026-08-30] [meta] Made the assistant-stack map mandatory fresh-chat behavior-delivery orientation, split user-facing simplicity from the detailed assistant capability index, and added a CI freshness guard requiring both maps to move with declared stack-defining changes (#125).
 
 - [2026-08-30] [regression] Locked the existing fresh-session bootstrap failure boundary: run the exact Vault bootstrap, retry it once, then continue from current instruction/policy/live state instead of turning memory recovery into the task (#125).
 
