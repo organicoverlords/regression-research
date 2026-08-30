@@ -72,6 +72,17 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("/Agent Bootstrap/agents.md", bridge)
         self.assertIn("legacy `chatgpt-memory-seed.md`", bridge)
 
+    def test_distribution_contract_requires_single_variable_live_promotion_canary(self):
+        contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
+        self.assertIn("landed Vault revision", contract)
+        self.assertIn("restorable before snapshot", contract)
+        self.assertIn("Change one live variable at a time", contract)
+        self.assertIn("instruction-delivery-canary.json", contract)
+        self.assertIn("same-model fresh-chat", contract)
+        self.assertIn("byte-exact `PROVEN` verification", contract)
+        self.assertIn("Restore the previous Library bytes", contract)
+        self.assertIn("does not make Library a semantic authority", contract)
+
     def test_generated_distribution_is_exact_bootstrap_with_source_provenance(self):
         artifact = build_chatgpt_bootstrap_artifact()
         self.assertEqual(artifact["artifact_schema_version"], 1)
