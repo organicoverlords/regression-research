@@ -66,6 +66,19 @@ def artifact_record(root: Path, value: str) -> dict[str, object]:
     return {"path": normalized, "sha256": digest, "size": size}
 
 
+def ensure_output_does_not_alias_artifacts(root: Path, output: Path, manifest: dict[str, object]) -> None:
+    output_path = output.resolve()
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, list):
+        return
+    for record in artifacts:
+        if not isinstance(record, dict):
+            continue
+        normalized = normalize_repo_path(str(record.get("path", "")))
+        if output_path == repo_file(root, normalized).resolve():
+            raise ValueError(f"output path must not overwrite a bound artifact: {normalized}")
+
+
 def build_manifest(root: Path, paths: list[str], commit: str) -> dict[str, object]:
     if not commit.strip():
         raise ValueError("subject commit must not be empty")
@@ -211,6 +224,7 @@ def main() -> int:
             subject_errors = verify_subject_bindings(root, manifest, commit)
             if subject_errors:
                 raise ValueError(subject_errors[0])
+            ensure_output_does_not_alias_artifacts(root, args.output, manifest)
             args.output.write_text(canonical_json(manifest), encoding="utf-8")
             print(f"EVIDENCE_BUNDLE_CREATED {args.output}")
             return 0
