@@ -8,7 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
-- [2026-08-30] [orchestration] Bound fresh-chat short prompts to the inherited mission after bootstrap/live orientation and added a replay fixture for the contextless `What do you think` regression.
+- [2026-08-30] [orchestration] Bound fresh-chat short prompts to the inherited mission after bootstrap/live orientation, including the compact Library delivery projection, and added a replay fixture for the contextless `What do you think` regression.
 
 - [2026-08-30] [memory] Compacted the generated ChatGPT Library bootstrap to a hard 15,000-byte ceiling while preserving every active behavior and canonical-policy text; redundant Vault-owned rule metadata is no longer duplicated in the delivery artifact.
 

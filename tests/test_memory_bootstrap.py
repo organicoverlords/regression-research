@@ -85,6 +85,9 @@ class MemoryBootstrapTests(unittest.TestCase):
             self.assertIn(fragment, wake_up)
         active_text = "\n".join(item["text"] for item in payload["behavior_profile"])
         self.assertIn(fixture["required_behavior_fragment"], active_text)
+        compact_fresh = build_chatgpt_bootstrap_artifact()["payload"]["startup"]["fresh"]
+        for fragment in fixture["required_compact_fragments"]:
+            self.assertIn(fragment, compact_fresh)
         lowered_bad = fixture["bad_response"].lower()
         for fragment in fixture["forbidden_bad_response_fragments"]:
             self.assertIn(fragment, lowered_bad)
