@@ -17,6 +17,7 @@ try:
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
+    from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
@@ -25,6 +26,7 @@ except ImportError:
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
+    from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
@@ -808,6 +810,10 @@ def _main() -> int:
     recent_titles = sub.add_parser("recent-titles", aliases=["recent"])
     recent_titles.add_argument("--limit", type=int, default=DEFAULT_RECENT_TITLES_LIMIT)
 
+    changes = sub.add_parser("changes", help="read-only Git-derived memory and policy change log")
+    changes.add_argument("--limit", type=int, default=20)
+    changes.add_argument("--ref", default="HEAD")
+
     args = parser.parse_args()
     try:
         configure_authority_registry(args.authority_registry)
@@ -930,6 +936,9 @@ def _main() -> int:
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
+            return 0
+        if args.command == "changes":
+            _print_json(recent_memory_policy_changes(ref=args.ref, limit=args.limit))
             return 0
         if args.command == "behavior-search":
             _print_json([annotate_memory(entry) for entry in search_behavior_memory(entries, args.query, limit=args.limit)])

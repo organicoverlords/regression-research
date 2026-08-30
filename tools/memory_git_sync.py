@@ -245,7 +245,47 @@ def _align_checkout(remote_head: str, bank_path: Path, *, repo_root: Path = REPO
     return True
 
 
-def _publish_once(entries: list[dict[str, Any]]) -> subprocess.CompletedProcess[str]:
+
+def _commit_entry_lines(entries: list[dict[str, Any]], ids: set[str], *, roles: dict[str, str] | None = None) -> list[str]:
+    by_id = {entry.get("id"): entry for entry in entries}
+    roles = roles or {}
+    lines: list[str] = []
+    for ident in sorted(ids):
+        entry = by_id.get(ident) or {}
+        title = str(entry.get("title") or entry.get("scope") or entry.get("kind") or "memory entry").replace("\n", " ").strip()
+        role = roles.get(ident)
+        suffix = f" [{role}]" if role else ""
+        lines.append(f"- {ident}: {title}{suffix}")
+    return lines
+
+
+def _memory_commit_message(
+    entries: list[dict[str, Any]],
+    entry_ids: set[str],
+    *,
+    user_ids: set[str] | None = None,
+    policy_ids: set[str] | None = None,
+) -> tuple[str, str]:
+    user_ids = set(user_ids or ())
+    policy_ids = set(policy_ids or ())
+    authority_ids = user_ids | policy_ids
+    if authority_ids:
+        if len(authority_ids) == 1:
+            subject = f"memory: authorize {next(iter(authority_ids))}"
+        else:
+            subject = f"memory: authorize {len(authority_ids)} behavior entries"
+    elif len(entry_ids) == 1:
+        subject = f"memory: add {next(iter(entry_ids))}"
+    else:
+        subject = f"memory: add {len(entry_ids)} canonical entries"
+    roles = {ident: "USER_EXPLICIT" for ident in user_ids}
+    roles.update({ident: "CANONICAL_POLICY" for ident in policy_ids})
+    body_ids = set(entry_ids) | authority_ids
+    body = "Memory/policy change log:\n" + "\n".join(_commit_entry_lines(entries, body_ids, roles=roles))
+    return subject, body
+
+
+def _publish_once(entries: list[dict[str, Any]], new_ids: set[str]) -> subprocess.CompletedProcess[str]:
     temp_root = Path(tempfile.mkdtemp(prefix="vault-memory-sync-"))
     worktree = temp_root / "worktree"
     added = False
@@ -259,7 +299,8 @@ def _publish_once(entries: list[dict[str, Any]]) -> subprocess.CompletedProcess[
             return subprocess.CompletedProcess([], 0, "", "")
         if diff.returncode != 1:
             raise MemorySyncError("could not inspect staged memory-bank delta")
-        _git("commit", "-m", "memory: synchronize canonical bank", cwd=worktree)
+        subject, body = _memory_commit_message(entries, new_ids)
+        _git("commit", "-m", subject, "-m", body, cwd=worktree)
         return _git("push", REMOTE, f"HEAD:{BRANCH}", cwd=worktree, check=False)
     finally:
         if added:
@@ -290,7 +331,7 @@ def sync_bank(bank_path: Path, *, publish: bool) -> dict[str, Any]:
                 "pushed": 0,
                 "aligned_head": aligned,
             }
-        pushed = _publish_once(merged)
+        pushed = _publish_once(merged, local_ids - remote_ids)
         if pushed.returncode == 0:
             _git("fetch", REMOTE, BRANCH)
             new_head = _git("rev-parse", f"{REMOTE}/{BRANCH}").stdout.strip()
@@ -356,7 +397,12 @@ def _align_behavior_bundle_checkout(
 
 
 def _publish_behavior_bundle_once(
-    entries: list[dict[str, Any]], registry: dict[str, Any]
+    entries: list[dict[str, Any]],
+    registry: dict[str, Any],
+    *,
+    new_entry_ids: set[str],
+    new_user_ids: set[str],
+    new_policy_ids: set[str],
 ) -> subprocess.CompletedProcess[str]:
     temp_root = Path(tempfile.mkdtemp(prefix="vault-behavior-sync-"))
     worktree = temp_root / "worktree"
@@ -372,7 +418,10 @@ def _publish_behavior_bundle_once(
             return subprocess.CompletedProcess([], 0, "", "")
         if diff.returncode != 1:
             raise MemorySyncError("could not inspect staged behavior-memory delta")
-        _git("commit", "-m", "memory: synchronize behavior authority", cwd=worktree)
+        subject, body = _memory_commit_message(
+            entries, new_entry_ids, user_ids=new_user_ids, policy_ids=new_policy_ids
+        )
+        _git("commit", "-m", subject, "-m", body, cwd=worktree)
         return _git("push", REMOTE, f"HEAD:{BRANCH}", cwd=worktree, check=False)
     finally:
         if added:
@@ -404,8 +453,11 @@ def sync_behavior_bundle(
         remote_ids = {entry["id"] for entry in remote_entries}
         remote_user = set(remote_registry["user_explicit_ids"])
         remote_policy = set(remote_registry["canonical_policy_ids"])
-        pending_bank = len(local_ids - remote_ids)
-        pending_registry = len((set(merged_registry["user_explicit_ids"]) - remote_user) | (set(merged_registry["canonical_policy_ids"]) - remote_policy))
+        new_entry_ids = local_ids - remote_ids
+        new_user_ids = set(merged_registry["user_explicit_ids"]) - remote_user
+        new_policy_ids = set(merged_registry["canonical_policy_ids"]) - remote_policy
+        pending_bank = len(new_entry_ids)
+        pending_registry = len(new_user_ids | new_policy_ids)
         _write_bank(bank_path, merged_entries)
         _write_authority_registry(registry_path, merged_registry)
         if not publish or (pending_bank == 0 and pending_registry == 0):
@@ -415,7 +467,10 @@ def sync_behavior_bundle(
                 "pending_bank": pending_bank, "pending_registry": pending_registry,
                 "pushed": 0, "aligned_head": aligned,
             }
-        pushed = _publish_behavior_bundle_once(merged_entries, merged_registry)
+        pushed = _publish_behavior_bundle_once(
+            merged_entries, merged_registry,
+            new_entry_ids=new_entry_ids, new_user_ids=new_user_ids, new_policy_ids=new_policy_ids,
+        )
         if pushed.returncode == 0:
             _git("fetch", REMOTE, BRANCH)
             new_head = _git("rev-parse", f"{REMOTE}/{BRANCH}").stdout.strip()
