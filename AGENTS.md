@@ -65,6 +65,10 @@
 
 - Bounded read-only orientation may remain unclaimed. Before crossing into substantive investigation or analysis on an exact issue/scope, acquire that exact durable scope in the standalone BusyCoordinator; if another live owner already holds it, yield that scope and choose non-duplicative work.
 
+### Recurring worker interrupt boundary
+
+- Before a large or hard-to-reverse mutation or landing step, such as a broad rebase/rewrite, architecture/control-plane/startup/memory change, large multi-file change, or PR merge, re-check the current user instruction and the exact BusyCoordinator scope, including scope-visible pending handoffs/findings. A newer stop, superseding handoff, or scope change interrupts immediately: preserve current work and do not continue, rebase, push, or merge from stale task state. This is a boundary check, not per-command polling; ordinary small edits do not repeatedly poll the coordinator.
+
 ### Assistant-recorded memory provenance
 
 - Every new memory written by an assistant MUST use `python tools/memory_bank.py record`, not the free-form `note`/`append` path.

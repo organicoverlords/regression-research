@@ -22,6 +22,15 @@ INVESTIGATION_ADMISSION = (
     "choose non-duplicative work."
 )
 
+BIG_CHANGE_INTERRUPT = (
+    "- Before a large or hard-to-reverse mutation or landing step, such as a broad rebase/rewrite, "
+    "architecture/control-plane/startup/memory change, large multi-file change, or PR merge, re-check "
+    "the current user instruction and the exact BusyCoordinator scope, including scope-visible pending "
+    "handoffs/findings. A newer stop, superseding handoff, or scope change interrupts immediately: "
+    "preserve current work and do not continue, rebase, push, or merge from stale task state. This is "
+    "a boundary check, not per-command polling; ordinary small edits do not repeatedly poll the coordinator."
+)
+
 
 class NorthStarEntryTests(unittest.TestCase):
     def test_agents_requires_current_north_star_before_substantive_stack_work(self):
@@ -44,6 +53,15 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertIn("acquire that exact durable scope", INVESTIGATION_ADMISSION)
         self.assertIn("standalone BusyCoordinator", INVESTIGATION_ADMISSION)
         self.assertIn("yield that scope", INVESTIGATION_ADMISSION)
+
+
+    def test_large_worker_changes_recheck_current_interrupt_state(self):
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(agents.count(BIG_CHANGE_INTERRUPT), 1)
+        self.assertIn("scope-visible pending handoffs/findings", BIG_CHANGE_INTERRUPT)
+        self.assertIn("newer stop, superseding handoff, or scope change", BIG_CHANGE_INTERRUPT)
+        self.assertIn("not per-command polling", BIG_CHANGE_INTERRUPT)
+        self.assertIn("do not continue, rebase, push, or merge from stale task state", BIG_CHANGE_INTERRUPT)
 
     def test_north_star_exposes_current_project_direction_and_finish_line(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
