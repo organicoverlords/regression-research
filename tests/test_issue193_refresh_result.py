@@ -152,5 +152,16 @@ class Issue193RefreshResultTests(unittest.TestCase):
             validate_record(data)
 
 
+    def test_treatment_change_with_unhealthy_sibling_route_is_not_h1_support(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][2]["after"]["measurements"]["sibling_route_health"] = False
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
+    def test_treatment_change_with_matching_local_arrival_is_not_h1_support(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][2]["after"]["measurements"]["matching_local_request_start"] = True
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
+
 if __name__ == "__main__":
     unittest.main()

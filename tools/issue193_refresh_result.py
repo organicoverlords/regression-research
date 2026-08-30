@@ -92,6 +92,9 @@ def classify(record: dict) -> str:
         p for p in treatments
         if p["before"]["measurements"]["direct_recipient_callable"] is True
         and p["after"]["measurements"]["direct_recipient_callable"] is False
+        and p["before"]["measurements"]["sibling_route_health"] is True
+        and p["after"]["measurements"]["sibling_route_health"] is True
+        and p["after"]["measurements"]["matching_local_request_start"] is False
     ]
     if stable_controls and len(changed_treatments) >= 2:
         return "SUPPORT_H1"
