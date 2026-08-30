@@ -13,13 +13,42 @@ PILOT = ROOT / "03 Fixtures and Experiments/2026-08-27_issue174_pilot-coded.csv"
 TRANCHE2 = ROOT / "03 Fixtures and Experiments/2026-08-27_issue174_sample2-coded.csv"
 STATUSES = {"MISTAKE", "CONTROL", "NO_CLEAR_MISTAKE"}
 STRATA = {"GEN", "UE"}
+PILOT_FIELDS = {
+    "sample_id",
+    "stratum",
+    "conversation_id",
+    "user_index",
+    "tool_calls",
+    "coding_status",
+    "failure_class",
+    "severity_1_3",
+    "preventability_0_3",
+    "rationale",
+    "counterfactual",
+    "source_snapshot_file",
+}
+TRANCHE2_FIELDS = {
+    "sample2_id",
+    "seed",
+    "stratum",
+    "conversation_id",
+    "user_index",
+    "tool_calls",
+    "coding_status",
+    "failure_class",
+    "severity_1_3",
+    "preventability_0_3",
+    "rationale",
+    "counterfactual",
+    "local_sample_file",
+}
 
 
 def _int_field(row: dict[str, str], field: str, *, low: int, high: int) -> int:
     raw = row.get(field, "")
     try:
         value = int(raw)
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         raise ValueError(f"{field} must be an integer") from exc
     if not low <= value <= high:
         raise ValueError(f"{field} must be between {low} and {high}")
@@ -37,6 +66,12 @@ def load_rows(path: Path) -> list[dict[str, str]]:
 def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
     if len(rows) != 24:
         raise ValueError(f"{tranche} must contain exactly 24 episodes")
+    expected_fields = PILOT_FIELDS if tranche == "pilot" else TRANCHE2_FIELDS
+    for row in rows:
+        if set(row) != expected_fields:
+            missing = sorted(expected_fields - set(row))
+            extra = sorted(set(row) - expected_fields, key=str)
+            raise ValueError(f"{tranche} coded schema drift: missing={missing} extra={extra}")
     strata = Counter(row.get("stratum") for row in rows)
     if strata != Counter({"GEN": 12, "UE": 12}):
         raise ValueError(f"{tranche} must contain exactly 12 GEN and 12 UE episodes")
