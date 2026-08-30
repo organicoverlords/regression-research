@@ -76,6 +76,7 @@ _CONCEPT_GROUPS = (
     ("investigation", "diagnostic", "diagnostics", "debug", "debugging", "investigate", "investigating"),
     ("route", "routing", "path", "paths"),
     ("correction", "correct", "corrects", "corrected", "correcting"),
+    ("continuity", "intact", "unchanged", "unaffected", "remainder", "rest"),
     ("presentation", "wording", "format", "formatting", "phrasing"),
     ("define", "defined", "defines", "dictate", "dictated", "govern", "governed"),
     ("label", "labels", "taxonomy", "classification"),
