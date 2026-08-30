@@ -8,6 +8,7 @@ REQUIRED_MEASUREMENTS = {
     "visible_or_discovered_schema",
     "direct_recipient_callable",
     "exact_client_error_class",
+    "caller_id_or_process_id",
     "matching_local_request_start",
     "sibling_route_health",
     "refresh_or_reload_between_samples",
@@ -60,6 +61,8 @@ def validate_record(record: dict) -> dict:
                 "refresh_or_reload_between_samples",
             ):
                 _require(isinstance(measurements[field], bool), f"{sample_name}.{field} must be boolean")
+            caller_identity = measurements["caller_id_or_process_id"]
+            _require(caller_identity is None or (isinstance(caller_identity, str) and caller_identity), f"{sample_name}.caller_id_or_process_id must be null or a non-empty string")
             error_class = measurements["exact_client_error_class"]
             _require(error_class is None or (isinstance(error_class, str) and error_class), f"{sample_name}.exact_client_error_class must be null or a non-empty string")
             if measurements["direct_recipient_callable"]:

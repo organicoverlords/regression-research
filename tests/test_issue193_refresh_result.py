@@ -20,6 +20,7 @@ def sample(callable_value: bool, refreshed: bool) -> dict:
             "visible_or_discovered_schema": True,
             "direct_recipient_callable": callable_value,
             "exact_client_error_class": None if callable_value else "RESOURCE_NOT_FOUND",
+            "caller_id_or_process_id": "caller_test",
             "matching_local_request_start": callable_value,
             "sibling_route_health": True,
             "refresh_or_reload_between_samples": refreshed,
@@ -128,6 +129,18 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data = record(pair("treatment", "t1", True, False))
         data["pairs"][0]["before"]["measurements"]["refresh_or_reload_between_samples"] = True
         with self.assertRaisesRegex(ValueError, "before sample must precede refresh/reload"):
+            validate_record(data)
+
+    def test_rejects_missing_caller_identity_measurement(self):
+        data = record(pair("control", "c1", True, True))
+        del data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"]
+        with self.assertRaisesRegex(ValueError, "missing measurements"):
+            validate_record(data)
+
+    def test_rejects_invalid_caller_identity_type(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"] = []
+        with self.assertRaisesRegex(ValueError, "caller_id_or_process_id"):
             validate_record(data)
 
 
