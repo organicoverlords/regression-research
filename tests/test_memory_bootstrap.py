@@ -14,7 +14,7 @@ from tools.chatgpt_bootstrap_artifact import (
 )
 from tools.memory_authority import AUTHORITY_REGISTRY, behavioral_context
 from tools.memory_bank import DEFAULT_BANK, load_bank
-from tools.memory_timeline import build_behavior_bootstrap
+from tools.memory_timeline import build_behavior_bootstrap, build_fresh_session_startup_contract
 
 
 class MemoryBootstrapTests(unittest.TestCase):
@@ -57,9 +57,17 @@ class MemoryBootstrapTests(unittest.TestCase):
         )
         self.assertIn("lead with the fire", startup["startup_report"])
         self.assertIn("status dump is never task completion", startup["continuation"])
-        self.assertEqual(startup["source_contract"], "04 Operating Contracts/fresh-chat-startup-orientation.md")
-        self.assertTrue((Path(__file__).resolve().parents[1] / startup["source_contract"]).is_file())
-        self.assertTrue((Path(__file__).resolve().parents[1] / startup["personal_instructions_bridge"]).is_file())
+        self.assertEqual(startup["source_contract"], "04 Operating Contracts/fresh-chat-startup-contract.json")
+        root = Path(__file__).resolve().parents[1]
+        self.assertEqual(startup, json.loads((root / startup["source_contract"]).read_text(encoding="utf-8")))
+        self.assertTrue((root / startup["source_contract"]).is_file())
+        self.assertTrue((root / startup["documentation"]).is_file())
+        self.assertTrue((root / startup["personal_instructions_bridge"]).is_file())
+
+    def test_fresh_session_contract_loader_rejects_non_object_payload(self):
+        with patch("tools.memory_timeline.Path.read_text", return_value="[]"):
+            with self.assertRaisesRegex(ValueError, "must be an object"):
+                build_fresh_session_startup_contract()
 
     def test_personal_instructions_bridge_requires_pre_response_live_orientation(self):
         bridge = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").read_text(encoding="utf-8")
