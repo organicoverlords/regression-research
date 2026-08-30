@@ -20,6 +20,8 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LIBRARY_PATH = "/Agent Bootstrap/chatgpt-bootstrap.json"
+MAX_ARTIFACT_BYTES = 15_000
+EMBEDDED_RECENT_LIMIT = 1
 STACK_ATLAS_SOURCE = ROOT / "tools" / "stack_atlas.py"
 CAPABILITY_POLICY_SOURCE = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 
@@ -35,36 +37,48 @@ def _repo_path(path: Path) -> str:
         return str(path.resolve())
 
 
-def _source_descriptor(path: Path) -> dict[str, Any]:
-    data = path.read_bytes()
+def _source_digest(path: Path) -> str:
+    return _sha256(path.read_bytes())
+
+
+def _source_digests() -> dict[str, str]:
     return {
-        "path": _repo_path(path),
-        "bytes": len(data),
-        "sha256": _sha256(data),
+        "behavior_bank": _source_digest(DEFAULT_BANK),
+        "authority_registry": _source_digest(AUTHORITY_REGISTRY),
+        "stack_atlas": _source_digest(STACK_ATLAS_SOURCE),
+        "capability_policy": _source_digest(CAPABILITY_POLICY_SOURCE),
+    }
+
+
+def _compact_payload() -> dict[str, Any]:
+    """Compile the full Vault behavior bootstrap into a small self-contained delivery form."""
+    full = build_startup_bootstrap(load_bank(DEFAULT_BANK))
+    return {
+        "complete_behavior_semantics": True,
+        "profile_semantics": "behavior=USER_EXPLICIT precedence 100; policy=CANONICAL_POLICY precedence 90; current explicit user direction remains stronger",
+        "behavior": [item["text"] for item in full["behavior_profile"]],
+        "policy": [item["text"] for item in full["canonical_policy_profile"]],
+        "startup": {
+            "sequence": full["fresh_session_startup"]["startup_sequence"],
+            "fresh": "First message triggers startup. Apply this contract, consume Atlas, refresh up to 20 recent Vault titles when available (else embedded fallback), then inspect relevant live truth before the first substantive reply. Stack/infra work requires Atlas inventory plus relevant lookups. Stay silent if clean; lead with material abnormality and safe containment if not.",
+            "later": "Compaction restores behavior only. Re-check live sources for later status answers. Worker activity needs current execution evidence (~5 min); claims, leases, checkpoints, schedules, and enabled flags alone prove nothing.",
+        },
+        "atlas": full["stack_atlas_glance"],
+        "recent": [
+            [item["timestamp"], item["title"]]
+            for item in full["recent_memory_glance"]["entries"][:EMBEDDED_RECENT_LIMIT]
+        ],
     }
 
 
 def build_chatgpt_bootstrap_artifact() -> dict[str, Any]:
-    """Build the generated ChatGPT distribution artifact from canonical Vault authority."""
-    payload = build_startup_bootstrap(load_bank(DEFAULT_BANK))
+    """Build the compact generated ChatGPT distribution artifact from canonical Vault authority."""
     return {
-        "artifact_schema_version": 2,
-        "purpose": "primary fresh-chat behavior delivery generated from canonical Vault authority",
+        "artifact_schema_version": 3,
+        "purpose": "primary fresh-chat behavior delivery",
         "library_path": DEFAULT_LIBRARY_PATH,
-        "delivery_contract": {
-            "canonical_authority": "Vault",
-            "fresh_chat_behavior_role": "primary",
-            "behavior_requires_mcp": False,
-            "vault_bootstrap_role": "fallback behavior delivery when Library is unavailable or incomplete",
-            "embedded_recent_memory_glance_role": "bounded fallback orientation snapshot; refresh from Vault after behavior when available",
-        },
-        "source": {
-            "behavior_bank": _source_descriptor(DEFAULT_BANK),
-            "authority_registry": _source_descriptor(AUTHORITY_REGISTRY),
-            "stack_atlas": _source_descriptor(STACK_ATLAS_SOURCE),
-            "capability_policy": _source_descriptor(CAPABILITY_POLICY_SOURCE),
-        },
-        "payload": payload,
+        "authority": "Vault",
+        "payload": _compact_payload(),
     }
 
 
@@ -76,7 +90,10 @@ def render_artifact_bytes() -> bytes:
         sort_keys=True,
         separators=(",", ":"),
     )
-    return (text + "\n").encode("utf-8")
+    data = (text + "\n").encode("utf-8")
+    if len(data) > MAX_ARTIFACT_BYTES:
+        raise ValueError(f"generated ChatGPT bootstrap is {len(data)} bytes; cap is {MAX_ARTIFACT_BYTES}")
+    return data
 
 
 def publication_plan() -> dict[str, Any]:
@@ -87,9 +104,9 @@ def publication_plan() -> dict[str, Any]:
         "library_path": DEFAULT_LIBRARY_PATH,
         "bytes": len(data),
         "sha256": _sha256(data),
-        "delivery_role": artifact["delivery_contract"]["fresh_chat_behavior_role"],
-        "canonical_authority": artifact["delivery_contract"]["canonical_authority"],
-        "source": artifact["source"],
+        "delivery_role": "primary",
+        "canonical_authority": artifact["authority"],
+        "source": _source_digests(),
         "acceptance": "retrieve the published Library copy and require byte-exact verify=PROVEN",
         "stack_atlas": atlas_publication_plan(),
     }
