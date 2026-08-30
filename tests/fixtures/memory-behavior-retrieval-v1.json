@@ -140,6 +140,12 @@
       "cohort": "development",
       "query": "the tool surface is flaky, so refresh or rediscover it repeatedly as needed without a one-refresh ceiling while preserving the active task and process ids",
       "expected": "mem-20260830-31beca08"
+    },
+    {
+      "id": "dev-10",
+      "cohort": "development",
+      "query": "scheduled workers should propose big architecture changes for review instead of implementing them until I approve",
+      "expected": "mem-20260830-dade90e1"
     }
   ]
 }
