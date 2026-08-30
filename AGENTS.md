@@ -63,6 +63,8 @@
 
 - In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as project direction. It does not override current user instructions, live repo/runtime evidence, or these operating rules.
 
+- Before substantive stack/infra reasoning, status claims, redesign, repair, or mutation, run `python tools/stack_atlas.py inventory`, then `python tools/stack_atlas.py lookup <component>` for every relevant component. Use the returned live-status/proof routes instead of cached Atlas/memory status. Before killing, restarting, replacing, uninstalling, or otherwise disrupting a live stack component, resolve stable identity and blast radius with the Atlas; any unknown dependency role, supervisor, self-heal expectation, affected control path, or independent recovery path blocks the disruptive action. PID is only an ephemeral lookup key.
+
 - Bounded read-only orientation may remain unclaimed. Before crossing into substantive investigation or analysis on an exact issue/scope, acquire that exact durable scope in the standalone BusyCoordinator; if another live owner already holds it, yield that scope and choose non-duplicative work.
 
 ### Recurring worker interrupt boundary

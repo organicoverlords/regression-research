@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [orchestration] Added the derived operational Stack Atlas with mandatory compact bootstrap awareness, deep component runbooks, stable-identity blast-radius lookup, and a regression for the Commander/BusyCoordinator lock incident.
+
 - [2026-08-30] [research] Required the preregistered #193 caller/process identity measurement in paired result records and rejected malformed identity values before classification.
 
 - [2026-08-30] [research] Rejected contradictory #193 result evidence where callable recipients carry client errors or uncallable recipients omit the observed client error class.
