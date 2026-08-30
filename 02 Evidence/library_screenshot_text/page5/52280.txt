@@ -1,0 +1,69 @@
+13.35
+
+Sua 589 “19 %
+
+% github.com/organicoverlords/gi:
+
+> Annowuens:
+
+‘error and 1 warning
+
+Runtime/API proof for Workshop Spine
+endpoints Q Search logs
+
+failed now in 2m 44s,
+
+>@
+
+@eeooe @
+
+Set up job
+Checkout target branch
+Configure git author
+Set up Rust
+
+Cargo check daemon
+Start GigStack daemon,
+Run Runtime/API proof
+
+‘yRun set -euo pipefail
+set -euo pipefail
+python3 scripts/workshop_spine_runtime_api_proof.py \
+-base-url "${GIGSTACK_DAEMON_URL}" \
+=-daemon-command "${GIGSTACK_DAEWON_COMMAND}"
+shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+env
+GIGSTACK_DAEMON_URL: hLto://127.0.0,1:4877
+GIGSTACK_PAEMON_COMMAND: cargo run -p gigstack-daemon
+DATABASE_URL: sqlite:target/workshop-spine-runtime-api-proof.sqlite
+GIGSTACK_SQLITE_PATH: target/workshop-spine-runtime-api-proof sqlite
+PROVIDER_BASE_URL:
+‘CARGO_HOME: /home/runner/.cargo
+‘CARGO_INCREMENTAL: 0
+CARGO_TERN_COLOR: always
+FAIL: health check failed: <urlopen error [Errno 111] Connection refused>
+Runtime/API proof written to
+
+p://127,0,0,1:3001/v
+
+oO
+e
+
+1m 30s
+
+‘shone /runner /work/gigstack/gigstack/docs/generated/rebuild/RUNTINE_API_PROOF_20260
+
+603.md
+Error: Process completed with exit code 1
+
+Show daemon log tail
+Stop daemon
+
+Check whitespaceldif safety
+
+Commit and push proof report if changed
+Upload proof artifact
+
+Post Checkout target branch
+
+Complete job

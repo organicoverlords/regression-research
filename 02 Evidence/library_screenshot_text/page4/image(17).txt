@@ -1,0 +1,47 @@
+oftine ) ( native
+
+ic] Hey! How can | help you today? If you need a fix. a new feature, or anything else in the codebase, just let me know the details.
+
+( Wim-opena-Gptoss 120
+> Route details >
+done - 1s - openai/openai/gpt-oss-120b - starting
+
+‘Sure! Below is an overview of how time is typically handled in programming, covering the main concepts, common libraries, and
+best-practice tips.
+
+### 1. What “time” Means in Code
+
+| Concept | What It Represents | Typical Use-Case |
+
+a speed
+
+| Clock Time | The current date & time (e.g.. “2023-08-15 14:32:10"). | Logging, timestamps, UI display. |
+
+| Monotonic / Duration | A steadily increasing counter that never goes backward. | Measuring elapsed time, timeouts, performance
+metrics. |
+
+| Epoch / Unix Timestamp | Number of seconds (or milliseconds) since 1970-01-0100:00:00 UTC. | Storing a portable point-in-time,
+databases, APIs. |
+
+[Time Zone | A region's offset from UTC and daylight-saving rules. | Converting between local times, scheduling across regions. |
+
+| Datetime vs. Date vs. Time |- *datetime*: date + time (often with tz info).<br> - *date*: just the calendar day.<br> - *time”: just the
+hour/minute/second portion. | Different granularity for different problems. |
+
+## 2. Core Operations You'll Need
+
+| Operation | What It Does | Typical API (Python example) |
+
+| Get current time | Captures “now’.| datetime.now() (local) or datetime.utcnow() (UTO). |
+
+| Monotonic timer | Returns a continuously-increasing value, safe for elapsed-time measurement. | time.monotonic() |
+
+| Parse a string | Turn a human-readable timestamp into a datetine object.| datetime.strptime("2023-08-15 14:32", “RY-Ka-Kd
+mr) |
+
+| Format a datetime | Convert a datetime back to a string. | dt.strFtime("RY-Kn-Kd 5:84:35") |
+
+| Convert to/from epoch | Move between datetime and seconds since 1970-01-01 UTC. | dt.timestamp()
+datetine.fromtimestamp(ts, tz-timezone.utc) |
+
+| Add / subtract | Compute durations (e.g. "3 days from now’).| dt + timedelta(days-3) |

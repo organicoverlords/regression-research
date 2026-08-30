@@ -1,0 +1,128 @@
+5.45 &
+
+o
+~o
+
+github.com/organicoverlords/gi:
+
+SS Build debug APK ees
+nee :
+Cs
+| © euitsdotug arx {© > Task sappprocessbebushescurces
+de ese arompaniiee
+© Usage 53 > Task capp:mergeDebugNaLiveLibs NO-SOURCE
+ae Tank appstipbpbeaeans RCE
+
+fn) W Q
+
+Task :app:uriteDebupappletadara
+
+> Task :2pp:validateSigningDebug
+> Task :appiwriteebugstgningContigversions
+
+48:9 “121%
+
+eA
+
+an 38s
+
+‘ile: ///hame/runnar /work/ gigstack-nobile-orchestrator/gigstack-nobile-
+
+orchestrator /app/sre/main/java/org/organicover lords /nob’ Teor chestrator /uainketivit
+y-Kt:98:13 None of the following candidates is applicable:
+
+60 > Task capp:compileDebugKotlin FAILED
+61 fun setTextcolor(p0: Int): Unit
+62. fun setTextcolor(p0: ColorstateList!): Unit
+
+63 File:///home/runner work? gigstack-mabile-orchestrator /gigstack-nobile
+orchestrator /app/src/naing java/org/orgenicover lords mobi leorchestrator /Maindctivit
+y-kt:263:135 Wone of the following candidates is applicable:
+
+64 fun setTextcolor(po: Int): Unit
+fun setTextColor(pd: ColorStateList!): Unit
+
+65 e: file:///home/runner iwork/gigstack-nobile-orchestrator /gigstack-mobile-
+orchestrator /app/src/nain/java/org/organicover lords ibs lear chestrator /dainactivit
+y-KC:264:137 None of the following candidates is applicable
+
+67 fun setTextolor(p0: Int): Unit
+fun setTextColor(pa: ColorstateList!): Unit
+
+fe: file://chome/runerfrork/igstack-nobile-orchestrator/igstack-nobile-
+
+orchestrator /app/sre/main/javalorg/organicover lords/neb’ lear chestrator/uaintetivit
+y-KU:285:133 Wone of the following candidates is applicable:
+
+20 fun setTextColor(p0: Int): Unit
+1 fun settextcolor(po: Colorstatetist!): unit
+
+3 gradle/actions: Writing build results to /hone/runn
+actions /build-results/__run-1780454430020.3s0n,
+
+FAILURE: Build failed with an exception
+
+[nevbating] Problens report is available at: file:
+
+ner Pwork/_tonp/.gradle:
+
+11 thone/ runner /work/pigstack
+
+nobile-orchestrator/pigstack-mobsle-orchestrator/build/reparts/prablens/prableas.
+
+report. hte
+
+9 * What went wrong:
+
+80 Execution failed for task *:app:conpileDebugtotlin* (registered by plugin
+
+‘org. jetbrains.kotlin,sndreid').
+
+81 Deprecated Grade features were used in this build,
+Gradle 10.
+
+22 > A failure occurred while executing
+
+|, making it incompatible with
+
+org. jetbrains. kot in. conpileraunner .Gradleconp lerRunnernithworker sSGradleKotTinco
+
+pilerorkAction
+
+24 > Compilation error. See log for more details
+
+You can use ‘--warming-node a11" to show the individual deprecation warnings and
+determine if they cone from your om scripts or plugins.
+
+ay try
+
+29 For more on this, please refer to
+
+httns:/docs, sradie.ora/.5, /usersuide/conmand Line interface. hal
+
+fie aarnings in the Grade documentation,
+
+90 26 actionable Lasks: 26 executed
+
+sccommand i
+
+5] > Run with --stacktrace option to get the stack trace,
+52 > Run with --info or --debug option to get more log cutput.
+42 > hun with --sean to get full insights fram a Build Scan (powered by Develocity)
+
+94 > Get more help at hitns-/shelo.gradlesora.,
+
+96 BUILD FAILED in 2m 37s
+7. Errort Process completed with exit cade 1
+
+cS)
+
+Lplosd debug APK arttact
+Post Set up Grade
+Post Set up JDK
+
+Post Check out repostory
+
+e@o0o 80
+
+Complete job

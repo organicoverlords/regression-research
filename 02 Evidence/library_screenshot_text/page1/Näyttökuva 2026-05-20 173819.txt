@@ -1,0 +1,135 @@
+Per-model breakdown
+
+Model
+
+Gpt Oss 120b (NVIDIA NIM)
+
+‘Qwen3 Coder 480b A35b Instruct (NVIDIA NIM)
+Mistral Large 3 675b Instruct 2512 (NVIDIA NIM)
+Mistral Small 4 119b 2603 (NVIDIA NIM)
+
+Kimi K2.6 (NVIDIA NIM)
+
+Mistral Medium 3.5 128b (NVIDIA NIM)
+
+‘Qwen3.5 397b A17b (NVIDIA NIM)
+
+GLM-5 (NV)
+
+Llama 3.3 70b Instruct (NVIDIA NIM)
+
+Errors by provider
+
+3600
+
+2700
+
+1800
+
+200
+
+nvidia openrouter ‘google
+
+Provider
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+grog
+
+Requests
+
+10895
+
+Recent errors
+
+PEEEEE 2
+
+1900
+
+715
+
+675
+
+482
+
+457
+
+396
+
+257
+
+g
+
+Success Latency
+98.4% 4423 ms
+758% 25413 ms
+81.2% 42158 ms
+79.6% 5821 ms
+327% 19614 ms
+78.6% 42103 ms
+26.7% 26021 ms
+
+13% 27145 ms
+68.9% 29265 ms
+Message
+This operation was aborted
+This operation was aborted
+This operation was aborted
+This operation was aborted
+This operation was aborted
+This operation was aborted
+
+In tokens
+
+2223M
+
+427M
+
+36.6M
+
+132M
+
+13.1M
+
+112M
+
+102M
+
+7.9M
+
+Out tokens
+652.7K
+2548K
+137.5K
+
+25.0K
+24.4K
+
+323K
+
+102K
+
+Time
+13.16
+13.16
+13.15
+1314
+1313
+
+1313

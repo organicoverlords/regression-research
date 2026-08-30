@@ -1,0 +1,1 @@
+﻿Composite desktop screenshot. Visible searchable text includes: ChatGPT; T3 Code (Dev); Developer Tools; "DevTools is now available in Finnish"; Visual Office prototype; Active tasks; OpenAI; Claude; Hermes; PowerShell/Electron bootstrap logs; desktop-bootstrap; remote_debugging_port; main window created; cache/GPU cache warnings. Right monitor shows pelicans wallpaper.

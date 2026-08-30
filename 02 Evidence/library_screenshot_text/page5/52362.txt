@@ -1,0 +1,43 @@
+11.48 @ $89 “1116 %
+
+% -969vw9grpr4gerw.github.dev e A
+
+& > fggsteck. (SS POCO
+
+= Ea) [Preview] README.md x 4 O
+
+Se Open
+a http://127.0.0.1:4877/.
+
+Config
+
+ASE_URL (default
+http: 7/127.0.0.1230
+01/v1)
+
+f9 ¢ GIGSTACK_PROVIDER_B
+io
+
+AS ° Point this at an
+OpenAl-compatible
+
+©) server (LM Studio,
+FreeLLMAPI/GigAPI
+-style, etc).
+
+¢ GIGSTACK_DB (default
+.gigstack/gigstack.
+sqlite)
+
+¢ GIGSTACK_WORKSPACE_
+ROOT (default: daemon
+
+gosh +- () W - | 03 x
+
+© @organicoverlords =» /workspaces/g =
+igstack (experiment/workshop-spin
+£63 e-combined-integration-v1-2026060
+3) $4
+>< Codespaces: expert s| go experiment/workshop @ (&)0Z
+
+Q@ WNW QQ f& :

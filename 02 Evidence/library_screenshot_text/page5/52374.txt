@@ -1,0 +1,44 @@
+12.07 @ G89 “A112 %
+
+% -969vw9grpr4gerw.github.dev e A
+
+BV Xe 2G
+
+©
+3
+
+€> C.toeo
+CHAT +v & - | (2 x
+< REFACTOR INVENTORY AND FEATURE TR... (1)
+
+© route registry extraction
+
+Fastest practical path
+
+1. Prove the replacement islands for identity,
+proof/review, current work, and route
+activity.
+
+2. Keep the legacy shell intact until those
+replacements work end-to-end.
+
+3. Once proven, extract the real owners and
+remove only the explicit legacy UI blocks.
+
+4. Only then tackle the stubbed
+runtime/metrics/job/proof engine work.
+
+That is the cleanest architecture the existing
+code supports.
+
+Created 11 todos
+
+> © Inspect the workshop feature map file... ~=
+Describe what to build
++!1@®1| Auto |= ”
+© Local © Default Approvals )
+>< Codespaces: expert s| 6 experiment/workshop @ &)0Z
+
+fn)
+
+A Q

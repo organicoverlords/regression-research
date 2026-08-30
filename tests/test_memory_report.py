@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tools.library_screenshot_search import _rows as screenshot_rows
+
 from tools.memory_report import (
     EXPOSURE_STATUS,
     MAX_OUTPUT_CHARS,
@@ -51,6 +53,19 @@ class MemoryReportTests(unittest.TestCase):
         self.assertLessEqual(len(payload["findings"]), 5)
         self.assertTrue(all(item["text"] for item in payload["findings"]))
         self.assertIn("raw transcripts are not opened", " ".join(payload["limitations"]))
+        self.assertEqual(payload["summary"]["screenshot_occurrences_indexed"], len(screenshot_rows(ROOT)))
+
+
+    def test_report_includes_screenshot_frequency_without_expanding_every_hit(self) -> None:
+        payload = build_report("tool")
+        shots = payload["screenshot_occurrences"]
+        self.assertEqual(shots["indexed_occurrences"], len(screenshot_rows(ROOT)))
+        self.assertGreater(shots["occurrence_count"], 17)
+        self.assertLessEqual(len(shots["matches"]), 3)
+        self.assertEqual(payload["summary"]["screenshot_occurrence_matches"], shots["occurrence_count"])
+        if shots["matches"]:
+            self.assertIn("before", shots["matches"][0])
+            self.assertIn("after", shots["matches"][0])
 
     def test_history_can_show_rejected_entry_but_ordinary_recall_cannot(self) -> None:
         ordinary = build_report("6KB MCP threshold")
@@ -115,7 +130,14 @@ class MemoryReportTests(unittest.TestCase):
         receipt = corpus_receipt()
         self.assertEqual(
             [item["path"] for item in receipt["files"]],
-            ["memory/memory-bank.jsonl", "memory/sources.json", "provenance.json"],
+            [
+                "memory/memory-bank.jsonl",
+                "memory/sources.json",
+                "provenance.json",
+                "02 Evidence/2026-08-26_library_screenshot_shard_000.jsonl",
+                *[path.relative_to(ROOT).as_posix() for path in sorted((ROOT / "02 Evidence").glob("*_library_screenshot_text_occurrences_*.jsonl"))],
+                "02 Evidence/library_screenshot_text/**/*.txt",
+            ],
         )
         self.assertTrue(all("\\" not in item["path"] and not item["path"].startswith("/") for item in receipt["files"]))
 

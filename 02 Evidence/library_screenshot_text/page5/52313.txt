@@ -1,0 +1,137 @@
+6.34 =
+
+xX wv
+
+©) Q) wmeontnts | somata
+
+© Code tesves 11 Pullrequests
+
+hub.com
+
+€ Workshop Stine Proot Review Binding Check
+
+© Tolerate partial proof review route wiring #2
+
+@ Summary
+
+56.0
+KB/S
+
+<
+
+a|/el-
+
+© Actions {F} Projects © Secunty and quality
+
+5 Annotations
+
+Atos
+
+© Wire proot review
+
+‘etn andancte to
+
+© Usage : °
+8 Woon te
+
+a)
+
+>@
+
+>@
+
+a)
+
+1
+
+»
+
+@
+
+@
+
+@
+
+@
+
+®
+
+@
+
+a)
+
+>@
+
+®
+
+@
+
+x)
+
+@
+
+>o
+
+>o
+
+Wire proof review routes and smoke
+
+Q search iogs
+
+Set up Rust
+
+Set up Python
+‘Apply bounded route patch
+
+Run python scripts/workshop_spinewire_proof review routes.py
+
+Le nalts
+
++4512 %
+
+© settings
+
+© Re-runjobs ~
+
+°
+
+FAILED cannot insert missing route /api/workshop/proof/proof_id}/artifact"
+
+expected exactly one anchor line, found 0.
+oute("/apifworkshop proof {proo{_id}/artifacts”,
+get(crate
+
+Error
+
+Process completed with exit,
+
+Assert rote patch cantent
+cargo check daemon
+
+tack daemon
+{Wait for daemon heath
+‘Smoke test durable prof and review endpoints
+
+Write proof
+
+Stop deemen
+Show daemon fog tal
+check ait satety
+
+Commit route patch and proot dof check
+
+Lplosd prootartact
+
+Post Set up Python
+
+Post Checkout target branch
+
+Complete job
+
+routes: :workshop_proof::List_norkshop_proof_artifacts))
+
++ ona v®
+
+os
+
+os

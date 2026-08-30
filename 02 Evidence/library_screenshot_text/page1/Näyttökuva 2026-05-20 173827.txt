@@ -1,0 +1,42 @@
+10
+
+Y§*, Been ag
+
+Qwen 2.5 Coder 32B (NV)
+
+Gpt Oss 120b (NVIDIA NIM) nvidia
+Intel #23 Speed#2 4628 tps 984% success
+
+Qwen3 Coder 480b A35b Instruct (NVIDIA NIM) nvicia
+
+Intel #1 Speed #8 g24 tps 758% success
+
+Mistral Large 3 675b Instruct 2512 (NVIDIA NIM) nvidia
+
+Intel #28 Speed#8 458 tps 81.2% success
+
+Mistral Small 4 119b 2603 (NVIDIA NIM) nvidia
+Intel #42 Speed#2 3189 tps 79.6% success
+
+DeepSeek V4 Pro (NV)
+552 tps
+
+Jamba 1.5 Large (NV)
+
+ByteDance Seed-OSS 36B (NV)
+
+Qwen3 Next 80b A3b Thinking (NVIDIA NIM) nvicia
+Intel #17 Speed#5 392tps 87.2% success
+
+Mistral Medium 3.5 128b (NVIDIA NIM) nvidia
+Intel #29 Speed#2 551 tps 786% success
+
+Kimi K2.6 (NVIDIA NIM)
+994 tps
+
+Gim 5.1 (NVIDIA NIM)
+
+66/6/86 8
+
+Ni
+Ta

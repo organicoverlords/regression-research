@@ -1,0 +1,27 @@
+2.05 & v On 590 “S114 6%
+
+% github.com/organicoverlords/gi: e A
+
+Build debug APK summary G0
+Gradle Root Requested
+Project Tasks
+
+MobileOrchestrator | assembleDebug
+>
+
+Caching for Gradle actions was read-only -
+expand for details
+
+Job summary generated at run-time
+
+Annotations
+1 error and 1 warning
+
+© Build debug APK
+Process completed with exit code 1.
+
+Z\ Build debug APK
+Node.js 20 actions are deprecated. The f...
+Show more
+
+@ N Q )

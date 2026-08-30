@@ -1,0 +1,28 @@
+git status —short Check for dirty files
+
+- Before editing, run “git status —short’. If there are exis
+summarize them and ask before editing.
+
+- Before broad/risky/multi-file edits, ask: “Create a checkpoint commit
+first?”
+
+- After edits, summarize “git diff —stat’ and mention key changed files.
+
+- After each logical milestone, ask whether to commit.
+
+- Use small commits by logical area, such as docs, tests, server, client, Ul,
+config, or recovery. Never mix recovered old changes with new feature
+
+work in one commit.
+- Never run “git push’, create remotes, publish code, or create release
+workflows unless explicitly asked.
+
+- Never run git reset’, ‘git clean’, ‘git restore’, ‘git rebase’, “git commit —
+amend, or discard changes unless explicitly approved.
+
+- On Windows/PowerShell, do not use Unix flags like "Is -la’ use "Get-
+Childitem” or “dir
+
+- Never call project new if any state file exists, claim you'll create an
+
+ing file, or rewrite state files without explicit ask.

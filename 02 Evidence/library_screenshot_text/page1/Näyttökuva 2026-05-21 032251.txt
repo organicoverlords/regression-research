@@ -1,0 +1,17 @@
+hermes config set model.base_url http://loc
+alhost:8080/v1
+
+hermes config set model.default your-model-
+
+Or set OPENROUTER_API_KEY / OPENAI_API_KEY in
+your environment.
+
+Run *hermes setup" in an interactive terminal
+to use the full wizard.
+
+Send instruction...
+
+Ni
+Ta
+
+2 s2mov 9 @

@@ -1,0 +1,47 @@
+11.53 @ 194 *1115 %
+
+BV €Ee 2G
+
+©
+3
+
+-969vw9agrpr4gcrw.github.dev e A
+
+€> C.toeo
+CHAT +v & - | (2 x
+< REFACTOR INVENTORY AND FEATURE TR... (1)
+
+* FEATURE _REALITY_VALUE_TRIAGE_2026060¢
+
+Key findings
+* +s workspace-chatjs is legacy shell code
+
+and must not be edited yet
+
+e ® external_agents.rs and
+® external_agents.rs contain real
+OpenCode/T3Code/Codex integration
+support
+
+\ Todos (5/6) a=
+© Verify git branch, status, and latest commit
+© Finish refactor inventory before more codi...
+© Inspect current branch and source branch
+© Classify features for reality value triage
+
+© Create final report on inventory findings
+
+© Generate documentation for feature realit...
+
+> 1file changed +0 -O “Keep Undo
+Describe what to build
+
++1@1 Auto |= ay
+
+© Local © Default Approvals >)
+
+>< Codespaces: expert s| 6 experiment/workshop @ &)0Z
+
+fn)
+
+A Q

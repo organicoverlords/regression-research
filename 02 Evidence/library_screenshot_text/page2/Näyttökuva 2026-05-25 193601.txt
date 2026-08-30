@@ -1,0 +1,17 @@
+continue
+
+Shell Check current directory contents
+
+continue
+
+Shell List files in current directory
+
+Shell Check if daemon is already running on port 4877
+
+Shell Check for daemon PID file
+
+“bash”, “arguments”: {"command”: “cargo build”, “description”:
+
+[fname Build daemon to ensure binary exists"}]
+
+Ask anything,

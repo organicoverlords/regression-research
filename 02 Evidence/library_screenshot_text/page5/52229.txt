@@ -1,0 +1,100 @@
+3.57 G
+
+% github.com/organicoverlords/gi:
+
+@ Summary bananas Q Sascchiogs 2 6
+tbe
+© © Bald debug Ark tate
+| © eu debug arK > Task ‘appprocessbebpisinani fest.
+29. > Task sappsprocessOebugual fest
+a {> Tas sap: JovnreconpToebug
+{i > Task sappsprocessDebughanestForPackage
+© Usage 42 > Task :app:mergeDebugShaders
+nae 43> Task cop:ceaplebebugshaders O-SOURCE
+
+Task :app:generateDebugAssets UP-TO-DATE
+Task :app:mergeDebupAssets
+
+Task :app:compressDebugAssets
+
+Task ‘app desugarDebugriTeDependencies
+Task :app:processDebugRescurces
+
+Task :app:checkDebupbuplicateClasses
+
+5) @: file://shame/ runner work/gigstack-nobile-orchestrator/gigstack-nobile.
+orchestrator /app/src/nainy java/org/orgenicoverlords/mebileorchestrator /Maindclivit
+y-Kt:126:38 None of the following candidates is applicable:
+
+52> Task :app:compileDebugkot in FAILED
+
+53 fun setTextColor(po: Int): Unit
+
+54 fun setTextcolor (pO: ColorstateList!): Unit
+
+55 e: file://‘home/cumerfwork/pigstack-nobile-orchestrator/igstack-nobile-
+orchestrator /app/sre/main/javalorg/organicover lords /neb’ lear chestrator/uainketivit
+y-Kt:287:103 None of the following candidates is applicable:
+
+56 Tun setTextColor{po: Int): Unit
+
+57 fun setTextColor(p0: ColorStateList!): Unit
+
+58 e: file://shone/eunner‘mork/igstack-nob’ le-orchestrator/gigstack-mobile:
+orchestrator /app/src/nainy java/org/organicover lords/ebileorchestrator /Maindctivit
+
+y-Kt:288:138 None of the following candidates is applicable:
+
+fun setTextcolor(p0: Int): Unit
+
+fun setTextColor(pa: ColorstateList!): Unit
+
+> Task :appimergeExtDexDebug
+62 gradle/actions: writing build results to /hane/runner fwark/_teap/.gradie.
+factions /build-results/-_run-1780442087241. json
+
+[incubating] Problens report is available at: file:/4//home/runner/tork/gigstack
+sobile-orchestrator/gigstack-nobile-orchestrator build/reports/prablens/problens
+report. tel
+
+67 FAILURE: Build failed with an exception.
+
+70 Deprecated Grade features were used in this build, making it incompatible with
+Gradle 10.
+
+2) hae went wrong
+
+73. Execution failed for task *:app:compileDebugKolLin’ (registered by plugin
+“org. jetbrains.kotlin.androia).
+
+74 You can use '--narning-node 211" to show the individual deprecation warnings and
+determine if they cane from your om scripts or plugins
+
+75 > A failure occurred while executing
+org. jetbrains.kotin.conpilerRunner .GradleCompilerRunnerhithWorkersSGradiekotlinco
+pilerorkAction
+
+77> Compilation error. See log for more devails
+78 For more on this, please refer to
+hetns://docs.gradie.org/9.5, 1/userguide/conmand line interface.htelésec: command Ti
+ne marnings in the Grade documentation.
+
+21 actionable tasks: 21 executed
++ ay:
+82. > Run with --stacktrace option to get the stack trace.
+
+2 > Run with --info or --debug option to get more Tog output
+
+8 > Run with --scan Lo get full. insights from a Build Scan (powered by Develocity)
+85> Get more help at hitos:/shelo.scadle.ora
+
+a7 BUILD FAILED in 2m 238
+8 Error: Process completed wi
+
+@ vw ug APK artifact o
+> @ Postsetup cradle 1s
+> @ Postsetup s0K os
+> @ Post check out repository os
+> @ complete jab os
+
+fn) W Q

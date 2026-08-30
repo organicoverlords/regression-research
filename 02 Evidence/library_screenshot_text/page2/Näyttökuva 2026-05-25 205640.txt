@@ -1,0 +1,44 @@
+@ edit No changes to apply ~
+
+oldString and newString are identical.
+
+Explored 1 read
+Edit usagers /crates/gigstack-core/src #9 -3
+Write exports /crates/gigstack-core/src
+
+Explored 2 reads, 3 searches
+
+© edit Failed ~
+
+Could not find oldString in the file. It must match exactly, including whitespace, indentation, and line endings.
+
+Explored 1 read
+
+Edit main.rs /crates/gigstack-daemon/src #41 -@
+Edit mainrs /crates/gigstack-daemon/src #1 -@
+Explored 2 reads, 2 searches
+
+Edit workspace.html /crates/gigstack-daemon/web +4 -3
+
+Called iewalie® tonl=clinTaaiCail —_armnr-Mdal triad tn eall unavailable thal ‘chinTaniCallWithautiWrita’ Availshla tna
+5 of 7 todos completed
+
+2) impi eee
+
+] = a 7
+
+2) op CHATS : Pr sh PI
+
+©) Write offline tests for export functionality
+Run validation checks (fmt. check, test)
+
+Ask anything...
+
+Build ~ auto ~
+
+sitedh oft ctith een Ao
+
+a ey
+
+205
+255.20;

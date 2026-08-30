@@ -1,0 +1,43 @@
+SELF-HOSTED - HERMES AGENT
+
+Open Hermes Agent —
+
+GATEWAY .
+
+API on port 8642,
+
+Protected
+
+RUNTIME
+
+1d 18h 3m
+Port 7861
+
+BACKUP .
+
+Uploaded Hermes state to somratpro/huggingmes-
+backup
+
+At1.2051
+
+B Open Terminal —
+
+% ENV Builder —
+
+MODEL
+gemini-2.5-flash
+
+Provider: gemini
+
+TELEGRAM
+
+‘Webhook via CF proxy
+
+KEEP AWAKE
+
+“CF CRON
+
+Pinging https://somratpro-
+huggingnes.hf.space/health
+
+Built by @somratpro

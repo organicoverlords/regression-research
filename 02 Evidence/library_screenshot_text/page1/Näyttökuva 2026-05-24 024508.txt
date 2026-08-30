@@ -1,0 +1,18 @@
+@ Workers & Pages ~ hermes * AskAl @ Support &
+Overview Metrics Deployments Bindings Observability Domains Settings <> Edit code
+® hermes.finaldope.workers.dev Automatic deployment on upload. by finaldope 6 seconds ago
+Domains @ v ® hermes e Bindings © a
+Observability ‘Add a binding
+wontre L Workers Logs
+Workers Traces Disabled
+Queues 0 v
+Metrics | Last24 hours > Domains & Routes >
+Requests Errors CPU Time workers.dev
+re) fe) Oms hermes.finaldope.workers.dev
+Custom domains
+Request Distribution & Placement >
+Routes
+PLACEMENT: DEFAULT o _
+Next steps
+
+@ Connect a custom domain

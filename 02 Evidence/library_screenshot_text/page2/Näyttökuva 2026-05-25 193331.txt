@@ -1,0 +1,1 @@
+Lower portion of Router Dashboard. Visible live request-flow graph, Recent Flows table, and Client Fingerprinting & Management. Recent rows show multiple model/provider attempts with mixed success/failure and latency/tool-call fields. Separate timestamped occurrence adjacent to 19:33:29 router telemetry.

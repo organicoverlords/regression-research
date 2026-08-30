@@ -1,0 +1,70 @@
+Al Apps
+~\Desktop\Al Apps
+
+Project init au...
+
+Project init auto-de...
+
+3 Code 1b035557...
+
+3 Code 1b035557...
+
+Load more
+
+eee ESR?
+
+# Project init automation - auto-detect and generate configs
+
+Explored 9 reads, 1 search
+Read PROJECT.md
+Read TASK.md
+Read .repomap
+Read NOTES.md
+
+Glob / pattern=**/*.cmd
+
+1 - Launch (13 Patched + Hermes + OpenCode + FreeLLMAPI).cmd
+
+2 - OpenCode GUI (Isolated).cmd
+
+OpenCode (Isolated Stable).cmd
+
+3 - Launch All (T3 + OpenCode GUI).cmd
+
+2 - Launch T3+OpenCode+Hermes (Patched Dev).cmd
+
+PEGG
+
+Shell Find 02 directory path
+
+Shell Find 02 directory path
+
+Shell List all files in Al Apps directory
+
+Shell List first 50 items in Al Apps directory
+
+Shell Find 02 directory under Desktop
+
+Shell List items in 02 directory
+
+Exploring 4 reads, 2 searches
+
+Thi
+
+Build ‘qwen3.5-4b-claude-4.6-opus-reasoning-...
+
+Qwen3.5 4B
+
+= Info cs Load A
+“Model Information
+
+del Jackrong/ Quen
+. (vend. 5-48.04
+mat ar
+lantization (EM
+
+fh wend
+abies ous)
+main Le
+
+leondisk 3.38 8

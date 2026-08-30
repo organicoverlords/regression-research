@@ -1,0 +1,91 @@
+ject
+t3code-private
+Pinned
+
+Work items.
+
+Merge requests
+
+Manage
+Plan
+
+Al
+
+Code
+Build
+Secure
+Deploy
+Operate
+Monitor
+Analyze
+Settings
+
+Upgrade subscription
+
+Help
+
+Collapse sidebar
+
+Moi Taas / t3code-private
+
+2S Your account is authenticated with SSO or SAML. To push and pull over HTTPS with Git using this account, you must set a password or set up a personal access
+
+token to use instead of a password.
+
+Don't show again
+
+@ Project ‘t3code-private' was successfully created.
+
+T t8code-private «
+
+The repository for this project is empty
+To get started, clone the repository or upload some files.
+
+Command line instructions
+
+You can also upload existing files from your computer using the instructions below.
+
+Configure your Git identity
+
+Get started with Git and learn how to configure it.
+Local Global
+
+Git local setup
+Configure your Git identity locally to use it only for this project:
+
+git config --local user.name "Moi Taas"
+git config --local user.email "finaldope@gmail.com"
+
+Add files
+
+Push files to this repository using SSH or HTTPS. If you're unsure, we recommend SSH.
+
+Qvy wStar 0
+Project information
+Invite your team
+
+Add members to this project and start
+collaborating with your team.
+
+Upload File
+
+&
+
+New file
+
+Add README
+
+Add LICENSE
+
+Add CHANGELOG
+Add CONTRIBUTING
+Set up CI/CD
+
+Add Wiki
+
+t+ ttt ttt
+
+Configure Integrations
+
+Created on
+May 19, 2026

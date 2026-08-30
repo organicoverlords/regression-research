@@ -1,0 +1,35 @@
+2. List of friction found.
+3. Tiny fixes applied, if any.
+4. Confirmation that generated prompt was usable.
+
+5. Confirmation no autonomous edits were run on main repo.
+6. Validation:
+
+cargo fmt
+
+cargo check -p gigstack-core -p gigstack-daemon
+
+targeted tests only if code changed
+
+Definition of done:
+
+- GigStack was used to plan its own next feature without self-editing.
+- The workflow is documented.
+
+- Small Ul friction is fixed.
+
+- No OpenRouter.
+
+- No LM Studio.
+
+- No cargo clean.
+
+Task accepted. Goal: Use GigStack manually as intended and document friction. Next step: Start the daemon and begin the dogfood flow.
+
+Il begin the first real dogfooding pass, starting
+
+terminated
+
+continue
+
+Il dogfood GigStack by performing the manual steps and documenting friction. First. ll verify the daemon state

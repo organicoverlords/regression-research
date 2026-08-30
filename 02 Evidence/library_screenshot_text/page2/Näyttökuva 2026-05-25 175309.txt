@@ -1,0 +1,24 @@
+© GgAPI Playground Keys Fallback Analytics ‘History Router englanti suomi =x
+
+Request History
+
+Recent API calls in real-time. 25 50 100 200
+
+Time Status Provider Model In Out Total «TPS. Latency Error
+a75258 ssuccess ——avidla Mistral Large 3 eek 38 wBAK 025 sas74ame =
+a750-47 error vice [Nomotron 3 Super eek 0K 15018mE —Eror (rid=AB6dBtae-1930-dati-abt
+ars: ‘esucces vila [Nomotron 3 Super eek BK sa725me =
+375037 ‘esucces vila Mistral Large 3 538k 31 S3BK_ O78 aosrems =
+3749.36 eror vice Mistral Small 4 sak SK dame Ero [ideASAcbe88-d9bd-A313- 28
+174935, ssuccess ——avidla Mistral Small 4 swe 0 BK sareme =
+s74933 ssuccess ——avidla Mistral Small 4 3B5K 523K 182 2assme =
+1749:20 fesuccess ila Mistral Small 4 mK 0 aK 1803me =
+a74927 seouccess ila Mistral Small 4 wk 358K tat 2aesme =
+a74928 ssuccess ——avidla Mistral Small 4 ek 0 ak s225me =
+749-22 ssuccess ——avidla Mistral Small 4 ex 0 aK s26ime =
+ar4939 fesuccoss iia Mistral Small 4 ex 0 aK = 005me 5
+args fesuccoss iia Mistral Small 4 eK 0 ak = 5e5me 5
+arag33 seouccess ila Mistral Small 4 mK 0 TK = 45me =
+ara932 ssuccess ——avidla Mistral Small 4 75K 475K BAT. osteme =
+
+eee ta ec ay ee a nae vee

@@ -1,0 +1,55 @@
+W © 1e/.0.0.1:467//workspace-stats.ntm! AA CIs a W sd LEIS SG
+
+Sat SE
+
+Request ID Time Mode Model Provider AttemptsFallbacksTokens InTokens OutWall ms 1st Signal ms TPS StatusFinish
+‘qwen3.5-4b-claude-
+
+oiseeTa6-e. 5.2041 auto 4.6-opus-reasoning- — 1 = 1209 99 7535 7535 173.60k stop
+distilled-v2
+‘qwen3.5-4b-claude-
+
+oisee732354. 5,1848auto 4.6-opus-reasoning- nvidia nim1 = 120954 9848 9846, ‘128.20k stop
+distilled-v2
+
+oise6732091.. 5,18.37auto — nvidia nim = = - - = — filed —
+
+o1se6738-297_ 5.17.39auto — nvidia nim = = - - = — filed —
+
+oisee738-0et_ 5,17.33auto — nvidia nim = = - - = — filed —
+
+Fallback Chain & Route Settings
+
+Enable/disable routes and adjust priority. Higher priority = preferred. Save to persist.
+
+Rank Label Provider Mode! Cost Tier Tools Priority Enabled
+1 DeepSeek V4 (NIM) vii nim SeePseeA aVSEEPSESK psig’ aqy
+2 Qwend Coder 4808 (NIM) nvidia nim vee SET psig Vs
+3 Nemotron Ultra 2538 (NIM) vila nim ™ide/Mama-3.1- Pid v0
+‘4 Mistral Medium 3.5 1288 (NIM)nvidia ieee pid vo os ©
+5 Llama 33 708 (NIM) vii rim eam? 3 3-708 paid ov (6 ©
+© —Nematron Super 498 (NIM) nvda rim a yy pad V8
+7 Nemotron 70B (NIM) vii nim OMe eg Pid VT
+8 Codestral 228 (NIM) vii nim MBOBUCOREHA 22 ig yg
+9 ama 3.1 88 (NIM) vii im eaMtameS 8 psig go
+
+Local Routes (LM Studio / Ollama)
+
+Local routes are disabled by default. Enable one below and set the correct base URL if needed.
+LM Studio loca)
+
+np ocaost1234/v1 — model lec model
+
+enabled
+
+(tama (local)
+
+Ip: locaost11434/v1— mode amas
+
+fe enabled
+
+Router Settings
+
+referred Provider nvidia nim Max Fallback Attempts 3 First Signal Timeout 30s Total Timeout 120s Falllsack Enabled yes
+
+oY ,B@eerss A e4

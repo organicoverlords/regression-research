@@ -1,0 +1,34 @@
+Fallback chain Sort by intelligence  Sortbyspeed Sort by budget __Sort NVIDIA(A~Z)
+
+Drag to reorder. Requests try models top-to-
+
+bottom until one succeeds. 24n 7d 30d Auto-sort (observed) —Auto-sort (recommended) —_Hide unconfigured
+
+Monthly token budget remaining - 0% of 25.0M
+
+© Mistral Large 3 6758 (NV) © © Gemma 4318 (NV) © © Nemotron 3 Super 1208 (NV)
+© Nemotron 3 Nano 308 (NV) 2 © Kimik26 (Nv) 0 © MiniMax M27 (NV)
+© DeepSeek V4 Pro (NV) @ © Lama 3.1708 (NV) © © Lama3.370B (NV)
+© Llama 4 Maverick (NV) °
+Mistral Large 3 675B (NV) svicia
++ Intel#3 Speed #9 40rpm ~2M (credits) tok/mo 256K ctx 815 tps 658% success { @)
+
+Gemma 4 31B (NV)
+
+Nemotron 3 Super 120B (NV) nvidia
+Intel #22 Speed#9 40rpm ~2M (credits) tok/mo 262K ctx 628 tps 328% success
+
+Nemotron 3 Nano 30B (NV) nvidia
+Intel #22 Speed#9 40rpm ~3M (credits) tok/mo 262K ctx 2944 tps 988% success
+
+Kimi K2.6 (NV) nvidia
+Intel #3. Speed #9 40rpm ~2M (credits) tok/mo 131Kctx 4056 tps 70.5% success
+
+MiniMax M2.7 (NV) nvidia
+Intel #3 Speed #9 40rpm ~2M (credits) tok/mo 197K ctx 919 tps 41.7% success
+
+DeepSeek V4 Pro (NV) nvidia
+
+Intel#2_ Sneed #0 40.mm__~2M (credits) tnklmo 131K ctx Ad4 te 23.3% success
+
+666 6 86

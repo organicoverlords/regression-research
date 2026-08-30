@@ -1,0 +1,14 @@
+uve TPS
+
+25.5 tons
+
+‘mistrali/mistral-small-4-1196-2603 |1h avg: 125 |
+an max: 282
+
+Last 10m: 2 flows. 0 succeeded, 2 failed, 0 fallback. 2 returned tool calls, 1 had follow-ups. Avg latency 327444ms.
+
+©) show detated model nodes
+
+cu ROUTER MODEL ATTEMPTS TOOL CALL TOOL RESULT outcome
+
+Recent Flows ‘Show Live Log

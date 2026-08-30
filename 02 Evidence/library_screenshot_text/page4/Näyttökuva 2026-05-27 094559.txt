@@ -1,0 +1,48 @@
+>e QD @ 127.00.1:4877/workspace-stats.html mA QeCle & @ AOG¢% 0:
+
+iStock Stats noe eect cn ET
+
+Norkspace Chat Telemetry & Router Dashboard,
+
+Jemetry Router Status Routing History Fallback & Setings
+
+Fallback Chain & Route Settings
+Enable/disable routes and adjust priority. Higher priority = preferred. Save to persist.
+
+Rank Label -—Provider Model Cost TierTools Priority Enabled
+istralai/mistral-large-3-
+1. Mistral Large (NIM) nvidia nim ee aca
+ristralai/mistral-small-4-
+"1196-2603
+
+‘meta/llama-3.1-70b-
+
+paid ¥ 10
+
+2 Mistral Small (NIM) nvidia nim
+
+3 Llama 3.1 708 (NIM) nvidia nim. paid ¥ 9
+mistralai/mixtral-Bx7b-
+
+A Mixtral 878 (NIM) rvidia nim TT OO pid Vs
+
+5 Llama 3.1 88 (NIM) nvidia nim™=ee"em@ 318 ig yaw
+
+Local Routes (LM Studio / Ollama)
+
+Local routes are disabled by default. Enable one below and set the correct base URL if needed.
+LM Studio loca)
+
+sp ocaost:1234/v1 — model lec model
+
+enabled
+
+(llama (local)
+
+plocaost1 1434/1 — mode lamas
+
+We erabled
+
+Router Settings
+
+referred Provider nvidia nim Max Fallback Attempts 3 First Signal Timeout 30s Total Timeout 120s Falllsack Enabled yes

@@ -1,0 +1,26 @@
+EE EE
+
+Request volume, latency, token usage, and failures. 24n 7d 30d alltime
+
+REQUESTS SUCCESS RATE INPUT TOKENS OUTPUT TOKENS AVG LATENCY EST. SAVINGS
+60326 0.3% 1.3B 4.0M 238 ms $3840.87
+including legacy
+
+WW Full historical telemetry included (JSONL + SQLite forks). Total records: 60326. Missing tokens: 167 records. Baseline cost: —. Formula: $3/M input + $15/M output.
+
+P50 LATENCY P95 LATENCY P50 TPS PQS TPS
+10ms 639 ms 762 6000
+Requests by provider Avg latency by provider
+
+180 a00ms
+
+135 600ms
+
+20 4o0ms
+
+45 200ms
+° ‘oms ————EEEE
+nvidia ‘9104 ‘grog
+Requests over time
+
+19+, @eoeos

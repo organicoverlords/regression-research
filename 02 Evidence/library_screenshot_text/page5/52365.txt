@@ -1,0 +1,42 @@
+12.03 @ 489 “i113 %
+
+% -969vw9grpr4gerw.github.dev e A
+
+€> Ore. toga
+CHAT +v & - | (2 x
+< REFACTOR INVENTORY AND FEATURETR... (1)
+
+Executive summary
+
+The branch has real Workshop Spine value in
+durable identity, proof/review binding, current
+work, route activity, and external agent support.
+Major architecture risk is the legacy
+
+’s workspace-chatjs / ° workspace-chat.html
+shell still owning boot and UI glue. Several
+features are only stubs or design claims, so the
+clean path is preserve real contracts first,
+quarantine legacy shell, then rebuild actual
+runtime/proof/landing later.
+
+BV XE 2G
+
+Top 10 worth saving
+
+1. Sticky Chat Identity durable binding
+
+2. Durable Proof Binding routes and
+persistence
+
+3. Durable Review Binding metadata contract
+
+> © Create master feature reality scan rep... “=
+© Describe what to build
+
++!1@®1| Auto |= (0)
+$33 © Local © Default Approvals )
+
+>< Codespaces: expert s| 6 experiment/workshop @ &)0Z
+
+@ N Q

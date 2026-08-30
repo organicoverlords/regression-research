@@ -1,0 +1,139 @@
+35
+36
+37
+
+38
+
+39
+40
+
+44
+45
+46
+47
+
+12
+
+24
+25
+
+26
+
+27
+
+28
+29
+
+2
+22
+
+24
+25
+26
+27
+28
+29
+
+7.42 & 38.9 “Til 4 15%
+
+--> crates/gigstack-daemon/src/routes/external_agents.rs:
+|
+
+1162 | pub validationNotes: Vec<String>,
+| AAAAAAAAAAAARAA help: convert the identifier to snake case
+
+162:9
+
+‘validation_notes*
+
+warning: structure field ‘inspectedat’ should have a snake case name
+--> crates/gigstack-daemon/src/routes/external_agents.rs:1165:9
+|
+
+1165 | pub inspectedAt: String,
+| AAAAAAAAAAA help: convert the identifier to snake case
+
+*inspected_at’
+
+warning: “gigstack-daemon" (bin "gigstack-daemon") generated 18 warnings
+Finished “dev’ profile [unoptimized + debuginfo] target(s) in 1m 18s
+Running “target /debug/gigstack-daemon*
+
+{"timestamp" :"2026-06-04T04:41:49.8989862","level" : "INFO", "fields":
+
+{"message" :"gigstackd
+
+Listening" ,"addr":"127.0.0.1:4877"}, "target" :"gigstack_daemon"}
+
+Check diff safety Os
+
+Run git diff --check
+
+Commit runtime routing proof artifacts if proof passed Os
+»Run set -euo pipefail
+
+[experiment /workshop-spine-combined-integration-v1-20260603 cc6dadb] Add runtime
+routing control browser proof artifacts
+
+3 files changed, 126 insertions(+)
+
+create mode 100644
+docs/generated/rebuild/RUNTIME_ROUTING_CONTROL_BROWSER_PROOF_20260604.md
+
+create mode 100644 docs/generated/rebuild/proof/runtime-routing-control-browser-
+proof .png
+
+create mode 100644 docs/generated/rebuild/proof/runtime-routing-control-
+
+state. json
+
+To https: //github. com/organicover lords/gigstack
+
+! [rejected] HEAD -> experiment /workshop-spine-combined-integration-v1-
+20260603 (fetch first)
+
+error: failed to push some refs to ‘https://github.com/organicoverlords/gigstack*
+hint: Updates were rejected because the remote contains work that you do not
+
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+
+hint: ‘git pull’ before pushing again.
+
+hint: See the ‘Note about fast-forwards' in ‘git push --help’ for details.
+Error: Process completed with exit code 1.
+
+Upload proof artifact 1s
+
+>Run actions/upload-artifacteva
+
+Multiple search paths detected. Calculating the least common ancestor of all paths
+
+The least common ancestor is /home/runner/work/gigstack/gigstack. This will be the
+
+root directory of the artifact
+
+With the provided path, there will be 4 files uploaded
+
+Artifact name is valid!
+
+Root directory input is valid!
+
+Beginning upload of artifact content to blob storage
+
+Uploaded bytes 34787
+
+Finished uploading artifact content to blob storage!
+
+SHA256 digest of uploaded artifact zip is
+
+de0b24c16e7e2ac8891801c1 eef fa7b21ab12d61acd800d63aa821ca1 ffe1799
+
+Finalizing artifact upload
+
+Artifact workshop-spine-runtime-routing-control-browser-proof.zip successfully
+
+finalized. artifact ID 7403186143
+
+Artifact workshop-spine-runtime-routing-control-browser-proof has been
+—EE

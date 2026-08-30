@@ -1,0 +1,132 @@
+File Edit Selection View Go Run Terminal Help © Agent Editor € > Q Search sessions...
+
+88 All sessions
+
+Enhance Workspace Chat Tooling ~
+WW Enhance Workspace Chat Tooling
+11m ago
+
+W Gigastack Project Overview
+4h ago
+
+W You are working in the GigStack Rust rep...
+
+Iago
+
+AN Gigstack Worktree Isolation
+Iago
+
+AN Telemetry UI Polish and Fixes
+Iago
+
+AW Improve Router Performance Graph
+Iago
+
+W continue the unfinished Analytics succes...
+
+2d ago
+
+WN User Greeting
+2d ago
+
+AN New Cascade
+2d ago
+
+%& Review attachment 1779668262331-2r7y...
+
+© 2d ago
+
+OMCP servers
+
+a
+
+O gigstack Enhance Workspace Chat Tooling
+
+\W Enhance Workspace Chat Tooling X >. smoke-workspace-chat.ps1 M +vO~
+
+Thought fo
+Thought fo
+
+® BETA Running Preview: Workspace Chat
+
+Gamciaogstines (SHemBeoMer ine
+
+Thought fo
+Browser preview is running at http://127.0.0.1:61179. Please test the Workspace Chat in the
+browser:
+
+Test 1: Send “List the repo files, read Cargo.toml, then summarize what this project is.”
+
+* Verify tool cards appear with status badges (running — ok/error)
+* Verify risk/scope badges show correctly
+
+* Verify you can expand/collapse tool cards
+
+© Verify Expand all / Collapse all / Copy all buttons work
+
+* Verify Tool Calls panel in bottom terminal shows the tool run summary
+Test 2 Send nak fold on detop clad ete
+
+* Verify the tool card shows "Outside workspace” or “Risky” warning
+
+* Verify it doesn’t look like a normal safe action
+Test 3: Refresh the page
+
+* Verify tool cards persist (don't disappear)
+
+Affles +918-77 Reject all (/Aezeptall)
+how
++ ©Code SWE-16 Weasade OF @
+
+ow“ O@@-y - a x
+C2 Ben eaRe
+
+Explorer
+
+Y gigstack
+
+(Workspace)
+
+Y © aigstack e
+YO crates e
+
+igstack-daemon e
+
+vO web e
+
+<P workspace.html M
+4 cargotoml
+
+>o
+
+> Cd
+
+Y Ca scripts .
+
+> Outline
+> Timeline
+
+gigstack-ui
+jocs
+
+create-gigstack-desktop-shortcut.ps1
+create-gigstack-shortcut.ps1
+doctor-gigstackps1
+report-provider-telemetry.ps1
+smoke-attachments.ps1
+smoke-desktop-launcher.ps1
+smoke-live-status.ps1
+smoke-repo-safety.ps1
+smoke-self-build-worktree.ps1
+
+smoke-tools.ps1
+smoke-ui-fragments.ps1
+
+smoke-ui-static.ps1 M
+smoke-workspace-chat.ps1 M
+
+smoke-workspace-v2-loop.ps1
+smoke-workspace-v2.ps1
+start-gigstack-desktop.ps1
+start-gigstackpst
+start-with-gigapi-router.ps1

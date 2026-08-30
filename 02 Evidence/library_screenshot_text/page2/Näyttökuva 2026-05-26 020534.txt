@@ -1,0 +1,51 @@
+mistral-arge-3-675b-Instruct-2512 cia rte-imit pony: 2/10
+Intel#50 Speed #9 40rpm 256K context miss 424 tye 661% success
+
+Gemma 4 318 (NV)
+
+deepseek-v4-pro nviis rte-imit penalty: 3/10
+Imtel#50 Speed #9 4Orpm 1Mcontoxt miss) 0.33 tps 21.3% success
+
+Mininax M2.7 (NV) ovisis atom pnaty 5/10
+Intel#3 Speed #9 40rpm 200K context nds) 0.57 tps 226% success
+
+doepseek-va-flash sia rte-tiit penaty: 3/10
+Intel #50 Speed #5 1Mcontet mwas) 0,06 tps 127% success
+
+Wama-33-nemotron-super-49b-v1.5 iis rate-iit penalty: 5/10
+Intel #50 Speed #5 128K context (ann tee tot aa nested 181 tpg 725% success
+
+imi-K26 evita rat-tmit pena: 2/10
+Intel#S0 Speed #9 40rpm 256K context miss 1.59 tp 49% success
+
+Remotron-3-super-120b-a12b cis rate-tmit penaly: 3/10
+Intel#50 Speed #9 4Orpm 1Mcontoxt miss) 0.12 tps 323% success
+
+‘nemotron-3-nano-omn-30b-a3b-reasoning mics rste-imt pens: 3/40
+Intel#S0 Speed #5 256K context miss) 2A5tps 885% success
+
+‘Remotron-3-nano-30b-a3b swiss rate-tmit pensty: 2/10
+Imtel#50 Speed #9 40rpm 256K context miss 7.05 tps 987% success
+
+imistral-small-4-119b-2603 cis rato-tmiponaty- 2/10
+Imtel#50 Speed #5 256K context miss) 7.73 tps 916% success
+
+Wama-31-70b-Instruct sis rato-tmi penaty- 2/10
+Imel#17 Speed #6 40rpm 128K context nad 0,62 tps 725% success
+
+Wama-33-nemotron-super-496-V1 ics rate-mit penaty: 2/10
+Imtel#50 Speed #5 128K context miss) Q.S3tps 429% success
+
+Wama-33-70b-Instruct sis rate penaty- 2/10
+Intel #50 Speed#S 40rpm 128K context isd 0.24 tpe 652% cuccese
+
+Wama-32-90b-vislon-instruct nis rate penaty- 3/10
+Intel #50 Speed #5 128K context wna 1.94 tps 818% success
+
+Wama-32-14b-vislon-instruct
+
+159 %tps
+
+6
+
+6)| 8) 6/6) 8) 6/6/86) 8|)8\/4|/86)86

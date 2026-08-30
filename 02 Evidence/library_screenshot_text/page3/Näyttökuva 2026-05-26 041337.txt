@@ -1,0 +1,34 @@
+Thought
+
+8/13
+
+© Add Live Status Bar at top of workspacehtml,
+
+© Add Live TPS/latency/token counters mini-panel (GigAPI-safe)
+» Add Activity Timeline panel
+
+» Improve animated tool/action cards:
+
+© Finish Dogfood workflow visualization,
+
+© Add Active Settings visibility card
+
+© Implement lightweight polling strategy.
+
+© Add UX polish (toasts, loading states, reduced motion)
+© Create smoke-tive-status.pst script
+
+© Update docs (QUICKSTART.md or DOGFOODING.md)
+© Run validation (fmt, check, tests, syntax),
+
+© Manual Ul smoke test
+
+© Final report
+
+Thought
+
+Command cur in n/aigstack
+
+‘Ask anything (Ctri+L)
+
+© Code SWE-1.6

@@ -1,0 +1,39 @@
+Dele aieliel ee
+
+a 149 recor mussing LoKen Gata Cannot be INCIWUeU IT Cost CatCULAUON
+
+Route graph (call flow)
+Client/Caller + FreeLLMAPI Proxy + Provider + Model + Outcome. Tool execution is caller-owned; FreeLLMAPI only observes follow-up calls containing role="tool"
+
+Records: 205 Persisted: yes Max: 5000 Oldest: 255.2026 klo 4.50.02 Newest: 25.5.2026 klo 7.55.03
+
+viow[ProiterDetat v) mit 200 ¥ rover (eo. mid) classification phase stream: ary Ml fatures
+
+i fallback-eligible [Ml tool calls Ml tool follow-ups
+
+/ ) Y 5
+req 200 - ok 175- fail 25 req 200 - ok 175 fail 25 req 150- ok 125. fail 25 sTye
+
+kind: caller
+
+req: 200- ok: 175- fait: 25
+
+fallback-eligible: 25 - fallbacks: 25
+
+tool-call turns: 95 - empty failures: 25,
+
+streaming: 25 -non-stream: 175
+
+= tool follow-ups: 0
+avg latency: 263 ms
+‘avg tokens in/out: 246 / 86
+> . Recent paths Show
+req 50- 0k 50- fall
+
+Top scores (coding)
+Hermes can poll "/api/free-llm-router/scores’ to pick a model by ‘finalScore’ (higher is better.
+Model Final Reliability Latency Context fit
+‘openrouter.qwen/qwen3-coder-free 0.33 0.00 0.00 1.00
+‘ollama:qwen3-coder:480b 0.33 0.00 0.00 1.00
+
+a Bae leanne ae ee eae ee ee

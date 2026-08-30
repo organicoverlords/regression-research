@@ -1,0 +1,34 @@
+@ = Show unavailable models _Refresh context metadata
+
+I Manual order is authoritative for routing.
+
+mistral-large-3-675b-instruct-2512 »vicia
+Intel#50 Speed #9 40rpm 256K context ims) 780 tps 64.4% success
+
+mistral-small-4-119b-2603 nvidia -6 penalty
+Intel#50 Speed #5 256K context maa) 2929 tps 902% success
+
+KimI-k2.6 nvidia -6 penalty
+Intel #50 Speed #9 40rpm 256K context inca) 1023 tps 59.3% success
+
+deepseek-v4-pro nvidia -6 penalty
+Intel #50 Speed #9 40rpm 1Mcontext iwiasd 447 tps 212% success
+
+nemotron-3-super-120b-a12b nvidia -8 penalty
+Intel #50 Speed#9 40rpm iMcontext (wise) 503 tps 442% success
+
+deepseek-v4-flash nvidia ~6 penalty
+Intel#50 Speed #5 1M context inida) 212 tpg 105% success
+
+MiniMax M2.7 (NV) ovicia
+Intel#3 Speed #9 40 rpm 200K context iniaid 746 tps 353% success
+
+nemotron-3-nano-30b-a3b nvidia
+Intel #50 Speed #9 40rpm 256K context mwas) 2995 tps 98.7% success
+
+nemotron-3-nano-omni-30b-a3b-reasoning nvidia
+Intel #50. Speed #5 256K context maa) — tps —success
+
+Reset to Known-Good Default
+
+1 Ore

@@ -1,0 +1,41 @@
+Route graph (call flow)
+Client/Caller + FreeLLMAPI Proxy — Provider + Model + Outcome. Tool execution is caller-owned; FreeLLMAPI only observes follow-up calls containing role="tool".
+
+Records: 25 Persisted: yes. Max: 5000 Oldest: 255.2026 klo 450.02 Newest: 255.2026 klo 455.03,
+
+limit 200 ¥ provider (e.g. nvidia) model (exact id) classification phase
+
+stream: any YM failures J fallback-eligible {™ tool calls Ml tool follow-ups
+
+Details
+
+req 25- ok 23- fall 2 req 25: ok 23: fall 2 req 21 ok 19- fall 2
+“ “ “ “ “ “ Click a node or edge to inspect counts and averages.
+
+Recent paths
+
+61e17b7 _nvidia/nvidia/nemotron-3-nano-30b-a3b
+initial_user_call - ok_text - non-stream - attempt 1
+
+(0723614 _nvidia/nvidia/nemotron-3-nano-30b-a3b
+tool_call_turn- ok_native_tool_call - non-stream
+attempt 1
+
+be8e6F9e _nvidia/nvidia/nemotron-3-nano-30b-a3b
+initial_user_call - ok_text - non-stream - attempt 1
+
+@beQ4caB _nvidia/nvidia/nemotron-3-nano-30b-a3b
+tool_call_turn- ok_native_tool_call - non-stream
+attempt 1
+
+\ — / Ce EY 64068261 _nvidia/nvidia/nemotron-3-nano-30b-a3b
+initial_user_call - ok_text-non-stream - attempt 1
+
+Top scores (coding)
+Hermes can poll '/api/free-llm-router/scores’ to pick a model by ‘finalScore’ (higher is better).
+
+Model Final Reliability Latency Context fit
+‘openrouter:qwen/qwen3-coder-free 0.33 0.00 0.00 1.00
+llaensminn nectar: ABA a2 nan nan 4.90
+
+hm @eththmnhwWw~+yry @Bweaeoeinp se Ww

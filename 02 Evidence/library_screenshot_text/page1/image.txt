@@ -1,0 +1,29 @@
+Shell Check if PROJECT.md exists
+
+Explored 4 reads
+
+Shell Check git status for changes
+
+- Never run ‘git reset’, ‘git clean’, git restore’, ‘git rebase’, git commit —-
+amend, or discard changes unless explicitly approved.
+
+- On Windows/PowerShell, do not use Unix flags like "Is -la’ use "Get-
+Childitem” or “dir
+- Do not print tool commands as prose: either run them or summarize
+their result.
+
+- Never call project new if any state file exists, claim you'll create an
+
+9 file, or rewrite state files without explicit ask.
+
+Detected existing project. Goal: Project initialization Last note: Initialized project state. Possible next steps:
+
+© Resolve current changes in Git Recommended: Resolve current changes
+
+Continue with recommended, choose another, update memory, or describe a new task?
+
+Shell Show git diff stat of changed files
+
+Create a checkpoint commit?
+
+continue with recommended

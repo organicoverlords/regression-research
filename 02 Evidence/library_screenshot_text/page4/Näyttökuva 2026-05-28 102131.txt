@@ -1,0 +1,100 @@
+@ Cache Busting Verification =X GigStack © organicoverlords/gigstack 2 GigAPI - Unified LLM Router
+
+= note: #[warn(dead_code)] (part of #[warn(unused)]-) on by default
+
+warning: field “mode” is never read
+
+= crates\gigstack-core\src\resource_monitor.rs:75:5
+73 | pub struct ResourceMonitor {
+| --- field in this struct
+74 | workspace_root: PathBuf,
+75 |
+I
+
+mode: ResourceMonitoringMode,
+AAAA
+
+warning: “gigstack-core’ (lib) generated 3 warnings (run “cargo fix
+warning: variable actual_route_id_used’ is assigned to, but never used
+--> crates\gigstack—daemon\src\main. rs: 2288: 13
+
+2288 Jet mut actual_route_id_used: Option<String> = None;
+
+|
+| AAAAAAAAAAAAAAAARAAAAAAA
+|
+
+= note: consider using “_actual_route_id_used’ instead .
+note: “#[warn(unused_variables)] | (part of “#[warn(unused)]) on by default
+
+warning: value assigned to ‘actual_route_id_used’ is never read
+--> crates\gigstack-daemon\src\main. rs: 2440: 25
+
+2440 actual_route_id_used = route_id_to_use.clone();
+
+|
+| AAAAAARAAAAAAAARAAAA
+|
+
+help: maybe it is overwritten before being read? .
+note: ‘#[warn(unused_assignments)] (part of ‘#[warn(unused)]") on by default
+
+warning: field ‘clear_api_key’ is never read
+--> Crates\gigstack-daemon\src\main. rs: 365:5
+
+|
+357 | struct PrewrGlerU pssst {
+I _ ---- field in this struct
+
+365
+
+| clear_api_key: Option<bool>,
+| AAAAAAAAAAAAA
+|
+
+note: “#[warn(dead_code)]> (part of “#[warn(unused)]) on by default
+
+warning: “gigstack-daemon” (bin "gigstack-daemon") generated 3 warnings
+
+Finished ‘dev’ profile [unoptimized + debuginfo] target(s) in 1.67s
+Running \target\debug\gigstack-daemon. exe
+
+i "2026-05-28107 : 21:04. 4685982", "level":"
+gigstack_daemor
+
+INFO", "fields": {"message":
+
+Error: Kutakin vastakeosoitetta (protokolla, verkko-osoite tai portti) voi kayttaa normaalisti vain
+
+kerran. (os error 10048)
+error: process didn't exit successfully: ‘target\debug\gigstack-daemon.exe’ (exit code:
+P: Users\Lauri\Desktop\Agent workplace\agent-workspace\gigstack>
+
+a)
+
+Native Router Telemetry Integrat...
+
+Kimi 2.6 vs SWF 1.6,
+
+Joonas Ahonen
+Plus 8
+
+@ Moi Taas / gigstack-private - GitLab
+
+lib -p gigstack-core’ to apply 1 suggestion)
+
+gigstackd listening", "addr": "127.0.0.1:4
+
+©) Kuberwastaken/claurst: Agentic Co: Git Credential Manager - Authentic =
+ele & BS saa%0
+
+Toiminta - 51s x
+
+[Error in C:\Users\Lauri\.gemini\settings.json: Unexpected token
+"m"... is not valid JSON
+
+Please fix the configuration file(s) and try again.
+
+Ps C:\Users\Lauri\Desktop\Agent workplace\agent-workspace\gigstack>
+
+I'm trying to figure out why the message "Ne

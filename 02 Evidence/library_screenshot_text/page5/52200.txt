@@ -1,0 +1,28 @@
+110 Oe G99 “iil 42%
+
+<€ B Pefactorin... Thinking :
+
+Build a temporary personal
+Android APK concept for
+one-day use.
+
+Purpose:
+
+Mobile orchestrator console for
+managing ChatGPT/GitHub
+workers while PC is offline.
+
+It choiild:
+
+Show more v
+
+I'm starting this as a documentation bundle,
+not a live APK build, because no repo/Android
+project path was provided. I'll produce
+copy-pasteable implementation docs with
+security boundaries and minimal one-day APK
+scope.
+
++ Follow up
+
+=]

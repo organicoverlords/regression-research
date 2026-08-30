@@ -1,0 +1,49 @@
+DQ @ bocathost:5180/fallback
+
+© GigAPI Playground Keys Fallback Viesti osoitteesta localhost:5180
+Refresh completed: 0 models matched, 113 unmatched
+
+No NVIDIA model IDs matched LiteLLM metadata. Using local
+
+Fallback chain overrides/defaults.
+
+Configure active fallback chain and intelligent routing.
+NVIDIA model IDs may not match LiteLLM naming conventions. Edit
+
+config/model-context-overrides.json to add manual overrides.
+
+Manual Order Suggested Order
+
+@ = Show unavailable models__—_Refreshing.
+
+@ Manual order is authoritative for routing.
+
+mistral-large-3-675b-instruct-2512 nvidia
+Intel #50 Speed#9 40rpm 128K context tai) 757 tps 64.4% success
+
+kimi-k2.6 nvidia
+Intel #50 Speed#9 40rpm 128K context (sate) 4056 tps 70.5% success
+
+deepseek-v4-pro
+411 tps
+
+MiniMax M2.7 (NV) nvidia
+Intel#3 Speed#9 40rpm 192K context (static) 919 tps 41.7% success
+
+nemotron-3-super-120b-a12b nvidia
+Intel #50 Speed#9 40rpm 128K default context (cefaut) 528 tps 39% success
+
+deepseek-v4-flash
+
+mistral-small-4-119b-2603 nvidia
+Intel #50 Speed #5 128K context (staic) — tps — success
+
+mQ ele &
+
+Reset to Known-Good Default [= yWer ly
+
+6
+
+6 8 6
+
+6

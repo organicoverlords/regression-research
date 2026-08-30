@@ -1,0 +1,22 @@
+‘= Global rules:
+
+- Never call the project new if any state file exists.
+
+- Never say you will create a file that already exists.
+
+- Never rewrite existing state files unless the user explicitly asks.
+- Never read .env files.
+
+- Never create release workflows unless requested.
+
+Explored 3 reads, 5 searches
+
+Phase: almost_done
+
+Goal: Unknown Next step: Inspect codebase. Last note: /init completed. Phase: mid (inferred from absence)
+
+Continue from TASK.md next step? (yes/no — or say refresh)
+
+what is the next step
+
+Build ‘qwen/qwen3-32b

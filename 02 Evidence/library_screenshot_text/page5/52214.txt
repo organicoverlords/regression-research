@@ -1,0 +1,40 @@
+Mee ie Orchestrator 3858? “til 415 %
+
+Expected lane:
+
+Chat: Mobile
+
+Repo: organicoverlords/gigstack-mobile-orchestrator
+Branch: experiment/
+mobile-orchestrator-apk-20260603
+
+Paste WORKER REPORT / FAILURE
+CARD / LANE MISMATCH CARD here
+
+PARSE CARD
+
+lype: UNKNUWIN
+
+Chat name: missing
+Repo: missing
+
+Branch: missing
+
+Main touched: missing
+Next safe step: missing
+
+Warnings
+- Unknown card type: paste a structured worker card.
+
+ext copy-paste prompt
+
+Chat name: Mobile
+
+Repo: organicoverlords/gigstack-mobile-orchestrator
+Branch: experiment/
+mobile-orchestrator-apk-20260603
+
+Stop and inspect this lane mismatch before editing.
+Do not touch other repos.
+
+Report with Chat name:Mobile.

@@ -1,0 +1,39 @@
+# Init project detection and setup
+Write the summary in plain language. Eg. “Initialized project. Detected
+
+Vite + React TS app with npm. Set up task tracking.” Always append,
+never overwrite,
+
+Shell List all files in current directory
+
+Shell List files in current directory
+
+Explored 4 reads
+
+Shell List all cmd files in directory
+
+Shell List all cmd files using PowerShell syntax
+Shell Check for source code files
+
+Exploring 1 read
+Read 1 - Launch (T3 Patched + Hermes + OpenCode + FreeLLMAPI).cmd
+
+Thinking
+
+1of 1 questions =
+
+Detected almost done. Project: A collection of command scripts and utilities for launching Al applications. | found: All four tracking files exist
+(PROJECT.md, TASK.md, .repomap. NOTES.md). Project contains PowerShell cmd launcher scripts for T3, Hermes, OpenCode, and FreeLLMAPI
+applications in an _Archive folder. Ill update TASK.md with next steps and append to NOTES.md. OK?
+
+Yes
+Proceed with updating files
+
+No
+
+Let me revise the goal or make changes
+
+Type your own answer
+Type your answer.
+
+Dismiss

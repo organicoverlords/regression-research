@@ -1,0 +1,27 @@
+~ Do not print tool commands as prose; either run them or summarize
+
+their result.
+- Never call project new if any state file exists, claim you'll create an
+existing file, or rewrite state files without explicit ask.
+
+Explored 4 reads
+
+Shell Check Git status
+
+Detected existing project.
+
+Field Value
+Goal Project initialization
+Last note _Initialized project state.
+
+Git status Dirty: 29 modified files, 22 untracked files (including state files, backups, logs, new files)
+
+Possible next steps:
+
+Review and commit the existing changes
+
+2. Continue with the new files (e.g. model-discovery.ts, providers.ts)
+3. Clean up backup/log files
+Recommended: Review and commit the existing changes
+
+Continue with recommended, choose another, update memory, or describe a new task?

@@ -1,0 +1,14 @@
+- Never call the project new if any state file exists.
+- Never say you will create a file that already exists.
+
+- Never rewrite existing state files unless the user explicitly asks.
+- Never read .env files.
+
+- Never create release workflows unless requested.
+
+Explored 5 reads
+
+Detected almost finished. Goal: Project initialization. Last note: Initialized project state for Al Apps launcher scripts. Continue from TASK.md next step?
+(yes/no — or say refresh)
+
+Build DeepSeek V4 Flash Free Default

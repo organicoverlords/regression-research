@@ -1,0 +1,18 @@
+Request History
+
+Recent API cals in real-time, 25 50 100 200
+
+Time Status ~Provider. Model In Out Total TPS — Latency Error Debug
+20:40:29 ecuccese mua ‘Nomotron 3 Nano em al «9K 723 LA2Ime = Debug
+20:40:28 ecucoese mula ‘Nomotron 3 Nano sk 137 97K 989 —«1385me = Debug
+20:40:25 ecuccese mua ‘Nomotron 3 Nano oak 187 96K 113s651me = Debug
+20:40:24 ecuccese mua ‘Nomotron 3 Nano 92k 738 OSK 127s TAme = Debug
+20:40:23 ecuccese mua ‘Nomotron 3 Nano 92k 174 aK 139 3252me = Debug
+20:40:21 ecuccese mula ‘Nomotron 3 Nano 32K 60 Bak 908 Elms = Debug
+20:40:20 ecuccess mua ‘Nomotron 3 Nano uk 44 aK 787 50me = Debug
+20:40:19 ecuccese mua ‘Nomotron 3 Nano 30k «55 -80K 908 06me = Debug
+20:40:18 success mua ‘Nomotron 3 Nano 20K 113 -80K 125m = Debug
+20:40:17 —ecuccese mua ‘Nomotron 3 Nano 2K 68 eK 8S (kme = Debug
+20:40:16 eeuccese mua ‘Nomotron 3 Nano 25k 676K 706 tme. = Debug
+20:40:15 ecuccese mua ‘Nomotron 3 Nano 25k 313 28K «3583 8Tme = Debug
+20:40:13 serra ‘Nomotron 3 Super 13k 01K TOKE Eros [ideSeaSSTeaAdt-86% Debug

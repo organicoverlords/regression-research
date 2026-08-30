@@ -1,0 +1,356 @@
+»g
+
+BB Windows Powershell
+
+x +
+
+Q  @ ocalhost:5180/history
+
+Tailing: C:\Users\Lauri\Desktop\merged_gigapi_full\Logs\router-live. log
+
+[14.01.15.520]
+19.541]
+29.342]
+129.606]
+30.918]
+31.360]
+32.048]
+232.881]
+32.990]
+33.323]
+38.4uu]
+699]
+779]
+634]
+669]
+639]
+026]
+765]
+056]
+594]
+984]
+273]
+498]
+-480]
+728)
+686]
+471]
+413]
+963]
+ET
+064]
+.120]
+692]
+483]
+108]
+199]
+200]
+
+START
+be@c819
+be@c819
+af1bubo
+af1bUbo
+0356599
+e5d07f1
+e5d07f1
+156ed27
+156ed27
+0356599
+ef6bdc3
+1981c6a
+ef6bdc3
+9£2383c
+9£2383c
+diasseu
+d1ass0u
+19adfd4
+19adfd4
+T1sfuFy
+T18fuFy
+4790102
+4790102
+aad75bc
+aad75bc
+eb7638
+eb7638
+88a1U36
+88a1U36
+3c9edla
+3c9ed1a
+a961d3a
+a961d3a
+‘Tb21F10
+‘Tb21F10
+‘Tb21F10
+
+Router Live log started format=
+
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+ROUTE
+OK
+ROUTE
+OK
+OK
+ROUTE
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+OK
+ROUTE
+FAIL
+ROUTE
+
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+cli
+
+2
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+Mistral Small
+moonshotai/kimi-k2.6
+
+BEER EE EEE E EERE PERE ErEEEEEee
+
+9.85
+
+1.35
+
+83Ums
+
+333ms
+
+T.1s
+
+936ms
+
+971ms
+
+‘741ms
+
+2.55
+
+1.35
+
+983ms
+
+959ms
+
+ouums
+
+‘T69ms
+
+1.1s
+
+1.85
+
+92ms
+
+10.
+
+10.
+
+10.
+
+10.
+
+12.
+
+12.
+
+12.
+
+12.
+
+12.
+
+12.
+
+12.
+
+13.
+
+1
+
+6K
+
+7K
+
+TK
+
+81
+
+ak
+
+®k
+
+2k
+
+4k
+
+3k
+
+5k
+
+5k
+
+6k
+
+6k
+
+6k
+
+8k
+
+ak
+
+6K
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tok
+
+tool_call
+
+tool_call
+
+text
+
+text
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+tool_call
+
+text
+
+unknown
+
+fm cle &
+
+S&S AOR

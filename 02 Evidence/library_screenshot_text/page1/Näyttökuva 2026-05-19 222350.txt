@@ -1,0 +1,35 @@
+Implementation Target
+
+Edit logging code
+
+1. server/src/lib/log.ts (if it exists)
+
+2. Else, find where logs are emitted (search for [Conn]. [Route], [Done] etc)
+
+Next Step
+
+Should |:
+
+1. Locate the logging emitter first?
+
+2. Draft the new logging format code?
+
+do both
+
+Explored 3 reads, 2 searches
+
+@ edit No changes to apply
+
+oldString and newString are identical.
+
+Edit proxyts +29 -4
+
+1 of 5 todos completed
+
+Investigate why qwen/qwen3.5-122b-a10!
+
+not appearing in model discovery
+
+Implement automatic removal of deprecated models
+Analyze log format and identify readability improvements
+Redesign log format for conciseness and larity

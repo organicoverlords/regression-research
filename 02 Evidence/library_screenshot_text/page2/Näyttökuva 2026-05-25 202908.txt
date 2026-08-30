@@ -1,0 +1,51 @@
+Stack - Router
+
+MODE
+Strict (no rewrite)
+flex_fallback_model (e.g. gpt-4)
+5) Auto-failover (probe & skip offline)
+3) Prefer NVIDIA NIM models
+
+Min context window (0 = no filter)
+
+Save config
+
+wmode": “strict”,
+
+“Flex _fallback model": null,
+“auto_failover": false,
+“prefer_nvidia nim": false,
+min_context_window": null,
+manual_order*: (1,
+“provider_priority": []
+
+0 models scored
+MODEL
+
+SCORE
+
+OK
+
+FAIL
+
+MANUAL MODEL ORDER (DRAG TO REORDER)
+
+No manual order set. Drag models from the table below.
+
+PROVIDER PRIORITY
+
+No provider priority set. Uses score order.
+
+Save ordering
+
+AVG MS
+
+ford
+
+Tools
+
+PROVIDER
+
+REASON
+
+Refresh scores Probe next-best

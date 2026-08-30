@@ -1,0 +1,11 @@
+~ Never create release WOrkKIOWs unless requested.
+
+Shell Check if PROJECT.md exists
+Shell Check if TASK.md exists
+Shell Check if repomap exists
+‘Shell Check if NOTES.md exists
+
+Explored 2 reads
+
+Detected almost finished. Goal: Project initialization - set up documentation and tracking files. Last note: Initialized project. Detected new project (no source
+code yet). Created PROJECT.md, TASK.md, .repomap, and NOTES.md with placeholder content. Continue from TASK.md next step? (yes/no — or say refresh)

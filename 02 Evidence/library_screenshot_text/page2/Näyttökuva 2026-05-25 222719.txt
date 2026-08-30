@@ -1,0 +1,63 @@
+|
+
+‘suggest ions/release-readiness-analysis-YYYYMMDD-HHMMSS/ Create: - @@-summary.md - @1-project-map.md - @2-prioritized-findings.md - @3-suggested-patches.md
+@4-feature-and-polish-plan.md - @5-testing-and-qa-plan.md - @6-security-accessibility-performance.md - @7-release-checklist.md - patches/ - proposed-files/
+- notes/ Focus on: - bugs - incomplete features - TODOs/placeholders/stubs - broken flows - missing validation/error/loading/empty states - security risks
+
+- accessibility issues - performance risks - test gaps - stale docs - release blockers - high-value new features implied by the project For every
+
+recommendation include: - severity - affected files - evidence - proposed fix - integration steps - verification steps - risk level Create suggested patches
+only for high-confidence changes. Otherwise write plans. Final response must be short: - suggestions folder path - summary of findings - top 3 next actions
+- confirmation that existing files were not modified
+
+/steer use this as a skeleton for the minimum required features [User attached file: C:\Users\Lauri\Desktop\t3proultra.txt]
+steer queued — arrives after next tool call: “use this as a skeleton for the minimum required fe.”
+
+Read File("C:/Users/Lauri/Desktop/Agent workspace/agent -workspace/gigstack..")
+
+Search Files("*")
+
+Search Files("*")
+
+Terminal(“dir /b C:\Users\Lauri\Desktop™)
+
+Terminal(“dir “C:\Users\Lauri\Desktop\agent workplace\agent-workspace\gig..
+
+Read File("C:/Users/Lauri/Desktop/Agent workspace/agent -workspace/gigstack..”)
+
+Search Files("*")
+
+Terminal("dir “C:\Users\Lauri\Desktop\agent workspace\agent-workspace\gig..
+
+Search Files("README.md”)
+
+Read File(“C:\Users\Lauri\Desktop\agent workplace \agent -workspace\gigstack..")
+
+Read File(“C:/Users/Lauri/Desktop/Agent workspace/agent -workspace/gigstack..")
+
+Read File(C:/Users/Lauri/Desktop/Agent workspace/agent -workspace/gigstack..”)
+
+Search Files("*")
+
+Search Files(“suggestions”)
+
+Read File(C:\Users\Lauri\Desktop\Agent workspace \agent -workspace\gigstack..")
+
+Read File(“C:\\Users\\Lauri\\Desktop\\Agent_ workspace\ \agent-workspace\ \gi.
+Read File("/c/Users/Lauri/Desktop/Agent workspace/agent -workspace/gigstack..”)
+Search Files("README.md”)
+
+Search Files("gigstack”)
+
+Terminal("1s -la "/c/Users/Lauri/Desktop/Agent workspace/agent-workspace,
+Terminal ("mkdir -p "C:/Users/Lauri/Desktop/suggestions””)
+
+Search Files("*gigstack*")
+
+Read File(C:\Users\Lauri\Desktop\agent workspace \agent -workspace\gigstack..")
+
+Error: Response remained truncated after 3 continuation attempts
+
+= ready | auto | 26.1k/262.1k | [IE ] 10% | 8m es | voice of F — C:\WINDOWS\system32
+
+ee oto manne pooner eres a

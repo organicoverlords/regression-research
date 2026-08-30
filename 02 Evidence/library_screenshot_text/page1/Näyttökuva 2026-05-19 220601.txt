@@ -1,0 +1,32 @@
+Explored 3 reads, 3 searches
+
+xploring 2 reads, 45 searches
+
+Grep / pattern=/v1/models|models.*api\.nvidia include=*{ts js}
+
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+
+Read model-discovery.test ts
+
+Grep / pattern=integrate\api\ nvidialbaseUrnvidia include=*.{tsjs}
+
+Read indexts
+Grep / pattern=fetch.tintegrate\ api\ nvidialGET.*models include=*{tsjs}
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+Grep / pattern=fetch.*models|GET.*models include=*.{ts,js}
+
+Grep /
+
+Grep /
+
+pattern=fetch.*models|GET.*models
+
+pattern=fetch.*modelsIGET.*models
+
+include=*.{tsjs}
+
+include=*ts.ist

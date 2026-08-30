@@ -1,0 +1,7 @@
+Virhe ladattaessa laajennusta
+
+Laajennuksen lataaminen seuraavasta kohteesta epaonnistu:
+‘C\Users\LaurhDesktop\agent
+‘workplace\agent-workspace\gigstack-safe-run\ gigstack\brow
+ser-runner\brave-ertension. JavaScript-tiedostoa content, ei
+voitu ladata skriptille

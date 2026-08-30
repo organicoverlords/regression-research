@@ -1,0 +1,52 @@
+ploring 38 reads
+Read PROJECT.md
+TASK.md
+srepomap
+NOTES.md
+packagejson
+README.md
+README.txt
+.gitignore
+
+env
+
+enviocal
+.env,production
+git
+CHANGELOG.md
+CHANGELOG.tt
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+cursor
+
+EEELEEEEEEEGE EEE LEGGE EEE LEGGE
+
+cursor
+
+Ask anything.

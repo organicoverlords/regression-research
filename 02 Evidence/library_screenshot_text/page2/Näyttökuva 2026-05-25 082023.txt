@@ -1,0 +1,28 @@
+© GigAPI Playground Keys Fallback += Analytics. = History _—Router
+
+Analytics
+
+Request volume, latency, token usage, and failures. 24n 7d 30d alltime
+
+REQUESTS SUCCESS RATE INPUT TOKENS OUTPUT TOKENS AVG LATENCY EST. SAVINGS
+60350 87.7% 1.3B 4.0M 217ms $3840.87
+including legacy 0.4% coverage
+
+IW Full historical telemetry included (JSONL + SQLite forks). Total records: 60350. Missing tokens: 185 records. Baseline cost: —. Formula: $3/M input + $15/M output.
+
+P50 LATENCY P95 LATENCY P50 TPS PQS TPS
+10ms 639 ms 1000 6000
+Requests by provider Avg latency by provider
+
+200 600ms
+
+150 450ms
+100 300ms
+50 4150ms
+° ‘oms ———
+nvidia ‘9104 nvidia ‘9104
+Requests over time
+
+A ee
+
+od+ Become

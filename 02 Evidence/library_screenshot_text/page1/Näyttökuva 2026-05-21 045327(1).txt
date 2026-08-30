@@ -1,0 +1,56 @@
+General Chat
+
+General Greeting
+Introductory greeting
+Working. hi
+
+hi
+
+Greeting
+
+~ © beyblade-engine
+
+Stop Conversation
+
+\ © Local
+
+\ > Desktop
+
+\ > t8+test-project
+Initial Greeting
+
+\ > server
+
+New thread
+
+\ > server
+
+New thread
+
+’ > hermes-dev
+
+© Settings
+
+certs
+
+justnow
+
+oe
+
+g
+
+© Hermes exited with code 1
+
+© Hermes contig missing for T3-managed run. Set modelpprovider, modeLbase_ur| modeldefauit. Example: hermes config set model provider
+
+g
+
+Gl freellmapi - qwen/qw...
+
+Local checkout
+
+Build
+
+6 Full access
+
+master

@@ -1,0 +1,17 @@
+Router Dashboard
+
+Active fallback chain, model health, and routing performance. @ show testrecords @_Showall providers
+NVIDIA REQUEST USAGE (LAST 10M) Local obsened usage: no pre cal mace toi th
+° ° ° ° ° ° °
+
+LIVE REQUEST FLOW
+
+8 6 2 o 4 3 C)
+
+9.2 wuie
+
+Last 1h: 8 flows. 6 succeeded, 2 failed, 0 fallback. 4 retumed tool calls, 3 had follow-ups. Avg latency 129299ms.
+
+© stow detaied model nodes
+
+129299ms

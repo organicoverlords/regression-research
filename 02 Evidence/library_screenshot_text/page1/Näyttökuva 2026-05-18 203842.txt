@@ -1,0 +1,105 @@
+Windows
+armé64 build
+
+Windows
+
+manifest
+
+Windows
+
+settings
+to verify
+
+settings
+to verify
+
+settings
+to verify
+
+settings
+to verify
+
+settings
+to verify
+
+-github\work#l
+
+ows\release-yml
+
+1509-536
+
+-github\work#l
+ows\release.yml
+
+1247-308
+
+Commented-out
+matrix entry for
+Windows arm64
+
+Commented-out
+section for merging
+Windows updater
+manifests
+
+Commented-out step
+for merging Windows
+arm64/x64 updater
+manifests
+
+References to
+secrets AZURE_*
+
+References to
+secrets.APPLE_* and
+secrets.CsC_*
+
+References to
+secrets. VERCEL_*
+
+References to
+
+vars T3CODE_WEB_* and
+vars .VERCEL_TEAM_SLUG
+
+References to
+secrets .DISCORD_*
+
+Y Scroll to bottom
+
+Uncomment and
+configure if
+Windows arm64
+support is needed
+
+Uncomment and
+test if Windows
+arm64 builds are
+enabled
+
+Uncomment if
+Windows arm64
+builds are enabled
+
+Verify secrets exist
+in GitHub repo
+settings
+
+Verify secrets exist
+in GitHub repo
+settings
+
+Verify secrets exist
+in GitHub repo
+settings
+
+Verify vars exist in
+GitHub repo
+settings
+
+Verify secrets exist
+in GitHub repo
+
+settings
+
+Verity secrets exist

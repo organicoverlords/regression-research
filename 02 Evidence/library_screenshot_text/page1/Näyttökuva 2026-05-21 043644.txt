@@ -1,0 +1,183 @@
+Windows PowerShell
+
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+
+x
+
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+
+4
+
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+
+-218Z_5e8dall15-9891-U7d4-bcd
+
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+tools/desktop:dev:
+
+rategy
+
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+dev:
+
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+elect.
+
+T3 Code
+
+‘agent-workspace
+
+General Greeting
+
+General Greeting agent-workspace
+
+certs
+
+© Hermes exited recently for this goal. Fix Hermes contig, then start a new /goal
+
+justaow
+
+@ Visual Office prototype x
+
+hi
+Greeting
+
+General Greeting
+
+°
+beyblade-engine
+Stop Conversation
+Local
+Desktop
+13-test-project
+
+Initial Greeting
+
+server
+
+New thread
+
+server
+
+New thread
+
+hermes-dev
+
+Hello.
+
+ee
+
+© Hermes exited recenty for this goal. Fix Hermes config, then start a new /goa
+
+Gi freell.. - qwe. *
+
+PBORGENOG (EE
+
+HERMES GOAL
+
+buld a 3d house in rust
+x Failed
+
+It looks Like Hermes isn't configured yet -- no
+API keys or providers found.
+
+Run: hermes setup
+
+4 Hermes Setup — Non-interactive mode
+
+No interactive TTY detected for the first-run
+setup prompt.
+‘The interactive wizard cannot be used here.
+
+Configure Hermes using environment variables
+or config comands:
+
+hermes config set model.provider custom
+
+hermes config set model.base_url nttp://loc
+alhost:8080/v1
+
+hermes config set model.default your-model-
+
+Or set OPENROUTER_API_KEY / OPENAI_API_KEY in
+your environment.
+
+Run *hermes setup" in an interactive terminal
+to use the full wizard.
+
+Error: Hermes exited recently for this goal. Fix Hermes

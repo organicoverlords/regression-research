@@ -1,0 +1,17 @@
+Time Status. Provider Modal In Out Total TPS Latency Error
+2EAB11 —esuocess mda ‘nemotron-3-nano-omni-30b-eSbreas 437K «037K ame. =
+211805 success nvidia emotron-3-nano-omn-J0b-eibreas. 436K «0 436K ALI -
+21:17:59 e success nvidia emotron-3-nano-omni-J0b-eibreas. 436K «0 436K = 5303me, -
+2EA755 wero iia DeopSeok V4 Fash 436K 038K 210dme Er FidabdDadia5 7161-26!
+2EATAB wero ela Miriax M27 438K 0 438K 140 Ime Sr ridcbsDadtaS 7161-26)
+2EATAL ero = mia Mistral Large 3 438K 038K TOR3me—_ Snr [fidebdDadiaS 7161-26!
+2EAT:A7 —e euocess nvidia Mistral Small 4 eek 2 427K 3B adda, =
+2EA73 —e suocess mdi Mistral Small 4 422K 92 «42AK «ASL 18756me, =
+2EA708 —eeror via DespSeok Va Pro 423K 0 423K 14026 me Er rid 726d2380-50a7-46
+2EATOL — eeror = mviia [Nomotron 3 Super 423K 0 423K = TONBme nr ride 726d2380-5057-44
+2E1345 —e suocess mdi Mistral Small 4 auak 8 A1AK 450 111Ime, =
+2iAS41 —s guocess mia Mistral Small 4 413k 158 414K 624 2502me, =
+21:13:95» success mwa Mistral Small 4 409K auak 101 5324me 5
+211328 a euorace via Mistral Small 4 400K 13K 413K 874 14740me, s
+
+BPG EP EE EEV EEE EE

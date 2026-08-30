@@ -45,9 +45,16 @@ try:  # Keep the canonical provenance contract shared with its CLI validator.
 except ImportError:  # pragma: no cover - exercised by direct script execution.
     from provenance import validate as validate_provenance  # type: ignore
 
+try:  # Raw screenshot occurrences stay evidence; they are not memory-bank entries.
+    from .library_screenshot_search import search as search_screenshot_occurrences
+except ImportError:  # pragma: no cover - exercised by direct script execution.
+    from library_screenshot_search import search as search_screenshot_occurrences  # type: ignore
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROVENANCE = ROOT / "provenance.json"
+DEFAULT_SCREENSHOT_INVENTORY = ROOT / "02 Evidence" / "2026-08-26_library_screenshot_shard_000.jsonl"
+SCREENSHOT_OCCURRENCE_GLOB = "*_library_screenshot_text_occurrences_*.jsonl"
 DEFAULT_LIMIT = 5
 MAX_QUERY_CHARS = 200
 MAX_SCOPE_CHARS = 80
@@ -56,6 +63,7 @@ MAX_OUTPUT_CHARS = 6000
 MAX_FIELD_CHARS = 800
 MAX_PROVENANCE_ITEMS = 8
 MAX_PROVENANCE_PATH_CHARS = 240
+MAX_SCREENSHOT_MATCHES = 3
 EXPOSURE_STATUS = "NOT_PROVEN"
 EXPOSURE_NOTE = (
     "ChatGPT-web exposure is NOT_PROVEN: this local workflow has not observed a "
@@ -151,13 +159,48 @@ def _file_receipt(path: Path, relative: str) -> dict[str, Any]:
     }
 
 
+def _screenshot_occurrence_receipts() -> list[dict[str, Any]]:
+    evidence = ROOT / "02 Evidence"
+    paths = sorted(evidence.glob(SCREENSHOT_OCCURRENCE_GLOB), key=lambda item: item.name)
+    if not paths:
+        raise ReportError("canonical screenshot occurrence ledgers are unavailable")
+    return [_file_receipt(path, path.relative_to(ROOT).as_posix()) for path in paths]
+
+
+def _screenshot_text_receipt() -> dict[str, Any]:
+    root = ROOT / "02 Evidence" / "library_screenshot_text"
+    if not root.is_dir():
+        raise ReportError("canonical screenshot text corpus is unavailable")
+    digest = hashlib.sha256()
+    total_bytes = 0
+    count = 0
+    for path in sorted(root.rglob("*.txt"), key=lambda item: item.as_posix()):
+        payload = path.read_bytes()
+        relative = path.relative_to(ROOT).as_posix()
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(payload).digest())
+        digest.update(b"\n")
+        total_bytes += len(payload)
+        count += 1
+    return {
+        "path": "02 Evidence/library_screenshot_text/**/*.txt",
+        "bytes": total_bytes,
+        "files": count,
+        "sha256": digest.hexdigest(),
+    }
+
+
 def corpus_receipt() -> dict[str, Any]:
-    """Return deterministic hashes for the three read-only canonical inputs."""
+    """Return deterministic hashes for the bounded recall indexes."""
 
     files = [
         _file_receipt(DEFAULT_BANK, "memory/memory-bank.jsonl"),
         _file_receipt(DEFAULT_SOURCES, "memory/sources.json"),
         _file_receipt(DEFAULT_PROVENANCE, "provenance.json"),
+        _file_receipt(DEFAULT_SCREENSHOT_INVENTORY, "02 Evidence/2026-08-26_library_screenshot_shard_000.jsonl"),
+        *_screenshot_occurrence_receipts(),
+        _screenshot_text_receipt(),
     ]
     digest = hashlib.sha256()
     for item in files:
@@ -343,6 +386,27 @@ def _load_context() -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any
     return entries, _source_registry(), _provenance_index()
 
 
+def _screenshot_hit_view(hit: dict[str, Any]) -> dict[str, Any]:
+    def neighbor(item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "timestamp": item.get("timestamp"),
+            "filename": _clip(item.get("filename", ""), 120),
+        }
+
+    return {
+        "timestamp": hit.get("timestamp"),
+        "occurrence_id": hit.get("occurrence_id"),
+        "file_id": hit.get("file_id"),
+        "filename": _clip(hit.get("filename", ""), 120),
+        "classification": hit.get("classification"),
+        "review_status": hit.get("review_status"),
+        "subject": _clip(hit.get("subject", ""), 180),
+        "text_excerpt": _clip(hit.get("text_excerpt", ""), 240),
+        "before": [neighbor(x) for x in list(hit.get("before", []))[-1:]],
+        "after": [neighbor(x) for x in list(hit.get("after", []))[:1]],
+    }
+
+
 def build_report(query: str, *, scope: str | None = None, tags: list[str] | None = None,
                  limit: int = DEFAULT_LIMIT, history: bool = False) -> dict[str, Any]:
     query = _validate_text(query, "query", MAX_QUERY_CHARS)
@@ -368,6 +432,10 @@ def build_report(query: str, *, scope: str | None = None, tags: list[str] | None
         source_registry=sources,
     )
     prov = _provenance_matches(provenance["entries"], query, min(MAX_PROVENANCE_ITEMS, limit))
+    screenshot_raw = search_screenshot_occurrences(
+        query, context=1, limit=min(MAX_SCREENSHOT_MATCHES, limit), root=ROOT
+    )
+    screenshot_hits = [_screenshot_hit_view(hit) for hit in screenshot_raw.get("matches", [])]
     payload = _base_payload(
         "report",
         {"query": query, "scope": scope, "tags": tags, "limit": limit, "history": history},
@@ -378,13 +446,21 @@ def build_report(query: str, *, scope: str | None = None, tags: list[str] | None
             "summary": {
                 "memory_matches": len(matches),
                 "provenance_matches": len(prov),
+                "screenshot_occurrence_matches": int(screenshot_raw.get("occurrence_count", 0)),
+                "screenshot_occurrences_indexed": int(screenshot_raw.get("indexed_occurrences", 0)),
                 "history_mode": history,
                 "claim_states": sorted({entry["state"] for entry in matches}),
             },
             "findings": [_entry_view(entry) for entry in matches],
             "provenance": prov,
+            "screenshot_occurrences": {
+                "occurrence_count": int(screenshot_raw.get("occurrence_count", 0)),
+                "indexed_occurrences": int(screenshot_raw.get("indexed_occurrences", 0)),
+                "matches": screenshot_hits,
+            },
             "limitations": [
-                "Results are compact memory claims and provenance pointers; raw transcripts are not opened or returned.",
+                "Results are compact memory claims, provenance pointers, and timestamped screenshot occurrence evidence; raw transcripts are not opened or returned.",
+                "Screenshot occurrence evidence is query-text evidence; bank scope/tag filters do not erase or deduplicate source occurrences.",
                 "Current user instruction and live evidence outrank recalled memory.",
                 "Source authority reorders relevant matches; it does not create relevance.",
             ],
@@ -420,7 +496,7 @@ def _text_report(payload: dict[str, Any]) -> str:
         f"Query: {request.get('query', '')}",
         f"Service status: {payload['service_status']}",
         f"Integration status: {payload['integration_status']}",
-        f"Matches: memory={summary.get('memory_matches', 0)} provenance={summary.get('provenance_matches', 0)}",
+        f"Matches: memory={summary.get('memory_matches', 0)} provenance={summary.get('provenance_matches', 0)} screenshots={summary.get('screenshot_occurrence_matches', 0)}/{summary.get('screenshot_occurrences_indexed', 0)}",
         "",
         "Findings:",
     ]
@@ -432,6 +508,20 @@ def _text_report(payload: dict[str, Any]) -> str:
         lines.append(f"   {entry['text']}")
         if entry.get("evidence"):
             lines.append(f"   Evidence: {', '.join(entry['evidence'])}")
+    shots = payload.get("screenshot_occurrences", {})
+    lines.extend(["", f"Screenshot occurrences: {shots.get('occurrence_count', 0)} matching / {shots.get('indexed_occurrences', 0)} indexed"])
+    shot_matches = shots.get("matches", [])
+    if not shot_matches:
+        lines.append("- No matching indexed screenshot occurrence.")
+    for index, item in enumerate(shot_matches, start=1):
+        lines.append(f"{index}. {item.get('timestamp')} {item.get('filename')} [{item.get('classification')}/{item.get('review_status')}]")
+        if item.get("subject"):
+            lines.append(f"   {item['subject']}")
+        if item.get("text_excerpt"):
+            lines.append(f"   Excerpt: {item['text_excerpt']}")
+        around = list(item.get("before", [])) + list(item.get("after", []))
+        if around:
+            lines.append("   Around: " + " | ".join(f"{x.get('timestamp')} {x.get('filename')}" for x in around))
     lines.extend(["", "Provenance:"])
     provenance = payload.get("provenance", [])
     if not provenance:
@@ -465,6 +555,11 @@ def _fit_output(payload: dict[str, Any], formatter: str) -> str:
             return output + "\n"
         findings = payload.get("findings", [])
         provenance = payload.get("provenance", [])
+        screenshot_matches = payload.get("screenshot_occurrences", {}).get("matches", [])
+        if len(screenshot_matches) > 1:
+            payload["screenshot_occurrences"]["matches"] = screenshot_matches[:-1]
+            payload.setdefault("summary", {})["truncated"] = True
+            continue
         if len(findings) > 1:
             payload["findings"] = findings[:-1]
             payload.setdefault("summary", {})["truncated"] = True

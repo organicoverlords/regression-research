@@ -1,0 +1,1 @@
+Router Dashboard. Visible live request flow counters, latency/TPS, model/provider request rows and flow graph. Recent Flows table contains multiple models/providers with success and failure states and conversion/tool-call annotations. Client Fingerprinting & Management appears below. Separate timestamped occurrence of router telemetry and repeated fallback/model-routing behavior.

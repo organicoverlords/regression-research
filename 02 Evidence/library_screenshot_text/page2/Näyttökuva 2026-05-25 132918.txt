@@ -1,0 +1,163 @@
+3P BB windows Powershell x
+
+_, [13.26.48.659]
+iki [13.26.49.429]
+je [13.26.49.478]
+
+[13.26.49.480]
+jek [13.26.51.262]
+
+[13.26.51.308]
+ast [13.26.51.309]
+[13.26.51.411]
+[13.26.51.412]
+jex [13.27.06.418]
+
+[13.27.06.420]
+a [13.27.21.437]
+
+(13.27.21.438]
+ise [13.27.36.441]
+
+[13.27.36.442]
+de [13.27.51.451]
+(13.27.51.452]
+[13.28.06.458]
+pt, [13.28.06.459]
+
+[13.28.31.250]
+e$ [13.28.46.923]
+[13.28.46.925]
+[13.28.47.140]
+
+ell,
+
+(13.28.47.141]
+fve [13.29.02.028]
+[13.29.02.172]
+Fa" [13.29.02.174]
+
+alization Upgrade
+jon Boot Loop
+
+2 Feature Integration Gui.
+
+onas Ahonen
+
+re
+req=20785F14
+req=166bbF7F
+
+req=56d6d53a
+6d6d53a
+req=56d6d53a
+req=56d6d53a
+
+req=56d6d53a
+req=56d6d53a
+req=56d6d53a
+req=12339327
+req=12339327
+req=12339327
+
+req=12339327
+ret 2339327
+req=dud33efe
+req=did33efe
+
+i model=nvidia/mistralai/mistral-small-4-119b-2603 even’
+i model=nvidia/mistralai/mistral-small-4-119b-2603 even’
+i model=unknown event=request_received class=unknown latency=- tokens=- err=
+i model=nvidia/mistralai/mistral-small-4-119b-2603 even’
+i model=nvidia/mistralai/mistral-small-4-119b-2603 even’
+i model=unknown event=request_received class=unknown latency=- tokens=- err=
+i model=nvidia/mistralai/mistral-small-4-119b-2603 even’
+i model=nvidia/mistralai/mistral-small-U-119b-2603 event=request_failed class=unknown latency=103ms tokens=~7197 err=rate_limited
+i model=nvidia/moonshotai/kimi-k2.6 event=route_selected clas
+i model=nvidia/moonshotai/kimi-k2.6 event=request_failed clas
+i model=nvidia/deepseek-ai/deepseek-vil-pro event=route_selected class=unknown Latency=-
+i model=nvidia/deepseek-ai/deepseek-vil-pro even’
+i model=nemotron-3-super-120b-a12b even
+i model=nemotron-3-super-120b-al2b event=request_failed class=unknown Latency=U5133ms tokens=~7197 err=timeout
+i model=nvidia/deepseek-ai/deepseek-vil-flash event=route_selected class=unknown latency=- tokens=- err=
+i model=nvidia/deepseek-ai/deepse:
+i model=nvidia/minimaxai/minimax-1
+i model=nvidia/minimaxai/minimax-n[13.26.42.529] req=7e5c7373 client=cli model=nvidia/mistralai/mistral-small-4-119b-2603 event=route_selected class=unkn‘
+i model=nemotron-3-nano-30b-a3b evn latency-- tokens=- err=
+
+i model=nemotron-3-nano-30b-a3b ev!
+i model=unknown event=request_recey
+
+i model=nvidia/mistralai/mistral-1[13.26.48.659] req-20785f14 client-cli model-nvidia/mistralai/mistral-small-4-119b-2603 event-route_selected class-unkn
+i model=nvidia/mistralai/mistral-lwn latency=- tokens=- err=
+
+i model=nemotron-3-nano-30b-a3b ev-Native_tool_call latency=773ms tokens=6904 e1
+
+i model=nemotron-3-nano-3@b-a3b ev,
+i model=unknown event=request_recéjn jstency-
+i model=nvidia/mistralai/mistral-s[13.26.51.262] req=166bbf7f client=cli model=nvidia/mistralai/mistral-small-4-119b-2603 event=request_completed class=ol
+
+8
+
+(CNATGPL COM C/'02 [Ia e POKES FO-QIED-AOCO“ AE DE ECCIEDEE “a Sie ese Lad
+
+oute_selected class=unknown Latency=- tokens=- err=
+equest_completed class=ok_native_tool_call latency=773ms tokens=~690U err=
+
+oute_selected class=unknown Latency=- tokens=- err=
+equest_completed class=ok_native_tool_call latency=178ums tokens=~6973 err=
+
+‘oute_selected class=unknown latency=- tokens=- err=
+
+inknown Laten
+inknown Laten
+
+‘request_failed class=unknown Latency=30129ms tokens=~7197 err=timeout
+route_selected class=unknown latency=- tokens=- err=
+
+[13.26.43.627] req=7eSc7373 client=cli model-nvidia/mistralai/mistral-small-4-119b-2603 event=request_completed class-ol
+native_tool_call latency=1405ms tokens=~6884 err=
+13.26.48.656] req=2078514 client=cli model=unknown event=request_received class-unknown latency=- tokens=- err=
+
+[13.26.49.429] req=20785F14 client=cli model
+
+widia/mistralai/mistral-small-4-119b-2603 event=request_completed class-ob
+
+i mode!
+
+[13.26.49.478] req-166bbf7F clien
+[13.26.49.480] req-166bbf7F clien
+
+inknown event=request_received class-unknown latency=- tokens=- err=
+widia/mistralai/mistral-small-4-119b-2603 event-=route_selected class=unkn
+
+_native_tool_call latency=1784ms tokens=~6973 err=
+inknown event=request_received class-unknown latency=- tokens=- err=
+widia/mistralai/mistral-small-4-119b-2603 event-=route_selected class=unkn
+
+wn latency=- tokens=- err=
+[13.26.51.411] req-S6d6d53a client=cli model-nvidia/mistralai/mistral-small-4-119b-2603 event=request_failed class-unkni
+wn latency=103ms tokens=~7197 err-rate_limited
+
+[13.26.51.412] req-S6d6d53a client=cli model=nvidia/moonshotai/kimi-k2.6 event=route_selected class-unknown latency=- ti
+kens=- err=
+
+[13.27.06.418] req-S6d6d53a client=cli model-nvidia/moonshotai/kimi-k2.6 event=request_failed class-unknown latency=1511]
+@ms tokens=~7197 err=timeout
+[13.27.06.420] req-S6d6d53a client=cli model-nvidia/deepseek-ai/deepseek-v4-pro event=route_selected class-unknown laten|
+cy=- tokens=- err:
+[13.27.21.437] req-S6d6d53a client=cli model-nvidia/deepseek-ai/deepseek-v4-pro event=request_failed class-unknown laten|
+cy=30129ms tokens=~7197 err=timeout
+
+[13.27.21.438] req-S6d6d53a client=cli model-nemotron-3-super-120b-a12b event=route_selected class-unknown latency=- tol
+ens=- err=
+
+PS C:\Users\Lauri\Desktop\merged_gigapi_full>
+
++ Kysy mita tahansa
+
+ime & Cu)
+
+CChatGPT voi tend vitheita. Suosttelemme tarkastamaan tarkeat tiedot
+
+jo Ls Ls

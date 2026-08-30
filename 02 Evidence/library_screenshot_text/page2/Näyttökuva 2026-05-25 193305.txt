@@ -1,0 +1,11 @@
+Shell Check current directory contents
+
+Shell List files in current directory
+
+Shell Check if daemon is already running on port 4877
+
+Shell Check for daemon PID file
+
+Thinking
+
+Ask anything...

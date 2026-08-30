@@ -1,0 +1,34 @@
+3.50 &
+
+ope
+$09 “S17 %
+
+MagicMusic
+SELECTED
+
+BLOCKED
+organicoverlords/magicmusic
+
+experiment/
+magicmusic-feature-20260602
+
+Mobile
+
+DONE
+
+organicoverlords/
+gigstack-mobile-orchestrator
+experiment/mobile-orchestrator-
+apk-20260603
+
+Output
+
+Prompt prepared for
+MagicMusic using
+Manual Orchestrator.
+Review before sending.
+
+Queue
+
+Queue empty. Add current
+prompt when ready.

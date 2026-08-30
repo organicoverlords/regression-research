@@ -1,0 +1,23 @@
+- Never call the project new if any state file exists.
+
+- Never say you will create a file that already exists.
+
+- Never rewrite existing state files unless the user explicitly asks.
+- Never read .env files.
+
+- Never create release workflows unless requested.
+
+Shell Check for state files in repo root
+
+Shell Check for state files in repo root
+
+All four files exist + phase = almost done. Let me read them.
+
+Explored 4 reads
+
+Detected almost finished. Goal: Project init
+
+lization - set up documentation and tracking files. Last note: Initialized project. Detected new project (no source
+code yet). Created PROJECT.md, TASK.md, .repomap, and NOTES.md with placeholder content. Continue from TASK.md next step? (yes/no — or say refresh)
+
+Build DeepSeek V4 Flash Free Default

@@ -1,0 +1,15 @@
+~ Never rewrite existing state tiles unless the user explicitly asks.
+- Never read .env files.
+- Never create release workflows unless requested.
+
+Shell List files in the Al Apps directory
+Shell List files in current directory
+Shell List files in Al Apps directory
+
+Explored 3 reads
+
+Detected almost finished. Goak: Project initialization - set up documentation and tracking files. Last note: - Initialized project. Detected new project (no
+source code yet). Created PROJECT.md, TASK.md, .repomap, and NOTES.md with placeholder content. Continue from TASK.md next step? (yes/no — or say
+refresh)
+
+Build Nemotron 3 Super Free Default

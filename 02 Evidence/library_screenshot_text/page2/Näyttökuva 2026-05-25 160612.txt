@@ -1,0 +1,55 @@
+VINDOWS\system32\cmd. X = +f a vie & @® aecoe=s
+
+v8.0.14 ready in 588 ms Bjaa
+
+tem32\cmd. X ¥ o x .
+AWINDOWS\system32\cmd + mOeo
+
+534.608] [info] Llm stream end requestId=b8b0f2a2-5385—Ha32-b22F—909UF33Uddce taskKind=exploration route=nvidia/mi
+ai /mistral-Large-3-675b-instruct-2512 attempt=1 classification=ok_text reason=delta_content_present chunks=9 firstC “Review 64
+
+=580 finalChunkMs=735 contentLen=45 sawDeltaContent=true sawDeltaToolCalls=false finishReason=stop parserErrors=0
+5:34.611] [info] proxy stream ok request Id=b8b0f2a2-5385-Ha32-b22f—O09UF33Uddce taskKind=exploration route=nvidia/m . .
+Lai/mistral-large-3-675b-instruct-2512 attempt=1 wallMs=738 inTok=2123 outTok=13 firstTokMs=577 Git changes) © (Uist! ea Epona
+5:46. 854] [info] Ulm stream end requestId=da6déde7-6bc9-ife9-aa02-0628899U8e9a taskKind=exploration route=nvidia/mi
+
+ai/mistral-large-3-675b-instruct-2512 attempt=1 classification=ok_native_tool_call reason=delta_tool_calls_present & repomap CEES HD =O
+9 firstChunkMs=1312 finalChunkMs=12671 contentLen=72 sawDeltaContent=true sawDeltaToolCalls=true finishReason=to Bi cargolock SR 55
+
+lls parserErrors=0
+
+5:46.855] [info] proxy stream ok requestId=da6d6dc7-6bc9-Ufe9-aa02-0628899U8e9a taskKind=exploration route=nvidia/m ® _ ...stack-core/Carg... 425-21
+
+lai/mistral-Large-3-675b-instruct-2512 attempt=1 wallMs=12673 inTok=4383 outTok=24 firstTokMs=1310 © i pee]
+
+5:54.047] [info] llm stream end requestId=0c7d7431-66el-UcUb-bceb-b2ddc3Ufb5d taskKind=exploration route=nvidia/mi RETR “
+
+ai/mistral-Large-3-675b-instruct-2512 attempt=1 classification=ok_native_tool_call reason=delta_tool_calls_present ® ..time/g... ‘Added +1633 -0
+
+6 firstChunkMs=1411 finalChunkMs=6480 contentLen=174 sawDeltaContent=true sawDeltaToolCalls=true finishReason=to
+lls parserErrors=
+5:54.048] [info] proxy stream ok requestId=0c7d7431-66ell-Ucb—bceb-b2ddc3Uft AH Windows Powershell x Bae = @ &
+lai/mistral-Large-3-675b-instruct-2512 attempt=1 wallMs=6481 inTok=4U07 out1 +
+
+5:57.661] [info] Llm stream end request Id=9FU688a5-b11f—Uldce-870b-Feb6duifall] Pouter Live Log ~ Press Ctrl+C to stop
+
+ai/mistral-Large-3-675b-instruct-2512 attempt=1 classification=ok_native_toc
+i aoe finalChunkMs=3186 contentLen=53 sawDeltaContent=true Tadling: €:\Users\Lauri\esktop\nerged_sigapi_full\Logs\router-Live. log
+5:57.662] [info] proxy stream ok requestId=9f4688a5-b11f—Udce-870b-FEb6dufar Time: local system time
+
+lai /nistral-large, 3-675b~instruct-2912 attempt=1 wallMs=3187 inTok=4540 out Format: compact v3; set ROUTER_LIVE_LOG_sHOW_ROUTES=1 for route rows
+6:02.896] [info] Llm stream end requestId=d4@ac69a-d92a—47de—a2db-5115F388b!
+ai/mistral-Large-3-675b-instruct-2512 attempt=1 classification=ok_native_toc
+
+[16.03.53.055] START Router live log started format=v3
+
++ _- A - _ [16:05:34] OK b8bOf2a OpenCode Mistral Large 3 ‘736ms = 2.1k tok text
+i 6 First chunklis=111 finalChunkMs=4828 contentLen=14 sawDeltaContent=true [16:05:46] OK daédéde OpenCode Mistral e3 12.75 U.uk tok Foo lweatil
+6:02.897] [info] proxy stream ok requestId=dll0ac69a-d92a-U7de-a2db-5115£388h eer oe Berar ee fistray large 3 S-Ss A Bk fol Se
+lai/mistral-Large-3-675b-instruct-2512 attempt=1 wallMs=4829 inTok=4692 out! [16:06:02] OK du@ac69 OpenCode Mistral cB 3 48s 4.7k tok Sealer
+
+sot
+
+nt Installation
+
+t Fix

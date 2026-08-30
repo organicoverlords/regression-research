@@ -1,0 +1,146 @@
+3.41 &
+
+@ Summary
+
+tobe
+
+| © bait debug aPK
+
+© Usage
+B) Weektow the
+
+Bulld debug APK
+
+BEES “TH 9%
+
+Q searchiogs
+
+fo)
+@
+
+st
+
+ul debug APK an 16s
+Task provenance in reports and failure messages
+< Type-safe accessors for precompiled Kotlin Settings plugins
+
+For more details see hitns://socs.eradhevore/2,5.1/cehesse-notes.hin
+
+To honour the JYM settings for this bulld 2 single-use Daenon process will be
+Torked. For more on this, please refer to
+
+nkinss fds erale,ore/2.5,t/usersuide/sradhe daenon,hioléseccdisabling the daeno
+1 in the Gradle dacunentation,
+
+Daenon wil] be stopped at the end of the build
+
+> Task :pp:preBuild UP-TO-DATE
+
+> Task :app:preDebugBuild UP-TO-DATE
+
+> Task :2pp:mergeDebuplativeDebugletadata NO-SOURCE
+
+> Task :app:checkKotT inGradlePluginconfiguration€rrers SKI
+Task sapp:ganerateDebughesValues
+
+Task :app:cneckDebupharetadata
+
+Task :app:mapDebugSourcesetPaths
+
+‘Task :app igeneratepebugtesources
+
+Task ‘app packageDebugRescurces
+
+Task :app:nergeDebupescurces
+
+‘Task ‘app:createDebugConpatiblesereenlani ests
+
+Task sappiextractDeepl inksDebug
+
+‘Task ‘app :parseDebugLocalResourees
+
+Task :app:processDebuplanilansfest
+
+Task :app:processbebuguanifest
+
+Task :app:processbebuganifestForPackage
+
+Task :app: javaPreconpileDebug
+
+Task :appriergeDebugShader's
+
+Task :app:comp lebebugshaders ND-SouRce
+
+Task :app:generateDebughssets UP-TO-DATE
+
+Task :app.iergeDobugassets
+
+> Task :app:compressDebugkssets
+
+> Task :app:desugarbebugFileDependencies
+
+> Task :app:processebugkesources
+
+> Task :app:checkDebugDuplicateClasses
+
+fe: file:///howe/runer/work/gigstack-nobile-orchestrator/gigstack-nobile-
+orchestrator /app/src/nain/java/org/organicoverlords/mobi lear chestrator /dainkctivit
+y-KC:98:75 Unresolved reference “fillviewport
+
+fe: file://chone/runertwork/pigstack-nobs le-orchestrator/gigstack-nobile-
+orchestrator /app/src/nain/java/org/organicover lords inc leorchestrator /Maindctivit
+y-Kt:299:57 Argunent type mismatch: actual type is *kotTin.Any", but “ketlia. Int
+as expected
+
+> Task :2pp:compileDebugkotlin
+
+> Task :app:comps lebebugkotlin FAILED
+> Task :app:mergoExtDexdebug
+
+radle/actions: Weiting build results to /howe/runner/work/_tenp/.gradle-
+actions /build-results/__run-1780446875712.js0n
+
+FAILURE: Build failed with an exception.
+
+Lnevbating] Problens report is available at: [ile:///home/runner/work/gigstack
+snobile-orchastrator/gigstack-nobile-orchestrator/build/raports/problens/problens~
+report. hte
+
+nhac went wrong
+Deprecated Gradle features were used in this build, making it incompatible with
+Geadle 10,
+
+Execution failed for task *:app:conpileDebugkotlin’ (registered by plugin
+
+“org. jotbrains. kotlin.andeoig
+
+> A failure occurrad while executing
+
+org. jetbrains.kotin.conpileraunner .radleConpi lerRunnerwithWorkers¥Gradlexotlinco
+spileriorkAction
+
+> Compilation error. See log for more details
+You can use '--warning-nede all’ to show the individual deprecation warnings and
+determine if they cone from your om seripts oF plugins.
+
+vy:
+For more on this, please refer to
+
+hMee:didocs.eradleor4/9.5, Jusersuide/command Line inter ace, hialécec:comand 1
+earnings in the Grade decunentation.
+
+21 actionable tasks: 2 executed
+> fun with --stacktrace option ta get the stack trace
+> fun with --info or --debug option to get more log output
+
+fun with --scan to get full insights from 2 Build Scan (powered by Develocity).
+Get more help at hitns://hele.sradle.crs,
+
+BUILD FAILED in 2m 158
+Error: Process conpleted with exit code 1
+
+Upload debug APK arttact os
+Post Set up Grade 1s
+Post Setup JDK os
+Post Check out repostory os
+Complete job 3

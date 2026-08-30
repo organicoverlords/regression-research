@@ -1,0 +1,47 @@
+3.50 & 789 “S17 %
+Mobile Orchestrator
+Control surface. Orchestrator stays strategic.
+
+Expected lane
+
+Chat: MagicMusic
+
+Repo: organicoverlords/magicmusic
+
+Branch: experiment/magicmusic-feature-20260602
+
+MODE BATCH
+
+ASSIST
+
+Mode: Manual Orchestrator
+Manual is safest. Auto-safe is local-only and conservative.
+
+Batch size: 1
+Batch stops on failure, mismatch, blocked, or needs
+Orchestrator.
+
+Paste / prompt Workers
+Chat name: Ul
+MagicMusic DLE
+
+= organicoverlords/gigstack
+
+experiment/gigstack-ui-standalo
+
+PARSE COPY ne-design-20260602
+
+CLEAR SAMPLE
+
+ADD QUEUE SEND NEXT
+
+MARK SENT — BLOCKED
+Refactor
+
+IDLE
+
+organicoverlords/gigstack
+experiment/
+gigstack-refactor-20260602
+
+CLEAR QUEUE

@@ -1,0 +1,37 @@
+‘Manual order is autnoritative for rouring.
+
+mistral-large-3-675b-Instruct-2512 nvidia -3 penalty
+Intel#50 Speed #9 40rpm 256K context ines) 782 tps 643% success
+
+mistral-small-4-119b-2603 nvidia ~4 penalty
+Intel #50 Speed #5 256K context iniaa) 3053 tps 90.1% success
+
+kimi-k2.6 nvidia -8 penalty
+Intel #50 Speed #9 40rpm 256K context imiis) 1033 tps 59% success
+
+deepseek-v4-pro nvidia -5 penalty
+Intel #50 Speed #9 40rpm 1Mcontext iwiasd 447 tps 212% success
+
+nemotron-3-super-120b-a12b nvidia -7 penalty
+Intel #50 Speed #9 40rpm 1Mcontext (miss) 503 tps 442% success
+
+deepseek-v4-flash nvidia ~10 penalty
+Intel #50 Speed #5 1Mcontext iwias) 260 tps 9.5% success
+
+MiniMax M2.7 (NV) ovicia ~10 penalty
+Intel#3 Speed #9 40 rpm 200K context inaid 744 tps 34.4% success
+
+nemotron-3-nano-30b-a3b nvidia
+Intel #50 Speed #9 40rpm 256K context mas) 2986 tps 98.7% success
+
+nemotron-3-nano-omni-30b-a3b-reasoning nvidia
+Intel #50. Speed #5 256K context maa) — tps —success
+
+Uama-3.3-nemotron-super-49b-v1.5 nvicia
+
+10 intel #50 Speed #5 128K context (tami nforedom_vi_nvitamodecard 246 tps 96% success
+
+Uama-3.3-nemotron-super-49b-v1_ nvidia
+Intel #50 Speed #5 128K context imela) 54.4 tps 100% success
+
+6/46/68 |/8/8 6|8|8| 8 4|8

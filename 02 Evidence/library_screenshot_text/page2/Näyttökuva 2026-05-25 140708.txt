@@ -1,0 +1,39 @@
+mequest Mistory
+
+Recent API calls in real-time. 25 50 100 200
+
+Time Status Provider Model In Out Total © TPS —_Latency Error
+
+11:07:01 error nvidia deepseek-al/deepseek-v4-pro 95K 0 98K — — B0119ms Ener [rid=6284da0a-024t-44dt-t
+
+11:06:54 error nvidia ‘moonshotai/kimi-k2.6 445K 0 © 445K = 18017ms enor [rid=95632f7c-d959-4609.
+
+11:06:46 error nvidia ‘moonshotai/kimi-k2.6 95K 0 98K — — 18105ms enor [rid=6284da0a-024F-44dt-t
+
+11:06:38 success nvidia. ‘moonshotal/kimi-k2.6 445K 0 445K = «6051 7350ms =
+
+11:06:31 error nvidia Mistral Small 4 95K 0 95k = @ims Error [rid=6284da02-O2dt-44dt-
+
+11:06:31 error nvidia Mistral Small 4 445k 0 © 445K = 1ddms Ewvor_ [rid=8d62e6fe-ab22-4152-
+
+11:06:31 e success nvidia Mistral Small 4 93k = 48K 979 188ims =
+
+11:06:30 e success nvidia. Mistral Small 4 4a.ak 0 444k = 12937 ‘3432ms =
+
+11:06:29 esuccess nvidia. Mistral Small 4 92k 152K 4702 1952ms =
+
+11:06:25 e success nvidia. Mistral Small 4 91k 77 = 92K 3349 2734ms =
+
+11:06:25 e success nvidia. mistralai/mistral-targe-3-675b-instruct-2. 442K 0 442k = 3413 12950ms =
+
+11:06:22 e success nvidia Mistral Small 4 a 2287ms =
+
+11:06:20 e error nvidia mistralai/mistral-targe-3-675b-instruct-2... 89K 0 © 89K = 10ims —EWror_[rid=db755b47-ada-4c81.
+
+11:06:20 esuccess nvidia. mistralal/mistral-large-3-675b-Instruct-2.. 86k = «97-8 7K 608 © -14365ms =
+
+11:06:18 success nvidia. mistralai/mistral-large-3-675b-instruct-2.. 148K 0 © 148k 300 49272ms =
+B Kuvakaap
+Nayttékuva k
+
+Tallennettu at

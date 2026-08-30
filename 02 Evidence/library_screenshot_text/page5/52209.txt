@@ -1,0 +1,29 @@
+2.36 & v On Rb 182 “S1114.%
+
+% github.com/organicoverlords/gi: e A
+
+= CE --/ 98 Q|| + 2@
+
+Code Issues Actions More ~
+
+€ Android Debug APK
+
+© Force Android Java tasks te
+to target JVM 17 #7
+
+Summary ~
+
+Triggered via push 1 minute ago
+
+@ organicoverlords pushed -o- ablab7c
+experiment/mobile-orchest...
+
+Status Total duration Artifacts
+
+Inprogress - =
+
+android-debug-apk.yml
+
+on: push
+
+© Build debug APK ‘1m 20s

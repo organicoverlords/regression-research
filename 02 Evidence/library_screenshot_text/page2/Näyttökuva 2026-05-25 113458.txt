@@ -1,0 +1,173 @@
+Request History
+
+Recent API calls in real-time.
+
+Time Status
+255.2026 klo 8:34.18 © error
+255.2026 klo 8:34.03 © error
+255.2026 klo 8.33.48 © error
+255.2026 klo 8:33.29 © error
+255.2026 klo 8.33.24 © error
+255.2026 klo 8:33.21 © error
+255.2026 klo 8:33.20 © error
+255.2026 klo 8:32.41
+255.2026 klo 8.32.26
+255.2026 klo 8.32.26
+255.2026 klo 8.31.39
+255.2026 klo 8:31.38
+255.2026 klo 8:31.20
+255.2026 klo 8:31.07
+
+255.2026 klo 8:31.06
+
+success
+
+© success
+
+success
+
+© success
+
+e success
+
+success
+
+© success
+
+success
+
+Provider
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+nvidia
+
+Model
+
+nvidia/nemotron-3-super-120b-a12b
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-large-3-675b-instruc.
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+mistralai/mistral-small-4-119b-2603
+
+z
+
+z
+
+z
+
+8
+
+118K
+
+118K
+
+44.7K
+
+104K
+
+10.0K
+
+Total
+
+3
+
+106
+
+11.8K
+
+11.8K
+
+4.7K
+
+104K
+
+101K
+
+6146
+
+6114
+
+18560
+
+646
+
+893
+
+12969
+
+9467
+
+45025ms
+
+30017ms
+
+15011ms
+
+520ms
+
+1091ms
+
+310ms
+
+983ms
+
+242ms
+
+18191ms
+
+1313ims
+
+80ims
+
+4065ms
+
+25 50 100 200
+
+Error
+
+[rid=e5d6708a-8788-421a..
+
+[rid=e5d6708a-8788-421a..
+
+[rid=e5d6708a-8788-421a..
+
+[rid=f8ef78e0-657e-4866-..
+
+[rid=1762"4a8-828b-4dac-..
+
+[rid=114194eb-a806-4fff-a..
+
+[rid=114194eb-a806-4fff-a..

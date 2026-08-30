@@ -1,0 +1,51 @@
+2.34 &
+
+v On BN ROO “T1114 %
+
+% github.com/organicoverlords/gi: & A
+
+Build debug APK 2 8
+
+failed 1 minute ago in 2m 18s
+
+Y © Build debug APK 2m 8s
+
+60
+
+61 * What went wrong:
+
+62 You can use '--warning-mode all' to
+show the individual deprecation
+warnings and determine if they come
+from your own scripts or plugins.
+
+63 Execution failed for task
+‘:app:compileDebugKotlin'
+(registered by plugin
+‘org.jetbrains.kotlin.android').
+
+64
+
+65 > Inconsistent JVM-target
+compatibility detected for tasks
+‘compileDebugJavaWithJavac' (1.8)
+and 'compileDebugKotlin' (17).
+
+66 For more on this, please refer to
+https://docs.gradle.org/9.5.1/usergu
+ide/command line interface.html#sec:
+command line warnings in the Gradle
+documentation.
+
+67
+
+68 21 actionable tasks: 21 executed
+
+69 Consider using JVM Toolchain:
+https: //kotl.in/gradle/jvm/toolchain
+
+70 Learn more about JVM-target
+
+fn)
+
+A Q

@@ -1,0 +1,22 @@
+nn
+- Never say you will create a file that already exists.
+
+- Never rewrite existing state files unless the user explicit
+- Never read .env files.
+
+- Never create release workflows unless requested.
+
+cee, eae
+
+Shell List files in current directory
+
+Shell List files in current directory
+
+Explored 2 reads
+
+Detected almost finished. Goak: Project i
+(yes/no — or say refresh)
+
+alization. Last note: - Initialized project state for Al Apps launcher scripts. Continue from TASK.md next step?
+
+Build Nemotron 3 Super Free Default

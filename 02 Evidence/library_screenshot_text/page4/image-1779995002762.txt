@@ -1,0 +1,31 @@
+SSINQ GiaStac, nt Plan tO include
+
+&S all requested diagrams, schemas, vant gags thaned stuctued lggng ph am
+Tutkimus lopetettiin
+
+ee o
+Mietti 32s >
+
+| didn’t get a finished automated research report before it was stopped, but there's enough to continue.
+What | found / what matters now: h
+
+1. The router local-only provider filter is mostly fixed, because Test B no longer picked nvidia nim. tt
+now has candidate_routes=["local:Imstudio:default L: Imstudic
+
+mstudio:default™} and
+
+chosen_route=None . That means the next bug is health/cooldown selection removing the only local
+
+candidate, not cloud fallback.
+2. The duplicate local route is suspicious. The same route appears twice. Windsurf should dedupe
+
+candidates by
+
+rout before health/scoring. Duplicate candidates can corrupt scoring, health
+
+updates, logs, or retries. = = i
+3. Local de needs different health behavior. For ° _, if the only local route is
+
+degraded/failing, the router should eith
+e retum a clear local readiness
+It should not silently ret

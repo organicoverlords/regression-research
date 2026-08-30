@@ -1,0 +1,33 @@
+15.28 @a Bd “Ail 4 21%
+
+< B Refactori... ChatGPT
+
+Why it grew:
+
+Plain text oO
+
+Because the branch did not actually extract code
+out of workspace-chat.js yet.
+It added adapter/glue UI on top of the old giant file.
+
+Blunt answer:
+
+Plain text oO
+
+This is not shrinking yet.
+It is a migration scaffold plus runtime glue.
+
+The 650 lines are probably:
+
+Plain text QO
+
+- Sticky Chat / Current Work UI glue
+- route/activity ledger glue
+
+- wrappers around old functions
+
+- fallback reorder de-dupe guard
+
+- proof/status UI rendering
+
+-+ Reply to ChatGPT Qd a)

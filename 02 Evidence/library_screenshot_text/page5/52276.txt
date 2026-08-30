@@ -1,0 +1,131 @@
+12.25 BSEA
+
+o
+~o
+
+mis
+
+“al 19 %
+
+github.com/organicoverlords/gi: e A
+
+wire-backend-routes
+
+(Mert) tale 1 mnute ago 1 iSNesolniline
+Atoos
+© Cargoccheck daemon
+© wire-beckond- Gs) ss» evates/gigetack-daenon/src/main.rs:7044:108
+routes 4 1
+
+fn) W Q
+
+rou | route("/api/workshop/proot™,
+
+)
+«|
+
+anannanansn got found in “routes: workshop_proaf
+
+> erates/pigstack-daemon/sr¢/main.rs;7045:69
+
+7045 | route("/api warkshop/ review"
+
+view)
+
+aaaanaansen not found in “routes: :workshop_revien’
+
+“rautes:snorkshop_review"
+(7) w=» crates/gigstack-daenon/src/main.rs:7045-113,
+an
+
+4727045 | oute("/api/workshop/ review"
+
+error{E0428): cannot find value “List reviews’ in module
+
+error{E0425]: cannot find value ‘record review’ in module
+
+°
+®
+
+sts
+
+et(routes::workshop_proof: :List_proof) -post(routes::workshop_proof::record_ proof)
+
+routes: workshop_review
+
+get(routes::workshop_revien:List_reviens).post(routes: workshop revien::record re
+
+et(routes: workshop, revien::List_reviens).post(routes: morkshop_revien::record.re
+
+view)
+om |
+fsonannaannnnn not found in “routes: workshop review
+
+“rautes: workshop nodel.runtime®
+
+577s erates/gigstack-daemon/sre/main.rs:7046:83
+m1
+9 7046 | oute("/apiworkshop/mode]-runtine’
+
+error{#0s25): cannot find value “get_mode]_runtine_sumary
+
+in module
+
+et(routes: workshop model_runtine: get nodel_runtine_summary))
+
+NAAAAnAAAARAAAANAAAAHAANS net found in “routes: :nOrkshop_sodel_runt im’
+
+482. errortE0#25]: cannot find value “get_usage_metrics* in nodule
+“routes: workshop_usage metrics”
+
+422 ==> erates/gigstack-daenon/sre/main.rs:7047:03
+a |
+485. 7047 | oute("/apiworkshoprusage-netr ies
+
+et(routes::workshop_usage_metrics::gel_usage metrics)
+
+AAMAMAARAAAAAANAA ge Found in “routes! :MOrkshop usage metrics
+
+483 errortED425]: cannot find value “get_chat_identity" in nodule
+
+“routes: workshop chat identity”
+
+423 ==> erates/gigstack-daemon/sre/main.rs:7048:83
+
+a3 Hl
+
+491 7048 | oute("/api/workshop/chat-identity",
+et(routes: workshop _chat_identity::get_chat_identity))
+
+|
+
+AIMAMAAARAAAAASAS Qe Found in “routes: workshop chat sdentity”
+
+494 error{E0425): cannot find value “get_route_contracts’ in nodule
+
+“routes: workshop route cantracts”
+
+495 ==> erates/igstack-daenon/sre/main.cs:7049:87
+1
+6977049 | oute(*/api/workshop/route-contracts",
+et(routes: workshop route contracts: get route contracts)
+oo
+Aanannanannnnannsan not found in “routes::workshop_route contracts
+499
+
+500 For mare snformation about this error, try “ruste
+
+‘explain £0425"
+
+S01 error: could not conpile “gigstack-daenon’ (bin “gigstack-daenon) due to 14
+
+previous errors
+
+‘02 Error: Pracess completed with exit code 101
+
+© show pencing changes
+© Commit ane push itchanged
+> @ Upload route wiring proof
+> @ Post Checkout target branch
+
+> © complete jab

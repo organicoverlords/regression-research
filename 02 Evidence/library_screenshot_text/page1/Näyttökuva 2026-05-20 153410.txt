@@ -1,0 +1,39 @@
+T3 Code
+
+certs
+
+beyblade-engine
+‘Stop Conversation just now
+‘agent-workspace
+
+Local
+
+YEfice prototype ® x
+
+x Opendl ol
+5
+
+Tok/s
+489
+
++N-M
+22/4
+
+_ Phi-d-M.
+
+* _apps/server/src/provider/opencodeRuntime.ts
+
+‘Stop Conversation beyblade-engine
+
+Stopping.
+
+Istop
+
+HeynyeVvyVoeEe
+
+HERMES GOAL
+
+make a simple pong game in rust
+Running
+
+Send instruction...

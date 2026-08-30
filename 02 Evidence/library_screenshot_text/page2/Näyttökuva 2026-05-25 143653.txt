@@ -1,0 +1,16 @@
+{MF Tool execution i caller-owned, Fre@eLLMAPI shows tool calls and too-result follow-ups it observes.
+
+FLOWS SUCCESSFUL FAILED FALLBACKS TOOL CALLS TOOL FOLLOW-UPS STALLED TOOLS AVG LATENCY
+20 14 6 oO i5 14 oO 665380ms
+uve TPS
+
+6.3 roK/s
+
+‘mistralai/mistral-small-4-1196-2603 |1h avg: 303 |
+an max 677
+
+Last 24h: 20 flows. 14 succeeded, 6 failed, 0 fallback. 15 returned tool calls, 14 had follow-ups. Avg latency 665380ms.
+
+©) show detated model nodes
+
+cu ROUTER MODEL ATTEMPTS TOOL CALL TOOL RESULT outcome
