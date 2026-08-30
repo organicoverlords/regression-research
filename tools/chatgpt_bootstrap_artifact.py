@@ -75,7 +75,7 @@ def build_chatgpt_bootstrap_artifact() -> dict[str, Any]:
     """Build the compact generated ChatGPT distribution artifact from canonical Vault authority."""
     return {
         "artifact_schema_version": 3,
-        "purpose": "primary fresh-chat behavior delivery",
+        "purpose": "fallback fresh-chat behavior delivery cache",
         "library_path": DEFAULT_LIBRARY_PATH,
         "authority": "Vault",
         "payload": _compact_payload(),
@@ -104,7 +104,7 @@ def publication_plan() -> dict[str, Any]:
         "library_path": DEFAULT_LIBRARY_PATH,
         "bytes": len(data),
         "sha256": _sha256(data),
-        "delivery_role": "primary",
+        "delivery_role": "fallback",
         "canonical_authority": artifact["authority"],
         "source": _source_digests(),
         "acceptance": "retrieve the published Library copy and require byte-exact verify=PROVEN",
