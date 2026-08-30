@@ -612,6 +612,26 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Records the premature fixed claim and compact-presentation failure; the durable behavior correction is preserved in the memory bank and regression retrieval fixture."
+    },
+    {
+      "incident_id": "INC-20260830-2222-EEST-false-stack-control-promise",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-08-30_2222_EEST_slopwall_false-stack-control-promise_and_gate-bypass_incident_report.md",
+      "title": "SLOPWALL incident - false stack-control promise and gate bypass",
+      "date": "2026-08-30T22:22:00+03:00",
+      "evidence_type": "report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "tests/fixtures/no-false-per-chat-promises-regression.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_linked",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Captures the unsupported chat-local orchestration ownership promise, mandatory response-gate bypass, exact user corrections, and the durable behavior rule plus replay regression that prevent recurrence."
     }
   ],
   "orphan_evidence": [
