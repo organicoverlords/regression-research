@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +68,22 @@ def render_artifact_bytes() -> bytes:
     return (text + "\n").encode("utf-8")
 
 
+def write_artifact_copy(path: Path, data: bytes) -> None:
+    """Publish an artifact without exposing a partially written final path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False) as handle:
+            temp_path = Path(handle.name)
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+
 def verify_artifact_copy(path: Path) -> dict[str, Any]:
     expected = render_artifact_bytes()
     actual = path.read_bytes()
@@ -99,8 +117,7 @@ def main() -> int:
     if args.command == "render":
         data = render_artifact_bytes()
         if args.output:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_bytes(data)
+            write_artifact_copy(args.output, data)
             _print_json({
                 "status": "RENDERED",
                 "path": str(args.output),

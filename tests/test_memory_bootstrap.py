@@ -2,6 +2,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from tools.chatgpt_bootstrap_artifact import (
@@ -9,6 +10,7 @@ from tools.chatgpt_bootstrap_artifact import (
     build_chatgpt_bootstrap_artifact,
     render_artifact_bytes,
     verify_artifact_copy,
+    write_artifact_copy,
 )
 from tools.memory_authority import AUTHORITY_REGISTRY, behavioral_context
 from tools.memory_bank import DEFAULT_BANK, load_bank
@@ -114,6 +116,18 @@ class MemoryBootstrapTests(unittest.TestCase):
             mismatch = verify_artifact_copy(copy)
             self.assertEqual(mismatch["status"], "MISMATCH")
             self.assertNotEqual(mismatch["expected_sha256"], mismatch["actual_sha256"])
+
+    def test_generated_distribution_publish_preserves_last_good_copy_on_replace_failure(self):
+        original = b"last-known-good\n"
+        replacement = render_artifact_bytes()
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "chatgpt-bootstrap.json"
+            output.write_bytes(original)
+            with patch("tools.chatgpt_bootstrap_artifact.os.replace", side_effect=OSError("replace failed")):
+                with self.assertRaisesRegex(OSError, "replace failed"):
+                    write_artifact_copy(output, replacement)
+            self.assertEqual(output.read_bytes(), original)
+            self.assertEqual(list(output.parent.glob(f".{output.name}.*.tmp")), [])
 
     def test_bootstrap_uses_current_five_worker_launch_supervision_rule(self):
         payload = build_behavior_bootstrap(load_bank())
