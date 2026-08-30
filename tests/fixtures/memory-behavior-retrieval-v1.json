@@ -146,6 +146,12 @@
       "cohort": "development",
       "query": "scheduled workers should propose big architecture changes for review instead of implementing them until I approve",
       "expected": "mem-20260830-dade90e1"
+    },
+    {
+      "id": "holdout-15",
+      "cohort": "holdout",
+      "query": "when I ask whether a worker did work verify it from independent MCP process audit evidence instead of trusting the worker report",
+      "expected": "mem-20260830-ed11ec75"
     }
   ]
 }

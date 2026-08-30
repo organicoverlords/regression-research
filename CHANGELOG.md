@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 - [2026-08-30] [regression] Locked provider-local process fallback so one failed launch surface cannot hide a still-working sibling process route or the standalone coordinator reached through it (#125).
 
+- [2026-08-30] [memory] Added retrieval-quality coverage for the newly authorized independent worker-proof behavior rule so every active user rule remains represented in the behavior retrieval benchmark (#125).
+
 - [2026-08-30] [orchestration] Restored worker status to live execution truth: claims/leases/heartbeats/checkpoints now carry zero positive status or progress weight, status requires a just-checked execution surface, and progress counts only concrete work produced during the relevant claim window (#125).
 
 - [2026-08-30] [regression] Locked the existing fresh-session bootstrap failure boundary: run the exact Vault bootstrap, retry it once, then continue from current instruction/policy/live state instead of turning memory recovery into the task (#125).
