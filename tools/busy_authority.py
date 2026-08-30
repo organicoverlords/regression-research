@@ -106,7 +106,24 @@ def admit_operation(
     if operation not in {"read_only", "substantive_investigation", "independent_mutation", "shared_mutation"}:
         raise BusyAuthorityError(f"unknown operation: {operation}")
 
-    if operation in {"read_only", "substantive_investigation", "independent_mutation"}:
+    if operation in {"read_only", "substantive_investigation"}:
+        return {
+            "decision": "allow",
+            "reason": "claim_not_required",
+            "scope": scope,
+            "operation": operation,
+        }
+
+    if operation == "independent_mutation":
+        state = resolve_scope(scope, live_claims, projections, policy=policy)
+        if state["state"] == "owned" and state["owner"] != actor:
+            return {
+                "decision": "yield",
+                "reason": "another_actor_holds_exact_live_claim",
+                "scope": scope,
+                "operation": operation,
+                "owner": state["owner"],
+            }
         return {
             "decision": "allow",
             "reason": "claim_not_required",
