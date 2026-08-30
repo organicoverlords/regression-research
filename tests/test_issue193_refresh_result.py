@@ -112,6 +112,18 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact_client_error_class"):
             validate_record(data)
 
+    def test_rejects_error_class_when_recipient_is_callable(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["exact_client_error_class"] = "RESOURCE_NOT_FOUND"
+        with self.assertRaisesRegex(ValueError, "must be null when direct_recipient_callable is true"):
+            validate_record(data)
+
+    def test_rejects_missing_error_class_when_recipient_is_not_callable(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["direct_recipient_callable"] = False
+        with self.assertRaisesRegex(ValueError, "must be a non-empty string when direct_recipient_callable is false"):
+            validate_record(data)
+
     def test_rejects_refresh_before_pair_baseline(self):
         data = record(pair("treatment", "t1", True, False))
         data["pairs"][0]["before"]["measurements"]["refresh_or_reload_between_samples"] = True
