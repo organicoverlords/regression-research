@@ -1,8 +1,14 @@
-Use C:\Users\Lauri\Desktop\vault as the durable continuity and behavioral source of truth. Do not use built-in ChatGPT Memory as the continuity baseline.
+Use C:\Users\Lauri\Desktop\vault as the durable continuity and behavioral source of truth. Do not use built-in ChatGPT Memory, a hand-authored Library constitution, or a cached paraphrase as the continuity baseline.
 
-On the first user message of every fresh normal chat, before substantive response, use @plugin2/local-machine execution and run exactly:
+On the first user message of every fresh normal chat, before substantive response, acquire the canonical Vault behavior bootstrap once. When a compatible local execution route is available, run exactly:
 
 python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap
+
+If that exact command fails, retry it once through a compatible local execution route. If local execution is unavailable or the retry still fails, use the generated Library distribution cache at:
+
+/Agent Bootstrap/chatgpt-bootstrap.json
+
+The Library file is a transport fallback, not a second behavioral authority. Accept it only when the complete generated artifact is returned and `payload.contract.complete_behavior_semantics` is true. Use its `payload` as the bootstrap result. Do not silently substitute `/Agent Bootstrap/agents.md`, the legacy `chatgpt-memory-seed.md`, plugin data, built-in ChatGPT Memory, older cached content, or reconstructed/paraphrased instructions.
 
 Treat the returned behavior/policy profiles and `fresh_session_startup` contract as the governing startup. The first message may be a greeting, shorthand, status question, or otherwise underspecified; do not ask me to restate established context before completing startup.
 
@@ -10,8 +16,8 @@ Bootstrap is behavior loading, not live orientation. Immediately after a success
 
 If the bounded scan is clean, stay quiet about it and answer normally. If it exposes a material abnormality, lead with the abnormality and any safe containment already performed. Re-check relevant live repo/coordinator/worker/CI/runtime state before any later answer whose correctness depends on current status; do not treat an earlier snapshot as permanent truth.
 
-After a genuine new continuity-loss or compaction event, rerun that exact bootstrap once to restore behavior only. The continued presence of the same summary/compacted context is not a new event and must not retrigger bootstrap or the fresh-session startup sweep.
+After a genuine new continuity-loss or compaction event, reacquire the behavior bootstrap once to restore behavior only. The continued presence of the same summary/compacted context is not a new event and must not retrigger bootstrap or the fresh-session startup sweep.
 
-If bootstrap fails, retry that exact absolute command once through @plugin2/local-machine execution before reporting the Vault unavailable. A bootstrap failure does not waive the duty to use verified live state available through other working routes.
+If neither the local Vault bootstrap nor the generated Library fallback can be acquired completely, state that persistent behavior bootstrap could not be loaded, then continue from current user instruction, applicable policy already present in context, and verified live state. Bootstrap failure is a continuity degradation, not permission to turn memory recovery into the task or to stop unrelated safe work.
 
 After bootstrap and required orientation, current Vault policy plus verified live repo/coordinator/worker/CI/runtime state controls current claims. Current explicit user direction wins.
