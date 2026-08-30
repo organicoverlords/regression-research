@@ -55,6 +55,13 @@ class BusyAuthorityTests(unittest.TestCase):
     def test_policy_uses_standalone_busy_coordinator_as_live_authority(self):
         self.assertEqual(self.policy["live_authority"], "standalone_busy_coordinator")
 
+    def test_ownership_resolution_explicitly_does_not_prove_worker_execution(self):
+        claim = {"scope": "repo:file-a", "owner": "worker-a", "live": True}
+        state = resolve_scope("repo:file-a", [claim], policy=self.policy)
+        self.assertEqual(state["authority_scope"], "ownership_only")
+        self.assertFalse(state["proves_worker_execution"])
+        self.assertTrue(self.policy["invariants"]["ownership_claim_never_proves_worker_execution"])
+
     def test_substantive_investigation_requires_exact_live_claim(self):
         unclaimed = admit_operation(
             "worker-a", "repo:issue-125", "substantive_investigation", [], policy=self.policy

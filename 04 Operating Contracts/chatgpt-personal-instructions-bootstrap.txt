@@ -18,6 +18,8 @@ Bootstrap is behavior loading plus the bounded recent-memory orientation payload
 
 If the bounded scan is clean, stay quiet about it and answer normally. If it exposes a material abnormality, lead with the abnormality and any safe containment already performed. Re-check relevant live repo/coordinator/worker/CI/runtime state before any later answer whose correctness depends on current status; do not treat an earlier snapshot as permanent truth.
 
+For worker-status questions, inspect current execution immediately before answering. `Working now` requires a running automation/run/session/process or in-flight tool/command tied to the worker/scope. Claims, leases, heartbeats, checkpoints, schedules, enabled flags, last-run timestamps, branches, PRs, commits, reports, and prior snapshots have zero positive weight. If no execution is observed, say `not working now`; if execution cannot be inspected, say `unverified`. For progress, report only concrete work output during the relevant window; claim timestamps may delimit that window but claim existence itself proves nothing.
+
 After a genuine new continuity-loss or compaction event, reacquire the behavior bootstrap once to restore behavior only. The continued presence of the same summary/compacted context is not a new event and must not retrigger bootstrap or the fresh-session startup sweep.
 
 If neither the local Vault bootstrap nor the generated Library fallback can be acquired completely, state that persistent behavior bootstrap could not be loaded, then continue from current user instruction, applicable policy already present in context, and verified live state. Bootstrap failure is a continuity degradation, not permission to turn memory recovery into the task or to stop unrelated safe work.

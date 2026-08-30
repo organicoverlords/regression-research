@@ -17,6 +17,7 @@
     "other_owner_claim_requires_yield": true,
     "coordination_outage_creates_no_fallback_authority": true,
     "read_only_and_independent_work_continue_during_coordination_outage": true,
-    "substantive_investigation_requires_exact_live_claim": true
+    "substantive_investigation_requires_exact_live_claim": true,
+    "ownership_claim_never_proves_worker_execution": true
   }
 }
