@@ -132,35 +132,48 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_bootstrap_uses_current_recurring_worker_recovery_rule(self):
         payload = build_behavior_bootstrap(load_bank())
         active = {item["id"]: item["text"] for item in payload["behavior_profile"]}
-        self.assertIn("mem-20260830-fc6b5bba", active)
+        self.assertIn("mem-20260830-31beca08", active)
         for superseded in (
+            "mem-20260830-fc6b5bba",
+            "mem-20260830-767675cf",
             "mem-20260829-d3594411",
             "mem-20260829-bf3bcb41",
             "mem-20260829-1f6d75a4",
         ):
             self.assertNotIn(superseded, active)
-        rule = active["mem-20260830-fc6b5bba"]
-        self.assertIn("one bounded status read", rule)
-        self.assertIn("preserve healthy slots", rule)
-        self.assertIn("Refresh/re-discovery/reload is repeatable", rule)
-        self.assertIn("do not impose a one-refresh ceiling", rule)
-        self.assertIn("Workers never administer their own recurrence or siblings", rule)
+        rule = active["mem-20260830-31beca08"]
+        self.assertIn("hard maximum of five enabled workers total", rule)
+        self.assertIn("never create or keep a sixth enabled recurring worker", rule)
+        self.assertIn("one-for-one replacement", rule)
+        self.assertIn("refresh/re-discovery/reload is repeatable", rule)
+        self.assertIn("no one-refresh ceiling or fixed failure-count cutoff", rule)
+        self.assertIn("Workers never administer their own or sibling recurrence", rule)
 
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
-        self.assertIn("Arm the full five-worker generation", contract)
-        self.assertIn("Report the arm immediately", contract)
-        self.assertIn("Do not hang around waiting for Worker 1", contract)
-        self.assertIn("A failed first launch starts an immediate repair loop", contract)
+        self.assertIn("Five is a hard maximum for the recurring worker fleet", contract)
+        self.assertIn("temporary sixth", contract)
+        self.assertIn("at most five total enabled workers", contract)
+        self.assertIn("Replacement is one-for-one at the cap", contract)
+        self.assertIn("status first; replace only proven-bad slots", contract)
+        self.assertIn("schedule Worker 1 once with enough runway", contract)
+        self.assertIn("Go work; do not idle or re-arm", contract)
+        self.assertIn("A failed first launch replaces only the failed slot", contract)
         self.assertIn("do not create a verifier timer as a substitute", contract)
-        self.assertIn("bugged, poisoned, stale, contaminated", contract)
-        self.assertIn("already sufficient justification for replacement", contract)
-        self.assertIn("Arming all five fresh workers is one setup pass", contract)
+        self.assertIn("repeatable, explicitly allowed, and may be mandatory many times", contract)
+        self.assertIn("Do not impose a one-refresh ceiling or a fixed failure-count cutoff", contract)
+        self.assertIn("One bad worker is not evidence that all five are bad", contract)
+        self.assertNotIn("perform one supported tool refresh/re-discovery/reload", contract)
 
         template = (Path(__file__).resolve().parents[1] / "templates/P3-V2-SWARM-TEMPLATE.md").read_text(encoding="utf-8-sig")
         self.assertIn("fresh five-worker P3 V2 generations", template)
         self.assertIn("Exactly five recurring workers per fresh generation", template)
+        self.assertIn("Five is also the hard fleet cap", template)
+        self.assertIn("Never have a sixth enabled recurring worker", template)
         self.assertIn("Workers 2-5 are armed in the same setup pass as Worker 1", template)
         self.assertIn("Preserve Workers 2-5 unless current evidence shows the whole generation shares the defect", template)
+        self.assertIn("Refresh/re-discovery/reload is repeatable, explicitly allowed, and may be mandatory many times", template)
+        self.assertIn("there is no one-refresh ceiling or fixed failure-count cutoff", template)
+        self.assertNotIn("third separated failure including that post-refresh retry", template)
         self.assertNotIn("Exactly four recurring workers per fresh generation", template)
         self.assertNotIn("fresh four-worker generation", template)
         self.assertIn("admitted target worktree's `AGENTS.md`", template)
