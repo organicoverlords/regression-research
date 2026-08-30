@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [orchestration] Added the derived operational Stack Atlas with mandatory compact bootstrap awareness, deep component runbooks, stable-identity blast-radius lookup, and a regression for the Commander/BusyCoordinator lock incident.
 - [2026-08-30] [memory] Removed two curated retrieval cases that targeted behavior rules explicitly superseded by the temporary response-gate rule.
 - [2026-08-30] [research] Required #193 supporting controls to remain callable in both paired samples so a stable failed control cannot promote treatment reproductions to SUPPORT_H1.
 - [2026-08-30] [memory] Normalized continuity paraphrases so correction-as-delta behavior remains retrievable instead of being displaced by newer generic task rules.
 - [2026-08-30] [policy] Synced shared agent policy v1.24 and corrected the North Star so standalone BusyCoordinator is the sole live ownership authority while MCP/plugin/process surfaces remain transports.
-- [2026-08-30] [research] Required the preregistered #193 caller/process identity measurement in paired result records and rejected malformed identity values before classification.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

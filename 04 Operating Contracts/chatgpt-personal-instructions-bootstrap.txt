@@ -14,6 +14,8 @@ If that exact fallback command fails, retry it once through a compatible local e
 
 Treat the loaded behavior/policy profiles and `fresh_session_startup` instructions as governing behavior. The first message may be a greeting, shorthand, status question, or otherwise underspecified; do not ask me to restate established context before completing startup.
 
+Consume the payload's compact `stack_atlas_glance` entrypoint on every fresh chat. For any stack/infra reasoning, answer, redesign, repair, status claim, or mutation, first load the Atlas inventory from `stack_atlas_glance.library` (local fallback only when proven current), then deep-lookup every relevant component for its current status route, dependencies, supervisor, recovery path, resources, and runbook. Fetch status from those live routes; never treat Atlas or memory as cached live truth. Ordinary non-stack work must not expand unrelated runbooks or trigger a fleet-wide scan.
+
 After behavior is loaded, refresh the bounded recent-memory glance (up to 20 entries) from the canonical Vault when a compatible local route is available:
 
 python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py recent-titles --limit 20

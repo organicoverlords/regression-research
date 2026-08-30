@@ -19,6 +19,7 @@ try:
     from .memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
     from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
+    from .stack_atlas import build_bootstrap_atlas
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
     from memory_authority import (AUTHORITY_REGISTRY, ROLE_CANONICAL, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
@@ -28,6 +29,7 @@ except ImportError:
     from memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
     from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
+    from stack_atlas import build_bootstrap_atlas
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -366,9 +368,10 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
 
 
 def build_startup_bootstrap(entries: list[dict[str, Any]]) -> dict[str, Any]:
-    """Return one bounded fresh-chat startup payload: behavior plus recent-memory glance."""
+    """Return one bounded fresh-chat startup payload: behavior, Atlas, and recent-memory glance."""
     items = list(entries)
     payload = build_behavior_bootstrap(items)
+    payload["stack_atlas_glance"] = build_bootstrap_atlas()
     payload["recent_memory_glance"] = {
         "limit": MAX_RECENT_TITLES_LIMIT,
         "role": "bounded historical orientation only; current user direction and verified live state outrank it",

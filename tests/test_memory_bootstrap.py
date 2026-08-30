@@ -6,7 +6,9 @@ from unittest.mock import patch
 from pathlib import Path
 
 from tools.chatgpt_bootstrap_artifact import (
+    CAPABILITY_POLICY_SOURCE,
     DEFAULT_LIBRARY_PATH,
+    STACK_ATLAS_SOURCE,
     build_chatgpt_bootstrap_artifact,
     publication_plan,
     render_artifact_bytes,
@@ -16,6 +18,7 @@ from tools.chatgpt_bootstrap_artifact import (
 from tools.memory_authority import AUTHORITY_REGISTRY, behavioral_context
 from tools.memory_bank import DEFAULT_BANK, build_startup_bootstrap, load_bank, recent_title_entries
 from tools.memory_timeline import build_behavior_bootstrap, build_fresh_session_startup_contract
+from tools.stack_atlas import ATLAS_LIBRARY_PATH, render_library_atlas_bytes
 
 
 class MemoryBootstrapTests(unittest.TestCase):
@@ -46,8 +49,10 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("must not retrigger this sweep", startup["rehydration"])
         self.assertIn("first user message itself triggers startup", startup["wake_up_semantics"])
         self.assertIn("first substantive response", startup["response_gate"])
-        self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "recent_memory_glance", "live_orientation", "response"])
+        self.assertIn("Stack Atlas", startup["response_gate"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "stack_atlas_glance", "recent_memory_glance", "live_orientation", "response"])
         self.assertIn("up to 20", startup["recent_memory_glance"])
+        self.assertIn("embedded compact Stack Atlas entrypoint", startup["stack_atlas_glance"])
         self.assertIn("after the bounded recent-memory glance", startup["live_orientation"])
         self.assertIn("scheduled-worker state/recent runs", startup["live_orientation"])
         self.assertIn("recent meaningful commits/PRs/checks", startup["live_orientation"])
@@ -74,7 +79,7 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_fresh_session_startup_is_bootstrap_owned_not_an_external_contract(self):
         with patch("tools.memory_timeline.Path.read_text", side_effect=AssertionError("external startup contract read")):
             startup = build_fresh_session_startup_contract()
-        self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "recent_memory_glance", "live_orientation", "response"])
+        self.assertEqual(startup["startup_sequence"], ["behavior_delivery", "stack_atlas_glance", "recent_memory_glance", "live_orientation", "response"])
         self.assertNotIn("source_contract", startup)
 
     def test_personal_instructions_bridge_requires_pre_response_live_orientation(self):
@@ -96,6 +101,8 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("core behavior does not depend on MCP", bridge)
         self.assertLess(bridge.index(DEFAULT_LIBRARY_PATH), bridge.index("memory_bank.py bootstrap"))
         self.assertIn("recent-titles --limit 20", bridge)
+        self.assertIn("stack_atlas_glance", bridge)
+        self.assertIn("deep-lookup every relevant component", bridge)
         self.assertIn("memory read is enrichment, not a behavior gate", bridge)
         self.assertNotIn("transport fallback, not a second behavioral authority", bridge)
         self.assertIn("continue from current user instruction", bridge)
@@ -105,11 +112,13 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_distribution_contract_requires_primary_library_publisher_acceptance(self):
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
         self.assertIn("primary fresh-chat behavior delivery surface", contract)
+        self.assertIn("stack_atlas_glance", contract)
+        self.assertIn("compact Stack Atlas", contract)
         self.assertIn("core behavior independent of MCP/local-process availability", contract)
-        self.assertIn("Library behavior -> Vault recent-memory refresh -> live orientation -> response", contract)
+        self.assertIn("Library behavior -> compact Stack Atlas -> Vault recent-memory refresh -> live orientation -> response", contract)
         self.assertIn("Library publisher worker contract", contract)
         self.assertIn("publication-plan", contract)
-        self.assertIn("restorable previous Library copy", contract)
+        self.assertIn("restorable previous copies", contract)
         self.assertIn("verify <copy>` to return `PROVEN`", contract)
         self.assertIn("green repository check must not be described as proof", contract)
         self.assertIn("do not require repeated Personal-Instructions edits", contract)
@@ -123,13 +132,21 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertEqual(artifact["library_path"], DEFAULT_LIBRARY_PATH)
         entries = load_bank()
         self.assertEqual(artifact["payload"], build_startup_bootstrap(entries))
+        self.assertIn("stack_atlas_glance", artifact["payload"])
+        self.assertEqual(artifact["payload"]["stack_atlas_glance"]["schema"], "atlas.v1")
+        self.assertEqual(artifact["payload"]["stack_atlas_glance"]["library"], ATLAS_LIBRARY_PATH)
         self.assertEqual(artifact["payload"]["recent_memory_glance"]["entries"], recent_title_entries(entries, limit=20))
         self.assertLessEqual(len(artifact["payload"]["recent_memory_glance"]["entries"]), 20)
         self.assertTrue(artifact["payload"]["contract"]["complete_behavior_semantics"])
         self.assertFalse(artifact["payload"]["contract"]["history_included"])
         self.assertFalse(artifact["payload"]["contract"]["live_status_included"])
 
-        for key, path in (("behavior_bank", DEFAULT_BANK), ("authority_registry", AUTHORITY_REGISTRY)):
+        for key, path in (
+            ("behavior_bank", DEFAULT_BANK),
+            ("authority_registry", AUTHORITY_REGISTRY),
+            ("stack_atlas", STACK_ATLAS_SOURCE),
+            ("capability_policy", CAPABILITY_POLICY_SOURCE),
+        ):
             data = path.read_bytes()
             descriptor = artifact["source"][key]
             self.assertEqual(descriptor["bytes"], len(data))
@@ -147,6 +164,8 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertEqual(plan["bytes"], len(rendered))
         self.assertEqual(plan["sha256"], hashlib.sha256(rendered).hexdigest().upper())
         self.assertIn("byte-exact", plan["acceptance"])
+        self.assertEqual(plan["stack_atlas"]["library_path"], ATLAS_LIBRARY_PATH)
+        self.assertEqual(plan["stack_atlas"]["bytes"], len(render_library_atlas_bytes()))
 
     def test_generated_distribution_verification_is_byte_exact(self):
         expected = render_artifact_bytes()
@@ -198,6 +217,8 @@ class MemoryBootstrapTests(unittest.TestCase):
 
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
         self.assertIn("Five is a hard maximum for the recurring worker fleet", contract)
+        self.assertIn("stack_atlas_glance", contract)
+        self.assertIn("deep-lookup every relevant Atlas component", contract)
         self.assertIn("temporary sixth", contract)
         self.assertIn("at most five total enabled workers", contract)
         self.assertIn("Replacement is one-for-one at the cap", contract)
@@ -233,6 +254,7 @@ class MemoryBootstrapTests(unittest.TestCase):
         rendered = json.dumps(build_startup_bootstrap(load_bank()), ensure_ascii=False)
         self.assertLessEqual(len(rendered), 32000)
         self.assertIn("recent_memory_glance", rendered)
+        self.assertIn("stack_atlas_glance", rendered)
 
 
 if __name__ == "__main__":
