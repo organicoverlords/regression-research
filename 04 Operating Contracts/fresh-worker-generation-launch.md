@@ -2,6 +2,13 @@
 
 Use this contract whenever starting a new recurring worker generation or replacing workers that are stale, buggy, or missing required tools.
 
+## Hard fleet cap: five means maximum
+
+- The recurring repository-worker fleet has a **hard cap of five enabled worker slots total**. Five is the maximum, not a minimum or soft target.
+- Arming, replacement, recovery, verification, and fresh-generation setup must never create or keep a sixth active recurring worker. A separate verifier/wakeup worker also counts against the cap and therefore must not be added when five worker slots are already armed.
+- Preserve healthy workers and fill or replace only within the five-slot cap. Replace one bad slot with one fresh slot; do not temporarily exceed five during replacement.
+- The fleet-size cap is independent of tool recovery: refresh/re-discovery/reload may happen repeatedly as needed without creating additional recurring workers.
+
 ## Mode decision: bugged means fresh replacement
 
 - `FRESH_GENERATION` is mandatory when the current user says the workers/fleet are bugged, poisoned, stale, contaminated, missing required tools, or otherwise need fresh sessions, or when current live evidence shows that condition. That statement/evidence is already sufficient justification for replacement. Do **not** re-enable an old worker, demand an extra proof ceremony, or reinterpret a request to arm the workers as `REARM_EXISTING`.

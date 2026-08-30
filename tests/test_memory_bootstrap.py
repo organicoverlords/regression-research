@@ -132,19 +132,24 @@ class MemoryBootstrapTests(unittest.TestCase):
     def test_bootstrap_uses_current_recurring_worker_recovery_rule(self):
         payload = build_behavior_bootstrap(load_bank())
         active = {item["id"]: item["text"] for item in payload["behavior_profile"]}
-        self.assertIn("mem-20260830-fc6b5bba", active)
+        self.assertIn("mem-20260830-31beca08", active)
         for superseded in (
             "mem-20260829-d3594411",
             "mem-20260829-bf3bcb41",
             "mem-20260829-1f6d75a4",
+            "mem-20260830-fc6b5bba",
+            "mem-20260830-a2f3f2fe",
+            "mem-20260830-767675cf",
         ):
             self.assertNotIn(superseded, active)
-        rule = active["mem-20260830-fc6b5bba"]
-        self.assertIn("one bounded status read", rule)
-        self.assertIn("preserve healthy slots", rule)
-        self.assertIn("Refresh/re-discovery/reload is repeatable", rule)
-        self.assertIn("do not impose a one-refresh ceiling", rule)
-        self.assertIn("Workers never administer their own recurrence or siblings", rule)
+        rule = active["mem-20260830-31beca08"]
+        self.assertIn("hard maximum of five enabled workers total", rule)
+        self.assertIn("never create or keep a sixth enabled recurring worker", rule)
+        self.assertIn("Preserve healthy workers", rule)
+        self.assertIn("one-for-one replacement", rule)
+        self.assertIn("refresh/re-discovery/reload is repeatable", rule)
+        self.assertIn("there is no one-refresh ceiling", rule)
+        self.assertIn("Workers never administer their own or sibling recurrence", rule)
 
         contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
         self.assertIn("Arm the full five-worker generation", contract)
@@ -155,6 +160,10 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("bugged, poisoned, stale, contaminated", contract)
         self.assertIn("already sufficient justification for replacement", contract)
         self.assertIn("Arming all five fresh workers is one setup pass", contract)
+        self.assertIn("hard cap of five enabled worker slots total", contract)
+        self.assertIn("Five is the maximum, not a minimum or soft target", contract)
+        self.assertIn("must never create or keep a sixth active recurring worker", contract)
+        self.assertIn("do not temporarily exceed five during replacement", contract)
 
         template = (Path(__file__).resolve().parents[1] / "templates/P3-V2-SWARM-TEMPLATE.md").read_text(encoding="utf-8-sig")
         self.assertIn("fresh five-worker P3 V2 generations", template)
