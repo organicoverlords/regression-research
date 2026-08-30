@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Made false per-chat stack ownership and continuity promises a durable regression: active behavior now forbids assistant-invented chat-local contracts unless backed by current user direction or verified canonical stack state, with the incident captured as a replay fixture.
+
 - [2026-08-30] [orchestration] Aligned the ChatGPT Personal Instructions bridge with Library-first behavior delivery, required behavior load before any visible assistant prose, and removed the obsolete fixed retry-once cutoff in favor of repeatable bounded route recovery (#125).
 
 
@@ -448,6 +450,8 @@ Delete the headings you do not use. Keep this section at the top at all times.
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
   2. Open a fresh empty `## [Unreleased]
+
+- [2026-08-30] [memory] Made false per-chat stack ownership and continuity promises a durable regression: active behavior now forbids assistant-invented chat-local contracts unless backed by current user direction or verified canonical stack state, with the incident captured as a replay fixture.
 
 - [2026-08-30] [orchestration] Aligned the ChatGPT Personal Instructions bridge with Library-first behavior delivery, required behavior load before any visible assistant prose, and removed the obsolete fixed retry-once cutoff in favor of repeatable bounded route recovery (#125).
 
