@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Converged ChatGPT startup on the Vault behavior compiler with a deterministic byte-verified Library distribution fallback, preserving separate live orientation and rejecting legacy hand-maintained bootstrap files (#125).
+
 - [2026-08-30] [evidence] Rejected evidence-bundle outputs that hard-link to a bound artifact so manifest creation cannot mutate evidence through a distinct filesystem alias (#125).
 
 - [2026-08-30] [evidence] Made evidence-bundle manifest writes byte-canonical UTF-8/LF so identical proof serializes identically on Windows and Unix instead of inheriting host newline translation (#125).
