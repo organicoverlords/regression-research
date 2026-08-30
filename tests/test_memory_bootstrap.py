@@ -126,34 +126,36 @@ class MemoryBootstrapTests(unittest.TestCase):
         self.assertIn("green repository check must not be described as proof", contract)
         self.assertIn("do not require repeated Personal-Instructions edits", contract)
 
-    def test_generated_distribution_is_exact_bootstrap_with_source_provenance(self):
+    def test_generated_distribution_is_compact_complete_bootstrap_with_source_provenance(self):
         artifact = build_chatgpt_bootstrap_artifact()
-        self.assertEqual(artifact["artifact_schema_version"], 2)
-        self.assertEqual(artifact["delivery_contract"]["fresh_chat_behavior_role"], "primary")
-        self.assertFalse(artifact["delivery_contract"]["behavior_requires_mcp"])
-        self.assertEqual(artifact["delivery_contract"]["canonical_authority"], "Vault")
+        self.assertEqual(artifact["artifact_schema_version"], 3)
+        self.assertEqual(artifact["authority"], "Vault")
         self.assertEqual(artifact["library_path"], DEFAULT_LIBRARY_PATH)
-        entries = load_bank()
-        self.assertEqual(artifact["payload"], build_startup_bootstrap(entries))
-        self.assertIn("stack_atlas_glance", artifact["payload"])
-        self.assertEqual(artifact["payload"]["stack_atlas_glance"]["schema"], "atlas.v1")
-        self.assertEqual(artifact["payload"]["stack_atlas_glance"]["library"], ATLAS_LIBRARY_PATH)
-        self.assertEqual(artifact["payload"]["recent_memory_glance"]["entries"], recent_title_entries(entries, limit=20))
-        self.assertLessEqual(len(artifact["payload"]["recent_memory_glance"]["entries"]), 20)
-        self.assertTrue(artifact["payload"]["contract"]["complete_behavior_semantics"])
-        self.assertFalse(artifact["payload"]["contract"]["history_included"])
-        self.assertFalse(artifact["payload"]["contract"]["live_status_included"])
 
+        entries = load_bank()
+        full = build_startup_bootstrap(entries)
+        payload = artifact["payload"]
+        self.assertTrue(payload["complete_behavior_semantics"])
+        self.assertIn("USER_EXPLICIT", payload["profile_semantics"])
+        self.assertIn("CANONICAL_POLICY", payload["profile_semantics"])
+        self.assertEqual(payload["behavior"], [item["text"] for item in full["behavior_profile"]])
+        self.assertEqual(payload["policy"], [item["text"] for item in full["canonical_policy_profile"]])
+        self.assertEqual(payload["startup"]["sequence"], full["fresh_session_startup"]["startup_sequence"])
+        self.assertEqual(payload["atlas"], full["stack_atlas_glance"])
+        self.assertEqual(
+            payload["recent"],
+            [[item["timestamp"], item["title"]] for item in full["recent_memory_glance"]["entries"][:1]],
+        )
+        self.assertLessEqual(len(render_artifact_bytes()), 15_000)
+
+        plan = publication_plan()
         for key, path in (
             ("behavior_bank", DEFAULT_BANK),
             ("authority_registry", AUTHORITY_REGISTRY),
             ("stack_atlas", STACK_ATLAS_SOURCE),
             ("capability_policy", CAPABILITY_POLICY_SOURCE),
         ):
-            data = path.read_bytes()
-            descriptor = artifact["source"][key]
-            self.assertEqual(descriptor["bytes"], len(data))
-            self.assertEqual(descriptor["sha256"], hashlib.sha256(data).hexdigest().upper())
+            self.assertEqual(plan["source"][key], hashlib.sha256(path.read_bytes()).hexdigest().upper())
 
         self.assertEqual(render_artifact_bytes(), render_artifact_bytes())
 
