@@ -51,33 +51,22 @@ def _source_digests() -> dict[str, str]:
 
 
 def _compact_payload() -> dict[str, Any]:
-    """Compile the full Vault behavior bootstrap into a small self-contained delivery form."""
-    full = build_startup_bootstrap(load_bank(DEFAULT_BANK))
     return {
-        "complete_behavior_semantics": True,
-        "profile_semantics": "behavior=USER_EXPLICIT precedence 100; policy=CANONICAL_POLICY precedence 90; current explicit user direction remains stronger",
-        "behavior": [item["text"] for item in full["behavior_profile"]],
-        "policy": [item["text"] for item in full["canonical_policy_profile"]],
-        "startup": {
-            "sequence": full["fresh_session_startup"]["startup_sequence"],
-            "fresh": "Load behavior+Atlas; bind short prompts to it instead of asking for restatement. Stack/infra: Atlas first; target live facts from it. Other context as needed. Reuse valid schemas; refresh stale/failed/missing; broaden when needed.",
-            "later": "Compaction restores behavior; fetch state when needed. Worker activity needs execution evidence; coordination metadata proves nothing.",
-        },
-        "atlas": full["stack_atlas_glance"],
-        "recent": [
-            [item["timestamp"], item["title"]]
-            for item in full["recent_memory_glance"]["entries"][:EMBEDDED_RECENT_LIMIT]
-        ],
+        "status": "RETIRED",
+        "continuity": "current conversation + ChatGPT Memory",
+        "vault": "optional history/notebook/evidence only",
+        "atlas": "publish/use Stack Atlas independently for stack/infra work",
     }
 
 
 def build_chatgpt_bootstrap_artifact() -> dict[str, Any]:
-    """Build the compact generated ChatGPT distribution artifact from canonical Vault authority."""
+    """Legacy tombstone: behavior bootstrap distribution is retired."""
     return {
-        "artifact_schema_version": 3,
-        "purpose": "fallback fresh-chat behavior delivery cache",
+        "artifact_schema_version": 4,
+        "purpose": "retired ChatGPT behavior bootstrap",
         "library_path": DEFAULT_LIBRARY_PATH,
-        "authority": "Vault",
+        "authority": "NONE",
+        "retired": True,
         "payload": _compact_payload(),
     }
 
@@ -97,17 +86,10 @@ def render_artifact_bytes() -> bytes:
 
 
 def publication_plan() -> dict[str, Any]:
-    data = render_artifact_bytes()
-    artifact = build_chatgpt_bootstrap_artifact()
     return {
-        "status": "EXPECTED_LIBRARY_ARTIFACT",
+        "status": "RETIRED_NO_LIBRARY_ARTIFACT",
         "library_path": DEFAULT_LIBRARY_PATH,
-        "bytes": len(data),
-        "sha256": _sha256(data),
-        "delivery_role": "fallback",
-        "canonical_authority": artifact["authority"],
-        "source": _source_digests(),
-        "acceptance": "retrieve the published Library copy and require byte-exact verify=PROVEN",
+        "publish": False,
         "stack_atlas": atlas_publication_plan(),
     }
 
@@ -147,14 +129,14 @@ def _print_json(value: Any) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Render or verify the generated ChatGPT bootstrap distribution artifact."
+        description="Legacy retired ChatGPT bootstrap artifact utility; Stack Atlas publishes separately."
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     render = sub.add_parser("render", help="render the canonical generated artifact")
     render.add_argument("--output", type=Path)
 
-    sub.add_parser("publication-plan", help="describe the exact Library artifact the publisher worker must expose")
+    sub.add_parser("publication-plan", help="report that bootstrap publication is retired; includes independent Atlas plan")
 
     verify = sub.add_parser("verify", help="compare a Library/downloaded copy byte-for-byte")
     verify.add_argument("copy", type=Path)

@@ -368,16 +368,16 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
 
 
 def build_startup_bootstrap(entries: list[dict[str, Any]]) -> dict[str, Any]:
-    """Return one bounded fresh-chat startup payload: behavior, Atlas, and recent-memory glance."""
-    items = list(entries)
-    payload = build_behavior_bootstrap(items)
-    payload["stack_atlas_glance"] = build_bootstrap_atlas()
-    payload["recent_memory_glance"] = {
-        "limit": MAX_RECENT_TITLES_LIMIT,
-        "role": "bounded historical orientation only; current user direction and verified live state outrank it",
-        "entries": recent_title_entries(items, limit=MAX_RECENT_TITLES_LIMIT),
+    """Legacy compatibility marker. Vault is no longer a runtime ChatGPT bootstrap."""
+    return {
+        "schema_version": 2,
+        "status": "RETIRED",
+        "purpose": "legacy compatibility only; Vault is optional history/notebook/evidence",
+        "continuity": "current conversation + ChatGPT/harness memory",
+        "stack_map": "Stack Atlas for stack/infra work",
+        "current_truth": "relevant live sources",
+        "vault": "targeted search/context/history only when useful",
     }
-    return payload
 
 
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
@@ -782,9 +782,9 @@ def _main() -> int:
     context.add_argument("--max-chars", type=int, default=DEFAULT_CONTEXT_CHARS)
     context.add_argument("--with-history", action="store_true", help="also search the preserved full-conversation corpus")
 
-    sub.add_parser("bootstrap", help="complete compact behavior constitution for fresh-chat or post-compaction rehydration")
+    sub.add_parser("bootstrap", help="legacy compatibility marker; no runtime ChatGPT bootstrap")
 
-    orient = sub.add_parser("orient", help="richer continuity view with recent/project history; use bootstrap for mandatory behavior")
+    orient = sub.add_parser("orient", help="optional historical/project orientation view")
     orient.add_argument("--project", action="append", default=[])
     orient.add_argument("--recent-events", type=int, default=8)
     orient.add_argument("--error-threads", type=int, default=4)
@@ -829,12 +829,8 @@ def _main() -> int:
             result = validate_authority_registry(entries, path=args.authority_registry)
             _print_json(result)
             return 0 if result.get("status") == "PROVEN" else 2
-        if args.command == "promote-behavior":
-            _print_json(promote_authority_entry(args.bank, args.authority_registry, args.memory_id, ROLE_USER))
-            return 0
-        if args.command == "promote-policy":
-            _print_json(promote_authority_entry(args.bank, args.authority_registry, args.memory_id, ROLE_CANONICAL))
-            return 0
+        if args.command in {"promote-behavior", "promote-policy"}:
+            raise BankError("Vault runtime authority promotion is retired; Vault is history/notebook/evidence only")
         if args.command == "note":
             text = args.text.strip()
             tags = ["quick-note"]
@@ -897,10 +893,8 @@ def _main() -> int:
             if args.turn_task:
                 values["turn_task"] = args.turn_task
             if args.behavior_rule:
-                entry = append_behavior_entry(args.bank, values, args.authority_registry)
-                print(f"BEHAVIOR_AUTHORITY USER_EXPLICIT {entry['id']}", file=sys.stderr)
-            else:
-                entry = append_entry(args.bank, values)
+                raise BankError("--behavior-rule is retired; use ChatGPT Memory/current instructions for behavior and record Vault notes as ordinary history")
+            entry = append_entry(args.bank, values)
             _print_json(entry)
             return 0
         if args.command == "bootstrap":

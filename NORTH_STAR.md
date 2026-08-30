@@ -92,16 +92,14 @@ The target is a corpus rich enough that a future regression can normally be comp
 - Adding, replacing, or removing a plugin should require an adapter/configuration change, not a policy rewrite.
 - Duplicate plugins or duplicate authorities are removed unless they provide a deliberate fallback with clearly different failure characteristics.
 
-### 5. Memory and personal context are safe, inspectable, and non-authoritative
+### 5. ChatGPT Memory carries continuity; Vault is history/notebook
 
-- Memory/personal context is read-only by default during ordinary work.
-- No memory or personal-context write occurs merely because an assistant inferred that something might be useful later.
-- Explicit current user instructions outrank recalled context.
-- Historical context can inform a task but cannot silently override current live state.
-- Memory writes, when explicitly authorized, preserve provenance, supersession, and auditability so contradictory or stale entries can be found and corrected.
-- Read paths must not trigger hidden synchronization or mutation.
-- Regression evidence about memory/personal-context behaviour can be preserved externally without mutating the live personal-context store.
-- Identity-like or preference-like discrepancies are not automatically treated as contradictions; provenance and recency matter.
+- ChatGPT Memory and the current conversation provide ordinary conversational continuity so the user does not need to restate active context.
+- Explicit current user instructions and verified live state outrank remembered context.
+- Vault memory, reports, timelines, and conversation archives are optional searchable history/notebook/evidence, not startup gates or runtime behavior authority.
+- Use targeted Vault retrieval when past context materially helps; never load the whole Vault as a mandatory startup constitution.
+- Memory/history reads must not trigger hidden synchronization, ownership, scheduler mutation, or other control-plane work.
+- Regression evidence remains preserved externally without becoming live behavior by accident.
 
 ### 6. One boring repository workflow
 

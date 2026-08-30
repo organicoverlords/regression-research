@@ -10,9 +10,8 @@ DIRECTIVE = (
     "evidence, or these operating rules."
 )
 
-BOOTSTRAP_COMMAND = r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap"
-ROUTE_RECOVERY = "no fixed retry-count cutoff and no tight-looping"
-BOOTSTRAP_CONTINUE = "If its route fails, use the repeatable recovery rule above and continue safe work from current instruction, policy, and live state. One or two failures are not terminal."
+VAULT_HISTORY_HEADING = "### Vault history and context"
+VAULT_NO_BOOTSTRAP = "Never bootstrap Vault at startup or compaction"
 
 
 INVESTIGATION_BOUNDARY = (
@@ -37,13 +36,13 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertEqual(agents.count(DIRECTIVE), 1)
 
 
-    def test_fresh_local_session_bootstrap_failure_stays_bounded(self):
+    def test_vault_is_optional_history_not_startup(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(BOOTSTRAP_COMMAND), 1)
-        self.assertEqual(agents.count(ROUTE_RECOVERY), 1)
-        self.assertEqual(agents.count(BOOTSTRAP_CONTINUE), 1)
-        self.assertNotIn("On failure retry that exact command once", agents)
-        self.assertNotIn("after a second failure continue from current instruction", agents)
+        self.assertEqual(agents.count(VAULT_HISTORY_HEADING), 1)
+        self.assertEqual(agents.count(VAULT_NO_BOOTSTRAP), 1)
+        self.assertNotIn("memory_bank.py bootstrap", agents)
+        self.assertIn("optional history/notebook/evidence", agents)
+
 
     def test_read_only_investigation_never_claims_busy(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

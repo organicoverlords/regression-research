@@ -125,17 +125,17 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "dependents": ["github_actions"],
         "runbook": [r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1"],
     },
-    "vault_bootstrap": {
-        "role": "canonical_behavior_history_source",
+    "vault_history": {
+        "role": "context:history-notebook",
         "capabilities": ["memory_read", "memory_write"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\memory", "tools/memory_bank.py"],
-        "live_status": ["Library bootstrap copy provenance", "Vault validation when local route available"],
+        "live_status": ["targeted Vault search/context/history when needed"],
         "supervisor": "none",
         "self_heal": "not_applicable",
-        "independent_recovery": ["Library primary behavior artifact; Vault local fallback"],
+        "independent_recovery": ["continue without Vault; current conversation/memory and live sources remain available"],
         "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"],
         "dependents": ["chatgpt_orchestrator", "execution_workers"],
-        "runbook": ["04 Operating Contracts/chatgpt-bootstrap-distribution.md"],
+        "runbook": ["memory/README.md"],
     },
     "local_git": {
         "role": "local_source_truth",
@@ -195,13 +195,13 @@ COMPONENTS.update({
         "independent_recovery": ["current user direction outranks stale prose"], "resources": ["NORTH_STAR/equivalent"],
         "dependents": ["chatgpt_orchestrator", "execution_workers"], "runbook": ["repo NORTH_STAR/equivalent"],
     },
-    "library_bootstrap": {
-        "role": "delivery:primary-behavior", "capabilities": ["memory_read"],
-        "canonical_sources": ["/Agent Bootstrap/chatgpt-bootstrap.json", "tools/chatgpt_bootstrap_artifact.py"],
-        "live_status": ["retrieve Library artifact; verify provenance/bytes"], "supervisor": "ChatGPT Files/Library",
-        "self_heal": "delivery_specific", "independent_recovery": ["Vault bootstrap fallback"],
-        "resources": ["/Agent Bootstrap/chatgpt-bootstrap.json"], "dependents": ["chatgpt_orchestrator", "execution_workers"],
-        "runbook": ["04 Operating Contracts/chatgpt-bootstrap-distribution.md"],
+    "chatgpt_memory": {
+        "role": "context:chatgpt-continuity", "capabilities": ["memory_read"],
+        "canonical_sources": ["current conversation", "ChatGPT Memory"],
+        "live_status": ["current conversation and delivered ChatGPT Memory"], "supervisor": "ChatGPT",
+        "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history when useful"],
+        "resources": ["ChatGPT Memory"], "dependents": ["chatgpt_orchestrator"],
+        "runbook": ["04 Operating Contracts/fresh-chat-startup-orientation.md"],
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
@@ -212,8 +212,8 @@ COMPONENTS.update({
     },
     "chatgpt_orchestrator": {
         "role": "orchestrator:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
-        "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["fresh chat consumes same bootstrap Atlas"],
+        "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
+        "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
         "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/fresh-chat-startup-orientation.md"],
     },
     "execution_workers": {

@@ -93,10 +93,10 @@ class StackAtlasTests(unittest.TestCase):
         expected = {
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "desktop_commander_watchdog", "desktop_commander_remote", "desktop_commander_local",
-            "shared_policy", "repo_agents", "north_star", "library_bootstrap", "memory_bank",
+            "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_orchestrator", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "dev_progress_board", "operator_live",
-            "lowvram", "asset_library", "tinylab", "tiny3d", "p3", "vault_bootstrap",
+            "lowvram", "asset_library", "tinylab", "tiny3d", "p3", "vault_history",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
 
@@ -120,9 +120,10 @@ class StackAtlasTests(unittest.TestCase):
 
     def test_repo_agents_requires_atlas_before_stack_work(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("tools/stack_atlas.py inventory", agents)
-        self.assertIn("tools/stack_atlas.py lookup <component>", agents)
-        self.assertIn("unknown dependency role", agents)
+        self.assertIn("consume the current Stack Atlas", agents)
+        self.assertIn("before deciding relevance or blast radius", agents)
+        self.assertIn("deep-lookup only the components/live proof routes relevant to the task", agents)
+        self.assertIn("unresolved dependency or recovery impact blocks the action", agents)
         self.assertIn("PID is only an ephemeral lookup key", agents)
 
     def test_every_component_declares_its_own_live_truth_and_recovery_routes(self):

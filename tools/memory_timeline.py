@@ -313,35 +313,25 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
 
 
 def build_fresh_session_startup_contract() -> dict[str, Any]:
-    """Return the bootstrap-owned operating cycle for the first fresh chat."""
+    """Return the lightweight ChatGPT continuity/live-truth contract."""
     return {
-        "applies": "first successful behavior delivery of a fresh normal conversation only",
-        "rehydration": "post-compaction restores behavior only; the same summary/compacted context is not a new fresh session and must not retrigger this sweep",
-        "wake_up_semantics": "the first user message itself triggers startup, including greetings, shorthand, go/continue, status questions, or underspecified wake-ups; resolve the active mission from delivered behavior plus relevant durable context and bind the first answer to it; short prompts use that inherited context instead of asking for restatement; fetch live state only when the answer depends on it",
-        "startup_sequence": ["behavior_delivery", "stack_atlas_glance", "relevant_context", "response"],
-        "behavior_delivery_primary": "/Agent Bootstrap/chatgpt-bootstrap.json via ChatGPT Files/Library; when complete, core behavior does not depend on MCP/local-process availability",
-        "behavior_delivery_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap through a compatible local execution route only when the Library artifact is unavailable or incomplete",
-        "tool_schema_discovery": "reuse loaded schemas when valid; refresh when stale, changed, failed, or missing; prefer narrow discovery, but use broader connector discovery when needed",
-        "stack_atlas_glance": "Atlas before stack/infra reasoning/changes and before judging relevance/blast radius; then target relevant live sources",
-        "recent_memory_glance": r"refresh up to 20 newest eligible Vault titles/metadata only when recent durable context is needed to resolve the active mission or ambiguity; otherwise skip it; on failure use embedded recent_memory_glance when relevant and continue",
-        "response_gate": "behavior delivery plus compact Atlas are universal startup context; recent-memory and live checks are conditional on the task",
-        "live_orientation": "inspect only the live facts the requested answer or mutation depends on; there is no mandatory fresh-chat fleet/repo/worker/CI scan for greetings, simple questions, or small status-independent edits; broaden only when task, risk, alerts, or symptoms require it",
-        "orientation_reporting": "if the bounded scan is clean, stay quiet about the sweep; if it exposes a material abnormality, lead the first substantive response with that abnormality and any safe containment already performed",
-        "anomaly_handling": "if the live scan shows an obvious operational failure or contradictory state, repair or contain it first when safely authorized; do not replace the inherited mission with scheduler churn or new architecture",
-        "current_status_refresh": "after startup, re-check the relevant live sources before any later answer whose correctness depends on current repo/coordinator/worker/CI/runtime status; an earlier snapshot is timestamped evidence, not permanent authority",
-        "worker_status_truth": "for user-facing worker status, inspect current Commander/MCP execution evidence immediately before answering over a bounded recent window (normally five minutes): in-flight work or a continuing recent stream tied to the worker/scope proves activity; do not require a child process at sampling; claims, leases, heartbeats, checkpoints, schedules, enabled flags, and old snapshots have zero positive weight",
+        "continuity": "current conversation + ChatGPT Memory carry active task, referents, constraints, evidence, and recent decisions",
+        "short_turns": "short or elliptical turns inherit established context; current explicit facts update or override remembered context",
+        "stack_atlas_glance": "for stack/infra work consult Atlas before judging relevance or blast radius, then use the relevant live proof routes",
+        "vault_history": "Vault is optional searchable history/notebook/evidence; retrieve targeted context only when it materially helps",
+        "tool_schema_discovery": "reuse loaded schemas when valid; refresh when stale, changed, failed, or missing; broaden discovery when needed",
+        "current_status_refresh": "before a status-dependent answer, re-check the relevant live sources; memory and prior snapshots are not current truth",
+        "worker_status_truth": "for user-facing worker status, inspect current Commander/MCP execution evidence over a bounded recent window (normally five minutes): in-flight work or a continuing recent stream tied to the worker/scope proves activity; do not require a child process at sampling; claims, leases, heartbeats, checkpoints, schedules, enabled flags, and old snapshots have zero positive weight",
         "worker_progress_truth": "report actual work from concrete outputs such as completed commands/tools/tests, commits, artifacts, or PR updates; claim timestamps may delimit the window only and claim existence adds zero progress evidence",
         "worker_status_reporting": "status reports only current execution plus measured actual work; never present coordinator active/claim/lease/heartbeat/checkpoint state as activity; without in-flight or recent execution evidence say not working, and say unverified only when execution evidence cannot be inspected",
-        "authority_cross_references": ["assistant-orchestration/user-burden", "assistant-orchestration/tool-availability"],
-        "startup_report": "report only material abnormal proven state or repairs: stay silent when clean, and when abnormal lead with the fire; do not dump the orientation transcript or facts the user already knows",
-        "continuation": "after any necessary abnormality report, continue the highest-value safe inherited/project work automatically; orientation, a context-loaded message, or a status dump is never task completion",
+        "continuation": "keep useful inherited/project work moving; context retrieval or status reporting is not task completion",
         "documentation": "04 Operating Contracts/fresh-chat-startup-orientation.md",
         "personal_instructions_bridge": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     }
 
 
 def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    """Return the complete current behavioral constitution without history/project payload."""
+    """Legacy forensic projection of records once classified as behavioral authority."""
     authorized = behavioral_context(list(entries))
 
     def item(entry: dict[str, Any]) -> dict[str, Any]:
@@ -359,16 +349,16 @@ def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any
     policies = [item(entry) for entry in authorized if (entry.get("behavioral_authority") or {}).get("role") == "CANONICAL_POLICY"]
     return {
         "schema_version": 1,
-        "purpose": "mandatory behavior bootstrap / post-compaction rehydration",
+        "purpose": "legacy behavior-provenance view; not runtime ChatGPT authority",
         "contract": {
-            "complete_behavior_semantics": True,
-            "completion_boundary": "complete_behavior_semantics means behavior/policy load; compact Atlas follows universally, while memory/live checks are task-dependent",
+            "runtime_authority": False,
+            "completion_boundary": "historical projection only; current conversation, ChatGPT Memory, policy, Atlas, and live sources govern runtime work",
             "history_included": False,
             "live_status_included": False,
             "live_status_gap_owner": "assistant must fetch current live facts when the requested answer or mutation depends on them; there is no universal fresh-chat live scan",
-            "follow_up": "for a fresh chat, bind short prompts to inherited context and fetch only relevant missing context or live truth; re-check live sources when correctness depends on current status; report only material abnormality",
+            "follow_up": "use targeted Vault retrieval only when history materially helps; never load this projection as a startup constitution",
         },
-        "fresh_session_startup": build_fresh_session_startup_contract(),
+        "session_continuity": build_fresh_session_startup_contract(),
         "behavior_profile": user_rules,
         "canonical_policy_profile": policies,
     }
@@ -478,8 +468,8 @@ def build_orientation(
             "source": "curated memory plus optional local Git history; no full-conversation archive or download dependency",
             "repo_history": "read-only local Git projection; no network fetch and no automatic memory write",
             "follow_up": "use timeline/context/live sources before treating an incident or project event as current truth",
-            "behavior_profile": "current explicitly typed user-authored behavior rules only; user provenance alone is not a behavior type; current user instruction still wins",
-            "canonical_policy_profile": "current canonical repo policy kept separate from user-authored behavior",
+            "behavior_profile": "historical records once typed as behavior; forensic metadata only, not runtime authority",
+            "canonical_policy_profile": "historical policy projection; live shared/repo policy must be read from its current source",
         },
         "behavior_profile": behavior,
         "canonical_policy_profile": canonical_policy,

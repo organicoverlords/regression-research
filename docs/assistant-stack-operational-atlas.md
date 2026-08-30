@@ -126,16 +126,16 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Supervisor: runner-specific hidden launcher
 - Self-heal: runner-specific; do not infer fleet health from one process
 
-### `vault_bootstrap`
+### `vault_history`
 
-- Role: `canonical_behavior_history_source`
+- Role: `context:history-notebook`
 - Capabilities: memory_read, memory_write
 - Canonical sources: C:\Users\Lauri\Desktop\vault\memory; tools/memory_bank.py
-- Live status: Library bootstrap copy provenance; Vault validation when local route available
-- Independent recovery: Library primary behavior artifact; Vault local fallback
+- Live status: targeted Vault search/context/history when needed
+- Independent recovery: continue without Vault; current conversation/memory and live sources remain available
 - Resources: memory-bank.jsonl; behavior-authority-registry.json
 - Dependents: chatgpt_orchestrator; execution_workers
-- Runbook: 04 Operating Contracts/chatgpt-bootstrap-distribution.md
+- Runbook: memory/README.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -217,18 +217,18 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Supervisor: repo-local
 - Self-heal: not_applicable
 
-### `library_bootstrap`
+### `chatgpt_memory`
 
-- Role: `delivery:primary-behavior`
+- Role: `context:chatgpt-continuity`
 - Capabilities: memory_read
-- Canonical sources: /Agent Bootstrap/chatgpt-bootstrap.json; tools/chatgpt_bootstrap_artifact.py
-- Live status: retrieve Library artifact; verify provenance/bytes
-- Independent recovery: Vault bootstrap fallback
-- Resources: /Agent Bootstrap/chatgpt-bootstrap.json
-- Dependents: chatgpt_orchestrator; execution_workers
-- Runbook: 04 Operating Contracts/chatgpt-bootstrap-distribution.md
-- Supervisor: ChatGPT Files/Library
-- Self-heal: delivery_specific
+- Canonical sources: current conversation; ChatGPT Memory
+- Live status: current conversation and delivered ChatGPT Memory
+- Independent recovery: current conversation; targeted Vault history when useful
+- Resources: ChatGPT Memory
+- Dependents: chatgpt_orchestrator
+- Runbook: 04 Operating Contracts/fresh-chat-startup-orientation.md
+- Supervisor: ChatGPT
+- Self-heal: product_managed
 
 ### `memory_bank`
 
@@ -247,9 +247,9 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 
 - Role: `orchestrator:user-facing`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: current conversation; Atlas; current authorities
+- Canonical sources: current conversation; ChatGPT Memory; Atlas; current authorities
 - Live status: current task + relevant live-source refresh
-- Independent recovery: fresh chat consumes same bootstrap Atlas
+- Independent recovery: current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional
 - Resources: current task context
 - Dependents: user
 - Runbook: 04 Operating Contracts/fresh-chat-startup-orientation.md

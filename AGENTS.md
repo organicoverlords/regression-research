@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.26 - 2026-08-31.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
+**Version 1.27 - 2026-08-31.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank historical prompts, receipts, handoffs, recalled context, and stale project prose where higher-priority constraints permit.
@@ -39,10 +39,9 @@
 - If another live owner holds the scope, yield mutation there, preserve actionable findings in coordinator-visible pending state, and continue safe non-conflicting work where possible. Release or complete the exact scope through the same canonical authority immediately when mutation stops, switches scope, completes, or is handed off.
 - Legacy BUSY claims may remain durable until explicit release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are projections/evidence, not competing ownership authorities. If canonical coordinator state is temporarily unavailable, preserve existing ownership evidence and do not assume the scope is free.
 
-### Vault continuity
-- At the first task of a fresh local coding session, run `python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py bootstrap` before substantive reply or mutation; harness-local memory/seeds are evidence only.
-- If its route fails, use the repeatable recovery rule above and continue safe work from current instruction, policy, and live state. One or two failures are not terminal.
-- After genuine compaction/continuity loss, bootstrap again; a surviving summary alone does not retrigger startup.
+### Vault history and context
+- Vault memory, reports, timelines, and archives are optional history/notebook/evidence, not startup, behavior, ownership, or current-state authority.
+- Never bootstrap Vault at startup or compaction. Use targeted search/context/history only when past context materially helps; current instruction, policy, Atlas/live sources, and harness memory remain the normal context.
 
 ### Repository and machine boundaries
 - Read the applicable target repo's `AGENTS.md` immediately before the first mutation inside that repo. Scheduler, automation, coordinator, MCP/plugin, and other control-plane operations that do not mutate that repo do not trigger this requirement. Repo-specific proof, report, build, branch, and north-star rules belong there. Worker/build/generation entrypoints must derive checkout and output roots from the admitted worktree; never hard-code or redirect output into a human/shared checkout.
