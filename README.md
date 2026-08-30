@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [regression] Locked the existing fresh-session bootstrap failure boundary: run the exact Vault bootstrap, retry it once, then continue from current instruction/policy/live state instead of turning memory recovery into the task (#125).
 - [2026-08-30] [memory] Added a read-only Git-derived memory/policy change log and descriptive memory-sync commit metadata so memory additions, supersessions, authority promotions, and operating-policy changes remain auditable without creating a second authority.
 - [2026-08-30] [memory] Removed the redundant standalone fresh-chat startup contract file while preserving the bootstrap -> bounded memory glance -> live-truth startup sequence directly in the generated bootstrap (#272 follow-up).
 - [2026-08-30] [research] Added a machine-enforced prospective #193 refresh-vs-binding protocol with exact treatment stimulus, identical bounded canaries, client-vs-local-arrival measurements, replication threshold, and no-live-configuration-mutation guardrails.
 - [2026-08-30] [memory] Restored the fresh-chat startup order to behavior bootstrap → bounded 20-item recent-memory glance → live orientation → response, with the same bounded glance in the verified Library fallback and a 32 KB payload regression (#125).
-- [2026-08-30] [memory] Added retrieval coverage for the user-authorized large-architecture review gate so timed-worker RFC-before-implementation behavior stays regression-enforced.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
