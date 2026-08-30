@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [evidence] Rejected evidence-bundle outputs that hard-link to a bound artifact so manifest creation cannot mutate evidence through a distinct filesystem alias (#125).
+
 - [2026-08-30] [evidence] Made evidence-bundle manifest writes byte-canonical UTF-8/LF so identical proof serializes identically on Windows and Unix instead of inheriting host newline translation (#125).
 
 - [2026-08-30] [evidence] Canonicalized Library screenshot text digests to LF before hashing so #86 occurrence integrity verification is stable across Windows CRLF and Unix LF checkouts; migrated all occurrence ledgers to the portable digest contract (#86).
