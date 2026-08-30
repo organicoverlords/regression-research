@@ -83,8 +83,8 @@ def classify(record: dict) -> str:
     )
     changed_treatments = [
         p for p in treatments
-        if p["before"]["measurements"]["direct_recipient_callable"]
-        != p["after"]["measurements"]["direct_recipient_callable"]
+        if p["before"]["measurements"]["direct_recipient_callable"] is True
+        and p["after"]["measurements"]["direct_recipient_callable"] is False
     ]
     if stable_controls and len(changed_treatments) >= 2:
         return "SUPPORT_H1"

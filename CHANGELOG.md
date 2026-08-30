@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [research] Kept #193 binding-loss classification directional: treatment recovery from uncallable to callable no longer counts as evidence for refresh-induced binding loss.
+
 - [2026-08-30] [research] Hardened #193 paired-result validation to reject malformed measurement types and contaminated pre-refresh baselines before classification.
 
 - [2026-08-30] [research] Hardened #193 paired-result validation so control/treatment records cannot mix model or configuration, preserving the preregistered same-model comparison.
