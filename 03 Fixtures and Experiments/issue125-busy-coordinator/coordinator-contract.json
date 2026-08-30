@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "contract_version": 2,
+  "authority": "standalone_busy_coordinator",
+  "canonical_store": {
+    "windows": "%LOCALAPPDATA%\\ChatGPTMcpClean\\.state\\busy-claims.json",
+    "coordinator_key": "coordinator",
+    "coordinator_schema_version": 1
+  },
+  "core_required_commands": [
+    "list",
+    "sweep",
+    "snapshot",
+    "enqueue",
+    "ready",
+    "next",
+    "recover",
+    "handoff",
+    "claim",
+    "heartbeat",
+    "release",
+    "block",
+    "complete",
+    "inspect"
+  ],
+  "required_commands": [
+    "list",
+    "sweep",
+    "snapshot",
+    "enqueue",
+    "ready",
+    "next",
+    "recover",
+    "handoff",
+    "claim",
+    "heartbeat",
+    "release",
+    "block",
+    "complete",
+    "inspect",
+    "contract",
+    "log",
+    "audit"
+  ],
+  "job_states": [
+    "ready",
+    "active",
+    "blocked",
+    "completed"
+  ],
+  "limits": {
+    "max_operations": 512,
+    "max_completed_jobs": 256,
+    "max_snapshot_items": 32,
+    "max_audit_detail_chars": 2048,
+    "default_audit_max_bytes": 5242880,
+    "default_audit_backups": 3
+  },
+  "invariants": [
+    "one canonical claims store",
+    "one claim per exact scope",
+    "active managed jobs have a matching claim and owner",
+    "non-active managed jobs do not retain a managed claim",
+    "job identity matches its canonical scope key",
+    "operation replay history stays bounded",
+    "completed job history stays bounded",
+    "legacy-only claims remain distinct from coordinator-managed jobs",
+    "python and rust cores expose the same required ownership/job commands",
+    "installed wrappers expose the same contract and observability commands",
+    "runtime may add compatible metadata but may not omit required commands"
+  ]
+}

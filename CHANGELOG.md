@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [coordination] Versioned the standalone BusyCoordinator contract and added a shared append-only audit/contract wrapper plus read-only invariant guard, preserving the canonical Python/Rust ownership core, recover semantics, bounded state, and single-authority store (#125).
+
 - [2026-08-30] [memory] Added regression coverage that the concurrent five-worker-cap behavior record stays superseded after authority consolidation (#125).
 
 - [2026-08-30] [orchestration] Made five the hard enabled recurring-worker cap, required one-for-one replacement while preserving healthy slots, and aligned flaky tool-surface recovery with repeatable refresh/re-discovery semantics (#267).
