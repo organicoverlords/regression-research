@@ -85,7 +85,7 @@
       "id": "holdout-08",
       "cohort": "holdout",
       "query": "do not disable scheduled workers merely because one run is blocked",
-      "expected": "mem-20260829-df29555e"
+      "expected": "mem-20260830-fc6b5bba"
     },
     {
       "id": "holdout-09",
@@ -121,7 +121,7 @@
       "id": "dev-07",
       "cohort": "development",
       "query": "arm all five fresh workers, launch worker one immediately, report the arm, work on repos instead of waiting, then verify and repair until worker one is healthy",
-      "expected": "mem-20260829-d3594411"
+      "expected": "mem-20260830-fc6b5bba"
     },
     {
       "id": "dev-08",
@@ -139,7 +139,7 @@
       "id": "dev-09",
       "cohort": "development",
       "query": "if the current worker fleet is bugged, replace it with five fresh workers in one setup pass and use worker one execution as the acceptance gate",
-      "expected": "mem-20260829-bf3bcb41"
+      "expected": "mem-20260830-fc6b5bba"
     }
   ]
 }

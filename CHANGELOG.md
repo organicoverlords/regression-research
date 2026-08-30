@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Realigned bootstrap and retrieval regressions with the latest recurring-worker authority correction so synchronized behavior updates cannot leave main's memory verification stale (#125).
+
 - [2026-08-30] [memory] Published generated ChatGPT bootstrap fallback files atomically so an interrupted replacement cannot destroy the last-known-good Library transport artifact (#125).
 
 - [2026-08-30] [evidence] Published evidence manifests atomically through a same-directory fsynced temporary file so failed replacement cannot destroy the last-known-good proof (#125).

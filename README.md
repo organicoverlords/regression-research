@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [memory] Realigned bootstrap and retrieval regressions with the latest recurring-worker authority correction so synchronized behavior updates cannot leave main's memory verification stale (#125).
 - [2026-08-30] [memory] Published generated ChatGPT bootstrap fallback files atomically so an interrupted replacement cannot destroy the last-known-good Library transport artifact (#125).
 - [2026-08-30] [evidence] Published evidence manifests atomically through a same-directory fsynced temporary file so failed replacement cannot destroy the last-known-good proof (#125).
 - [2026-08-30] [memory] Converged ChatGPT startup on the Vault behavior compiler with a deterministic byte-verified Library distribution fallback, preserving separate live orientation and rejecting legacy hand-maintained bootstrap files (#125).
 - [2026-08-30] [evidence] Rejected evidence-bundle outputs that hard-link to a bound artifact so manifest creation cannot mutate evidence through a distinct filesystem alias (#125).
-- [2026-08-30] [evidence] Made evidence-bundle manifest writes byte-canonical UTF-8/LF so identical proof serializes identically on Windows and Unix instead of inheriting host newline translation (#125).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
