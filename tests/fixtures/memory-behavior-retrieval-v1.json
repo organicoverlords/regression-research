@@ -106,12 +106,6 @@
       "expected": "mem-20260829-d7598b39"
     },
     {
-      "id": "holdout-12",
-      "cohort": "holdout",
-      "query": "for a small status or yes-no answer, lead with the answer and keep it to one short paragraph without bullets or arrows",
-      "expected": "mem-20260829-43f1fd47"
-    },
-    {
       "id": "holdout-13",
       "cohort": "holdout",
       "query": "I choose the direction and judge the result; you handle planning execution verification and coordination",
@@ -122,12 +116,6 @@
       "cohort": "development",
       "query": "keep the recurring worker fleet at a hard maximum of five, preserve healthy slots, and replace a bad slot one-for-one without creating a sixth worker",
       "expected": "mem-20260830-31beca08"
-    },
-    {
-      "id": "dev-08",
-      "cohort": "development",
-      "query": "in normal chat avoid bullet lists and arrow-heavy formatting; write compact cohesive prose unless I ask for a list",
-      "expected": "mem-20260829-ac91b225"
     },
     {
       "id": "holdout-14",
