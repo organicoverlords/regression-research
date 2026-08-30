@@ -92,6 +92,24 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact preregistered canaries"):
             validate_record(data)
 
+    def test_rejects_non_boolean_measurement(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["direct_recipient_callable"] = "false"
+        with self.assertRaisesRegex(ValueError, "direct_recipient_callable must be boolean"):
+            validate_record(data)
+
+    def test_rejects_invalid_error_class_type(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["exact_client_error_class"] = []
+        with self.assertRaisesRegex(ValueError, "exact_client_error_class"):
+            validate_record(data)
+
+    def test_rejects_refresh_before_pair_baseline(self):
+        data = record(pair("treatment", "t1", True, False))
+        data["pairs"][0]["before"]["measurements"]["refresh_or_reload_between_samples"] = True
+        with self.assertRaisesRegex(ValueError, "before sample must precede refresh/reload"):
+            validate_record(data)
+
 
 if __name__ == "__main__":
     unittest.main()

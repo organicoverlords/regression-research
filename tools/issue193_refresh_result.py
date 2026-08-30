@@ -52,6 +52,17 @@ def validate_record(record: dict) -> dict:
             _require(isinstance(measurements, dict), f"{sample_name}.measurements must be an object")
             missing = REQUIRED_MEASUREMENTS - set(measurements)
             _require(not missing, f"{sample_name} missing measurements: {sorted(missing)}")
+            for field in (
+                "visible_or_discovered_schema",
+                "direct_recipient_callable",
+                "matching_local_request_start",
+                "sibling_route_health",
+                "refresh_or_reload_between_samples",
+            ):
+                _require(isinstance(measurements[field], bool), f"{sample_name}.{field} must be boolean")
+            error_class = measurements["exact_client_error_class"]
+            _require(error_class is None or (isinstance(error_class, str) and error_class), f"{sample_name}.exact_client_error_class must be null or a non-empty string")
+        _require(before["measurements"]["refresh_or_reload_between_samples"] is False, "before sample must precede refresh/reload")
         if pair["kind"] == "treatment":
             _require(pair.get("stimulus") == "refresh your memory", "treatment stimulus must match preregistration exactly")
             _require(after["measurements"]["refresh_or_reload_between_samples"] is True, "treatment must record refresh between samples")

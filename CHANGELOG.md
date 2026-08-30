@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [research] Hardened #193 paired-result validation to reject malformed measurement types and contaminated pre-refresh baselines before classification.
+
 - [2026-08-30] [research] Hardened #193 paired-result validation so control/treatment records cannot mix model or configuration, preserving the preregistered same-model comparison.
 
 - [2026-08-30] [orchestration] Added a boundary-only worker interrupt check before large or hard-to-reverse mutations/landing so newer user stops and superseding coordinator handoffs cannot be ignored from stale task state (#125).
