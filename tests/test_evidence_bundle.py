@@ -69,8 +69,17 @@ class EvidenceBundleTests(unittest.TestCase):
 
     def test_rejects_empty_manifest(self):
         with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
             with self.assertRaisesRegex(ValueError, "at least one artifact"):
-                build_manifest(Path(td), [], "commit-a")
+                build_manifest(root, [], "commit-a")
+            self.assertEqual(
+                verify_manifest(
+                    root,
+                    {"schema": 1, "subject": {"commit": "commit-a"}, "artifacts": []},
+                    "commit-a",
+                ),
+                ["evidence manifest must bind at least one artifact"],
+            )
 
     def test_rejects_traversal_and_case_collisions(self):
         with tempfile.TemporaryDirectory() as td:
