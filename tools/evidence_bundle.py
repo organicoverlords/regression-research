@@ -156,6 +156,9 @@ def verify_manifest(root: Path, manifest: dict[str, object], expected_commit: st
     if not isinstance(artifacts, list):
         errors.append("artifacts must be a list")
         return errors
+    if not artifacts:
+        errors.append("evidence manifest must bind at least one artifact")
+        return errors
 
     seen: set[str] = set()
     for index, record in enumerate(artifacts):

@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [evidence] Rejected empty evidence manifests during verification so a structurally valid zero-artifact bundle cannot pass as content-bound proof (#125).
+
 - [2026-08-30] [evidence] Added deterministic content-bound evidence manifests that tie regression artifacts to an immutable Git commit and SHA-256 digests, with read-only verification that rejects stale or tampered proof (#125).
 
 - [2026-08-30] [coordination] Converged whole-stack acceptance on the standalone BusyCoordinator authority and made substantive investigation an explicit exact-scope admission operation while preserving claim-free bounded orientation (#125).
