@@ -74,6 +74,18 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "independent"):
             validate_record(data)
 
+    def test_rejects_mixed_models_across_pairs(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
+        data["pairs"][1]["model"] = "gpt-5.5"
+        with self.assertRaisesRegex(ValueError, "same model"):
+            validate_record(data)
+
+    def test_rejects_mixed_configurations_across_pairs(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
+        data["pairs"][1]["configuration"] = "instant"
+        with self.assertRaisesRegex(ValueError, "same configuration"):
+            validate_record(data)
+
     def test_rejects_missing_preregistered_canary(self):
         data = record(pair("control", "c1", True, True))
         del data["pairs"][0]["after"]["canaries"]["local_arrival"]

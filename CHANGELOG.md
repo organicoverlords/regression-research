@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [research] Hardened #193 paired-result validation so control/treatment records cannot mix model or configuration, preserving the preregistered same-model comparison.
+
 - [2026-08-30] [orchestration] Added a boundary-only worker interrupt check before large or hard-to-reverse mutations/landing so newer user stops and superseding coordinator handoffs cannot be ignored from stale task state (#125).
 
 - [2026-08-30] [regression] Reverted the unauthorized mandatory stack-map bootstrap/CI enforcement from PR #289 while preserving the descriptive map and the previously merged worker-activity evidence fix.

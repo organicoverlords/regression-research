@@ -26,6 +26,8 @@ def validate_record(record: dict) -> dict:
     pairs = record.get("pairs")
     _require(isinstance(pairs, list) and pairs, "pairs must be a non-empty list")
     seen_conversations: set[str] = set()
+    expected_model: str | None = None
+    expected_configuration: str | None = None
     normalized = []
     for pair in pairs:
         _require(pair.get("kind") in {"control", "treatment"}, "pair kind must be control or treatment")
@@ -35,6 +37,12 @@ def validate_record(record: dict) -> dict:
         seen_conversations.add(conversation_id)
         _require(isinstance(pair.get("model"), str) and pair["model"], "model is required")
         _require(isinstance(pair.get("configuration"), str) and pair["configuration"], "configuration is required")
+        if expected_model is None:
+            expected_model = pair["model"]
+            expected_configuration = pair["configuration"]
+        else:
+            _require(pair["model"] == expected_model, "all pairs must use the same model")
+            _require(pair["configuration"] == expected_configuration, "all pairs must use the same configuration")
         before = pair.get("before")
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")
