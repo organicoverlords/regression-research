@@ -146,6 +146,10 @@ def canonical_json(manifest: dict[str, object]) -> str:
     return json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
 
+def write_manifest(path: Path, manifest: dict[str, object]) -> None:
+    path.write_bytes(canonical_json(manifest).encode("utf-8"))
+
+
 def load_manifest(path: Path) -> dict[str, object]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -225,7 +229,7 @@ def main() -> int:
             if subject_errors:
                 raise ValueError(subject_errors[0])
             ensure_output_does_not_alias_artifacts(root, args.output, manifest)
-            args.output.write_text(canonical_json(manifest), encoding="utf-8")
+            write_manifest(args.output, manifest)
             print(f"EVIDENCE_BUNDLE_CREATED {args.output}")
             return 0
         manifest = load_manifest(args.manifest)

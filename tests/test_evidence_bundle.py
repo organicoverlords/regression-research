@@ -11,6 +11,7 @@ from tools.evidence_bundle import (
     resolve_commit,
     verify_manifest,
     verify_subject_bindings,
+    write_manifest,
 )
 
 
@@ -57,6 +58,14 @@ class EvidenceBundleTests(unittest.TestCase):
                 verify_subject_bindings(root, dirty_manifest, commit),
                 [f"artifact does not match subject commit {commit}: proof.txt"],
             )
+
+    def test_write_manifest_uses_canonical_lf_bytes(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "bundle.json"
+            manifest = {"schema": 1, "subject": {"commit": "abc123"}, "artifacts": [{"path": "proof.txt", "sha256": "00", "size": 0}]}
+            write_manifest(output, manifest)
+            self.assertEqual(output.read_bytes(), canonical_json(manifest).encode("utf-8"))
+            self.assertNotIn(b"\r\n", output.read_bytes())
 
     def test_verify_is_read_only(self):
         with tempfile.TemporaryDirectory() as td:
