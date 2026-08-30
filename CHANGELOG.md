@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [research] Added executable validation for #193 paired refresh-binding results, including exact stimulus/canary checks and a guard that SUPPORT_H1 requires at least one stable control plus two independent treatment changes.
+
 - [2026-08-30] [regression] Kept behavior-retrieval fixtures curated instead of exhaustive so recording a new user rule does not automatically create mandatory repository maintenance; missing fixture coverage remains diagnostic while existing fixture quality stays enforced (#125).
 
 - [2026-08-30] [memory] Restored the intended #125 delivery boundary: generated Library behavior is primary for fresh chats and independent of MCP, Vault remains canonical/fallback and supplies bounded memory enrichment, and the Library publisher now has an exact render/compare/verify contract.
