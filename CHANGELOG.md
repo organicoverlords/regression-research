@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [orchestration] Corrected live-worker status to use a bounded recent Commander/MCP activity window instead of an instantaneous child-process snapshot; claims remain zero-weight and progress still counts only concrete work output (#125).
+
 - [2026-08-30] [research] Added executable validation for #193 paired refresh-binding results, including exact stimulus/canary checks and a guard that SUPPORT_H1 requires at least one stable control plus two independent treatment changes.
 
 - [2026-08-30] [regression] Kept behavior-retrieval fixtures curated instead of exhaustive so recording a new user rule does not automatically create mandatory repository maintenance; missing fixture coverage remains diagnostic while existing fixture quality stays enforced (#125).

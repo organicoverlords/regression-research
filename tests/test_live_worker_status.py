@@ -1,5 +1,6 @@
 import json
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from tools.live_worker_status import summarize_live_worker_status
@@ -32,6 +33,29 @@ class LiveWorkerStatusTests(unittest.TestCase):
                 if "expected_last_work_at" in case:
                     self.assertEqual(result["last_work_at"], case["expected_last_work_at"])
 
+    def test_recent_completed_commander_work_counts_as_active(self):
+        now = datetime(2026, 8, 30, 13, 40, 0, tzinfo=timezone.utc)
+        result = summarize_live_worker_status(
+            [{"kind": "tool_completed", "at": "2026-08-30T13:38:30Z", "scope_match": True}],
+            execution_visibility=True,
+            now=now,
+            activity_window_seconds=300,
+        )
+        self.assertEqual(result["status"], "working")
+        self.assertTrue(result["working_now"])
+        self.assertEqual(result["recent_activity_count"], 1)
+
+    def test_old_completed_work_does_not_count_as_live(self):
+        now = datetime(2026, 8, 30, 13, 40, 0, tzinfo=timezone.utc)
+        result = summarize_live_worker_status(
+            [{"kind": "tool_completed", "at": "2026-08-30T13:30:00Z", "scope_match": True}],
+            execution_visibility=True,
+            now=now,
+            activity_window_seconds=300,
+        )
+        self.assertEqual(result["status"], "not_working")
+        self.assertFalse(result["working_now"])
+
     def test_claim_metadata_has_zero_positive_weight(self):
         result = summarize_live_worker_status(
             [
@@ -47,19 +71,21 @@ class LiveWorkerStatusTests(unittest.TestCase):
         self.assertFalse(result["working_now"])
         self.assertEqual(result["work_events_in_claim_window"], 0)
 
-    def test_bootstrap_contract_requires_fresh_live_proof(self):
+    def test_bootstrap_contract_requires_recent_activity_window(self):
         contract = build_fresh_session_startup_contract()
         self.assertIn("zero positive weight", contract["worker_status_truth"])
-        self.assertIn("immediately before answering", contract["worker_status_truth"])
+        self.assertIn("five minutes", contract["worker_status_truth"])
+        self.assertIn("do not require a child process", contract["worker_status_truth"])
         self.assertIn("claim timestamps may delimit", contract["worker_progress_truth"])
         self.assertIn("actual work", contract["worker_progress_truth"])
-    def test_worker_launch_contract_separates_claim_window_from_status(self):
+
+    def test_worker_launch_contract_uses_activity_window(self):
         launch = (
             ROOT / "04 Operating Contracts" / "fresh-worker-generation-launch.md"
         ).read_text(encoding="utf-8")
         self.assertIn("zero positive liveness or progress evidence", launch)
         self.assertIn("Claim timestamps may bound", launch)
-        self.assertIn("answer not working now", launch)
+        self.assertIn("bounded recent Commander/MCP activity window", launch)
 
 
 if __name__ == "__main__":
