@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-30] [evidence] Canonicalized Library screenshot text digests to LF before hashing so #86 occurrence integrity verification is stable across Windows CRLF and Unix LF checkouts; migrated all occurrence ledgers to the portable digest contract (#86).
 - [2026-08-30] [evidence] Prevented evidence-bundle creation from overwriting an artifact that the same manifest claims to bind, including path aliases that resolve to the same file (#125).
 - [2026-08-30] [evidence] Rejected empty evidence manifests during verification so a structurally valid zero-artifact bundle cannot pass as content-bound proof (#125).
 - [2026-08-30] [evidence] Added deterministic content-bound evidence manifests that tie regression artifacts to an immutable Git commit and SHA-256 digests, with read-only verification that rejects stale or tampered proof (#125).
 - [2026-08-30] [coordination] Converged whole-stack acceptance on the standalone BusyCoordinator authority and made substantive investigation an explicit exact-scope admission operation while preserving claim-free bounded orientation (#125).
-- [2026-08-29] [routing] Added a replay regression proving one failed/restricted capability stays local and does not terminate unrelated allowed repository work when no equivalent fallback exists (#125).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct

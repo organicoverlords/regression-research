@@ -1,5 +1,9 @@
 from __future__ import annotations
 import argparse, hashlib, json, re
+try:
+    from .library_screenshot_search import canonical_text_sha256
+except ImportError:
+    from library_screenshot_search import canonical_text_sha256
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -61,7 +65,7 @@ def build(root:Path=ROOT)->dict:
             rows.append({
               'occurrence_id':oid,'library_file_id':None,'library_file_id_status':'PENDING_BACKFILL',
               'filename':p.name[:-4]+'.png','capture_time_local':local,'created_at_utc':utc,
-              'timestamp_source':'SCREENSHOT_FILENAME','text_path':rel,'text_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),
+              'timestamp_source':'SCREENSHOT_FILENAME','text_path':rel,'text_sha256':canonical_text_sha256(p),
               'text_status':'FILES_TEXT_EXTRACTION_OR_REVIEWED_FALLBACK','subject':lead,
               'tags':tags_for(clean),'classification':'PENDING_RECONCILIATION',
               'review_status':'VISUALLY_REVIEWED_PREVIOUS_PASS' if reviewed else 'TEXT_EXTRACTED_PENDING_VISUAL_REVIEW',
