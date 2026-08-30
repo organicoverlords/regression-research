@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, _write_bank, merge_authority_registries, merge_bank_entries
+from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, _memory_commit_message, _write_bank, merge_authority_registries, merge_bank_entries
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -18,6 +18,12 @@ class MemoryGitSyncTests(unittest.TestCase):
         merged = merge_authority_registries(remote, local)
         self.assertEqual(merged["user_explicit_ids"], ["a", "b"])
         self.assertEqual(merged["canonical_policy_ids"], ["p1", "p2"])
+
+    def test_memory_sync_commit_message_names_changed_ids_and_authority(self):
+        entries = [{"id": "mem-a", "title": "Review architecture first", "kind": "correction", "scope": "assistant"}]
+        subject, body = _memory_commit_message(entries, {"mem-a"}, user_ids={"mem-a"})
+        self.assertEqual(subject, "memory: authorize mem-a")
+        self.assertIn("mem-a: Review architecture first [USER_EXPLICIT]", body)
 
     def test_authority_registry_merge_rejects_schema_conflict(self):
         with self.assertRaises(MemorySyncError):
