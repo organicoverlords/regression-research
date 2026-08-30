@@ -63,6 +63,14 @@ class Issue193RefreshResultTests(unittest.TestCase):
     def test_single_treatment_change_is_reproduction_only(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
         self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
+    def test_treatment_recovery_does_not_support_binding_loss_hypothesis(self):
+        data = record(
+            pair("control", "c1", True, True),
+            pair("treatment", "t1", False, True),
+            pair("treatment", "t2", False, True),
+        )
+        self.assertEqual(classify(data), "WEAKEN_H1")
     def test_rejects_wrong_stimulus(self):
         data = record(pair("treatment", "t1", True, False))
         data["pairs"][0]["stimulus"] = "refresh memory"
