@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-30] [memory] Published generated ChatGPT bootstrap fallback files atomically so an interrupted replacement cannot destroy the last-known-good Library transport artifact (#125).
+
 - [2026-08-30] [evidence] Published evidence manifests atomically through a same-directory fsynced temporary file so failed replacement cannot destroy the last-known-good proof (#125).
 
 - [2026-08-30] [memory] Converged ChatGPT startup on the Vault behavior compiler with a deterministic byte-verified Library distribution fallback, preserving separate live orientation and rejecting legacy hand-maintained bootstrap files (#125).
