@@ -70,6 +70,24 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data["pairs"][2]["before"]["measurements"]["visible_or_discovered_schema"] = False
         self.assertEqual(classify(data), "REPRODUCTION_ONLY")
 
+    def test_control_schema_loss_prevents_h1_support(self):
+        data = record(
+            pair("control", "c1", True, True),
+            pair("treatment", "t1", True, False),
+            pair("treatment", "t2", True, False),
+        )
+        data["pairs"][0]["after"]["measurements"]["visible_or_discovered_schema"] = False
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
+    def test_unhealthy_control_sibling_route_prevents_h1_support(self):
+        data = record(
+            pair("control", "c1", True, True),
+            pair("treatment", "t1", True, False),
+            pair("treatment", "t2", True, False),
+        )
+        data["pairs"][0]["after"]["measurements"]["sibling_route_health"] = False
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
     def test_failed_control_does_not_count_as_stable_supporting_control(self):
         data = record(
             pair("control", "c1", False, False),

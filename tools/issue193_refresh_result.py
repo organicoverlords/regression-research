@@ -106,8 +106,12 @@ def classify(record: dict) -> str:
     controls = [p for p in validated["pairs"] if p["kind"] == "control"]
     treatments = [p for p in validated["pairs"] if p["kind"] == "treatment"]
     stable_controls = bool(controls) and all(
-        p["before"]["measurements"]["direct_recipient_callable"] is True
+        p["before"]["measurements"]["visible_or_discovered_schema"] is True
+        and p["after"]["measurements"]["visible_or_discovered_schema"] is True
+        and p["before"]["measurements"]["direct_recipient_callable"] is True
         and p["after"]["measurements"]["direct_recipient_callable"] is True
+        and p["before"]["measurements"]["sibling_route_health"] is True
+        and p["after"]["measurements"]["sibling_route_health"] is True
         for p in controls
     )
     changed_treatments = [
