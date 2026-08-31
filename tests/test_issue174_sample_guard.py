@@ -86,6 +86,31 @@ class Issue174SampleGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "CONTROL rationale"):
             validate_samples(pilot, self.tranche2)
 
+    def test_whitespace_only_sample_id_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        pilot[0]["sample_id"] = "   "
+        with self.assertRaisesRegex(ValueError, "pilot sample_id is required"):
+            validate_samples(pilot, self.tranche2)
+
+    def test_whitespace_only_provenance_is_rejected(self):
+        tranche2 = copy.deepcopy(self.tranche2)
+        tranche2[0]["local_sample_file"] = " \t "
+        with self.assertRaisesRegex(ValueError, "tranche2 local_sample_file is required"):
+            validate_samples(self.pilot, tranche2)
+
+    def test_whitespace_only_counterfactual_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        row = next(row for row in pilot if row["coding_status"] == "MISTAKE")
+        row["counterfactual"] = "   "
+        with self.assertRaisesRegex(ValueError, "require failure_class and counterfactual"):
+            validate_samples(pilot, self.tranche2)
+
+    def test_whitespace_only_rationale_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        pilot[0]["rationale"] = "   "
+        with self.assertRaisesRegex(ValueError, "rationale is required"):
+            validate_samples(pilot, self.tranche2)
+
     def test_tranche2_seed_is_frozen(self):
         tranche2 = copy.deepcopy(self.tranche2)
         tranche2[0]["seed"] = "1743"

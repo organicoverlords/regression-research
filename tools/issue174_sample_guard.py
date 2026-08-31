@@ -34,6 +34,10 @@ def _int_field(row: dict[str, str], field: str, *, low: int, high: int) -> int:
     return value
 
 
+def _has_text(row: dict[str, str], field: str) -> bool:
+    return bool((row.get(field) or "").strip())
+
+
 def load_rows(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8-sig") as handle:
         rows = list(csv.DictReader(handle))
@@ -54,7 +58,7 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
             extra = sorted(set(row) - expected_fields, key=str)
             raise ValueError(f"{tranche} coded schema drift: missing={missing} extra={extra}")
     sample_ids = [row.get(id_field) for row in rows]
-    if any(not sample_id for sample_id in sample_ids):
+    if any(not (sample_id or "").strip() for sample_id in sample_ids):
         raise ValueError(f"{tranche} {id_field} is required")
     if len(sample_ids) != len(set(sample_ids)):
         raise ValueError(f"{tranche} {id_field} values must be unique")
@@ -68,15 +72,15 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
             raise ValueError("coding_status is invalid")
         _int_field(row, "user_index", low=0, high=10**9)
         _int_field(row, "tool_calls", low=1, high=10**9)
-        if not row.get("conversation_id"):
+        if not _has_text(row, "conversation_id"):
             raise ValueError("conversation_id is required")
-        if not row.get("rationale"):
+        if not _has_text(row, "rationale"):
             raise ValueError("rationale is required")
-        if not row.get(provenance_field):
+        if not _has_text(row, provenance_field):
             raise ValueError(f"{tranche} {provenance_field} is required")
         status = row["coding_status"]
         if status == "MISTAKE":
-            if not row.get("failure_class") or not row.get("counterfactual"):
+            if not _has_text(row, "failure_class") or not _has_text(row, "counterfactual"):
                 raise ValueError("MISTAKE rows require failure_class and counterfactual")
             _int_field(row, "severity_1_3", low=1, high=3)
             _int_field(row, "preventability_0_3", low=0, high=3)
