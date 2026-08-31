@@ -128,7 +128,9 @@ def classify(record: dict) -> str:
         return "SUPPORT_H1"
     if changed_treatments:
         return "REPRODUCTION_ONLY"
-    return "WEAKEN_H1"
+    if controls and treatments:
+        return "WEAKEN_H1"
+    return "INCONCLUSIVE"
 
 
 def main() -> int:

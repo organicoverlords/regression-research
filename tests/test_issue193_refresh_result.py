@@ -264,6 +264,14 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact_client_error_class"):
             validate_record(data)
 
+    def test_control_only_record_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True))
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_treatment_only_without_binding_change_is_inconclusive(self):
+        data = record(pair("treatment", "t1", True, True))
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
 
 if __name__ == "__main__":
     unittest.main()

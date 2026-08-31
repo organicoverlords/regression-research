@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Classified #193 records without both control and treatment evidence as INCONCLUSIVE so missing experimental arms cannot be mislabeled as evidence weakening H1.
+
 - [2026-09-01] [research] Required #193 supporting control pairs to retain visible tool schema and healthy sibling-route evidence across both samples so an unstable control surface cannot certify a refresh-specific binding effect.
 
 - [2026-08-31] [research] Required #193 SUPPORT_H1 treatment changes to retain the preregistered tool schema before and after refresh so route-surface loss cannot masquerade as callable-binding loss.
