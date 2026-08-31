@@ -39,12 +39,14 @@ def validate_record(record: dict) -> dict:
         seen_conversations.add(canonical_conversation_id)
         _require(isinstance(pair.get("model"), str) and pair["model"].strip(), "model is required")
         _require(isinstance(pair.get("configuration"), str) and pair["configuration"].strip(), "configuration is required")
+        canonical_model = pair["model"].strip()
+        canonical_configuration = pair["configuration"].strip()
         if expected_model is None:
-            expected_model = pair["model"]
-            expected_configuration = pair["configuration"]
+            expected_model = canonical_model
+            expected_configuration = canonical_configuration
         else:
-            _require(pair["model"] == expected_model, "all pairs must use the same model")
-            _require(pair["configuration"] == expected_configuration, "all pairs must use the same configuration")
+            _require(canonical_model == expected_model, "all pairs must use the same model")
+            _require(canonical_configuration == expected_configuration, "all pairs must use the same configuration")
         before = pair.get("before")
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")
