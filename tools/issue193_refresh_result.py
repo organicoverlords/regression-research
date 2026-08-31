@@ -76,6 +76,7 @@ def validate_record(record: dict) -> dict:
                 _require(error_class is None, f"{sample_name}.exact_client_error_class must be null when direct_recipient_callable is true")
             else:
                 _require(isinstance(error_class, str) and error_class.strip(), f"{sample_name}.exact_client_error_class must be a non-empty string when direct_recipient_callable is false")
+        _require(before["canaries"] == after["canaries"], "paired samples must rerun identical canary definitions")
         _require(before["measurements"]["refresh_or_reload_between_samples"] is False, "before sample must precede refresh/reload")
         if pair["kind"] == "treatment":
             _require(pair.get("stimulus") == "refresh your memory", "treatment stimulus must match preregistration exactly")

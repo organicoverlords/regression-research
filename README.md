@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [research] Required #193 paired samples to rerun identical preregistered canary definitions so changed route definitions cannot masquerade as a treatment effect.
 - [2026-08-31] [research] Hardened #193 refresh-result validation so a syntactically valid non-object JSON root fails through the evidence validator instead of crashing with an attribute error.
 - [2026-08-31] [research] Hardened #193 refresh-result validation so malformed non-object pairs or canary containers fail cleanly instead of bypassing the record-shape contract.
 - [2026-08-31] [research] Canonicalized #193 model/configuration metadata comparison so harmless surrounding whitespace cannot falsely split otherwise identical paired environments.
 - [2026-08-31] [research] Hardened #193 paired refresh-binding result records against whitespace-only evidence metadata and whitespace-variant duplicate conversation IDs.
-- [2026-08-31] [research] Canonicalized #174 user_index values in duplicate-episode keys so numeric-equivalent spellings cannot evade cross-tranche sample integrity checks.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
