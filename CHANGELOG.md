@@ -8,6 +8,7 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Hardened #193 refresh-result validation so a syntactically valid non-object JSON root fails through the evidence validator instead of crashing with an attribute error.
 - [2026-08-31] [research] Hardened #193 refresh-result validation so malformed non-object pairs or canary containers fail cleanly instead of bypassing the record-shape contract.
 
 - [2026-08-31] [research] Canonicalized #193 model/configuration metadata comparison so harmless surrounding whitespace cannot falsely split otherwise identical paired environments.
@@ -491,6 +492,7 @@ To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
   2. Open a fresh empty `## [Unreleased]
 
+- [2026-08-31] [research] Hardened #193 refresh-result validation so a syntactically valid non-object JSON root fails through the evidence validator instead of crashing with an attribute error.
 - [2026-08-31] [research] Hardened #193 refresh-result validation so malformed non-object pairs or canary containers fail cleanly instead of bypassing the record-shape contract.
 
 - [2026-08-31] [research] Canonicalized #193 model/configuration metadata comparison so harmless surrounding whitespace cannot falsely split otherwise identical paired environments.
