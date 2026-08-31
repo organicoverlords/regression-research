@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Canonicalized #193 model/configuration metadata comparison so harmless surrounding whitespace cannot falsely split otherwise identical paired environments.
+
 - [2026-08-31] [research] Hardened #193 paired refresh-binding result records against whitespace-only evidence metadata and whitespace-variant duplicate conversation IDs.
 
 - [2026-08-31] [research] Canonicalized #174 user_index values in duplicate-episode keys so numeric-equivalent spellings cannot evade cross-tranche sample integrity checks.
@@ -486,6 +488,8 @@ Delete the headings you do not use. Keep this section at the top at all times.
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
   2. Open a fresh empty `## [Unreleased]
+
+- [2026-08-31] [research] Canonicalized #193 model/configuration metadata comparison so harmless surrounding whitespace cannot falsely split otherwise identical paired environments.
 
 - [2026-08-30] [memory] Made false per-chat stack ownership and continuity promises a durable regression: active behavior now forbids assistant-invented chat-local contracts unless backed by current user direction or verified canonical stack state, with the incident captured as a replay fixture.
 
