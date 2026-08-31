@@ -70,12 +70,6 @@
       "expected": "mem-20260829-d262b833"
     },
     {
-      "id": "holdout-07",
-      "cohort": "holdout",
-      "query": "a short prompt can still require deep analysis if the task is difficult",
-      "expected": "mem-20260829-628eac70"
-    },
-    {
       "id": "holdout-08",
       "cohort": "holdout",
       "query": "do not disable scheduled workers merely because one run is blocked",

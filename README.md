@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [memory] Aligned the deterministic memory regression suite with the retired Vault runtime-authority path: promotion tests now enforce retirement, timeline behavior is forensic-only, and the retrieval holdout no longer requires a superseded behavior rule (#125).
 - [2026-08-31] [coordination] Made claim-optional independent mutations yield to another actor's exact live BusyCoordinator ownership while preserving read-only and same-owner continuation (#125).
 - [2026-08-31] [research] Froze the #174 coded-sample CSV column contract so missing or injected fields fail before prevalence inputs can drift silently.
 - [2026-08-31] [research] Added an executable #174 coded-sample guard that locks the 48-episode denominator, balanced frozen strata, tranche-2 seed, row-level mistake/control schema, and cross-tranche episode deduplication so prevalence inputs cannot drift silently.
 - [2026-08-31] [orchestration] Restored fresh-chat behavior delivery to canonical Vault bootstrap first with one exact-command retry, using the complete generated Library artifact only as transport fallback; updated the tracked PI bridge and regressions without changing behavior-bank contents.
-- [2026-08-31] [memory] Refreshed the curated behavior-retrieval fixture after supersession made three expected rule IDs stale; obsolete response-correction cases were removed and worker-status retrieval now targets the current consolidated rule.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
