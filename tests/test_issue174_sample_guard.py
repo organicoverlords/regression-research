@@ -117,6 +117,12 @@ class Issue174SampleGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "rationale is required"):
             validate_samples(pilot, self.tranche2)
 
+    def test_zero_user_index_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        pilot[0]["user_index"] = "0"
+        with self.assertRaisesRegex(ValueError, "user_index must be between 1 and 1000000000"):
+            validate_samples(pilot, self.tranche2)
+
     def test_tranche2_seed_is_frozen(self):
         tranche2 = copy.deepcopy(self.tranche2)
         tranche2[0]["seed"] = "1743"
