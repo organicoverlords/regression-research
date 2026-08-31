@@ -101,6 +101,13 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "identical canary definitions"):
             validate_record(data)
 
+    def test_rejects_changed_canary_definition_across_pairs(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
+        data["pairs"][1]["before"]["canaries"]["call_primary"] = {"route": "alternate"}
+        data["pairs"][1]["after"]["canaries"]["call_primary"] = {"route": "alternate"}
+        with self.assertRaisesRegex(ValueError, "all pairs must use identical canary definitions"):
+            validate_record(data)
+
     def test_rejects_wrong_stimulus(self):
         data = record(pair("treatment", "t1", True, False))
         data["pairs"][0]["stimulus"] = "refresh memory"

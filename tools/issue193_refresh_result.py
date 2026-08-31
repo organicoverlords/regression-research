@@ -30,6 +30,7 @@ def validate_record(record: dict) -> dict:
     seen_conversations: set[str] = set()
     expected_model: str | None = None
     expected_configuration: str | None = None
+    expected_canaries: dict | None = None
     normalized = []
     for pair in pairs:
         _require(isinstance(pair, dict), "each pair must be an object")
@@ -77,6 +78,10 @@ def validate_record(record: dict) -> dict:
             else:
                 _require(isinstance(error_class, str) and error_class.strip(), f"{sample_name}.exact_client_error_class must be a non-empty string when direct_recipient_callable is false")
         _require(before["canaries"] == after["canaries"], "paired samples must rerun identical canary definitions")
+        if expected_canaries is None:
+            expected_canaries = before["canaries"]
+        else:
+            _require(before["canaries"] == expected_canaries, "all pairs must use identical canary definitions")
         _require(before["measurements"]["refresh_or_reload_between_samples"] is False, "before sample must precede refresh/reload")
         if pair["kind"] == "treatment":
             _require(pair.get("stimulus") == "refresh your memory", "treatment stimulus must match preregistration exactly")
