@@ -80,6 +80,17 @@ class Issue193RefreshResultTests(unittest.TestCase):
             pair("treatment", "t2", False, True),
         )
         self.assertEqual(classify(data), "WEAKEN_H1")
+    def test_rejects_non_object_pair(self):
+        data = record([])
+        with self.assertRaisesRegex(ValueError, "each pair must be an object"):
+            validate_record(data)
+
+    def test_rejects_non_object_canaries(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["before"]["canaries"] = list(CANARIES)
+        with self.assertRaisesRegex(ValueError, "before.canaries must be an object"):
+            validate_record(data)
+
     def test_rejects_wrong_stimulus(self):
         data = record(pair("treatment", "t1", True, False))
         data["pairs"][0]["stimulus"] = "refresh memory"
