@@ -95,6 +95,12 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "before.canaries must be an object"):
             validate_record(data)
 
+    def test_rejects_non_object_canary_definition(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["before"]["canaries"]["call_primary"] = "plugin2"
+        with self.assertRaisesRegex(ValueError, "canary definitions must be objects"):
+            validate_record(data)
+
     def test_rejects_changed_canary_definition_within_pair(self):
         data = record(pair("control", "c1", True, True))
         data["pairs"][0]["after"]["canaries"]["call_primary"] = {"route": "different"}

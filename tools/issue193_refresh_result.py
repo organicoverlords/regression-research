@@ -57,6 +57,7 @@ def validate_record(record: dict) -> dict:
             canaries = sample.get("canaries")
             _require(isinstance(canaries, dict), f"{sample_name}.canaries must be an object")
             _require(set(canaries) == CANARY_IDS, f"{sample_name} must contain the exact preregistered canaries")
+            _require(all(isinstance(definition, dict) for definition in canaries.values()), f"{sample_name} canary definitions must be objects")
             measurements = sample.get("measurements")
             _require(isinstance(measurements, dict), f"{sample_name}.measurements must be an object")
             missing = REQUIRED_MEASUREMENTS - set(measurements)
