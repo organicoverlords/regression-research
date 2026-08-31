@@ -31,6 +31,7 @@ def validate_record(record: dict) -> dict:
     expected_configuration: str | None = None
     normalized = []
     for pair in pairs:
+        _require(isinstance(pair, dict), "each pair must be an object")
         _require(pair.get("kind") in {"control", "treatment"}, "pair kind must be control or treatment")
         conversation_id = pair.get("conversation_id")
         _require(isinstance(conversation_id, str) and conversation_id.strip(), "conversation_id is required")
@@ -51,7 +52,9 @@ def validate_record(record: dict) -> dict:
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")
         for sample_name, sample in (("before", before), ("after", after)):
-            _require(set(sample.get("canaries", {})) == CANARY_IDS, f"{sample_name} must contain the exact preregistered canaries")
+            canaries = sample.get("canaries")
+            _require(isinstance(canaries, dict), f"{sample_name}.canaries must be an object")
+            _require(set(canaries) == CANARY_IDS, f"{sample_name} must contain the exact preregistered canaries")
             measurements = sample.get("measurements")
             _require(isinstance(measurements, dict), f"{sample_name}.measurements must be an object")
             missing = REQUIRED_MEASUREMENTS - set(measurements)

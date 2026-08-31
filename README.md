@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [research] Hardened #193 refresh-result validation so malformed non-object pairs or canary containers fail cleanly instead of bypassing the record-shape contract.
 - [2026-08-31] [research] Canonicalized #193 model/configuration metadata comparison so harmless surrounding whitespace cannot falsely split otherwise identical paired environments.
 - [2026-08-31] [research] Hardened #193 paired refresh-binding result records against whitespace-only evidence metadata and whitespace-variant duplicate conversation IDs.
 - [2026-08-31] [research] Canonicalized #174 user_index values in duplicate-episode keys so numeric-equivalent spellings cannot evade cross-tranche sample integrity checks.
 - [2026-08-31] [research] Canonicalized #174 conversation IDs for duplicate-episode detection so whitespace variants cannot evade frozen-sample integrity checks.
-- [2026-08-31] [research] Rejected zero-valued #174 user_index entries so coded episodes remain valid one-based conversation positions.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
