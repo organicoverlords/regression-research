@@ -73,7 +73,7 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
             raise ValueError("stratum must be GEN or UE")
         if row.get("coding_status") not in STATUSES:
             raise ValueError("coding_status is invalid")
-        _int_field(row, "user_index", low=0, high=10**9)
+        _int_field(row, "user_index", low=1, high=10**9)
         _int_field(row, "tool_calls", low=1, high=10**9)
         if not _has_text(row, "conversation_id"):
             raise ValueError("conversation_id is required")
