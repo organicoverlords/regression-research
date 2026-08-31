@@ -41,6 +41,18 @@ class Issue174SampleGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "pilot sample_id is required"):
             validate_samples(pilot, self.tranche2)
 
+    def test_missing_pilot_provenance_file_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        pilot[0]["source_snapshot_file"] = ""
+        with self.assertRaisesRegex(ValueError, "pilot source_snapshot_file is required"):
+            validate_samples(pilot, self.tranche2)
+
+    def test_missing_tranche2_provenance_file_is_rejected(self):
+        tranche2 = copy.deepcopy(self.tranche2)
+        tranche2[0]["local_sample_file"] = ""
+        with self.assertRaisesRegex(ValueError, "tranche2 local_sample_file is required"):
+            validate_samples(self.pilot, tranche2)
+
     def test_missing_coded_column_is_rejected(self):
         pilot = copy.deepcopy(self.pilot)
         pilot[0].pop("source_snapshot_file")
