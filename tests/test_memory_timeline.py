@@ -104,7 +104,7 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(orientation["behavior_profile"][0]["authority_role"], "USER_EXPLICIT")
         self.assertTrue(orientation["behavior_profile"][0]["behavior_rule_type"])
         self.assertEqual(orientation["behavior_profile"][0]["authority_basis"], "explicit_behavior_rule_type")
-        self.assertIn("explicitly typed user-authored behavior", orientation["contract"]["behavior_profile"])
+        self.assertIn("forensic metadata only, not runtime authority", orientation["contract"]["behavior_profile"])
 
     def test_orientation_keeps_canonical_policy_separate_from_user_behavior(self):
         user_rule = self.e("user", "2026-08-29T10:00:00+03:00", "User rule", kind="preference", evidence=["user-instruction:test"])
