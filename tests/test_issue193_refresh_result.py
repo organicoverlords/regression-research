@@ -97,6 +97,12 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "same model"):
             validate_record(data)
 
+    def test_accepts_whitespace_variants_of_same_model_and_configuration(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
+        data["pairs"][1]["model"] = " gpt-5.6 "
+        data["pairs"][1]["configuration"] = " thinking "
+        self.assertTrue(validate_record(data)["ok"])
+
     def test_rejects_mixed_configurations_across_pairs(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False))
         data["pairs"][1]["configuration"] = "instant"
