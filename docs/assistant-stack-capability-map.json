@@ -163,12 +163,16 @@
                          },
                          {
                              "id":  "fresh_session_behavior",
-                             "owner":  "vault_memory_bank_bootstrap",
+                             "owner":  "current_conversation_and_chatgpt_memory",
                              "reads":  [
-                                           "local_bootstrap",
-                                           "complete_library_fallback_when_required"
+                                           "current_conversation",
+                                           "chatgpt_memory",
+                                           "live_repo_runtime_evidence",
+                                           "optional_vault_history"
                                        ],
                              "never_authority":  [
+                                                     "vault_behavior_bootstrap",
+                                                     "generated_library_bootstrap",
                                                      "full_memory_dump",
                                                      "project_history"
                                                  ]
@@ -253,9 +257,9 @@
                            "role":  "context_evidence",
                            "path":  "C:\\Users\\Lauri\\Desktop\\vault",
                            "owns":  [
-                                        "behavior bootstrap",
                                         "history",
-                                        "regression evidence"
+                                        "regression evidence",
+                                        "optional notebook context"
                                     ]
                        },
                        {

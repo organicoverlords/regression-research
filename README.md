@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [orchestration] Converged the descriptive capability map and architecture notes with the already-landed bootstrap retirement: fresh-session continuity now points to current conversation + ChatGPT Memory, while Vault/Library bootstrap paths are explicitly non-authoritative legacy/history surfaces (#125).
 - [2026-08-31] [research] Rejected whitespace-only required values in the #174 coded-sample guard so blank-looking identifiers, provenance, rationales, and mistake counterfactuals cannot satisfy evidence integrity checks.
 - [2026-08-31] [research] Required non-empty provenance-file references for both #174 coded-sample tranches so machine-readable rows cannot silently lose their evidence pointer.
 - [2026-08-31] [research] Required unique non-empty #174 coded-sample identifiers so machine-readable rows cannot become ambiguous without changing prevalence denominators.
 - [2026-08-31] [memory] Aligned the deterministic memory regression suite with the retired Vault runtime-authority path: promotion tests now enforce retirement, timeline behavior is forensic-only, and the retrieval holdout no longer requires a superseded behavior rule (#125).
-- [2026-08-31] [coordination] Made claim-optional independent mutations yield to another actor's exact live BusyCoordinator ownership while preserving read-only and same-owner continuation (#125).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
