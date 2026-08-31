@@ -47,10 +47,23 @@ class BusyAuthorityTests(unittest.TestCase):
         self.assertEqual(result["decision"], "claim_required")
         self.assertEqual(result["stale_projections"], [projection])
 
-    def test_read_only_and_independent_work_do_not_need_claim(self):
+    def test_read_only_and_unclaimed_independent_work_do_not_need_claim(self):
         for operation in ("read_only", "independent_mutation"):
             result = admit_operation("worker-a", "repo:file-a", operation, [], policy=self.policy)
             self.assertEqual(result["decision"], "allow")
+
+    def test_independent_mutation_yields_to_exact_other_owner(self):
+        claim = {"scope": "repo:file-a", "owner": "worker-a", "live": True}
+        result = admit_operation("worker-b", "repo:file-a", "independent_mutation", [claim], policy=self.policy)
+        self.assertEqual(result["decision"], "yield")
+        self.assertEqual(result["reason"], "another_actor_holds_exact_live_claim")
+        self.assertEqual(result["owner"], "worker-a")
+
+    def test_independent_mutation_by_exact_owner_remains_claim_optional(self):
+        claim = {"scope": "repo:file-a", "owner": "worker-a", "live": True}
+        result = admit_operation("worker-a", "repo:file-a", "independent_mutation", [claim], policy=self.policy)
+        self.assertEqual(result["decision"], "allow")
+        self.assertEqual(result["reason"], "claim_not_required")
 
     def test_policy_uses_standalone_busy_coordinator_as_live_authority(self):
         self.assertEqual(self.policy["live_authority"], "standalone_busy_coordinator")
