@@ -38,10 +38,15 @@ def validate_record(record: dict) -> dict:
     expected_model: str | None = None
     expected_configuration: str | None = None
     expected_canaries: dict | None = None
+    seen_treatment = False
     normalized = []
     for pair in pairs:
         _require(isinstance(pair, dict), "each pair must be an object")
         _require(pair.get("kind") in {"control", "treatment"}, "pair kind must be control or treatment")
+        if pair["kind"] == "treatment":
+            seen_treatment = True
+        else:
+            _require(not seen_treatment, "control pairs must precede treatment pairs")
         conversation_id = pair.get("conversation_id")
         _require(isinstance(conversation_id, str) and conversation_id.strip(), "conversation_id is required")
         canonical_conversation_id = conversation_id.strip()
