@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Rejected whitespace-only required values in the #174 coded-sample guard so blank-looking identifiers, provenance, rationales, and mistake counterfactuals cannot satisfy evidence integrity checks.
+
 - [2026-08-31] [research] Required non-empty provenance-file references for both #174 coded-sample tranches so machine-readable rows cannot silently lose their evidence pointer.
 
 - [2026-08-31] [research] Required unique non-empty #174 coded-sample identifiers so machine-readable rows cannot become ambiguous without changing prevalence denominators.
