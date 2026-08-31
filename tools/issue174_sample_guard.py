@@ -102,7 +102,7 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
 def validate_samples(pilot: list[dict[str, str]], tranche2: list[dict[str, str]]) -> None:
     validate_rows(pilot, tranche="pilot")
     validate_rows(tranche2, tranche="tranche2")
-    keys = [(row["conversation_id"], row["user_index"]) for row in pilot + tranche2]
+    keys = [((row["conversation_id"] or "").strip(), row["user_index"]) for row in pilot + tranche2]
     if len(keys) != len(set(keys)):
         raise ValueError("coded samples must not duplicate episode keys across tranches")
 
