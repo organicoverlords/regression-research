@@ -1,13 +1,11 @@
-# Fresh-chat startup orientation
+# ChatGPT session continuity
 
-The Vault is canonical for behavior, policy, and memory. Acquire complete behavior once through the configured Vault-primary / Library-fallback delivery route. Do not run both routes when one has already succeeded.
+Normal ChatGPT continuity comes from the current conversation and ChatGPT Memory. There is no Vault behavior bootstrap or mandatory Vault startup read.
 
-Fresh-chat startup is **behavior delivery -> compact Stack Atlas -> relevant context -> response**. Bind greetings, shorthand, `go`, `continue`, status questions, and other short prompts to the inherited mission instead of asking the operator to restate known context.
+Short or elliptical turns inherit the active task and established context. The current user message updates that context; explicit current facts override conflicting remembered or historical material.
 
-Consume the compact Stack Atlas on every fresh chat. For stack/infra questions, explanations, status reasoning, repairs, or changes, consult the map before deciding what is relevant or what has blast radius, then inspect the relevant components/live sources it identifies. Recent-memory and live-state reads remain conditional; there is no mandatory fleet-wide live scan for unrelated simple work.
+For stack/infra work, consult the Stack Atlas before deciding relevance or blast radius, then check the relevant live sources. For non-stack work, do not perform an unrelated stack sweep.
 
-Tool discovery is bounded: reuse loaded schemas when valid; refresh or rediscover when they may be stale, changed, failed, or missing. Prefer narrow discovery, but broader connector discovery remains valid when the task needs it.
+Current-state answers require current evidence. Vault history, memory, schedules, BUSY metadata, old reports, and prior snapshots may provide context but do not prove current state.
 
-For worker-status questions, current execution evidence remains required; claims, leases, schedules, checkpoints, and old snapshots do not prove activity.
-
-Post-compaction rehydration restores behavior and the compact Atlas context once; it does not rerun recent-memory or live-orientation work unless the current task needs those sources.
+Vault search/context/history is optional notebook-style enrichment. Use it only when relevant history would materially improve the answer or avoid rediscovery.

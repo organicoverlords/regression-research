@@ -1,10 +1,10 @@
 # Shared Memory Bank
 
-This directory is the lightweight shared continuity layer for Regression Research and cooperating agents.
+This directory is a searchable shared history/notebook/evidence layer for Regression Research and cooperating agents. It enhances memory and reconstruction but is not a startup gate or runtime behavior authority.
 
 `memory-bank.jsonl` is append-only semantic history. Each line is one compact fact, decision, lesson, preference, status, or correction. Evidence belongs behind pointers rather than embedded transcripts or logs.
 
-Current user instruction and live evidence always outrank recalled memory. A missing or unreachable bank is not a bootstrap failure; continue from current context and applicable policy. Ordinary corrections append a new entry and reference older entry IDs in `supersedes`; committed historical entries are not silently rewritten.
+Current user instruction and live evidence always outrank recalled memory. A missing or unreachable bank is ordinary optional-context loss; continue from the current conversation, ChatGPT/harness memory, applicable policy, Atlas, and live sources. Ordinary corrections append a new entry and reference older entry IDs in `supersedes`; committed historical entries are not silently rewritten.
 
 States are `PROVEN`, `PROVISIONAL`, and `REJECTED`. Ordinary recall must exclude rejected and superseded entries unless history is explicitly requested.
 
@@ -32,7 +32,7 @@ python tools\memory_bank.py context "p3 orchestrator: work on P3"
 
 Add `--with-history` only when the task actually needs preserved full-conversation evidence. The default context path stays on the curated bank and does not fan out into the raw conversation corpus.
 
-`context` uses the same validated retrieval path but applies a hard prompt budget and separates behavioral authority, proven durable memory, and historical conversation evidence. PROVISIONAL and stored `status` matches are omitted from the default durable section; they remain available through explicit `search`/`history`. Historical frequency and excerpts are always advisory evidence, never authority. This is the preferred compact handoff surface when product-level ChatGPT memory/history is disabled.
+`context` uses the same validated retrieval path but applies a hard prompt budget and separates durable notes from historical conversation evidence. PROVISIONAL and stored `status` matches are omitted from the default durable section; they remain available through explicit `search`/`history`. Historical frequency and excerpts are always advisory evidence, never authority. This is the preferred compact handoff surface when product-level ChatGPT memory/history is disabled.
 
 Inspect historical/rejected/superseded entries:
 
@@ -58,17 +58,17 @@ New writes should set `--project` when a memory belongs to one project. Time-bou
 
 These are ordinary repository commands. MCP/local workers may invoke them when they have repo access, but MCP availability is not part of the memory contract.
 
-## Behavioral authority is explicitly typed
+## Legacy behavior provenance metadata
 
-`user-instruction:` evidence is provenance: it proves that the user authored or approved the stored statement. It does **not** mean the record is a behavior rule. A current user-authored record may alter assistant behavior only when it has user provenance, behavior-rule type, and trusted curation in `memory/behavior-authority-registry.json`. Raw JSON and generic `append` cannot mint authority. The supported new-rule path is `record --behavior-rule`, which requires verbatim user provenance and synchronizes the bank record plus its authority curation together. Existing stranded trusted records can be reviewed with `promote-behavior <memory-id>`; canonical policy uses the separate `promote-policy` path. Run `authority-validate` to detect missing/orphaned/drifting registry state.
+Older records and registries preserve which statements were historically treated as behavior rules or policy. That metadata is retained for forensic reconstruction and regression research only; it no longer makes Vault records runtime ChatGPT behavior authority. Current conversation and ChatGPT Memory provide ChatGPT continuity, while shared/repo policy governs repository work.
 
-Entries created before the `behavior_rule` field existed are not rewritten. The bounded `memory/behavior-rule-types.json` registry names only immutable legacy IDs that were already established as behavior rules; it supplies legacy type metadata, not authority. The separate authority registry is the curation gate. A `preference`, `decision`, or `correction` that is not typed and curated remains advisory evidence, including historical checkpoints and user-authored event records.
+Do not automatically promote or load Vault records into live behavior. Use targeted recall when history is relevant, and let current user instruction and verified live state override remembered material.
 
 ## Shared continuity and timeline views
 
 The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. Read commands (`recent`, `search`, `context`, `orient`, `timeline`) are local, side-effect free, and do not claim BUSY/ownership, create queues, or require a daemon. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
 
-Build a compact fresh-chat orientation from curated memory plus whatever canonical local Git repositories are available:
+Build an optional historical/project orientation from curated memory plus whatever canonical local Git repositories are available:
 
 ```powershell
 python tools\memory_bank.py orient

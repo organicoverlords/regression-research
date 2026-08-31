@@ -208,10 +208,7 @@ def verify_memory() -> None:
     run([sys.executable, "tools/memory_bank.py", "validate"])
     run([sys.executable, "tools/memory_bank.py", "authority-validate"])
     run([sys.executable, "tools/provenance.py", "validate"])
-    with tempfile.TemporaryDirectory(prefix="chatgpt-bootstrap-verify-") as temp_dir:
-        artifact = str(Path(temp_dir) / "chatgpt-bootstrap.json")
-        run([sys.executable, "tools/chatgpt_bootstrap_artifact.py", "render", "--output", artifact])
-        run([sys.executable, "tools/chatgpt_bootstrap_artifact.py", "verify", artifact])
+    run([sys.executable, "tools/chatgpt_bootstrap_artifact.py", "publication-plan"])
     run(
         [
             sys.executable,
