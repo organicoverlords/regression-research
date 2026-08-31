@@ -23,6 +23,13 @@ class Issue174SampleGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate episode keys"):
             validate_samples(self.pilot, tranche2)
 
+    def test_duplicate_episode_with_conversation_id_whitespace_is_rejected(self):
+        tranche2 = copy.deepcopy(self.tranche2)
+        tranche2[0]["conversation_id"] = f"  {self.pilot[0]['conversation_id']}  "
+        tranche2[0]["user_index"] = self.pilot[0]["user_index"]
+        with self.assertRaisesRegex(ValueError, "duplicate episode keys"):
+            validate_samples(self.pilot, tranche2)
+
     def test_duplicate_pilot_sample_id_is_rejected(self):
         pilot = copy.deepcopy(self.pilot)
         pilot[1]["sample_id"] = pilot[0]["sample_id"]

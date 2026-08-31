@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Canonicalized #174 conversation IDs for duplicate-episode detection so whitespace variants cannot evade frozen-sample integrity checks.
+
 - [2026-08-31] [research] Rejected zero-valued #174 user_index entries so coded episodes remain valid one-based conversation positions.
 
 
