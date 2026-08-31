@@ -5,6 +5,7 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [research] Required unique non-empty #174 coded-sample identifiers so machine-readable rows cannot become ambiguous without changing prevalence denominators.
 - [2026-08-31] [memory] Aligned the deterministic memory regression suite with the retired Vault runtime-authority path: promotion tests now enforce retirement, timeline behavior is forensic-only, and the retrieval holdout no longer requires a superseded behavior rule (#125).
 - [2026-08-31] [coordination] Made claim-optional independent mutations yield to another actor's exact live BusyCoordinator ownership while preserving read-only and same-owner continuation (#125).
 - [2026-08-31] [research] Froze the #174 coded-sample CSV column contract so missing or injected fields fail before prevalence inputs can drift silently.

@@ -14,33 +14,12 @@ TRANCHE2 = ROOT / "03 Fixtures and Experiments/2026-08-27_issue174_sample2-coded
 STATUSES = {"MISTAKE", "CONTROL", "NO_CLEAR_MISTAKE"}
 STRATA = {"GEN", "UE"}
 PILOT_FIELDS = {
-    "sample_id",
-    "stratum",
-    "conversation_id",
-    "user_index",
-    "tool_calls",
-    "coding_status",
-    "failure_class",
-    "severity_1_3",
-    "preventability_0_3",
-    "rationale",
-    "counterfactual",
-    "source_snapshot_file",
+    "sample_id", "stratum", "conversation_id", "user_index", "tool_calls", "coding_status",
+    "failure_class", "severity_1_3", "preventability_0_3", "rationale", "counterfactual", "source_snapshot_file",
 }
 TRANCHE2_FIELDS = {
-    "sample2_id",
-    "seed",
-    "stratum",
-    "conversation_id",
-    "user_index",
-    "tool_calls",
-    "coding_status",
-    "failure_class",
-    "severity_1_3",
-    "preventability_0_3",
-    "rationale",
-    "counterfactual",
-    "local_sample_file",
+    "sample2_id", "seed", "stratum", "conversation_id", "user_index", "tool_calls", "coding_status",
+    "failure_class", "severity_1_3", "preventability_0_3", "rationale", "counterfactual", "local_sample_file",
 }
 
 
@@ -67,11 +46,17 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
     if len(rows) != 24:
         raise ValueError(f"{tranche} must contain exactly 24 episodes")
     expected_fields = PILOT_FIELDS if tranche == "pilot" else TRANCHE2_FIELDS
+    id_field = "sample_id" if tranche == "pilot" else "sample2_id"
     for row in rows:
         if set(row) != expected_fields:
             missing = sorted(expected_fields - set(row))
             extra = sorted(set(row) - expected_fields, key=str)
             raise ValueError(f"{tranche} coded schema drift: missing={missing} extra={extra}")
+    sample_ids = [row.get(id_field) for row in rows]
+    if any(not sample_id for sample_id in sample_ids):
+        raise ValueError(f"{tranche} {id_field} is required")
+    if len(sample_ids) != len(set(sample_ids)):
+        raise ValueError(f"{tranche} {id_field} values must be unique")
     strata = Counter(row.get("stratum") for row in rows)
     if strata != Counter({"GEN": 12, "UE": 12}):
         raise ValueError(f"{tranche} must contain exactly 12 GEN and 12 UE episodes")
@@ -118,9 +103,7 @@ def summarize(rows: list[dict[str, str]]) -> dict[str, dict[str, int]]:
         selected = rows if stratum == "ALL" else [row for row in rows if row["stratum"] == stratum]
         counts = Counter(row["coding_status"] for row in selected)
         result[stratum] = {
-            "episodes": len(selected),
-            "mistakes": counts["MISTAKE"],
-            "controls": counts["CONTROL"],
+            "episodes": len(selected), "mistakes": counts["MISTAKE"], "controls": counts["CONTROL"],
             "no_clear_mistake": counts["NO_CLEAR_MISTAKE"],
         }
     return result
