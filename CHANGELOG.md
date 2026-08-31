@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Hardened #193 paired refresh-binding result records against whitespace-only evidence metadata and whitespace-variant duplicate conversation IDs.
+
 - [2026-08-31] [research] Canonicalized #174 user_index values in duplicate-episode keys so numeric-equivalent spellings cannot evade cross-tranche sample integrity checks.
 
 - [2026-08-31] [research] Canonicalized #174 conversation IDs for duplicate-episode detection so whitespace variants cannot evade frozen-sample integrity checks.
