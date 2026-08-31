@@ -1,16 +1,10 @@
 import copy
 import unittest
 
-from tools.issue193_refresh_result import classify, validate_record
+from tools.issue193_refresh_result import CANARY_DEFINITIONS, classify, validate_record
 
 
-CANARIES = {
-    "discover_primary": {},
-    "call_primary": {},
-    "discover_alternate": {},
-    "call_alternate": {},
-    "local_arrival": {},
-}
+CANARIES = copy.deepcopy(CANARY_DEFINITIONS)
 
 
 def sample(callable_value: bool, refreshed: bool) -> dict:
@@ -99,6 +93,13 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data = record(pair("control", "c1", True, True))
         data["pairs"][0]["before"]["canaries"]["call_primary"] = "plugin2"
         with self.assertRaisesRegex(ValueError, "canary definitions must be objects"):
+            validate_record(data)
+
+    def test_rejects_canary_definition_that_differs_from_preregistration(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["before"]["canaries"]["call_primary"]["max_calls_per_phase"] = 2
+        data["pairs"][0]["after"]["canaries"]["call_primary"]["max_calls_per_phase"] = 2
+        with self.assertRaisesRegex(ValueError, "match preregistration exactly"):
             validate_record(data)
 
     def test_rejects_changed_canary_definition_within_pair(self):
