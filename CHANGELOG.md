@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Froze both #174 coded-sample identifier domains to exactly 1..24 so a tranche cannot silently replace an expected episode identifier with an arbitrary unique value.
+
 - [2026-08-31] [orchestration] Converged the descriptive capability map and architecture notes with the already-landed bootstrap retirement: fresh-session continuity now points to current conversation + ChatGPT Memory, while Vault/Library bootstrap paths are explicitly non-authoritative legacy/history surfaces (#125).
 
 - [2026-08-31] [research] Rejected whitespace-only required values in the #174 coded-sample guard so blank-looking identifiers, provenance, rationales, and mistake counterfactuals cannot satisfy evidence integrity checks.
