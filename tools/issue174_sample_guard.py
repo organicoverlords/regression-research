@@ -47,6 +47,7 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
         raise ValueError(f"{tranche} must contain exactly 24 episodes")
     expected_fields = PILOT_FIELDS if tranche == "pilot" else TRANCHE2_FIELDS
     id_field = "sample_id" if tranche == "pilot" else "sample2_id"
+    provenance_field = "source_snapshot_file" if tranche == "pilot" else "local_sample_file"
     for row in rows:
         if set(row) != expected_fields:
             missing = sorted(expected_fields - set(row))
@@ -71,6 +72,8 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
             raise ValueError("conversation_id is required")
         if not row.get("rationale"):
             raise ValueError("rationale is required")
+        if not row.get(provenance_field):
+            raise ValueError(f"{tranche} {provenance_field} is required")
         status = row["coding_status"]
         if status == "MISTAKE":
             if not row.get("failure_class") or not row.get("counterfactual"):
