@@ -32,6 +32,15 @@ class AssistantStackCapabilityMapTests(unittest.TestCase):
         self.assertEqual(self.capabilities["product_progress_projection"]["owner"], "DevProgressBoard_derived_state")
         self.assertIn("mutation_ownership", self.capabilities["timed_recurrence"]["never_authority"])
 
+    def test_fresh_session_behavior_matches_retired_bootstrap_contract(self):
+        fresh = self.capabilities["fresh_session_behavior"]
+        self.assertEqual(fresh["owner"], "current_conversation_and_chatgpt_memory")
+        self.assertIn("live_repo_runtime_evidence", fresh["reads"])
+        self.assertIn("vault_behavior_bootstrap", fresh["never_authority"])
+        self.assertIn("generated_library_bootstrap", fresh["never_authority"])
+        components = {item["id"]: item for item in self.data["components"]}
+        self.assertNotIn("behavior bootstrap", components["vault"]["owns"])
+
     def test_issue_271_is_preserved_as_duplicate_design_regression(self):
         example = self.data["negative_example"]
         self.assertEqual(example["issue"], "organicoverlords/regression-research#271")

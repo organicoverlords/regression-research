@@ -44,7 +44,7 @@ Different questions intentionally have different authorities. There is no single
 | Remote issue/PR/published revision | GitHub | `gh`, connector/API | BUSY/coordinator state |
 | CI result | Exact GitHub Actions workflow/run | operator projection | â€œtests should passâ€ prose |
 | Runtime/product behavior | Exact runtime/artifact observation | logs/captures/test receipts | source inspection alone |
-| Fresh-session behavior continuity | Vault `memory_bank.py bootstrap` | complete Library fallback when required | full memory bank, project history |
+| Fresh-session behavior continuity | current conversation + ChatGPT Memory | live repo/runtime evidence; Vault only as optional history/notebook/evidence | Vault behavior bootstrap, generated Library bootstrap, full memory bank |
 | Historical/regression evidence | Vault / regression-research corpus | `context`, `timeline`, `orient`, reports/fixtures | live operational truth |
 | Product progress presentation | DevProgressBoard derived state | browser, status/operator feeds | product/repo authority |
 | Timed recurrence | ChatGPT Automations | scheduler state | mutation ownership |
