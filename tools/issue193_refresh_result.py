@@ -33,11 +33,12 @@ def validate_record(record: dict) -> dict:
     for pair in pairs:
         _require(pair.get("kind") in {"control", "treatment"}, "pair kind must be control or treatment")
         conversation_id = pair.get("conversation_id")
-        _require(isinstance(conversation_id, str) and conversation_id, "conversation_id is required")
-        _require(conversation_id not in seen_conversations, "conversation_id values must be independent")
-        seen_conversations.add(conversation_id)
-        _require(isinstance(pair.get("model"), str) and pair["model"], "model is required")
-        _require(isinstance(pair.get("configuration"), str) and pair["configuration"], "configuration is required")
+        _require(isinstance(conversation_id, str) and conversation_id.strip(), "conversation_id is required")
+        canonical_conversation_id = conversation_id.strip()
+        _require(canonical_conversation_id not in seen_conversations, "conversation_id values must be independent")
+        seen_conversations.add(canonical_conversation_id)
+        _require(isinstance(pair.get("model"), str) and pair["model"].strip(), "model is required")
+        _require(isinstance(pair.get("configuration"), str) and pair["configuration"].strip(), "configuration is required")
         if expected_model is None:
             expected_model = pair["model"]
             expected_configuration = pair["configuration"]
@@ -62,13 +63,13 @@ def validate_record(record: dict) -> dict:
             ):
                 _require(isinstance(measurements[field], bool), f"{sample_name}.{field} must be boolean")
             caller_identity = measurements["caller_id_or_process_id"]
-            _require(caller_identity is None or (isinstance(caller_identity, str) and caller_identity), f"{sample_name}.caller_id_or_process_id must be null or a non-empty string")
+            _require(caller_identity is None or (isinstance(caller_identity, str) and caller_identity.strip()), f"{sample_name}.caller_id_or_process_id must be null or a non-empty string")
             error_class = measurements["exact_client_error_class"]
-            _require(error_class is None or (isinstance(error_class, str) and error_class), f"{sample_name}.exact_client_error_class must be null or a non-empty string")
+            _require(error_class is None or (isinstance(error_class, str) and error_class.strip()), f"{sample_name}.exact_client_error_class must be null or a non-empty string")
             if measurements["direct_recipient_callable"]:
                 _require(error_class is None, f"{sample_name}.exact_client_error_class must be null when direct_recipient_callable is true")
             else:
-                _require(isinstance(error_class, str) and error_class, f"{sample_name}.exact_client_error_class must be a non-empty string when direct_recipient_callable is false")
+                _require(isinstance(error_class, str) and error_class.strip(), f"{sample_name}.exact_client_error_class must be a non-empty string when direct_recipient_callable is false")
         _require(before["measurements"]["refresh_or_reload_between_samples"] is False, "before sample must precede refresh/reload")
         if pair["kind"] == "treatment":
             _require(pair.get("stimulus") == "refresh your memory", "treatment stimulus must match preregistration exactly")

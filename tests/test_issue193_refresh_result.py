@@ -162,6 +162,31 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data["pairs"][2]["after"]["measurements"]["matching_local_request_start"] = True
         self.assertEqual(classify(data), "REPRODUCTION_ONLY")
 
+    def test_rejects_whitespace_only_required_metadata(self):
+        for field in ("conversation_id", "model", "configuration"):
+            with self.subTest(field=field):
+                data = record(pair("control", "c1", True, True))
+                data["pairs"][0][field] = "   "
+                with self.assertRaises(ValueError):
+                    validate_record(data)
+
+    def test_rejects_whitespace_variant_duplicate_conversation_ids(self):
+        data = record(pair("control", "same", True, True), pair("treatment", " same ", True, False))
+        with self.assertRaisesRegex(ValueError, "independent"):
+            validate_record(data)
+
+    def test_rejects_whitespace_only_optional_string_measurements_when_present(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"] = "   "
+        with self.assertRaisesRegex(ValueError, "caller_id_or_process_id"):
+            validate_record(data)
+
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["direct_recipient_callable"] = False
+        data["pairs"][0]["after"]["measurements"]["exact_client_error_class"] = "   "
+        with self.assertRaisesRegex(ValueError, "exact_client_error_class"):
+            validate_record(data)
+
 
 if __name__ == "__main__":
     unittest.main()

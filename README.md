@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [research] Hardened #193 paired refresh-binding result records against whitespace-only evidence metadata and whitespace-variant duplicate conversation IDs.
 - [2026-08-31] [research] Canonicalized #174 user_index values in duplicate-episode keys so numeric-equivalent spellings cannot evade cross-tranche sample integrity checks.
 - [2026-08-31] [research] Canonicalized #174 conversation IDs for duplicate-episode detection so whitespace variants cannot evade frozen-sample integrity checks.
 - [2026-08-31] [research] Rejected zero-valued #174 user_index entries so coded episodes remain valid one-based conversation positions.
 - [2026-08-31] [research] Froze both #174 coded-sample identifier domains to exactly 1..24 so a tranche cannot silently replace an expected episode identifier with an arbitrary unique value.
-- [2026-08-31] [orchestration] Converged the descriptive capability map and architecture notes with the already-landed bootstrap retirement: fresh-session continuity now points to current conversation + ChatGPT Memory, while Vault/Library bootstrap paths are explicitly non-authoritative legacy/history surfaces (#125).
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
