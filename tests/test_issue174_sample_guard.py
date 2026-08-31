@@ -35,6 +35,12 @@ class Issue174SampleGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "tranche2 sample2_id values must be unique"):
             validate_samples(self.pilot, tranche2)
 
+    def test_out_of_domain_sample_id_is_rejected(self):
+        pilot = copy.deepcopy(self.pilot)
+        pilot[0]["sample_id"] = "25"
+        with self.assertRaisesRegex(ValueError, "pilot sample_id values must remain frozen at 1..24"):
+            validate_samples(pilot, self.tranche2)
+
     def test_missing_sample_id_is_rejected(self):
         pilot = copy.deepcopy(self.pilot)
         pilot[0]["sample_id"] = ""

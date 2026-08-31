@@ -62,6 +62,9 @@ def validate_rows(rows: list[dict[str, str]], *, tranche: str) -> None:
         raise ValueError(f"{tranche} {id_field} is required")
     if len(sample_ids) != len(set(sample_ids)):
         raise ValueError(f"{tranche} {id_field} values must be unique")
+    expected_ids = {str(value) for value in range(1, 25)}
+    if set(sample_ids) != expected_ids:
+        raise ValueError(f"{tranche} {id_field} values must remain frozen at 1..24")
     strata = Counter(row.get("stratum") for row in rows)
     if strata != Counter({"GEN": 12, "UE": 12}):
         raise ValueError(f"{tranche} must contain exactly 12 GEN and 12 UE episodes")
