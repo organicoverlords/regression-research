@@ -22,6 +22,7 @@ def _require(condition: bool, message: str) -> None:
 
 
 def validate_record(record: dict) -> dict:
+    _require(isinstance(record, dict), "record must be an object")
     _require(record.get("schema_version") == 1, "schema_version must be 1")
     _require(record.get("issue") == 193, "issue must be 193")
     pairs = record.get("pairs")

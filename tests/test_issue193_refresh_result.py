@@ -46,6 +46,10 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_rejects_non_object_record(self):
+        with self.assertRaisesRegex(ValueError, "record must be an object"):
+            validate_record([])
+
     def test_two_independent_treatment_changes_with_stable_control_support_h1(self):
         data = record(
             pair("control", "c1", True, True),
