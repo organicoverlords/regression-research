@@ -8,6 +8,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Required all #193 experimental pairs to use identical preregistered canary definitions so cross-pair route drift cannot masquerade as a treatment effect.
+
 - [2026-08-31] [research] Required #193 paired samples to rerun identical preregistered canary definitions so changed route definitions cannot masquerade as a treatment effect.
 
 - [2026-08-31] [research] Hardened #193 refresh-result validation so a syntactically valid non-object JSON root fails through the evidence validator instead of crashing with an attribute error.
