@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-08-31] [research] Required #193 SUPPORT_H1 treatment changes to retain the preregistered tool schema before and after refresh so route-surface loss cannot masquerade as callable-binding loss.
 - [2026-08-31] [research] Bound #193 result canary definitions to the preregistered actions and per-phase call limits so internally consistent but altered canaries cannot be classified as experiment evidence.
 - [2026-08-31] [research] Required all #193 experimental pairs to use identical preregistered canary definitions so cross-pair route drift cannot masquerade as a treatment effect.
 - [2026-08-31] [research] Required #193 paired samples to rerun identical preregistered canary definitions so changed route definitions cannot masquerade as a treatment effect.
 - [2026-08-31] [research] Hardened #193 refresh-result validation so a syntactically valid non-object JSON root fails through the evidence validator instead of crashing with an attribute error.
-- [2026-08-31] [research] Hardened #193 refresh-result validation so malformed non-object pairs or canary containers fail cleanly instead of bypassing the record-shape contract.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
