@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Enforced #193 preregistered control-before-treatment ordering so treatment-first records cannot be admitted as valid paired-experiment evidence.
+
 - [2026-09-01] [research] Classified #193 records without both control and treatment evidence as INCONCLUSIVE so missing experimental arms cannot be mislabeled as evidence weakening H1.
 
 - [2026-09-01] [research] Required #193 supporting control pairs to retain visible tool schema and healthy sibling-route evidence across both samples so an unstable control surface cannot certify a refresh-specific binding effect.

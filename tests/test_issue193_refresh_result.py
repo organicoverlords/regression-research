@@ -264,6 +264,11 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact_client_error_class"):
             validate_record(data)
 
+    def test_rejects_control_pair_after_treatment_pair(self):
+        data = record(pair("treatment", "t1", True, False), pair("control", "c1", True, True))
+        with self.assertRaisesRegex(ValueError, "control pairs must precede treatment pairs"):
+            validate_record(data)
+
     def test_control_only_record_is_inconclusive(self):
         data = record(pair("control", "c1", True, True))
         self.assertEqual(classify(data), "INCONCLUSIVE")
