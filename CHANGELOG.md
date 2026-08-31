@@ -1,3 +1,5 @@
+- [2026-08-31] [research] Rejected non-object #193 preregistered canary definitions so malformed scalar route/action records cannot pass paired-result integrity validation.
+
 # Changelog
 
 All notable changes to this project are documented in this file.
