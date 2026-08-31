@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-08-31] [research] Bound #193 result canary definitions to the preregistered actions and per-phase call limits so internally consistent but altered canaries cannot be classified as experiment evidence.
+
 - [2026-08-31] [research] Required all #193 experimental pairs to use identical preregistered canary definitions so cross-pair route drift cannot masquerade as a treatment effect.
 
 - [2026-08-31] [research] Required #193 paired samples to rerun identical preregistered canary definitions so changed route definitions cannot masquerade as a treatment effect.

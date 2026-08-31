@@ -13,7 +13,14 @@ REQUIRED_MEASUREMENTS = {
     "sibling_route_health",
     "refresh_or_reload_between_samples",
 }
-CANARY_IDS = {"discover_primary", "call_primary", "discover_alternate", "call_alternate", "local_arrival"}
+CANARY_DEFINITIONS = {
+    "discover_primary": {"action": "discover MCP0 schema", "max_calls_per_phase": 1},
+    "call_primary": {"action": "call busy_list", "max_calls_per_phase": 1},
+    "discover_alternate": {"action": "discover one alternate plugin route", "max_calls_per_phase": 1},
+    "call_alternate": {"action": "call alternate busy_list or harmless process echo", "max_calls_per_phase": 1},
+    "local_arrival": {"action": "record local server request_start/caller evidence when available", "max_calls_per_phase": 0},
+}
+CANARY_IDS = set(CANARY_DEFINITIONS)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -83,6 +90,7 @@ def validate_record(record: dict) -> dict:
             expected_canaries = before["canaries"]
         else:
             _require(before["canaries"] == expected_canaries, "all pairs must use identical canary definitions")
+        _require(before["canaries"] == CANARY_DEFINITIONS, "canary definitions must match preregistration exactly")
         _require(before["measurements"]["refresh_or_reload_between_samples"] is False, "before sample must precede refresh/reload")
         if pair["kind"] == "treatment":
             _require(pair.get("stimulus") == "refresh your memory", "treatment stimulus must match preregistration exactly")
