@@ -52,6 +52,24 @@ class Issue193RefreshResultTests(unittest.TestCase):
         )
         self.assertEqual(classify(data), "SUPPORT_H1")
 
+    def test_treatment_schema_loss_is_not_h1_support(self):
+        data = record(
+            pair("control", "c1", True, True),
+            pair("treatment", "t1", True, False),
+            pair("treatment", "t2", True, False),
+        )
+        data["pairs"][2]["after"]["measurements"]["visible_or_discovered_schema"] = False
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
+    def test_treatment_without_baseline_schema_is_not_h1_support(self):
+        data = record(
+            pair("control", "c1", True, True),
+            pair("treatment", "t1", True, False),
+            pair("treatment", "t2", True, False),
+        )
+        data["pairs"][2]["before"]["measurements"]["visible_or_discovered_schema"] = False
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
     def test_failed_control_does_not_count_as_stable_supporting_control(self):
         data = record(
             pair("control", "c1", False, False),
