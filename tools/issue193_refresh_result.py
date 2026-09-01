@@ -72,8 +72,11 @@ def validate_record(record: dict) -> dict:
             _require(all(isinstance(definition, dict) for definition in canaries.values()), f"{sample_name} canary definitions must be objects")
             measurements = sample.get("measurements")
             _require(isinstance(measurements, dict), f"{sample_name}.measurements must be an object")
-            missing = REQUIRED_MEASUREMENTS - set(measurements)
+            measurement_keys = set(measurements)
+            missing = REQUIRED_MEASUREMENTS - measurement_keys
             _require(not missing, f"{sample_name} missing measurements: {sorted(missing)}")
+            unexpected = measurement_keys - REQUIRED_MEASUREMENTS
+            _require(not unexpected, f"{sample_name} unexpected measurements: {sorted(unexpected)}")
             for field in (
                 "visible_or_discovered_schema",
                 "direct_recipient_callable",

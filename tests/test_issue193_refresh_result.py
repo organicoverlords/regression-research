@@ -186,6 +186,12 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact preregistered canaries"):
             validate_record(data)
 
+    def test_rejects_unpreregistered_measurement(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["post_hoc_note"] = True
+        with self.assertRaisesRegex(ValueError, "unexpected measurements"):
+            validate_record(data)
+
     def test_rejects_non_boolean_measurement(self):
         data = record(pair("control", "c1", True, True))
         data["pairs"][0]["after"]["measurements"]["direct_recipient_callable"] = "false"
