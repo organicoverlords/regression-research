@@ -1,4 +1,7 @@
-﻿# MCP Funnel clone reconciliation fix — 2026-09-01 05:01 EEST
+# SUPERSEDED 05:14 EEST
+This report's 3011/3012 production preference is superseded by 2026-09-01_0514_EEST_receipt-only-clone-route-restoration.md.
+
+# MCP Funnel clone reconciliation fix — 2026-09-01 05:01 EEST
 
 ## Incident
 Production Funnel clone paths had been switched from canonical `/clone-a -> 3011` and `/clone-b -> 3012` to experimental listeners `3051` and `3052`. Canonical listeners remained alive, so the failure was route ownership/drift rather than backend loss.

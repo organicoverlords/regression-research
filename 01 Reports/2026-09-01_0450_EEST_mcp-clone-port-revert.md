@@ -1,3 +1,6 @@
+# SUPERSEDED 05:14 EEST
+This report's 3011/3012 production preference is superseded by 2026-09-01_0514_EEST_receipt-only-clone-route-restoration.md.
+
 # MCP clone port revert — 2026-09-01 04:50 EEST
 
 User direction: the newest MCP switch to the alternate clone ports performed worse; restore the previous working clone ports and make that state explicit in docs/history.
