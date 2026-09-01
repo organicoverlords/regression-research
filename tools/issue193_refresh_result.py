@@ -22,7 +22,7 @@ CANARY_DEFINITIONS = {
 }
 CANARY_IDS = set(CANARY_DEFINITIONS)
 RECORD_FIELDS = {"schema_version", "issue", "pairs"}
-PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "before", "after"}
+PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "prohibited_mutations_observed", "prohibited_methods_observed", "before", "after"}
 SAMPLE_FIELDS = {"canaries", "measurements"}
 
 
@@ -70,6 +70,8 @@ def validate_record(record: dict) -> dict:
         else:
             _require(canonical_model == expected_model, "all pairs must use the same model")
             _require(canonical_configuration == expected_configuration, "all pairs must use the same configuration")
+        for field in ("prohibited_mutations_observed", "prohibited_methods_observed"):
+            _require(isinstance(pair.get(field), bool), f"{field} must be boolean")
         before = pair.get("before")
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")
@@ -123,6 +125,8 @@ def validate_record(record: dict) -> dict:
     return {"ok": True, "pairs": normalized}
 def classify(record: dict) -> str:
     validated = validate_record(record)
+    if any(p["prohibited_mutations_observed"] or p["prohibited_methods_observed"] for p in validated["pairs"]):
+        return "INCONCLUSIVE"
     controls = [p for p in validated["pairs"] if p["kind"] == "control"]
     treatments = [p for p in validated["pairs"] if p["kind"] == "treatment"]
     stable_controls = bool(controls) and all(

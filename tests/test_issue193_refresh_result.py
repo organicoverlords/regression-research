@@ -27,6 +27,8 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "conversation_id": conversation_id,
         "model": "gpt-5.6",
         "configuration": "thinking",
+        "prohibited_mutations_observed": False,
+        "prohibited_methods_observed": False,
         "before": sample(before_value, False),
         "after": sample(after_value, refreshed),
     }
@@ -40,6 +42,21 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_protocol_violation_is_inconclusive(self):
+        data = record(
+            pair("control", "c1", True, True),
+            pair("treatment", "t1", True, False),
+            pair("treatment", "t2", True, False),
+        )
+        data["pairs"][1]["prohibited_mutations_observed"] = True
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_rejects_non_boolean_protocol_cleanliness_fields(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["prohibited_methods_observed"] = "false"
+        with self.assertRaisesRegex(ValueError, "prohibited_methods_observed must be boolean"):
+            validate_record(data)
+
     def test_rejects_boolean_or_float_schema_identity(self):
         for field, invalid_value, message in (
             ("schema_version", True, "schema_version must be integer 1"),

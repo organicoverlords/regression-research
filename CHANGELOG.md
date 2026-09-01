@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Required #193 result pairs to attest whether prohibited mutations or methods occurred, and classify any protocol-contaminated record as INCONCLUSIVE instead of causal evidence.
+
 - [2026-09-01] [research] Required #193 result schema and issue identifiers to be exact integers so Python boolean/float equality cannot admit malformed evidence records.
 
 - [2026-09-01] [research] Required #193 matching local request-start evidence to carry a caller/process identity so unattributed local-arrival claims cannot enter prospective result records.
@@ -515,6 +517,8 @@ Delete the headings you do not use. Keep this section at the top at all times.
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
   2. Open a fresh empty `## [Unreleased]
+
+- [2026-09-01] [research] Required #193 result pairs to attest whether prohibited mutations or methods occurred, and classify any protocol-contaminated record as INCONCLUSIVE instead of causal evidence.
 
 - [2026-09-01] [research] Required #193 matching local request-start evidence to carry a caller/process identity so unattributed local-arrival claims cannot enter prospective result records.
 
