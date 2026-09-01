@@ -97,6 +97,8 @@ def validate_record(record: dict) -> dict:
                 _require(isinstance(measurements[field], bool), f"{sample_name}.{field} must be boolean")
             caller_identity = measurements["caller_id_or_process_id"]
             _require(caller_identity is None or (isinstance(caller_identity, str) and caller_identity.strip()), f"{sample_name}.caller_id_or_process_id must be null or a non-empty string")
+            if measurements["matching_local_request_start"]:
+                _require(isinstance(caller_identity, str) and caller_identity.strip(), f"{sample_name}.caller_id_or_process_id is required when matching_local_request_start is true")
             error_class = measurements["exact_client_error_class"]
             _require(error_class is None or (isinstance(error_class, str) and error_class.strip()), f"{sample_name}.exact_client_error_class must be null or a non-empty string")
             if measurements["direct_recipient_callable"]:
