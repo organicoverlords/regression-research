@@ -29,6 +29,8 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "configuration": "thinking",
         "prohibited_mutations_observed": False,
         "prohibited_methods_observed": False,
+        "stop_rule_violated": False,
+        "recovery_limit_violated": False,
         "before": sample(before_value, False),
         "after": sample(after_value, refreshed),
     }
@@ -50,6 +52,21 @@ class Issue193RefreshResultTests(unittest.TestCase):
         )
         data["pairs"][1]["prohibited_mutations_observed"] = True
         self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_stop_or_recovery_protocol_violation_is_inconclusive(self):
+        for field in ("stop_rule_violated", "recovery_limit_violated"):
+            with self.subTest(field=field):
+                data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+                data["pairs"][1][field] = True
+                self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_rejects_non_boolean_stop_or_recovery_fields(self):
+        for field in ("stop_rule_violated", "recovery_limit_violated"):
+            with self.subTest(field=field):
+                data = record(pair("control", "c1", True, True))
+                data["pairs"][0][field] = "false"
+                with self.assertRaisesRegex(ValueError, f"{field} must be boolean"):
+                    validate_record(data)
 
     def test_rejects_non_boolean_protocol_cleanliness_fields(self):
         data = record(pair("control", "c1", True, True))
