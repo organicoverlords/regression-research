@@ -161,10 +161,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("record", type=Path)
     args = parser.parse_args()
-    record = json.loads(args.record.read_text(encoding="utf-8"))
     try:
+        record = json.loads(args.record.read_text(encoding="utf-8"))
         result = {"ok": True, "classification": classify(record)}
-    except ValueError as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         result = {"ok": False, "error": str(exc)}
     print(json.dumps(result, separators=(",", ":")))
     return 0 if result["ok"] else 1

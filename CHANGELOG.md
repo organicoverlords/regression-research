@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Made the #193 result CLI return structured JSON errors for malformed or unreadable evidence files instead of escaping with a traceback.
+
 - [2026-09-01] [research] Required #193 result pairs to attest whether prohibited mutations or methods occurred, and classify any protocol-contaminated record as INCONCLUSIVE instead of causal evidence.
 
 - [2026-09-01] [research] Required #193 result schema and issue identifiers to be exact integers so Python boolean/float equality cannot admit malformed evidence records.
