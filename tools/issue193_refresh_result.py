@@ -21,6 +21,9 @@ CANARY_DEFINITIONS = {
     "local_arrival": {"action": "record local server request_start/caller evidence when available", "max_calls_per_phase": 0},
 }
 CANARY_IDS = set(CANARY_DEFINITIONS)
+RECORD_FIELDS = {"schema_version", "issue", "pairs"}
+PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "before", "after"}
+SAMPLE_FIELDS = {"canaries", "measurements"}
 
 
 def _require(condition: bool, message: str) -> None:
@@ -30,6 +33,8 @@ def _require(condition: bool, message: str) -> None:
 
 def validate_record(record: dict) -> dict:
     _require(isinstance(record, dict), "record must be an object")
+    unexpected_record_fields = set(record) - RECORD_FIELDS
+    _require(not unexpected_record_fields, f"unexpected record fields: {sorted(unexpected_record_fields)}")
     _require(record.get("schema_version") == 1, "schema_version must be 1")
     _require(record.get("issue") == 193, "issue must be 193")
     pairs = record.get("pairs")
@@ -43,6 +48,9 @@ def validate_record(record: dict) -> dict:
     for pair in pairs:
         _require(isinstance(pair, dict), "each pair must be an object")
         _require(pair.get("kind") in {"control", "treatment"}, "pair kind must be control or treatment")
+        allowed_pair_fields = PAIR_FIELDS | ({"stimulus"} if pair["kind"] == "treatment" else set())
+        unexpected_pair_fields = set(pair) - allowed_pair_fields
+        _require(not unexpected_pair_fields, f"unexpected pair fields: {sorted(unexpected_pair_fields)}")
         if pair["kind"] == "treatment":
             seen_treatment = True
         else:
@@ -66,6 +74,8 @@ def validate_record(record: dict) -> dict:
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")
         for sample_name, sample in (("before", before), ("after", after)):
+            unexpected_sample_fields = set(sample) - SAMPLE_FIELDS
+            _require(not unexpected_sample_fields, f"{sample_name} unexpected fields: {sorted(unexpected_sample_fields)}")
             canaries = sample.get("canaries")
             _require(isinstance(canaries, dict), f"{sample_name}.canaries must be an object")
             _require(set(canaries) == CANARY_IDS, f"{sample_name} must contain the exact preregistered canaries")
