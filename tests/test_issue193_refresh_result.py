@@ -40,6 +40,18 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_rejects_boolean_or_float_schema_identity(self):
+        for field, invalid_value, message in (
+            ("schema_version", True, "schema_version must be integer 1"),
+            ("schema_version", 1.0, "schema_version must be integer 1"),
+            ("issue", 193.0, "issue must be integer 193"),
+        ):
+            with self.subTest(field=field, invalid_value=invalid_value):
+                data = record(pair("control", "c1", True, True))
+                data[field] = invalid_value
+                with self.assertRaisesRegex(ValueError, message):
+                    validate_record(data)
+
 
     def test_rejects_unexpected_structural_fields(self):
         data = record(pair("control", "c1", True, True))
