@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Rejected unpreregistered #193 record, pair, and sample fields so post-hoc structural metadata cannot silently enter prospective evidence records.
+
 - [2026-09-01] [research] Rejected unpreregistered #193 measurement fields so post-hoc data cannot silently enter paired-result evidence records.
 
 - [2026-09-01] [research] Enforced #193 preregistered control-before-treatment ordering so treatment-first records cannot be admitted as valid paired-experiment evidence.

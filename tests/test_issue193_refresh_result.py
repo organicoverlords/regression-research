@@ -40,6 +40,29 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+
+    def test_rejects_unexpected_structural_fields(self):
+        data = record(pair("control", "c1", True, True))
+        data["analysis_note"] = "post hoc"
+        with self.assertRaisesRegex(ValueError, "unexpected record fields"):
+            validate_record(data)
+
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["retry_count"] = 1
+        with self.assertRaisesRegex(ValueError, "unexpected pair fields"):
+            validate_record(data)
+
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["operator_note"] = "ignored"
+        with self.assertRaisesRegex(ValueError, "after unexpected fields"):
+            validate_record(data)
+
+    def test_control_rejects_stimulus_field_even_when_empty(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["stimulus"] = None
+        with self.assertRaisesRegex(ValueError, "unexpected pair fields"):
+            validate_record(data)
+
     def test_rejects_non_object_record(self):
         with self.assertRaisesRegex(ValueError, "record must be an object"):
             validate_record([])
