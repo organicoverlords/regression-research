@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Required #193 result schema and issue identifiers to be exact integers so Python boolean/float equality cannot admit malformed evidence records.
+
 - [2026-09-01] [research] Required #193 matching local request-start evidence to carry a caller/process identity so unattributed local-arrival claims cannot enter prospective result records.
 
 - [2026-09-01] [research] Rejected unpreregistered #193 record, pair, and sample fields so post-hoc structural metadata cannot silently enter prospective evidence records.

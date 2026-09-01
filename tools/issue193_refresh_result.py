@@ -35,8 +35,8 @@ def validate_record(record: dict) -> dict:
     _require(isinstance(record, dict), "record must be an object")
     unexpected_record_fields = set(record) - RECORD_FIELDS
     _require(not unexpected_record_fields, f"unexpected record fields: {sorted(unexpected_record_fields)}")
-    _require(record.get("schema_version") == 1, "schema_version must be 1")
-    _require(record.get("issue") == 193, "issue must be 193")
+    _require(type(record.get("schema_version")) is int and record["schema_version"] == 1, "schema_version must be integer 1")
+    _require(type(record.get("issue")) is int and record["issue"] == 193, "issue must be integer 193")
     pairs = record.get("pairs")
     _require(isinstance(pairs, list) and pairs, "pairs must be a non-empty list")
     seen_conversations: set[str] = set()
