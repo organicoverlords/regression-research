@@ -28,6 +28,7 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "model": "gpt-5.6",
         "configuration": "thinking",
         "fresh_conversation": True,
+        "parallel_load_observed": False,
         "prohibited_mutations_observed": False,
         "prohibited_methods_observed": False,
         "stop_rule_violated": False,
@@ -45,6 +46,17 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_parallel_load_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][1]["parallel_load_observed"] = True
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_rejects_non_boolean_parallel_load_observed(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["parallel_load_observed"] = "false"
+        with self.assertRaisesRegex(ValueError, "parallel_load_observed must be boolean"):
+            validate_record(data)
+
     def test_non_fresh_conversation_is_inconclusive(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
         data["pairs"][1]["fresh_conversation"] = False
