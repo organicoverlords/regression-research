@@ -27,6 +27,7 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "conversation_id": conversation_id,
         "model": "gpt-5.6",
         "configuration": "thinking",
+        "fresh_conversation": True,
         "prohibited_mutations_observed": False,
         "prohibited_methods_observed": False,
         "stop_rule_violated": False,
@@ -44,6 +45,17 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_non_fresh_conversation_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][1]["fresh_conversation"] = False
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_rejects_non_boolean_fresh_conversation(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["fresh_conversation"] = "true"
+        with self.assertRaisesRegex(ValueError, "fresh_conversation must be boolean"):
+            validate_record(data)
+
     def test_protocol_violation_is_inconclusive(self):
         data = record(
             pair("control", "c1", True, True),

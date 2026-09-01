@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Recorded the issue 193 preregistered fresh-conversation pairing condition in result evidence so reused conversations cannot contribute causal support.
+
 - [2026-09-01] [research] Recorded #193 stop-rule and recovery-limit violations as explicit result evidence so contaminated experiment records are classified INCONCLUSIVE.
 
 - [2026-08-31] [research] Rejected non-object #193 preregistered canary definitions so malformed scalar route/action records cannot pass paired-result integrity validation.
