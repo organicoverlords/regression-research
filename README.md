@@ -5,11 +5,11 @@
 
 Canonical history: [CHANGELOG.md](CHANGELOG.md)
 
+- [2026-09-01] [research] Required #193 result pairs to attest whether prohibited mutations or methods occurred, and classify any protocol-contaminated record as INCONCLUSIVE instead of causal evidence.
 - [2026-09-01] [research] Required #193 result schema and issue identifiers to be exact integers so Python boolean/float equality cannot admit malformed evidence records.
 - [2026-09-01] [research] Required #193 matching local request-start evidence to carry a caller/process identity so unattributed local-arrival claims cannot enter prospective result records.
 - [2026-09-01] [research] Rejected unpreregistered #193 record, pair, and sample fields so post-hoc structural metadata cannot silently enter prospective evidence records.
 - [2026-09-01] [research] Rejected unpreregistered #193 measurement fields so post-hoc data cannot silently enter paired-result evidence records.
-- [2026-09-01] [research] Enforced #193 preregistered control-before-treatment ordering so treatment-first records cannot be admitted as valid paired-experiment evidence.
 <!-- CHANGELOG-LANDING:END -->
 
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
