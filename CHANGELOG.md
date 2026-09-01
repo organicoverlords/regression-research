@@ -10,6 +10,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-01] [research] Required #193 matching local request-start evidence to carry a caller/process identity so unattributed local-arrival claims cannot enter prospective result records.
+
 - [2026-09-01] [research] Rejected unpreregistered #193 record, pair, and sample fields so post-hoc structural metadata cannot silently enter prospective evidence records.
 
 - [2026-09-01] [research] Rejected unpreregistered #193 measurement fields so post-hoc data cannot silently enter paired-result evidence records.
@@ -511,6 +513,8 @@ Delete the headings you do not use. Keep this section at the top at all times.
 To release:
   1. Rename this heading to `## [X.Y.Z] - YYYY-MM-DD`.
   2. Open a fresh empty `## [Unreleased]
+
+- [2026-09-01] [research] Required #193 matching local request-start evidence to carry a caller/process identity so unattributed local-arrival claims cannot enter prospective result records.
 
 - [2026-08-31] [research] Hardened #193 refresh-result validation so a syntactically valid non-object JSON root fails through the evidence validator instead of crashing with an attribute error.
 - [2026-08-31] [research] Hardened #193 refresh-result validation so malformed non-object pairs or canary containers fail cleanly instead of bypassing the record-shape contract.

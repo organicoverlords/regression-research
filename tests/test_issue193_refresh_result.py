@@ -251,6 +251,12 @@ class Issue193RefreshResultTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing measurements"):
             validate_record(data)
 
+    def test_rejects_matching_local_arrival_without_caller_identity(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"] = None
+        with self.assertRaisesRegex(ValueError, "caller_id_or_process_id is required when matching_local_request_start is true"):
+            validate_record(data)
+
     def test_rejects_invalid_caller_identity_type(self):
         data = record(pair("control", "c1", True, True))
         data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"] = []
