@@ -28,6 +28,7 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "model": "gpt-5.6",
         "configuration": "thinking",
         "fresh_conversation": True,
+        "ordinary_user_continuation_observed": kind == "control",
         "parallel_load_observed": False,
         "prohibited_mutations_observed": False,
         "prohibited_methods_observed": False,
@@ -66,6 +67,21 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data = record(pair("control", "c1", True, True))
         data["pairs"][0]["fresh_conversation"] = "true"
         with self.assertRaisesRegex(ValueError, "fresh_conversation must be boolean"):
+            validate_record(data)
+
+    def test_control_continuation_mismatch_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][0]["ordinary_user_continuation_observed"] = False
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][1]["ordinary_user_continuation_observed"] = True
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_rejects_non_boolean_control_continuation_field(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["ordinary_user_continuation_observed"] = "true"
+        with self.assertRaisesRegex(ValueError, "ordinary_user_continuation_observed must be boolean"):
             validate_record(data)
 
     def test_protocol_violation_is_inconclusive(self):
