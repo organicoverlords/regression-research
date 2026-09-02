@@ -2,7 +2,14 @@ import json
 import unittest
 from pathlib import Path
 
-from tools.issue193_refresh_result import PROHIBITED_METHOD_CATEGORIES, PROHIBITED_MUTATION_CATEGORIES
+from tools.issue193_refresh_result import (
+    CANARY_DEFINITIONS,
+    EXACT_REFRESH_STIMULUS,
+    MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT,
+    PROHIBITED_METHOD_CATEGORIES,
+    PROHIBITED_MUTATION_CATEGORIES,
+    REQUIRED_MEASUREMENTS,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL = ROOT / "03 Fixtures and Experiments" / "issue193-prospective-refresh-binding-protocol.json"
@@ -21,6 +28,16 @@ class Issue193RefreshProtocolTests(unittest.TestCase):
         self.assertEqual(phases["treatment"][-1], "same_canaries")
         self.assertTrue(all(canary["max_calls_per_phase"] <= 1 for canary in self.data["canaries"]))
         self.assertEqual(self.data["recovery_limit"], "maximum one rediscovery after failure; no extra retries")
+
+    def test_runtime_contract_matches_preregistration(self):
+        fixture_canaries = {canary["id"]: {k: v for k, v in canary.items() if k != "id"} for canary in self.data["canaries"]}
+        self.assertEqual(CANARY_DEFINITIONS, fixture_canaries)
+        self.assertEqual(REQUIRED_MEASUREMENTS, set(self.data["measurements"]))
+        self.assertEqual(EXACT_REFRESH_STIMULUS, self.data["exact_refresh_stimulus"])
+        self.assertEqual(
+            MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT,
+            self.data["pairing"]["minimum_independent_treatment_pairs_for_H1_support"],
+        )
 
     def test_treatment_is_exact_and_support_requires_replication(self):
         self.assertEqual(self.data["exact_refresh_stimulus"], "refresh your memory")
