@@ -180,6 +180,7 @@ def classify(record: dict) -> str:
         and p["after"]["measurements"]["visible_or_discovered_schema"] is True
         and p["before"]["measurements"]["sibling_route_health"] is True
         and p["after"]["measurements"]["sibling_route_health"] is True
+        and p["before"]["measurements"]["matching_local_request_start"] is True
         and p["after"]["measurements"]["matching_local_request_start"] is False
     ]
     if stable_controls and len(changed_treatments) >= MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT:
