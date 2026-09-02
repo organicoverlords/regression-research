@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Reconciled MCP runtime invariants in Stack Atlas (32k reads, automatic bounded start wait, five live processes, no launch bucket, compatible clone fallback only) and pinned Vault recall to bounded memory_bank retrieval instead of recursive filesystem scans.
+
 - [2026-09-02] [research] Enforced BusyCoordinator claim-owner harness plus task/session identity for new and renewed ownership while preserving legacy release/recovery cleanup paths.
 
 - [2026-09-02] [research] Required #193 controls to carry matching local request-start evidence before they can stabilize causal H1 support.
