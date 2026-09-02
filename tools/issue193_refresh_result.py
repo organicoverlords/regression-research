@@ -165,6 +165,8 @@ def classify(record: dict) -> str:
         and p["after"]["measurements"]["visible_or_discovered_schema"] is True
         and p["before"]["measurements"]["direct_recipient_callable"] is True
         and p["after"]["measurements"]["direct_recipient_callable"] is True
+        and p["before"]["measurements"]["matching_local_request_start"] is True
+        and p["after"]["measurements"]["matching_local_request_start"] is True
         and p["before"]["measurements"]["sibling_route_health"] is True
         and p["after"]["measurements"]["sibling_route_health"] is True
         for p in controls

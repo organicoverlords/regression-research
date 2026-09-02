@@ -443,6 +443,11 @@ class Issue193RefreshResultTests(unittest.TestCase):
                 mutate(data["pairs"][2])
                 self.assertEqual(classify(data), "INCONCLUSIVE")
 
+    def test_control_without_matching_local_arrival_prevents_h1_support(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][0]["after"]["measurements"]["matching_local_request_start"] = False
+        self.assertEqual(classify(data), "REPRODUCTION_ONLY")
+
     def test_treatment_change_with_unhealthy_sibling_route_is_not_h1_support(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
         data["pairs"][2]["after"]["measurements"]["sibling_route_health"] = False
