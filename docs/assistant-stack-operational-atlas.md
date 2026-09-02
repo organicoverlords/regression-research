@@ -20,6 +20,12 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 | `memory_read` | side_effect_free_memory_read | `none` |
 | `memory_write` | audited_memory_write | `none` |
 
+## Product flow
+
+`LowVRAM -> Tiny3D -> P3`
+
+Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.
+
 ## Components
 
 ### `busy_coordinator`
@@ -310,66 +316,66 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 
 ### `lowvram`
 
-- Role: `product_or_workspace`
+- Role: `generator:image_to_3d`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\lowvram3d-repo
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\lowvram3d-repo
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\lowvram3d-repo
+- Canonical sources: C:\Users\Lauri\Desktop\lowvram3d-repo; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md
+- Live status: read current LowVRAM repo architecture before historical migration/issues; inspect current generator filesystem/Git/runtime as applicable
+- Independent recovery: preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM
+- Resources: source recovery; image-to-3D generation; geometry; textures; provenance; producer visual QA
+- Dependents: tiny3d
+- Runbook: C:\Users\Lauri\Desktop\lowvram3d-repo\AGENTS.md; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
 ### `asset_library`
 
-- Role: `product_or_workspace`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY
-- Supervisor: project-specific
-- Self-heal: project-specific
+- Role: `storage:tiny3d_asset_library`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; C:\Users\Lauri\Desktop\tiny3d\README.md
+- Live status: Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters
+- Independent recovery: rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority
+- Resources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; .tiny3d/library/index-v1.json
+- Dependents: tiny3d
+- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
+- Supervisor: Tiny3D
+- Self-heal: product-specific
 
 ### `tinylab`
 
-- Role: `product_or_workspace`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\TinyLab
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\TinyLab
+- Role: `legacy_name:not_active_product_authority`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\TinyLab; C:\Users\Lauri\Desktop\tiny3d\README.md
+- Live status: historical compatibility/name only; current Tiny3D README/North Star define the active post-generation product
+- Independent recovery: resolve current post-generation behavior through Tiny3D; use TinyLab only for historical compatibility/provenance when needed
+- Resources: historical tinylab.* schema identifiers and legacy workspace
 - Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\TinyLab
-- Supervisor: project-specific
-- Self-heal: project-specific
+- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
+- Supervisor: none
+- Self-heal: not_applicable
 
 ### `tiny3d`
 
-- Role: `product_or_workspace`
+- Role: `product:post_generation_asset_compiler`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\tiny3d
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\tiny3d
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\tiny3d
+- Canonical sources: C:\Users\Lauri\Desktop\tiny3d; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
+- Live status: read current Tiny3D repo architecture before historical migration/issues; inspect current compiler/library Git/runtime evidence as applicable
+- Independent recovery: consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM
+- Resources: compilation; rigging/skinning; animation/deformation preparation; validation/adapters; packaging/lifecycle evidence; catalogue/library
+- Dependents: p3
+- Runbook: C:\Users\Lauri\Desktop\tiny3d\AGENTS.md; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
 ### `p3`
 
-- Role: `product_or_workspace`
+- Role: `consumer:game_runtime_acceptance`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: C:\Users\Lauri\Documents\Unreal Projects\p3
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Documents\Unreal Projects\p3
+- Live status: inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance
+- Independent recovery: Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof
+- Resources: Unreal/game materialization; runtime acceptance; gameplay/visual proof
 - Dependents: none
-- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3
+- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 

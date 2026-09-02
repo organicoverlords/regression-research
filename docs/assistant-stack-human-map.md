@@ -117,27 +117,22 @@ flowchart LR
 `operator-live.json` and DevProgressBoard are useful because they **reconcile and display**. They do not write authority back into BusyCoordinator, Git, GitHub, CI, runtime, or project policy.
 
 
-## 5. Product/data map — what the engineering stack is building
+## 5. Product/data map - what the engineering stack is building
 
 ```mermaid
 flowchart LR
-  IMG["Input image / source"] --> LOW["LowVRAM 3D Pipeline\ngeometry + textures + provenance"]
-  LOW --> LIB["Asset Library\ncanonical catalog + presentation"]
-  LOW --> LAB["TinyLab\nanalysis + qualification + compile/package"]
-  LIB --> P3["P3\nreal-game integration + final runtime acceptance"]
-  LAB --> P3
-  T3D["Tiny3D\nanimation / asset engineering repo"] --> P3
-
-  Q["Tiny3D ↔ TinyLab relationship\nNOT YET PROVEN"] -.-> T3D
-  Q -.-> LAB
+  IMG["Input image / source"] --> LOW["LowVRAM 3D Pipeline\nsource recovery + image-to-3D\ngeometry + textures + provenance"]
+  LOW --> T3D["Tiny3D\npost-generation compile / rig / animation / qualification / package"]
+  T3D --> LIB["Tiny3D_LIBRARY\nexternal content-addressed asset store"]
+  T3D --> P3["P3\nUnreal/game materialization + runtime acceptance"]
 
   classDef product fill:#ecfccb,stroke:#4d7c0f,stroke-width:2px;
-  classDef unknown fill:#fff7ed,stroke:#c2410c,stroke-width:2px,stroke-dasharray:4 3;
-  class IMG,LOW,LIB,LAB,T3D,P3 product;
-  class Q unknown;
+  classDef store fill:#eff6ff,stroke:#1d4ed8,stroke-width:2px;
+  class IMG,LOW,T3D,P3 product;
+  class LIB store;
 ```
 
-The current DevProgressBoard explicitly models `LowVRAM -> Asset Library + TinyLab -> P3`. Tiny3D is separately present as a live Git repo and animation/asset work surface. The map does **not** invent the Tiny3D/TinyLab relationship.
+The current product architecture is `LowVRAM -> Tiny3D -> P3`. TinyLab is historical naming/schema compatibility only. DevProgressBoard displays product progress for the user; it does not define or override this architecture.
 
 ## 6. Quick ownership lookup
 
@@ -147,6 +142,7 @@ The current DevProgressBoard explicitly models `LowVRAM -> Asset Library + TinyL
 | What rules apply everywhere? | Canonical shared policy | duplicated repo prose |
 | What rules apply in this repo? | Current repo `AGENTS.md` | global map / board |
 | What direction is this project heading? | `NORTH_STAR.md` / equivalent | worker recency |
+| Who owns each product stage? | Current LowVRAM/Tiny3D/P3 repo architecture contracts | old migration issue, old handoff, progress-board projection |
 | Who owns this mutable scope? | **BusyCoordinator** | branch, process, issue title, scheduler |
 | What work is ready/active/blocked? | **BusyCoordinator jobs** | board status / labels |
 | Where did this scope leave off? | **BusyCoordinator checkpoint** | a new resume database |

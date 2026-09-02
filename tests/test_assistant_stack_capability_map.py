@@ -47,14 +47,26 @@ class AssistantStackCapabilityMapTests(unittest.TestCase):
         self.assertIn("BusyCoordinator already exposes", example["missed_existing"])
         self.assertIn("inspect its current interface", example["required_future_behavior"])
 
-    def test_tinylab_tiny3d_boundary_stays_unresolved_until_proven(self):
+    def test_product_stage_ownership_follows_current_repo_architecture(self):
         components = {item["id"]: item for item in self.data["components"]}
-        self.assertIn("tinylab", components)
-        self.assertIn("tiny3d", components)
-        self.assertEqual(
-            components["tiny3d"]["boundary"],
-            "relationship to TinyLab NOT_PROVEN",
-        )
+        self.assertEqual(components["lowvram"]["role"], "generator")
+        self.assertEqual(components["tiny3d"]["role"], "post_generation_product")
+        self.assertEqual(components["tinylab"]["role"], "historical_compatibility_name")
+        self.assertEqual(components["asset_library"]["owner"], "tiny3d")
+        self.assertEqual(components["asset_library"]["path"], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")
+        self.assertEqual(self.data["product_dependencies"], [["lowvram", "tiny3d"], ["tiny3d", "p3"]])
+        boundary = self.capabilities["product_stage_ownership"]
+        self.assertEqual(boundary["owner"], "current_product_repo_architecture_contracts")
+        self.assertIn("historical_migration_issue", boundary["never_authority"])
+        self.assertIn("DevProgressBoard_projection", boundary["never_authority"])
+        self.assertNotIn("live_overlay", self.data)
+
+    def test_human_maps_do_not_reintroduce_obsolete_tinylab_pipeline(self):
+        for relative in ("docs/assistant-stack-capability-map.md", "docs/assistant-stack-human-map.md"):
+            text = Path(relative).read_text(encoding="utf-8")
+            self.assertIn("LowVRAM -> Tiny3D -> P3", text)
+            self.assertNotIn("LowVRAM -> Asset Library + TinyLab -> P3", text)
+            self.assertNotIn("relationship to TinyLab NOT_PROVEN", text)
 
 
 if __name__ == "__main__":
