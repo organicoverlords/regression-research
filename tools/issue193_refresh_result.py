@@ -29,7 +29,7 @@ CANARY_IDS = set(CANARY_DEFINITIONS)
 PROHIBITED_MUTATION_CATEGORIES = {"ChatGPT memory", "Personal Instructions", "Settings", "server topology", "Tailscale", "connector deployment"}
 PROHIBITED_METHOD_CATEGORIES = {"concurrency/load test", "worker creation", "worker barriers", "server restarts", "connection experiments"}
 RECORD_FIELDS = {"schema_version", "issue", "pairs"}
-PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_mutation_categories", "prohibited_methods_observed", "prohibited_method_categories", "stop_rule_violated", "recovery_limit_violated", "before", "after"}
+PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_mutation_categories", "prohibited_methods_observed", "prohibited_method_categories", "stop_rule_violated", "recovery_limit_violated", "canary_call_limit_violated", "before", "after"}
 SAMPLE_FIELDS = {"canaries", "measurements"}
 
 
@@ -77,7 +77,7 @@ def validate_record(record: dict) -> dict:
         else:
             _require(canonical_model == expected_model, "all pairs must use the same model")
             _require(canonical_configuration == expected_configuration, "all pairs must use the same configuration")
-        for field in ("fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_methods_observed", "stop_rule_violated", "recovery_limit_violated"):
+        for field in ("fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_methods_observed", "stop_rule_violated", "recovery_limit_violated", "canary_call_limit_violated"):
             _require(isinstance(pair.get(field), bool), f"{field} must be boolean")
         mutation_categories = pair.get("prohibited_mutation_categories")
         method_categories = pair.get("prohibited_method_categories")
@@ -142,7 +142,7 @@ def validate_record(record: dict) -> dict:
     return {"ok": True, "pairs": normalized}
 def classify(record: dict) -> str:
     validated = validate_record(record)
-    if any((not p["fresh_conversation"]) or (p["kind"] == "control" and not p["ordinary_user_continuation_observed"]) or (p["kind"] == "treatment" and p["ordinary_user_continuation_observed"]) or p["parallel_load_observed"] or p["prohibited_mutations_observed"] or p["prohibited_methods_observed"] or p["stop_rule_violated"] or p["recovery_limit_violated"] for p in validated["pairs"]):
+    if any((not p["fresh_conversation"]) or (p["kind"] == "control" and not p["ordinary_user_continuation_observed"]) or (p["kind"] == "treatment" and p["ordinary_user_continuation_observed"]) or p["parallel_load_observed"] or p["prohibited_mutations_observed"] or p["prohibited_methods_observed"] or p["stop_rule_violated"] or p["recovery_limit_violated"] or p["canary_call_limit_violated"] for p in validated["pairs"]):
         return "INCONCLUSIVE"
     controls = [p for p in validated["pairs"] if p["kind"] == "control"]
     treatments = [p for p in validated["pairs"] if p["kind"] == "treatment"]
