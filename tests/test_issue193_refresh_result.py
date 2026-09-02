@@ -395,6 +395,23 @@ class Issue193RefreshResultTests(unittest.TestCase):
             validate_record(data)
 
 
+    def test_only_confounded_post_treatment_binding_losses_are_inconclusive(self):
+        mutators = (
+            lambda pair: pair["after"]["measurements"].__setitem__("visible_or_discovered_schema", False),
+            lambda pair: pair["after"]["measurements"].__setitem__("sibling_route_health", False),
+            lambda pair: pair["after"]["measurements"].__setitem__("matching_local_request_start", True),
+        )
+        for mutate in mutators:
+            with self.subTest(mutate=mutate):
+                data = record(
+                    pair("control", "c1", True, True),
+                    pair("treatment", "t1", True, False),
+                    pair("treatment", "t2", True, False),
+                )
+                mutate(data["pairs"][1])
+                mutate(data["pairs"][2])
+                self.assertEqual(classify(data), "INCONCLUSIVE")
+
     def test_treatment_change_with_unhealthy_sibling_route_is_not_h1_support(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
         data["pairs"][2]["after"]["measurements"]["sibling_route_health"] = False

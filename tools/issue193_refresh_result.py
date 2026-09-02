@@ -155,12 +155,15 @@ def classify(record: dict) -> str:
         and p["after"]["measurements"]["sibling_route_health"] is True
         for p in controls
     )
-    changed_treatments = [
+    post_treatment_binding_losses = [
         p for p in treatments
+        if p["before"]["measurements"]["direct_recipient_callable"] is True
+        and p["after"]["measurements"]["direct_recipient_callable"] is False
+    ]
+    changed_treatments = [
+        p for p in post_treatment_binding_losses
         if p["before"]["measurements"]["visible_or_discovered_schema"] is True
         and p["after"]["measurements"]["visible_or_discovered_schema"] is True
-        and p["before"]["measurements"]["direct_recipient_callable"] is True
-        and p["after"]["measurements"]["direct_recipient_callable"] is False
         and p["before"]["measurements"]["sibling_route_health"] is True
         and p["after"]["measurements"]["sibling_route_health"] is True
         and p["after"]["measurements"]["matching_local_request_start"] is False
@@ -169,6 +172,8 @@ def classify(record: dict) -> str:
         return "SUPPORT_H1"
     if changed_treatments:
         return "REPRODUCTION_ONLY"
+    if post_treatment_binding_losses:
+        return "INCONCLUSIVE"
     if controls and treatments:
         return "WEAKEN_H1"
     return "INCONCLUSIVE"
