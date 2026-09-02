@@ -112,6 +112,10 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("repeatable, explicitly allowed, and may be mandatory many times", text)
         self.assertIn("Worker execution may never administer the scheduler", text)
         self.assertIn("stack_atlas_glance", text)
+        self.assertIn("visual_proof_run", text)
+        self.assertIn("visual_proof_reviewed_json", text)
+        self.assertIn("PENDING_REVIEW", text)
+        self.assertIn("Visual review never blocks the worker fleet", text)
 
 
 if __name__ == "__main__":

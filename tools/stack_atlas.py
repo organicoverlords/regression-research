@@ -234,7 +234,7 @@ COMPONENTS.update({
     "worker_reports": {
         "role": "projection:worker-self-report", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
-        "live_status": ["read the named current worker report; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "live_status": ["read the named current worker report; when visual_proof_run is present inspect the actual artifact plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
         "resources": ["worker-reports/*.md"], "dependents": ["chatgpt_orchestrator"],
@@ -370,7 +370,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["worker_reports"],
         "triggers": ["worker report", "worker status", "worker progress", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
-        "boundary": "Self-report/navigation surface; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+        "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
     "execution.transport": {
         "owner_components": ["mcp_front_door", "desktop_commander_remote"],
