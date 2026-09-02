@@ -116,6 +116,7 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("visual_proof_reviewed_json", text)
         self.assertIn("PENDING_REVIEW", text)
         self.assertIn("Visual review never blocks the worker fleet", text)
+        self.assertIn(r"C:\P3Proofs", text)
         self.assertIn("latest snapshot, not the log", text)
         self.assertIn("worker-reports/history/<WorkerName>/", text)
         self.assertIn("Finish owned delivery before opening more inventory", text)

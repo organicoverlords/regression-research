@@ -234,7 +234,7 @@ COMPONENTS.update({
     "worker_reports": {
         "role": "projection:worker-self-report", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
-        "live_status": ["read the named current worker report; when visual_proof_run is present inspect the actual artifact plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "live_status": [r"read the named current worker report; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
         "resources": ["worker-reports/*.md"], "dependents": ["chatgpt_orchestrator"],
