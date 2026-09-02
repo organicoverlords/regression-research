@@ -23,6 +23,7 @@ VALID_STOP_REASONS = {
     "RESOURCE_BLOCKED", "NO_SAFE_WORK", "INTERRUPTED", "OTHER",
 }
 VALID_TOOL_DROP_EFFECTS = {"RECOVERED_CONTINUED", "CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"}
+CLASSIFIED_FAILURE_FIELDS = ("transport_drops", "binding_drops", "safety_blocks", "other_tool_failures")
 
 
 def _fields(raw: bytes) -> dict[str, str]:
@@ -103,12 +104,17 @@ def _run_analytics(item: dict[str, Any]) -> dict[str, Any]:
         stop_reason = "UNSPECIFIED"
         stop_reason_source = "DERIVED_ABSENCE"
 
-    tool_drops = _int_field(item.get("tool_drops"))
-    if tool_drops is None:
-        tool_drops = 0
-    effect = str(item.get("tool_drop_effect") or "").strip().upper()
+    classified_present = any(item.get(field) not in (None, "") for field in CLASSIFIED_FAILURE_FIELDS)
+    transport_drops = _int_field(item.get("transport_drops")) or 0
+    binding_drops = _int_field(item.get("binding_drops")) or 0
+    safety_blocks = _int_field(item.get("safety_blocks")) or 0
+    other_tool_failures = _int_field(item.get("other_tool_failures")) or 0
+    explicit_legacy = _int_field(item.get("legacy_unclassified_tool_drops"))
+    legacy_tool_drops = explicit_legacy if explicit_legacy is not None else (0 if classified_present else (_int_field(item.get("tool_drops")) or 0))
+    tool_failures_total = transport_drops + binding_drops + safety_blocks + other_tool_failures + legacy_tool_drops
+    effect = str(item.get("tool_failure_effect") or item.get("tool_drop_effect") or "").strip().upper()
     effect = effect.replace("-", "_").replace(" ", "_")
-    if tool_drops == 0:
+    if tool_failures_total == 0:
         effect = "NONE"
     elif effect not in VALID_TOOL_DROP_EFFECTS:
         effect = "UNSPECIFIED"
@@ -120,7 +126,15 @@ def _run_analytics(item: dict[str, Any]) -> dict[str, Any]:
         "stop_reason_source": stop_reason_source,
         "stop_detail": item.get("stop_detail"),
         "pending_gate_classes": _gate_classes(remaining_gate),
-        "tool_drops": tool_drops,
+        "transport_drops": transport_drops,
+        "binding_drops": binding_drops,
+        "safety_blocks": safety_blocks,
+        "other_tool_failures": other_tool_failures,
+        "legacy_unclassified_tool_drops": legacy_tool_drops,
+        "tool_failures_total": tool_failures_total,
+        "tool_failure_effect": effect,
+        # Legacy aliases remain readable, but no longer feed the headline transport metric.
+        "tool_drops": legacy_tool_drops,
         "tool_drop_effect": effect,
         "early_stop": early,
         "early_stop_unexplained": bool(early and stop_reason in {"UNEXPLAINED", "UNSPECIFIED"}),
@@ -140,7 +154,7 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     duration_minutes = round(duration_seconds / 60, 2) if duration_seconds is not None else None
     utilization = round(duration_minutes / TARGET_RUN_MINUTES * 100, 1) if duration_minutes is not None else None
     base: dict[str, Any] = {
-        "schema": "worker-report-history.v3",
+        "schema": "worker-report-history.v4",
         "report_sha256": digest,
         "worker": fields.get("worker") or archive_path.parent.name,
         "state": fields.get("state"),
@@ -160,6 +174,12 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "remaining_gate": fields.get("remaining_gate"),
         "reported_stop_reason": fields.get("stop_reason"),
         "stop_detail": fields.get("stop_detail"),
+        "transport_drops": _int_field(fields.get("transport_drops")),
+        "binding_drops": _int_field(fields.get("binding_drops")),
+        "safety_blocks": _int_field(fields.get("safety_blocks")),
+        "other_tool_failures": _int_field(fields.get("other_tool_failures")),
+        "legacy_unclassified_tool_drops": _int_field(fields.get("legacy_unclassified_tool_drops")),
+        "tool_failure_effect": fields.get("tool_failure_effect"),
         "tool_drops": _int_field(fields.get("tool_drops")),
         "tool_drop_effect": fields.get("tool_drop_effect"),
         "visual_proof_run": fields.get("visual_proof_run"),
@@ -203,12 +223,18 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
     early_records = [x for x in records if x.get("early_stop")]
     early_stop_counts = Counter(str(x["stop_reason"]) for x in early_records)
     gate_counts = Counter(label for x in records for label in x.get("pending_gate_classes", []))
-    tool_drop_runs = [x for x in records if int(x.get("tool_drops") or 0) > 0]
-    tool_drop_stop_runs = [
-        x for x in tool_drop_runs
-        if x.get("tool_drop_effect") in {"CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"}
-        or x.get("stop_reason") == "TOOL_BLOCKED"
+    transport_drop_runs = [x for x in records if int(x.get("transport_drops") or 0) > 0]
+    binding_drop_runs = [x for x in records if int(x.get("binding_drops") or 0) > 0]
+    safety_block_runs = [x for x in records if int(x.get("safety_blocks") or 0) > 0]
+    other_tool_failure_runs = [x for x in records if int(x.get("other_tool_failures") or 0) > 0]
+    legacy_tool_drop_runs = [x for x in records if int(x.get("legacy_unclassified_tool_drops") or 0) > 0]
+    tool_failure_stop_runs = [
+        x for x in records
+        if int(x.get("tool_failures_total") or 0) > 0
+        and (x.get("tool_failure_effect") in {"CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"} or x.get("stop_reason") == "TOOL_BLOCKED")
     ]
+    transport_or_binding_runs = [x for x in records if int(x.get("transport_drops") or 0) > 0 or int(x.get("binding_drops") or 0) > 0]
+    transport_or_binding_stop_runs = [x for x in transport_or_binding_runs if x in tool_failure_stop_runs]
 
     by_worker: dict[str, dict[str, Any]] = {}
     for item in sorted(records, key=lambda x: str(x.get("finished_at") or x.get("archived_at") or "")):
@@ -226,6 +252,13 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
             "stop_reason_source": item.get("stop_reason_source"),
             "stop_detail": item.get("stop_detail"),
             "early_stop": item.get("early_stop"),
+            "transport_drops": item.get("transport_drops"),
+            "binding_drops": item.get("binding_drops"),
+            "safety_blocks": item.get("safety_blocks"),
+            "other_tool_failures": item.get("other_tool_failures"),
+            "legacy_unclassified_tool_drops": item.get("legacy_unclassified_tool_drops"),
+            "tool_failures_total": item.get("tool_failures_total"),
+            "tool_failure_effect": item.get("tool_failure_effect"),
             "tool_drops": item.get("tool_drops"),
             "tool_drop_effect": item.get("tool_drop_effect"),
         }
@@ -233,7 +266,7 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
     total_minutes = round(sum(durations), 2)
     window_minutes = hours * 60.0
     return {
-        "schema": "worker-report-metrics.v2",
+        "schema": "worker-report-metrics.v3",
         "generated_at": now.isoformat(),
         "window_hours": float(hours),
         "target_run_minutes": TARGET_RUN_MINUTES,
@@ -247,9 +280,21 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
         "stop_reason_counts": dict(sorted(stop_counts.items())),
         "early_stop_reason_counts": dict(sorted(early_stop_counts.items())),
         "pending_gate_counts": dict(sorted(gate_counts.items())),
-        "tool_drop_runs": len(tool_drop_runs),
-        "tool_drops_total": sum(int(x.get("tool_drops") or 0) for x in tool_drop_runs),
-        "tool_drop_stop_runs": len(tool_drop_stop_runs),
+        # Backward headline now means classified callable-route loss only; safety and legacy values are separate.
+        "tool_drop_runs": len(transport_or_binding_runs),
+        "tool_drops_total": sum(int(x.get("transport_drops") or 0) + int(x.get("binding_drops") or 0) for x in transport_or_binding_runs),
+        "tool_drop_stop_runs": len(transport_or_binding_stop_runs),
+        "transport_drop_runs": len(transport_drop_runs),
+        "transport_drops_total": sum(int(x.get("transport_drops") or 0) for x in transport_drop_runs),
+        "binding_drop_runs": len(binding_drop_runs),
+        "binding_drops_total": sum(int(x.get("binding_drops") or 0) for x in binding_drop_runs),
+        "safety_block_runs": len(safety_block_runs),
+        "safety_blocks_total": sum(int(x.get("safety_blocks") or 0) for x in safety_block_runs),
+        "other_tool_failure_runs": len(other_tool_failure_runs),
+        "other_tool_failures_total": sum(int(x.get("other_tool_failures") or 0) for x in other_tool_failure_runs),
+        "legacy_unclassified_tool_drop_runs": len(legacy_tool_drop_runs),
+        "legacy_unclassified_tool_drops_total": sum(int(x.get("legacy_unclassified_tool_drops") or 0) for x in legacy_tool_drop_runs),
+        "tool_failure_stop_runs": len(tool_failure_stop_runs),
         "worker_minutes": total_minutes,
         "equivalent_continuous_workers": round(total_minutes / window_minutes, 3) if window_minutes else None,
         "capacity_pct_of_one_continuous_worker": round(total_minutes / window_minutes * 100.0, 1) if window_minutes else None,
@@ -301,6 +346,13 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "stop_detail": item.get("stop_detail"),
             "early_stop": item.get("early_stop"),
             "pending_gate_classes": item.get("pending_gate_classes"),
+            "transport_drops": item.get("transport_drops"),
+            "binding_drops": item.get("binding_drops"),
+            "safety_blocks": item.get("safety_blocks"),
+            "other_tool_failures": item.get("other_tool_failures"),
+            "legacy_unclassified_tool_drops": item.get("legacy_unclassified_tool_drops"),
+            "tool_failures_total": item.get("tool_failures_total"),
+            "tool_failure_effect": item.get("tool_failure_effect"),
             "tool_drops": item.get("tool_drops"),
             "tool_drop_effect": item.get("tool_drop_effect"),
             "mutation": item.get("mutation"),
@@ -358,6 +410,13 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         "target_utilization_pct": metadata.get("target_utilization_pct"),
         "stop_reason": metadata.get("stop_reason"),
         "early_stop": metadata.get("early_stop"),
+        "transport_drops": metadata.get("transport_drops"),
+        "binding_drops": metadata.get("binding_drops"),
+        "safety_blocks": metadata.get("safety_blocks"),
+        "other_tool_failures": metadata.get("other_tool_failures"),
+        "legacy_unclassified_tool_drops": metadata.get("legacy_unclassified_tool_drops"),
+        "tool_failures_total": metadata.get("tool_failures_total"),
+        "tool_failure_effect": metadata.get("tool_failure_effect"),
         "tool_drops": metadata.get("tool_drops"),
         "fleet_metrics_path": str(history_root.parent / "metrics.json"),
         "fleet_average_utilization_pct": metrics.get("average_target_utilization_pct"),
