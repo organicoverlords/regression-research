@@ -40,7 +40,7 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `process_transport_front_door`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1; chatgpt-mcp-clean/src/front-door.ts
-- Live status: front-door health plus exact tool contract/semantic call
+- Live status: front-door health plus exact tool contract/semantic call; ordered static-array fallback + backend connection reuse; verify the live route before disruption
 - Independent recovery: inactive backend generation + atomic front-door switch
 - Resources: front-door port; active-backend.json; process-routes.json
 - Dependents: chatgpt_process_transport
@@ -53,7 +53,7 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `replaceable_process_transport_backend`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\start.ps1; %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
-- Live status: backend health; exact tools/list schema; semantic process call
+- Live status: backend health; exact tools/list schema; semantic process call; durable process contract: read_output max 32000; start_process default wait 750 ms; live cap 5 per caller; no rolling launch/token bucket
 - Independent recovery: other backend generation behind stable front door
 - Resources: backend port; transport.jsonl
 - Dependents: mcp_front_door
@@ -66,11 +66,11 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `generation_pinned_process_transport_clone`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: chatgpt-mcp-clean/scripts/start-minimal-clone.ps1
-- Live status: clone health; exact tool contract; process receipt/control route
-- Independent recovery: sibling clone or stable front door when proven compatible
+- Live status: clone health; exact tool contract; process receipt/control route; 2026-09-02 reconciliation checkpoint: clone-a fallback must contain only generations compatible with merged master process contract; verify route + generation + authenticated smoke
+- Independent recovery: sibling clone or stable front door when proven compatible; preserve public clone identity/OAuth/shared receipts and never leave a stale-regression generation in ordered fallback
 - Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control
 - Dependents: chatgpt_process_transport
-- Runbook: chatgpt-mcp-clean/AGENTS.md
+- Runbook: chatgpt-mcp-clean/AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md
 - Supervisor: instance launcher / owning generation
 - Self-heal: generation_specific
 
@@ -131,7 +131,7 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `context:history-notebook`
 - Capabilities: memory_read, memory_write
 - Canonical sources: C:\Users\Lauri\Desktop\vault\memory; tools/memory_bank.py
-- Live status: targeted Vault search/context/history when needed
+- Live status: targeted Vault search/context/history/timeline/recent-titles when needed; do not recursively scan the Vault filesystem for ordinary recall
 - Independent recovery: continue without Vault; current conversation/memory and live sources remain available
 - Resources: memory-bank.jsonl; behavior-authority-registry.json
 - Dependents: chatgpt_orchestrator; execution_workers
