@@ -129,6 +129,54 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
     }
 
 
+def _project_from_repo(repo: str | None) -> str | None:
+    if not repo:
+        return None
+    name = str(repo).replace("\\", "/").rstrip("/").split("/")[-1].casefold()
+    return {
+        "p3": "p3",
+        "tiny3d": "tiny3d",
+        "lowvram3d-studio": "lowvram",
+        "regression-research": "regression-research",
+    }.get(name, name or None)
+
+
+def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    for item in load_history_metadata(history_root):
+        event_at = item.get("finished_at") or item.get("archived_at")
+        if not event_at:
+            continue
+        worker = str(item.get("worker") or "worker")
+        scope = str(item.get("scope") or "")
+        outcome = str(item.get("outcome") or item.get("state") or "report")
+        events.append({
+            "id": f"worker:{worker}:{item.get('report_sha256') or event_at}",
+            "source_type": "WORKER_REPORT",
+            "authority": "DERIVED_WORKER_HISTORY",
+            "event_at": event_at,
+            "recorded_at": item.get("archived_at") or event_at,
+            "project": _project_from_repo(item.get("repo")),
+            "worker": worker,
+            "title": f"{worker}: {outcome}" + (f" ? {scope}" if scope else ""),
+            "summary": item.get("last_event") or item.get("mutation") or "",
+            "kind": "worker_report",
+            "scope": scope,
+            "state": item.get("state"),
+            "outcome": item.get("outcome"),
+            "duration_minutes": item.get("duration_minutes"),
+            "target_run_minutes": item.get("target_run_minutes"),
+            "target_utilization_pct": item.get("target_utilization_pct"),
+            "mutation": item.get("mutation"),
+            "validation": item.get("validation"),
+            "remaining_gate": item.get("remaining_gate"),
+            "visual_proof_run": item.get("visual_proof_run"),
+            "visual_proof_review": item.get("visual_proof_review"),
+            "refs": [value for value in (scope, item.get("mutation")) if value],
+        })
+    return events
+
+
 def write_metrics_projection(history_root: Path, output: Path | None = None, *, hours: float = 24.0) -> dict[str, Any]:
     summary = summarize_history(history_root, hours=hours)
     target = output or history_root.parent / "metrics.json"

@@ -177,6 +177,24 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(repo_event["authority"], "REPO_HISTORY")
         self.assertIn("no automatic memory write", orientation["contract"]["repo_history"])
 
+    def test_general_and_project_timeline_include_worker_history_without_promoting_it(self):
+        memory = self.e("mem", "2026-08-29T01:00:00+03:00", "Durable decision", scope="p3/decision", project="p3")
+        worker_event = {
+            "id": "worker:Cedar:abc", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+            "event_at": "2026-08-29T02:00:00+03:00", "recorded_at": "2026-08-29T02:00:01+03:00",
+            "project": "p3", "worker": "Cedar", "title": "Cedar: SUBSTANTIVE_PROGRESS ? p3#414",
+            "summary": "PR #764 merged", "refs": ["p3#414", "PR #764"],
+            "duration_minutes": 23.0, "target_run_minutes": 24.0, "target_utilization_pct": 95.8,
+        }
+        general = build_timeline([memory], worker_events=[worker_event], limit=10)
+        self.assertEqual(general["worker_events"], 1)
+        self.assertEqual(general["events"][0]["source_type"], "WORKER_REPORT")
+        project = build_timeline([memory], view="project", project="p3", worker_events=[worker_event], limit=10)
+        self.assertEqual(project["worker_events"], 1)
+        self.assertEqual(project["events"][0]["target_utilization_pct"], 95.8)
+        errors = build_timeline([memory], view="errors", worker_events=[worker_event], limit=10)
+        self.assertEqual(errors["worker_events"], 0)
+
     def test_error_view_does_not_infer_incidents_from_commit_titles(self):
         incident = self.e("err", "2026-08-29T01:00:00+03:00", "Incident", scope="p3/error", tags=["error"])
         repo_event = {
