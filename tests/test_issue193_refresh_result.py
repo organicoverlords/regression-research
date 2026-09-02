@@ -31,7 +31,9 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "ordinary_user_continuation_observed": kind == "control",
         "parallel_load_observed": False,
         "prohibited_mutations_observed": False,
+        "prohibited_mutation_categories": [],
         "prohibited_methods_observed": False,
+        "prohibited_method_categories": [],
         "stop_rule_violated": False,
         "recovery_limit_violated": False,
         "before": sample(before_value, False),
@@ -47,6 +49,36 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_requires_exact_contamination_identity(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["prohibited_mutations_observed"] = True
+        with self.assertRaisesRegex(ValueError, "must match prohibited_mutation_categories"):
+            validate_record(data)
+
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["prohibited_mutation_categories"] = ["Settings"]
+        with self.assertRaisesRegex(ValueError, "must match prohibited_mutation_categories"):
+            validate_record(data)
+
+    def test_rejects_unknown_or_duplicate_contamination_categories(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["prohibited_mutations_observed"] = True
+        data["pairs"][0]["prohibited_mutation_categories"] = ["not preregistered"]
+        with self.assertRaisesRegex(ValueError, "unknown category"):
+            validate_record(data)
+
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["prohibited_methods_observed"] = True
+        data["pairs"][0]["prohibited_method_categories"] = ["worker creation", "worker creation"]
+        with self.assertRaisesRegex(ValueError, "must be unique"):
+            validate_record(data)
+
+    def test_named_contamination_remains_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][1]["prohibited_methods_observed"] = True
+        data["pairs"][1]["prohibited_method_categories"] = ["worker creation"]
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
     def test_parallel_load_is_inconclusive(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
         data["pairs"][1]["parallel_load_observed"] = True
@@ -91,6 +123,7 @@ class Issue193RefreshResultTests(unittest.TestCase):
             pair("treatment", "t2", True, False),
         )
         data["pairs"][1]["prohibited_mutations_observed"] = True
+        data["pairs"][1]["prohibited_mutation_categories"] = ["Settings"]
         self.assertEqual(classify(data), "INCONCLUSIVE")
 
     def test_stop_or_recovery_protocol_violation_is_inconclusive(self):
