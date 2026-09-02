@@ -169,7 +169,7 @@ def _matches_repo_query(event: dict[str, Any], query_tokens: set[str]) -> bool:
     if not query_tokens:
         return True
     text = " ".join([
-        str(event.get("title") or ""), str(event.get("project") or ""),
+        str(event.get("title") or ""), str(event.get("project") or ""), str(event.get("worker") or ""),
         *[str(ref) for ref in event.get("refs", [])],
     ])
     return bool(query_tokens & token_words(text))
@@ -179,6 +179,7 @@ def build_timeline(
     entries: Iterable[dict[str, Any]], *, view: str = "general", project: str | None = None,
     query: str = "", thread: str | None = None, limit: int = DEFAULT_LIMIT,
     since: datetime | None = None, repo_events: Iterable[dict[str, Any]] | None = None,
+    worker_events: Iterable[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     items = list(entries)
     superseded_by = _superseded_by(items)
@@ -244,6 +245,7 @@ def build_timeline(
     threads.sort(key=lambda item: (_dt(item["latest_event_at"]), item["thread_id"]), reverse=True)
 
     repo_selected: list[dict[str, Any]] = []
+    worker_selected: list[dict[str, Any]] = []
     if view != "errors" and thread is None:
         for raw in repo_events or []:
             event = dict(raw)
@@ -254,9 +256,18 @@ def build_timeline(
             if not _matches_repo_query(event, qtokens):
                 continue
             repo_selected.append(event)
+        for raw in worker_events or []:
+            event = dict(raw)
+            if project_key and str(event.get("project") or "").casefold() != project_key:
+                continue
+            if since is not None and _dt(str(event.get("event_at"))) < since:
+                continue
+            if not _matches_repo_query(event, qtokens):
+                continue
+            worker_selected.append(event)
 
     effective_limit = min(MAX_LIMIT, max(1, int(limit)))
-    combined = [*selected, *repo_selected]
+    combined = [*selected, *repo_selected, *worker_selected]
     combined.sort(key=lambda event: (_dt(str(event["event_at"])), str(event["id"])), reverse=True)
     newest = combined[:effective_limit]
     return {
@@ -267,6 +278,7 @@ def build_timeline(
             "relationships": "only explicit supersedes plus explicit-thread/specific-scope chronology; broad scopes never imply one incident and no causal edge is inferred",
             "project_linkage": "explicit project metadata outranks secondary entity mentions",
             "repo_history": "local Git commits are observed repository history, not memory or causal interpretation",
+            "worker_history": "immutable finalized worker reports are lagging self-report evidence with automatically derived duration/utilization; they are not current-state authority or liveness proof",
         },
         "view": view,
         "project": project_key,
@@ -275,6 +287,7 @@ def build_timeline(
         "matching_events": len(combined),
         "memory_events": len(selected),
         "repo_events": len(repo_selected),
+        "worker_events": len(worker_selected),
         "matching_threads": len(threads),
         "events": newest,
         "threads": threads[: min(20, effective_limit)],

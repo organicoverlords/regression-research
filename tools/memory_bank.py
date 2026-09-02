@@ -20,6 +20,7 @@ try:
     from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
     from .stack_atlas import build_bootstrap_atlas
+    from .worker_report_history import summarize_history, worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
     from memory_authority import (AUTHORITY_REGISTRY, ROLE_CANONICAL, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
@@ -30,12 +31,14 @@ except ImportError:
     from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
     from stack_atlas import build_bootstrap_atlas
+    from worker_report_history import summarize_history, worker_history_events
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
 REQUIRED = {"id", "timestamp", "kind", "scope", "tags", "text", "state", "evidence", "supersedes"}
 DEFAULT_BANK = Path(__file__).resolve().parents[1] / "memory" / "memory-bank.jsonl"
 DEFAULT_SOURCES = Path(__file__).resolve().parents[1] / "memory" / "sources.json"
+DEFAULT_WORKER_HISTORY = Path(__file__).resolve().parents[1] / "worker-reports" / "history"
 DEFAULT_RECALL_LIMIT = 5
 MAX_RECALL_LIMIT = 8
 DEFAULT_HISTORY_LIMIT = 8
@@ -794,7 +797,7 @@ def _main() -> int:
     orient.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
     orient.add_argument("--no-repos", action="store_true", help="disable local Git projection")
 
-    timeline_cmd = sub.add_parser("timeline", help="derived chronological continuity view over memory and optional local Git events")
+    timeline_cmd = sub.add_parser("timeline", help="derived chronology over memory, immutable worker reports, and optional local Git events")
     timeline_cmd.add_argument("query", nargs="?", default="")
     timeline_cmd.add_argument("--view", choices=("general", "project", "errors"), default="general")
     timeline_cmd.add_argument("--project")
@@ -804,6 +807,8 @@ def _main() -> int:
     timeline_cmd.add_argument("--repo-events", type=int, default=20)
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
     timeline_cmd.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
+    timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="immutable worker-report history root")
+    timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history and utilization summary")
 
     history = sub.add_parser("history")
     history.add_argument("query", nargs="?", default="")
@@ -924,10 +929,14 @@ def _main() -> int:
                     operator_live = args.operator_live or default_operator_live(vault_root)
                     specs = discover_repo_specs(operator_live, vault_root=vault_root)
                 repo_events = collect_repo_history(specs, limit_per_repo=args.repo_events)["events"]
-            _print_json(build_timeline(
+            worker_events = [] if args.no_workers else worker_history_events(args.worker_history)
+            report = build_timeline(
                 entries, view=args.view, project=args.project, query=args.query, thread=args.thread,
-                limit=args.limit, repo_events=repo_events,
-            ))
+                limit=args.limit, repo_events=repo_events, worker_events=worker_events,
+            )
+            if not args.no_workers and args.view != "errors":
+                report["worker_metrics"] = summarize_history(args.worker_history, hours=24.0)
+            _print_json(report)
             return 0
         if args.command == "history":
             _print_json([annotate_memory(entry) for entry in search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True)])

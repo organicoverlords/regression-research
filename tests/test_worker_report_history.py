@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.worker_report_history import archive_finalized_report, summarize_history
+from tools.worker_report_history import archive_finalized_report, summarize_history, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -98,6 +98,27 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(summary["average_target_utilization_pct"], 100.0)
             self.assertEqual(summary["capacity_pct_of_one_continuous_worker"], 40.0)
             self.assertNotIn("uptime", summary)
+
+    def test_history_metadata_becomes_timeline_event(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history" / "Cedar"
+            history.mkdir(parents=True)
+            payload = {
+                "schema": "worker-report-history.v2", "report_sha256": "abc", "worker": "Cedar",
+                "state": "COMPLETE", "outcome": "SUBSTANTIVE_PROGRESS",
+                "finished_at": "2099-01-01T00:23:00+00:00", "archived_at": "2099-01-01T00:23:02+00:00",
+                "duration_minutes": 23.0, "target_run_minutes": 24.0, "target_utilization_pct": 95.8,
+                "repo": "organicoverlords/p3", "scope": "p3#414", "last_event": "PR #764 merged",
+                "remaining_gate": "none",
+            }
+            (history / "abc.json").write_text(json.dumps(payload), encoding="utf-8")
+            event = worker_history_events(root / "history")[0]
+            self.assertEqual(event["source_type"], "WORKER_REPORT")
+            self.assertEqual(event["project"], "p3")
+            self.assertEqual(event["duration_minutes"], 23.0)
+            self.assertEqual(event["target_utilization_pct"], 95.8)
+            self.assertEqual(event["remaining_gate"], "none")
 
     def test_running_report_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
