@@ -85,6 +85,7 @@
   ],
   "prohibited_methods": [
     "concurrency/load test",
+    "worker creation",
     "worker barriers",
     "server restarts",
     "connection experiments"
