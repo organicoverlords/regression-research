@@ -114,6 +114,13 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("inactive backend generation", " ".join(details["independent_recovery"]))
         self.assertIn("exact tool contract", " ".join(details["live_status"]))
 
+    def test_natural_component_aliases_resolve(self):
+        self.assertEqual(component_details("mcp")["id"], "mcp_front_door")
+        self.assertEqual(component_details("plugin2")["id"], "mcp_front_door")
+        self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
+        self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
+        self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
+
     def test_bootstrap_directory_covers_major_stack_surfaces(self):
         atlas = build_bootstrap_atlas()
         ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS) | set(__import__("tools.stack_atlas", fromlist=["PRODUCT_ROOTS"]).PRODUCT_ROOTS)
@@ -121,7 +128,7 @@ class StackAtlasTests(unittest.TestCase):
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "desktop_commander_watchdog", "desktop_commander_remote", "desktop_commander_local",
             "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
-            "chatgpt_orchestrator", "execution_workers", "chatgpt_automations", "local_git", "github",
+            "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "dev_progress_board", "operator_live", "worker_reports",
             "lowvram", "asset_library", "tinylab", "tiny3d", "p3", "vault_history",
         }

@@ -20,6 +20,14 @@ MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 COMMANDER_ROOT = r"%LOCALAPPDATA%\DesktopCommanderFallback"
 ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
 CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
+COMPONENT_ALIASES = {
+    "chatgpt": "chatgpt_session",
+    "webgpt": "chatgpt_session",
+    "mcp": "mcp_front_door",
+    "plugin2": "mcp_front_door",
+    "coordinator": "busy_coordinator",
+    "busy": "busy_coordinator",
+}
 
 ATLAS_CONTRACT = {
     "authority": "DERIVED_OPERATIONAL_VIEW_NOT_AUTHORITY",
@@ -38,7 +46,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "self_heal": "not_applicable",
         "independent_recovery": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover"],
         "resources": [BUSY_STORE],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"],
+        "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["AGENTS.md", "tools/busy_authority.py"],
     },
     "mcp_front_door": {
@@ -54,7 +62,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["inactive backend generation + atomic front-door switch"],
         "resources": ["front-door port", "active-backend.json", "process-routes.json"],
         "dependents": ["chatgpt_process_transport"],
-        "runbook": ["chatgpt-mcp-clean/AGENTS.md", "chatgpt-mcp-clean/keepalive.ps1"],
+        "runbook": [MCP_ROOT + r"\AGENTS.md", MCP_ROOT + r"\keepalive.ps1"],
     },
     "mcp_backend": {
         "role": "replaceable_process_transport_backend",
@@ -71,12 +79,12 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["other backend generation behind stable front door"],
         "resources": ["backend port", "transport.jsonl"],
         "dependents": ["mcp_front_door"],
-        "runbook": ["chatgpt-mcp-clean/AGENTS.md", "chatgpt-mcp-clean/keepalive.ps1"],
+        "runbook": [MCP_ROOT + r"\AGENTS.md", MCP_ROOT + r"\keepalive.ps1"],
     },
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["chatgpt-mcp-clean/scripts/start-minimal-clone.ps1"],
+        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1"],
         "live_status": [
             "clone health",
             "exact tool contract",
@@ -92,7 +100,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [
-            "chatgpt-mcp-clean/AGENTS.md",
+            MCP_ROOT + r"\AGENTS.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
         ],
     },
@@ -155,7 +163,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "self_heal": "not_applicable",
         "independent_recovery": ["continue without Vault; current conversation/memory and live sources remain available"],
         "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"],
+        "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
     "local_git": {
@@ -167,7 +175,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "self_heal": "not_applicable",
         "independent_recovery": ["preserve dirty/foreign state; use isolated worktree"],
         "resources": ["working tree", ".git/worktrees"],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"],
+        "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["repo AGENTS.md"],
     },
     "github": {
@@ -179,7 +187,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "self_heal": "external",
         "independent_recovery": ["local Git remains local source truth; publication waits for GitHub"],
         "resources": ["remote refs", "issues", "PRs", "workflow runs"],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"],
+        "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["repo AGENTS.md"],
     },
     "dev_progress_board": {
@@ -202,33 +210,33 @@ COMPONENTS.update({
         "canonical_sources": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
         "live_status": ["read current shared policy"], "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["current instruction + repo rules remain authoritative"], "resources": ["generated policy blocks"],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"], "runbook": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
+        "dependents": ["chatgpt_session", "execution_workers"], "runbook": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
     },
     "repo_agents": {
         "role": "authority:repo-local", "capabilities": ["source_read", "repository_mutate"],
         "canonical_sources": ["admitted worktree AGENTS.md"], "live_status": ["read admitted-worktree AGENTS.md"],
         "supervisor": "repo-local", "self_heal": "not_applicable", "independent_recovery": ["block repo mutation until readable"],
-        "resources": ["AGENTS.md"], "dependents": ["chatgpt_orchestrator", "execution_workers"], "runbook": ["repo AGENTS.md"],
+        "resources": ["AGENTS.md"], "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo AGENTS.md"],
     },
     "north_star": {
         "role": "direction:project", "capabilities": ["source_read"], "canonical_sources": ["repo NORTH_STAR/equivalent"],
         "live_status": ["read current direction doc"], "supervisor": "repo-local", "self_heal": "not_applicable",
         "independent_recovery": ["current user direction outranks stale prose"], "resources": ["NORTH_STAR/equivalent"],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"], "runbook": ["repo NORTH_STAR/equivalent"],
+        "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo NORTH_STAR/equivalent"],
     },
     "chatgpt_memory": {
         "role": "context:chatgpt-continuity", "capabilities": ["memory_read"],
         "canonical_sources": ["current conversation", "ChatGPT Memory"],
         "live_status": ["current conversation and delivered ChatGPT Memory"], "supervisor": "ChatGPT",
         "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history when useful"],
-        "resources": ["ChatGPT Memory"], "dependents": ["chatgpt_orchestrator"],
+        "resources": ["ChatGPT Memory"], "dependents": ["chatgpt_session"],
         "runbook": ["04 Operating Contracts/fresh-chat-startup-orientation.md"],
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
         "canonical_sources": ["tools/memory_bank.py", "memory/memory-bank.jsonl"], "live_status": ["memory_bank.py validate / bounded read"],
         "supervisor": "none", "self_heal": "not_applicable", "independent_recovery": ["continue without optional history enrichment"],
-        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"], "dependents": ["chatgpt_orchestrator", "execution_workers"],
+        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"], "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
     "worker_reports": {
@@ -237,11 +245,11 @@ COMPONENTS.update({
         "live_status": [r"read the named current worker report; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
-        "resources": ["worker-reports/*.md"], "dependents": ["chatgpt_orchestrator"],
+        "resources": ["worker-reports/*.md"], "dependents": ["chatgpt_session"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\worker-reports"],
     },
-    "chatgpt_orchestrator": {
-        "role": "orchestrator:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
+    "chatgpt_session": {
+        "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
         "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
         "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/fresh-chat-startup-orientation.md"],
@@ -251,7 +259,7 @@ COMPONENTS.update({
         "canonical_sources": ["fresh-worker launch contract", "repo AGENTS.md"], "live_status": ["independent execution/activity evidence"],
         "supervisor": "ChatGPT + BusyCoordinator ownership", "self_heal": "worker_specific",
         "independent_recovery": ["preserve task/checkpoint; use another proven execution route"],
-        "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_orchestrator"],
+        "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
         "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "chatgpt_automations": {
@@ -264,7 +272,7 @@ COMPONENTS.update({
         "role": "evidence:ci", "capabilities": ["runtime_validate"], "canonical_sources": ["exact GitHub Actions run"],
         "live_status": ["exact workflow run/check status"], "supervisor": "GitHub Actions", "self_heal": "external",
         "independent_recovery": ["local proof may supplement, never impersonate exact CI"], "resources": ["workflow runs", "checks"],
-        "dependents": ["chatgpt_orchestrator", "execution_workers"], "runbook": ["repo workflow files"],
+        "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo workflow files"],
     },
     "operator_live": {
         "role": "projection:near-live", "capabilities": ["source_read"],
@@ -400,16 +408,18 @@ def build_bootstrap_atlas() -> dict[str, Any]:
         "local_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py",
         "inventory": "inventory",
         "find": "find <query>",
-        "lookup": "lookup <id>",
+        "lookup": "lookup <id-or-alias>",
         "blast": "blast-radius --pid <pid>",
     }
 
 def component_details(name: str) -> dict[str, Any]:
+    requested = name
+    name = COMPONENT_ALIASES.get(name.casefold(), name)
     if name in COMPONENTS:
-        return {"id": name, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
+        return {"id": name, "requested_as": requested, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
     if name in PRODUCT_COMPONENTS:
-        return {"id": name, **PRODUCT_COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
-    raise KeyError(name)
+        return {"id": name, "requested_as": requested, **PRODUCT_COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
+    raise KeyError(requested)
 
 
 def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
