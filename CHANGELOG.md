@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Enforced BusyCoordinator claim-owner harness plus task/session identity for new and renewed ownership while preserving legacy release/recovery cleanup paths.
+
 - [2026-09-02] [research] Required #193 controls to carry matching local request-start evidence before they can stabilize causal H1 support.
 
 - [2026-09-02] [research] Required offset-aware timestamps on #193 paired samples and enforced before < after ordering so mislabeled temporal evidence cannot satisfy the causal result contract.

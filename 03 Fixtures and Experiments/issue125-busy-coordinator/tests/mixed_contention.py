@@ -27,7 +27,7 @@ for round_index in range(rounds):
     )
 
     def run(index):
-        actor = f"actor-{round_index}-{index}"
+        actor = f"ChatGPT-actor-{round_index}-{index}"
         if index % 2 == 0:
             command = [sys.executable, str(py), "--store", str(store), "claim", actor, "same-scope"]
             environment = None

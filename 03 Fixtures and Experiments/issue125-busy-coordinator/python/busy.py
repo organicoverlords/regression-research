@@ -42,6 +42,19 @@ def canonical_scope(scope: str) -> str:
     return value
 
 
+CLAIM_ACTOR_HARNESSES = ("ChatGPT", "Codex", "Claude", "OpenCode", "CommandCode", "Traycer")
+
+
+def validate_claim_actor(actor: str) -> str:
+    value = actor.strip()
+    for harness in CLAIM_ACTOR_HARNESSES:
+        if value.startswith(harness):
+            rest = value[len(harness):]
+            if len(rest) > 1 and rest[0] in "-:/" and rest[1:].strip():
+                return value
+    raise ValueError("claim actor must be <harness><separator><task/session suffix>")
+
+
 class StoreLock:
     def __init__(self, store: Path):
         self.path = Path(str(store) + ".lock")
@@ -321,6 +334,7 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
         if command == "next":
             if actor is None:
                 raise ValueError("actor required")
+            actor = validate_claim_actor(actor)
             signature = {"command": command, "actor": actor, "lease_seconds": lease_seconds}
             replay = idempotent(state, operation_id, signature)
             if replay is not None:
@@ -415,6 +429,10 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
         if raw_scope is None:
             raise ValueError("scope required")
         scope = canonical_scope(raw_scope)
+        if command in {"claim", "heartbeat"}:
+            if actor is None:
+                raise ValueError("actor required")
+            actor = validate_claim_actor(actor)
         signature = {"command": command, "scope": scope}
         if actor is not None:
             signature["actor"] = actor
