@@ -14,7 +14,19 @@ PY = ROOT / "python" / "busy.py"
 RS = ROOT / "rust" / "target" / "release" / "busy-coordinator.exe"
 
 
+def managed_actor(value: str) -> str:
+    if value.startswith(("ChatGPT-", "ChatGPT:", "ChatGPT/", "Codex-", "Claude-", "OpenCode-", "CommandCode-", "Traycer-")):
+        return value
+    return f"ChatGPT-{value}"
+
+
 def run(kind, store, *args, expect=0):
+    args = list(args)
+    if args and args[0] in {"claim", "heartbeat", "release", "block", "complete", "inspect", "next"} and len(args) > 1:
+        args[1] = managed_actor(args[1])
+    if args and args[0] == "snapshot" and "--actor" in args:
+        index = args.index("--actor") + 1
+        args[index] = managed_actor(args[index])
     if kind == "py":
         cmd = [sys.executable, str(PY), "--store", str(store), *args]
         env = None
@@ -277,7 +289,7 @@ snapshot_rs = run("rs", store10, "snapshot", "--actor", "owner-a", "--scope", "a
 assert snapshot_rs == snapshot_py
 assert snapshot_py["counts"] == {"active": 1, "ready": 1, "blocked": 1, "completed": 1, "claims": 2, "legacy_only_claims": 1}
 assert snapshot_py["owned"][0]["scope"] == "a-active" and snapshot_py["active_other"] == []
-assert snapshot_py["focus"]["claim"]["actor"] == "owner-a"
+assert snapshot_py["focus"]["claim"]["actor"] == managed_actor("owner-a")
 assert snapshot_py["ready"][0]["scope"] == "b-ready"
 assert snapshot_py["blocked"][0]["scope"] == "c-blocked"
 assert snapshot_py["legacy_only_claims"][0]["scope"] == "legacy-only"
@@ -297,10 +309,26 @@ for kind, other in (("py", "rs"), ("rs", "py")):
     assert read(recovery_store)["claims"] == []
     picked = run(other, recovery_store, "next", "replacement-owner", "--operation-id", f"{kind}-replacement")
     assert picked["ok"] is True and picked["claim"]["scope"] == "legacy-recovery"
-    managed_attempt = run(kind, recovery_store, "recover", "replacement-owner", "legacy-recovery", "--expected-claim-timestamp", picked["claim"]["timestamp"], "--operation-id", f"{kind}-managed-recover")
+    managed_attempt = run(kind, recovery_store, "recover", picked["claim"]["actor"], "legacy-recovery", "--expected-claim-timestamp", picked["claim"]["timestamp"], "--operation-id", f"{kind}-managed-recover")
     assert managed_attempt["ok"] is False and managed_attempt["reason"] == "managed_claim_use_lease_sweep"
     recovery_store.unlink(missing_ok=True)
     pathlib.Path(str(recovery_store) + ".lock").unlink(missing_ok=True)
+
+
+# New/renewed ownership rejects generic actor names; release/recover remain migration-safe for historical generic claims.
+for kind in ("py", "rs"):
+    invalid_store = new_store(f"actor-validation-{kind}")
+    cmd = ([sys.executable, str(PY), "--store", str(invalid_store)] if kind == "py" else [str(RS), "--store", str(invalid_store)])
+    cp = subprocess.run(cmd + ["claim", "Harbor", "invalid-scope"], capture_output=True, text=True)
+    assert cp.returncode == 1 and "claim actor must be" in cp.stderr
+    assert not invalid_store.exists(), "invalid actor claim must not create coordinator state"
+    legacy = {"actor": "Harbor", "scope": "legacy-cleanup", "timestamp": "2026-09-02T00:00:00.000Z"}
+    invalid_store.write_text(json.dumps({"claims": [legacy]}, indent=2) + "\n", encoding="utf-8")
+    released = subprocess.run(cmd + ["release", "Harbor", "legacy-cleanup"], capture_output=True, text=True)
+    assert released.returncode == 0, released.stderr or released.stdout
+    assert read(invalid_store)["claims"] == []
+    invalid_store.unlink(missing_ok=True)
+    pathlib.Path(str(invalid_store) + ".lock").unlink(missing_ok=True)
 
 print(json.dumps({
     "result": "PASS",

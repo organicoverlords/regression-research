@@ -244,6 +244,21 @@ fn canonical_scope(raw: &str) -> Result<String, String> {
     }
 }
 
+const CLAIM_ACTOR_HARNESSES: [&str; 6] = ["ChatGPT", "Codex", "Claude", "OpenCode", "CommandCode", "Traycer"];
+
+fn validate_claim_actor(raw: &str) -> Result<&str, String> {
+    let actor = raw.trim();
+    for harness in CLAIM_ACTOR_HARNESSES {
+        if let Some(rest) = actor.strip_prefix(harness) {
+            let mut chars = rest.chars();
+            if matches!(chars.next(), Some('-' | ':' | '/')) && !chars.as_str().trim().is_empty() {
+                return Ok(actor);
+            }
+        }
+    }
+    Err("claim actor must be <harness><separator><task/session suffix>".into())
+}
+
 fn claim_index(state: &StoreFile, scope: &str) -> Option<usize> {
     state.claims.iter().position(|claim| claim.scope == scope)
 }
@@ -726,7 +741,7 @@ fn operate(
     }
 
     if command == "next" {
-        let actor = actor.ok_or("actor required")?;
+        let actor = validate_claim_actor(actor.ok_or("actor required")?)?;
         let mut sig_map = Map::new();
         sig_map.insert("command".into(), json!(command));
         sig_map.insert("actor".into(), json!(actor));
@@ -770,6 +785,11 @@ fn operate(
     }
 
     let scope = canonical_scope(raw_scope.ok_or("scope required")?)?;
+    let actor = if matches!(command, "claim" | "heartbeat") {
+        Some(validate_claim_actor(actor.ok_or("actor required")?)?)
+    } else {
+        actor
+    };
     let include_lease = matches!(command, "claim" | "heartbeat");
     let include_checkpoint = matches!(
         command,
@@ -1132,6 +1152,16 @@ mod tests {
     fn canonical_scope_is_stable_and_trimmed() {
         assert_eq!(canonical_scope("  repo#125:job  ").unwrap(), "repo#125:job");
         assert!(canonical_scope("   ").is_err());
+    }
+
+    #[test]
+    fn claim_actor_requires_harness_and_suffix() {
+        for actor in ["ChatGPT-task-1", "Codex:session-a", "Claude/run-7", "OpenCode-x", "CommandCode-y", "Traycer-z"] {
+            assert_eq!(validate_claim_actor(actor).unwrap(), actor);
+        }
+        for actor in ["Harbor", "Ember", "ChatGPT", "Claude", "worker-a", "ChatGPT-"] {
+            assert!(validate_claim_actor(actor).is_err(), "unexpected actor accepted: {actor}");
+        }
     }
 
     #[test]

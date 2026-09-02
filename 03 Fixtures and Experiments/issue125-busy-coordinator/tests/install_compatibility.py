@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "install.ps1"
+CONTRACT_VERSION = json.loads((ROOT / "coordinator-contract.json").read_text(encoding="utf-8"))["contract_version"]
 
 with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     base = Path(td)
@@ -37,16 +38,16 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
             "jobs": {
                 "scope-a": {
                     "job_id": "scope-a", "scope": "scope-a", "state": "active",
-                    "owner": "actor-a", "checkpoint": "KEEP_ME",
+                    "owner": "ChatGPT-actor-a", "checkpoint": "KEEP_ME",
                     "lease_expires_at": None, "claim_timestamp": "2026-08-27T00:00:00.000Z",
                     "updated_at": "2026-08-27T00:00:00.000Z",
                 }
             },
             "operations": {},
         },
-        "claims": [{"actor": "actor-a", "scope": "scope-a", "timestamp": "2026-08-27T00:00:00.000Z"}],
+        "claims": [{"actor": "ChatGPT-actor-a", "scope": "scope-a", "timestamp": "2026-08-27T00:00:00.000Z"}],
     }), encoding="utf-8")
-    snapshot_args = ["--store", str(store), "snapshot", "--actor", "actor-a", "--scope", "scope-a"]
+    snapshot_args = ["--store", str(store), "snapshot", "--actor", "ChatGPT-actor-a", "--scope", "scope-a"]
     py_snapshot = subprocess.run(
         [sys.executable, str(current), *snapshot_args], capture_output=True, text=True,
     )
@@ -62,7 +63,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
         "active": 1, "ready": 0, "blocked": 0, "completed": 0,
         "claims": 1, "legacy_only_claims": 0,
     }
-    assert py_view["focus"]["claim"]["actor"] == "actor-a"
+    assert py_view["focus"]["claim"]["actor"] == "ChatGPT-actor-a"
 
     # Both installed wrappers expose the same versioned contract and audit sidecar
     # while retaining the current canonical core command surface (including recover).
@@ -78,7 +79,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
         )
         assert contract_run.returncode == 0, contract_run.stderr or contract_run.stdout
         contract_views[kind] = json.loads(contract_run.stdout)
-        assert contract_views[kind]["contract_version"] == 2
+        assert contract_views[kind]["contract_version"] == CONTRACT_VERSION
         assert contract_views[kind]["authority"] == "standalone_busy_coordinator"
         assert "recover" in contract_views[kind]["required_commands"]
         assert {"contract", "log", "audit"}.issubset(contract_views[kind]["required_commands"])
@@ -93,7 +94,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
 
     py_heartbeat = subprocess.run(
         ["cmd.exe", "/d", "/c", str(wrappers["py"]),
-         "--store", str(store), "heartbeat", "actor-a", "scope-a",
+         "--store", str(store), "heartbeat", "ChatGPT-actor-a", "scope-a",
          "--lease-seconds", "60", "--tool", "DesktopCommander",
          "--model", "GPT-5.6-Sol", "--input-tokens", "10", "--output-tokens", "5"],
         capture_output=True, text=True,
@@ -101,7 +102,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     assert py_heartbeat.returncode == 0, py_heartbeat.stderr or py_heartbeat.stdout
     rs_heartbeat = subprocess.run(
         ["cmd.exe", "/d", "/c", str(wrappers["rs"]),
-         "--store", str(store), "heartbeat", "actor-a", "scope-a",
+         "--store", str(store), "heartbeat", "ChatGPT-actor-a", "scope-a",
          "--lease-seconds", "60", "--tool", "DesktopCommander",
          "--model", "GPT-5.6-Sol", "--total-tokens", "20"],
         capture_output=True, text=True,
@@ -109,7 +110,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     assert rs_heartbeat.returncode == 0, rs_heartbeat.stderr or rs_heartbeat.stdout
     tool_log = subprocess.run(
         ["cmd.exe", "/d", "/c", str(wrappers["rs"]),
-         "--store", str(store), "log", "actor-a", "scope-a",
+         "--store", str(store), "log", "ChatGPT-actor-a", "scope-a",
          "--action", "build", "--target", "fixture", "--detail", "sidecar-proof",
          "--duration-ms", "12.5", "--tool", "DesktopCommander", "--model", "GPT-5.6-Sol"],
         capture_output=True, text=True,
@@ -117,7 +118,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     assert tool_log.returncode == 0, tool_log.stderr or tool_log.stdout
     audit_run = subprocess.run(
         ["cmd.exe", "/d", "/c", str(wrappers["py"]),
-         "--store", str(store), "audit", "--limit", "20", "--actor", "actor-a"],
+         "--store", str(store), "audit", "--limit", "20", "--actor", "ChatGPT-actor-a"],
         capture_output=True, text=True,
     )
     assert audit_run.returncode == 0, audit_run.stderr or audit_run.stdout
@@ -126,9 +127,9 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     command_events = [event for event in audit["events"] if event.get("event_type") == "coordinator_command"]
     assert any(event.get("command") == "heartbeat" and event.get("tool") == "DesktopCommander"
                and event.get("tokens", {}).get("input") == 10
-               and event.get("result_projection", {}).get("claim", {}).get("actor") == "actor-a"
+               and event.get("result_projection", {}).get("claim", {}).get("actor") == "ChatGPT-actor-a"
                and event.get("transition", {}).get("state") == "active"
-               and event.get("transition", {}).get("owner") == "actor-a"
+               and event.get("transition", {}).get("owner") == "ChatGPT-actor-a"
                for event in command_events)
     assert any(event.get("command") == "heartbeat" and event.get("tokens", {}).get("total") == 20
                for event in command_events)
@@ -139,13 +140,13 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     long_checkpoint = "c" * 1100
     claim_transition = subprocess.run(
         ["cmd.exe", "/d", "/c", str(wrappers["py"]), "--store", str(transition_store),
-         "claim", "actor-transition", "scope-transition", "--checkpoint", long_checkpoint],
+         "claim", "ChatGPT-actor-transition", "scope-transition", "--checkpoint", long_checkpoint],
         capture_output=True, text=True,
     )
     assert claim_transition.returncode == 0, claim_transition.stderr or claim_transition.stdout
     block_transition = subprocess.run(
         ["cmd.exe", "/d", "/c", str(wrappers["rs"]), "--store", str(transition_store),
-         "block", "actor-transition", "scope-transition", "--checkpoint", "blocked-for-proof"],
+         "block", "ChatGPT-actor-transition", "scope-transition", "--checkpoint", "blocked-for-proof"],
         capture_output=True, text=True,
     )
     assert block_transition.returncode == 0, block_transition.stderr or block_transition.stdout
@@ -157,14 +158,14 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
     assert transition_audit_run.returncode == 0, transition_audit_run.stderr or transition_audit_run.stdout
     transition_events = json.loads(transition_audit_run.stdout)["events"]
     claim_event = next(event for event in transition_events if event.get("command") == "claim")
-    assert claim_event["transition"] == {"state": "active", "owner": "actor-transition"}
+    assert claim_event["transition"] == {"state": "active", "owner": "ChatGPT-actor-transition"}
     assert claim_event["result_projection"]["claim"]["scope"] == "scope-transition"
     assert len(claim_event["checkpoint"]) == 1024
     assert claim_event["checkpoint_truncated"] is True
     assert claim_event["checkpoint_chars"] == 1100
     block_event = next(event for event in transition_events if event.get("command") == "block")
     assert block_event["transition"] == {"state": "blocked", "owner": None}
-    assert block_event["result_projection"]["block"]["actor"] == "actor-transition"
+    assert block_event["result_projection"]["block"]["actor"] == "ChatGPT-actor-transition"
     assert block_event["checkpoint"] == "blocked-for-proof"
 
     # Canonical Windows .cmd wrappers must be able to carry the documented
@@ -210,7 +211,7 @@ with tempfile.TemporaryDirectory(prefix="busy-install-compat-") as td:
         assert not over_store.exists(), "rejected wrapper handoff must not create coordinator state"
 
     released = subprocess.run(
-        [sys.executable, str(legacy), "--store", str(store), "release", "actor-a", "scope-a"],
+        [sys.executable, str(legacy), "--store", str(store), "release", "ChatGPT-actor-a", "scope-a"],
         capture_output=True,
         text=True,
     )
