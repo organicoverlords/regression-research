@@ -120,6 +120,51 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(event["target_utilization_pct"], 95.8)
             self.assertEqual(event["remaining_gate"], "none")
 
+    def test_short_run_preserves_explicit_stop_reason_and_tool_drop_effect(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = root / "Juniper.md"
+            report.write_text(
+                "worker: Juniper\nstate: WAITING\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                "last_activity_at: 2099-01-01T00:08:00+00:00\nrepo: organicoverlords/regression-research\n"
+                "scope: regression-research#193\nremaining_gate: hosted CI check pending\n"
+                "stop_reason: TOOL_BLOCKED\nstop_detail: required route kept dropping after bounded recovery\n"
+                "tool_drops: 3\ntool_drop_effect: BLOCKED_REQUIRED_ROUTE\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertTrue(metadata["early_stop"])
+            self.assertEqual(metadata["stop_reason"], "TOOL_BLOCKED")
+            self.assertEqual(metadata["stop_reason_source"], "WORKER_REPORTED")
+            self.assertEqual(metadata["tool_drops"], 3)
+            self.assertEqual(metadata["tool_drop_effect"], "BLOCKED_REQUIRED_ROUTE")
+            self.assertIn("EXTERNAL", metadata["pending_gate_classes"])
+            metrics = summarize_history(root / "history")
+            self.assertEqual(metrics["tool_drops_total"], 3)
+            self.assertEqual(metrics["tool_drop_stop_runs"], 1)
+            self.assertEqual(metrics["early_stop_reason_counts"], {"TOOL_BLOCKED": 1})
+            self.assertEqual(metrics["early_stops_unexplained"], 0)
+
+    def test_legacy_short_run_is_flagged_unexplained_without_guessing_from_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history" / "Harbor"
+            history.mkdir(parents=True)
+            payload = {
+                "schema": "worker-report-history.v2", "worker": "Harbor", "state": "DONE",
+                "finished_at": "2099-01-01T01:00:00+00:00", "duration_minutes": 7.0,
+                "target_run_minutes": 24.0, "target_utilization_pct": 29.2,
+                "remaining_gate": "hosted check pending, then rendered proof",
+            }
+            (history / "legacy.json").write_text(json.dumps(payload), encoding="utf-8")
+            metrics = summarize_history(root / "history")
+            latest = metrics["by_worker_latest"]["Harbor"]
+            self.assertEqual(latest["stop_reason"], "UNEXPLAINED")
+            self.assertTrue(latest["early_stop"])
+            self.assertEqual(set(latest["pending_gate_classes"]), {"EXTERNAL", "PROOF"})
+            self.assertEqual(metrics["early_stops_unexplained"], 1)
+
     def test_running_report_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
