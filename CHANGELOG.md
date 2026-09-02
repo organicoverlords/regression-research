@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Recorded #193 canary call-limit violations as explicit result contamination so runs exceeding preregistered per-phase limits cannot support causal conclusions.
+
 ﻿- [2026-09-02] [research] Bound #193 stop-rule and recovery-limit text into the executable result contract so protocol drift cannot silently diverge from the preregistered experiment.
 
 - [2026-09-02] [research] Bound the executable #193 result contract to the preregistered canaries, measurements, exact refresh stimulus, and H1 replication threshold so fixture/runtime drift fails tests.

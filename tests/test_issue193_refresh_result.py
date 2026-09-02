@@ -36,6 +36,7 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "prohibited_method_categories": [],
         "stop_rule_violated": False,
         "recovery_limit_violated": False,
+        "canary_call_limit_violated": False,
         "before": sample(before_value, False),
         "after": sample(after_value, refreshed),
     }
@@ -132,6 +133,17 @@ class Issue193RefreshResultTests(unittest.TestCase):
                 data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
                 data["pairs"][1][field] = True
                 self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_canary_call_limit_violation_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        data["pairs"][1]["canary_call_limit_violated"] = True
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
+    def test_rejects_non_boolean_canary_call_limit_field(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["canary_call_limit_violated"] = "false"
+        with self.assertRaisesRegex(ValueError, "canary_call_limit_violated must be boolean"):
+            validate_record(data)
 
     def test_rejects_non_boolean_stop_or_recovery_fields(self):
         for field in ("stop_rule_violated", "recovery_limit_violated"):
