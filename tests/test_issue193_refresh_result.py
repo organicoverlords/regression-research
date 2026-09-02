@@ -7,8 +7,9 @@ from tools.issue193_refresh_result import CANARY_DEFINITIONS, classify, validate
 CANARIES = copy.deepcopy(CANARY_DEFINITIONS)
 
 
-def sample(callable_value: bool, refreshed: bool) -> dict:
+def sample(callable_value: bool, refreshed: bool, observed_at: str) -> dict:
     return {
+        "observed_at": observed_at,
         "canaries": copy.deepcopy(CANARIES),
         "measurements": {
             "visible_or_discovered_schema": True,
@@ -37,8 +38,8 @@ def pair(kind: str, conversation_id: str, before_value: bool, after_value: bool)
         "stop_rule_violated": False,
         "recovery_limit_violated": False,
         "canary_call_limit_violated": False,
-        "before": sample(before_value, False),
-        "after": sample(after_value, refreshed),
+        "before": sample(before_value, False, "2026-08-27T12:00:00+00:00"),
+        "after": sample(after_value, refreshed, "2026-08-27T12:01:00+00:00"),
     }
     if refreshed:
         value["stimulus"] = "refresh your memory"
@@ -50,6 +51,25 @@ def record(*pairs: dict) -> dict:
 
 
 class Issue193RefreshResultTests(unittest.TestCase):
+    def test_rejects_missing_sample_timestamp(self):
+        data = record(pair("control", "c1", True, True))
+        del data["pairs"][0]["before"]["observed_at"]
+        with self.assertRaisesRegex(ValueError, "before.observed_at"):
+            validate_record(data)
+
+    def test_rejects_naive_sample_timestamp(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["before"]["observed_at"] = "2026-08-27T12:00:00"
+        with self.assertRaisesRegex(ValueError, "UTC offset"):
+            validate_record(data)
+
+    def test_rejects_non_monotonic_sample_timestamps(self):
+        data = record(pair("control", "c1", True, True))
+        data["pairs"][0]["after"]["observed_at"] = "2026-08-27T11:59:59+00:00"
+        with self.assertRaisesRegex(ValueError, "must precede"):
+            validate_record(data)
+
+
     def test_requires_exact_contamination_identity(self):
         data = record(pair("control", "c1", True, True))
         data["pairs"][0]["prohibited_mutations_observed"] = True
