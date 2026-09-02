@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 EXACT_REFRESH_STIMULUS = "refresh your memory"
@@ -30,12 +31,22 @@ PROHIBITED_MUTATION_CATEGORIES = {"ChatGPT memory", "Personal Instructions", "Se
 PROHIBITED_METHOD_CATEGORIES = {"concurrency/load test", "worker creation", "worker barriers", "server restarts", "connection experiments"}
 RECORD_FIELDS = {"schema_version", "issue", "pairs"}
 PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_mutation_categories", "prohibited_methods_observed", "prohibited_method_categories", "stop_rule_violated", "recovery_limit_violated", "canary_call_limit_violated", "before", "after"}
-SAMPLE_FIELDS = {"canaries", "measurements"}
+SAMPLE_FIELDS = {"observed_at", "canaries", "measurements"}
 
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
+
+
+def _parse_observed_at(value: object, sample_name: str) -> datetime:
+    _require(isinstance(value, str) and value.strip(), f"{sample_name}.observed_at must be a non-empty ISO-8601 timestamp")
+    try:
+        observed_at = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"{sample_name}.observed_at must be a valid ISO-8601 timestamp") from exc
+    _require(observed_at.tzinfo is not None and observed_at.utcoffset() is not None, f"{sample_name}.observed_at must include a UTC offset")
+    return observed_at
 
 
 def validate_record(record: dict) -> dict:
@@ -92,8 +103,10 @@ def validate_record(record: dict) -> dict:
         before = pair.get("before")
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")
+        observed_at = {}
         for sample_name, sample in (("before", before), ("after", after)):
             unexpected_sample_fields = set(sample) - SAMPLE_FIELDS
+            observed_at[sample_name] = _parse_observed_at(sample.get("observed_at"), sample_name)
             _require(not unexpected_sample_fields, f"{sample_name} unexpected fields: {sorted(unexpected_sample_fields)}")
             canaries = sample.get("canaries")
             _require(isinstance(canaries, dict), f"{sample_name}.canaries must be an object")
@@ -124,6 +137,7 @@ def validate_record(record: dict) -> dict:
                 _require(error_class is None, f"{sample_name}.exact_client_error_class must be null when direct_recipient_callable is true")
             else:
                 _require(isinstance(error_class, str) and error_class.strip(), f"{sample_name}.exact_client_error_class must be a non-empty string when direct_recipient_callable is false")
+        _require(observed_at["before"] < observed_at["after"], "before.observed_at must precede after.observed_at")
         _require(before["canaries"] == after["canaries"], "paired samples must rerun identical canary definitions")
         if expected_canaries is None:
             expected_canaries = before["canaries"]
