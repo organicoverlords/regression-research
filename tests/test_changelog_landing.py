@@ -1,4 +1,5 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -28,6 +29,22 @@ class ChangelogLandingTests(unittest.TestCase):
     def test_repository_changelog_has_no_merge_conflict_markers(self):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         MODULE.unreleased_lines(changelog)
+
+    def test_generated_agent_policy_is_timeline_exempt(self):
+        self.assertEqual(MODULE.timeline_substantive_files({"AGENTS.md"}), set())
+        self.assertEqual(MODULE.timeline_substantive_files({"AGENTS.md", "src/product.py"}), {"src/product.py"})
+
+    def test_projection_is_merge_stable(self):
+        readme = "# Vault\n\n" + MODULE.projection("ignored") + "\n\nBody\n"
+        first = MODULE.projected_readme(readme, "- [2026-09-02] First")
+        second = MODULE.projected_readme(readme, "- [2026-09-02] Second")
+        self.assertEqual(first, second)
+
+    def test_write_utf8_lf_is_platform_stable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "README.md"
+            MODULE.write_utf8_lf(path, "a\r\nb\r")
+            self.assertEqual(path.read_bytes(), b"a\nb\n")
 
 
 if __name__ == "__main__":

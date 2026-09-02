@@ -8,7 +8,7 @@ from pathlib import Path
 BEGIN = "<!-- CHANGELOG-LANDING:BEGIN -->"
 END = "<!-- CHANGELOG-LANDING:END -->"
 DATED = re.compile(r"^- \[(\d{4}-\d{2}-\d{2})\] (.+\S)$")
-TIMELINE_EXEMPT_PATHS = {"memory/memory-bank.jsonl"}
+TIMELINE_EXEMPT_PATHS = {"AGENTS.md", "memory/memory-bank.jsonl"}
 
 
 def unreleased_lines(changelog: str) -> list[str]:
@@ -56,8 +56,6 @@ def projection(changelog: str) -> str:
         "## Project timeline",
         "",
         "Canonical history: [CHANGELOG.md](CHANGELOG.md)",
-        "",
-        *recent_entries(changelog),
         END,
     ])
 
@@ -82,6 +80,15 @@ def projected_readme(readme: str, changelog: str) -> str:
     if rest:
         result += "\n" + rest.rstrip() + "\n"
     return result
+
+
+def write_utf8_lf(path: Path, text: str) -> None:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    path.write_bytes(normalized.encode("utf-8"))
+
+
+def timeline_substantive_files(changed: set[str]) -> set[str]:
+    return changed - {"CHANGELOG.md"} - TIMELINE_EXEMPT_PATHS
 
 
 def changed_files(base_ref: str, root: Path) -> set[str]:
@@ -127,7 +134,7 @@ def main() -> int:
         raise SystemExit("CHANGELOG_LANDING_FAIL: README contains misplaced shared-agent-policy markers")
     expected = projected_readme(readme, changelog)
     if args.write:
-        readme_path.write_text(expected, encoding="utf-8")
+        write_utf8_lf(readme_path, expected)
         readme = expected
     if readme != expected:
         raise SystemExit(
@@ -136,7 +143,7 @@ def main() -> int:
         )
     if args.base_ref:
         changed = changed_files(args.base_ref, root)
-        substantive = changed - {"CHANGELOG.md"} - TIMELINE_EXEMPT_PATHS
+        substantive = timeline_substantive_files(changed)
         if substantive:
             if "CHANGELOG.md" not in changed:
                 raise SystemExit("CHANGELOG_LANDING_FAIL: substantive PR changed without CHANGELOG.md")
