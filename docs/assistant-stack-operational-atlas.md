@@ -50,7 +50,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot; inspect <scope>
 - Independent recovery: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover
 - Resources: %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: AGENTS.md; tools/busy_authority.py
 - Supervisor: none; CLI/service contract owns durable store semantics
 - Self-heal: not_applicable
@@ -64,7 +64,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: inactive backend generation + atomic front-door switch
 - Resources: front-door port; active-backend.json; process-routes.json
 - Dependents: chatgpt_process_transport
-- Runbook: chatgpt-mcp-clean/AGENTS.md; chatgpt-mcp-clean/keepalive.ps1
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
 - Supervisor: ChatGPTMcpClean keepalive FrontDoor role
 - Self-heal: supervisor_managed_but_not_permission_to_disrupt
 
@@ -77,7 +77,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: other backend generation behind stable front door
 - Resources: backend port; transport.jsonl
 - Dependents: mcp_front_door
-- Runbook: chatgpt-mcp-clean/AGENTS.md; chatgpt-mcp-clean/keepalive.ps1
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
 - Supervisor: ChatGPTMcpClean keepalive Backend role
 - Self-heal: supervisor_managed
 
@@ -85,12 +85,12 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `generation_pinned_process_transport_clone`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: chatgpt-mcp-clean/scripts/start-minimal-clone.ps1
+- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1
 - Live status: clone health; exact tool contract; process receipt/control route; 2026-09-02 reconciliation checkpoint: clone-a fallback must contain only generations compatible with merged master process contract; verify route + generation + authenticated smoke
 - Independent recovery: sibling clone or stable front door when proven compatible; preserve public clone identity/OAuth/shared receipts and never leave a stale-regression generation in ordered fallback
 - Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control
 - Dependents: chatgpt_process_transport
-- Runbook: chatgpt-mcp-clean/AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md
 - Supervisor: instance launcher / owning generation
 - Self-heal: generation_specific
 
@@ -154,7 +154,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: targeted Vault search/context/history/timeline/recent-titles when needed; do not recursively scan the Vault filesystem for ordinary recall
 - Independent recovery: continue without Vault; current conversation/memory and live sources remain available
 - Resources: memory-bank.jsonl; behavior-authority-registry.json
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: memory/README.md
 - Supervisor: none
 - Self-heal: not_applicable
@@ -167,7 +167,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: git status; HEAD; origin/main; worktree list
 - Independent recovery: preserve dirty/foreign state; use isolated worktree
 - Resources: working tree; .git/worktrees
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: repo AGENTS.md
 - Supervisor: none
 - Self-heal: not_applicable
@@ -180,7 +180,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: GitHub API/connector exact repo, PR, issue, check, workflow state
 - Independent recovery: local Git remains local source truth; publication waits for GitHub
 - Resources: remote refs; issues; PRs; workflow runs
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: repo AGENTS.md
 - Supervisor: external service
 - Self-heal: external
@@ -206,7 +206,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: read current shared policy
 - Independent recovery: current instruction + repo rules remain authoritative
 - Resources: generated policy blocks
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md
 - Supervisor: none
 - Self-heal: not_applicable
@@ -219,7 +219,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: read admitted-worktree AGENTS.md
 - Independent recovery: block repo mutation until readable
 - Resources: AGENTS.md
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: repo AGENTS.md
 - Supervisor: repo-local
 - Self-heal: not_applicable
@@ -232,7 +232,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: read current direction doc
 - Independent recovery: current user direction outranks stale prose
 - Resources: NORTH_STAR/equivalent
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: repo NORTH_STAR/equivalent
 - Supervisor: repo-local
 - Self-heal: not_applicable
@@ -245,7 +245,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: current conversation and delivered ChatGPT Memory
 - Independent recovery: current conversation; targeted Vault history when useful
 - Resources: ChatGPT Memory
-- Dependents: chatgpt_orchestrator
+- Dependents: chatgpt_session
 - Runbook: 04 Operating Contracts/fresh-chat-startup-orientation.md
 - Supervisor: ChatGPT
 - Self-heal: product_managed
@@ -258,7 +258,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: memory_bank.py validate / bounded read
 - Independent recovery: continue without optional history enrichment
 - Resources: memory-bank.jsonl; behavior-authority-registry.json
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: memory/README.md
 - Supervisor: none
 - Self-heal: not_applicable
@@ -271,14 +271,14 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: read the named current worker report; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
 - Independent recovery: read canonical repo/runtime/CI/artifact evidence directly
 - Resources: worker-reports/*.md
-- Dependents: chatgpt_orchestrator
+- Dependents: chatgpt_session
 - Runbook: C:\Users\Lauri\Desktop\vault\worker-reports
 - Supervisor: none
 - Self-heal: not_applicable
 
-### `chatgpt_orchestrator`
+### `chatgpt_session`
 
-- Role: `orchestrator:user-facing`
+- Role: `session:user-facing`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: current conversation; ChatGPT Memory; Atlas; current authorities
 - Live status: current task + relevant live-source refresh
@@ -297,7 +297,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: independent execution/activity evidence
 - Independent recovery: preserve task/checkpoint; use another proven execution route
 - Resources: claimed scope; worktree; execution route
-- Dependents: chatgpt_orchestrator
+- Dependents: chatgpt_session
 - Runbook: 04 Operating Contracts/fresh-worker-generation-launch.md
 - Supervisor: ChatGPT + BusyCoordinator ownership
 - Self-heal: worker_specific
@@ -323,7 +323,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Live status: exact workflow run/check status
 - Independent recovery: local proof may supplement, never impersonate exact CI
 - Resources: workflow runs; checks
-- Dependents: chatgpt_orchestrator; execution_workers
+- Dependents: chatgpt_session; execution_workers
 - Runbook: repo workflow files
 - Supervisor: GitHub Actions
 - Self-heal: external
