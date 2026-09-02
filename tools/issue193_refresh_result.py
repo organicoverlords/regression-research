@@ -21,8 +21,10 @@ CANARY_DEFINITIONS = {
     "local_arrival": {"action": "record local server request_start/caller evidence when available", "max_calls_per_phase": 0},
 }
 CANARY_IDS = set(CANARY_DEFINITIONS)
+PROHIBITED_MUTATION_CATEGORIES = {"ChatGPT memory", "Personal Instructions", "Settings", "server topology", "Tailscale", "connector deployment"}
+PROHIBITED_METHOD_CATEGORIES = {"concurrency/load test", "worker creation", "worker barriers", "server restarts", "connection experiments"}
 RECORD_FIELDS = {"schema_version", "issue", "pairs"}
-PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_methods_observed", "stop_rule_violated", "recovery_limit_violated", "before", "after"}
+PAIR_FIELDS = {"kind", "conversation_id", "model", "configuration", "fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_mutation_categories", "prohibited_methods_observed", "prohibited_method_categories", "stop_rule_violated", "recovery_limit_violated", "before", "after"}
 SAMPLE_FIELDS = {"canaries", "measurements"}
 
 
@@ -72,6 +74,16 @@ def validate_record(record: dict) -> dict:
             _require(canonical_configuration == expected_configuration, "all pairs must use the same configuration")
         for field in ("fresh_conversation", "ordinary_user_continuation_observed", "parallel_load_observed", "prohibited_mutations_observed", "prohibited_methods_observed", "stop_rule_violated", "recovery_limit_violated"):
             _require(isinstance(pair.get(field), bool), f"{field} must be boolean")
+        mutation_categories = pair.get("prohibited_mutation_categories")
+        method_categories = pair.get("prohibited_method_categories")
+        _require(isinstance(mutation_categories, list) and all(isinstance(v, str) for v in mutation_categories), "prohibited_mutation_categories must be a string list")
+        _require(isinstance(method_categories, list) and all(isinstance(v, str) for v in method_categories), "prohibited_method_categories must be a string list")
+        _require(len(mutation_categories) == len(set(mutation_categories)), "prohibited_mutation_categories must be unique")
+        _require(len(method_categories) == len(set(method_categories)), "prohibited_method_categories must be unique")
+        _require(set(mutation_categories) <= PROHIBITED_MUTATION_CATEGORIES, "prohibited_mutation_categories contains unknown category")
+        _require(set(method_categories) <= PROHIBITED_METHOD_CATEGORIES, "prohibited_method_categories contains unknown category")
+        _require(pair["prohibited_mutations_observed"] is bool(mutation_categories), "prohibited_mutations_observed must match prohibited_mutation_categories")
+        _require(pair["prohibited_methods_observed"] is bool(method_categories), "prohibited_methods_observed must match prohibited_method_categories")
         before = pair.get("before")
         after = pair.get("after")
         _require(isinstance(before, dict) and isinstance(after, dict), "before and after samples are required")

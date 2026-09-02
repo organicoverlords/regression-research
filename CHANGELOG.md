@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Preserved exact #193 prohibited mutation/method contamination categories in result records and bound them to the preregistered protocol so contaminated evidence cannot lose the cause of invalidation.
+
 - [2026-09-02] [research] Aligned #193 machine-readable preregistration with the issue safety boundary by explicitly prohibiting worker creation during the causal test.
 
 - [2026-09-02] [research] Recorded #193 ordinary control-continuation evidence so control/treatment sequence mismatches cannot be admitted as clean causal evidence.
