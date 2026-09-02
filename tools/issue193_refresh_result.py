@@ -4,6 +4,9 @@ import argparse
 import json
 from pathlib import Path
 
+EXACT_REFRESH_STIMULUS = "refresh your memory"
+MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT = 2
+
 REQUIRED_MEASUREMENTS = {
     "visible_or_discovered_schema",
     "direct_recipient_callable",
@@ -127,7 +130,7 @@ def validate_record(record: dict) -> dict:
         _require(before["canaries"] == CANARY_DEFINITIONS, "canary definitions must match preregistration exactly")
         _require(before["measurements"]["refresh_or_reload_between_samples"] is False, "before sample must precede refresh/reload")
         if pair["kind"] == "treatment":
-            _require(pair.get("stimulus") == "refresh your memory", "treatment stimulus must match preregistration exactly")
+            _require(pair.get("stimulus") == EXACT_REFRESH_STIMULUS, "treatment stimulus must match preregistration exactly")
             _require(after["measurements"]["refresh_or_reload_between_samples"] is True, "treatment must record refresh between samples")
         else:
             _require(not pair.get("stimulus"), "control must not include refresh stimulus")
@@ -160,7 +163,7 @@ def classify(record: dict) -> str:
         and p["after"]["measurements"]["sibling_route_health"] is True
         and p["after"]["measurements"]["matching_local_request_start"] is False
     ]
-    if stable_controls and len(changed_treatments) >= 2:
+    if stable_controls and len(changed_treatments) >= MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT:
         return "SUPPORT_H1"
     if changed_treatments:
         return "REPRODUCTION_ONLY"
