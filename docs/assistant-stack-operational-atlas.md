@@ -268,7 +268,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `projection:worker-self-report`
 - Capabilities: source_read
 - Canonical sources: C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md
-- Live status: read the named current worker report; when visual_proof_run is present inspect the actual artifact plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
+- Live status: read the named current worker report; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
 - Independent recovery: read canonical repo/runtime/CI/artifact evidence directly
 - Resources: worker-reports/*.md
 - Dependents: chatgpt_orchestrator
