@@ -41,21 +41,30 @@ def parse_report(path: Path) -> dict[str, Any]:
         if ":" not in line:
             continue
         key, value = line.split(":", 1)
-        key = key.strip()
+        key = key.strip().lstrip("\ufeff")
         if key and key.replace("_", "").isalnum() and (key[0].isalpha() or key[0] == "_"):
             fields[key.lower()] = value.strip()
+    started_at = fields.get("started_at")
     activity = fields.get("last_activity_at")
+    started = _parse_time(started_at)
     parsed = _parse_time(activity)
     age_minutes = None
+    duration_minutes = None
     if parsed is not None:
         age_minutes = round((_now().astimezone(timezone.utc) - parsed.astimezone(timezone.utc)).total_seconds() / 60, 1)
+    if started is not None and parsed is not None:
+        seconds = (parsed.astimezone(timezone.utc) - started.astimezone(timezone.utc)).total_seconds()
+        if seconds >= 0:
+            duration_minutes = round(seconds / 60, 2)
     return {
         "worker": fields.get("worker") or path.stem,
         "state": fields.get("state"),
         "outcome": fields.get("outcome"),
         "repo": fields.get("repo"),
         "scope": fields.get("scope"),
+        "started_at": started_at,
         "last_activity_at": activity,
+        "duration_minutes": duration_minutes,
         "activity_age_minutes": age_minutes,
         "last_event": fields.get("last_event"),
         "mutation": fields.get("mutation"),
@@ -82,7 +91,7 @@ def receipt_path(report_dir: Path, event: str) -> Path:
 
 def candidate_events(report: dict[str, Any], *, stale_minutes: float) -> list[dict[str, Any]]:
     state = (report.get("state") or "").upper()
-    primary_kind = "blocked" if state == "BLOCKED" else "completed" if state == "DONE" else "report_update"
+    primary_kind = "blocked" if state == "BLOCKED" else "waiting" if state == "WAITING" else "completed" if state in {"COMPLETE", "DONE"} else "report_update"
     kinds = [primary_kind]
     age = report.get("activity_age_minutes")
     if state == "RUNNING" and isinstance(age, (int, float)) and age > stale_minutes:
