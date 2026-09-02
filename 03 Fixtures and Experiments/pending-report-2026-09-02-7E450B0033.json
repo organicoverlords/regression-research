@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-7e450b0033",
+  "title": "MCP runtime/source reconciliation",
+  "source_report": "01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}
