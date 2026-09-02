@@ -109,7 +109,8 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
     def test_worker_contract_still_keeps_five_workers_and_no_self_admin(self):
         text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
         self.assertIn("Five is a hard maximum for the recurring worker fleet", text)
-        self.assertIn("repeatable, explicitly allowed, and may be mandatory many times", text)
+        self.assertIn("switch immediately to Commander", text)
+        self.assertIn("Plugin2 loss alone never permits", text)
         self.assertIn("Worker execution may never administer the scheduler", text)
         self.assertIn("For stack/infra work only", text)
         self.assertIn("optional mirror", text)
