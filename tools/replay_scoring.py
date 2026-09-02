@@ -55,6 +55,8 @@ SUPPORTED_ASSERTIONS = {
     "startup_full_memory_load_by_default",
     "startup_failure_continues_immediately",
     "startup_failure_investigation",
+    "startup_vault_history_by_default",
+    "startup_vault_history_requires_specific_need",
     "observed_route_failure_before_fallback",
     "equivalent_fallback_continues_task",
     "route_failure_promoted_to_task_failure",
@@ -103,6 +105,8 @@ STARTUP_ASSERTIONS = {
     "startup_full_memory_load_by_default",
     "startup_failure_continues_immediately",
     "startup_failure_investigation",
+    "startup_vault_history_by_default",
+    "startup_vault_history_requires_specific_need",
 }
 
 VISUAL_ASSERTIONS = {
@@ -441,6 +445,15 @@ def _startup_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool,
         forbidden = {"memory_failure_investigation", "memory_failure_debug", "memory_retry_loop"}
         bad = any(event.get("kind") in forbidden for scenario in scenarios for event in events(scenario))
         return bad, "candidate investigates the memory subsystem after a startup read failure" if bad else "candidate does not turn startup memory failure into an investigation"
+
+    if assertion == "startup_vault_history_by_default":
+        bad = any(event.get("kind") in {"vault_bootstrap", "recent_titles_read", "vault_history_read"} and not event.get("specific_need") for scenario in scenarios for event in events(scenario))
+        return bad, "candidate performs Vault/history retrieval as a default startup step" if bad else "candidate does not make Vault/history retrieval a startup prerequisite"
+
+    if assertion == "startup_vault_history_requires_specific_need":
+        reads = [(scenario, index, event) for scenario in scenarios for index, event in enumerate(events(scenario)) if event.get("kind") == "vault_history_read"]
+        ok = bool(reads) and all(event.get("specific_need") and any(prior.get("kind") == "specific_past_fact_need" for prior in events(scenario)[:index]) for scenario, index, event in reads)
+        return ok, "Vault history reads follow an explicit specific past-fact need" if ok else "a Vault history read lacks a prior specific past-fact need"
 
     raise FixtureError(f"unsupported startup assertion: {assertion}")
 
