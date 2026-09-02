@@ -117,6 +117,10 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("PENDING_REVIEW", text)
         self.assertIn("Visual review never blocks the worker fleet", text)
         self.assertIn(r"C:\P3Proofs", text)
+        self.assertIn("latest snapshot, not the log", text)
+        self.assertIn("worker-reports/history/<WorkerName>/", text)
+        self.assertIn("Finish owned delivery before opening more inventory", text)
+        self.assertIn("Publishing a PR, pushing a commit, or passing local tests is progress, not completion", text)
 
 
 if __name__ == "__main__":
