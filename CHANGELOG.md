@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Classified #193 post-treatment binding losses as INCONCLUSIVE when every observed loss is confounded by schema loss, sibling-route failure, or matching local arrival, instead of overstating those runs as evidence weakening H1.
+
 - [2026-09-02] [research] Recorded #193 canary call-limit violations as explicit result contamination so runs exceeding preregistered per-phase limits cannot support causal conclusions.
 
 ﻿- [2026-09-02] [research] Bound #193 stop-rule and recovery-limit text into the executable result contract so protocol drift cannot silently diverge from the preregistered experiment.
@@ -569,4 +571,3 @@ Entry style ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â�
 [Unreleased]: https://github.com/organicoverlords/regression-research/commits/main
 
 - [2026-08-27] [meta] Recorded INC-20260827-002911-EEST-484b75e60565: ChatGPT Personalization showed a Custom Instructions bootstrap that was absent from the assistant-readable turn context; preserved the product-layer mismatch without attributing the missing instruction to assistant choice.
-
