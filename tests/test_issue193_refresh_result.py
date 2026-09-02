@@ -279,6 +279,20 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"] = None
         self.assertEqual(classify(data), "INCONCLUSIVE")
 
+    def test_confounded_treatment_without_binding_loss_is_inconclusive(self):
+        mutators = (
+            lambda pair: pair["after"]["measurements"].__setitem__("visible_or_discovered_schema", False),
+            lambda pair: pair["after"]["measurements"].__setitem__("sibling_route_health", False),
+            lambda pair: pair["after"]["measurements"].__setitem__("matching_local_request_start", False),
+        )
+        for mutate in mutators:
+            with self.subTest(mutate=mutate):
+                data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, True))
+                mutate(data["pairs"][1])
+                if data["pairs"][1]["after"]["measurements"]["matching_local_request_start"] is False:
+                    data["pairs"][1]["after"]["measurements"]["caller_id_or_process_id"] = None
+                self.assertEqual(classify(data), "INCONCLUSIVE")
+
     def test_failed_control_does_not_count_as_stable_supporting_control(self):
         data = record(
             pair("control", "c1", False, False),
