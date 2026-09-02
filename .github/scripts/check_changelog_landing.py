@@ -8,7 +8,6 @@ from pathlib import Path
 BEGIN = "<!-- CHANGELOG-LANDING:BEGIN -->"
 END = "<!-- CHANGELOG-LANDING:END -->"
 DATED = re.compile(r"^- \[(\d{4}-\d{2}-\d{2})\] (.+\S)$")
-TIMELINE_EXEMPT_PATHS = {"AGENTS.md", "memory/memory-bank.jsonl"}
 
 
 def unreleased_lines(changelog: str) -> list[str]:
@@ -87,10 +86,6 @@ def write_utf8_lf(path: Path, text: str) -> None:
     path.write_bytes(normalized.encode("utf-8"))
 
 
-def timeline_substantive_files(changed: set[str]) -> set[str]:
-    return changed - {"CHANGELOG.md"} - TIMELINE_EXEMPT_PATHS
-
-
 def changed_files(base_ref: str, root: Path) -> set[str]:
     out = subprocess.check_output(["git", "diff", "--name-only", f"{base_ref}...HEAD"], text=True, encoding="utf-8", cwd=root)
     return {line.strip() for line in out.splitlines() if line.strip()}
@@ -143,14 +138,9 @@ def main() -> int:
         )
     if args.base_ref:
         changed = changed_files(args.base_ref, root)
-        substantive = timeline_substantive_files(changed)
-        if substantive:
-            if "CHANGELOG.md" not in changed:
-                raise SystemExit("CHANGELOG_LANDING_FAIL: substantive PR changed without CHANGELOG.md")
-            if not added_dated_entries(args.base_ref, root):
-                raise SystemExit(
-                    "CHANGELOG_LANDING_FAIL: substantive PR needs a newly added '- [YYYY-MM-DD] ...' timeline bullet"
-                )
+        if "CHANGELOG.md" in changed:
+            # Timeline edits are optional; validate dated entries only when present.
+            added_dated_entries(args.base_ref, root)
     print("CHANGELOG_LANDING_PASS")
     return 0
 

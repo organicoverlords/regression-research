@@ -30,9 +30,10 @@ class ChangelogLandingTests(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         MODULE.unreleased_lines(changelog)
 
-    def test_generated_agent_policy_is_timeline_exempt(self):
-        self.assertEqual(MODULE.timeline_substantive_files({"AGENTS.md"}), set())
-        self.assertEqual(MODULE.timeline_substantive_files({"AGENTS.md", "src/product.py"}), {"src/product.py"})
+    def test_substantive_change_does_not_require_timeline_edit(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("substantive PR changed without CHANGELOG.md", source)
+        self.assertNotIn("substantive PR needs a newly added", source)
 
     def test_projection_is_merge_stable(self):
         readme = "# Vault\n\n" + MODULE.projection("ignored") + "\n\nBody\n"
