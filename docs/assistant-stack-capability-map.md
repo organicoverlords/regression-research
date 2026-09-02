@@ -95,7 +95,7 @@ A route failure is local: losing one transport must not redefine the task, decla
 
 **GitHub** owns remote repository state, issues, PRs, published commits and workflow records. It is task/publication/evidence transport, not BUSY.
 
-**GitHub Actions and self-hosted runners** provide CI evidence for exact revisions/runs. At the 2026-08-30 15:15 EEST operator snapshot: 27 runners were registered, 16 online, 0 busy; three P3 workflows were queued and none were in progress.
+**GitHub Actions and self-hosted runners** provide CI evidence for exact revisions/runs. Current runner/workflow counts are live state and must be queried when needed; this structural map does not cache them.
 
 **Local runtime / Unreal / exact artifact proof** owns claims about actual runtime or user-visible behavior when observed. Builds, source inspection and CI are narrower evidence unless the repo acceptance contract says otherwise.
 
@@ -106,16 +106,17 @@ A route failure is local: losing one transport must not redefine the task, decla
 **`state/operator-live.json`** is a near-live operator projection (15-second feed) containing machine pressure, coordinator counts/scopes, repo/worktree state, runner/workflow state and recent progress. It is ideal for orientation but is never authoritative over the sources it projects.
 ### Product/data pipeline
 
-The explicit DevProgressBoard product flow is:
+Current product repo architecture defines one active flow:
 
-`LowVRAM 3D Pipeline -> Asset Library + TinyLab -> P3`
+`LowVRAM -> Tiny3D -> P3`
 
-- **LowVRAM 3D Pipeline**: `C:\Users\Lauri\Desktop\lowvram3d-repo`, remote `organicoverlords/lowvram3d-studio`. Owns generation of game-ready geometry/textures/provenance.
-- **Asset Library**: `C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY`. Owns canonical catalog/naming/presentation/view coverage; configured as a non-Git workspace.
-- **TinyLab**: `C:\Users\Lauri\Desktop\TinyLab`. Board-defined compiler stage for deterministic mesh analysis, capability qualification, applicable rig/physics compilation and P3-ready validation/package output.
-- **P3**: `C:\Users\Lauri\Documents\Unreal Projects\p3`, remote `organicoverlords/p3`. Owns final real-game integration and runtime acceptance.
+- **LowVRAM 3D Pipeline**: `C:\Users\Lauri\Desktop\lowvram3d-repo`, remote `organicoverlords/lowvram3d-studio`. Generator/source-recovery boundary: image-to-3D geometry, textures, provenance, preserved masters and producer visual QA.
+- **Tiny3D**: `C:\Users\Lauri\Desktop\tiny3d`, remote `organicoverlords/tiny3d`. Single post-generation 3D asset product: compilation, rigging/skinning, animation/deformation preparation, validation/adapters, packaging/lifecycle evidence, catalogue operations and asset-library ownership.
+- **Tiny3D asset library**: external content-addressed store at `C:\Users\Lauri\Desktop\Tiny3D_LIBRARY`; a Tiny3D subsystem, not a separate product or authority.
+- **P3**: `C:\Users\Lauri\Documents\Unreal Projects\p3`, remote `organicoverlords/p3`. Downstream Unreal/game materialization and runtime/gameplay/visual acceptance.
+- **TinyLab**: historical naming/schema compatibility only. It is not a current product-stage authority.
 
-A separate live Git repo, **Tiny3D** at `C:\Users\Lauri\Desktop\tiny3d`, is also observed in operator state and current worker policy for animation/asset engineering. The inspected current sources do **not** establish whether Tiny3D and TinyLab are the same logical stage, predecessor/successor, or separate systems. This map deliberately keeps them separate until that boundary is proven.
+For product-stage ownership questions, read the current LowVRAM/Tiny3D/P3 repo architecture contracts first. Historical migration issues, old handoffs, archived capability maps and DevProgressBoard projections may explain lineage but cannot redefine the active boundary.
 
 ### Stack implementation repositories
 
@@ -124,22 +125,13 @@ A separate live Git repo, **Tiny3D** at `C:\Users\Lauri\Desktop\tiny3d`, is also
 - **DevProgressBoard**: local deterministic product-progress/read-model implementation.
 - **P3 / Tiny3D / LowVRAM**: product engineering repos with their own local authority and proof requirements.
 
-## Live overlay observed 2026-08-30 15:38:10 EEST
-
-These values are intentionally timestamped and must not be copied into durable authority rules:
-
-- Coordinator available: yes; **7 active / 12 ready / 0 blocked**; 27 legacy-only claims.
-- Five enabled recurring ChatGPT repo workers: Alder, Cedar, Ember, Harbor, Juniper.
-- C: **54.6 GB free**; RAM about **2.1 / 15.3 GB free/total**; GPU 1383 / 6144 MB used.
-- P3: 15 worktrees in the operator snapshot. Tiny3D: 26. LowVRAM: 8.
 ## Known drift and unresolved seams
 
-1. [`assistant-stack-architecture.md`](assistant-stack-architecture.md) is a **2026-08-27 historical snapshot**, not current topology. It still names `MCP0 BUSY` and records one enabled timed worker at its observation boundary.
-2. `NORTH_STAR.md` still contains historical `BUSY/MCP` wording in its finished-state section, while current `AGENTS.md`, current-focus text and live coordinator contract identify standalone BusyCoordinator as the ownership/job/checkpoint authority. Current explicit/live authority wins.
-3. DevProgressBoard intentionally covers four product rows; it is not a whole-stack capability inventory. That scope is correct for the board but insufficient for architecture design discovery.
-4. TinyLab and Tiny3D are both current observed names/systems with an unproven relationship. Do not collapse them by assumption.
-5. During this mapping turn, initial Python and Rust coordinator claim attempts both hit Windows access-denied replacement errors while active coordinator validation was occurring. A later canonical claim succeeded. This is an operational reliability finding, not permission to bypass the coordinator.
-6. Dynamic resource and worker counts belong in live overlays, not in the durable structural map.
+1. [`assistant-stack-architecture.md`](assistant-stack-architecture.md) is a dated 2026-08-27 snapshot, not current topology.
+2. DevProgressBoard is a user-facing derived progress cockpit. It is not the authority for product-stage ownership.
+3. TinyLab names/schema identifiers may remain for historical compatibility; current Tiny3D README/North Star define Tiny3D as the single post-generation product.
+4. Dynamic resource, runner, worker and repo counts belong in live reads, not durable structural maps.
+5. If retrieved history conflicts with the current product repo architecture contract, current repo architecture wins and the stale map/history becomes a regression finding.
 
 ## Pre-design duplicate check
 

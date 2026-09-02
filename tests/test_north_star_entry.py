@@ -10,8 +10,9 @@ DIRECTIVE = (
     "evidence, or these operating rules."
 )
 
-VAULT_HISTORY_HEADING = "### Vault history and context"
-VAULT_NO_BOOTSTRAP = "Never bootstrap Vault at startup or compaction"
+NAVIGATION_HEADING = "### Navigation minimap"
+ATLAS_ORDER = "Stack Atlas -> smallest relevant live authority -> targeted Vault history only when needed"
+SEARCH_BEFORE_INVENTING = "If a capability seems missing, search Atlas before designing another"
 
 
 INVESTIGATION_BOUNDARY = (
@@ -38,10 +39,11 @@ class NorthStarEntryTests(unittest.TestCase):
 
     def test_vault_is_optional_history_not_startup(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(VAULT_HISTORY_HEADING), 1)
-        self.assertEqual(agents.count(VAULT_NO_BOOTSTRAP), 1)
+        self.assertEqual(agents.count(NAVIGATION_HEADING), 1)
+        self.assertEqual(agents.count(ATLAS_ORDER), 1)
+        self.assertEqual(agents.count(SEARCH_BEFORE_INVENTING), 1)
         self.assertNotIn("memory_bank.py bootstrap", agents)
-        self.assertIn("optional history/notebook/evidence", agents)
+        self.assertIn("Vault is history/evidence", agents)
 
 
     def test_read_only_investigation_never_claims_busy(self):

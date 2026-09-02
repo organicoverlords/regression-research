@@ -632,6 +632,65 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Captures the unsupported chat-local orchestration ownership promise, mandatory response-gate bypass, exact user corrections, and the durable behavior rule plus replay regression that prevent recurrence."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-02_0146_EEST_p3-v2-swarm-product-delivery_incident_report.md",
+      "title": "Incident report: P3 V2 swarm optimized for proof and architecture instead of product delivery",
+      "date": "2026-09-02T01:46:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Product-delivery incident audit grounded in live GitHub/repo/runtime state and user corrections. No dedicated raw transcript/evidence bundle or exact contract snapshot is claimed here; unresolved links remain explicit rather than guessed."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "reconciliation_checkpoint_not_incident_id",
+      "report_path": "01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
+      "title": "MCP runtime/source reconciliation - 2026-09-02 14:58 EEST",
+      "date": "2026-09-02T14:58:00+03:00",
+      "evidence_type": "runtime_reconciliation_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Reconciliation checkpoint references organicoverlords/chatgpt-mcp-clean PR #29 / merge d8deeca5 and records validated 32k read, 750 ms default bounded wait, five-live cap, no launch bucket, and reconciled clone routing. GitHub/runtime evidence is referenced in the report; no local provenance-file path is invented."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "research_synthesis_not_incident_id",
+      "report_path": "01 Reports/2026-09-02_p3-tiny3d-mcp-coordinator-operating-audit.md",
+      "title": "P3, Tiny3D, MCP and coordinator operating audit",
+      "date": "2026-09-02T00:00:00+03:00",
+      "evidence_type": "operating_audit",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "exact_report_time_not_encoded_in_filename",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Cross-stack operating audit based on measured repository, workflow and runtime state. Filename supplies the date but not an exact clock time, so midnight is a conservative index date marker rather than a claimed event time."
     }
   ],
   "orphan_evidence": [

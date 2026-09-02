@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-b01c078e55",
+  "title": "P3 V2 swarm product-delivery incident",
+  "source_report": "01 Reports/2026-09-02_0146_EEST_p3-v2-swarm-product-delivery_incident_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}

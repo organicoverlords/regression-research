@@ -45,7 +45,10 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "process_transport_front_door",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1", "chatgpt-mcp-clean/src/front-door.ts"],
-        "live_status": ["front-door health plus exact tool contract/semantic call"],
+        "live_status": [
+            "front-door health plus exact tool contract/semantic call",
+            "ordered static-array fallback + backend connection reuse; verify the live route before disruption",
+        ],
         "supervisor": "ChatGPTMcpClean keepalive FrontDoor role",
         "self_heal": "supervisor_managed_but_not_permission_to_disrupt",
         "independent_recovery": ["inactive backend generation + atomic front-door switch"],
@@ -57,7 +60,12 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "replaceable_process_transport_backend",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\start.ps1", r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1"],
-        "live_status": ["backend health", "exact tools/list schema", "semantic process call"],
+        "live_status": [
+            "backend health",
+            "exact tools/list schema",
+            "semantic process call",
+            "durable process contract: read_output max 32000; start_process default wait 750 ms; live cap 5 per caller; no rolling launch/token bucket",
+        ],
         "supervisor": "ChatGPTMcpClean keepalive Backend role",
         "self_heal": "supervisor_managed",
         "independent_recovery": ["other backend generation behind stable front door"],
@@ -69,13 +77,24 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["chatgpt-mcp-clean/scripts/start-minimal-clone.ps1"],
-        "live_status": ["clone health", "exact tool contract", "process receipt/control route"],
+        "live_status": [
+            "clone health",
+            "exact tool contract",
+            "process receipt/control route",
+            "2026-09-02 reconciliation checkpoint: clone-a fallback must contain only generations compatible with merged master process contract; verify route + generation + authenticated smoke",
+        ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
-        "independent_recovery": ["sibling clone or stable front door when proven compatible"],
+        "independent_recovery": [
+            "sibling clone or stable front door when proven compatible",
+            "preserve public clone identity/OAuth/shared receipts and never leave a stale-regression generation in ordered fallback",
+        ],
         "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control"],
         "dependents": ["chatgpt_process_transport"],
-        "runbook": ["chatgpt-mcp-clean/AGENTS.md"],
+        "runbook": [
+            "chatgpt-mcp-clean/AGENTS.md",
+            "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
+        ],
     },
     "desktop_commander_watchdog": {
         "role": "machine_transport_supervisor",
@@ -129,7 +148,9 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "context:history-notebook",
         "capabilities": ["memory_read", "memory_write"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\memory", "tools/memory_bank.py"],
-        "live_status": ["targeted Vault search/context/history when needed"],
+        "live_status": [
+            "targeted Vault search/context/history/timeline/recent-titles when needed; do not recursively scan the Vault filesystem for ordinary recall",
+        ],
         "supervisor": "none",
         "self_heal": "not_applicable",
         "independent_recovery": ["continue without Vault; current conversation/memory and live sources remain available"],
@@ -210,6 +231,15 @@ COMPONENTS.update({
         "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"], "dependents": ["chatgpt_orchestrator", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
+    "worker_reports": {
+        "role": "projection:worker-self-report", "capabilities": ["source_read"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
+        "live_status": ["read the named current worker report; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "supervisor": "none", "self_heal": "not_applicable",
+        "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
+        "resources": ["worker-reports/*.md"], "dependents": ["chatgpt_orchestrator"],
+        "runbook": [r"C:\Users\Lauri\Desktop\vault\worker-reports"],
+    },
     "chatgpt_orchestrator": {
         "role": "orchestrator:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
@@ -246,13 +276,116 @@ COMPONENTS.update({
     },
 })
 
-PRODUCT_ROOTS = {
-    "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
-    "asset_library": r"C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY",
-    "tinylab": r"C:\Users\Lauri\Desktop\TinyLab",
-    "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
-    "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
+    "lowvram": {
+        "role": "generator:image_to_3d",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\lowvram3d-repo", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md"],
+        "live_status": ["read current LowVRAM repo architecture before historical migration/issues", "inspect current generator filesystem/Git/runtime as applicable"],
+        "supervisor": "project-specific",
+        "self_heal": "project-specific",
+        "independent_recovery": ["preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM"],
+        "resources": ["source recovery", "image-to-3D generation", "geometry", "textures", "provenance", "producer visual QA"],
+        "dependents": ["tiny3d"],
+        "runbook": [r"C:\Users\Lauri\Desktop\lowvram3d-repo\AGENTS.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
+    },
+    "asset_library": {
+        "role": "storage:tiny3d_asset_library",
+        "capabilities": ["source_read"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
+        "live_status": ["Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters"],
+        "supervisor": "Tiny3D",
+        "self_heal": "product-specific",
+        "independent_recovery": ["rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority"],
+        "resources": [r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", ".tiny3d/library/index-v1.json"],
+        "dependents": ["tiny3d"],
+        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
+    },
+    "tinylab": {
+        "role": "legacy_name:not_active_product_authority",
+        "capabilities": ["source_read"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\TinyLab", r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
+        "live_status": ["historical compatibility/name only; current Tiny3D README/North Star define the active post-generation product"],
+        "supervisor": "none",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["resolve current post-generation behavior through Tiny3D; use TinyLab only for historical compatibility/provenance when needed"],
+        "resources": ["historical tinylab.* schema identifiers and legacy workspace"],
+        "dependents": [],
+        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
+    },
+    "tiny3d": {
+        "role": "product:post_generation_asset_compiler",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\tiny3d", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
+        "live_status": ["read current Tiny3D repo architecture before historical migration/issues", "inspect current compiler/library Git/runtime evidence as applicable"],
+        "supervisor": "project-specific",
+        "self_heal": "project-specific",
+        "independent_recovery": ["consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM"],
+        "resources": ["compilation", "rigging/skinning", "animation/deformation preparation", "validation/adapters", "packaging/lifecycle evidence", "catalogue/library"],
+        "dependents": ["p3"],
+        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\AGENTS.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
+    },
+    "p3": {
+        "role": "consumer:game_runtime_acceptance",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
+        "canonical_sources": [r"C:\Users\Lauri\Documents\Unreal Projects\p3"],
+        "live_status": ["inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance"],
+        "supervisor": "project-specific",
+        "self_heal": "project-specific",
+        "independent_recovery": ["Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof"],
+        "resources": ["Unreal/game materialization", "runtime acceptance", "gameplay/visual proof"],
+        "dependents": [],
+        "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
+    },
 }
+PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
+PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
+
+FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "vault.history": {
+        "owner_components": ["vault_history"],
+        "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],
+        "entrypoints": ["memory_bank.py search", "memory_bank.py context", "memory_bank.py history", "memory_bank.py timeline", "memory_bank.py orient", "memory_bank.py recent-titles", "memory_bank.py changes"],
+        "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
+    },
+    "project.current_truth": {
+        "owner_components": ["repo_agents", "north_star", "local_git", "github"],
+        "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
+        "entrypoints": ["admitted worktree AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD/origin", "exact GitHub issue/PR/check/runtime evidence"],
+        "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
+    },
+    "coordination.ownership": {
+        "owner_components": ["busy_coordinator"],
+        "triggers": ["busy", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
+        "entrypoints": ["busy-python.cmd inspect <actor> <scope>", "claim", "release", "recover", "snapshot"],
+        "boundary": "Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress.",
+    },
+    "coordination.checkpoint_handoff": {
+        "owner_components": ["busy_coordinator"],
+        "triggers": ["checkpoint", "handoff", "resume", "pending work", "next action"],
+        "entrypoints": ["busy-python.cmd inspect", "handoff", "next", "claim --checkpoint"],
+        "boundary": "Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue.",
+    },
+    "worker.reports": {
+        "owner_components": ["worker_reports"],
+        "triggers": ["worker report", "worker status", "worker progress", "liveness", "cedar", "alder", "juniper"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
+        "boundary": "Self-report/navigation surface; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+    },
+    "execution.transport": {
+        "owner_components": ["mcp_front_door", "desktop_commander_remote"],
+        "triggers": ["process execution", "shell", "file access", "mcp", "plugin2", "commander", "tool route"],
+        "entrypoints": ["discover/attempt current MCP tool contract", "Desktop Commander semantic file/process operation"],
+        "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
+    },
+    "progress.board": {
+        "owner_components": ["dev_progress_board", "operator_live"],
+        "triggers": ["progress board", "dashboard", "stack delivery", "operator live", "overview"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\DevProgressBoard", "state/operator-live.json"],
+        "boundary": "Derived orientation/projection only; reconcile important claims with canonical sources.",
+    },
+}
+
 def _expand_env(value: str) -> str:
     return os.path.expandvars(value)
 
@@ -266,6 +399,7 @@ def build_bootstrap_atlas() -> dict[str, Any]:
         "library": ATLAS_LIBRARY_PATH,
         "local_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py",
         "inventory": "inventory",
+        "find": "find <query>",
         "lookup": "lookup <id>",
         "blast": "blast-radius --pid <pid>",
     }
@@ -273,22 +407,25 @@ def build_bootstrap_atlas() -> dict[str, Any]:
 def component_details(name: str) -> dict[str, Any]:
     if name in COMPONENTS:
         return {"id": name, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
-    if name in PRODUCT_ROOTS:
-        return {
-            "id": name,
-            "role": "product_or_workspace",
-            "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-            "canonical_sources": [PRODUCT_ROOTS[name]],
-            "live_status": ["inspect current filesystem/Git/runtime as applicable"],
-            "supervisor": "project-specific",
-            "self_heal": "project-specific",
-            "independent_recovery": ["project-specific AGENTS/runbook"],
-            "resources": [PRODUCT_ROOTS[name]],
-            "dependents": [],
-            "runbook": [PRODUCT_ROOTS[name]],
-            "authority": ATLAS_CONTRACT["authority"],
-        }
+    if name in PRODUCT_COMPONENTS:
+        return {"id": name, **PRODUCT_COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
     raise KeyError(name)
+
+
+def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
+    terms = [term for term in re.split(r"[^a-z0-9]+", query.casefold()) if term]
+    if not terms:
+        return []
+    ranked: list[tuple[int, str, dict[str, Any]]] = []
+    for feature_id, spec in FEATURE_INDEX.items():
+        semantic = " ".join([feature_id, *spec["owner_components"], *spec["triggers"]]).casefold()
+        if not any(term in semantic for term in terms):
+            continue
+        detail = " ".join([*spec["entrypoints"], spec["boundary"]]).casefold()
+        score = sum(3 for term in terms if term in semantic) + sum(1 for term in terms if term in detail)
+        ranked.append((score, feature_id, {"id": feature_id, **spec, "authority": ATLAS_CONTRACT["authority"]}))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    return [item[2] for item in ranked[: max(1, limit)]]
 
 
 def _ancestry(pid: int, by_pid: dict[int, dict[str, Any]], limit: int = 16) -> list[dict[str, Any]]:
@@ -500,7 +637,9 @@ def full_inventory() -> dict[str, Any]:
         "schema": "stack-atlas.inventory.v1",
         "contract": ATLAS_CONTRACT,
         "capability_policy": validate_policy(load_policy()),
+        "features": FEATURE_INDEX,
         "components": {name: component_details(name) for name in [*COMPONENTS, *PRODUCT_ROOTS]},
+        "product_flow": [list(edge) for edge in PRODUCT_FLOW],
     }
 def render_library_atlas_bytes() -> bytes:
     artifact = {
@@ -558,7 +697,10 @@ def render_manual() -> str:
     ]
     for name, spec in inventory["capability_policy"]["capabilities"].items():
         lines.append(f"| `{name}` | {' -> '.join(spec['ordered_adapter_roles'])} | `{spec['fallback_mode']}` |")
-    lines.extend(["", "## Components", ""])
+    lines.extend(["", "## Feature discovery", "", "Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.", "", "| Feature | Owner components | Entrypoints | Boundary |", "| --- | --- | --- | --- |"])
+    for feature_id, spec in inventory["features"].items():
+        lines.append(f"| `{feature_id}` | {', '.join(spec['owner_components'])} | {'; '.join(spec['entrypoints'])} | {spec['boundary']} |")
+    lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])
     for name, spec in inventory["components"].items():
         lines.extend([f"### `{name}`", "", f"- Role: `{spec['role']}`", f"- Capabilities: {', '.join(spec['capabilities']) or 'none'}"])
         for label, key in (("Canonical sources", "canonical_sources"), ("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
@@ -581,6 +723,9 @@ def main() -> int:
     lib_verify.add_argument("copy", type=Path)
     manual = sub.add_parser("manual")
     manual.add_argument("--output", type=Path)
+    find = sub.add_parser("find")
+    find.add_argument("query")
+    find.add_argument("--limit", type=int, default=5)
     lookup = sub.add_parser("lookup")
     lookup.add_argument("component")
     blast = sub.add_parser("blast-radius")
@@ -610,6 +755,8 @@ def main() -> int:
         else:
             print(text)
             return 0
+    elif args.command == "find":
+        value = find_features(args.query, args.limit)
     elif args.command == "lookup":
         try:
             value = component_details(args.component)

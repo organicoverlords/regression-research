@@ -20,6 +20,26 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 | `memory_read` | side_effect_free_memory_read | `none` |
 | `memory_write` | audited_memory_write | `none` |
 
+## Feature discovery
+
+Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.
+
+| Feature | Owner components | Entrypoints | Boundary |
+| --- | --- | --- | --- |
+| `vault.history` | vault_history | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
+| `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
+| `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <actor> <scope>; claim; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
+| `coordination.checkpoint_handoff` | busy_coordinator | busy-python.cmd inspect; handoff; next; claim --checkpoint | Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue. |
+| `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md | Self-report/navigation surface; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
+| `execution.transport` | mcp_front_door, desktop_commander_remote | discover/attempt current MCP tool contract; Desktop Commander semantic file/process operation | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
+| `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
+
+## Product flow
+
+`LowVRAM -> Tiny3D -> P3`
+
+Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.
+
 ## Components
 
 ### `busy_coordinator`
@@ -40,7 +60,7 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `process_transport_front_door`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1; chatgpt-mcp-clean/src/front-door.ts
-- Live status: front-door health plus exact tool contract/semantic call
+- Live status: front-door health plus exact tool contract/semantic call; ordered static-array fallback + backend connection reuse; verify the live route before disruption
 - Independent recovery: inactive backend generation + atomic front-door switch
 - Resources: front-door port; active-backend.json; process-routes.json
 - Dependents: chatgpt_process_transport
@@ -53,7 +73,7 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `replaceable_process_transport_backend`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\start.ps1; %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
-- Live status: backend health; exact tools/list schema; semantic process call
+- Live status: backend health; exact tools/list schema; semantic process call; durable process contract: read_output max 32000; start_process default wait 750 ms; live cap 5 per caller; no rolling launch/token bucket
 - Independent recovery: other backend generation behind stable front door
 - Resources: backend port; transport.jsonl
 - Dependents: mcp_front_door
@@ -66,11 +86,11 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `generation_pinned_process_transport_clone`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: chatgpt-mcp-clean/scripts/start-minimal-clone.ps1
-- Live status: clone health; exact tool contract; process receipt/control route
-- Independent recovery: sibling clone or stable front door when proven compatible
+- Live status: clone health; exact tool contract; process receipt/control route; 2026-09-02 reconciliation checkpoint: clone-a fallback must contain only generations compatible with merged master process contract; verify route + generation + authenticated smoke
+- Independent recovery: sibling clone or stable front door when proven compatible; preserve public clone identity/OAuth/shared receipts and never leave a stale-regression generation in ordered fallback
 - Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control
 - Dependents: chatgpt_process_transport
-- Runbook: chatgpt-mcp-clean/AGENTS.md
+- Runbook: chatgpt-mcp-clean/AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md
 - Supervisor: instance launcher / owning generation
 - Self-heal: generation_specific
 
@@ -131,7 +151,7 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Role: `context:history-notebook`
 - Capabilities: memory_read, memory_write
 - Canonical sources: C:\Users\Lauri\Desktop\vault\memory; tools/memory_bank.py
-- Live status: targeted Vault search/context/history when needed
+- Live status: targeted Vault search/context/history/timeline/recent-titles when needed; do not recursively scan the Vault filesystem for ordinary recall
 - Independent recovery: continue without Vault; current conversation/memory and live sources remain available
 - Resources: memory-bank.jsonl; behavior-authority-registry.json
 - Dependents: chatgpt_orchestrator; execution_workers
@@ -243,6 +263,19 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Supervisor: none
 - Self-heal: not_applicable
 
+### `worker_reports`
+
+- Role: `projection:worker-self-report`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md
+- Live status: read the named current worker report; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
+- Independent recovery: read canonical repo/runtime/CI/artifact evidence directly
+- Resources: worker-reports/*.md
+- Dependents: chatgpt_orchestrator
+- Runbook: C:\Users\Lauri\Desktop\vault\worker-reports
+- Supervisor: none
+- Self-heal: not_applicable
+
 ### `chatgpt_orchestrator`
 
 - Role: `orchestrator:user-facing`
@@ -310,66 +343,66 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 
 ### `lowvram`
 
-- Role: `product_or_workspace`
+- Role: `generator:image_to_3d`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\lowvram3d-repo
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\lowvram3d-repo
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\lowvram3d-repo
+- Canonical sources: C:\Users\Lauri\Desktop\lowvram3d-repo; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md
+- Live status: read current LowVRAM repo architecture before historical migration/issues; inspect current generator filesystem/Git/runtime as applicable
+- Independent recovery: preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM
+- Resources: source recovery; image-to-3D generation; geometry; textures; provenance; producer visual QA
+- Dependents: tiny3d
+- Runbook: C:\Users\Lauri\Desktop\lowvram3d-repo\AGENTS.md; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
 ### `asset_library`
 
-- Role: `product_or_workspace`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\PIPELINE_RESULTS_LIBRARY
-- Supervisor: project-specific
-- Self-heal: project-specific
+- Role: `storage:tiny3d_asset_library`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; C:\Users\Lauri\Desktop\tiny3d\README.md
+- Live status: Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters
+- Independent recovery: rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority
+- Resources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; .tiny3d/library/index-v1.json
+- Dependents: tiny3d
+- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
+- Supervisor: Tiny3D
+- Self-heal: product-specific
 
 ### `tinylab`
 
-- Role: `product_or_workspace`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\TinyLab
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\TinyLab
+- Role: `legacy_name:not_active_product_authority`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\TinyLab; C:\Users\Lauri\Desktop\tiny3d\README.md
+- Live status: historical compatibility/name only; current Tiny3D README/North Star define the active post-generation product
+- Independent recovery: resolve current post-generation behavior through Tiny3D; use TinyLab only for historical compatibility/provenance when needed
+- Resources: historical tinylab.* schema identifiers and legacy workspace
 - Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\TinyLab
-- Supervisor: project-specific
-- Self-heal: project-specific
+- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
+- Supervisor: none
+- Self-heal: not_applicable
 
 ### `tiny3d`
 
-- Role: `product_or_workspace`
+- Role: `product:post_generation_asset_compiler`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\tiny3d
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Desktop\tiny3d
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\tiny3d
+- Canonical sources: C:\Users\Lauri\Desktop\tiny3d; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
+- Live status: read current Tiny3D repo architecture before historical migration/issues; inspect current compiler/library Git/runtime evidence as applicable
+- Independent recovery: consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM
+- Resources: compilation; rigging/skinning; animation/deformation preparation; validation/adapters; packaging/lifecycle evidence; catalogue/library
+- Dependents: p3
+- Runbook: C:\Users\Lauri\Desktop\tiny3d\AGENTS.md; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
 ### `p3`
 
-- Role: `product_or_workspace`
+- Role: `consumer:game_runtime_acceptance`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: C:\Users\Lauri\Documents\Unreal Projects\p3
-- Live status: inspect current filesystem/Git/runtime as applicable
-- Independent recovery: project-specific AGENTS/runbook
-- Resources: C:\Users\Lauri\Documents\Unreal Projects\p3
+- Live status: inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance
+- Independent recovery: Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof
+- Resources: Unreal/game materialization; runtime acceptance; gameplay/visual proof
 - Dependents: none
-- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3
+- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
