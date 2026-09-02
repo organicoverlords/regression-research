@@ -86,6 +86,21 @@ class InstructionProvenanceTests(unittest.TestCase):
         self.assertEqual({part["id"] for part in result["allowed"]}, {"repo-evidence", "history"})
         self.assertEqual({part["id"] for part in result["blocked"]}, {"protected"})
 
+    def test_constraint_rejects_unknown_data_class_target(self):
+        with self.assertRaisesRegex(InstructionProvenanceError, "constraint targets unknown data classes"):
+            partition_request(
+                [{"id": "evidence", "action": "summarize", "data_class": "repo_or_runtime_evidence"}],
+                [{"id": "typo-boundary", "blocks_data_classes": ["protected_internl"]}],
+                policy=self.policy,
+            )
+
+    def test_constraint_rejects_malformed_action_targets(self):
+        with self.assertRaisesRegex(InstructionProvenanceError, "blocks_actions must be a list of strings"):
+            partition_request(
+                [{"id": "evidence", "action": "summarize", "data_class": "repo_or_runtime_evidence"}],
+                [{"id": "bad-actions", "blocks_actions": "disclose"}],
+                policy=self.policy,
+            )
     def test_all_allowed_request_has_no_false_refusal(self):
         parts = [
             {"id": "preferences", "action": "summarize", "data_class": "user_authored"},
