@@ -27,6 +27,7 @@
     "current_personal_instructions_beat_repo_and_stale_context": true,
     "current_explicit_instruction_beats_personal_instructions": true,
     "source_specific_claim_requires_inspected_primary_source": true,
-    "uninspected_contextual_inference_must_be_labeled": true
+    "uninspected_contextual_inference_must_be_labeled": true,
+    "saved_context_review_before_correction": true
   }
 }
