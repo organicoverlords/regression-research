@@ -6,6 +6,8 @@ from pathlib import Path
 
 EXACT_REFRESH_STIMULUS = "refresh your memory"
 MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT = 2
+STOP_RULE = "stop on first route-surface change"
+RECOVERY_LIMIT = "maximum one rediscovery after failure; no extra retries"
 
 REQUIRED_MEASUREMENTS = {
     "visible_or_discovered_schema",

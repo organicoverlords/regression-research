@@ -8,7 +8,9 @@ from tools.issue193_refresh_result import (
     MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT,
     PROHIBITED_METHOD_CATEGORIES,
     PROHIBITED_MUTATION_CATEGORIES,
+    RECOVERY_LIMIT,
     REQUIRED_MEASUREMENTS,
+    STOP_RULE,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +36,8 @@ class Issue193RefreshProtocolTests(unittest.TestCase):
         self.assertEqual(CANARY_DEFINITIONS, fixture_canaries)
         self.assertEqual(REQUIRED_MEASUREMENTS, set(self.data["measurements"]))
         self.assertEqual(EXACT_REFRESH_STIMULUS, self.data["exact_refresh_stimulus"])
+        self.assertEqual(STOP_RULE, self.data["stop_rule"])
+        self.assertEqual(RECOVERY_LIMIT, self.data["recovery_limit"])
         self.assertEqual(
             MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT,
             self.data["pairing"]["minimum_independent_treatment_pairs_for_H1_support"],
@@ -67,3 +71,4 @@ class Issue193RefreshProtocolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
