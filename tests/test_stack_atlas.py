@@ -11,6 +11,7 @@ from tools.stack_atlas import (
     build_bootstrap_atlas,
     classify_process,
     component_details,
+    find_features,
     full_inventory,
     load_snapshot,
     render_manual,
@@ -30,7 +31,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("touched components for live proof", atlas["must"])
         self.assertIn("blocks disruption", atlas["must"])
         self.assertNotIn("live_overlay", atlas)
+        self.assertEqual(atlas["find"], "find <query>")
         self.assertLess(len(json.dumps(atlas)), 12000)
+
+    def test_feature_search_surfaces_existing_owner_before_archaeology(self):
+        timeline = find_features("vault timeline")[0]
+        self.assertEqual(timeline["id"], "vault.history")
+        self.assertIn("memory_bank.py timeline", timeline["entrypoints"])
+        self.assertIn("never recursive Vault scans", timeline["boundary"])
+
+        checkpoint = find_features("checkpoint handoff")[0]
+        self.assertEqual(checkpoint["id"], "coordination.checkpoint_handoff")
+        self.assertIn("busy_coordinator", checkpoint["owner_components"])
+
+        reports = find_features("worker reports")[0]
+        self.assertEqual(reports["id"], "worker.reports")
+        self.assertIn("worker_reports", reports["owner_components"])
+
+    def test_feature_search_is_bounded_and_non_authoritative(self):
+        self.assertEqual(find_features(""), [])
+        self.assertEqual(find_features("definitely-unknown-capability"), [])
+        results = find_features("current state", limit=2)
+        self.assertLessEqual(len(results), 2)
+        self.assertTrue(all(item["authority"] == ATLAS_CONTRACT["authority"] for item in results))
 
     def test_pid_is_lookup_key_not_component_identity(self):
         self.assertIn("ephemeral live lookup key", ATLAS_CONTRACT["pid_semantics"])
@@ -96,7 +119,7 @@ class StackAtlasTests(unittest.TestCase):
             "desktop_commander_watchdog", "desktop_commander_remote", "desktop_commander_local",
             "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_orchestrator", "execution_workers", "chatgpt_automations", "local_git", "github",
-            "github_actions", "github_runner", "dev_progress_board", "operator_live",
+            "github_actions", "github_runner", "dev_progress_board", "operator_live", "worker_reports",
             "lowvram", "asset_library", "tinylab", "tiny3d", "p3", "vault_history",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))

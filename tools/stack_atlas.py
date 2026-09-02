@@ -231,6 +231,15 @@ COMPONENTS.update({
         "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"], "dependents": ["chatgpt_orchestrator", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
+    "worker_reports": {
+        "role": "projection:worker-self-report", "capabilities": ["source_read"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
+        "live_status": ["read the named current worker report; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "supervisor": "none", "self_heal": "not_applicable",
+        "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
+        "resources": ["worker-reports/*.md"], "dependents": ["chatgpt_orchestrator"],
+        "runbook": [r"C:\Users\Lauri\Desktop\vault\worker-reports"],
+    },
     "chatgpt_orchestrator": {
         "role": "orchestrator:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
@@ -331,6 +340,52 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
 }
 PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
 PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
+
+FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "vault.history": {
+        "owner_components": ["vault_history"],
+        "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],
+        "entrypoints": ["memory_bank.py search", "memory_bank.py context", "memory_bank.py history", "memory_bank.py timeline", "memory_bank.py orient", "memory_bank.py recent-titles", "memory_bank.py changes"],
+        "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
+    },
+    "project.current_truth": {
+        "owner_components": ["repo_agents", "north_star", "local_git", "github"],
+        "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
+        "entrypoints": ["admitted worktree AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD/origin", "exact GitHub issue/PR/check/runtime evidence"],
+        "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
+    },
+    "coordination.ownership": {
+        "owner_components": ["busy_coordinator"],
+        "triggers": ["busy", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
+        "entrypoints": ["busy-python.cmd inspect <actor> <scope>", "claim", "release", "recover", "snapshot"],
+        "boundary": "Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress.",
+    },
+    "coordination.checkpoint_handoff": {
+        "owner_components": ["busy_coordinator"],
+        "triggers": ["checkpoint", "handoff", "resume", "pending work", "next action"],
+        "entrypoints": ["busy-python.cmd inspect", "handoff", "next", "claim --checkpoint"],
+        "boundary": "Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue.",
+    },
+    "worker.reports": {
+        "owner_components": ["worker_reports"],
+        "triggers": ["worker report", "worker status", "worker progress", "liveness", "cedar", "alder", "juniper"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
+        "boundary": "Self-report/navigation surface; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+    },
+    "execution.transport": {
+        "owner_components": ["mcp_front_door", "desktop_commander_remote"],
+        "triggers": ["process execution", "shell", "file access", "mcp", "plugin2", "commander", "tool route"],
+        "entrypoints": ["discover/attempt current MCP tool contract", "Desktop Commander semantic file/process operation"],
+        "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
+    },
+    "progress.board": {
+        "owner_components": ["dev_progress_board", "operator_live"],
+        "triggers": ["progress board", "dashboard", "stack delivery", "operator live", "overview"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\DevProgressBoard", "state/operator-live.json"],
+        "boundary": "Derived orientation/projection only; reconcile important claims with canonical sources.",
+    },
+}
+
 def _expand_env(value: str) -> str:
     return os.path.expandvars(value)
 
@@ -344,6 +399,7 @@ def build_bootstrap_atlas() -> dict[str, Any]:
         "library": ATLAS_LIBRARY_PATH,
         "local_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py",
         "inventory": "inventory",
+        "find": "find <query>",
         "lookup": "lookup <id>",
         "blast": "blast-radius --pid <pid>",
     }
@@ -354,6 +410,22 @@ def component_details(name: str) -> dict[str, Any]:
     if name in PRODUCT_COMPONENTS:
         return {"id": name, **PRODUCT_COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
     raise KeyError(name)
+
+
+def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
+    terms = [term for term in re.split(r"[^a-z0-9]+", query.casefold()) if term]
+    if not terms:
+        return []
+    ranked: list[tuple[int, str, dict[str, Any]]] = []
+    for feature_id, spec in FEATURE_INDEX.items():
+        semantic = " ".join([feature_id, *spec["owner_components"], *spec["triggers"]]).casefold()
+        if not any(term in semantic for term in terms):
+            continue
+        detail = " ".join([*spec["entrypoints"], spec["boundary"]]).casefold()
+        score = sum(3 for term in terms if term in semantic) + sum(1 for term in terms if term in detail)
+        ranked.append((score, feature_id, {"id": feature_id, **spec, "authority": ATLAS_CONTRACT["authority"]}))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    return [item[2] for item in ranked[: max(1, limit)]]
 
 
 def _ancestry(pid: int, by_pid: dict[int, dict[str, Any]], limit: int = 16) -> list[dict[str, Any]]:
@@ -565,6 +637,7 @@ def full_inventory() -> dict[str, Any]:
         "schema": "stack-atlas.inventory.v1",
         "contract": ATLAS_CONTRACT,
         "capability_policy": validate_policy(load_policy()),
+        "features": FEATURE_INDEX,
         "components": {name: component_details(name) for name in [*COMPONENTS, *PRODUCT_ROOTS]},
         "product_flow": [list(edge) for edge in PRODUCT_FLOW],
     }
@@ -624,6 +697,9 @@ def render_manual() -> str:
     ]
     for name, spec in inventory["capability_policy"]["capabilities"].items():
         lines.append(f"| `{name}` | {' -> '.join(spec['ordered_adapter_roles'])} | `{spec['fallback_mode']}` |")
+    lines.extend(["", "## Feature discovery", "", "Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.", "", "| Feature | Owner components | Entrypoints | Boundary |", "| --- | --- | --- | --- |"])
+    for feature_id, spec in inventory["features"].items():
+        lines.append(f"| `{feature_id}` | {', '.join(spec['owner_components'])} | {'; '.join(spec['entrypoints'])} | {spec['boundary']} |")
     lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])
     for name, spec in inventory["components"].items():
         lines.extend([f"### `{name}`", "", f"- Role: `{spec['role']}`", f"- Capabilities: {', '.join(spec['capabilities']) or 'none'}"])
@@ -647,6 +723,9 @@ def main() -> int:
     lib_verify.add_argument("copy", type=Path)
     manual = sub.add_parser("manual")
     manual.add_argument("--output", type=Path)
+    find = sub.add_parser("find")
+    find.add_argument("query")
+    find.add_argument("--limit", type=int, default=5)
     lookup = sub.add_parser("lookup")
     lookup.add_argument("component")
     blast = sub.add_parser("blast-radius")
@@ -676,6 +755,8 @@ def main() -> int:
         else:
             print(text)
             return 0
+    elif args.command == "find":
+        value = find_features(args.query, args.limit)
     elif args.command == "lookup":
         try:
             value = component_details(args.component)
