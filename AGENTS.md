@@ -4,12 +4,12 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.33 - 2026-09-02.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
+**Version 1.34 - 2026-09-02.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank history, handoffs, recalled context, and stale prose.
 - A scheduled task prompt is current instruction for that run; do not demote it because it came from a scheduler.
-- Finish the bounded outcome. Unrelated work enters scope only for acceptance, collision/data safety, or explicit expansion.
+- Finish the bounded outcome. Debug with the next discriminating test from live facts; once the failing boundary is isolated, fix/test it and reopen diagnosis only if that fails. Unrelated work stays out unless needed for acceptance or safety.
 
 ### Route failure is local
 - A failed route is not task failure while supported recovery, fallback, or independent work remains.
