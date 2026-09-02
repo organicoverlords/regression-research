@@ -3,7 +3,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import datetime
+import statistics
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,70 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     }
 
 
+def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    if not history_root.exists():
+        return records
+    for path in sorted(history_root.glob("*/*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if str(payload.get("schema") or "").startswith("worker-report-history.v"):
+            records.append(payload)
+    return records
+
+
+def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
+    now = datetime.now().astimezone()
+    cutoff = now - timedelta(hours=max(0.01, float(hours)))
+    records = []
+    for item in load_history_metadata(history_root):
+        finished = _parse_time(item.get("finished_at") or item.get("archived_at"))
+        if finished is not None and finished >= cutoff:
+            records.append(item)
+    durations = [float(x["duration_minutes"]) for x in records if isinstance(x.get("duration_minutes"), (int, float))]
+    utils = [float(x["target_utilization_pct"]) for x in records if isinstance(x.get("target_utilization_pct"), (int, float))]
+    by_worker: dict[str, dict[str, Any]] = {}
+    for item in sorted(records, key=lambda x: str(x.get("finished_at") or x.get("archived_at") or "")):
+        worker = str(item.get("worker") or "unknown")
+        by_worker[worker] = {
+            "finished_at": item.get("finished_at"),
+            "duration_minutes": item.get("duration_minutes"),
+            "target_utilization_pct": item.get("target_utilization_pct"),
+            "repo": item.get("repo"),
+            "scope": item.get("scope"),
+            "state": item.get("state"),
+            "remaining_gate": item.get("remaining_gate"),
+        }
+    total_minutes = round(sum(durations), 2)
+    window_minutes = hours * 60.0
+    return {
+        "schema": "worker-report-metrics.v1",
+        "generated_at": now.isoformat(),
+        "window_hours": float(hours),
+        "target_run_minutes": TARGET_RUN_MINUTES,
+        "captured_runs": len(records),
+        "runs_with_duration": len(durations),
+        "average_duration_minutes": round(statistics.mean(durations), 2) if durations else None,
+        "median_duration_minutes": round(statistics.median(durations), 2) if durations else None,
+        "average_target_utilization_pct": round(statistics.mean(utils), 1) if utils else None,
+        "short_runs_under_75pct": sum(1 for value in utils if value < 75.0),
+        "worker_minutes": total_minutes,
+        "equivalent_continuous_workers": round(total_minutes / window_minutes, 3) if window_minutes else None,
+        "capacity_pct_of_one_continuous_worker": round(total_minutes / window_minutes * 100.0, 1) if window_minutes else None,
+        "by_worker_latest": by_worker,
+    }
+
+
+def write_metrics_projection(history_root: Path, output: Path | None = None, *, hours: float = 24.0) -> dict[str, Any]:
+    summary = summarize_history(history_root, hours=hours)
+    target = output or history_root.parent / "metrics.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return summary
+
+
 def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
     raw = report.read_bytes()
     fields = _fields(raw)
@@ -95,6 +160,7 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metrics = write_metrics_projection(history_root)
     return {
         "ok": True,
         "archived": archived,
@@ -106,22 +172,32 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         "duration_minutes": metadata.get("duration_minutes"),
         "target_run_minutes": metadata.get("target_run_minutes"),
         "target_utilization_pct": metadata.get("target_utilization_pct"),
+        "fleet_metrics_path": str(history_root.parent / "metrics.json"),
+        "fleet_average_utilization_pct": metrics.get("average_target_utilization_pct"),
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Preserve finalized worker reports and derive useful run metrics automatically.")
-    parser.add_argument("archive", choices=["archive"])
-    parser.add_argument("--report", type=Path, required=True)
-    parser.add_argument("--history-root", type=Path)
+    sub = parser.add_subparsers(dest="command", required=True)
+    archive = sub.add_parser("archive")
+    archive.add_argument("--report", type=Path, required=True)
+    archive.add_argument("--history-root", type=Path)
+    summary = sub.add_parser("summary")
+    summary.add_argument("--history-root", type=Path, required=True)
+    summary.add_argument("--hours", type=float, default=24.0)
+    summary.add_argument("--write", type=Path)
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
-    history_root = args.history_root or args.report.parent / "history"
     try:
-        result = archive_finalized_report(args.report, history_root)
+        if args.command == "archive":
+            history_root = args.history_root or args.report.parent / "history"
+            result = archive_finalized_report(args.report, history_root)
+        else:
+            result = write_metrics_projection(args.history_root, args.write, hours=args.hours) if args.write else summarize_history(args.history_root, hours=args.hours)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1
