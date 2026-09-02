@@ -1,0 +1,68 @@
+﻿{
+    "schema":  1,
+    "incident":  "mcp-direct-clone-topology-recurrence-20260902",
+    "conclusion":  "production path-scoped clones use direct Funnel handlers including OAuth/OpenID metadata; root may remain on 3003",
+    "historical_good":  {
+                            "clone_a_pid":  31388,
+                            "first_at":  "2026-08-27T18:18:34.453Z",
+                            "last_at":  "2026-08-27T23:56:14.659Z",
+                            "start_process":  3344,
+                            "read_output":  3628,
+                            "mcp_requests_approx":  7300,
+                            "connections":  341,
+                            "connection_errors":  1,
+                            "front_door_clone_arrivals_in_good_window":  0,
+                            "rollback_artifact":  "ChatGPTMcpClean-routefront-20260827/.state/deploy-20260827/rollback-funnel.ps1"
+                        },
+    "regression_commits":  [
+                               "412c566",
+                               "8413054"
+                           ],
+    "separate_invariants":  [
+                                "64b74d8",
+                                "4e681bc",
+                                "45bb1d1",
+                                "9c2aae5",
+                                "ad45690",
+                                "41c8345"
+                            ],
+    "restored_live":  {
+                          "root_target":  "http://127.0.0.1:3003",
+                          "clone_a_target":  "http://127.0.0.1:55578",
+                          "clone_a_generation":  "clone-a-known-good-61b0d79",
+                          "metadata_paths":  [
+                                                 "/.well-known/oauth-authorization-server/clone-a",
+                                                 "/.well-known/oauth-protected-resource/clone-a/mcp",
+                                                 "/.well-known/openid-configuration/clone-a"
+                                             ],
+                          "metadata_http_status":  200
+                      },
+    "closure":  {
+                    "same_chat":  {
+                                      "starts_ok":  10,
+                                      "starts_total":  10,
+                                      "reads_ok":  10,
+                                      "reads_total":  10,
+                                      "drops":  0,
+                                      "retries":  0
+                                  },
+                    "fresh_chat":  {
+                                       "starts_ok":  5,
+                                       "starts_total":  5,
+                                       "reads_ok":  5,
+                                       "reads_total":  5,
+                                       "drops":  0,
+                                       "retries":  0
+                                   }
+                },
+    "github_issue":  "organicoverlords/chatgpt-mcp-clean#37",
+    "report":  "01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
+    "failure_candidate":  {
+                              "action":  "Route production /clone-a and its OAuth/OpenID metadata through 3003 because the newer README/Atlas calls single-front-door canonical",
+                              "expected":  "Client-visible clone tool drops may recur even while local health and server-side smoke remain green"
+                          },
+    "success_candidate":  {
+                              "action":  "Keep /clone-a plus its three OAuth/OpenID metadata handlers direct to the selected compatible clone listener while root / may remain on 3003; require fresh-chat 5-start/5-read closure",
+                              "expected":  "Direct clone ingress remains client-visible clean and no-arrival failures stay separated from backend/receipt/OAuth faults"
+                          }
+}
