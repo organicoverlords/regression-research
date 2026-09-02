@@ -36,6 +36,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-02] [research] Recorded the September 2 worker/coordinator/product-delivery audit and verified control-plane repair receipts, including non-authoritative coordinator jobs and remote policy propagation.
+
 - [2026-09-02] [meta] Generated AGENTS policy projections are changelog-exempt and README timeline projection is merge-stable.
 
 - [2026-09-02] [research] Required #193 treatment losses to prove a matching local request-start at baseline before they can count toward H1 support; missing baseline local-arrival evidence remains INCONCLUSIVE.
