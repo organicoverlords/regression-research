@@ -4,11 +4,25 @@ import argparse
 import hashlib
 import json
 import statistics
+from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 TARGET_RUN_MINUTES = 24.0
+SHORT_RUN_UTILIZATION_PCT = 75.0
+NEAR_TARGET_UTILIZATION_PCT = 90.0
+STOP_REASON_ALIASES = {
+    "TIME_LIMIT": "TIME_WINDOW", "TIMEOUT": "TIME_WINDOW", "TARGET_WINDOW": "TIME_WINDOW",
+    "WAITING_CI": "WAITING_EXTERNAL", "WAITING_CHECK": "WAITING_EXTERNAL",
+    "TOOL_DROP": "TOOL_BLOCKED", "TOOLS_BLOCKED": "TOOL_BLOCKED",
+    "RESOURCE_WAIT": "RESOURCE_BLOCKED", "USER_STOP": "INTERRUPTED",
+}
+VALID_STOP_REASONS = {
+    "TIME_WINDOW", "SCOPE_COMPLETE", "WAITING_EXTERNAL", "TOOL_BLOCKED",
+    "RESOURCE_BLOCKED", "NO_SAFE_WORK", "INTERRUPTED", "OTHER",
+}
+VALID_TOOL_DROP_EFFECTS = {"RECOVERED_CONTINUED", "CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"}
 
 
 def _fields(raw: bytes) -> dict[str, str]:
@@ -33,6 +47,86 @@ def _parse_time(value: str | None) -> datetime | None:
         return None
     return parsed if parsed.tzinfo else parsed.astimezone()
 
+def _int_field(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def _gate_classes(value: Any) -> list[str]:
+    text = str(value or "").strip().casefold()
+    if not text or text in {"none", "n/a", "na", "no gate"}:
+        return []
+    classes: list[str] = []
+    checks = (
+        ("TOOL", ("tool", "plugin", "mcp", "commander", "route")),
+        ("RESOURCE", ("disk", "build slot", "resource", "memory", "vram", "lock")),
+        ("PROOF", ("proof", "render", "visual", "capture", "acceptance")),
+        ("EXTERNAL", ("hosted", "ci", "check", "workflow", "approval", "review")),
+        ("MERGE", ("merge", "conflict", "landing")),
+    )
+    for label, tokens in checks:
+        if any(token in text for token in tokens):
+            classes.append(label)
+    return classes or ["OTHER"]
+
+
+def _run_analytics(item: dict[str, Any]) -> dict[str, Any]:
+    util = item.get("target_utilization_pct")
+    util_value = float(util) if isinstance(util, (int, float)) else None
+    reported = str(item.get("reported_stop_reason") or item.get("stop_reason") or "").strip().upper()
+    reported = reported.replace("-", "_").replace(" ", "_")
+    explicit = bool(reported) and reported not in {"UNEXPLAINED", "UNSPECIFIED"}
+    normalized = STOP_REASON_ALIASES.get(reported, reported) if explicit else ""
+    if normalized and normalized not in VALID_STOP_REASONS:
+        normalized = "OTHER"
+
+    remaining_gate = item.get("remaining_gate")
+    state = str(item.get("state") or "").upper()
+    if explicit:
+        stop_reason = normalized
+        stop_reason_source = "WORKER_REPORTED"
+    elif util_value is not None and util_value >= NEAR_TARGET_UTILIZATION_PCT:
+        stop_reason = "TIME_WINDOW"
+        stop_reason_source = "DERIVED_DURATION"
+    elif state == "COMPLETE" and not _gate_classes(remaining_gate):
+        stop_reason = "SCOPE_COMPLETE"
+        stop_reason_source = "DERIVED_STATE"
+    elif util_value is not None and util_value < SHORT_RUN_UTILIZATION_PCT:
+        stop_reason = "UNEXPLAINED"
+        stop_reason_source = "DERIVED_ABSENCE"
+    else:
+        stop_reason = "UNSPECIFIED"
+        stop_reason_source = "DERIVED_ABSENCE"
+
+    tool_drops = _int_field(item.get("tool_drops"))
+    if tool_drops is None:
+        tool_drops = 0
+    effect = str(item.get("tool_drop_effect") or "").strip().upper()
+    effect = effect.replace("-", "_").replace(" ", "_")
+    if tool_drops == 0:
+        effect = "NONE"
+    elif effect not in VALID_TOOL_DROP_EFFECTS:
+        effect = "UNSPECIFIED"
+
+    early = util_value is not None and util_value < SHORT_RUN_UTILIZATION_PCT
+    return {
+        "reported_stop_reason": reported or None,
+        "stop_reason": stop_reason,
+        "stop_reason_source": stop_reason_source,
+        "stop_detail": item.get("stop_detail"),
+        "pending_gate_classes": _gate_classes(remaining_gate),
+        "tool_drops": tool_drops,
+        "tool_drop_effect": effect,
+        "early_stop": early,
+        "early_stop_unexplained": bool(early and stop_reason in {"UNEXPLAINED", "UNSPECIFIED"}),
+    }
+
+
 def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path) -> dict[str, Any]:
     started_at = fields.get("started_at")
     finished_at = fields.get("finished_at") or fields.get("last_activity_at")
@@ -45,8 +139,8 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
             duration_seconds = round(seconds, 3)
     duration_minutes = round(duration_seconds / 60, 2) if duration_seconds is not None else None
     utilization = round(duration_minutes / TARGET_RUN_MINUTES * 100, 1) if duration_minutes is not None else None
-    return {
-        "schema": "worker-report-history.v2",
+    base: dict[str, Any] = {
+        "schema": "worker-report-history.v3",
         "report_sha256": digest,
         "worker": fields.get("worker") or archive_path.parent.name,
         "state": fields.get("state"),
@@ -64,6 +158,10 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "validation": fields.get("validation"),
         "last_event": fields.get("last_event"),
         "remaining_gate": fields.get("remaining_gate"),
+        "reported_stop_reason": fields.get("stop_reason"),
+        "stop_detail": fields.get("stop_detail"),
+        "tool_drops": _int_field(fields.get("tool_drops")),
+        "tool_drop_effect": fields.get("tool_drop_effect"),
         "visual_proof_run": fields.get("visual_proof_run"),
         "visual_proof_claim": fields.get("visual_proof_claim"),
         "visual_proof_review": fields.get("visual_proof_review"),
@@ -71,7 +169,8 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "archived_at": datetime.now().astimezone().isoformat(),
         "archive_path": str(archive_path),
     }
-
+    base.update(_run_analytics(base))
+    return base
 
 def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
@@ -90,13 +189,27 @@ def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
 def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
     now = datetime.now().astimezone()
     cutoff = now - timedelta(hours=max(0.01, float(hours)))
-    records = []
-    for item in load_history_metadata(history_root):
-        finished = _parse_time(item.get("finished_at") or item.get("archived_at"))
+    records: list[dict[str, Any]] = []
+    for raw in load_history_metadata(history_root):
+        finished = _parse_time(raw.get("finished_at") or raw.get("archived_at"))
         if finished is not None and finished >= cutoff:
+            item = dict(raw)
+            item.update(_run_analytics(item))
             records.append(item)
+
     durations = [float(x["duration_minutes"]) for x in records if isinstance(x.get("duration_minutes"), (int, float))]
     utils = [float(x["target_utilization_pct"]) for x in records if isinstance(x.get("target_utilization_pct"), (int, float))]
+    stop_counts = Counter(str(x["stop_reason"]) for x in records)
+    early_records = [x for x in records if x.get("early_stop")]
+    early_stop_counts = Counter(str(x["stop_reason"]) for x in early_records)
+    gate_counts = Counter(label for x in records for label in x.get("pending_gate_classes", []))
+    tool_drop_runs = [x for x in records if int(x.get("tool_drops") or 0) > 0]
+    tool_drop_stop_runs = [
+        x for x in tool_drop_runs
+        if x.get("tool_drop_effect") in {"CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"}
+        or x.get("stop_reason") == "TOOL_BLOCKED"
+    ]
+
     by_worker: dict[str, dict[str, Any]] = {}
     for item in sorted(records, key=lambda x: str(x.get("finished_at") or x.get("archived_at") or "")):
         worker = str(item.get("worker") or "unknown")
@@ -108,11 +221,19 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
             "scope": item.get("scope"),
             "state": item.get("state"),
             "remaining_gate": item.get("remaining_gate"),
+            "pending_gate_classes": item.get("pending_gate_classes"),
+            "stop_reason": item.get("stop_reason"),
+            "stop_reason_source": item.get("stop_reason_source"),
+            "stop_detail": item.get("stop_detail"),
+            "early_stop": item.get("early_stop"),
+            "tool_drops": item.get("tool_drops"),
+            "tool_drop_effect": item.get("tool_drop_effect"),
         }
+
     total_minutes = round(sum(durations), 2)
     window_minutes = hours * 60.0
     return {
-        "schema": "worker-report-metrics.v1",
+        "schema": "worker-report-metrics.v2",
         "generated_at": now.isoformat(),
         "window_hours": float(hours),
         "target_run_minutes": TARGET_RUN_MINUTES,
@@ -121,13 +242,19 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
         "average_duration_minutes": round(statistics.mean(durations), 2) if durations else None,
         "median_duration_minutes": round(statistics.median(durations), 2) if durations else None,
         "average_target_utilization_pct": round(statistics.mean(utils), 1) if utils else None,
-        "short_runs_under_75pct": sum(1 for value in utils if value < 75.0),
+        "short_runs_under_75pct": len(early_records),
+        "early_stops_unexplained": sum(1 for x in early_records if x.get("early_stop_unexplained")),
+        "stop_reason_counts": dict(sorted(stop_counts.items())),
+        "early_stop_reason_counts": dict(sorted(early_stop_counts.items())),
+        "pending_gate_counts": dict(sorted(gate_counts.items())),
+        "tool_drop_runs": len(tool_drop_runs),
+        "tool_drops_total": sum(int(x.get("tool_drops") or 0) for x in tool_drop_runs),
+        "tool_drop_stop_runs": len(tool_drop_stop_runs),
         "worker_minutes": total_minutes,
         "equivalent_continuous_workers": round(total_minutes / window_minutes, 3) if window_minutes else None,
         "capacity_pct_of_one_continuous_worker": round(total_minutes / window_minutes * 100.0, 1) if window_minutes else None,
         "by_worker_latest": by_worker,
     }
-
 
 def _project_from_repo(repo: str | None) -> str | None:
     if not repo:
@@ -143,7 +270,9 @@ def _project_from_repo(repo: str | None) -> str | None:
 
 def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
-    for item in load_history_metadata(history_root):
+    for raw in load_history_metadata(history_root):
+        item = dict(raw)
+        item.update(_run_analytics(item))
         event_at = item.get("finished_at") or item.get("archived_at")
         if not event_at:
             continue
@@ -158,7 +287,7 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "recorded_at": item.get("archived_at") or event_at,
             "project": _project_from_repo(item.get("repo")),
             "worker": worker,
-            "title": f"{worker}: {outcome}" + (f" ? {scope}" if scope else ""),
+            "title": f"{worker}: {outcome}" + (f" - {scope}" if scope else ""),
             "summary": item.get("last_event") or item.get("mutation") or "",
             "kind": "worker_report",
             "scope": scope,
@@ -167,6 +296,13 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "duration_minutes": item.get("duration_minutes"),
             "target_run_minutes": item.get("target_run_minutes"),
             "target_utilization_pct": item.get("target_utilization_pct"),
+            "stop_reason": item.get("stop_reason"),
+            "stop_reason_source": item.get("stop_reason_source"),
+            "stop_detail": item.get("stop_detail"),
+            "early_stop": item.get("early_stop"),
+            "pending_gate_classes": item.get("pending_gate_classes"),
+            "tool_drops": item.get("tool_drops"),
+            "tool_drop_effect": item.get("tool_drop_effect"),
             "mutation": item.get("mutation"),
             "validation": item.get("validation"),
             "remaining_gate": item.get("remaining_gate"),
@@ -175,7 +311,6 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "refs": [value for value in (scope, item.get("mutation")) if value],
         })
     return events
-
 
 def write_metrics_projection(history_root: Path, output: Path | None = None, *, hours: float = 24.0) -> dict[str, Any]:
     summary = summarize_history(history_root, hours=hours)
@@ -208,6 +343,7 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        metadata.update(_run_analytics(metadata))
     metrics = write_metrics_projection(history_root)
     return {
         "ok": True,
@@ -220,8 +356,12 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         "duration_minutes": metadata.get("duration_minutes"),
         "target_run_minutes": metadata.get("target_run_minutes"),
         "target_utilization_pct": metadata.get("target_utilization_pct"),
+        "stop_reason": metadata.get("stop_reason"),
+        "early_stop": metadata.get("early_stop"),
+        "tool_drops": metadata.get("tool_drops"),
         "fleet_metrics_path": str(history_root.parent / "metrics.json"),
         "fleet_average_utilization_pct": metrics.get("average_target_utilization_pct"),
+        "fleet_early_stops_unexplained": metrics.get("early_stops_unexplained"),
     }
 
 

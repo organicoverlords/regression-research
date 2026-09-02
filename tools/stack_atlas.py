@@ -242,7 +242,7 @@ COMPONENTS.update({
     "worker_reports": {
         "role": "projection:worker-self-report", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md"],
-        "live_status": [r"read the named current worker report; read worker-reports\metrics.json (or run python tools\worker_report_history.py summary --history-root worker-reports\history) for derived duration/utilization; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "live_status": [r"read the named current worker report; read worker-reports\metrics.json (or run python tools\worker_report_history.py summary --history-root worker-reports\history) for derived duration/utilization, normalized stop reasons, unexplained early stops, pending-gate classes, and tool-drop impact; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
         "resources": ["worker-reports/*.md", "worker-reports/history/*/*.json", "worker-reports/metrics.json"], "dependents": ["chatgpt_session"],
@@ -376,7 +376,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "worker.reports": {
         "owner_components": ["worker_reports"],
-        "triggers": ["worker report", "worker status", "worker progress", "liveness", "cedar", "alder", "juniper"],
+        "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\metrics.json", "python tools/worker_report_history.py summary --history-root worker-reports/history"],
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
