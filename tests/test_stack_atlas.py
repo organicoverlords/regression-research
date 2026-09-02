@@ -12,6 +12,7 @@ from tools.stack_atlas import (
     classify_process,
     component_details,
     find_features,
+    full_inventory,
     load_snapshot,
     render_manual,
     render_library_atlas_bytes,
@@ -122,6 +123,21 @@ class StackAtlasTests(unittest.TestCase):
             "lowvram", "asset_library", "tinylab", "tiny3d", "p3", "vault_history",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
+
+    def test_product_flow_and_roles_match_current_repo_architecture(self):
+        atlas = __import__("tools.stack_atlas", fromlist=["PRODUCT_FLOW"])
+        self.assertEqual(atlas.PRODUCT_FLOW, (("lowvram", "tiny3d"), ("tiny3d", "p3")))
+        lowvram = component_details("lowvram")
+        tiny3d = component_details("tiny3d")
+        tinylab = component_details("tinylab")
+        library = component_details("asset_library")
+        self.assertEqual(lowvram["role"], "generator:image_to_3d")
+        self.assertEqual(tiny3d["role"], "product:post_generation_asset_compiler")
+        self.assertEqual(tinylab["role"], "legacy_name:not_active_product_authority")
+        self.assertIn("README.md", " ".join(lowvram["canonical_sources"]))
+        self.assertIn("TINY3D_NORTH_STAR.md", " ".join(tiny3d["canonical_sources"]))
+        self.assertEqual(library["canonical_sources"][0], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")
+        self.assertEqual(full_inventory()["product_flow"], [["lowvram", "tiny3d"], ["tiny3d", "p3"]])
 
     def test_capability_directory_is_derived_from_current_routing_policy(self):
         policy = deepcopy(load_capability_policy())

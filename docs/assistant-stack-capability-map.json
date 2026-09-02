@@ -1,8 +1,8 @@
 {
     "schema":  "assistant-stack-capability-map.v1",
     "status":  "DESCRIPTIVE_INDEX_NOT_AUTHORITY",
-    "observed_at":  "2026-08-30T15:38:10.0191136+03:00",
-    "precedence":  "Current user instruction and cited live/source authority outrank this map.",
+    "observed_at":  "2026-09-02",
+    "precedence":  "Current user instruction and cited live/source authority outrank this map. Product-stage ownership is resolved from current product repo architecture contracts before historical migration issues, old handoffs, or projections.",
     "design_guard":  "Before proposing a component, resolve the capability here and inspect its current owner. Reuse, minimally extend the owner, or do nothing before adding a layer.",
     "capabilities":  [
                          {
@@ -212,6 +212,21 @@
                              "never_authority":  [
                                                      "mutation_ownership"
                                                  ]
+                         },
+                         {
+                             "id": "product_stage_ownership",
+                             "owner": "current_product_repo_architecture_contracts",
+                             "reads": [
+                                 "lowvram_README_NORTH_STAR_pipeline_contract",
+                                 "tiny3d_README_TINY3D_NORTH_STAR",
+                                 "p3_repo_runtime_contract"
+                             ],
+                             "never_authority": [
+                                 "historical_migration_issue",
+                                 "old_handoff",
+                                 "DevProgressBoard_projection",
+                                 "stale_capability_map_snapshot"
+                             ]
                          }
                      ],
     "components":  [
@@ -390,51 +405,61 @@
                                     ]
                        },
                        {
-                           "id":  "lowvram",
-                           "role":  "product",
-                           "path":  "C:\\Users\\Lauri\\Desktop\\lowvram3d-repo",
-                           "remote":  "organicoverlords/lowvram3d-studio",
-                           "owns":  [
-                                        "3D generation"
-                                    ]
+                           "id": "lowvram",
+                           "role": "generator",
+                           "path": "C:\\Users\\Lauri\\Desktop\\lowvram3d-repo",
+                           "remote": "organicoverlords/lowvram3d-studio",
+                           "owns": [
+                               "source recovery",
+                               "image-to-3D generation",
+                               "geometry",
+                               "textures",
+                               "provenance",
+                               "producer 12-view visual QA"
+                           ]
                        },
                        {
-                           "id":  "asset_library",
-                           "role":  "product",
-                           "path":  "C:\\Users\\Lauri\\Desktop\\PIPELINE_RESULTS_LIBRARY",
-                           "owns":  [
-                                        "canonical asset catalog"
-                                    ]
+                           "id": "asset_library",
+                           "role": "tiny3d_subsystem_storage",
+                           "path": "C:\\Users\\Lauri\\Desktop\\Tiny3D_LIBRARY",
+                           "owns": [
+                               "external content-addressed Tiny3D asset store"
+                           ],
+                           "owner": "tiny3d"
                        },
                        {
-                           "id":  "tinylab",
-                           "role":  "product",
-                           "path":  "C:\\Users\\Lauri\\Desktop\\TinyLab",
-                           "owns":  [
-                                        "analysis",
-                                        "qualification",
-                                        "rig/physics compilation",
-                                        "P3-ready package"
-                                    ]
+                           "id": "tinylab",
+                           "role": "historical_compatibility_name",
+                           "path": "C:\\Users\\Lauri\\Desktop\\TinyLab",
+                           "owns": [
+                               "historical schema/provenance compatibility only"
+                           ],
+                           "boundary": "not an active post-generation product authority"
                        },
                        {
-                           "id":  "tiny3d",
-                           "role":  "product_repo",
-                           "path":  "C:\\Users\\Lauri\\Desktop\\tiny3d",
-                           "owns":  [
-                                        "observed animation/asset engineering"
-                                    ],
-                           "boundary":  "relationship to TinyLab NOT_PROVEN"
+                           "id": "tiny3d",
+                           "role": "post_generation_product",
+                           "path": "C:\\Users\\Lauri\\Desktop\\tiny3d",
+                           "owns": [
+                               "compilation",
+                               "rigging/skinning",
+                               "animation/deformation preparation",
+                               "validation/adapters",
+                               "packaging/lifecycle evidence",
+                               "catalogue/library"
+                           ],
+                           "boundary": "canonical post-generation stage; TinyLab naming is historical compatibility only"
                        },
                        {
-                           "id":  "p3",
-                           "role":  "product",
-                           "path":  "C:\\Users\\Lauri\\Documents\\Unreal Projects\\p3",
-                           "remote":  "organicoverlords/p3",
-                           "owns":  [
-                                        "final game integration",
-                                        "runtime acceptance"
-                                    ]
+                           "id": "p3",
+                           "role": "downstream_game_consumer",
+                           "path": "C:\\Users\\Lauri\\Documents\\Unreal Projects\\p3",
+                           "remote": "organicoverlords/p3",
+                           "owns": [
+                               "Unreal/game materialization",
+                               "runtime acceptance",
+                               "gameplay/visual proof"
+                           ]
                        },
                        {
                            "id":  "regression_research",
@@ -449,69 +474,21 @@
                        }
                    ],
     "product_dependencies":  [
-                                 [
-                                     "lowvram",
-                                     "asset_library"
-                                 ],
-                                 [
-                                     "lowvram",
-                                     "tinylab"
-                                 ],
-                                 [
-                                     "asset_library",
-                                     "p3"
-                                 ],
-                                 [
-                                     "tinylab",
-                                     "p3"
-                                 ],
-                                 [
-                                     "tiny3d",
-                                     "p3"
-                                 ]
-                             ],
-    "live_overlay":  {
-                         "coordinator":  {
-                                             "available":  true,
-                                             "active":  7,
-                                             "ready":  12,
-                                             "blocked":  0,
-                                             "legacy_only_claims":  27
-                                         },
-                         "enabled_recurring_workers":  [
-                                                           "Alder",
-                                                           "Cedar",
-                                                           "Ember",
-                                                           "Harbor",
-                                                           "Juniper"
-                                                       ],
-                         "machine":  {
-                                         "c_free_gb":  54.6,
-                                         "ram_free_gb":  2.1,
-                                         "ram_total_gb":  15.3,
-                                         "gpu_used_mb":  1383,
-                                         "gpu_total_mb":  6144
-                                     },
-                         "github_actions":  {
-                                                "queued":  3,
-                                                "in_progress":  0,
-                                                "registered_runners":  27,
-                                                "online_runners":  16,
-                                                "busy_runners":  0
-                                            },
-                         "worktree_counts":  {
-                                                 "p3":  15,
-                                                 "tiny3d":  26,
-                                                 "lowvram":  8
-                                             }
-                     },
+        [
+            "lowvram",
+            "tiny3d"
+        ],
+        [
+            "tiny3d",
+            "p3"
+        ]
+    ],
     "known_gaps":  [
-                       "assistant-stack-architecture.md is a dated 2026-08-27 snapshot and still names MCP0 BUSY plus a one-worker scheduler snapshot",
-                       "NORTH_STAR.md contains historical BUSY/MCP wording while current AGENTS/current-focus/live contract identify standalone BusyCoordinator",
-                       "DevProgressBoard intentionally models the product pipeline rather than the whole assistant stack",
-                       "TinyLab and Tiny3D relationship is not proven by the inspected current sources",
-                       "dynamic machine/worker counts must remain timestamped overlays rather than structural authority"
-                   ],
+        "assistant-stack-architecture.md is a dated 2026-08-27 snapshot and must not override current repo architecture",
+        "DevProgressBoard is a user-facing derived progress cockpit, not product-stage architecture authority",
+        "TinyLab names/schema identifiers may remain for historical compatibility but Tiny3D is the current post-generation product",
+        "dynamic machine/worker/runner counts belong in live reads, never in the durable structural map"
+    ],
     "negative_example":  {
                              "issue":  "organicoverlords/regression-research#271",
                              "proposed":  "derived resume/context layer with registry, structured checkpoints and resume packets",
