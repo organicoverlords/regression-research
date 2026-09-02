@@ -60,8 +60,8 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `process_transport_front_door`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1; chatgpt-mcp-clean/src/front-door.ts
-- Live status: front-door health plus exact tool contract/semantic call; ordered static-array fallback + backend connection reuse; verify the live route before disruption
-- Independent recovery: inactive backend generation + atomic front-door switch
+- Live status: root front-door health plus exact tool contract/semantic call; root / may remain on 3003; production path-scoped minimal clones normally bypass this front door via direct Funnel handlers; ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity
+- Independent recovery: inactive backend generation for root + atomic front-door switch; do not use root recovery to rewrite direct clone handlers
 - Resources: front-door port; active-backend.json; process-routes.json
 - Dependents: chatgpt_process_transport
 - Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
@@ -85,12 +85,12 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `generation_pinned_process_transport_clone`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1
-- Live status: clone health; exact tool contract; process receipt/control route; 2026-09-02 reconciliation checkpoint: clone-a fallback must contain only generations compatible with merged master process contract; verify route + generation + authenticated smoke
-- Independent recovery: sibling clone or stable front door when proven compatible; preserve public clone identity/OAuth/shared receipts and never leave a stale-regression generation in ordered fallback
-- Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control
+- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
+- Live status: clone health; exact tool contract; process receipt/control route; direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers; 2026-09-02 closure: production clone ingress is direct to a compatible clone listener; require route verification + exact contract + fresh-chat 5-start/5-read closure
+- Independent recovery: sibling compatible clone + direct Funnel route promotion; stable-front-door clone fan-in is bounded fallback/experiment only; preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback; client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn
+- Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control; Tailscale /clone-* handler; clone OAuth/OpenID metadata handlers
 - Dependents: chatgpt_process_transport
-- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md
 - Supervisor: instance launcher / owning generation
 - Self-heal: generation_specific
 

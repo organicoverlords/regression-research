@@ -691,6 +691,26 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Cross-stack operating audit based on measured repository, workflow and runtime state. Filename supplies the date but not an exact clock time, so midnight is a conservative index date marker rather than a claimed event time."
+    },
+    {
+      "incident_id": "INC-20260902-1941-MCP-DIRECT-CLONE-TOPOLOGY",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
+      "title": "MCP direct-clone topology recurrence study - 2026-09-02 19:41 EEST",
+      "date": "2026-09-02T19:41:00+03:00",
+      "evidence_type": "recurrence_incident_study",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_timeline.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recurring MCP regression study reconstructing the Aug-27 direct clone Funnel rollback from preserved dirty-worktree artifacts, transport logs, all-ref history, live A/B evidence, and fresh-chat closure. The companion evidence JSON captures the decisive chronology and client-visible proof."
     }
   ],
   "orphan_evidence": [
