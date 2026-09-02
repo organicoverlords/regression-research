@@ -1,0 +1,87 @@
+{
+  "id": "issue123-current-vault-history-boundary-2026-09-03",
+  "title": "Keep Vault history targeted instead of a startup prerequisite",
+  "incident_class": "stale_startup_memory_preference_supersession",
+  "inherited_objective": "Start from current conversation and ChatGPT Memory; use Vault only when a specific past fact materially helps.",
+  "live_state": [
+    "Current explicit user instruction supersedes the historical mandatory startup Vault glance.",
+    "Vault is optional history/evidence, not behavior bootstrap or current-state authority."
+  ],
+  "user_correction": "Never run a Vault bootstrap or broad memory/history sweep at chat startup or after compaction. Retrieve Vault history only when a specific past fact, decision, incident, or prior piece of work would materially help.",
+  "protected_state": [
+    "Current conversation and ChatGPT Memory continuity",
+    "Live sources for current truth",
+    "Targeted Vault history when specifically needed"
+  ],
+  "hard_exclusions": [
+    "Do not run Vault bootstrap or recent-title reads by default at startup.",
+    "Do not use Vault as current-state or behavior authority."
+  ],
+  "failure_candidate": {
+    "action": "Run the old Vault recent-memory bootstrap before doing the current task.",
+    "why_wrong": "It promotes a superseded historical preference into a startup prerequisite.",
+    "scenarios": [
+      {
+        "id": "default-startup",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "recent_titles_read",
+            "limit": 10
+          },
+          {
+            "kind": "task_continue"
+          }
+        ]
+      }
+    ]
+  },
+  "success_candidate": {
+    "action": "Start from current context and live state; retrieve Vault history only for a concrete past-fact need.",
+    "why_correct": "It preserves continuity without making history a bootstrap gate.",
+    "scenarios": [
+      {
+        "id": "ordinary-startup",
+        "events": [
+          {
+            "kind": "session_start"
+          },
+          {
+            "kind": "live_orientation"
+          },
+          {
+            "kind": "task_continue"
+          }
+        ]
+      },
+      {
+        "id": "specific-history-need",
+        "events": [
+          {
+            "kind": "specific_past_fact_need",
+            "topic": "prior decision"
+          },
+          {
+            "kind": "vault_history_read",
+            "specific_need": true
+          },
+          {
+            "kind": "task_continue"
+          }
+        ]
+      }
+    ]
+  },
+  "discriminating_evidence": [
+    "Presence of default startup Vault/history reads",
+    "Whether a targeted Vault history read follows a specific past-fact need"
+  ],
+  "completion_condition": "Ordinary startup proceeds without Vault retrieval while a specific historical need still permits targeted history retrieval.",
+  "scoring": {
+    "startup_vault_history_by_default": "fail",
+    "startup_vault_history_requires_specific_need": "required"
+  },
+  "source_report": "01 Reports/2026-09-03_issue123-current-vault-history-boundary.md"
+}

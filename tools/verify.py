@@ -43,6 +43,7 @@ STACK_PATHS = {
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
     "03 Fixtures and Experiments/issue123-startup-memory-orchestration.json",
+    "03 Fixtures and Experiments/issue123-current-vault-history-boundary.json",
     "tests/test_issue123_startup_memory_acceptance.py",
 }
 
@@ -176,6 +177,7 @@ def verify_stack() -> None:
             "tests.test_evidence_bundle",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue123_startup_memory_acceptance",
+            "tests.test_issue123_current_vault_history_boundary",
             "tests.test_connector_reliability",
             "tests.test_north_star_entry",
             "-v",
