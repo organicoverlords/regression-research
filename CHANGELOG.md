@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Required #193 controls to carry matching local request-start evidence before they can stabilize causal H1 support.
+
 - [2026-09-02] [research] Required offset-aware timestamps on #193 paired samples and enforced before < after ordering so mislabeled temporal evidence cannot satisfy the causal result contract.
 
 - [2026-09-02] [research] Kept #193 control schema/sibling-route confounds INCONCLUSIVE when no treatment binding loss occurs, so an unstable control surface cannot be mislabeled as evidence weakening H1.
