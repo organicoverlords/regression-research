@@ -202,6 +202,19 @@ def classify(record: dict) -> str:
     ]
     if control_surface_confounds:
         return "INCONCLUSIVE"
+    treatment_surface_confounds = [
+        p for p in treatments
+        if p["before"]["measurements"]["visible_or_discovered_schema"] is False
+        or p["after"]["measurements"]["visible_or_discovered_schema"] is False
+        or p["before"]["measurements"]["sibling_route_health"] is False
+        or p["after"]["measurements"]["sibling_route_health"] is False
+        or p["before"]["measurements"]["matching_local_request_start"]
+        is not p["before"]["measurements"]["direct_recipient_callable"]
+        or p["after"]["measurements"]["matching_local_request_start"]
+        is not p["after"]["measurements"]["direct_recipient_callable"]
+    ]
+    if treatment_surface_confounds:
+        return "INCONCLUSIVE"
     if controls and treatments:
         return "WEAKEN_H1"
     return "INCONCLUSIVE"
