@@ -70,6 +70,10 @@ def parse_report(path: Path) -> dict[str, Any]:
         "mutation": fields.get("mutation"),
         "validation": fields.get("validation"),
         "remaining_gate": fields.get("remaining_gate"),
+        "stop_reason": fields.get("stop_reason"),
+        "stop_detail": fields.get("stop_detail"),
+        "tool_drops": fields.get("tool_drops"),
+        "tool_drop_effect": fields.get("tool_drop_effect"),
         "report_path": str(path),
         "report_sha256": hashlib.sha256(raw).hexdigest(),
     }

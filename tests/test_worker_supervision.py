@@ -41,6 +41,22 @@ class WorkerSupervisionTests(unittest.TestCase):
             self.assertEqual(report["duration_minutes"], 23.5)
             self.assertEqual(report["started_at"], "2026-09-02T18:00:00+03:00")
 
+    def test_parse_report_surfaces_stop_and_tool_drop_context(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "Juniper.md"
+            path.write_text(
+                "worker: Juniper\nstate: WAITING\nstarted_at: 2026-09-02T20:00:00+03:00\n"
+                "last_activity_at: 2026-09-02T20:08:00+03:00\nstop_reason: TOOL_BLOCKED\n"
+                "stop_detail: required route remained unavailable\ntool_drops: 3\n"
+                "tool_drop_effect: BLOCKED_REQUIRED_ROUTE\n",
+                encoding="utf-8",
+            )
+            report = parse_report(path)
+            self.assertEqual(report["stop_reason"], "TOOL_BLOCKED")
+            self.assertEqual(report["stop_detail"], "required route remained unavailable")
+            self.assertEqual(report["tool_drops"], "3")
+            self.assertEqual(report["tool_drop_effect"], "BLOCKED_REQUIRED_ROUTE")
+
     def test_receipts_are_per_event_not_shared_cursor(self):
         base = Path("C:/tmp/worker-reports")
         first = receipt_path(base, "a" * 64)
