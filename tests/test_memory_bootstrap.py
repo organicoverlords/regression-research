@@ -116,6 +116,7 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("visual_proof_reviewed_json", text)
         self.assertIn("PENDING_REVIEW", text)
         self.assertIn("Visual review never blocks the worker fleet", text)
+        self.assertIn(r"C:\P3Proofs", text)
 
 
 if __name__ == "__main__":
