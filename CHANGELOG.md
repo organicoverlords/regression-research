@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Aligned #193 machine-readable preregistration with the issue safety boundary by explicitly prohibiting worker creation during the causal test.
+
 - [2026-09-02] [research] Recorded #193 ordinary control-continuation evidence so control/treatment sequence mismatches cannot be admitted as clean causal evidence.
 
 - [2026-09-01] [research] Recorded #193 parallel-load contamination explicitly so result records from overloaded runs cannot qualify as clean causal evidence.

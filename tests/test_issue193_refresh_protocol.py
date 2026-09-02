@@ -33,6 +33,7 @@ class Issue193RefreshProtocolTests(unittest.TestCase):
         self.assertTrue({"ChatGPT memory", "Personal Instructions", "Settings", "server topology", "Tailscale", "connector deployment"} <= prohibited)
         self.assertEqual(self.data["stop_rule"], "stop on first route-surface change")
         self.assertIn("concurrency/load test", self.data["prohibited_methods"])
+        self.assertIn("worker creation", self.data["prohibited_methods"])
         self.assertIn("server restarts", self.data["prohibited_methods"])
 
     def test_measurements_separate_client_surface_from_local_arrival(self):
