@@ -47,6 +47,8 @@ class StackAtlasTests(unittest.TestCase):
         reports = find_features("worker reports")[0]
         self.assertEqual(reports["id"], "worker.reports")
         self.assertIn("worker_reports", reports["owner_components"])
+        self.assertIn("PENDING_REVIEW", reports["boundary"])
+        self.assertIn("reviewed.json", " ".join(component_details("worker_reports")["live_status"]))
 
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])

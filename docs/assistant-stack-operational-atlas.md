@@ -30,7 +30,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <actor> <scope>; claim; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_handoff` | busy_coordinator | busy-python.cmd inspect; handoff; next; claim --checkpoint | Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue. |
-| `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md | Self-report/navigation surface; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
+| `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
 | `execution.transport` | mcp_front_door, desktop_commander_remote | discover/attempt current MCP tool contract; Desktop Commander semantic file/process operation | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 | `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
 
@@ -268,7 +268,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `projection:worker-self-report`
 - Capabilities: source_read
 - Canonical sources: C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md
-- Live status: read the named current worker report; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
+- Live status: read the named current worker report; when visual_proof_run is present inspect the actual artifact plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
 - Independent recovery: read canonical repo/runtime/CI/artifact evidence directly
 - Resources: worker-reports/*.md
 - Dependents: chatgpt_orchestrator
