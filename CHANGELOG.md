@@ -1,3 +1,5 @@
+- [2026-09-02] [research] Kept #193 control schema/sibling-route confounds INCONCLUSIVE when no treatment binding loss occurs, so an unstable control surface cannot be mislabeled as evidence weakening H1.
+
 - [2026-09-02] [research] Classified #193 post-treatment binding losses as INCONCLUSIVE when every observed loss is confounded by schema loss, sibling-route failure, or matching local arrival, instead of overstating those runs as evidence weakening H1.
 
 - [2026-09-02] [research] Recorded #193 canary call-limit violations as explicit result contamination so runs exceeding preregistered per-phase limits cannot support causal conclusions.

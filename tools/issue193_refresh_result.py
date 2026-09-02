@@ -174,6 +174,15 @@ def classify(record: dict) -> str:
         return "REPRODUCTION_ONLY"
     if post_treatment_binding_losses:
         return "INCONCLUSIVE"
+    control_surface_confounds = [
+        p for p in controls
+        if p["before"]["measurements"]["visible_or_discovered_schema"] is False
+        or p["after"]["measurements"]["visible_or_discovered_schema"] is False
+        or p["before"]["measurements"]["sibling_route_health"] is False
+        or p["after"]["measurements"]["sibling_route_health"] is False
+    ]
+    if control_surface_confounds:
+        return "INCONCLUSIVE"
     if controls and treatments:
         return "WEAKEN_H1"
     return "INCONCLUSIVE"
