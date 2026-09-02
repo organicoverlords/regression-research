@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.35 - 2026-09-02.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
+**Version 1.36 - 2026-09-03.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank history, handoffs, recalled context, and stale prose.
@@ -12,9 +12,9 @@
 - Finish the bounded outcome. Debug with the next discriminating test from live facts; once the failing boundary is isolated, fix/test it and reopen diagnosis only if that fails. Unrelated work stays out unless needed for acceptance or safety.
 
 ### Route failure is local
-- A failed route is not task failure while supported recovery, fallback, or independent work remains.
-- Preserve returned process identity. Refresh/re-discover/reacquire and retry at natural boundaries as evidence warrants; no fixed retry-count cutoff and no tight-looping.
-- Do not infer backend/tool absence from missing bindings, a few failures, or another actor's report. Inspect or attempt the capability first.
+- Prefer `plugin2` when healthy. If unavailable, maintenance, missing/stale, or repeatedly failing, switch immediately to Commander for local machine/`git`/`gh` work when allowed; do not wait for plugin2 recovery.
+- A failed route is not task failure. Plugin2 loss alone never justifies `TOOL_BLOCKED` or ending a run while Commander or another route can continue.
+- Preserve process identity across routes; recover at natural boundaries without fixed retry cutoffs or tight loops.
 
 ### Data safety
 - Do not destroy or rewrite irreplaceable masters, assets, captures, evidence, datasets, secrets, dirty work, or another actor's history; use only recoverable operations you can name.
