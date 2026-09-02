@@ -141,10 +141,37 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metadata["tool_drop_effect"], "BLOCKED_REQUIRED_ROUTE")
             self.assertIn("EXTERNAL", metadata["pending_gate_classes"])
             metrics = summarize_history(root / "history")
-            self.assertEqual(metrics["tool_drops_total"], 3)
-            self.assertEqual(metrics["tool_drop_stop_runs"], 1)
+            self.assertEqual(metrics["tool_drops_total"], 0)
+            self.assertEqual(metrics["legacy_unclassified_tool_drops_total"], 3)
+            self.assertEqual(metrics["tool_drop_stop_runs"], 0)
+            self.assertEqual(metrics["tool_failure_stop_runs"], 1)
             self.assertEqual(metrics["early_stop_reason_counts"], {"TOOL_BLOCKED": 1})
             self.assertEqual(metrics["early_stops_unexplained"], 0)
+
+    def test_classified_failures_keep_safety_blocks_out_of_transport_totals(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = root / "Harbor.md"
+            report.write_text(
+                "worker: Harbor\nstate: BLOCKED\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                "last_activity_at: 2099-01-01T00:05:00+00:00\nstop_reason: TOOL_BLOCKED\n"
+                "transport_drops: 2\nbinding_drops: 1\nsafety_blocks: 6\nother_tool_failures: 0\n"
+                "tool_failure_effect: BLOCKED_REQUIRED_ROUTE\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["transport_drops"], 2)
+            self.assertEqual(metadata["binding_drops"], 1)
+            self.assertEqual(metadata["safety_blocks"], 6)
+            self.assertEqual(metadata["tool_failures_total"], 9)
+            self.assertEqual(metadata["legacy_unclassified_tool_drops"], 0)
+            metrics = summarize_history(root / "history")
+            self.assertEqual(metrics["transport_drops_total"], 2)
+            self.assertEqual(metrics["binding_drops_total"], 1)
+            self.assertEqual(metrics["safety_blocks_total"], 6)
+            self.assertEqual(metrics["tool_drops_total"], 3)
+            self.assertEqual(metrics["legacy_unclassified_tool_drops_total"], 0)
 
     def test_legacy_short_run_is_flagged_unexplained_without_guessing_from_gate(self):
         with tempfile.TemporaryDirectory() as tmp:

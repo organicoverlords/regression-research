@@ -47,15 +47,19 @@ class WorkerSupervisionTests(unittest.TestCase):
             path.write_text(
                 "worker: Juniper\nstate: WAITING\nstarted_at: 2026-09-02T20:00:00+03:00\n"
                 "last_activity_at: 2026-09-02T20:08:00+03:00\nstop_reason: TOOL_BLOCKED\n"
-                "stop_detail: required route remained unavailable\ntool_drops: 3\n"
-                "tool_drop_effect: BLOCKED_REQUIRED_ROUTE\n",
+                "stop_detail: required route remained unavailable\ntransport_drops: 2\n"
+                "binding_drops: 1\nsafety_blocks: 4\nother_tool_failures: 0\n"
+                "tool_failure_effect: BLOCKED_REQUIRED_ROUTE\n",
                 encoding="utf-8",
             )
             report = parse_report(path)
             self.assertEqual(report["stop_reason"], "TOOL_BLOCKED")
             self.assertEqual(report["stop_detail"], "required route remained unavailable")
-            self.assertEqual(report["tool_drops"], "3")
-            self.assertEqual(report["tool_drop_effect"], "BLOCKED_REQUIRED_ROUTE")
+            self.assertEqual(report["transport_drops"], "2")
+            self.assertEqual(report["binding_drops"], "1")
+            self.assertEqual(report["safety_blocks"], "4")
+            self.assertEqual(report["other_tool_failures"], "0")
+            self.assertEqual(report["tool_failure_effect"], "BLOCKED_REQUIRED_ROUTE")
 
     def test_receipts_are_per_event_not_shared_cursor(self):
         base = Path("C:/tmp/worker-reports")
