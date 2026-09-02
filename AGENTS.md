@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.27 - 2026-08-31.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and this machine's Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
+**Version 1.29 - 2026-09-02.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank historical prompts, receipts, handoffs, recalled context, and stale project prose where higher-priority constraints permit.
@@ -33,11 +33,11 @@
 - If a scout or parallel worker cannot mutate because another live owner holds the scope, an actionable finding MUST become scope-visible pending work with provenance and survive claim release. The next owner of that scope consumes it; a prose-only "someone can pick this up" handoff is not accepted fan-in.
 
 ### Coordination and BUSY
-- The standalone coordinator defined by current live repo/runtime state is the ownership authority when shared mutable work has plausible collision risk or a repo contract requires a claim. Read-only work and isolated low-risk mutations need no claim merely as ceremony. When a claim is needed, acquire the exact scope. On Windows use `%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd` through any shell/process transport; do not search for an MCP `BusyCoordinator` or require legacy MCP BUSY tools.
+- The standalone coordinator defined by current live repo/runtime state is the single ownership authority. Its job/checkpoint records are coordination bookkeeping, not workload, priority, liveness, capacity, cleanup, or admission. Claim only for shared-mutation collision risk or a repo contract; read-only and isolated low-risk mutation need no ceremonial claim. Acquire exact scope. On Windows call `%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd` through any shell; do not require MCP `BusyCoordinator` or legacy MCP BUSY tools.
 - Every claim actor must identify its harness (`ChatGPT`, `Codex`, `Claude`, `OpenCode`, `CommandCode`, or `Traycer`) plus a task/session suffix; generic anonymous actor names are forbidden.
-- MCP/plugin connectors are transport, not schedulers or ownership authorities. Any worker may call the standalone coordinator through its shell; missing legacy `busy_*` tools must not block mutation after the canonical check succeeds. Aggregate process/worktree counts are diagnostics, not claims.
-- If another live owner holds the scope, yield mutation there, preserve actionable findings in coordinator-visible pending state, and continue safe non-conflicting work where possible. Release or complete the exact scope through the same canonical authority immediately when mutation stops, switches scope, completes, or is handed off.
-- Legacy BUSY claims may remain durable until explicit release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are projections/evidence, not competing ownership authorities. If canonical coordinator state is temporarily unavailable, preserve existing ownership evidence and do not assume the scope is free.
+- MCP/plugin connectors are transport, not ownership or scheduling authority. Any worker may call the standalone coordinator through its shell; missing legacy `busy_*` tools cannot block mutation after the canonical check. Aggregate process/worktree counts are diagnostics, not claims.
+- If another live owner holds the scope, yield mutation, preserve actionable findings as pending scope state, and continue elsewhere. A claim alone does not prove liveness: when its session/process is proven terminated, immediately `recover` the exact claim with recorded owner + timestamp; this preserves its checkpoint and returns the job ready. Release/complete the scope whenever mutation stops, switches, completes, or hands off.
+- Legacy BUSY claims persist until release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are evidence/projections, not ownership authorities. If the coordinator is temporarily unavailable, preserve ownership evidence and do not assume the scope is free.
 
 ### Vault history and context
 - Vault memory, reports, timelines, and archives are optional history/notebook/evidence, not startup, behavior, ownership, or current-state authority.

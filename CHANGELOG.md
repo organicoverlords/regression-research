@@ -36,6 +36,8 @@ The rule this file follows is `organicoverlords/docs` ÃƒÆ’Ã†â€™Ãƒ
 
 ## [Unreleased]
 
+- [2026-09-02] [meta] Generated AGENTS policy projections are changelog-exempt and README timeline projection is merge-stable.
+
 - [2026-09-02] [research] Required #193 treatment losses to prove a matching local request-start at baseline before they can count toward H1 support; missing baseline local-arrival evidence remains INCONCLUSIVE.
 
 - [2026-09-01] [research] Made the #193 result CLI return structured JSON errors for malformed or unreadable evidence files instead of escaping with a traceback.
