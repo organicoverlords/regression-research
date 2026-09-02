@@ -101,9 +101,9 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
 
     def test_shared_policy_treats_vault_as_optional_history(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("### Vault history and context", text)
-        self.assertIn("optional history/notebook/evidence", text)
-        self.assertIn("Never bootstrap Vault", text)
+        self.assertIn("### Navigation minimap", text)
+        self.assertIn("Vault is history/evidence", text)
+        self.assertIn("never recursively scan Vault or make it a startup gate", text)
         self.assertNotIn("memory_bank.py bootstrap", text)
 
     def test_worker_contract_still_keeps_five_workers_and_no_self_admin(self):
