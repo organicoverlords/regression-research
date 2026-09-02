@@ -64,6 +64,7 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
         "current_explicit_instruction_beats_personal_instructions",
         "source_specific_claim_requires_inspected_primary_source",
         "uninspected_contextual_inference_must_be_labeled",
+        "saved_context_review_before_correction",
     }
     if any(invariants.get(name) is not True for name in required_invariants):
         raise InstructionProvenanceError("all provenance invariants must be enabled")
@@ -178,6 +179,43 @@ def classify_instruction_delivery_probe(observation: dict[str, Any]) -> str:
     if observation["behavior_observed"]:
         return "effective_delivery_confirmed_context_unobserved"
     return "undifferentiated_failure"
+
+SAVED_CONTEXT_REVIEW_FIELDS = (
+    "entry_presented",
+    "provenance_presented",
+    "stale_reason_presented",
+    "proposed_change_presented",
+    "explicit_approval",
+    "mutation_attempted",
+    "audit_preserved",
+)
+
+
+def classify_saved_context_correction(observation: dict[str, Any]) -> str:
+    """Classify whether a saved-context correction respected review-before-mutation."""
+    for field in SAVED_CONTEXT_REVIEW_FIELDS:
+        if not isinstance(observation.get(field), bool):
+            raise InstructionProvenanceError(f"saved-context correction field must be boolean: {field}")
+
+    review_complete = all(
+        observation[field]
+        for field in (
+            "entry_presented",
+            "provenance_presented",
+            "stale_reason_presented",
+            "proposed_change_presented",
+        )
+    )
+    if not observation["mutation_attempted"]:
+        return "ready_for_user_decision" if review_complete else "review_incomplete"
+    if not review_complete:
+        return "review_required_before_mutation"
+    if not observation["explicit_approval"]:
+        return "approval_required_before_mutation"
+    if not observation["audit_preserved"]:
+        return "mutation_missing_audit_trail"
+    return "mutation_authorized_and_audited"
+
 
 SOURCE_GROUNDING_STATES = {"inspected", "not_inspected", "unknown"}
 SOURCE_CLAIM_SCOPES = {"source_specific", "contextual_inference", "no_source_claim"}

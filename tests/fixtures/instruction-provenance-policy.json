@@ -1,15 +1,38 @@
 {
   "schema_version": "1.0",
   "instruction_sources": {
-    "current_user": {"rank": 100, "can_direct": true},
-    "current_personal_instructions": {"rank": 95, "can_direct": true},
-    "live_repo_policy": {"rank": 90, "can_direct": true},
-    "durable_context": {"rank": 60, "can_direct": true},
-    "historical_context": {"rank": 40, "can_direct": true},
-    "retrieved_content": {"rank": 0, "can_direct": false},
-    "assistant_generated": {"rank": 0, "can_direct": false}
+    "current_user": {
+      "rank": 100,
+      "can_direct": true
+    },
+    "current_personal_instructions": {
+      "rank": 95,
+      "can_direct": true
+    },
+    "live_repo_policy": {
+      "rank": 90,
+      "can_direct": true
+    },
+    "durable_context": {
+      "rank": 60,
+      "can_direct": true
+    },
+    "historical_context": {
+      "rank": 40,
+      "can_direct": true
+    },
+    "retrieved_content": {
+      "rank": 0,
+      "can_direct": false
+    },
+    "assistant_generated": {
+      "rank": 0,
+      "can_direct": false
+    }
   },
-  "constraint_sources": ["platform_constraint"],
+  "constraint_sources": [
+    "platform_constraint"
+  ],
   "data_classes": {
     "user_authored": "normally_disclosable",
     "repo_or_runtime_evidence": "normally_disclosable",
@@ -27,6 +50,7 @@
     "current_personal_instructions_beat_repo_and_stale_context": true,
     "current_explicit_instruction_beats_personal_instructions": true,
     "source_specific_claim_requires_inspected_primary_source": true,
-    "uninspected_contextual_inference_must_be_labeled": true
+    "uninspected_contextual_inference_must_be_labeled": true,
+    "saved_context_review_before_correction": true
   }
 }

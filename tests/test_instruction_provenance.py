@@ -6,6 +6,7 @@ from tools.instruction_provenance import (
     InstructionProvenanceError,
     behavior_attribution,
     classify_instruction_delivery_probe,
+    classify_saved_context_correction,
     classify_source_grounding,
     load_policy,
     partition_request,
@@ -155,6 +156,37 @@ class InstructionProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(result, "delivered_but_not_followed")
 
+
+    def test_saved_context_correction_requires_review_approval_and_audit(self):
+        base = {
+            "entry_presented": True,
+            "provenance_presented": True,
+            "stale_reason_presented": True,
+            "proposed_change_presented": True,
+            "explicit_approval": True,
+            "mutation_attempted": True,
+            "audit_preserved": True,
+        }
+        self.assertEqual(classify_saved_context_correction(base), "mutation_authorized_and_audited")
+        for missing in ("entry_presented", "provenance_presented", "stale_reason_presented", "proposed_change_presented"):
+            case = dict(base)
+            case[missing] = False
+            self.assertEqual(classify_saved_context_correction(case), "review_required_before_mutation")
+        self.assertEqual(classify_saved_context_correction(dict(base, explicit_approval=False)), "approval_required_before_mutation")
+        self.assertEqual(classify_saved_context_correction(dict(base, audit_preserved=False)), "mutation_missing_audit_trail")
+
+    def test_saved_context_review_can_stop_before_mutation(self):
+        complete = {
+            "entry_presented": True,
+            "provenance_presented": True,
+            "stale_reason_presented": True,
+            "proposed_change_presented": True,
+            "explicit_approval": False,
+            "mutation_attempted": False,
+            "audit_preserved": False,
+        }
+        self.assertEqual(classify_saved_context_correction(complete), "ready_for_user_decision")
+        self.assertEqual(classify_saved_context_correction(dict(complete, provenance_presented=False)), "review_incomplete")
 
     def test_source_grounding_fixture_replays_lessonception_and_positive_controls(self):
         fixture = json.loads(
