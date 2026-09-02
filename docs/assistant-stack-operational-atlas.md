@@ -20,6 +20,20 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 | `memory_read` | side_effect_free_memory_read | `none` |
 | `memory_write` | audited_memory_write | `none` |
 
+## Feature discovery
+
+Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.
+
+| Feature | Owner components | Entrypoints | Boundary |
+| --- | --- | --- | --- |
+| `vault.history` | vault_history | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
+| `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
+| `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <actor> <scope>; claim; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
+| `coordination.checkpoint_handoff` | busy_coordinator | busy-python.cmd inspect; handoff; next; claim --checkpoint | Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue. |
+| `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md | Self-report/navigation surface; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
+| `execution.transport` | mcp_front_door, desktop_commander_remote | discover/attempt current MCP tool contract; Desktop Commander semantic file/process operation | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
+| `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
+
 ## Components
 
 ### `busy_coordinator`
@@ -240,6 +254,19 @@ For stack/infra work, consume the compact Atlas first and deep-lookup every rele
 - Resources: memory-bank.jsonl; behavior-authority-registry.json
 - Dependents: chatgpt_orchestrator; execution_workers
 - Runbook: memory/README.md
+- Supervisor: none
+- Self-heal: not_applicable
+
+### `worker_reports`
+
+- Role: `projection:worker-self-report`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md
+- Live status: read the named current worker report; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
+- Independent recovery: read canonical repo/runtime/CI/artifact evidence directly
+- Resources: worker-reports/*.md
+- Dependents: chatgpt_orchestrator
+- Runbook: C:\Users\Lauri\Desktop\vault\worker-reports
 - Supervisor: none
 - Self-heal: not_applicable
 
