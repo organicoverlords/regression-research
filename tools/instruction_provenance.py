@@ -104,6 +104,16 @@ def partition_request(
     allowed: list[dict[str, Any]] = []
     blocked: list[dict[str, Any]] = []
     constraints = list(constraints)
+    for constraint in constraints:
+        blocked_classes = set(constraint.get("blocks_data_classes") or [])
+        unknown_classes = blocked_classes - known_data_classes
+        if unknown_classes:
+            raise InstructionProvenanceError(
+                f"constraint targets unknown data classes: {', '.join(sorted(unknown_classes))}"
+            )
+        blocked_actions = constraint.get("blocks_actions") or []
+        if not isinstance(blocked_actions, list) or not all(isinstance(action, str) for action in blocked_actions):
+            raise InstructionProvenanceError("constraint blocks_actions must be a list of strings")
     for part in parts:
         data_class = part.get("data_class")
         if data_class not in known_data_classes:
