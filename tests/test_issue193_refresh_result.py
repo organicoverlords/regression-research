@@ -448,6 +448,13 @@ class Issue193RefreshResultTests(unittest.TestCase):
         data["pairs"][2]["after"]["measurements"]["sibling_route_health"] = False
         self.assertEqual(classify(data), "REPRODUCTION_ONLY")
 
+    def test_treatment_loss_without_baseline_local_arrival_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+        for treatment in data["pairs"][1:]:
+            treatment["before"]["measurements"]["matching_local_request_start"] = False
+            treatment["before"]["measurements"]["caller_id_or_process_id"] = None
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
     def test_treatment_change_with_matching_local_arrival_is_not_h1_support(self):
         data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
         data["pairs"][2]["after"]["measurements"]["matching_local_request_start"] = True
