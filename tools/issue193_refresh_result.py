@@ -197,6 +197,8 @@ def classify(record: dict) -> str:
         or p["after"]["measurements"]["visible_or_discovered_schema"] is False
         or p["before"]["measurements"]["sibling_route_health"] is False
         or p["after"]["measurements"]["sibling_route_health"] is False
+        or p["before"]["measurements"]["matching_local_request_start"] is False
+        or p["after"]["measurements"]["matching_local_request_start"] is False
     ]
     if control_surface_confounds:
         return "INCONCLUSIVE"

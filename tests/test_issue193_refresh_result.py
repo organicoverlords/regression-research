@@ -273,6 +273,12 @@ class Issue193RefreshResultTests(unittest.TestCase):
                 mutate(data["pairs"][0])
                 self.assertEqual(classify(data), "INCONCLUSIVE")
 
+    def test_control_without_local_arrival_and_no_treatment_loss_is_inconclusive(self):
+        data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, True))
+        data["pairs"][0]["after"]["measurements"]["matching_local_request_start"] = False
+        data["pairs"][0]["after"]["measurements"]["caller_id_or_process_id"] = None
+        self.assertEqual(classify(data), "INCONCLUSIVE")
+
     def test_failed_control_does_not_count_as_stable_supporting_control(self):
         data = record(
             pair("control", "c1", False, False),
