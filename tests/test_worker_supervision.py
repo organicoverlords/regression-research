@@ -23,6 +23,24 @@ class WorkerSupervisionTests(unittest.TestCase):
         kinds = [event["event_kind"] for event in candidate_events(report, stale_minutes=20)]
         self.assertEqual(kinds, ["report_update", "stale_running"])
 
+    def test_current_delivery_states_map_to_meaningful_events(self):
+        base = {"worker": "Juniper", "activity_age_minutes": 1.0, "report_sha256": "b" * 64}
+        self.assertEqual(candidate_events({**base, "state": "COMPLETE"}, stale_minutes=20)[0]["event_kind"], "completed")
+        self.assertEqual(candidate_events({**base, "state": "WAITING"}, stale_minutes=20)[0]["event_kind"], "waiting")
+        self.assertEqual(candidate_events({**base, "state": "BLOCKED"}, stale_minutes=20)[0]["event_kind"], "blocked")
+
+    def test_parse_report_derives_duration_from_existing_timestamps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "Cedar.md"
+            path.write_text(
+                "worker: Cedar\nstate: COMPLETE\nstarted_at: 2026-09-02T18:00:00+03:00\n"
+                "last_activity_at: 2026-09-02T18:23:30+03:00\n",
+                encoding="utf-8",
+            )
+            report = parse_report(path)
+            self.assertEqual(report["duration_minutes"], 23.5)
+            self.assertEqual(report["started_at"], "2026-09-02T18:00:00+03:00")
+
     def test_receipts_are_per_event_not_shared_cursor(self):
         base = Path("C:/tmp/worker-reports")
         first = receipt_path(base, "a" * 64)
