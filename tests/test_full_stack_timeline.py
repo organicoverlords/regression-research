@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -11,6 +12,7 @@ from tools.full_stack_timeline import (
     _epistemic_counts,
     _project_explicit_relationships,
     collect_all_commit_events,
+    collect_assistant_surface_coverage,
     collect_document_sources,
     collect_explicit_evidence_events,
     collect_git_state,
@@ -85,6 +87,62 @@ class FullStackTimelineTests(unittest.TestCase):
             )
             self.assertTrue(any(event["source_type"] == "GIT_STASH" for event in report["events"]))
             self.assertGreaterEqual(report["counts"]["git_recovery_events"], 1)
+
+    def test_assistant_surface_coverage_verifies_concrete_paths_and_preserves_unresolved_gap(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "vault"
+            home = Path(d) / "home"
+            (root / "memory" / "conversations").mkdir(parents=True)
+            (home / ".codex").mkdir(parents=True)
+            (home / ".claude").mkdir(parents=True)
+            opencode = home / ".local" / "share" / "opencode" / "opencode.db"
+            opencode.parent.mkdir(parents=True)
+            opencode.write_text("db", encoding="utf-8")
+            (home / ".commandcode" / "projects").mkdir(parents=True)
+            registry = {
+                "candidate_source_inventory": [
+                    {"id": "chatgpt-history", "location": "preserved ChatGPT conversation/export corpus", "class": "HISTORICAL_CONTEXT", "availability": "available"},
+                    {"id": "opencode-history", "location": "local/.local/share/opencode/opencode.db", "class": "HISTORICAL_CONTEXT", "availability": "unknown"},
+                    {"id": "claude-history", "location": "local/.claude", "class": "HISTORICAL_CONTEXT", "availability": "available"},
+                    {"id": "codex-history", "location": "local/.codex", "class": "HISTORICAL_CONTEXT", "availability": "available"},
+                    {"id": "traycer-artifacts", "location": "local Traycer/TRACER.md/review artifacts", "class": "HISTORICAL_CONTEXT", "availability": "available"},
+                    {"id": "command-code-history", "location": "local/.commandcode/projects", "class": "HISTORICAL_CONTEXT", "availability": "unknown"},
+                ]
+            }
+            (root / "memory").mkdir(parents=True, exist_ok=True)
+            (root / "memory" / "sources.json").write_text(json.dumps(registry), encoding="utf-8")
+            events, errors = collect_assistant_surface_coverage(root, home=home, observed_at="2026-09-03T18:00:00+00:00")
+            self.assertEqual(errors, [])
+            self.assertEqual(len(events), 6)
+            by_id = {event["source_id"]: event for event in events}
+            for source_id in ("chatgpt-history", "opencode-history", "claude-history", "codex-history", "command-code-history"):
+                self.assertEqual(by_id[source_id]["coverage_status"], "SOURCE_PRESENT")
+                self.assertFalse(by_id[source_id]["coverage_gap"])
+                self.assertEqual(by_id[source_id]["content_coverage"], "UNASSESSED")
+            self.assertEqual(by_id["traycer-artifacts"]["coverage_status"], "UNRESOLVED_LOCATION")
+            self.assertTrue(by_id["traycer-artifacts"]["coverage_gap"])
+            self.assertIsNone(by_id["traycer-artifacts"]["resolved_path"])
+            self.assertTrue(all(event["epistemic_class"] == "OBSERVED_FACT" for event in events))
+            self.assertTrue(all("does not prove" in event["epistemic_basis"] for event in events))
+
+    def test_assistant_surface_missing_path_is_gap_not_behavior_absence(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "vault"
+            home = Path(d) / "home"
+            (root / "memory").mkdir(parents=True)
+            (root / "memory" / "sources.json").write_text(json.dumps({
+                "candidate_source_inventory": [
+                    {"id": "codex-history", "location": "local/.codex", "class": "HISTORICAL_CONTEXT", "availability": "available"}
+                ]
+            }), encoding="utf-8")
+            events, errors = collect_assistant_surface_coverage(root, home=home, observed_at="2026-09-03T18:00:00+00:00")
+            self.assertEqual(errors, [])
+            by_id = {event["source_id"]: event for event in events}
+            self.assertEqual(by_id["codex-history"]["coverage_status"], "SOURCE_MISSING")
+            self.assertTrue(by_id["codex-history"]["coverage_gap"])
+            self.assertIn("does not prove that behavior did not occur", by_id["codex-history"]["epistemic_basis"])
+            self.assertEqual(by_id["chatgpt-history"]["coverage_status"], "REGISTRY_MISSING")
+            self.assertTrue(by_id["chatgpt-history"]["coverage_gap"])
 
     def test_dirty_checkout_is_not_direct_stack_mutation_source(self):
         state = {"available": True, "dirty_entries": 3, "head": "aaa", "origin_main": "bbb", "branch": "main"}

@@ -12,6 +12,8 @@ The output is a read-only projection. It does not create a queue, database, owne
 
 It combines durable documents, memory records as historical evidence, worker-report history, reachable Git commits, refs, branches, tags, stashes, worktrees, reflogs, repository snapshots, and optional live runtime observations.
 
+It also projects source-presence coverage for the six assistant-history surfaces named by the North Star: ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code. Concrete locations come from the existing `memory/sources.json` registry and are checked on the local filesystem. `SOURCE_PRESENT` proves only that the configured source root exists now, not that its contents are complete or current. `SOURCE_MISSING`, `UNRESOLVED_LOCATION`, and `REGISTRY_MISSING` are explicit coverage gaps and never evidence that a behavior did not occur.
+
 Stash and reflog metadata are also emitted as queryable `OBSERVED_FACT` events so recoverable Git history can be found by subject, SHA, ref/selector, project, or repository path. Their messages are metadata only and never prove the intent, effect, or correctness of the referenced changes.
 
 Every event also carries an explicit epistemic class. `OBSERVED_FACT` means source metadata or runtime state was directly observed. `REPRODUCED_FACT` and `INFERENCE` are reserved for producers that explicitly justify those stronger meanings; the timeline never infers them from filenames, commit messages, proximity, or a `PROVEN` label. Documents, memory records, and worker self-reports remain `HISTORICAL_CLAIM` by default.
