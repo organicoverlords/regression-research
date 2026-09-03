@@ -61,7 +61,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover"],
         "resources": [BUSY_STORE],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["AGENTS.md", "tools/busy_authority.py"],
+        "runbook": ["AGENTS.md", r"%LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json"],
     },
     "mcp_front_door": {
         "role": "process_transport_front_door",

@@ -52,7 +52,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover
 - Resources: %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
 - Dependents: chatgpt_session; execution_workers
-- Runbook: AGENTS.md; tools/busy_authority.py
+- Runbook: AGENTS.md; %LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json
 - Supervisor: none; CLI/service contract owns durable store semantics
 - Self-heal: not_applicable
 
