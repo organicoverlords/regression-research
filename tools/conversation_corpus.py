@@ -249,39 +249,6 @@ def import_source(source: Path, label: str, root: Path = DEFAULT_ROOT) -> dict[s
     return {"status": "PROVEN", "label": label, "source": str(source), "canonical": str(root / "raw" / label), "files": len(touched), "bytes": total, "copied": copied, "reused": reused}
 
 
-def export_legacy_sqlite(source_db: Path, root: Path = DEFAULT_ROOT, label: str = "legacy-regression-sqlite") -> dict[str, Any]:
-    import sqlite3
-    source_db = source_db.resolve(strict=True)
-    source_hash = _sha256(source_db)
-    conn = sqlite3.connect(source_db); conn.row_factory = sqlite3.Row
-    manifest = _load_manifest(root / "manifest.json")
-    rows = {_storage(row): row for row in manifest["files"]}
-    written = reused = messages_total = 0
-    try:
-        conversations = conn.execute("SELECT * FROM conversations ORDER BY id").fetchall()
-        for conv in conversations:
-            cid = str(conv["id"]); messages = []
-            for msg in conn.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY seq", (cid,)):
-                messages.append({"id": str(msg["message_id"] or f"{cid}:{msg['seq']}"), "role": str(msg["role"] or "unknown"), "create_time": msg["create_time"], "content": {"content_type": "text", "parts": [str(msg["text"] or "")]}})
-            obj = {"id": cid, "conversation_id": cid, "title": conv["title"], "create_time": conv["create_time"], "update_time": conv["update_time"], "messages": messages, "_vault_recovery": {"source": str(source_db), "source_sha256": source_hash, "source_kind": conv["source_kind"], "source_path": conv["source_path"]}}
-            data = (json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
-            storage = (Path("recovered") / label / "conversations" / f"{cid}.json").as_posix(); dst = root / storage
-            digest = hashlib.sha256(data).hexdigest()
-            if dst.exists():
-                if dst.read_bytes() != data: raise RuntimeError(f"recovered conversation differs; refusing overwrite: {dst}")
-                reused += 1
-            else:
-                dst.parent.mkdir(parents=True, exist_ok=True); temp = dst.with_name(dst.name + f".write-{os.getpid()}.tmp"); temp.write_bytes(data); os.replace(temp, dst); written += 1
-            messages_total += len(messages)
-            rows[storage] = {"storage_path": storage, "label": label, "relative_path": f"conversations/{cid}.json", "bytes": len(data), "sha256": digest, "kind": "recovered-conversation", "source_sha256": source_hash}
-    finally:
-        conn.close()
-    recoveries = [entry for entry in manifest.get("recoveries", []) if entry.get("label") != label]
-    recoveries.append({"label": label, "source_db": str(source_db), "source_sha256": source_hash, "recovered_at": _now(), "conversations": written + reused, "messages": messages_total})
-    manifest.update({"schema": "vault.memory-conversations.v2", "updated_at": _now(), "recoveries": sorted(recoveries, key=lambda x: x["label"]), "files": sorted(rows.values(), key=_storage)})
-    _write_manifest(root / "manifest.json", manifest)
-    return {"status": "PROVEN", "source": str(source_db), "source_sha256": source_hash, "conversations": written + reused, "messages": messages_total, "written": written, "reused": reused, "canonical": str(root / "recovered" / label)}
-
 def verify(root: Path = DEFAULT_ROOT, hashes: bool = True) -> dict[str, Any]:
     manifest = _load_manifest(root / "manifest.json")
     missing, mismatched = [], []
@@ -328,14 +295,12 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     imp = sub.add_parser("import"); imp.add_argument("--source", type=Path, required=True); imp.add_argument("--label", required=True)
     sync = sub.add_parser("sync"); sync.add_argument("--source", type=Path, required=True); sync.add_argument("--label", required=True); sync.add_argument("--min-age-seconds", type=float, default=0.0)
-    recover = sub.add_parser("recover-legacy-sqlite"); recover.add_argument("--source-db", type=Path, required=True); recover.add_argument("--label", default="legacy-regression-sqlite")
     check = sub.add_parser("verify"); check.add_argument("--no-hash", action="store_true")
     save = sub.add_parser("backup"); save.add_argument("--backup-dir", type=Path, default=DEFAULT_BACKUP_DIR)
     args = parser.parse_args()
     try:
         if args.command == "import": result = import_source(args.source, args.label, args.root)
         elif args.command == "sync": result = sync_source(args.source, args.label, args.root, min_age_seconds=args.min_age_seconds)
-        elif args.command == "recover-legacy-sqlite": result = export_legacy_sqlite(args.source_db, args.root, args.label)
         elif args.command == "verify": result = verify(args.root, hashes=not args.no_hash)
         else: result = backup(args.root, args.backup_dir)
         print(json.dumps(result, ensure_ascii=False, indent=2))
