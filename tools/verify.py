@@ -40,7 +40,6 @@ STACK_PATHS = {
 MEMORY_PATHS = {
     "memory/behavior-authority-registry.json",
     "memory/README.md",
-    "docs/assistant-stack-architecture.md",
     "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     "tools/stack_atlas.py",
     "tools/memory_authority.py",
