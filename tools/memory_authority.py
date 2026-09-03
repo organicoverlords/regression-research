@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
-import os
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -86,73 +85,6 @@ def authority_registry_payload(path: Path | None = None) -> dict[str, Any]:
             raise ValueError(f"authority registry {key} must be an array of non-empty strings")
         if len(values) != len(set(values)):
             raise ValueError(f"authority registry {key} contains duplicate ids")
-    return payload
-
-
-def _write_authority_registry_local(path: Path, payload: dict[str, Any]) -> None:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(path.name + ".curate-tmp")
-    temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-    os.replace(temp, path)
-
-
-def authority_curation_errors(entry: dict[str, Any], role: str) -> list[str]:
-    errors: list[str] = []
-    ident = str(entry.get("id") or "")
-    if role == ROLE_USER:
-        if entry.get("state") == "REJECTED":
-            errors.append("rejected records cannot be promoted")
-        if entry.get("behavior_rule") is not True:
-            errors.append("behavior_rule must be true")
-        if str(entry.get("kind") or "") not in BEHAVIOR_RULE_KINDS:
-            errors.append("kind is not valid for a behavior rule")
-        if not _evidence_has_prefix(entry, USER_PREFIXES):
-            errors.append("user-instruction provenance is required")
-        tags = {str(tag) for tag in entry.get("tags", [])}
-        if not {"assistant-recorded", "verbatim-source"}.issubset(tags):
-            errors.append("trusted promotion requires assistant-recorded verbatim provenance")
-        source_messages = entry.get("source_messages")
-        if not isinstance(source_messages, list) or not source_messages or any(not isinstance(item, str) or not item.strip() for item in source_messages):
-            errors.append("trusted promotion requires non-empty source_messages")
-    elif role == ROLE_CANONICAL:
-        if entry.get("state") != "PROVEN":
-            errors.append("canonical policy must be PROVEN")
-        if not _evidence_has_prefix(entry, CANONICAL_PREFIXES):
-            errors.append("canonical policy provenance is required")
-    else:
-        errors.append(f"unsupported authority role: {role}")
-    if not ident:
-        errors.append("memory id is required")
-    return errors
-
-
-def curate_authority_registry_local(
-    entries: Iterable[dict[str, Any]], memory_id: str, role: str, *, path: Path | None = None
-) -> dict[str, Any]:
-    target = Path(path or _ACTIVE_AUTHORITY_REGISTRY)
-    by_id = {str(entry.get("id")): entry for entry in entries}
-    entry = by_id.get(memory_id)
-    if entry is None:
-        raise ValueError(f"memory id not found: {memory_id}")
-    errors = authority_curation_errors(entry, role)
-    if errors:
-        raise ValueError("; ".join(errors))
-    payload = authority_registry_payload(target)
-    user_ids = set(payload["user_explicit_ids"] )
-    policy_ids = set(payload["canonical_policy_ids"] )
-    if role == ROLE_USER:
-        if memory_id in policy_ids:
-            raise ValueError("memory id is already curated as canonical policy")
-        user_ids.add(memory_id)
-    else:
-        if memory_id in user_ids:
-            raise ValueError("memory id is already curated as explicit user behavior")
-        policy_ids.add(memory_id)
-    payload["user_explicit_ids"] = sorted(user_ids)
-    payload["canonical_policy_ids"] = sorted(policy_ids)
-    _write_authority_registry_local(target, payload)
-    configure_authority_registry(target)
     return payload
 
 
