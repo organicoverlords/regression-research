@@ -121,6 +121,27 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("inactive backend generation", " ".join(details["independent_recovery"]))
         self.assertIn("exact tool contract", " ".join(details["live_status"]))
 
+    def test_vps_edge_process_classifies_and_blocks_disruption(self):
+        process = {
+            "pid": 480, "ppid": 1, "name": "python.exe",
+            "command_line": r"python.exe C:\Users\Lauri\AppData\Local\McpVpsEdge\vps_mcp_reverse_tunnel.py",
+        }
+        result = blast_radius(480, [process])
+        self.assertEqual(result["identity"]["component"], "vps_edge_ingress")
+        self.assertEqual(result["destructive_verdict"], "BLOCK_ACTIVE_TRANSPORT")
+
+    def test_vps_origin_listener_wrapper_classifies_as_minimal_clone(self):
+        listener = {
+            "pid": 11328, "ppid": 5376, "name": "node.exe",
+            "command_line": r"node.exe dist/index.js",
+        }
+        launcher = {
+            "pid": 5376, "ppid": 1, "name": "powershell.exe",
+            "command_line": r"powershell.exe -File C:\Users\Lauri\AppData\Local\Temp\launch-mcp-vps-origin.ps1",
+        }
+        mapping = {item["pid"]: item for item in (listener, launcher)}
+        self.assertEqual(classify_process(listener, mapping)["component"], "mcp_minimal_clone")
+
     def test_natural_component_aliases_resolve(self):
         self.assertEqual(component_details("mcp")["id"], "mcp_front_door")
         self.assertEqual(component_details("plugin2")["id"], "mcp_front_door")
