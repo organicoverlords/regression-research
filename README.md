@@ -16,7 +16,6 @@ Run `python tools/verify.py` for the same deterministic, fixture-only verificati
 
 Use `python tools/evidence_bundle.py create --output <manifest.json> <artifact...>` to bind regression proof to the current Git commit and artifact SHA-256 digests; `python tools/evidence_bundle.py verify <manifest.json>` re-checks that evidence read-only and rejects stale or tampered subjects.
 
-Run `python tools/wip_hygiene.py` for a separate non-destructive inventory of untracked research WIP, quarantine, and ignored private/temp state; this status does not redefine the canonical tracked evidence corpus.
 
 ## Layout
 
@@ -27,7 +26,6 @@ Run `python tools/wip_hygiene.py` for a separate non-destructive inventory of un
 | `03 Fixtures and Experiments/` | Replay-ready fixtures with scoring criteria |
 | `04 Operating Contracts/` | Snapshots of contracts as they stood, for dating drift |
 | `90 Raw Transcripts/` | Unchanged source exports |
-| `99 Duplicate Archive/` | Superseded duplicates, kept rather than deleted |
 
 ## How a case is recorded
 
@@ -50,7 +48,7 @@ Historical full conversations are part of the same Vault memory corpus under the
 For Personal Instructions / bootstrap / ChatGPT-memory provenance, use [`docs/assistant-stack-architecture.md`](docs/assistant-stack-architecture.md#personal-instructions-bootstrap-and-durable-memory-provenance). The exact #122 repaired blocks are historical evidence; the architecture doc separates them from current live account configuration and the lightweight Vault bootstrap.
 
 
-Memory Bank retrieval uses the deterministic hybrid ranker validated in #172; set `MEMORY_RETRIEVAL_STRATEGY=legacy` for an exact rollback to the previous lexical ranker. CLI `search`, `history`, and `recent` output labels behavioral authority separately from relevance. A direct stored user `preference`, `decision`, or `correction` backed by `user-instruction:` is behavior-authoritative regardless of its factual claim state; the user does not have to prove an instruction. Live canonical policy/spec entries must be `PROVEN` before they can alter behavior. `USER_EXPLICIT` outranks `CANONICAL_POLICY`; everything else is `ADVISORY_EVIDENCE`, even when relevant or independently proven. User provenance authorizes behavior only and does not by itself prove hidden external causality. The canonical JSONL is unchanged by retrieval and derived indexes remain disposable.
+Memory Bank ordinary retrieval uses the deterministic hybrid ranker validated in #172; audit/history keeps its lexical history semantics. CLI `search`, `history`, and `recent` output labels behavioral authority separately from relevance. A direct stored user `preference`, `decision`, or `correction` backed by `user-instruction:` is behavior-authoritative regardless of its factual claim state; the user does not have to prove an instruction. Live canonical policy/spec entries must be `PROVEN` before they can alter behavior. `USER_EXPLICIT` outranks `CANONICAL_POLICY`; everything else is `ADVISORY_EVIDENCE`, even when relevant or independently proven. User provenance authorizes behavior only and does not by itself prove hidden external causality. The canonical JSONL is unchanged by retrieval and derived indexes remain disposable.
 
 For audit/history, `python tools/memory_bank.py changes --limit 20` is a read-only Git-derived change log: it shows memory entries added/corrected/superseded, `USER_EXPLICIT`/`CANONICAL_POLICY` authority changes, and changed operating-policy files. It is a projection of canonical Git/source history, never a second memory or policy authority.
 
@@ -69,5 +67,5 @@ Source provenance across reports, evidence, and raw transcripts is indexed in
 [`provenance.json`](provenance.json) (machine-readable). It maps each report in
 `01 Reports` to evidence files, raw transcripts, contract snapshots, dates, and
 evidence type, records missing or unresolved links explicitly, and marks
-duplicate/superseded artifacts in `99 Duplicate Archive`. Validate with
+duplicate/superseded report entries directly in the provenance index. Validate with
 `python tools/provenance.py validate`.

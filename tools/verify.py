@@ -53,7 +53,6 @@ MEMORY_PATHS = {
     "tools/benchmark_memory_behavior_retrieval.py",
     "tools/benchmark_memory_retrieval.py",
     "tools/provenance.py",
-    "tools/wip_hygiene.py",
     "tests/fixtures/memory-behavior-retrieval-v1.json",
     "tests/test_memory_authority.py",
     "tests/test_memory_authority_pipeline.py",
@@ -67,7 +66,6 @@ MEMORY_PATHS = {
     "tests/test_memory_timeline.py",
     "tests/test_provenance_index.py",
     "tests/test_taxonomy_matrix.py",
-    "tests/test_wip_hygiene.py",
 }
 
 CONVERSATION_PATHS = {
@@ -183,7 +181,6 @@ def verify_memory() -> None:
             "tools/benchmark_memory_behavior_retrieval.py",
             "tools/benchmark_memory_retrieval.py",
             "tools/provenance.py",
-            "tools/wip_hygiene.py",
         ]
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
@@ -207,7 +204,6 @@ def verify_memory() -> None:
             "tests/test_memory_timeline.py",
             "tests/test_provenance_index.py",
             "tests/test_taxonomy_matrix.py",
-            "tests/test_wip_hygiene.py",
         ]
     )
     print("MEMORY_AUTHORITY_RETRIEVAL_PROVEN")

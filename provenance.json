@@ -7,8 +7,7 @@
     "reports": "01 Reports",
     "evidence": "02 Evidence",
     "contracts": "04 Operating Contracts",
-    "raw_transcripts": "90 Raw Transcripts",
-    "duplicate_archive": "99 Duplicate Archive"
+    "raw_transcripts": "90 Raw Transcripts"
   },
   "entries": [
     {
@@ -1256,16 +1255,10 @@
       "notes": "Raw transcript share file; unmapped, linkage unresolved."
     }
   ],
-  "duplicate_archive": {
-    "path": "99 Duplicate Archive",
-    "status": "empty_no_superseded_artifacts_currently_archived",
-    "entries": []
-  },
   "validation_rules": {
     "every_report_indexed": "Every file in 01 Reports with .md or .txt extension must appear as report_path in entries",
     "every_indexed_path_exists": "Every report_path, raw_transcript, evidence_file, contract_snapshot, and orphan path must exist on disk",
     "duplicate_incident_ids": "incident_id values that are non-null must be unique",
-    "duplicate_marking": "Files under 99 Duplicate Archive must be marked with duplicate_status superseded or duplicate and must not appear as canonical",
     "no_credentials": "No indexed path may reference credential-bearing material (.env, tailscale installer, share-check HTML dump) and no file content is scanned here — validator checks path denylist"
   }
 }
