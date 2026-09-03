@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-20260827-1924-issue123-startup-memory-acceptance",
+  "title": "Historical issue #123 startup-memory acceptance report",
+  "source_report": "01 Reports/2026-08-27_1924_EEST_issue123-startup-memory-acceptance.md",
+  "capture_state": "superseded",
+  "replay_ready": false,
+  "note": "Historical report preserved. Its replay contract required default startup Vault recent-title retrieval and was superseded by the 2026-09-03 current Vault-history boundary, which rejects default startup history retrieval."
+}
