@@ -9,6 +9,7 @@ EXACT_REFRESH_STIMULUS = "refresh your memory"
 MIN_INDEPENDENT_TREATMENT_PAIRS_FOR_H1_SUPPORT = 2
 STOP_RULE = "stop on first route-surface change"
 RECOVERY_LIMIT = "maximum one rediscovery after failure; no extra retries"
+BINDING_LOSS_ERROR_CLASSES = {"RESOURCE_NOT_FOUND"}
 
 REQUIRED_MEASUREMENTS = {
     "visible_or_discovered_schema",
@@ -175,6 +176,7 @@ def classify(record: dict) -> str:
         p for p in treatments
         if p["before"]["measurements"]["direct_recipient_callable"] is True
         and p["after"]["measurements"]["direct_recipient_callable"] is False
+        and p["after"]["measurements"]["exact_client_error_class"] in BINDING_LOSS_ERROR_CLASSES
     ]
     changed_treatments = [
         p for p in post_treatment_binding_losses
@@ -190,6 +192,14 @@ def classify(record: dict) -> str:
     if changed_treatments:
         return "REPRODUCTION_ONLY"
     if post_treatment_binding_losses:
+        return "INCONCLUSIVE"
+    non_binding_treatment_failures = [
+        p for p in treatments
+        if p["before"]["measurements"]["direct_recipient_callable"] is True
+        and p["after"]["measurements"]["direct_recipient_callable"] is False
+        and p["after"]["measurements"]["exact_client_error_class"] not in BINDING_LOSS_ERROR_CLASSES
+    ]
+    if non_binding_treatment_failures:
         return "INCONCLUSIVE"
     control_surface_confounds = [
         p for p in controls

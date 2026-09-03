@@ -524,5 +524,14 @@ class Issue193RefreshResultTests(unittest.TestCase):
         self.assertEqual(classify(data), "INCONCLUSIVE")
 
 
+    def test_non_binding_client_failures_do_not_count_as_refresh_binding_loss(self):
+        for error_class in ("SAFETY_PREEXECUTION_BLOCK", "MCP_NETWORK_ERROR", "HTTP_503"):
+            with self.subTest(error_class=error_class):
+                data = record(pair("control", "c1", True, True), pair("treatment", "t1", True, False), pair("treatment", "t2", True, False))
+                for treatment in data["pairs"][1:]:
+                    treatment["after"]["measurements"]["exact_client_error_class"] = error_class
+                self.assertEqual(classify(data), "INCONCLUSIVE")
+
+
 if __name__ == "__main__":
     unittest.main()
