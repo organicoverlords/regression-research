@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from collections import Counter, defaultdict
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Iterable
 
 try:
@@ -338,40 +337,6 @@ def build_fresh_session_startup_contract() -> dict[str, Any]:
         "continuation": "keep useful inherited/project work moving; context retrieval or status reporting is not task completion",
         "documentation": "04 Operating Contracts/fresh-chat-startup-orientation.md",
         "personal_instructions_bridge": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
-    }
-
-
-def build_behavior_bootstrap(entries: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    """Legacy forensic projection of records once classified as behavioral authority."""
-    authorized = behavioral_context(list(entries))
-
-    def item(entry: dict[str, Any]) -> dict[str, Any]:
-        authority = dict(entry.get("behavioral_authority") or {})
-        return {
-            "id": entry.get("id"),
-            "title": _title(entry),
-            "scope": entry.get("scope"),
-            "text": str(entry.get("text") or ""),
-            "authority_role": authority.get("role"),
-            "precedence": authority.get("precedence"),
-        }
-
-    user_rules = [item(entry) for entry in authorized if (entry.get("behavioral_authority") or {}).get("role") == "USER_EXPLICIT"]
-    policies = [item(entry) for entry in authorized if (entry.get("behavioral_authority") or {}).get("role") == "CANONICAL_POLICY"]
-    return {
-        "schema_version": 1,
-        "purpose": "legacy behavior-provenance view; not runtime ChatGPT authority",
-        "contract": {
-            "runtime_authority": False,
-            "completion_boundary": "historical projection only; current conversation, ChatGPT Memory, policy, Atlas, and live sources govern runtime work",
-            "history_included": False,
-            "live_status_included": False,
-            "live_status_gap_owner": "assistant must fetch current live facts when the requested answer or mutation depends on them; there is no universal fresh-chat live scan",
-            "follow_up": "use targeted Vault retrieval only when history materially helps; never load this projection as a startup constitution",
-        },
-        "session_continuity": build_fresh_session_startup_contract(),
-        "behavior_profile": user_rules,
-        "canonical_policy_profile": policies,
     }
 
 
