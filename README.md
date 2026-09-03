@@ -71,15 +71,3 @@ Source provenance across reports, evidence, and raw transcripts is indexed in
 evidence type, records missing or unresolved links explicitly, and marks
 duplicate/superseded artifacts in `99 Duplicate Archive`. Validate with
 `python tools/provenance.py validate`.
-
-## Bounded WebGPT reporting
-
-The existing shell-mcp can invoke the repository's read-only
-[`tools/memory_report.py`](tools/memory_report.py) workflow with `start_process`
-and return its bounded result with `read_output`. It searches the canonical
-memory bank and provenance index without downloading, importing, or opening raw
-transcripts. The default output is capped at 6,000 characters and carries a
-deterministic corpus receipt. See
-[`docs/memory-webgpt-reporting.md`](docs/memory-webgpt-reporting.md) for the
-command contract and the explicit `NOT_PROVEN` boundary for live ChatGPT-web
-exposure.
