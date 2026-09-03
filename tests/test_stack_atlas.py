@@ -158,7 +158,7 @@ class StackAtlasTests(unittest.TestCase):
             "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "dev_progress_board", "operator_live", "worker_reports",
-            "lowvram", "asset_library", "tinylab", "tiny3d", "p3",
+            "lowvram", "asset_library", "tiny3d", "p3",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
 
@@ -167,11 +167,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(atlas.PRODUCT_FLOW, (("lowvram", "tiny3d"), ("tiny3d", "p3")))
         lowvram = component_details("lowvram")
         tiny3d = component_details("tiny3d")
-        tinylab = component_details("tinylab")
         library = component_details("asset_library")
         self.assertEqual(lowvram["role"], "generator:image_to_3d")
         self.assertEqual(tiny3d["role"], "product:post_generation_asset_compiler")
-        self.assertEqual(tinylab["role"], "legacy_name:not_active_product_authority")
         self.assertIn("README.md", " ".join(lowvram["canonical_sources"]))
         self.assertIn("TINY3D_NORTH_STAR.md", " ".join(tiny3d["canonical_sources"]))
         self.assertEqual(library["canonical_sources"][0], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")

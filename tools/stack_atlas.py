@@ -362,18 +362,6 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "dependents": ["tiny3d"],
         "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
     },
-    "tinylab": {
-        "role": "legacy_name:not_active_product_authority",
-        "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\TinyLab", r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
-        "live_status": ["historical compatibility/name only; current Tiny3D README/North Star define the active post-generation product"],
-        "supervisor": "none",
-        "self_heal": "not_applicable",
-        "independent_recovery": ["resolve current post-generation behavior through Tiny3D; use TinyLab only for historical compatibility/provenance when needed"],
-        "resources": ["historical tinylab.* schema identifiers and legacy workspace"],
-        "dependents": [],
-        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
-    },
     "tiny3d": {
         "role": "product:post_generation_asset_compiler",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
