@@ -12,7 +12,9 @@ The output is a read-only projection. It does not create a queue, database, owne
 
 It combines durable documents, memory records as historical evidence, worker-report history, reachable Git commits, refs, branches, tags, stashes, worktrees, reflogs, repository snapshots, and optional live runtime observations.
 
-Every source keeps its provenance/authority class. Historical documents and reports never become current truth merely because they appear in the timeline.
+Every event also carries an explicit epistemic class. `OBSERVED_FACT` means source metadata or runtime state was directly observed. `REPRODUCED_FACT` and `INFERENCE` are reserved for producers that explicitly justify those stronger meanings; the timeline never infers them from filenames, commit messages, proximity, or a `PROVEN` label. Documents, memory records, and worker self-reports remain `HISTORICAL_CLAIM` by default.
+
+Explicit `supersedes` and `contradicts` links are projected as relationships and reverse `superseded_by` / `contradicted_by` references when both records are present. No contradiction or causal edge is synthesized from chronology or text similarity. Historical documents and reports never become current truth merely because they appear in the timeline.
 
 For mutation, inspect the repository's `mutation_admission`. `DIRECT_OK` means the checkout is clean and at current `origin/main`. `ISOLATE_REQUIRED` means preserve that checkout and use an admitted isolated worktree or already-owned safe lane.
 
