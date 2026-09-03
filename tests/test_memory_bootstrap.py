@@ -48,7 +48,7 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
     def test_worker_contract_still_keeps_five_workers_and_no_self_admin(self):
         text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
         self.assertIn("Five is a hard maximum for the recurring worker fleet", text)
-        self.assertIn("continue through `plugin2`, then Remote Desktop Commander and GitHub as supported fallbacks", text)
+        self.assertIn("continue through `plugin2`; Remote Desktop Commander and the hosted GitHub connector are not fallbacks", text)
         self.assertIn("route failure is local and recovery/fallback comes first", text)
         self.assertIn("Worker execution may never administer the scheduler", text)
         self.assertIn("For stack/infra work only", text)

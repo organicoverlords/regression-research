@@ -18,7 +18,6 @@ ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
-COMMANDER_ROOT = r"%LOCALAPPDATA%\DesktopCommanderFallback"
 ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
 CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 COMPONENT_ALIASES = {
@@ -150,7 +149,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "file_transfer": {
         "role": "artifact_transfer_bridge",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation file attachments", r"%LOCALAPPDATA%\DesktopCommanderFallback", "ChatGPT files/library connector when exposed", "generated sandbox artifacts", VPS_EDGE_ROOT + r"\publish-artifact.ps1"],
+        "canonical_sources": ["current conversation file attachments", "ChatGPT files/library connector when exposed", "generated sandbox artifacts", VPS_EDGE_ROOT + r"\publish-artifact.ps1"],
         "live_status": ["source path exists", "destination path exists", "byte size matches", "SHA-256 matches end to end", "VPS artifact URL downloads identical bytes and expires after 24 hours"],
         "supervisor": "surface-specific; no single transfer authority",
         "self_heal": "route_specific",
@@ -170,42 +169,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["capture", "manifest", "review verdict", "acceptance requirement"],
         "dependents": ["p3", "worker_reports"],
         "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
-    },
-    "desktop_commander_watchdog": {
-        "role": "machine_transport_supervisor",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"%LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1"],
-        "live_status": ["watchdog process", "device/relay connection", "semantic execution call"],
-        "supervisor": "host startup / watchdog process",
-        "self_heal": "owns Commander child recovery",
-        "independent_recovery": ["MCP process route only when independently proven available and sufficient"],
-        "resources": ["Commander fallback install", "relay session"],
-        "dependents": ["desktop_commander_remote"],
-        "runbook": [r"%LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1"],
-    },
-    "desktop_commander_remote": {
-        "role": "machine_transport_relay_client",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"%LOCALAPPDATA%\DesktopCommanderFallback\app\...\desktop-commander\dist\index.js"],
-        "live_status": ["device online is insufficient; require Commander semantic operation"],
-        "supervisor": "desktop_commander_watchdog",
-        "self_heal": "watchdog_expected_but_not_safe-to-kill-proof",
-        "independent_recovery": ["must prove another machine execution route before disruption"],
-        "resources": ["hosted relay/device session"],
-        "dependents": ["desktop_commander_local", "chatgpt_machine_execution", "execution_workers"],
-        "runbook": [r"%LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1"],
-    },
-    "desktop_commander_local": {
-        "role": "machine_transport_execution_child",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"%LOCALAPPDATA%\DesktopCommanderFallback\app\...\desktop-commander\dist\index.js"],
-        "live_status": ["Commander semantic file/process operation"],
-        "supervisor": "desktop_commander_remote",
-        "self_heal": "parent/watchdog_may_recreate; never assume without proof",
-        "independent_recovery": ["prove another machine execution route before disruption"],
-        "resources": ["machine files", "spawned process handles"],
-        "dependents": ["chatgpt_machine_execution", "execution_workers"],
-        "runbook": [r"%LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1"],
     },
     "github_runner": {
         "role": "ci_execution_worker",
@@ -440,9 +403,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
     "execution.transport": {
-        "owner_components": ["vps_edge_ingress", "mcp_front_door", "desktop_commander_remote"],
-        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "plugin2", "commander", "tool route"],
-        "entrypoints": ["production MCPv3/VPS process contract", "discover/attempt supported fallback transport", "Desktop Commander semantic file/process operation"],
+        "owner_components": ["vps_edge_ingress", "mcp_front_door"],
+        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "plugin2", "tool route"],
+        "entrypoints": ["production MCPv3/VPS process contract", "plugin2 when available"],
         "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
     },
     "progress.board": {
@@ -520,15 +483,6 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     if "mcpvpsedge" in ancestry_text or "vps_mcp_reverse_tunnel.py" in command:
         component = "vps_edge_ingress"
         evidence.append("McpVpsEdge reverse-tunnel process ancestry")
-    elif "desktopcommanderfallback" in ancestry_text and "watchdog.ps1" in command:
-        component = "desktop_commander_watchdog"
-        evidence.append("DesktopCommanderFallback watchdog command")
-    elif "desktopcommanderfallback" in ancestry_text and "desktop-commander" in command and "remote --persist-session" in command:
-        component = "desktop_commander_remote"
-        evidence.append("Desktop Commander remote persistent-session command")
-    elif "desktopcommanderfallback" in ancestry_text and "desktop-commander" in command:
-        component = "desktop_commander_local"
-        evidence.append("Desktop Commander child under fallback process tree")
     elif "chatgptmcpclean" in ancestry_text and "front-door" in ancestry_text:
         component = "mcp_front_door"
         evidence.append("ChatGPTMcpClean front-door process ancestry")
@@ -591,8 +545,6 @@ def _destructive_verdict(component: str | None) -> tuple[str, str]:
         return "BLOCK_UNKNOWN_TOPOLOGY", "resolve stable component identity and recovery before disruption"
     if component == "busy_coordinator":
         return "BLOCK_COORDINATION_AUTHORITY", "use BusyCoordinator contract/recovery; do not kill around its state store"
-    if component.startswith("desktop_commander"):
-        return "BLOCK_CONTROL_PATH_DEPENDENCY", "prove independent machine execution recovery before any disruption"
     if component == "vps_edge_ingress":
         return "BLOCK_ACTIVE_TRANSPORT", "prove an alternate machine-execution route and preserve the serving clone before edge disruption"
     if component == "mcp_front_door":
@@ -624,7 +576,6 @@ def blast_radius(
     owned_ports = [item for item in (ports or []) if int(item.get("pid") or 0) == pid]
     resources = [item for item in (resource_observations or []) if int(item.get("pid") or 0) == pid]
     affected = {
-        "commander": bool(component and component.startswith("desktop_commander")) or any(str(item).startswith("desktop_commander") for item in descendant_components),
         "mcp": bool(component and component.startswith("mcp_")) or any(str(item).startswith("mcp_") for item in descendant_components),
         "worker_execution": bool(details and "execution_workers" in details.get("dependents", [])),
         "busy_coordinator_access": component == "busy_coordinator" or any(
@@ -784,7 +735,7 @@ def render_manual() -> str:
             values = "; ".join(str(item) for item in spec.get(key, []))
             lines.append(f"- {label}: {values or 'none'}")
         lines.extend([f"- Supervisor: {spec['supervisor']}", f"- Self-heal: {spec['self_heal']}", ""])
-    lines.extend(["## Process identity and blast radius", "", "OS PIDs are ephemeral lookup keys only. `blast-radius --pid <pid>` resolves stable identity from executable/command line, ancestry, supervisor/config/resource evidence, then reports affected control paths and a destructive verdict.", "", "Commander and MCP are separate declared process trees. Never infer independence from tool names: observed shared-resource coupling is additional evidence and must be included in blast-radius analysis.", ""])
+    lines.extend(["## Process identity and blast radius", "", "OS PIDs are ephemeral lookup keys only. `blast-radius --pid <pid>` resolves stable identity from executable/command line, ancestry, supervisor/config/resource evidence, then reports affected control paths and a destructive verdict.", "", "MCP/VPS process identity is derived from executable, command line, ancestry, supervisor, and resource evidence; never infer safety from a tool name alone.", ""])
     return "\n".join(lines).rstrip()
 
 
