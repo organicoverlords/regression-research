@@ -12,7 +12,7 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
-    from .memory_authority import (AUTHORITY_REGISTRY, ROLE_CANONICAL, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
+    from .memory_authority import (AUTHORITY_REGISTRY, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
@@ -23,7 +23,7 @@ try:
     from .worker_report_history import summarize_history, worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
-    from memory_authority import (AUTHORITY_REGISTRY, ROLE_CANONICAL, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
+    from memory_authority import (AUTHORITY_REGISTRY, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
@@ -281,42 +281,6 @@ def append_behavior_entry(path: Path, values: dict[str, Any], registry_path: Pat
             registry_path.write_bytes(original_registry)
         configure_authority_registry(registry_path if registry_path.exists() else AUTHORITY_REGISTRY)
         raise
-
-
-def promote_authority_entry(
-    bank_path: Path, registry_path: Path, memory_id: str, role: str
-) -> dict[str, Any]:
-    entries = load_bank(bank_path)
-    by_id = {entry["id"]: entry for entry in entries}
-    entry = by_id.get(memory_id)
-    if entry is None:
-        raise BankError(f"memory id not found: {memory_id}")
-    errors = authority_curation_errors(entry, role)
-    if errors:
-        raise BankError("authority promotion rejected: " + "; ".join(errors))
-    canonical = _is_canonical_bank(bank_path) and _is_canonical_authority_registry(registry_path)
-    if canonical:
-        with sync_lock(bank_path):
-            try:
-                sync_behavior_bundle(
-                    bank_path, registry_path,
-                    add_user_ids={memory_id} if role == ROLE_USER else set(),
-                    add_policy_ids={memory_id} if role == ROLE_CANONICAL else set(),
-                    publish=True,
-                )
-            except MemorySyncError as exc:
-                raise BankError(f"authority promotion sync NOT_PROVEN: {exc}") from exc
-        configure_authority_registry(registry_path)
-    else:
-        try:
-            curate_authority_registry_local(entries, memory_id, role, path=registry_path)
-        except ValueError as exc:
-            raise BankError(str(exc)) from exc
-    authority = behavioral_authority(entry)
-    expected = ROLE_USER if role == ROLE_USER else ROLE_CANONICAL
-    if authority.get("role") != expected:
-        raise BankError(f"promotion completed but authority is {authority.get('role')}, expected {expected}")
-    return annotate_memory(entry)
 
 
 def _tokens(value: str) -> set[str]:
@@ -706,11 +670,6 @@ def _main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
     sub.add_parser("authority-validate", help="validate authority registry against the current bank")
-    promote_behavior = sub.add_parser("promote-behavior", help="curate an existing trusted typed user rule as USER_EXPLICIT")
-    promote_behavior.add_argument("memory_id")
-    promote_policy = sub.add_parser("promote-policy", help="curate an existing canonical-policy record")
-    promote_policy.add_argument("memory_id")
-
     note = sub.add_parser("note", help="save a quick durable note")
     note.add_argument("text")
     note.add_argument("--scope", default="global")
@@ -751,7 +710,6 @@ def _main() -> int:
     record.add_argument("--evidence", action="append", default=[])
     record.add_argument("--supersedes", action="append", default=[])
     record.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
-    record.add_argument("--behavior-rule", action="store_true", help="explicitly type this user-authored memory as a behavior rule")
 
     search = sub.add_parser("search")
     search.add_argument("query", nargs="?", default="")
@@ -819,8 +777,6 @@ def _main() -> int:
             result = validate_authority_registry(entries, path=args.authority_registry)
             _print_json(result)
             return 0 if result.get("status") == "PROVEN" else 2
-        if args.command in {"promote-behavior", "promote-policy"}:
-            raise BankError("Vault runtime authority promotion is retired; Vault is history/notebook/evidence only")
         if args.command == "note":
             text = args.text.strip()
             tags = ["quick-note"]
@@ -868,7 +824,7 @@ def _main() -> int:
                 "kind": args.kind, "scope": args.scope,
                 "tags": [*args.tag, "assistant-recorded", "verbatim-source"],
                 "title": args.title, "text": args.text, "state": args.state,
-                "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": bool(args.behavior_rule),
+                "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": False,
                 "source_messages": args.source_message, "interpretation": args.interpretation,
                 "confidence": args.confidence, "confidence_reason": args.confidence_reason,
             }
@@ -882,8 +838,6 @@ def _main() -> int:
                 values["thread"] = args.thread
             if args.turn_task:
                 values["turn_task"] = args.turn_task
-            if args.behavior_rule:
-                raise BankError("--behavior-rule is retired; use ChatGPT Memory/current instructions for behavior and record Vault notes as ordinary history")
             entry = append_entry(args.bank, values)
             _print_json(entry)
             return 0
