@@ -12,3 +12,8 @@ memory/conversations/
 /tmp-*.sqlite
 /tmp-cloudflare-ab*/
 /tmp-current-chat-cdp.mjs
+
+# Local generated/runtime state
+.tmp/
+worker-reports/
+tmp-bootstrap-*

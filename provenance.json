@@ -56,7 +56,7 @@
       "incident_id": null,
       "incident_id_status": "unassigned",
       "report_path": "01 Reports/incident_report_2026-08-22_0238_EEST.md",
-      "title": "Incident Report \u2014 Stale Title-Coordination Residue Misread as Current Authority",
+      "title": "Incident Report — Stale Title-Coordination Residue Misread as Current Authority",
       "date": "2026-08-22T02:38:00+03:00",
       "evidence_type": "incident_report",
       "raw_transcripts": [],
@@ -77,7 +77,7 @@
       "incident_id": null,
       "incident_id_status": "unassigned_pending_capture",
       "report_path": "01 Reports/incident_report_2026-08-23_1040_EEST_PRIMARY_task_anchor_tool_persistence.md",
-      "title": "PRIMARY INCIDENT REPORT \u2014 Same-hour MCP behavior comparison drifted into project throughput and repeated failed routes",
+      "title": "PRIMARY INCIDENT REPORT — Same-hour MCP behavior comparison drifted into project throughput and repeated failed routes",
       "date": "2026-08-23T10:40:00+03:00",
       "evidence_type": "PRIMARY_incident_report",
       "raw_transcripts": [],
@@ -93,13 +93,13 @@
         "raw_transcript_capture_pending_no_verified_export",
         "contract_snapshot_not_linked"
       ],
-      "notes": "Report explicitly states incident ID unassigned \u2014 no canonical identifier available, none fabricated; Chat ID unresolved / NOT_PROVEN; capture_state pending; queue_state BLOCKED_ON_EXACT_CHAT_ID; raw_capture_verified false; analysis_2 not_started; secondary prohibited while pending. Evidence file 02 Evidence/incident_2026-08-23_1040_EEST_tool_sequence.txt is the direct supporting tool-call sequence (audit timestamps) and is the only file whose name matches the incident timestamp. Full immutable ChatGPT raw export is pending and must not be substituted with older conversation IDs or partial transcripts. No contract snapshot is claimed as direct provenance for this PRIMARY."
+      "notes": "Report explicitly states incident ID unassigned — no canonical identifier available, none fabricated; Chat ID unresolved / NOT_PROVEN; capture_state pending; queue_state BLOCKED_ON_EXACT_CHAT_ID; raw_capture_verified false; analysis_2 not_started; secondary prohibited while pending. Evidence file 02 Evidence/incident_2026-08-23_1040_EEST_tool_sequence.txt is the direct supporting tool-call sequence (audit timestamps) and is the only file whose name matches the incident timestamp. Full immutable ChatGPT raw export is pending and must not be substituted with older conversation IDs or partial transcripts. No contract snapshot is claimed as direct provenance for this PRIMARY."
     },
     {
       "incident_id": null,
       "incident_id_status": "research_synthesis_not_incident_id",
       "report_path": "01 Reports/2026-08-25_five-day-control-plane-correlation.md",
-      "title": "Five-day control-plane correlation \u2014 2026-08-21..25",
+      "title": "Five-day control-plane correlation — 2026-08-21..25",
       "date": "2026-08-25T20:36:03+03:00",
       "evidence_type": "correlation_research_report",
       "raw_transcripts": [],
@@ -296,7 +296,7 @@
       "incident_id": null,
       "incident_id_status": "unassigned",
       "report_path": "01 Reports/2026-08-27_0110_EEST_worker-report-regression-explanation-instead-of-repair_slopwall_incident_report.md",
-      "title": "Incident report \u2014 worker-report regression answered with explanation instead of repair",
+      "title": "Incident report — worker-report regression answered with explanation instead of repair",
       "date": "2026-08-27T00:00:00+03:00",
       "evidence_type": "incident_report",
       "raw_transcripts": [],
@@ -336,7 +336,7 @@
       "incident_id": null,
       "incident_id_status": "unassigned",
       "report_path": "01 Reports/2026-08-27_0216_EEST_model-selected-end-turn_tool-window-evidence_followup.md",
-      "title": "Incident follow-up: raw end-turn evidence \u2014 2026-08-27 02:16 EEST",
+      "title": "Incident follow-up: raw end-turn evidence — 2026-08-27 02:16 EEST",
       "date": "2026-08-27T00:00:00+03:00",
       "evidence_type": "report",
       "raw_transcripts": [],
@@ -808,6 +808,311 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Current MCP VPS-edge topology/recovery runbook. The report has only a calendar date, so midnight is a conservative index date marker rather than a claimed event time."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-01_0450_EEST_mcp-clone-port-revert.md",
+      "title": "MCP clone port revert — 2026-09-01 04:50 EEST",
+      "date": "2026-09-01T04:50:00+03:00",
+      "evidence_type": "operational_recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "superseded",
+      "superseded_by": "01 Reports/2026-09-01_0514_EEST_receipt-only-clone-route-restoration.md",
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Historical route-recovery report retained for chronology; its 3011/3012 production preference is explicitly superseded by the 05:14 report."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-01_0501_EEST_mcp-funnel-clone-reconciliation-fix.md",
+      "title": "MCP Funnel clone reconciliation fix — 2026-09-01 05:01 EEST",
+      "date": "2026-09-01T05:01:00+03:00",
+      "evidence_type": "operational_recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "superseded",
+      "superseded_by": "01 Reports/2026-09-01_0514_EEST_receipt-only-clone-route-restoration.md",
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Historical reconciliation report retained for chronology; its forced 3011/3012 production preference is explicitly superseded by the 05:14 report."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-01_0514_EEST_receipt-only-clone-route-restoration.md",
+      "title": "Receipt-only clone route restoration — 2026-09-01 05:14 EEST",
+      "date": "2026-09-01T05:14:00+03:00",
+      "evidence_type": "operational_recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Historical report recording the correction from supervised 3011/3012 preference to the then-observed receipt-only production route."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-01_0555_EEST_MCP_clone-a_3041_quarantine.md",
+      "title": "MCP clone-a production quarantine — 2026-09-01 05:55 EEST",
+      "date": "2026-09-01T05:55:00+03:00",
+      "evidence_type": "operational_recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Historical production-quarantine report; later route changes are preserved in subsequent reports rather than rewriting this event."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-03_2151_EEST_MCPv3_post-acceptance_tool-contract-mutation_incident_report.md",
+      "title": "MCPv3 incident — post-acceptance tool-contract mutation and first execution-binding drop",
+      "date": "2026-09-03T21:51:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Records the assistant-caused post-acceptance MCPv3 tool-contract mutation, restoration, 300/300 revalidation, and the remaining unproven ChatGPT-side binding cause."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-30_2313_EEST_slopwall_easy-answer-over-truth_incident_report.md",
+      "title": "Slopwall Incident Report — Easiest Answer Over Decisive Truth",
+      "date": "2026-08-30T23:13:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-30_231755_EEST_overliteral-response-after-correction_INC-20260830-231755-EEST-8c2f1a_slopwall_incident_report.md",
+      "title": "Slopwall Incident Report",
+      "date": "2026-08-30T23:17:55+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-30_231755_EEST_slopwall-error-board-capture_INC-20260830-231755-EEST-8c2f1a.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-30_234517_context-ignored-then-correction-regurgitated_INC-20260830-234517-EEST-6b84ba_slopwall_incident_report.md",
+      "title": "Slopwall Incident Report",
+      "date": "2026-08-30T23:45:17+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-08-30_234517_slopwall-error-board-capture_INC-20260830-234517-EEST-6b84ba.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-30_235449_EEST_red-alert_unauthorized-slopwall-safeguard-removal_incident_report.md",
+      "title": "RED ALERT Incident Report — Unauthorized Slopwall Safeguard Removal",
+      "date": "2026-08-30T23:54:49+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-08-31_0408_EEST_P3_build_workflow_handoff.md",
+      "title": "P3 build/workflow handoff — 2026-08-31 04:08 EEST",
+      "date": "2026-08-31T04:08:00+03:00",
+      "evidence_type": "handoff_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-01_0315_EEST_plugin2-funnel-root-route-recovery_incident_report.md",
+      "title": "Plugin2 Funnel root-route recovery incident",
+      "date": "2026-09-01T03:15:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-01_plugin2-funnel-root-route-recovery.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-01_0410_EEST_p3-single-machine-swarm-policy-recovery.md",
+      "title": "P3 single-machine swarm policy recovery — 2026-09-01",
+      "date": "2026-09-01T04:10:00+03:00",
+      "evidence_type": "operational_recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-03_1621_EEST_mcp-control-loop-skipped_live-mutation-regression_incident_report.md",
+      "title": "MCP control-loop skipped and live-mutation regression incident",
+      "date": "2026-09-03T16:21:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-03_1621_EEST_mcp-control-loop-skipped_next-action.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-03_2101_EEST_unsupported-planner-target-guessing_incident_report.md",
+      "title": "Incident Report — Unsupported Planner Target Guessing",
+      "date": "2026-09-03T21:01:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-03_2101_EEST_unsupported-planner-target-guessing_next-action.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-03_2132_EEST_MCPv3_first-post-fix_execution-binding_failure_incident_report.md",
+      "title": "MCPv3 regression — first post-fix execution-binding failure",
+      "date": "2026-09-03T21:32:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
     }
   ],
   "orphan_evidence": [
@@ -903,7 +1208,7 @@
       "notes": "Recovered assistant behavior rules snapshot; historical contract as it stood."
     },
     {
-      "path": "04 Operating Contracts/OLD GLOBAL CHATGPT WORK RULES \u2014 FOCUSED RECOVERY.txt",
+      "path": "04 Operating Contracts/OLD GLOBAL CHATGPT WORK RULES — FOCUSED RECOVERY.txt",
       "type": "contract_snapshot",
       "date": "2026-08-20",
       "linked_incident": null,
@@ -914,7 +1219,7 @@
       "type": "raw_transcript",
       "date": "unknown",
       "linked_incident": null,
-      "notes": "Raw transcript share file; not directly linked to any 01 Reports incident (unmapped). Preserved as raw source but incident linkage unresolved \u2014 not guessed."
+      "notes": "Raw transcript share file; not directly linked to any 01 Reports incident (unmapped). Preserved as raw source but incident linkage unresolved — not guessed."
     },
     {
       "path": "90 Raw Transcripts/share-6a8682a5-e174-83eb-9472-542b14f970c6.txt",
@@ -941,6 +1246,6 @@
     "every_indexed_path_exists": "Every report_path, raw_transcript, evidence_file, contract_snapshot, and orphan path must exist on disk",
     "duplicate_incident_ids": "incident_id values that are non-null must be unique",
     "duplicate_marking": "Files under 99 Duplicate Archive must be marked with duplicate_status superseded or duplicate and must not appear as canonical",
-    "no_credentials": "No indexed path may reference credential-bearing material (.env, tailscale installer, share-check HTML dump) and no file content is scanned here \u2014 validator checks path denylist"
+    "no_credentials": "No indexed path may reference credential-bearing material (.env, tailscale installer, share-check HTML dump) and no file content is scanned here — validator checks path denylist"
   }
 }

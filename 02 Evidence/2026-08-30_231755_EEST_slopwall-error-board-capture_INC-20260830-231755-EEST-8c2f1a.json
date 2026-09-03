@@ -1,0 +1,12 @@
+{
+  "schema": "slopwall-error-board-capture.v1",
+  "incident_id": "INC-20260830-231755-EEST-8c2f1a",
+  "captured_at": "2026-08-30T23:17:55+03:00",
+  "error_class": "CORRECTION_REGURGITATION_EXPLANATION_SUBSTITUTED_FOR_DIRECT_ANSWER",
+  "trigger": "Slopwall no gate",
+  "first_wrong_action": "After the user corrected an over-literal interpretation, the assistant returned another meta-explanation instead of only answering the intended operational point.",
+  "inherited_task": "Preserve the Goblin MP4 delivery task and the correction about premature task termination; do not substitute commentary for completion.",
+  "response_gate": "SKIPPED_BY_EXPLICIT_CURRENT_USER_INSTRUCTION",
+  "canonical_error_board_write": "LOCAL_VAULT_APPEND_REQUIRED",
+  "note": "Fresh incident capture for this occurrence; does not supersede earlier Slopwall incidents."
+}

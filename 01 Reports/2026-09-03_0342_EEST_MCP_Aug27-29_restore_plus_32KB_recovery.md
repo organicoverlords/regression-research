@@ -97,3 +97,13 @@ A fresh ChatGPT tool refresh/rebinding after this recovery should be used to con
 ## Do not regress
 
 For this recovery baseline, do not fold in later September topology/reconciliation changes merely because they were documented as successful. The user explicitly identifies the Aug 27–29 chain as the last successful baseline. Any future change starts from this restored baseline and must be separately justified and tested.
+
+## 2026-09-03 16:17 EEST correction — live temp tree was contaminated
+
+The earlier `EXPECTED_FILES=60 MISMATCHES=0` claim did not prove that the 32KB overlay itself was limited to the requested behavior. The live temp tree `mcp-41c8345-plus-32k` contained unrelated completed-retry reuse logic (`COMPLETED_RETRY_REUSE_MS`, `MCP_RETRY_ID`) and retry tests in addition to the 32KB changes. Therefore the claim that the serving tree was literal `41c8345 + 32KB only` was false.
+
+A fresh detached worktree at current `origin/master` (`3c5d5e8`) was compared directly against `41c8345`. For the runtime process contract it contains only the literal 32KB read-window/schema changes; the only additional launcher change is the stable public-clone OAuth-store guard from PR #43. Focused validation passed: exact process contract, OAuth identity guard, and `read_window whole=24026 truncated=32000`.
+
+Port 3011 was then replaced from the clean worktree `C:\Users\Lauri\AppData\Local\Temp\mcp-exact-41c-32k-live`, preserving `C:\Users\Lauri\AppData\Local\ChatGPTMcpClean\minimal-connectors\clone-a\oauth.json` and the shared receipt directory. New backend PID at replacement: `6428`. Funnel handlers were not changed; public clone-a health and all three OAuth/OpenID metadata endpoints returned HTTP 200.
+
+The fresh-chat failure immediately before replacement showed three server-side `start_process` responses completing HTTP 200 at 15:50:45, 15:51:00, and 15:51:10 EEST before the hosted tool binding stopped delivering calls/results. That run is not closure evidence for the clean replacement runtime.
