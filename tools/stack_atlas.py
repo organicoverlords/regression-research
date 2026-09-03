@@ -27,6 +27,14 @@ COMPONENT_ALIASES = {
     "plugin2": "mcp_front_door",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
+    "tailscale": "tailscale_ingress",
+    "funnel": "tailscale_ingress",
+    "transfer": "file_transfer",
+    "file transfer": "file_transfer",
+    "visual proof": "visual_proof",
+    "proof": "visual_proof",
+    "worker": "execution_workers",
+    "workers": "execution_workers",
 }
 
 ATLAS_CONTRACT = {
@@ -107,6 +115,42 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
         ],
+    },
+    "tailscale_ingress": {
+        "role": "network_ingress_proxy",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [r"C:\Program Files\Tailscale\tailscale.exe", MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
+        "live_status": ["tailscale status", "tailscale serve status --json", "listener on Tailscale HTTPS port", "exact public route to local target"],
+        "supervisor": "Tailscale service",
+        "self_heal": "service_specific; route edits require explicit verification",
+        "independent_recovery": ["local backend/clone can be tested directly without public ingress; ingress failure must not authorize backend churn"],
+        "resources": ["Serve/Funnel config", "HTTPS listener", "/clone-* route handlers", "OAuth/OpenID metadata route handlers"],
+        "dependents": ["mcp_minimal_clone", "mcp_front_door"],
+        "runbook": [MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
+    },
+    "file_transfer": {
+        "role": "artifact_transfer_bridge",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
+        "canonical_sources": ["current conversation file attachments", r"%LOCALAPPDATA%\DesktopCommanderFallback", "ChatGPT files/library connector when exposed", "generated sandbox artifacts"],
+        "live_status": ["source path exists", "destination path exists", "byte size matches", "SHA-256 matches end to end"],
+        "supervisor": "surface-specific; no single transfer authority",
+        "self_heal": "route_specific",
+        "independent_recovery": ["use another exposed transfer route only after preserving the same source bytes and hash"],
+        "resources": ["artifact bytes", "source path/ref", "destination path/ref", "size", "SHA-256"],
+        "dependents": ["chatgpt_session", "execution_workers", "visual_proof"],
+        "runbook": ["04 Operating Contracts/full-stack-timeline.md"],
+    },
+    "visual_proof": {
+        "role": "acceptance:user_visible_evidence",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [r"C:\P3Proofs", "repo-local proof/acceptance contract", "reviewed.json when independent review exists"],
+        "live_status": ["exact proof run directory", "capture manifest", "reviewed.json", "user-visible acceptance target"],
+        "supervisor": "project-specific proof workflow",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["classify why the previous proof failed and change a load-bearing condition before another expensive retry"],
+        "resources": ["capture", "manifest", "review verdict", "acceptance requirement"],
+        "dependents": ["p3", "worker_reports"],
+        "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
     },
     "desktop_commander_watchdog": {
         "role": "machine_transport_supervisor",
@@ -354,6 +398,12 @@ PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
 PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "stack.timeline": {
+        "owner_components": ["local_git", "worker_reports", "tailscale_ingress", "file_transfer", "visual_proof"],
+        "triggers": ["full stack timeline", "stack timeline", "whole stack", "project visibility", "branches", "reflog", "audits", "incidents", "runtime topology"],
+        "entrypoints": ["python tools/full_stack_timeline.py --output <path>", "Git refs/worktrees/reflogs", "Vault durable documents", "worker report history", "live runtime probes"],
+        "boundary": "Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source.",
+    },
     "vault.history": {
         "owner_components": ["vault_history"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],

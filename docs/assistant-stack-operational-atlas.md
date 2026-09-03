@@ -26,6 +26,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
+| `stack.timeline` | local_git, worker_reports, tailscale_ingress, file_transfer, visual_proof | python tools/full_stack_timeline.py --output <path>; Git refs/worktrees/reflogs; Vault durable documents; worker report history; live runtime probes | Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source. |
 | `vault.history` | vault_history | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
 | `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <actor> <scope>; claim; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
@@ -93,6 +94,45 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md
 - Supervisor: instance launcher / owning generation
 - Self-heal: generation_specific
+
+### `tailscale_ingress`
+
+- Role: `network_ingress_proxy`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: C:\Program Files\Tailscale\tailscale.exe; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
+- Live status: tailscale status; tailscale serve status --json; listener on Tailscale HTTPS port; exact public route to local target
+- Independent recovery: local backend/clone can be tested directly without public ingress; ingress failure must not authorize backend churn
+- Resources: Serve/Funnel config; HTTPS listener; /clone-* route handlers; OAuth/OpenID metadata route handlers
+- Dependents: mcp_minimal_clone; mcp_front_door
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
+- Supervisor: Tailscale service
+- Self-heal: service_specific; route edits require explicit verification
+
+### `file_transfer`
+
+- Role: `artifact_transfer_bridge`
+- Capabilities: source_read, repository_mutate, runtime_validate
+- Canonical sources: current conversation file attachments; %LOCALAPPDATA%\DesktopCommanderFallback; ChatGPT files/library connector when exposed; generated sandbox artifacts
+- Live status: source path exists; destination path exists; byte size matches; SHA-256 matches end to end
+- Independent recovery: use another exposed transfer route only after preserving the same source bytes and hash
+- Resources: artifact bytes; source path/ref; destination path/ref; size; SHA-256
+- Dependents: chatgpt_session; execution_workers; visual_proof
+- Runbook: 04 Operating Contracts/full-stack-timeline.md
+- Supervisor: surface-specific; no single transfer authority
+- Self-heal: route_specific
+
+### `visual_proof`
+
+- Role: `acceptance:user_visible_evidence`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: C:\P3Proofs; repo-local proof/acceptance contract; reviewed.json when independent review exists
+- Live status: exact proof run directory; capture manifest; reviewed.json; user-visible acceptance target
+- Independent recovery: classify why the previous proof failed and change a load-bearing condition before another expensive retry
+- Resources: capture; manifest; review verdict; acceptance requirement
+- Dependents: p3; worker_reports
+- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md
+- Supervisor: project-specific proof workflow
+- Self-heal: not_applicable
 
 ### `desktop_commander_watchdog`
 
