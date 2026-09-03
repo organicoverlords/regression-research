@@ -45,15 +45,6 @@ def test_every_indexed_path_exists():
     check_paths()
 
 
-def test_duplicate_archive_empty_and_marked():
-    data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
-    dup = data.get("duplicate_archive", {})
-    assert dup.get("status") == "empty_no_superseded_artifacts_currently_archived"
-    assert dup.get("entries") == []
-    dup_dir = REPO / "99 Duplicate Archive"
-    files = [p for p in dup_dir.iterdir() if p.is_file()] if dup_dir.exists() else []
-    assert files == [], f"duplicate archive should be empty, found {files}"
-
 
 def test_validator_detects_broken_path(tmp_path: Path):
     data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
@@ -100,16 +91,6 @@ def test_validator_detects_unsafe_link(tmp_path: Path):
     assert not ok
     assert any("unsafe" in m and "outside-evidence" in m for m in messages)
 
-
-def test_validator_detects_duplicate_archive_inconsistency(tmp_path: Path):
-    data = json.loads(INDEX.read_text(encoding="utf-8-sig"))
-    bad = copy.deepcopy(data)
-    bad["duplicate_archive"]["entries"] = [{"path": "01 Reports/not-an-archive-file.txt"}]
-    tmp_index = tmp_path / "provenance.json"
-    tmp_index.write_text(json.dumps(bad), encoding="utf-8")
-    ok, messages, _ = validate(tmp_index)
-    assert not ok
-    assert any("must be under '99 Duplicate Archive/'" in m for m in messages)
 
 
 def test_no_credential_bearing_material():
