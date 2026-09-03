@@ -12,6 +12,8 @@ The output is a read-only projection. It does not create a queue, database, owne
 
 It combines durable documents, memory records as historical evidence, worker-report history, reachable Git commits, refs, branches, tags, stashes, worktrees, reflogs, repository snapshots, and optional live runtime observations.
 
+Stash and reflog metadata are also emitted as queryable `OBSERVED_FACT` events so recoverable Git history can be found by subject, SHA, ref/selector, project, or repository path. Their messages are metadata only and never prove the intent, effect, or correctness of the referenced changes.
+
 Every event also carries an explicit epistemic class. `OBSERVED_FACT` means source metadata or runtime state was directly observed. `REPRODUCED_FACT` and `INFERENCE` are reserved for producers that explicitly justify those stronger meanings; the timeline never infers them from filenames, commit messages, proximity, or a `PROVEN` label. Documents, memory records, and worker self-reports remain `HISTORICAL_CLAIM` by default.
 
 Stronger historical findings enter through `02 Evidence/timeline-events/*.json` using schema `full-stack-timeline-events.v1`. Each event must explicitly declare its epistemic class, basis, timestamp, title, ID, and non-empty evidence references. `OBSERVED_FACT`, `REPRODUCED_FACT`, and `INFERENCE` require at least one existing Vault-relative evidence file; `git:`, `github:`, and HTTP references may supplement but cannot replace that local proof. Invalid or malformed events are excluded and surfaced in `structured_evidence_errors`; the timeline never upgrades ordinary prose or state labels into reproduced facts or inferences.

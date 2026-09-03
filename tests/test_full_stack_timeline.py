@@ -2,6 +2,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from tools.full_stack_timeline import (
@@ -13,8 +14,10 @@ from tools.full_stack_timeline import (
     collect_document_sources,
     collect_explicit_evidence_events,
     collect_git_state,
+    recoverable_git_events,
     collect_memory_events,
     checkout_mutation_admission,
+    build_full_stack_timeline,
 )
 
 
@@ -45,6 +48,43 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertTrue(state["worktrees"])
             self.assertTrue(state["reflog"])
             self.assertEqual(state["authority"], "LOCAL_GIT_OBJECT_DATABASE")
+
+    def test_stash_and_reflog_metadata_are_searchable_observed_events(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = self.make_repo(Path(d))
+            (repo / "dirty.txt").write_text("dirty", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "dirty.txt"], check=True)
+            subprocess.run(["git", "-C", str(repo), "stash", "push", "-m", "saved lesson"], check=True, capture_output=True)
+            state = collect_git_state("demo", repo, reflog_limit=20)
+            events = recoverable_git_events([state])
+            source_types = {event["source_type"] for event in events}
+            self.assertIn("GIT_STASH", source_types)
+            self.assertIn("GIT_REFLOG", source_types)
+            self.assertTrue(any("saved lesson" in event["title"] for event in events if event["source_type"] == "GIT_STASH"))
+            self.assertTrue(all(event["epistemic_class"] == "OBSERVED_FACT" for event in events))
+            self.assertTrue(all(event["authority"] == "LOCAL_GIT_OBJECT_DATABASE" for event in events))
+            self.assertTrue(all("does not prove" in event["epistemic_basis"] for event in events))
+            reflog_events = [event for event in events if event["source_type"] == "GIT_REFLOG"]
+            self.assertTrue(reflog_events)
+            self.assertTrue(all(datetime.fromisoformat(event["event_at"]) for event in reflog_events))
+
+    def test_stash_subject_is_queryable_in_full_timeline(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            repo = self.make_repo(root)
+            (repo / "dirty.txt").write_text("dirty", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "dirty.txt"], check=True)
+            subprocess.run(["git", "-C", str(repo), "stash", "push", "-m", "recoverable unique lesson"], check=True, capture_output=True)
+            report = build_full_stack_timeline(
+                root / "vault",
+                extra_specs=[RepoSpec("demo", repo)],
+                query="recoverable unique lesson",
+                commit_limit=1,
+                reflog_limit=20,
+                live=False,
+            )
+            self.assertTrue(any(event["source_type"] == "GIT_STASH" for event in report["events"]))
+            self.assertGreaterEqual(report["counts"]["git_recovery_events"], 1)
 
     def test_dirty_checkout_is_not_direct_stack_mutation_source(self):
         state = {"available": True, "dirty_entries": 3, "head": "aaa", "origin_main": "bbb", "branch": "main"}
