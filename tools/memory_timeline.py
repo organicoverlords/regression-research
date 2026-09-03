@@ -359,8 +359,6 @@ def build_orientation(
         linked_historical = [event for event in linked if event.get("disposition") != "CURRENT_DURABLE"]
         chosen_memory = [*explicit_current, *linked_current, *explicit_historical, *linked_historical][:slots]
         project_commits = [event for event in repo_items if str(event.get("project") or "").casefold() == key]
-        mainline_commits = [event for event in project_commits if event.get("repo_state") == "MAINLINE"]
-        lane_commits = [event for event in project_commits if event.get("repo_state") == "LANE"]
         project_index[key] = {
             "memory_events": memory_report["matching_events"],
             "explicit_project_events": len(explicit),
@@ -370,16 +368,11 @@ def build_orientation(
                 "semantic_category": event["semantic_category"], "disposition": event["disposition"],
                 "project_linkage": event.get("project_linkage"),
             } for event in chosen_memory],
-            "latest_mainline_commits": [{
+            "latest_commits": [{
                 "id": event["id"], "event_at": event["event_at"], "title": event["title"],
                 "sha": event.get("sha"), "short_sha": event.get("short_sha"), "refs": list(event.get("refs") or []),
-                "repo_state": event.get("repo_state"),
-            } for event in mainline_commits[:slots]],
-            "latest_lane_commits": [{
-                "id": event["id"], "event_at": event["event_at"], "title": event["title"],
-                "sha": event.get("sha"), "short_sha": event.get("short_sha"), "refs": list(event.get("refs") or []),
-                "repo_state": event.get("repo_state"),
-            } for event in lane_commits[:slots]],
+                "repo_state": event.get("repo_state"), "decorations": event.get("decorations"),
+            } for event in project_commits[:slots]],
         }
         if key in snapshots_by_project:
             project_index[key]["repo"] = snapshots_by_project[key]

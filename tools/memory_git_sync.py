@@ -13,7 +13,8 @@ from typing import Any, Iterator
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REL_BANK = Path("memory") / "memory-bank.jsonl"
 REMOTE = "origin"
-BRANCH = "main"
+BRANCH = "memory/live"
+PROTECTED_REMOTE_BRANCHES = frozenset({"main", "master", "dev", "develop"})
 MAX_SYNC_ATTEMPTS = 3
 LOCK_STALE_SECONDS = 180
 IS_WINDOWS = os.name == "nt"
@@ -21,6 +22,14 @@ IS_WINDOWS = os.name == "nt"
 
 class MemorySyncError(RuntimeError):
     pass
+
+
+def _validate_sync_branch() -> None:
+    branch = BRANCH.strip()
+    if not branch:
+        raise MemorySyncError("memory sync branch is empty")
+    if branch.casefold() in PROTECTED_REMOTE_BRANCHES:
+        raise MemorySyncError(f"memory sync refuses protected branch: {branch}")
 
 
 def _git(*args: str, cwd: Path = REPO_ROOT, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -142,6 +151,7 @@ def sync_lock(bank_path: Path, timeout_seconds: float = 15.0) -> Iterator[None]:
 
 
 def _remote_state() -> tuple[str, list[dict[str, Any]]]:
+    _validate_sync_branch()
     _git("fetch", REMOTE, BRANCH)
     head = _git("rev-parse", f"{REMOTE}/{BRANCH}").stdout.strip()
     shown = _git("show", f"{REMOTE}/{BRANCH}:{REL_BANK.as_posix()}")
@@ -205,6 +215,7 @@ def _memory_commit_message(entries: list[dict[str, Any]], entry_ids: set[str]) -
 
 
 def _publish_once(entries: list[dict[str, Any]], new_ids: set[str]) -> subprocess.CompletedProcess[str]:
+    _validate_sync_branch()
     temp_root = Path(tempfile.mkdtemp(prefix="vault-memory-sync-"))
     worktree = temp_root / "worktree"
     added = False

@@ -26,7 +26,7 @@
         "docs-policy:",
         "repo-policy:"
       ],
-      "role": "current shared/repository policy inspected from canonical source"
+      "role": "current canonical agent-rules policy inspected from organicoverlords/agent-rules rules/live"
     },
     {
       "id": "live-github",
@@ -140,22 +140,22 @@
       "availability": "available"
     },
     {
-      "id": "local-shared-agent-policy",
-      "location": "local/.agents/SHARED-AGENT-POLICY.md",
+      "id": "agent-rules-repo",
+      "location": "organicoverlords/agent-rules@rules/live + C:/Users/Lauri/Documents/agent-rules",
       "class": "LIVE_CANONICAL",
       "scope": "global",
-      "freshness": "local-current-generator-source",
+      "freshness": "rules-live-current",
       "availability": "available",
-      "role": "canonical shared policy source propagated into repository AGENTS.md files"
+      "role": "single canonical global/context agent rule authority; no generated downstream copies"
     },
     {
-      "id": "repo-agents-md",
-      "location": "project-repo/AGENTS.md",
-      "class": "LIVE_CANONICAL",
+      "id": "repo-rule-pointer",
+      "location": "project-repo/AGENTS.md or equivalent pointer",
+      "class": "VERIFIED_EVIDENCE",
       "scope": "project",
-      "freshness": "repo-current",
+      "freshness": "pointer-current",
       "availability": "available",
-      "role": "repo-local operating policy; shared generated block plus repo-specific sections"
+      "role": "navigation pointer to canonical agent-rules; explicitly not policy authority"
     },
     {
       "id": "local-agents",

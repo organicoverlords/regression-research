@@ -511,18 +511,20 @@ def collect_explicit_evidence_events(root: Path) -> tuple[list[dict[str, Any]], 
     return events, errors
 
 
+PROTECTED_HUMAN_BRANCHES = {"main", "master", "dev", "develop"}
+
+
 def checkout_mutation_admission(state: dict[str, Any]) -> dict[str, Any]:
     reasons: list[str] = []
     if not state.get("available", True):
         reasons.append("repo_unavailable")
     if int(state.get("dirty_entries") or 0) > 0:
         reasons.append("dirty_checkout")
-    head = state.get("head")
-    origin_main = state.get("origin_main")
-    if head and origin_main and head != origin_main:
-        reasons.append("head_differs_from_origin_main")
-    if not origin_main:
-        reasons.append("origin_main_unresolved")
+    branch = str(state.get("branch") or "").strip()
+    if not branch:
+        reasons.append("named_work_branch_unresolved")
+    elif branch.casefold() in PROTECTED_HUMAN_BRANCHES:
+        reasons.append("protected_human_branch")
     admitted = not reasons
     return {
         "direct_mutation_admitted": admitted,
@@ -530,7 +532,7 @@ def checkout_mutation_admission(state: dict[str, Any]) -> dict[str, Any]:
         "status": "DIRECT_OK" if admitted else "ISOLATE_REQUIRED",
         "reasons": reasons,
         "preserve_checkout": True,
-        "action": "mutate this checkout" if admitted else "preserve checkout and use an isolated current-base worktree or an already-owned admitted lane",
+        "action": "mutate this named work branch" if admitted else "preserve checkout and use/claim a clean named work branch or already-owned admitted lane",
     }
 
 
@@ -578,7 +580,6 @@ def collect_git_state(project: str, path: Path, *, reflog_limit: int = 80) -> di
     state["head"] = _git(path, "rev-parse", "HEAD") or None
     state["branch"] = _git(path, "branch", "--show-current") or None
     state["origin"] = _git(path, "remote", "get-url", "origin") or None
-    state["origin_main"] = _git(path, "rev-parse", "origin/main") or None
     state["branches"] = [line.strip() for line in _git(path, "for-each-ref", "--format=%(refname:short)", "refs/heads").splitlines() if line.strip()]
     state["remote_branches"] = [line.strip() for line in _git(path, "for-each-ref", "--format=%(refname:short)", "refs/remotes").splitlines() if line.strip()]
     state["tags"] = [line.strip() for line in _git(path, "tag", "--list").splitlines() if line.strip()]

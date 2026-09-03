@@ -1,0 +1,48 @@
+{
+  "schema": "full-stack-timeline-events.v1",
+  "events": [
+    {
+      "id": "evidence:agent-rules-authority-centralized-20260904",
+      "event_at": "2026-09-04T00:33:00+03:00",
+      "title": "Agent policy authority centralized into one rules repo",
+      "project": "vault",
+      "scope": "agent-rules/policy-authority",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "Direct Git/filesystem inspection verified a private organicoverlords/agent-rules repository with default rules/live, central RULES/context files, retired local generated-policy machinery, pointer-only downstream rule files, and focused regressions for the new Atlas/all-branch model.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "git:agent-rules:648c9db",
+        "github:organicoverlords/agent-rules"
+      ],
+      "result": {
+        "canonical_rule_repo": "organicoverlords/agent-rules",
+        "default_branch": "rules/live",
+        "local_policy_authority": "retired",
+        "repo_rule_files": "pointer-only",
+        "worker_history_orientation": "all-branches",
+        "product_integration_branches": "protected-human-validation"
+      }
+    },
+    {
+      "id": "evidence:memory-sync-protected-main-violation-20260904",
+      "event_at": "2026-09-04T00:39:29+03:00",
+      "title": "Memory writer main-branch publication trap contained on dedicated memory/live branch",
+      "project": "vault",
+      "scope": "vault/memory-sync-protected-main",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "The required memory record path published a04cdb1 directly to main because memory_git_sync.py hard-coded BRANCH=main. main then independently advanced to c6c17b6, making history rewrite unsafe. Exact a04cdb1 was preserved as memory/live; the repair candidate uses memory/live and rejects protected branches, and a repository-local pre-push guard immediately blocks direct protected-branch pushes.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "git:regression-research:a04cdb11551fe3e5193a4857b6dfe6cb579d300c",
+        "git:regression-research:c6c17b6985859b26399a5cb0484bbb59eef023d4"
+      ],
+      "result": {
+        "accidental_commit": "a04cdb11551fe3e5193a4857b6dfe6cb579d300c",
+        "preserved_branch": "memory/live",
+        "main_left_at": "c6c17b6985859b26399a5cb0484bbb59eef023d4",
+        "memory_sync_tests": 8,
+        "protected_push_guard": "PASS"
+      }
+    }
+  ]
+}

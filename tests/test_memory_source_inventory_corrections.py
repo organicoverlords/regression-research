@@ -8,12 +8,16 @@ class SourceInventoryCorrections(unittest.TestCase):
     def test_every_inventory_class_is_defined(self):
         defined=set(self.data['classes'])
         for item in self.items.values(): self.assertIn(item['class'],defined,item)
-    def test_current_shared_policy_source_is_live_canonical(self):
-        self.assertEqual(self.items['local-shared-agent-policy']['class'],'LIVE_CANONICAL')
-        self.assertIn('SHARED-AGENT-POLICY.md',self.items['local-shared-agent-policy']['location'])
-    def test_repo_agents_md_is_explicit_live_policy_source(self):
-        self.assertEqual(self.items['repo-agents-md']['class'],'LIVE_CANONICAL')
-        self.assertEqual(self.items['repo-agents-md']['scope'],'project')
+    def test_agent_rules_repo_is_the_live_canonical_policy_source(self):
+        item=self.items['agent-rules-repo']
+        self.assertEqual(item['class'],'LIVE_CANONICAL')
+        self.assertIn('organicoverlords/agent-rules@rules/live',item['location'])
+        self.assertIn('single canonical',item['role'])
+    def test_repo_rule_files_are_navigation_not_policy_authority(self):
+        item=self.items['repo-rule-pointer']
+        self.assertEqual(item['class'],'VERIFIED_EVIDENCE')
+        self.assertEqual(item['scope'],'project')
+        self.assertIn('not policy authority',item['role'])
     def test_nexus_availability_records_measured_file_count(self):
         n=self.items['nexus-memory']
         self.assertEqual(n['availability'],'available')

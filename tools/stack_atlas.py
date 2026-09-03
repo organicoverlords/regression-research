@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
+AGENT_RULES_ROOT = r"C:\Users\Lauri\Documents\agent-rules"
+AGENT_RULES_REMOTE = "organicoverlords/agent-rules@rules/live"
 ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
 CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 COMPONENT_ALIASES = {
@@ -40,11 +42,15 @@ COMPONENT_ALIASES = {
     "proof": "visual_proof",
     "worker": "execution_workers",
     "workers": "execution_workers",
+    "rules": "agent_rules",
+    "agent rules": "agent_rules",
+    "policy": "agent_rules",
+    "repo rules": "repo_rule_pointer",
 }
 
 ATLAS_CONTRACT = {
     "authority": "DERIVED_OPERATIONAL_VIEW_NOT_AUTHORITY",
-    "stack_work_gate": "before stack/infra reasoning, answers, redesign, repair, or mutation, consume the compact Atlas; load the relevant deep runbook before modification",
+    "stack_work_gate": "after reading canonical agent_rules, before stack/infra reasoning, answers, redesign, repair, or mutation, consume the compact Atlas; load only the relevant deep runbook before modification",
     "pid_semantics": "PID is an ephemeral live lookup key only; stable identity comes from executable/command line/ancestry/supervisor/config/resources",
     "destructive_gate": "unknown component identity, dependency role, supervisor, self-heal, blast radius, or independent recovery means BLOCK destructive action",
     "live_status": "fetch from the named live authority at use time; Atlas never promotes cached status to current truth",
@@ -168,7 +174,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["classify why the previous proof failed and change a load-bearing condition before another expensive retry"],
         "resources": ["capture", "manifest", "review verdict", "acceptance requirement"],
         "dependents": ["p3", "worker_reports"],
-        "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\contexts\p3.md"],
     },
     "github_runner": {
         "role": "ci_execution_worker",
@@ -186,13 +192,13 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "local_source_truth",
         "capabilities": ["source_read", "repository_mutate"],
         "canonical_sources": ["per-repo filesystem/.git/worktrees"],
-        "live_status": ["git status", "HEAD", "origin/main", "worktree list"],
+        "live_status": ["git status", "HEAD", "recent git log --all history", "local/remote branch refs", "worktree list"],
         "supervisor": "none",
         "self_heal": "not_applicable",
         "independent_recovery": ["preserve dirty/foreign state; use isolated worktree"],
         "resources": ["working tree", ".git/worktrees"],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["repo AGENTS.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "github": {
         "role": "remote_publication_and_workflow_evidence",
@@ -204,7 +210,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["local Git remains local source truth; publication waits for GitHub"],
         "resources": ["remote refs", "issues", "PRs", "workflow runs"],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["repo AGENTS.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "dev_progress_board": {
         "role": "derived_progress_projection",
@@ -221,22 +227,29 @@ COMPONENTS: dict[str, dict[str, Any]] = {
 }
 
 COMPONENTS.update({
-    "shared_policy": {
-        "role": "authority:cross-project", "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
-        "live_status": ["read current shared policy"], "supervisor": "none", "self_heal": "not_applicable",
-        "independent_recovery": ["current instruction + repo rules remain authoritative"], "resources": ["generated policy blocks"],
-        "dependents": ["chatgpt_session", "execution_workers"], "runbook": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
+    "agent_rules": {
+        "role": "authority:agent-rules", "capabilities": ["source_read", "repository_mutate"],
+        "canonical_sources": [AGENT_RULES_ROOT + r"\RULES.md", AGENT_RULES_ROOT + r"\contexts", AGENT_RULES_REMOTE],
+        "live_status": ["read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters"],
+        "supervisor": "none", "self_heal": "not_applicable",
+        "independent_recovery": ["current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable"],
+        "resources": ["RULES.md", "contexts/*.md", "rules/live"],
+        "dependents": ["chatgpt_session", "execution_workers", "repo_rule_pointer"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
-    "repo_agents": {
-        "role": "authority:repo-local", "capabilities": ["source_read", "repository_mutate"],
-        "canonical_sources": ["admitted worktree AGENTS.md"], "live_status": ["read admitted-worktree AGENTS.md"],
-        "supervisor": "repo-local", "self_heal": "not_applicable", "independent_recovery": ["block repo mutation until readable"],
-        "resources": ["AGENTS.md"], "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo AGENTS.md"],
+    "repo_rule_pointer": {
+        "role": "navigation:rule-pointer", "capabilities": ["source_read"],
+        "canonical_sources": ["pointer-only AGENTS.md/CLAUDE.md/equivalent"],
+        "live_status": ["verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body"],
+        "supervisor": "none", "self_heal": "not_applicable",
+        "independent_recovery": ["read agent_rules directly; a missing/stale pointer never creates a second policy authority"],
+        "resources": ["pointer files only"],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "north_star": {
         "role": "direction:project", "capabilities": ["source_read"], "canonical_sources": ["repo NORTH_STAR/equivalent"],
-        "live_status": ["read current direction doc"], "supervisor": "repo-local", "self_heal": "not_applicable",
+        "live_status": ["read current direction doc; derive obvious unmet product outcomes into actionable work and prefer visible progress"], "supervisor": "repo-local", "self_heal": "not_applicable",
         "independent_recovery": ["current user direction outranks stale prose"], "resources": ["NORTH_STAR/equivalent"],
         "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo NORTH_STAR/equivalent"],
     },
@@ -250,9 +263,10 @@ COMPONENTS.update({
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
-        "canonical_sources": ["tools/memory_bank.py", "memory/memory-bank.jsonl"], "live_status": ["memory_bank.py validate / bounded read"],
+        "canonical_sources": ["tools/memory_bank.py", "memory/memory-bank.jsonl", "origin/memory/live"],
+        "live_status": ["memory_bank.py validate / bounded read", "writes reconcile through dedicated origin/memory/live; protected main/master/dev/develop are forbidden publication targets"],
         "supervisor": "none", "self_heal": "not_applicable", "independent_recovery": ["continue without optional history enrichment"],
-        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"], "dependents": ["chatgpt_session", "execution_workers"],
+        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json", "memory/live"], "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
     "worker_reports": {
@@ -266,13 +280,13 @@ COMPONENTS.update({
     },
     "chatgpt_session": {
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
+        "canonical_sources": ["current conversation", "ChatGPT Memory", "agent_rules", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
         "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
         "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
     },
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["fresh-worker launch contract", "repo AGENTS.md"], "live_status": ["independent execution/activity evidence"],
+        "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
         "supervisor": "ChatGPT + BusyCoordinator ownership", "self_heal": "worker_specific",
         "independent_recovery": ["preserve task/checkpoint; use another proven execution route"],
         "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
@@ -311,7 +325,7 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM"],
         "resources": ["source recovery", "image-to-3D generation", "geometry", "textures", "provenance", "producer visual QA"],
         "dependents": ["tiny3d"],
-        "runbook": [r"C:\Users\Lauri\Desktop\lowvram3d-repo\AGENTS.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\contexts\lowvram.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
     },
     "asset_library": {
         "role": "storage:tiny3d_asset_library",
@@ -335,7 +349,7 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM"],
         "resources": ["compilation", "rigging/skinning", "animation/deformation preparation", "validation/adapters", "packaging/lifecycle evidence", "catalogue/library"],
         "dependents": ["p3"],
-        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\AGENTS.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\contexts\tiny3d.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
     },
     "p3": {
         "role": "consumer:game_runtime_acceptance",
@@ -347,7 +361,7 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof"],
         "resources": ["Unreal/game materialization", "runtime acceptance", "gameplay/visual proof"],
         "dependents": [],
-        "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\contexts\p3.md"],
     },
 }
 PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
@@ -367,9 +381,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
     },
     "project.current_truth": {
-        "owner_components": ["repo_agents", "north_star", "local_git", "github"],
+        "owner_components": ["agent_rules", "north_star", "local_git", "github"],
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
-        "entrypoints": ["admitted worktree AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD/origin", "exact GitHub issue/PR/check/runtime evidence"],
+        "entrypoints": ["agent-rules RULES.md + applicable context", "repo NORTH_STAR/equivalent", "git status/HEAD + recent all-branch history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
     "coordination.ownership": {

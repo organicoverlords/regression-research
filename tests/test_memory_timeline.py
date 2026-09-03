@@ -168,11 +168,11 @@ class MemoryTimelineTests(unittest.TestCase):
             "id": "git:p3:abc", "source_type": "GIT_COMMIT", "authority": "REPO_HISTORY",
             "event_at": "2026-08-29T02:00:00+03:00", "project": "p3", "projects": ["p3"],
             "title": "fix HUD proof (#617)", "summary": "fix HUD proof (#617)", "sha": "abcdef",
-            "short_sha": "abcdef", "refs": ["#617"], "repo_state": "MAINLINE", "on_origin_main": True,
+            "short_sha": "abcdef", "refs": ["#617"], "repo_state": "ALL_BRANCHES", "decorations": "worker/topic",
             "thread_id": "repo:p3", "thread_source": "PROJECT_REPO_STREAM",
         }
         orientation = build_orientation([memory], projects=["p3"], repo_events=[repo_event], project_events=2)
-        self.assertEqual(orientation["projects"]["p3"]["latest_mainline_commits"][0]["sha"], "abcdef")
+        self.assertEqual(orientation["projects"]["p3"]["latest_commits"][0]["sha"], "abcdef")
         self.assertEqual(orientation["projects"]["p3"]["latest_memory"][0]["id"], "mem")
         self.assertEqual(repo_event["authority"], "REPO_HISTORY")
         self.assertIn("no automatic memory write", orientation["contract"]["repo_history"])
