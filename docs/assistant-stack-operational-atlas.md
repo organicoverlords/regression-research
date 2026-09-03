@@ -368,19 +368,6 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Supervisor: Tiny3D
 - Self-heal: product-specific
 
-### `tinylab`
-
-- Role: `legacy_name:not_active_product_authority`
-- Capabilities: source_read
-- Canonical sources: C:\Users\Lauri\Desktop\TinyLab; C:\Users\Lauri\Desktop\tiny3d\README.md
-- Live status: historical compatibility/name only; current Tiny3D README/North Star define the active post-generation product
-- Independent recovery: resolve current post-generation behavior through Tiny3D; use TinyLab only for historical compatibility/provenance when needed
-- Resources: historical tinylab.* schema identifiers and legacy workspace
-- Dependents: none
-- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
-- Supervisor: none
-- Self-heal: not_applicable
-
 ### `tiny3d`
 
 - Role: `product:post_generation_asset_compiler`
