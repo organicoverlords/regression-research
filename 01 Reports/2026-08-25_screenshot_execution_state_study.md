@@ -77,4 +77,4 @@ Current working hypothesis: bootstrap/context quality may affect the probability
 See `02 Evidence/2026-08-25_screenshot_execution_state_index.json` for the searchable rated evidence index.
 ## Search
 
-Use `python tools/screenshot_evidence.py <term> [--min-rating 1..5]`. Search covers ids, tags, filenames, polarity, phenotype, observations and contrasts. Example: `python tools/screenshot_evidence.py plan_loop --min-rating 5` returns the strongest bad cold-baseline sequence.
+The one-time `screenshot_evidence.py` search helper was retired after issues #69/#74 closed. The rated index remains preserved at `02 Evidence/2026-08-25_screenshot_execution_state_index.json` alongside this study.
