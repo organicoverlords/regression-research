@@ -221,6 +221,15 @@ def _parse_rows(text: str, fields: tuple[str, ...]) -> list[dict[str, str]]:
     return rows
 
 
+def _reflog_rows(text: str) -> list[dict[str, str]]:
+    rows = _parse_rows(text, ("sha", "selector", "subject"))
+    for row in rows:
+        selector = row.get("selector", "")
+        match = re.search(r"@\{(.+)\}$", selector)
+        row["event_at"] = match.group(1) if match else ""
+    return rows
+
+
 def collect_git_state(project: str, path: Path, *, reflog_limit: int = 80) -> dict[str, Any]:
     available = path.is_dir() and bool(_git(path, "rev-parse", "--git-dir"))
     state: dict[str, Any] = {"project": project, "path": str(path), "available": available, "authority": "LOCAL_GIT_OBJECT_DATABASE"}
@@ -236,14 +245,70 @@ def collect_git_state(project: str, path: Path, *, reflog_limit: int = 80) -> di
     stash_text = _git(path, "stash", "list", "--date=iso-strict", "--format=%H%x1f%gd%x1f%cI%x1f%s")
     state["stashes"] = _parse_rows(stash_text, ("sha", "ref", "event_at", "subject"))
     state["worktrees"] = _parse_worktrees(_git(path, "worktree", "list", "--porcelain"))
-    reflog_text = _git(path, "reflog", "show", "--all", f"--max-count={max(1, reflog_limit)}", "--date=iso-strict", "--format=%H%x1f%gD%x1f%gI%x1f%gs")
-    state["reflog"] = _parse_rows(reflog_text, ("sha", "selector", "event_at", "subject"))
+    reflog_text = _git(path, "reflog", "show", "--all", f"--max-count={max(1, reflog_limit)}", "--date=iso-strict", "--format=%H%x1f%gD%x1f%gs")
+    state["reflog"] = _reflog_rows(reflog_text)
     refs_text = _git(path, "for-each-ref", "--format=%(refname)%x1f%(objectname)%x1f%(committerdate:iso-strict)%x1f%(subject)")
     state["refs"] = _parse_rows(refs_text, ("ref", "sha", "event_at", "subject"))
     status = _git(path, "status", "--porcelain=v1")
     state["dirty_entries"] = len([line for line in status.splitlines() if line.strip()])
     state["mutation_admission"] = checkout_mutation_admission(state)
     return state
+
+
+def recoverable_git_events(states: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
+    for state in states:
+        if not state.get("available"):
+            continue
+        project = str(state.get("project") or "unknown")
+        repo_path = str(state.get("path") or "")
+        for row in state.get("stashes") or []:
+            sha = str(row.get("sha") or "")
+            ref = str(row.get("ref") or "")
+            event_at = str(row.get("event_at") or "")
+            title = str(row.get("subject") or ref or sha or "stash")
+            key = ("GIT_STASH", project, sha, ref, event_at)
+            if key in seen:
+                continue
+            seen.add(key)
+            events.append({
+                "source_type": "GIT_STASH",
+                "authority": "LOCAL_GIT_OBJECT_DATABASE",
+                "epistemic_class": "OBSERVED_FACT",
+                "epistemic_basis": "stash metadata observed in local Git; the stash subject does not prove the intent, effect, or correctness of contained changes",
+                "id": f"git-stash:{project}:{sha}:{ref}:{event_at}",
+                "event_at": event_at,
+                "title": title,
+                "project": project,
+                "sha": sha,
+                "ref": ref,
+                "repo_path": repo_path,
+            })
+        for row in state.get("reflog") or []:
+            sha = str(row.get("sha") or "")
+            selector = str(row.get("selector") or "")
+            event_at = str(row.get("event_at") or "")
+            title = str(row.get("subject") or selector or sha or "reflog")
+            key = ("GIT_REFLOG", project, sha, selector, event_at)
+            if key in seen:
+                continue
+            seen.add(key)
+            events.append({
+                "source_type": "GIT_REFLOG",
+                "authority": "LOCAL_GIT_OBJECT_DATABASE",
+                "epistemic_class": "OBSERVED_FACT",
+                "epistemic_basis": "reflog metadata observed in local Git; the reflog subject does not prove the intent, effect, or correctness of the referenced operation",
+                "id": f"git-reflog:{project}:{sha}:{selector}:{event_at}",
+                "event_at": event_at,
+                "title": title,
+                "project": project,
+                "sha": sha,
+                "selector": selector,
+                "repo_path": repo_path,
+            })
+    events.sort(key=_sort_time, reverse=True)
+    return events
 
 
 def _dedupe_specs(specs: Iterable[RepoSpec]) -> list[RepoSpec]:
@@ -435,13 +500,14 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         item["epistemic_basis"] = "finalized worker self-report; useful lagging evidence but not current-state or liveness proof"
         workers.append(item)
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
-    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *memory, *workers, *commits])
+    git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
+    recovery_events = recoverable_git_events(git_states)
+    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *memory, *workers, *commits, *recovery_events])
     if query:
         events = [item for item in events if _matches(item, query)]
         visible_ids = {str(item.get("id")) for item in events if item.get("id")}
         relationships = [rel for rel in relationships if rel["from_id"] in visible_ids or rel["to_id"] in visible_ids]
     events.sort(key=_sort_time, reverse=True)
-    git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
     history = collect_repo_history(specs, limit_per_repo=20)
     result = {
         "schema_version": 1,
@@ -449,7 +515,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         "authority": "DERIVED_FULL_STACK_TIMELINE_NOT_CURRENT_TRUTH",
         "contract": {
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
-            "git": "branches, refs, tags, stashes, worktrees and reflogs come directly from each local Git object database",
+            "git": "commits plus searchable stash/reflog metadata, branches, refs, tags and worktrees come directly from each local Git object database; Git messages never prove effect or intent",
             "runtime": "live probes are current observations only for the instant collected",
             "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require explicit structured evidence with basis + evidence refs; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
             "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
@@ -470,6 +536,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "memory_events": len(memory),
             "worker_events": len(workers),
             "git_commits": len(commits),
+            "git_recovery_events": len(recovery_events),
             "matching_events": len(events),
             "explicit_relationships": len(relationships),
         },
