@@ -3,12 +3,10 @@
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
 next move was, and enough preserved state to replay the case later.
 This is research evidence. It is not an operating contract and not a worker prompt.
-Operating rules live in each project's `AGENTS.md`, generated from
-`C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
+Canonical agent rules live in `C:\Users\Lauri\Documents\agent-rules\RULES.md` plus the applicable `contexts/*.md`; repo `AGENTS.md` files are pointer-only.
 
 Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
 
-Use `python tools/evidence_bundle.py create --output <manifest.json> <artifact...>` to bind regression proof to the current Git commit and artifact SHA-256 digests; `python tools/evidence_bundle.py verify <manifest.json>` re-checks that evidence read-only and rejects stale or tampered subjects.
 
 
 ## Layout

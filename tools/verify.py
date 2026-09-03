@@ -26,10 +26,6 @@ STACK_PATHS = {
     "tests/test_stack_atlas.py",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
-    "tools/evidence_bundle.py",
-    "tests/test_evidence_bundle.py",
-    "tools/connector_reliability.py",
-    "tests/test_connector_reliability.py",
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
@@ -134,8 +130,6 @@ def verify_stack() -> None:
             "tools/capability_routing.py",
             "tools/stack_atlas.py",
             "tools/replay_scoring.py",
-            "tools/evidence_bundle.py",
-            "tools/connector_reliability.py",
         ]
     )
     run(
@@ -145,10 +139,8 @@ def verify_stack() -> None:
             "unittest",
             "tests.test_capability_routing",
             "tests.test_stack_atlas",
-            "tests.test_evidence_bundle",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue123_current_vault_history_boundary",
-            "tests.test_connector_reliability",
             "tests.test_north_star_entry",
             "-v",
         ]
