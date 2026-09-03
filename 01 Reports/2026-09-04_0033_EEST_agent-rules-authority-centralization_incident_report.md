@@ -32,3 +32,14 @@ Before a safe lease-guarded restoration could be executed, `main` advanced throu
 The repair candidate changes `memory_git_sync.py` to `BRANCH = "memory/live"`, adds a fail-closed guard rejecting `main`, `master`, `dev`, or `develop`, and updates its alignment fixture to track the dedicated memory branch. Validation: `8 passed`; a live non-publishing sync resolved `memory/live` at exact `a04cdb1` with `pending_push=0`, `pushed=0`.
 
 The current private-repository/account tier does not expose GitHub branch protection/rulesets (API returned HTTP 403 requiring GitHub Pro or public repository). To close the immediate live gap without mutating another worker's dirty Vault checkout, the shared Vault Git directory now has `.git/hooks/pre-push`, which rejects direct pushes to `refs/heads/main|master|dev|develop` and allows named branches. Manual hook validation returned reject exit 1 for `main` and allow exit 0 for `chatgpt/test`. This is an enforcement boundary for the canonical branch rule, not a second policy authority; the rule text remains only in `agent-rules`.
+
+## Final five-repo convergence candidate — protected branches pending user approval
+Live remote verification at 2026-09-04 01:39 EEST confirmed the canonical rules authority at `organicoverlords/agent-rules` `rules/live` = `ad93f5c1a86ab88d536bf4bf7cc1ab24228fed4e` and exact pointer/migration candidates:
+
+- P3 `chatgpt/agent-rules-pointer-20260904` = `f246ff7a32c4e9d4b8565f5e4e64fadbf72f4da3`; protected `main` = `fa5a70b58120cb3b3da61587e486bbab350a646c`.
+- Tiny3D `chatgpt/agent-rules-pointer-20260904` = `333ef57aa313cf0431d9845f8689e6b00ede113c`; protected `main` = `4a60114554abd46f0cfe49c7c2ab74f8451e5374`.
+- LowVRAM `chatgpt/agent-rules-pointer-20260904` = `e838e818494bb70c95366aabac3c8e4f960e539f`; protected `main` = `defbdd7e4a00597b32309b0a64d4063862302b84`.
+- MCP `chatgpt/agent-rules-pointer-20260904` = `45005d7c9645e958af22d7712944fc0bf2b18c88`; protected `master` = `ce948bfef93ba118887abd7fa340ce0b22319197`.
+- Vault remote candidate `chatgpt/agent-rules-authority-20260904` = `bffa5f1fbdb2651624050f55ec44953f89cc3812`; protected Vault `main` = `98a0ed3f1b976b5929861c9739d3107f15e47898`. The local migration worktree also contains later unpushed convergence commits and concurrent dirty work from another actor; those are explicitly not treated as delivered candidate evidence and are not published by this task.
+
+All protected product/integration branches remain outside this cutover. They still carry the old local policy until the user explicitly approves advancing the converged candidates. This is deliberate: the agent work is prepared and evidenced on named branches first; protected human-validation branches are not silently updated by workers.

@@ -43,6 +43,34 @@
         "memory_sync_tests": 8,
         "protected_push_guard": "PASS"
       }
+    },
+    {
+      "id": "evidence:agent-rules-five-repo-convergence-ready-20260904",
+      "event_at": "2026-09-04T01:39:07+03:00",
+      "title": "Five-repo pointer convergence prepared without advancing protected branches",
+      "project": "vault",
+      "scope": "agent-rules/five-repo-convergence",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "Direct ls-remote verification confirmed the exact pushed P3, Tiny3D, LowVRAM, MCP, and Vault named-branch candidates plus the current protected branch heads. Canonical rules/live was fetched and resolved directly. Unpushed local Vault convergence commits are excluded from delivered candidate evidence. Protected branches were deliberately left untouched pending explicit user approval.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "git:agent-rules:ad93f5c1a86ab88d536bf4bf7cc1ab24228fed4e",
+        "git:p3:f246ff7a32c4e9d4b8565f5e4e64fadbf72f4da3",
+        "git:tiny3d:333ef57aa313cf0431d9845f8689e6b00ede113c",
+        "git:lowvram:e838e818494bb70c95366aabac3c8e4f960e539f",
+        "git:mcp:45005d7c9645e958af22d7712944fc0bf2b18c88",
+        "git:regression-research:bffa5f1fbdb2651624050f55ec44953f89cc3812"
+      ],
+      "result": {
+        "canonical_rules_head": "ad93f5c1a86ab88d536bf4bf7cc1ab24228fed4e",
+        "p3_candidate": "f246ff7a32c4e9d4b8565f5e4e64fadbf72f4da3",
+        "tiny3d_candidate": "333ef57aa313cf0431d9845f8689e6b00ede113c",
+        "lowvram_candidate": "e838e818494bb70c95366aabac3c8e4f960e539f",
+        "mcp_candidate": "45005d7c9645e958af22d7712944fc0bf2b18c88",
+        "protected_branch_policy": "pending-explicit-user-approval",
+        "vault_candidate": "bffa5f1fbdb2651624050f55ec44953f89cc3812",
+        "unpublished_local_vault_commits": "excluded-from-delivered-candidate"
+      }
     }
   ]
 }
