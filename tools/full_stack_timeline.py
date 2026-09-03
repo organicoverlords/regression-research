@@ -14,11 +14,11 @@ from typing import Any, Iterable
 try:
     from .repo_timeline import RepoSpec, collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
     from .stack_atlas import COMPONENTS, PRODUCT_COMPONENTS, PRODUCT_ROOTS, MCP_ROOT
-    from .worker_report_history import summarize_history, worker_history_events
+    from .worker_report_history import worker_history_events
 except ImportError:
     from repo_timeline import RepoSpec, collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
     from stack_atlas import COMPONENTS, PRODUCT_COMPONENTS, PRODUCT_ROOTS, MCP_ROOT
-    from worker_report_history import summarize_history, worker_history_events
+    from worker_report_history import worker_history_events
 
 ROOT = Path(__file__).resolve().parents[1]
 DATE_RE = re.compile(r"(?P<date>20\d{2}[-_]?[01]\d[-_]?[0-3]\d)(?:[_-]?(?P<time>[0-2]\d[0-5]\d))?")
@@ -904,7 +904,6 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "matching_events": len(events),
             "explicit_relationships": len(relationships),
         },
-        "worker_metrics": summarize_history(worker_root, hours=24.0) if worker_root.exists() else {},
     }
     if live:
         result["runtime"] = collect_live_runtime()

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.worker_report_history import archive_finalized_report, summarize_history, worker_history_events
+from tools.worker_report_history import archive_finalized_report, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -65,39 +65,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 report.write_text(f"worker: {worker}\nstate: {state}\n", encoding="utf-8")
                 self.assertTrue(archive_finalized_report(report, root / "history")["ok"])
 
-    def test_archive_updates_shared_metrics_projection(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            report = root / "Juniper.md"
-            report.write_text(
-                "worker: Juniper\nstate: COMPLETE\nstarted_at: 2099-01-01T00:00:00+00:00\n"
-                "last_activity_at: 2099-01-01T00:22:48+00:00\nrepo: organicoverlords/regression-research\n",
-                encoding="utf-8",
-            )
-            result = archive_finalized_report(report, root / "history")
-            metrics_path = Path(result["fleet_metrics_path"])
-            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-            self.assertEqual(metrics["target_run_minutes"], 24.0)
-            self.assertEqual(metrics["captured_runs"], 1)
-            self.assertEqual(metrics["average_duration_minutes"], 22.8)
-            self.assertEqual(metrics["average_target_utilization_pct"], 95.0)
-            self.assertEqual(metrics["latest_reports"][0]["duration_minutes"], 22.8)
 
-    def test_summary_keeps_capacity_distinct_from_uptime(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            history = root / "history" / "_reports"
-            history.mkdir(parents=True)
-            payload = {
-                "schema": "worker-report-history.v2", "worker": "Alder",
-                "finished_at": "2099-01-01T01:00:00+00:00", "duration_minutes": 24.0,
-                "target_utilization_pct": 100.0,
-            }
-            (history / "a.json").write_text(json.dumps(payload), encoding="utf-8")
-            summary = summarize_history(root / "history", hours=1)
-            self.assertEqual(summary["average_target_utilization_pct"], 100.0)
-            self.assertEqual(summary["capacity_pct_of_one_continuous_worker"], 40.0)
-            self.assertNotIn("uptime", summary)
 
     def test_history_metadata_becomes_timeline_event(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -140,13 +108,6 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metadata["tool_drops"], 3)
             self.assertEqual(metadata["tool_drop_effect"], "BLOCKED_REQUIRED_ROUTE")
             self.assertIn("EXTERNAL", metadata["pending_gate_classes"])
-            metrics = summarize_history(root / "history")
-            self.assertEqual(metrics["tool_drops_total"], 0)
-            self.assertEqual(metrics["legacy_unclassified_tool_drops_total"], 3)
-            self.assertEqual(metrics["tool_drop_stop_runs"], 0)
-            self.assertEqual(metrics["tool_failure_stop_runs"], 1)
-            self.assertEqual(metrics["early_stop_reason_counts"], {"TOOL_BLOCKED": 1})
-            self.assertEqual(metrics["early_stops_unexplained"], 0)
 
     def test_classified_failures_keep_safety_blocks_out_of_transport_totals(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -166,30 +127,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metadata["safety_blocks"], 6)
             self.assertEqual(metadata["tool_failures_total"], 9)
             self.assertEqual(metadata["legacy_unclassified_tool_drops"], 0)
-            metrics = summarize_history(root / "history")
-            self.assertEqual(metrics["transport_drops_total"], 2)
-            self.assertEqual(metrics["binding_drops_total"], 1)
-            self.assertEqual(metrics["safety_blocks_total"], 6)
-            self.assertEqual(metrics["tool_drops_total"], 3)
-            self.assertEqual(metrics["legacy_unclassified_tool_drops_total"], 0)
 
-    def test_legacy_short_run_is_flagged_unexplained_without_guessing_from_gate(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            history = root / "history" / "_reports"
-            history.mkdir(parents=True)
-            payload = {
-                "schema": "worker-report-history.v2", "worker": "Harbor", "state": "DONE",
-                "finished_at": "2099-01-01T01:00:00+00:00", "duration_minutes": 7.0,
-                "target_run_minutes": 24.0, "target_utilization_pct": 29.2,
-                "remaining_gate": "hosted check pending, then rendered proof",
-            }
-            (history / "legacy.json").write_text(json.dumps(payload), encoding="utf-8")
-            metrics = summarize_history(root / "history")
-            self.assertEqual(metrics["latest_reports"][0]["stop_reason"], "UNEXPLAINED")
-            self.assertEqual(metrics["early_stop_reason_counts"], {"UNEXPLAINED": 1})
-            self.assertEqual(metrics["pending_gate_counts"], {"EXTERNAL": 1, "PROOF": 1})
-            self.assertEqual(metrics["early_stops_unexplained"], 1)
 
     def test_running_report_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

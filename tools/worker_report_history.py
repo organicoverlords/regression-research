@@ -3,9 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import statistics
-from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -209,96 +207,6 @@ def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
     return records
 
 
-def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
-    now = datetime.now().astimezone()
-    cutoff = now - timedelta(hours=max(0.01, float(hours)))
-    records: list[dict[str, Any]] = []
-    for raw in load_history_metadata(history_root):
-        finished = _parse_time(raw.get("finished_at") or raw.get("archived_at"))
-        if finished is not None and finished >= cutoff:
-            item = dict(raw)
-            item.update(_run_analytics(item))
-            records.append(item)
-
-    durations = [float(x["duration_minutes"]) for x in records if isinstance(x.get("duration_minutes"), (int, float))]
-    utils = [float(x["target_utilization_pct"]) for x in records if isinstance(x.get("target_utilization_pct"), (int, float))]
-    stop_counts = Counter(str(x["stop_reason"]) for x in records)
-    early_records = [x for x in records if x.get("early_stop")]
-    early_stop_counts = Counter(str(x["stop_reason"]) for x in early_records)
-    gate_counts = Counter(label for x in records for label in x.get("pending_gate_classes", []))
-    transport_drop_runs = [x for x in records if int(x.get("transport_drops") or 0) > 0]
-    binding_drop_runs = [x for x in records if int(x.get("binding_drops") or 0) > 0]
-    safety_block_runs = [x for x in records if int(x.get("safety_blocks") or 0) > 0]
-    other_tool_failure_runs = [x for x in records if int(x.get("other_tool_failures") or 0) > 0]
-    legacy_tool_drop_runs = [x for x in records if int(x.get("legacy_unclassified_tool_drops") or 0) > 0]
-    tool_failure_stop_runs = [
-        x for x in records
-        if int(x.get("tool_failures_total") or 0) > 0
-        and (x.get("tool_failure_effect") in {"CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"} or x.get("stop_reason") == "TOOL_BLOCKED")
-    ]
-    transport_or_binding_runs = [x for x in records if int(x.get("transport_drops") or 0) > 0 or int(x.get("binding_drops") or 0) > 0]
-    transport_or_binding_stop_runs = [x for x in transport_or_binding_runs if x in tool_failure_stop_runs]
-
-    def record_sort_key(item: dict[str, Any]) -> float:
-        parsed = _parse_time(item.get("finished_at") or item.get("archived_at"))
-        return parsed.timestamp() if parsed is not None else float("-inf")
-
-    ordered_records = sorted(records, key=record_sort_key)
-
-    total_minutes = round(sum(durations), 2)
-    window_minutes = hours * 60.0
-    return {
-        "schema": "worker-report-metrics.v4",
-        "generated_at": now.isoformat(),
-        "window_hours": float(hours),
-        "target_run_minutes": TARGET_RUN_MINUTES,
-        "captured_runs": len(records),
-        "runs_with_duration": len(durations),
-        "average_duration_minutes": round(statistics.mean(durations), 2) if durations else None,
-        "median_duration_minutes": round(statistics.median(durations), 2) if durations else None,
-        "average_target_utilization_pct": round(statistics.mean(utils), 1) if utils else None,
-        "short_runs_under_75pct": len(early_records),
-        "early_stops_unexplained": sum(1 for x in early_records if x.get("early_stop_unexplained")),
-        "stop_reason_counts": dict(sorted(stop_counts.items())),
-        "early_stop_reason_counts": dict(sorted(early_stop_counts.items())),
-        "pending_gate_counts": dict(sorted(gate_counts.items())),
-        # Backward headline now means classified callable-route loss only; safety and legacy values are separate.
-        "tool_drop_runs": len(transport_or_binding_runs),
-        "tool_drops_total": sum(int(x.get("transport_drops") or 0) + int(x.get("binding_drops") or 0) for x in transport_or_binding_runs),
-        "tool_drop_stop_runs": len(transport_or_binding_stop_runs),
-        "transport_drop_runs": len(transport_drop_runs),
-        "transport_drops_total": sum(int(x.get("transport_drops") or 0) for x in transport_drop_runs),
-        "binding_drop_runs": len(binding_drop_runs),
-        "binding_drops_total": sum(int(x.get("binding_drops") or 0) for x in binding_drop_runs),
-        "safety_block_runs": len(safety_block_runs),
-        "safety_blocks_total": sum(int(x.get("safety_blocks") or 0) for x in safety_block_runs),
-        "other_tool_failure_runs": len(other_tool_failure_runs),
-        "other_tool_failures_total": sum(int(x.get("other_tool_failures") or 0) for x in other_tool_failure_runs),
-        "legacy_unclassified_tool_drop_runs": len(legacy_tool_drop_runs),
-        "legacy_unclassified_tool_drops_total": sum(int(x.get("legacy_unclassified_tool_drops") or 0) for x in legacy_tool_drop_runs),
-        "tool_failure_stop_runs": len(tool_failure_stop_runs),
-        "worker_minutes": total_minutes,
-        "equivalent_continuous_workers": round(total_minutes / window_minutes, 3) if window_minutes else None,
-        "capacity_pct_of_one_continuous_worker": round(total_minutes / window_minutes * 100.0, 1) if window_minutes else None,
-        # Names are display labels, not identity keys. This ordered list is the supervisor's
-        # rename-safe discovery surface; report_sha256 is the immutable report identity.
-        "latest_reports": [
-            {
-                "report_sha256": item.get("report_sha256"),
-                "automation_id": item.get("automation_id"),
-                "display_label": item.get("display_label") or item.get("worker"),
-                "finished_at": item.get("finished_at"),
-                "duration_minutes": item.get("duration_minutes"),
-                "repo": item.get("repo"),
-                "scope": item.get("scope"),
-                "state": item.get("state"),
-                "stop_reason": item.get("stop_reason"),
-                "archive_path": item.get("archive_path"),
-            }
-            for item in reversed(ordered_records[-20:])
-        ],
-    }
-
 def _project_from_repo(repo: str | None) -> str | None:
     if not repo:
         return None
@@ -364,13 +272,6 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
         })
     return events
 
-def write_metrics_projection(history_root: Path, output: Path | None = None, *, hours: float = 24.0) -> dict[str, Any]:
-    summary = summarize_history(history_root, hours=hours)
-    target = output or history_root.parent / "metrics.json"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return summary
-
 
 def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
     raw = report.read_bytes()
@@ -402,7 +303,6 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         metadata.update(_run_analytics(metadata))
-    metrics = write_metrics_projection(history_root)
     return {
         "ok": True,
         "archived": archived,
@@ -424,22 +324,15 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         "tool_failures_total": metadata.get("tool_failures_total"),
         "tool_failure_effect": metadata.get("tool_failure_effect"),
         "tool_drops": metadata.get("tool_drops"),
-        "fleet_metrics_path": str(history_root.parent / "metrics.json"),
-        "fleet_average_utilization_pct": metrics.get("average_target_utilization_pct"),
-        "fleet_early_stops_unexplained": metrics.get("early_stops_unexplained"),
     }
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Preserve finalized worker reports and derive useful run metrics automatically.")
+    parser = argparse.ArgumentParser(description="Preserve finalized worker reports as immutable content-addressed history.")
     sub = parser.add_subparsers(dest="command", required=True)
     archive = sub.add_parser("archive")
     archive.add_argument("--report", type=Path, required=True)
     archive.add_argument("--history-root", type=Path)
-    summary = sub.add_parser("summary")
-    summary.add_argument("--history-root", type=Path, required=True)
-    summary.add_argument("--hours", type=float, default=24.0)
-    summary.add_argument("--write", type=Path)
     return parser
 
 
@@ -453,11 +346,8 @@ def _default_history_root(report: Path) -> Path:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        if args.command == "archive":
-            history_root = args.history_root or _default_history_root(args.report)
-            result = archive_finalized_report(args.report, history_root)
-        else:
-            result = write_metrics_projection(args.history_root, args.write, hours=args.hours) if args.write else summarize_history(args.history_root, hours=args.hours)
+        history_root = args.history_root or _default_history_root(args.report)
+        result = archive_finalized_report(args.report, history_root)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1
