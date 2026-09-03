@@ -9,10 +9,6 @@ Each fixture preserves two candidates for the same state:
 
 The scorer is intentionally about action selection, not prose similarity. A candidate passes only when it preserves the inherited objective, applies the user's correction before the next substantive action, respects protected scope, uses evidence at the right authority/temporal layer, and avoids unsupported mutation.
 
-Run the validator from the repository root:
-
-`powershell -NoProfile -ExecutionPolicy Bypass -File ".\03 Fixtures and Experiments\validate-fixtures.ps1"`
-
 The visual-proof and transport-drift fixture also has an executable paired scorer:
 
 `python -m unittest tests.test_visual_proof_regressions -v`
