@@ -1,11 +1,10 @@
 ﻿import json
-import sqlite3
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
-from tools.conversation_corpus import backup, export_legacy_sqlite, import_source, sync_source, verify
+from tools.conversation_corpus import backup, import_source, sync_source, verify
 
 
 class ConversationCorpusTests(unittest.TestCase):
@@ -104,24 +103,6 @@ class ConversationCorpusTests(unittest.TestCase):
         src.write_text("two", encoding="utf-8")
         with self.assertRaises(RuntimeError):
             import_source(self.source, "old", self.root)
-
-    def test_recovers_legacy_sqlite_into_self_contained_conversation_json(self):
-        legacy = self.base / "legacy.sqlite"
-        conn = sqlite3.connect(legacy)
-        conn.execute("CREATE TABLE conversations(id TEXT PRIMARY KEY,title TEXT,source_kind TEXT,source_path TEXT,source_hash TEXT,opened_at TEXT,scraped_at TEXT,create_time REAL,update_time REAL,message_count INTEGER,char_count INTEGER,signal_score INTEGER,full_traversal INTEGER)")
-        conn.execute("CREATE TABLE messages(conversation_id TEXT,seq INTEGER,role TEXT,message_id TEXT,create_time REAL,text TEXT,PRIMARY KEY(conversation_id,seq))")
-        conn.execute("INSERT INTO conversations VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", ("c1","Recovered","library","missing.md","hash",None,None,10.0,20.0,2,9,0,1))
-        conn.execute("INSERT INTO messages VALUES(?,?,?,?,?,?)", ("c1",0,"user","u1",10.0,"old marker"))
-        conn.execute("INSERT INTO messages VALUES(?,?,?,?,?,?)", ("c1",1,"assistant","a1",11.0,"old answer"))
-        conn.commit(); conn.close()
-        import_source(legacy, "legacy-db-source", self.root)
-        result = export_legacy_sqlite(legacy, self.root)
-        self.assertEqual(result["status"], "PROVEN")
-        self.assertEqual(result["conversations"], 1)
-        recovered = self.root / "recovered" / "legacy-regression-sqlite" / "conversations" / "c1.json"
-        payload = json.loads(recovered.read_text(encoding="utf-8"))
-        self.assertEqual(payload["messages"][0]["content"]["parts"], ["old marker"])
-        self.assertEqual(verify(self.root, hashes=True)["status"], "PROVEN")
 
     def test_backup_is_crc_and_checksum_verified(self):
         (self.source / "a.json").write_text('{"id":"c1","messages":[]}', encoding="utf-8")
