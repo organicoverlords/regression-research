@@ -19,7 +19,7 @@ try:
     from .memory_timeline import build_orientation, build_recurrence_context, build_timeline
     from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
-    from .worker_report_history import summarize_history, worker_history_events
+    from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from memory_authority import (AUTHORITY_REGISTRY, annotate_memory, behavioral_authority, behavioral_context, configure_authority_registry, validate_authority_registry)
@@ -29,7 +29,7 @@ except ImportError:
     from memory_timeline import build_orientation, build_recurrence_context, build_timeline
     from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
-    from worker_report_history import summarize_history, worker_history_events
+    from worker_report_history import worker_history_events
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
@@ -693,7 +693,7 @@ def _main() -> int:
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
     timeline_cmd.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
     timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="immutable worker-report history root")
-    timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history and utilization summary")
+    timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history")
 
     history = sub.add_parser("history")
     history.add_argument("query", nargs="?", default="")
@@ -812,8 +812,6 @@ def _main() -> int:
                 entries, view=args.view, project=args.project, query=args.query, thread=args.thread,
                 limit=args.limit, repo_events=repo_events, worker_events=worker_events,
             )
-            if not args.no_workers and args.view != "errors":
-                report["worker_metrics"] = summarize_history(args.worker_history, hours=24.0)
             _print_json(report)
             return 0
         if args.command == "history":

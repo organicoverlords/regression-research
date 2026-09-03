@@ -31,7 +31,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
-| `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\metrics.json; python tools/worker_report_history.py summary --history-root worker-reports/history | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
+| `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
 | `execution.transport` | vps_edge_ingress, mcp_front_door | production MCPv3/VPS process contract; plugin2 when available | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 | `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
 
@@ -269,9 +269,9 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `projection:worker-self-report`
 - Capabilities: source_read
 - Canonical sources: C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json
-- Live status: discover current/<automation-id>.md snapshots by stable automation ID; read worker-reports\metrics.json (or run python tools\worker_report_history.py summary --history-root worker-reports\history) for derived duration/utilization, normalized stop reasons, unexplained early stops, pending-gate classes, and tool-drop impact; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
+- Live status: read current/<automation-id>.md snapshots directly for recent worker output; use immutable worker-reports\history\_reports metadata only for past-run chronology; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence
 - Independent recovery: read canonical repo/runtime/CI/artifact evidence directly
-- Resources: worker-reports/current/<automation-id>.md; worker-reports/history/_reports/*.json; worker-reports/metrics.json
+- Resources: worker-reports/current/<automation-id>.md; worker-reports/history/_reports/*.json
 - Dependents: chatgpt_session
 - Runbook: C:\Users\Lauri\Desktop\vault\worker-reports
 - Supervisor: none

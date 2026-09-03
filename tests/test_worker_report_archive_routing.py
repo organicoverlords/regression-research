@@ -37,8 +37,6 @@ def test_archive_cli_routes_current_snapshot_to_canonical_history(tmp_path: Path
     canonical_history = (reports / "history").resolve()
     assert archived.is_relative_to(canonical_history)
     assert archived.read_bytes() == raw
-    assert Path(payload["fleet_metrics_path"]).resolve() == (reports / "metrics.json").resolve()
-    assert (reports / "metrics.json").is_file()
+    assert not (reports / "metrics.json").exists()
     assert not archived.is_relative_to((current / "history").resolve())
     assert not (current / "history").exists()
-    assert not (current / "metrics.json").exists()
