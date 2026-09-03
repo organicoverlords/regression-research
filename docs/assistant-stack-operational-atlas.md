@@ -247,7 +247,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: current conversation; targeted Vault history when useful
 - Resources: ChatGPT Memory
 - Dependents: chatgpt_session
-- Runbook: 04 Operating Contracts/fresh-chat-startup-orientation.md
+- Runbook: 04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt
 - Supervisor: ChatGPT
 - Self-heal: product_managed
 
@@ -286,7 +286,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional
 - Resources: current task context
 - Dependents: user
-- Runbook: 04 Operating Contracts/fresh-chat-startup-orientation.md
+- Runbook: 04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt
 - Supervisor: current ChatGPT session
 - Self-heal: session_specific
 

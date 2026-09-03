@@ -19,15 +19,6 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertNotIn("memory_bank.py bootstrap", text)
         self.assertNotIn(RETIRED_LIBRARY_PATH, text)
 
-    def test_session_contract_has_no_vault_startup_gate(self):
-        text = (ROOT / "04 Operating Contracts/fresh-chat-startup-orientation.md").read_text(encoding="utf-8")
-        self.assertIn("current conversation and ChatGPT Memory", text)
-        self.assertIn("There is no Vault behavior bootstrap", text)
-        self.assertIn("consult the Stack Atlas", text)
-        self.assertIn("Current-state answers require current evidence", text)
-        self.assertIn("optional notebook-style enrichment", text)
-        self.assertNotIn("behavior delivery ->", text)
-
 
     def test_shared_policy_treats_vault_as_optional_history(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

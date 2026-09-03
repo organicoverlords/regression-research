@@ -246,7 +246,7 @@ COMPONENTS.update({
         "live_status": ["current conversation and delivered ChatGPT Memory"], "supervisor": "ChatGPT",
         "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history when useful"],
         "resources": ["ChatGPT Memory"], "dependents": ["chatgpt_session"],
-        "runbook": ["04 Operating Contracts/fresh-chat-startup-orientation.md"],
+        "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
@@ -268,7 +268,7 @@ COMPONENTS.update({
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
         "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
-        "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/fresh-chat-startup-orientation.md"],
+        "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
     },
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
