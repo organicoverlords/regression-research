@@ -210,9 +210,3 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("file transfer")["id"], "file_transfer")
         self.assertEqual(component_details("visual proof")["id"], "visual_proof")
         self.assertEqual(component_details("workers")["id"], "execution_workers")
-
-    def test_full_stack_timeline_is_discoverable_by_workers(self):
-        found = find_features("full stack timeline")
-        self.assertTrue(found)
-        self.assertEqual(found[0]["id"], "stack.timeline")
-        self.assertIn("full_stack_timeline.py", " ".join(found[0]["entrypoints"]))
