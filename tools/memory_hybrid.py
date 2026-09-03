@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 from typing import Any, Iterable
 
@@ -12,7 +12,6 @@ try:
         DEFAULT_RECALL_LIMIT,
         MAX_HISTORY_LIMIT,
         MAX_RECALL_LIMIT,
-        _tokens as legacy_tokens,
         load_source_registry,
         search_entries,
         source_relevance,
@@ -25,7 +24,6 @@ except ImportError:
         DEFAULT_RECALL_LIMIT,
         MAX_HISTORY_LIMIT,
         MAX_RECALL_LIMIT,
-        _tokens as legacy_tokens,
         load_source_registry,
         search_entries,
         source_relevance,
@@ -36,10 +34,8 @@ except ImportError:
 BM25_K1 = 1.2
 BM25_B = 0.75
 RRF_K = 60.0
-RRF_WEIGHTS = {"legacy": 0.0, "bm25": 0.70, "char": 0.30, "association": 0.0}
+RRF_WEIGHTS = {"bm25": 0.70, "char": 0.30}
 MIN_QUERY_COVERAGE = 0.45
-MAX_ASSOCIATION_DOC_FRACTION = 0.35
-ASSOCIATIONS_PER_QUERY_TERM = 3
 TITLE_WEIGHT = 3
 TAG_WEIGHT = 2
 SCOPE_WEIGHT = 2
@@ -199,21 +195,6 @@ def _dice(left: set[str], right: set[str]) -> float:
     return (2.0 * len(left & right)) / (len(left) + len(right))
 
 
-def _legacy_score(entry: dict[str, Any], query: str, scope: str | None, tags: list[str]) -> float:
-    query_tokens = legacy_tokens(query)
-    text_tokens = legacy_tokens(str(entry.get("text") or ""))
-    tag_tokens = {str(tag).casefold() for tag in entry.get("tags", [])}
-    relevance = 0.0
-    if scope and str(entry.get("scope") or "").casefold() == scope.casefold():
-        relevance += 4.0
-    relevance += 4.0 * sum(tag.casefold() in tag_tokens for tag in tags)
-    relevance += sum(
-        token in text_tokens or token in tag_tokens or token == str(entry.get("scope") or "").casefold()
-        for token in query_tokens
-    )
-    return relevance
-
-
 def _rank_map(scores: list[float], allowed: set[int] | None = None) -> dict[int, int]:
     pairs = [
         (score, idx) for idx, score in enumerate(scores)
@@ -221,46 +202,6 @@ def _rank_map(scores: list[float], allowed: set[int] | None = None) -> dict[int,
     ]
     pairs.sort(key=lambda item: (-item[0], item[1]))
     return {idx: rank for rank, (_, idx) in enumerate(pairs, start=1)}
-
-
-def _association_weights(
-    query_terms: list[str],
-    present_query_terms: set[str],
-    doc_sets: list[set[str]],
-    descriptor_sets: list[set[str]],
-    df: Counter[str],
-    descriptor_df: Counter[str],
-) -> dict[str, float]:
-    if len(present_query_terms) < 2:
-        return {}
-    total_docs = len(doc_sets)
-    result: dict[str, float] = {}
-    for query_term in query_terms:
-        if query_term not in present_query_terms:
-            continue
-        qdf = df.get(query_term, 0)
-        if not qdf or qdf > total_docs * MAX_ASSOCIATION_DOC_FRACTION:
-            continue
-        cooccurrence: Counter[str] = Counter()
-        for idx, tokens in enumerate(doc_sets):
-            if query_term not in tokens:
-                continue
-            for candidate in descriptor_sets[idx]:
-                if candidate == query_term or candidate in present_query_terms or candidate in _STOPWORDS:
-                    continue
-                cooccurrence[candidate] += 1
-        scored: list[tuple[float, str]] = []
-        for candidate, co_docs in cooccurrence.items():
-            cdf = descriptor_df.get(candidate, 0)
-            if not cdf or cdf > total_docs * MAX_ASSOCIATION_DOC_FRACTION:
-                continue
-            strength = co_docs / math.sqrt(qdf * cdf)
-            if strength > 0.0:
-                scored.append((strength, candidate))
-        scored.sort(key=lambda item: (-item[0], item[1]))
-        for strength, candidate in scored[:ASSOCIATIONS_PER_QUERY_TERM]:
-            result[candidate] = max(result.get(candidate, 0.0), 0.35 * strength)
-    return result
 
 
 def search_entries_hybrid(
@@ -296,14 +237,9 @@ def search_entries_hybrid(
     doc_counts = [Counter(tokens) for tokens in doc_tokens]
     doc_lengths = [len(tokens) for tokens in doc_tokens]
     doc_sets = [set(tokens) for tokens in doc_tokens]
-    descriptor_sets = [set(_word_tokens(_entry_descriptor(entry))) for entry in eligible]
-
     df: Counter[str] = Counter()
-    descriptor_df: Counter[str] = Counter()
     for tokens in doc_sets:
         df.update(tokens)
-    for tokens in descriptor_sets:
-        descriptor_df.update(tokens)
 
     total_docs = len(eligible)
     present_query_terms = {term for term in query_unique if df.get(term, 0) > 0}
@@ -324,32 +260,19 @@ def search_entries_hybrid(
 
     direct_weights = {term: 1.0 for term in query_unique}
     bm25_scores = _bm25_scores(doc_counts, doc_lengths, df, direct_weights)
-    legacy_scores = [
-        _legacy_score(entry, query, scope, tags) if idx in admitted else 0.0
-        for idx, entry in enumerate(eligible)
-    ]
-
     query_grams = _char_ngrams(query)
     char_scores = [
         _dice(query_grams, _char_ngrams(_entry_descriptor(entry))) if idx in admitted else 0.0
         for idx, entry in enumerate(eligible)
     ]
 
-    assoc_weights = _association_weights(
-        query_unique, present_query_terms, doc_sets, descriptor_sets, df, descriptor_df,
-    )
-    association_scores = _bm25_scores(doc_counts, doc_lengths, df, assoc_weights)
-    association_candidates = {idx for idx, score in enumerate(association_scores) if score > 0.0}
-
-    candidates = admitted | association_candidates
+    candidates = admitted
     if not candidates:
         return []
 
     ranks = {
-        "legacy": _rank_map(legacy_scores, candidates),
         "bm25": _rank_map(bm25_scores, admitted),
         "char": _rank_map(char_scores, admitted),
-        "association": _rank_map(association_scores, association_candidates),
     }
     registry = source_registry or load_source_registry()
     ranked: list[tuple[float, int, datetime, str, dict[str, Any]]] = []
