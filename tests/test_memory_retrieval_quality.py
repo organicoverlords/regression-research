@@ -8,7 +8,7 @@ from tools.memory_bank import load_bank, search_context_memory
 
 class MemoryRetrievalQualityTests(unittest.TestCase):
     def test_general_retrieval_quality_gate(self):
-        result=evaluate_general(DEFAULT_BANK,DEFAULT_FIXTURE,"hybrid")
+        result=evaluate_general(DEFAULT_BANK,DEFAULT_FIXTURE)
         self.assertGreaterEqual(result["metrics"]["paraphrase"]["recall_at_5"],0.95)
         self.assertEqual(result["metrics"]["exact_control"]["recall_at_1"],1.0)
         self.assertEqual(result["metrics"]["abstain"]["correct_abstention"],1.0)
