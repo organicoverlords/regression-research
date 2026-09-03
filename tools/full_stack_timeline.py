@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import urllib.request
 from datetime import datetime, timezone
@@ -148,6 +149,82 @@ def collect_assistant_surface_coverage(
             "coverage_gap": status != "SOURCE_PRESENT",
             "content_coverage": "UNASSESSED",
         })
+    return events, errors
+
+
+def collect_codex_thread_events(codex_root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project metadata-only Codex thread chronology from the local primary state store."""
+    db_path = codex_root / "state_5.sqlite"
+    if not db_path.is_file():
+        return [], [{
+            "path": str(db_path),
+            "error": "Codex thread metadata store is unavailable; this is a coverage gap and does not prove behavior absence",
+        }]
+
+    events: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True, timeout=1.0)
+        columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(threads)")}
+        required = {"id", "created_at"}
+        if not required.issubset(columns):
+            missing = ", ".join(sorted(required - columns))
+            raise ValueError(f"threads table missing required columns: {missing}")
+        wanted = [
+            "id", "created_at", "updated_at", "source", "thread_source", "cwd", "git_sha",
+            "git_branch", "git_origin_url", "model", "reasoning_effort", "archived",
+        ]
+        selected = [name for name in wanted if name in columns]
+        sql = f"SELECT {', '.join(selected)} FROM threads ORDER BY created_at, id"
+        for values in connection.execute(sql):
+            row = dict(zip(selected, values))
+            thread_id = str(row["id"])
+            try:
+                event_at = datetime.fromtimestamp(float(row["created_at"]), tz=timezone.utc).isoformat()
+                updated_at = (
+                    datetime.fromtimestamp(float(row["updated_at"]), tz=timezone.utc).isoformat()
+                    if row.get("updated_at") is not None
+                    else None
+                )
+            except (TypeError, ValueError, OSError, OverflowError) as exc:
+                errors.append({
+                    "path": str(db_path),
+                    "thread_id": thread_id,
+                    "error": f"invalid Codex thread timestamp: {exc}",
+                })
+                continue
+            events.append({
+                "source_type": "CODEX_THREAD",
+                "authority": "LOCAL_CODEX_STATE_SQLITE",
+                "epistemic_class": "OBSERVED_FACT",
+                "epistemic_basis": "primary local Codex thread metadata observed directly from state_5.sqlite; transcript/user content is intentionally not read, and metadata does not prove task outcome or behavior",
+                "id": f"codex-thread:{thread_id}",
+                "event_at": event_at,
+                "updated_at": updated_at,
+                "title": f"Codex thread metadata {thread_id[:8]}",
+                "surface": "Codex",
+                "source_id": "codex-history",
+                "source_path": str(db_path),
+                "content_coverage": "METADATA_ONLY",
+                "thread_id": thread_id,
+                "thread_source": row.get("thread_source") or row.get("source"),
+                "cwd": row.get("cwd"),
+                "git_sha": row.get("git_sha"),
+                "git_branch": row.get("git_branch"),
+                "git_origin_url": row.get("git_origin_url"),
+                "model": row.get("model"),
+                "reasoning_effort": row.get("reasoning_effort"),
+                "archived": bool(row.get("archived")) if row.get("archived") is not None else None,
+            })
+    except (sqlite3.Error, ValueError) as exc:
+        errors.append({
+            "path": str(db_path),
+            "error": f"Codex thread metadata unavailable: {exc}; this is a coverage gap and does not prove behavior absence",
+        })
+    finally:
+        if connection is not None:
+            connection.close()
     return events, errors
 
 
@@ -572,6 +649,9 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     documents = collect_document_sources(vault_root)
     explicit_evidence, explicit_evidence_errors = collect_explicit_evidence_events(vault_root)
     assistant_coverage, assistant_coverage_errors = collect_assistant_surface_coverage(vault_root)
+    codex_coverage = next((item for item in assistant_coverage if item.get("source_id") == "codex-history"), None)
+    codex_root = Path(str(codex_coverage["resolved_path"])) if codex_coverage and codex_coverage.get("coverage_status") == "SOURCE_PRESENT" else None
+    codex_events, codex_errors = collect_codex_thread_events(codex_root) if codex_root is not None else ([], [])
     memory = collect_memory_events(vault_root / "memory" / "memory-bank.jsonl")
     worker_root = vault_root / "worker-reports" / "history"
     workers = []
@@ -583,7 +663,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
     git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
     recovery_events = recoverable_git_events(git_states)
-    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *memory, *workers, *commits, *recovery_events])
+    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *codex_events, *memory, *workers, *commits, *recovery_events])
     if query:
         events = [item for item in events if _matches(item, query)]
         visible_ids = {str(item.get("id")) for item in events if item.get("id")}
@@ -598,7 +678,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
             "git": "commits plus searchable stash/reflog metadata, branches, refs, tags and worktrees come directly from each local Git object database; Git messages never prove effect or intent",
             "runtime": "live probes are current observations only for the instant collected",
-            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
+            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; Codex thread metadata is read from its local state_5.sqlite without transcript/user content; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
             "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require explicit structured evidence with basis + evidence refs; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
             "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
             "storage": "read-only projection; no new database, queue, coordinator or authority is created",
@@ -610,6 +690,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         "relationships": relationships,
         "assistant_surface_coverage": assistant_coverage,
         "assistant_surface_coverage_errors": assistant_coverage_errors,
+        "codex_thread_errors": codex_errors,
         "structured_evidence_errors": explicit_evidence_errors,
         "epistemic_counts": _epistemic_counts(events),
         "counts": {
@@ -619,6 +700,8 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "explicit_evidence_errors": len(explicit_evidence_errors),
             "assistant_surface_sources": len(assistant_coverage),
             "assistant_surface_gaps": sum(1 for item in assistant_coverage if item.get("coverage_gap")),
+            "codex_thread_events": len(codex_events),
+            "codex_thread_errors": len(codex_errors),
             "memory_events": len(memory),
             "worker_events": len(workers),
             "git_commits": len(commits),

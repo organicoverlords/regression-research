@@ -1,7 +1,9 @@
 import json
 import os
+import sqlite3
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +15,7 @@ from tools.full_stack_timeline import (
     _project_explicit_relationships,
     collect_all_commit_events,
     collect_assistant_surface_coverage,
+    collect_codex_thread_events,
     collect_document_sources,
     collect_explicit_evidence_events,
     collect_git_state,
@@ -143,6 +146,58 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertIn("does not prove that behavior did not occur", by_id["codex-history"]["epistemic_basis"])
             self.assertEqual(by_id["chatgpt-history"]["coverage_status"], "REGISTRY_MISSING")
             self.assertTrue(by_id["chatgpt-history"]["coverage_gap"])
+
+    def test_codex_thread_events_use_metadata_only_and_preserve_repo_scope(self):
+        with tempfile.TemporaryDirectory() as d:
+            codex_root = Path(d) / ".codex"
+            codex_root.mkdir()
+            db_path = codex_root / "state_5.sqlite"
+            connection = sqlite3.connect(db_path)
+            connection.execute(
+                """CREATE TABLE threads (
+                    id TEXT, created_at INTEGER, updated_at INTEGER, source TEXT, thread_source TEXT,
+                    cwd TEXT, git_sha TEXT, git_branch TEXT, git_origin_url TEXT, model TEXT,
+                    reasoning_effort TEXT, archived INTEGER, title TEXT, first_user_message TEXT, preview TEXT
+                )"""
+            )
+            connection.execute(
+                "INSERT INTO threads VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "thread-12345678", 1788364067, 1788364140, "user", "vscode", r"C:\repo",
+                    "abc123", "main", "https://example.invalid/repo.git", "gpt-test", "high", 0,
+                    "SECRET_TITLE", "SECRET_USER_PROMPT", "SECRET_PREVIEW",
+                ),
+            )
+            connection.commit()
+            connection.close()
+
+            events, errors = collect_codex_thread_events(codex_root)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(events), 1)
+            event = events[0]
+            self.assertEqual(event["source_type"], "CODEX_THREAD")
+            self.assertEqual(event["epistemic_class"], "OBSERVED_FACT")
+            self.assertEqual(event["content_coverage"], "METADATA_ONLY")
+            self.assertEqual(event["thread_source"], "vscode")
+            self.assertEqual(event["cwd"], r"C:\repo")
+            self.assertEqual(event["git_sha"], "abc123")
+            self.assertEqual(event["git_branch"], "main")
+            self.assertEqual(event["model"], "gpt-test")
+            self.assertEqual(event["reasoning_effort"], "high")
+            self.assertFalse(event["archived"])
+            self.assertEqual(datetime.fromisoformat(event["event_at"]).tzinfo, timezone.utc)
+            serialized = json.dumps(event)
+            self.assertNotIn("SECRET_TITLE", serialized)
+            self.assertNotIn("SECRET_USER_PROMPT", serialized)
+            self.assertNotIn("SECRET_PREVIEW", serialized)
+
+    def test_codex_thread_missing_store_is_explicit_gap_not_behavior_absence(self):
+        with tempfile.TemporaryDirectory() as d:
+            events, errors = collect_codex_thread_events(Path(d) / ".codex")
+            self.assertEqual(events, [])
+            self.assertEqual(len(errors), 1)
+            self.assertIn("coverage gap", errors[0]["error"])
+            self.assertIn("does not prove behavior absence", errors[0]["error"])
 
     def test_dirty_checkout_is_not_direct_stack_mutation_source(self):
         state = {"available": True, "dirty_entries": 3, "head": "aaa", "origin_main": "bbb", "branch": "main"}
