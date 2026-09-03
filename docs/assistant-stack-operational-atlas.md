@@ -26,7 +26,6 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
-| `stack.timeline` | local_git, worker_reports, vps_edge_ingress, tailscale_ingress, file_transfer, visual_proof | python tools/full_stack_timeline.py --output <path>; Git refs/worktrees/reflogs; Vault durable documents; worker report history; live runtime probes | Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source. |
 | `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
 | `project.current_truth` | agent_rules, north_star, local_git, github | agent-rules RULES.md + applicable context; repo NORTH_STAR/equivalent; git status/HEAD + recent all-branch history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
@@ -130,7 +129,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: use another exposed transfer route only after preserving the same source bytes and hash
 - Resources: artifact bytes; source path/ref; destination path/ref; size; SHA-256
 - Dependents: chatgpt_session; execution_workers; visual_proof
-- Runbook: 04 Operating Contracts/full-stack-timeline.md
+- Runbook: %LOCALAPPDATA%\McpVpsEdge\publish-artifact.ps1
 - Supervisor: surface-specific; no single transfer authority
 - Self-heal: route_specific
 

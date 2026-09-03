@@ -162,7 +162,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["use another exposed transfer route only after preserving the same source bytes and hash"],
         "resources": ["artifact bytes", "source path/ref", "destination path/ref", "size", "SHA-256"],
         "dependents": ["chatgpt_session", "execution_workers", "visual_proof"],
-        "runbook": ["04 Operating Contracts/full-stack-timeline.md"],
+        "runbook": [VPS_EDGE_ROOT + r"\publish-artifact.ps1"],
     },
     "visual_proof": {
         "role": "acceptance:user_visible_evidence",
@@ -360,12 +360,6 @@ PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
 PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
-    "stack.timeline": {
-        "owner_components": ["local_git", "worker_reports", "vps_edge_ingress", "tailscale_ingress", "file_transfer", "visual_proof"],
-        "triggers": ["full stack timeline", "stack timeline", "whole stack", "project visibility", "branches", "reflog", "audits", "incidents", "runtime topology"],
-        "entrypoints": ["python tools/full_stack_timeline.py --output <path>", "Git refs/worktrees/reflogs", "Vault durable documents", "worker report history", "live runtime probes"],
-        "boundary": "Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source.",
-    },
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],
