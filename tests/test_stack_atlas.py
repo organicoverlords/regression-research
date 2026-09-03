@@ -199,3 +199,18 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(artifact["inventory"], __import__("tools.stack_atlas", fromlist=["full_inventory"]).full_inventory())
         self.assertEqual(data, render_library_atlas_bytes())
         self.assertEqual(atlas_publication_plan()["bytes"], len(data))
+
+
+class Issue394StackVisibilityTests(unittest.TestCase):
+    def test_human_aliases_cover_invisible_stack_seams(self):
+        self.assertEqual(component_details("tailscale")["id"], "tailscale_ingress")
+        self.assertEqual(component_details("transfer")["id"], "file_transfer")
+        self.assertEqual(component_details("file transfer")["id"], "file_transfer")
+        self.assertEqual(component_details("visual proof")["id"], "visual_proof")
+        self.assertEqual(component_details("workers")["id"], "execution_workers")
+
+    def test_full_stack_timeline_is_discoverable_by_workers(self):
+        found = find_features("full stack timeline")
+        self.assertTrue(found)
+        self.assertEqual(found[0]["id"], "stack.timeline")
+        self.assertIn("full_stack_timeline.py", " ".join(found[0]["entrypoints"]))
