@@ -2,9 +2,10 @@
 
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
-from tools.worker_supervision import candidate_events, event_id, parse_report, receipt_path
+from tools.worker_supervision import candidate_events, claim_events, event_id, parse_report, receipt_path
 
 
 class WorkerSupervisionTests(unittest.TestCase):
@@ -30,6 +31,33 @@ class WorkerSupervisionTests(unittest.TestCase):
         report = {"worker": "Cedar", "state": "RUNNING", "activity_age_minutes": 30.0, "report_sha256": "a" * 64}
         kinds = [event["event_kind"] for event in candidate_events(report, stale_minutes=20)]
         self.assertEqual(kinds, ["report_update", "stale_running"])
+
+    def test_claim_events_uses_only_automation_id_current_snapshots(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report_dir = Path(tmp) / "worker-reports"
+            current = report_dir / "current"
+            current.mkdir(parents=True)
+            (report_dir / "LegacyName.md").write_text(
+                "worker: LegacyName\nstate: COMPLETE\nlast_activity_at: 2099-01-01T00:00:00+00:00\n",
+                encoding="utf-8",
+            )
+            (current / "automation-123.md").write_text(
+                "automation_id: automation-123\ndisplay_label: CurrentWorker\nstate: COMPLETE\nlast_activity_at: 2099-01-01T00:01:00+00:00\n",
+                encoding="utf-8",
+            )
+            with patch("tools.worker_supervision._busy_call", return_value=(0, {"ok": True}, "")):
+                result = claim_events(
+                    report_dir,
+                    actor="ChatGPT-test",
+                    busy=Path("busy.cmd"),
+                    stale_minutes=20,
+                    lease_seconds=60,
+                    scope_prefix="worker-supervision",
+                )
+            self.assertEqual(result["claimed_count"], 1)
+            self.assertEqual(result["events"][0]["automation_id"], "automation-123")
+            self.assertEqual(result["events"][0]["display_label"], "CurrentWorker")
+            self.assertIn(str(current), result["events"][0]["report_path"])
 
     def test_receipts_are_per_event_not_shared_cursor(self):
         base = Path("C:/tmp/worker-reports")

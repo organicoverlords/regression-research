@@ -122,12 +122,9 @@ def claim_events(report_dir: Path, *, actor: str, busy: Path, stale_minutes: flo
     claimed_elsewhere = 0
     already_handled = 0
     reports = []
-    if report_dir.exists():
-        reports.extend(report_dir.glob("*.md"))  # legacy display-name snapshots
-        current_dir = report_dir / "current"
-        if current_dir.exists():
-            reports.extend(current_dir.glob("*.md"))  # automation-ID keyed current snapshots
-        reports = sorted(reports, key=lambda p: p.stat().st_mtime, reverse=True)
+    current_dir = report_dir / "current"
+    if current_dir.exists():
+        reports = sorted(current_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     for path in reports:
         report = parse_report(path)
         for event in candidate_events(report, stale_minutes=stale_minutes):
