@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import secrets
 import sys
@@ -418,17 +417,14 @@ def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str
     }
 
 
-def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, strategy: str | None = None) -> list[dict[str, Any]]:
-    selected_strategy = (strategy or os.environ.get("MEMORY_RETRIEVAL_STRATEGY", "hybrid")).strip().casefold()
-    if selected_strategy == "legacy" or history:
-        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
-    if selected_strategy != "hybrid":
-        raise BankError(f"unknown memory retrieval strategy: {selected_strategy}")
+def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False) -> list[dict[str, Any]]:
+    if history:
+        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=True)
     try:
         from .memory_hybrid import search_entries_hybrid
     except ImportError:
         from memory_hybrid import search_entries_hybrid
-    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=history)
+    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=False)
 
 
 def search_behavior_memory(
