@@ -18,12 +18,12 @@ A dashboard, transport, plugin, issue, branch, worker, memory entry, cached pack
 
 ## Why this became necessary: issue #271
 
-Regression-research #271 proposed a derived resume/context layer with a live registry, structured checkpoints, and resume packets. The proposal was reviewed and narrowed before live inspection established that the standalone BusyCoordinator already owned most of the proposed resumability mechanism.
+Regression-research #271 proposed a derived resume/context layer with a live registry, structured checkpoints, and resume packets. The proposal was reviewed and narrowed before live inspection established that the standalone BusyCoordinator already provided the exact-scope checkpoint and recovery context needed by part of that proposal.
 
-BusyCoordinator already exposes jobs, `checkpoint`, `snapshot`, `inspect`, `next`, `recover`, and `handoff`. `handoff` records parent scope, finding ID, reporter, source, summary and timestamp, then creates a ready child job whose checkpoint carries the resumable finding.
-A live example observed during this work was `standalone-coordinator:audit-logging::handoff:deployed-source-divergence`, which already preserved source evidence and resumable next work.
+BusyCoordinator already exposes exact-scope checkpoint context through `claim`/`heartbeat`/`release --checkpoint`, plus `snapshot`, `inspect`, and `recover`. Pending delivery work and actionable fan-in remain in the project issue/PR; coordinator context must not become a queue.
+Historical coordinator handoff records remain evidence of the earlier design, but they are no longer a current scheduling interface.
 
-The failure was therefore **capability invisibility**, not missing resumability infrastructure. The dated #155 architecture diagram described components, but it still named the old MCP0 BUSY topology and did not expose current BusyCoordinator job/checkpoint/handoff capability prominently enough to stop a duplicate design.
+The lesson is to reuse the smallest existing capability without promoting it into a broader authority: BusyCoordinator supplies ownership and exact-scope context; project delivery state supplies pending work and fan-in.
 
 ## Authority model
 
@@ -36,9 +36,9 @@ Different questions intentionally have different authorities. There is no single
 | Repo-local operating rules | Current repo `AGENTS.md` | Checkout / GitHub file view | Global map, progress board |
 | Project direction | Current `NORTH_STAR.md` or equivalent + user priority | Docs / board summaries | Worker recency, issue number |
 | Exact shared-mutation ownership | **Standalone BusyCoordinator** | `snapshot`, `inspect`, operator projection | GitHub titles, branches, processes, schedules |
-| Job ready/active/blocked/completed state | **Standalone BusyCoordinator** | `snapshot`, `next`, operator projection | Issue labels, board status |
-| Checkpoints / resumable task state | **Standalone BusyCoordinator** | job `checkpoint`, `inspect`, operator projection | Ad-hoc resume packet copies |
-| Durable actionable handoff | **Standalone BusyCoordinator `handoff`** | ready child job + checkpoint | Prose-only â€œsomeone can pick this upâ€ |
+| Delivery backlog / ready or blocked work | **Project GitHub issue/PR state** | issue/PR views, operator projection | BusyCoordinator claims/checkpoints |
+| Exact-scope checkpoint context | **Standalone BusyCoordinator** | `inspect`, `snapshot`, claim/release checkpoint metadata | backlog, priority, liveness, reassignment |
+| Durable actionable fan-in | **Project GitHub issue/PR state** | issue/PR provenance + optional exact-scope checkpoint | Prose-only â€œsomeone can pick this upâ€ |
 | Process execution | Replaceable process transport | ChatGPTMcpClean/plugin2, Remote Desktop Commander, native shell | Transport does not imply ownership |
 | Local file/branch/HEAD/dirty truth | Local filesystem + Git/worktree | operator projection | GitHub issue prose, memory |
 | Remote issue/PR/published revision | GitHub | `gh`, connector/API | BUSY/coordinator state |
@@ -74,16 +74,16 @@ Different questions intentionally have different authorities. There is no single
 
 ### Coordination: one owner
 
-**Standalone BusyCoordinator** is the single live ownership/job/checkpoint authority for shared mutable scope. Installed entrypoints are `%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd` and `busy-rust.cmd`.
+**Standalone BusyCoordinator** is the single live ownership authority for shared mutable scope and stores only bounded exact-scope checkpoint context alongside that ownership. Installed entrypoints are `%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd` and `busy-rust.cmd`.
 
-Its current contract requires: `list`, `sweep`, `snapshot`, `enqueue`, `ready`, `next`, `recover`, `handoff`, `claim`, `heartbeat`, `release`, `block`, `complete`, `inspect`, plus installed observability commands `contract`, `log`, and `audit`.
+Its current core contract is `list`, `sweep`, `snapshot`, `recover`, `claim`, `heartbeat`, `release`, and `inspect`, plus installed observability commands `contract`, `log`, and `audit`. Python and Rust implementations remain deliberately redundant and feature-equivalent.
 
-The canonical store is `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json`. Contract invariants include one canonical claims store, one claim per exact scope, matching active job/claim ownership, bounded replay/completed history, and parity between Python/Rust cores.
+The canonical store is `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json`. Contract invariants include one canonical claims store, one claim per exact scope, matching active scope metadata/claim ownership, checkpoint metadata that never grants ownership, bounded replay history, and parity between Python/Rust cores.
 
 **Important boundary:** legacy `busy_*` tools exposed by some MCP profiles are compatibility adapters only. GitHub issues, branches, PRs, worker processes, schedules and progress-board state are projections/evidence and never a second ownership authority.
 ### Process and tool transport
 
-**ChatGPTMcpClean / plugin2** at `C:\Users\Lauri\AppData\Local\ChatGPTMcpClean` is process transport behind a stable front door. Its minimal process profile intentionally exposes only start/read/kill process operations. Current README explicitly keeps BUSY/job coordination outside MCP in standalone Rust/Python coordinator apps.
+**MCPv3 via the VPS edge is the production process route. ChatGPTMcpClean / plugin2** at `C:\Users\Lauri\AppData\Local\ChatGPTMcpClean` remains a supported fallback transport. Its minimal process profile intentionally exposes only start/read/kill process operations. Current README explicitly keeps BUSY/job coordination outside MCP in standalone Rust/Python coordinator apps.
 
 **Remote Desktop Commander** is another authorized machine/files/process transport when exposed. It is a route to capabilities, not a scheduler, policy source, coordinator or repository authority.
 

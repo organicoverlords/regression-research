@@ -22,9 +22,6 @@ const REPLACE_TIMEOUT: Duration = Duration::from_millis(500);
 const REPLACE_RETRY: Duration = Duration::from_millis(10);
 const DEFAULT_LEASE_SECONDS: i64 = 3600;
 const MAX_OPERATIONS: usize = 512;
-const MAX_COMPLETED_JOBS: usize = 256;
-const MAX_HANDOFF_SOURCE_CHARS: usize = 2048;
-const MAX_HANDOFF_SUMMARY_CHARS: usize = 4096;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 struct Claim {
@@ -33,7 +30,7 @@ struct Claim {
     timestamp: String,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 struct Job {
     #[serde(default)]
     job_id: String,
@@ -244,7 +241,14 @@ fn canonical_scope(raw: &str) -> Result<String, String> {
     }
 }
 
-const CLAIM_ACTOR_HARNESSES: [&str; 6] = ["ChatGPT", "Codex", "Claude", "OpenCode", "CommandCode", "Traycer"];
+const CLAIM_ACTOR_HARNESSES: [&str; 6] = [
+    "ChatGPT",
+    "Codex",
+    "Claude",
+    "OpenCode",
+    "CommandCode",
+    "Traycer",
+];
 
 fn validate_claim_actor(raw: &str) -> Result<&str, String> {
     let actor = raw.trim();
@@ -280,6 +284,50 @@ fn compact_job(job: &Job) -> Value {
     Value::Object(map)
 }
 
+fn normalize_jobs(state: &mut StoreFile) -> bool {
+    let claims: BTreeMap<String, Claim> = state
+        .claims
+        .iter()
+        .map(|claim| (claim.scope.clone(), claim.clone()))
+        .collect();
+    let mut normalized = BTreeMap::new();
+    for (raw_scope, mut job) in state.coordinator.jobs.clone() {
+        let scope = match canonical_scope(if job.scope.is_empty() {
+            &raw_scope
+        } else {
+            &job.scope
+        }) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        job.job_id = scope.clone();
+        job.scope = scope.clone();
+        if let Some(claim) = claims.get(&scope) {
+            job.state = "active".into();
+            job.owner = Some(claim.actor.clone());
+            job.claim_timestamp = Some(claim.timestamp.clone());
+            job.updated_at = claim.timestamp.clone();
+            normalized.insert(scope, job);
+        } else if job
+            .checkpoint
+            .as_deref()
+            .is_some_and(|value| !value.is_empty())
+        {
+            job.state = "checkpoint".into();
+            job.owner = None;
+            job.lease_expires_at = None;
+            job.claim_timestamp = None;
+            if job.updated_at.is_empty() {
+                job.updated_at = now_iso();
+            }
+            normalized.insert(scope, job);
+        }
+    }
+    let changed = normalized != state.coordinator.jobs;
+    state.coordinator.jobs = normalized;
+    changed
+}
+
 fn snapshot_state(
     state: &StoreFile,
     actor: Option<&str>,
@@ -288,28 +336,28 @@ fn snapshot_state(
     expired: &[Value],
 ) -> Result<Value, String> {
     let limit = limit.clamp(1, 32);
-    let mut jobs: Vec<&Job> = state.coordinator.jobs.values().collect();
-    jobs.sort_by(|a, b| a.scope.cmp(&b.scope));
-
-    let count_state = |name: &str| jobs.iter().filter(|job| job.state == name).count();
     let mut claims = state.claims.clone();
     claims.sort_by(|a, b| a.scope.cmp(&b.scope));
+    let mut active: Vec<&Job> = state
+        .coordinator
+        .jobs
+        .values()
+        .filter(|job| job.state == "active")
+        .collect();
+    active.sort_by(|a, b| a.scope.cmp(&b.scope));
+    let mut checkpoints: Vec<&Job> = state
+        .coordinator
+        .jobs
+        .values()
+        .filter(|job| job.state == "checkpoint")
+        .collect();
+    checkpoints.sort_by(|a, b| a.scope.cmp(&b.scope));
+    let managed: std::collections::BTreeSet<&str> =
+        active.iter().map(|job| job.scope.as_str()).collect();
     let legacy_only: Vec<Claim> = claims
         .iter()
-        .filter(|claim| !state.coordinator.jobs.contains_key(&claim.scope))
+        .filter(|claim| !managed.contains(claim.scope.as_str()))
         .cloned()
-        .collect();
-    let ready: Vec<Value> = jobs
-        .iter()
-        .filter(|job| job.state == "ready")
-        .take(limit)
-        .map(|job| compact_job(job))
-        .collect();
-    let blocked: Vec<Value> = jobs
-        .iter()
-        .filter(|job| job.state == "blocked")
-        .take(limit)
-        .map(|job| compact_job(job))
         .collect();
 
     let mut result = Map::new();
@@ -317,22 +365,26 @@ fn snapshot_state(
     result.insert(
         "counts".into(),
         json!({
-            "active": count_state("active"),
-            "ready": count_state("ready"),
-            "blocked": count_state("blocked"),
-            "completed": count_state("completed"),
+            "active": active.len(),
+            "checkpoints": checkpoints.len(),
             "claims": claims.len(),
             "legacy_only_claims": legacy_only.len(),
         }),
     );
-    result.insert("ready".into(), Value::Array(ready));
-    result.insert("blocked".into(), Value::Array(blocked));
+    result.insert(
+        "checkpoints".into(),
+        Value::Array(
+            checkpoints
+                .iter()
+                .take(limit)
+                .map(|job| compact_job(job))
+                .collect(),
+        ),
+    );
     result.insert(
         "legacy_only_claims".into(),
         json!(legacy_only.into_iter().take(limit).collect::<Vec<_>>()),
     );
-
-    let active: Vec<&Job> = jobs.iter().copied().filter(|job| job.state == "active").collect();
     if let Some(actor) = actor {
         result.insert(
             "owned".into(),
@@ -364,7 +416,6 @@ fn snapshot_state(
             Value::Array(active.into_iter().take(limit).map(compact_job).collect()),
         );
     }
-
     if let Some(raw_scope) = raw_scope {
         let scope = canonical_scope(raw_scope)?;
         let job = state
@@ -376,7 +427,10 @@ fn snapshot_state(
         let claim = claim_index(state, &scope)
             .map(|index| json!(&state.claims[index]))
             .unwrap_or(Value::Null);
-        result.insert("focus".into(), json!({"scope": scope, "job": job, "claim": claim}));
+        result.insert(
+            "focus".into(),
+            json!({"scope": scope, "job": job, "claim": claim}),
+        );
     }
     if !expired.is_empty() {
         result.insert(
@@ -402,25 +456,6 @@ fn prune_operations(state: &mut StoreFile) {
     for (key, _) in ordered.into_iter().take(remove_count) {
         state.coordinator.operations.remove(&key);
     }
-}
-
-fn prune_completed_jobs(state: &mut StoreFile) -> bool {
-    let mut completed: Vec<(String, String)> = state
-        .coordinator
-        .jobs
-        .iter()
-        .filter(|(_, job)| job.state == "completed")
-        .map(|(scope, job)| (scope.clone(), job.updated_at.clone()))
-        .collect();
-    if completed.len() <= MAX_COMPLETED_JOBS {
-        return false;
-    }
-    completed.sort_by(|a, b| (a.1.as_str(), a.0.as_str()).cmp(&(b.1.as_str(), b.0.as_str())));
-    let remove_count = completed.len() - MAX_COMPLETED_JOBS;
-    for (scope, _) in completed.into_iter().take(remove_count) {
-        state.coordinator.jobs.remove(&scope);
-    }
-    true
 }
 
 fn idempotent(state: &StoreFile, operation_id: Option<&str>, signature: &Value) -> Option<Value> {
@@ -452,6 +487,38 @@ fn remember(
     result
 }
 
+fn preserve_checkpoint_or_remove(
+    state: &mut StoreFile,
+    scope: &str,
+    checkpoint: Option<String>,
+    updated_at: Option<String>,
+) {
+    if let Some(checkpoint) = checkpoint.filter(|value| !value.is_empty()) {
+        let extra = state
+            .coordinator
+            .jobs
+            .get(scope)
+            .map(|job| job.extra.clone())
+            .unwrap_or_default();
+        state.coordinator.jobs.insert(
+            scope.to_string(),
+            Job {
+                job_id: scope.to_string(),
+                scope: scope.to_string(),
+                state: "checkpoint".into(),
+                owner: None,
+                lease_expires_at: None,
+                claim_timestamp: None,
+                checkpoint: Some(checkpoint),
+                updated_at: updated_at.unwrap_or_else(now_iso),
+                extra,
+            },
+        );
+    } else {
+        state.coordinator.jobs.remove(scope);
+    }
+}
+
 fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
     let now = Utc::now();
     let scopes: Vec<String> = state.coordinator.jobs.keys().cloned().collect();
@@ -481,7 +548,6 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
         if deadline.with_timezone(&Utc) > now {
             continue;
         }
-
         let current = claim_index(state, &scope).map(|index| state.claims[index].clone());
         if let Some(claim) = current.as_ref().filter(|claim| claim.actor == owner) {
             if expected_timestamp
@@ -492,18 +558,13 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
                     job.claim_timestamp = Some(claim.timestamp.clone());
                     job.lease_expires_at = None;
                     job.updated_at = claim.timestamp.clone();
-                    changed = true;
                 }
+                changed = true;
                 continue;
             }
             state.claims.retain(|claim| claim.scope != scope);
         }
-        if let Some(job) = state.coordinator.jobs.get_mut(&scope) {
-            job.state = "ready".into();
-            job.owner = None;
-            job.lease_expires_at = None;
-            job.updated_at = now_iso();
-        }
+        preserve_checkpoint_or_remove(state, &scope, checkpoint.clone(), Some(now_iso()));
         expired.push(json!({"scope": scope, "previous_owner": owner, "checkpoint": checkpoint}));
         changed = true;
     }
@@ -514,15 +575,14 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
 struct Options {
     operation_id: Option<String>,
     checkpoint: Option<String>,
-    finding_id: Option<String>,
-    source: Option<String>,
-    summary: Option<String>,
     lease_seconds: i64,
     limit: usize,
     expected_claim_timestamp: Option<String>,
 }
 
-fn parse_snapshot_options(args: &[String]) -> Result<(Option<String>, Option<String>, usize), String> {
+fn parse_snapshot_options(
+    args: &[String],
+) -> Result<(Option<String>, Option<String>, usize), String> {
     let mut actor = None;
     let mut scope = None;
     let mut limit = 8_i64;
@@ -556,7 +616,6 @@ fn parse_options(
     args: &[String],
     allow_lease: bool,
     allow_checkpoint: bool,
-    allow_handoff: bool,
     allow_recovery: bool,
 ) -> Result<Options, String> {
     let mut options = Options {
@@ -593,27 +652,12 @@ fn parse_options(
                     return Err("--lease-seconds must be positive".into());
                 }
             }
-            "--finding-id" if allow_handoff => {
-                index += 1;
-                options.finding_id = Some(
-                    args.get(index)
-                        .ok_or("--finding-id requires a value")?
-                        .clone(),
-                );
-            }
-            "--source" if allow_handoff => {
-                index += 1;
-                options.source = Some(args.get(index).ok_or("--source requires a value")?.clone());
-            }
-            "--summary" if allow_handoff => {
-                index += 1;
-                options.summary =
-                    Some(args.get(index).ok_or("--summary requires a value")?.clone());
-            }
             "--expected-claim-timestamp" if allow_recovery => {
                 index += 1;
                 options.expected_claim_timestamp = Some(
-                    args.get(index).ok_or("--expected-claim-timestamp requires a value")?.clone(),
+                    args.get(index)
+                        .ok_or("--expected-claim-timestamp requires a value")?
+                        .clone(),
                 );
             }
             other => return Err(format!("unknown option: {other}")),
@@ -623,36 +667,18 @@ fn parse_options(
     Ok(options)
 }
 
-fn signature(
-    command: &str,
-    actor: Option<&str>,
-    scope: &str,
-    options: &Options,
-    include_lease: bool,
-    include_checkpoint: bool,
-) -> Value {
+fn signature(command: &str, actor: Option<&str>, scope: &str, options: &Options) -> Value {
     let mut map = Map::new();
     map.insert("command".into(), json!(command));
     if let Some(actor) = actor {
         map.insert("actor".into(), json!(actor));
     }
     map.insert("scope".into(), json!(scope));
-    if include_checkpoint {
-        if let Some(checkpoint) = &options.checkpoint {
-            map.insert("checkpoint".into(), json!(checkpoint));
-        }
-    }
-    if include_lease {
+    if matches!(command, "claim" | "heartbeat") {
         map.insert("lease_seconds".into(), json!(options.lease_seconds));
     }
-    if let Some(finding_id) = &options.finding_id {
-        map.insert("finding_id".into(), json!(finding_id));
-    }
-    if let Some(source) = &options.source {
-        map.insert("source".into(), json!(source));
-    }
-    if let Some(summary) = &options.summary {
-        map.insert("summary".into(), json!(summary));
+    if let Some(checkpoint) = &options.checkpoint {
+        map.insert("checkpoint".into(), json!(checkpoint));
     }
     Value::Object(map)
 }
@@ -666,9 +692,9 @@ fn operate(
 ) -> Result<Value, String> {
     let _lock = StoreLock::acquire(store).map_err(|e| e.to_string())?;
     let mut state = load(store)?;
+    let normalized = normalize_jobs(&mut state);
     let (swept, sweep_changed) = sweep_expired(&mut state);
-    let retention_changed = prune_completed_jobs(&mut state);
-    let state_changed = sweep_changed || retention_changed;
+    let state_changed = normalized || sweep_changed;
 
     if command == "list" {
         if state_changed {
@@ -690,9 +716,9 @@ fn operate(
         return Ok(json!({"ok": true, "expired": swept}));
     }
 
+    let scope = canonical_scope(raw_scope.ok_or("scope required")?)?;
     if command == "recover" {
         let expected_owner = actor.ok_or("expected owner required")?;
-        let scope = canonical_scope(raw_scope.ok_or("scope required")?)?;
         let expected_timestamp = options
             .expected_claim_timestamp
             .as_ref()
@@ -704,35 +730,32 @@ fn operate(
             "expected_claim_timestamp": expected_timestamp,
         });
         if let Some(replay) = idempotent(&state, options.operation_id.as_deref(), &sig) {
-            if state_changed { persist(store, &state)?; }
+            if state_changed {
+                persist(store, &state)?;
+            }
             return Ok(replay);
         }
         let current = claim_index(&state, &scope).map(|index| state.claims[index].clone());
-        let existing_job = state.coordinator.jobs.get(&scope).cloned();
         let result = match current {
             None => json!({"ok": false, "reason": "scope_not_claimed"}),
-            Some(claim) if claim.actor != expected_owner || claim.timestamp != *expected_timestamp => {
+            Some(claim)
+                if claim.actor != expected_owner || claim.timestamp != *expected_timestamp =>
+            {
                 json!({"ok": false, "reason": "claim_changed", "claim": claim})
-            }
-            Some(claim) if existing_job.is_some() => {
-                json!({"ok": false, "reason": "managed_claim_use_lease_sweep", "claim": claim, "job": existing_job})
             }
             Some(claim) => {
                 state.claims.retain(|item| item.scope != scope);
-                let timestamp = now_iso();
-                let job = Job {
-                    job_id: scope.clone(),
-                    scope: scope.clone(),
-                    state: "ready".into(),
-                    owner: None,
-                    lease_expires_at: None,
-                    claim_timestamp: Some(expected_timestamp.clone()),
-                    checkpoint: None,
-                    updated_at: timestamp,
-                    extra: BTreeMap::new(),
-                };
-                state.coordinator.jobs.insert(scope.clone(), job.clone());
-                json!({"ok": true, "recovered": claim, "job": job})
+                let checkpoint = state
+                    .coordinator
+                    .jobs
+                    .get(&scope)
+                    .and_then(|job| job.checkpoint.clone());
+                preserve_checkpoint_or_remove(&mut state, &scope, checkpoint.clone(), None);
+                let mut value = json!({"ok": true, "recovered": claim});
+                if let (Some(checkpoint), Some(map)) = (checkpoint, value.as_object_mut()) {
+                    map.insert("checkpoint".into(), json!(checkpoint));
+                }
+                value
             }
         };
         let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
@@ -740,164 +763,29 @@ fn operate(
         return Ok(result);
     }
 
-    if command == "next" {
-        let actor = validate_claim_actor(actor.ok_or("actor required")?)?;
-        let mut sig_map = Map::new();
-        sig_map.insert("command".into(), json!(command));
-        sig_map.insert("actor".into(), json!(actor));
-        sig_map.insert("lease_seconds".into(), json!(options.lease_seconds));
-        let sig = Value::Object(sig_map);
-        if let Some(replay) = idempotent(&state, options.operation_id.as_deref(), &sig) {
-            if state_changed {
-                persist(store, &state)?;
-            }
-            return Ok(replay);
+    if command == "inspect" {
+        if state_changed {
+            persist(store, &state)?;
         }
-        let mut result = json!({"ok": false, "reason": "no_actionable_job", "expired": swept});
-        let ready_scope = state
-            .coordinator
-            .jobs
-            .iter()
-            .filter(|(scope, job)| job.state == "ready" && claim_index(&state, scope).is_none())
-            .min_by_key(|(scope, job)| (job.updated_at.clone(), (*scope).clone()))
-            .map(|(scope, _)| scope.clone());
-        if let Some(scope) = ready_scope {
-            let timestamp = now_iso();
-            let claim = Claim {
-                actor: actor.into(),
-                scope: scope.clone(),
-                timestamp: timestamp.clone(),
-            };
-            state.claims.push(claim.clone());
-            let deadline = Utc::now() + ChronoDuration::seconds(options.lease_seconds);
-            if let Some(job) = state.coordinator.jobs.get_mut(&scope) {
-                job.state = "active".into();
-                job.owner = Some(actor.into());
-                job.lease_expires_at = Some(deadline.to_rfc3339_opts(SecondsFormat::Millis, true));
-                job.claim_timestamp = Some(timestamp.clone());
-                job.updated_at = timestamp;
-                result = json!({"ok": true, "claim": claim, "job": job, "expired": swept});
-            }
-        }
-        let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
-        persist(store, &state)?;
-        return Ok(result);
+        let claim = claim_index(&state, &scope).map(|index| state.claims[index].clone());
+        return Ok(json!({"ok": true, "job": state.coordinator.jobs.get(&scope), "claim": claim}));
     }
 
-    let scope = canonical_scope(raw_scope.ok_or("scope required")?)?;
+    let actor = actor.ok_or("actor required")?;
     let actor = if matches!(command, "claim" | "heartbeat") {
-        Some(validate_claim_actor(actor.ok_or("actor required")?)?)
+        validate_claim_actor(actor)?
     } else {
         actor
     };
-    let include_lease = matches!(command, "claim" | "heartbeat");
-    let include_checkpoint = matches!(
-        command,
-        "enqueue" | "ready" | "claim" | "heartbeat" | "block" | "complete"
-    );
-    let sig = signature(
-        command,
-        actor,
-        &scope,
-        options,
-        include_lease,
-        include_checkpoint,
-    );
+    let sig = signature(command, Some(actor), &scope, options);
     if let Some(replay) = idempotent(&state, options.operation_id.as_deref(), &sig) {
         if state_changed {
             persist(store, &state)?;
         }
         return Ok(replay);
     }
-
-    if command == "handoff" {
-        let actor = actor.ok_or("actor required")?;
-        let finding = canonical_scope(
-            options
-                .finding_id
-                .as_deref()
-                .ok_or("--finding-id is required")?,
-        )?;
-        let source = options.source.as_deref().unwrap_or("").trim();
-        let summary = options.summary.as_deref().unwrap_or("").trim();
-        if source.is_empty() {
-            return Err("source must not be empty".into());
-        }
-        if summary.is_empty() {
-            return Err("summary must not be empty".into());
-        }
-        if source.chars().count() > MAX_HANDOFF_SOURCE_CHARS {
-            return Err(format!("source exceeds {MAX_HANDOFF_SOURCE_CHARS} characters"));
-        }
-        if summary.chars().count() > MAX_HANDOFF_SUMMARY_CHARS {
-            return Err(format!("summary exceeds {MAX_HANDOFF_SUMMARY_CHARS} characters"));
-        }
-        let follow_scope = format!("{scope}::handoff:{finding}");
-        let result = if let Some(job) = state.coordinator.jobs.get(&follow_scope) {
-            json!({"ok": false, "reason": "finding_id_conflict", "job": job})
-        } else {
-            let timestamp = now_iso();
-            let handoff = json!({
-                "parent_scope": scope,
-                "finding_id": finding,
-                "reported_by": actor,
-                "source": source,
-                "summary": summary,
-                "reported_at": timestamp,
-            });
-            let mut job = Job {
-                job_id: follow_scope.clone(),
-                scope: follow_scope.clone(),
-                state: "ready".into(),
-                owner: None,
-                lease_expires_at: None,
-                claim_timestamp: None,
-                checkpoint: Some(summary.into()),
-                updated_at: timestamp,
-                ..Job::default()
-            };
-            job.extra.insert("handoff".into(), handoff.clone());
-            state.coordinator.jobs.insert(follow_scope.clone(), job);
-            json!({"ok": true, "job": state.coordinator.jobs.get(&follow_scope), "handoff": handoff})
-        };
-        let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
-        persist(store, &state)?;
-        return Ok(result);
-    }
-
-    if matches!(command, "enqueue" | "ready") {
-        let job = state
-            .coordinator
-            .jobs
-            .entry(scope.clone())
-            .or_insert_with(|| Job {
-                job_id: scope.clone(),
-                scope: scope.clone(),
-                ..Job::default()
-            });
-        let result = if job.state == "completed" {
-            json!({"ok": false, "reason": "job_completed", "job": job})
-        } else if job.state == "active" {
-            json!({"ok": false, "reason": "job_active", "job": job})
-        } else {
-            job.state = "ready".into();
-            job.owner = None;
-            job.lease_expires_at = None;
-            job.updated_at = now_iso();
-            if options.checkpoint.is_some() {
-                job.checkpoint = options.checkpoint.clone();
-            }
-            json!({"ok": true, "job": job})
-        };
-        let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
-        persist(store, &state)?;
-        return Ok(result);
-    }
-
-    let actor = actor.ok_or("actor required")?;
-
     let current = claim_index(&state, &scope).map(|index| state.claims[index].clone());
-    let existing_job = state.coordinator.jobs.get(&scope).cloned();
+    let existing = state.coordinator.jobs.get(&scope).cloned();
     let result = match command {
         "claim" => {
             if let Some(claim) = current.as_ref().filter(|claim| claim.actor != actor) {
@@ -909,13 +797,13 @@ fn operate(
                     scope: scope.clone(),
                     timestamp: timestamp.clone(),
                 };
-                state.claims.retain(|claim| claim.scope != scope);
+                state.claims.retain(|item| item.scope != scope);
                 state.claims.push(claim.clone());
                 let deadline = Utc::now() + ChronoDuration::seconds(options.lease_seconds);
                 let checkpoint = options
                     .checkpoint
                     .clone()
-                    .or_else(|| existing_job.as_ref().and_then(|job| job.checkpoint.clone()));
+                    .or_else(|| existing.as_ref().and_then(|job| job.checkpoint.clone()));
                 state.coordinator.jobs.insert(
                     scope.clone(),
                     Job {
@@ -947,69 +835,49 @@ fn operate(
                     state.claims[index] = claim.clone();
                 }
                 let deadline = Utc::now() + ChronoDuration::seconds(options.lease_seconds);
-                let job = state
-                    .coordinator
-                    .jobs
-                    .entry(scope.clone())
-                    .or_insert_with(|| Job {
+                let checkpoint = options
+                    .checkpoint
+                    .clone()
+                    .or_else(|| existing.as_ref().and_then(|job| job.checkpoint.clone()));
+                state.coordinator.jobs.insert(
+                    scope.clone(),
+                    Job {
                         job_id: scope.clone(),
                         scope: scope.clone(),
-                        ..Job::default()
-                    });
-                job.state = "active".into();
-                job.owner = Some(actor.into());
-                job.lease_expires_at = Some(deadline.to_rfc3339_opts(SecondsFormat::Millis, true));
-                job.claim_timestamp = Some(timestamp.clone());
-                job.updated_at = timestamp;
-                if options.checkpoint.is_some() {
-                    job.checkpoint = options.checkpoint.clone();
-                }
+                        state: "active".into(),
+                        owner: Some(actor.into()),
+                        lease_expires_at: Some(
+                            deadline.to_rfc3339_opts(SecondsFormat::Millis, true),
+                        ),
+                        claim_timestamp: Some(timestamp.clone()),
+                        checkpoint,
+                        updated_at: timestamp,
+                        extra: BTreeMap::new(),
+                    },
+                );
                 json!({"ok": true, "claim": claim})
             }
         },
-        "release" | "block" | "complete" => match current {
+        "release" => match current {
             None => json!({"ok": false, "reason": "scope_not_claimed"}),
             Some(claim) if claim.actor != actor => {
                 json!({"ok": false, "reason": "claim_belongs_to_another_actor", "claim": claim})
             }
             Some(claim) => {
                 state.claims.retain(|item| item.scope != scope);
-                if command != "release" || existing_job.is_some() {
-                    let job = state
-                        .coordinator
-                        .jobs
-                        .entry(scope.clone())
-                        .or_insert_with(|| Job {
-                            job_id: scope.clone(),
-                            scope: scope.clone(),
-                            ..Job::default()
-                        });
-                    job.state = match command {
-                        "release" => "ready",
-                        "block" => "blocked",
-                        _ => "completed",
-                    }
-                    .into();
-                    job.owner = None;
-                    job.lease_expires_at = None;
-                    job.updated_at = now_iso();
-                    if options.checkpoint.is_some() {
-                        job.checkpoint = options.checkpoint.clone();
-                    }
+                preserve_checkpoint_or_remove(&mut state, &scope, options.checkpoint.clone(), None);
+                let mut value = json!({"ok": true, "released": claim});
+                if let (Some(checkpoint), Some(map)) = (
+                    options.checkpoint.clone().filter(|value| !value.is_empty()),
+                    value.as_object_mut(),
+                ) {
+                    map.insert("checkpoint".into(), json!(checkpoint));
                 }
-                match command {
-                    "release" => json!({"ok": true, "released": claim}),
-                    "block" => json!({"ok": true, "block": claim}),
-                    _ => json!({"ok": true, "complete": claim}),
-                }
+                value
             }
         },
-        "inspect" => {
-            json!({"ok": true, "job": state.coordinator.jobs.get(&scope), "claim": current})
-        }
         _ => return Err(format!("unknown command: {command}")),
     };
-
     let result = remember(&mut state, options.operation_id.as_deref(), sig, result);
     persist(store, &state)?;
     Ok(result)
@@ -1035,7 +903,7 @@ fn run() -> Result<(), String> {
     } else {
         default_store()
     };
-    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|snapshot|enqueue|ready|handoff|next|recover|claim|heartbeat|release|block|complete|inspect> ...")?.clone();
+    let command = raw.first().ok_or("usage: busy-rs [--store PATH] <list|sweep|snapshot|recover|inspect|claim|heartbeat|release> ...")?.clone();
     raw.remove(0);
     if command == "snapshot" {
         let (actor, scope, limit) = parse_snapshot_options(&raw)?;
@@ -1063,27 +931,10 @@ fn run() -> Result<(), String> {
         }
         let actor = raw.remove(0);
         let scope = raw.remove(0);
-        let options = parse_options(&raw, false, false, false, true)?;
+        let options = parse_options(&raw, false, false, true)?;
         if options.expected_claim_timestamp.is_none() {
             return Err("--expected-claim-timestamp required".into());
         }
-        return print_json(&operate(&store, &command, Some(&actor), Some(&scope), &options)?);
-    }
-    if command == "next" {
-        if raw.is_empty() {
-            return Err("usage: busy-rs next <actor> [options]".into());
-        }
-        let actor = raw.remove(0);
-        let options = parse_options(&raw, true, false, false, false)?;
-        return print_json(&operate(&store, &command, Some(&actor), None, &options)?);
-    }
-    if command == "handoff" {
-        if raw.len() < 2 {
-            return Err("usage: busy-rs handoff <actor> <scope> --finding-id ID --source SOURCE --summary SUMMARY [--operation-id ID]".into());
-        }
-        let actor = raw.remove(0);
-        let scope = raw.remove(0);
-        let options = parse_options(&raw, false, false, true, false)?;
         return print_json(&operate(
             &store,
             &command,
@@ -1092,13 +943,21 @@ fn run() -> Result<(), String> {
             &options,
         )?);
     }
-    if matches!(command.as_str(), "enqueue" | "ready") {
+    if command == "inspect" {
         if raw.is_empty() {
-            return Err(format!("usage: busy-rs {command} <scope> [options]"));
+            return Err("usage: busy-rs inspect <scope> [--operation-id ID]".into());
         }
-        let scope = raw.remove(0);
-        let options = parse_options(&raw, false, true, false, false)?;
+        let first = raw.remove(0);
+        let scope = if !raw.is_empty() && !raw[0].starts_with("--") {
+            raw.remove(0)
+        } else {
+            first
+        };
+        let options = parse_options(&raw, false, false, false)?;
         return print_json(&operate(&store, &command, None, Some(&scope), &options)?);
+    }
+    if !matches!(command.as_str(), "claim" | "heartbeat" | "release") {
+        return Err(format!("unknown command: {command}"));
     }
     if raw.len() < 2 {
         return Err(format!(
@@ -1110,11 +969,7 @@ fn run() -> Result<(), String> {
     let options = parse_options(
         &raw,
         matches!(command.as_str(), "claim" | "heartbeat"),
-        matches!(
-            command.as_str(),
-            "claim" | "heartbeat" | "block" | "complete"
-        ),
-        false,
+        true,
         false,
     )?;
     print_json(&operate(
@@ -1156,11 +1011,23 @@ mod tests {
 
     #[test]
     fn claim_actor_requires_harness_and_suffix() {
-        for actor in ["ChatGPT-task-1", "Codex:session-a", "Claude/run-7", "OpenCode-x", "CommandCode-y", "Traycer-z"] {
+        for actor in [
+            "ChatGPT-task-1",
+            "Codex:session-a",
+            "Claude/run-7",
+            "OpenCode-x",
+            "CommandCode-y",
+            "Traycer-z",
+        ] {
             assert_eq!(validate_claim_actor(actor).unwrap(), actor);
         }
-        for actor in ["Harbor", "Ember", "ChatGPT", "Claude", "worker-a", "ChatGPT-"] {
-            assert!(validate_claim_actor(actor).is_err(), "unexpected actor accepted: {actor}");
+        for actor in [
+            "Harbor", "Ember", "ChatGPT", "Claude", "worker-a", "ChatGPT-",
+        ] {
+            assert!(
+                validate_claim_actor(actor).is_err(),
+                "unexpected actor accepted: {actor}"
+            );
         }
     }
 
@@ -1168,13 +1035,13 @@ mod tests {
     fn option_parser_rejects_unsupported_or_invalid_values() {
         let lease = vec!["--lease-seconds".to_string(), "60".to_string()];
         assert_eq!(
-            parse_options(&lease, true, false, false, false)
+            parse_options(&lease, true, false, false)
                 .unwrap()
                 .lease_seconds,
             60
         );
-        assert!(parse_options(&lease, false, false, false, false).is_err());
+        assert!(parse_options(&lease, false, false, false).is_err());
         let zero = vec!["--lease-seconds".to_string(), "0".to_string()];
-        assert!(parse_options(&zero, true, false, false, false).is_err());
+        assert!(parse_options(&zero, true, false, false).is_err());
     }
 }

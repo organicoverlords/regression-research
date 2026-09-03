@@ -68,39 +68,44 @@
                                                  ]
                          },
                          {
-                             "id":  "jobs_queue",
-                             "owner":  "standalone_busy_coordinator",
+                             "id":  "delivery_backlog",
+                             "owner":  "github_project_delivery_state",
                              "reads":  [
-                                           "snapshot",
-                                           "next",
-                                           "operator_live_projection"
+                                           "issues",
+                                           "PRs",
+                                           "project delivery state"
                                        ],
                              "never_authority":  [
-                                                     "issue_label",
-                                                     "board_status"
+                                                     "busy_coordinator",
+                                                     "checkpoint",
+                                                     "operator_live_projection"
                                                  ]
                          },
                          {
                              "id":  "checkpoint",
                              "owner":  "standalone_busy_coordinator",
                              "reads":  [
-                                           "job.checkpoint",
+                                           "scope checkpoint metadata",
                                            "inspect",
-                                           "operator_live_projection"
+                                           "snapshot"
                                        ],
                              "never_authority":  [
-                                                     "resume_packet_copy"
+                                                     "delivery_backlog",
+                                                     "priority",
+                                                     "liveness",
+                                                     "reassignment"
                                                  ]
                          },
                          {
-                             "id":  "handoff",
-                             "owner":  "standalone_busy_coordinator",
+                             "id":  "actionable_fan_in",
+                             "owner":  "github_project_delivery_state",
                              "reads":  [
-                                           "handoff_record",
-                                           "ready_child_job",
-                                           "checkpoint"
+                                           "issue/PR provenance",
+                                           "project delivery state",
+                                           "optional exact-scope checkpoint context"
                                        ],
                              "never_authority":  [
+                                                     "coordinator_queue",
                                                      "prose_only_handoff"
                                                  ]
                          },
@@ -108,6 +113,7 @@
                              "id":  "process_execution",
                              "owner":  "replaceable_process_transport",
                              "reads":  [
+                                           "MCPv3_VPS",
                                            "ChatGPTMcpClean_plugin2",
                                            "Remote_Desktop_Commander",
                                            "native_shell"
@@ -318,9 +324,7 @@
                            "path":  "%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd",
                            "owns":  [
                                         "claims",
-                                        "jobs",
-                                        "checkpoints",
-                                        "handoffs",
+                                        "exact-scope checkpoint context",
                                         "recovery"
                                     ]
                        },
@@ -492,8 +496,8 @@
     "negative_example":  {
                              "issue":  "organicoverlords/regression-research#271",
                              "proposed":  "derived resume/context layer with registry, structured checkpoints and resume packets",
-                             "missed_existing":  "BusyCoordinator already exposes jobs, checkpoint, snapshot, inspect, next, recover and handoff; handoff creates a ready child job with source/provenance and checkpoint",
+                             "missed_existing":  "BusyCoordinator already exposed exact-scope checkpoint/inspect/recovery context; that context should have been reused without expanding the coordinator into a queue or handoff scheduler",
                              "failure_class":  "capability_invisibility_from_stale_or_incomplete_architecture_map",
-                             "required_future_behavior":  "resolve capability owner and inspect its current interface before proposing a cross-stack component"
+                             "required_future_behavior":  "resolve the smallest existing owner first and inspect its current interface; keep ownership/checkpoint context in BusyCoordinator and pending delivery work in the project issue/PR"
                          }
 }

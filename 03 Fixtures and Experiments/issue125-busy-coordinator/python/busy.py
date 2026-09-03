@@ -13,12 +13,13 @@ REPLACE_TIMEOUT_S = 0.5
 REPLACE_RETRY_S = 0.01
 DEFAULT_LEASE_S = 3600
 MAX_OPERATIONS = 512
-MAX_COMPLETED_JOBS = 256
-MAX_HANDOFF_SOURCE_CHARS = 2048
-MAX_HANDOFF_SUMMARY_CHARS = 4096
 
 
 def default_store() -> Path:
+    if os.environ.get("BUSY_STORE_PATH"):
+        return Path(os.environ["BUSY_STORE_PATH"])
+    if os.environ.get("MCP_BUSY_STORE_PATH"):
+        return Path(os.environ["MCP_BUSY_STORE_PATH"])
     base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
     return base / "ChatGPTMcpClean" / ".state" / "busy-claims.json"
 
@@ -143,6 +144,53 @@ def job_for(state: dict, scope: str):
     return job if isinstance(job, dict) else None
 
 
+def normalize_jobs(state: dict) -> bool:
+    """Migrate legacy queue/job records into ownership/checkpoint metadata only."""
+    jobs = state["coordinator"]["jobs"]
+    claims = {claim["scope"]: claim for claim in state["claims"]}
+    normalized: dict[str, dict] = {}
+    known = {"job_id", "scope", "state", "owner", "lease_expires_at", "claim_timestamp", "checkpoint", "updated_at"}
+    for raw_scope, raw_job in jobs.items():
+        if not isinstance(raw_job, dict):
+            continue
+        try:
+            scope = canonical_scope(str(raw_job.get("scope") or raw_scope))
+        except ValueError:
+            continue
+        claim = claims.get(scope)
+        checkpoint = raw_job.get("checkpoint") if isinstance(raw_job.get("checkpoint"), str) else None
+        extra = {key: value for key, value in raw_job.items() if key not in known}
+        if claim is not None:
+            item = {
+                "job_id": scope,
+                "scope": scope,
+                "state": "active",
+                "owner": claim["actor"],
+                "lease_expires_at": raw_job.get("lease_expires_at") if isinstance(raw_job.get("lease_expires_at"), str) else None,
+                "claim_timestamp": claim["timestamp"],
+                "checkpoint": checkpoint,
+                "updated_at": claim["timestamp"],
+                **extra,
+            }
+            normalized[scope] = item
+        elif checkpoint:
+            item = {
+                "job_id": scope,
+                "scope": scope,
+                "state": "checkpoint",
+                "owner": None,
+                "lease_expires_at": None,
+                "claim_timestamp": None,
+                "checkpoint": checkpoint,
+                "updated_at": raw_job.get("updated_at") if isinstance(raw_job.get("updated_at"), str) else iso(),
+                **extra,
+            }
+            normalized[scope] = item
+    changed = normalized != jobs
+    state["coordinator"]["jobs"] = normalized
+    return changed
+
+
 def compact_job(job: dict) -> dict:
     return {
         key: job.get(key)
@@ -154,26 +202,34 @@ def compact_job(job: dict) -> dict:
 def snapshot_state(state: dict, *, actor: str | None = None, raw_scope: str | None = None,
                    limit: int = 8, expired: list[dict] | None = None) -> dict:
     limit = max(1, min(limit, 32))
-    jobs = [job for job in state["coordinator"]["jobs"].values() if isinstance(job, dict)]
-    jobs.sort(key=lambda job: str(job.get("scope", "")))
-    counts = {name: sum(1 for job in jobs if job.get("state") == name) for name in ("active", "ready", "blocked", "completed")}
     claims = sorted(state["claims"], key=lambda claim: claim["scope"])
-    job_scopes = {str(job.get("scope")) for job in jobs}
-    legacy_only = [claim for claim in claims if claim["scope"] not in job_scopes]
-
+    jobs = state["coordinator"]["jobs"]
+    active = sorted(
+        (job for job in jobs.values() if isinstance(job, dict) and job.get("state") == "active"),
+        key=lambda job: str(job.get("scope", "")),
+    )
+    checkpoints = sorted(
+        (job for job in jobs.values() if isinstance(job, dict) and job.get("state") == "checkpoint"),
+        key=lambda job: str(job.get("scope", "")),
+    )
+    managed_scopes = {str(job.get("scope")) for job in active}
+    legacy_only = [claim for claim in claims if claim["scope"] not in managed_scopes]
     result = {
         "ok": True,
-        "counts": {**counts, "claims": len(claims), "legacy_only_claims": len(legacy_only)},
-        "ready": [compact_job(job) for job in jobs if job.get("state") == "ready"][:limit],
-        "blocked": [compact_job(job) for job in jobs if job.get("state") == "blocked"][:limit],
+        "counts": {
+            "active": len(active),
+            "checkpoints": len(checkpoints),
+            "claims": len(claims),
+            "legacy_only_claims": len(legacy_only),
+        },
+        "checkpoints": [compact_job(job) for job in checkpoints[:limit]],
         "legacy_only_claims": legacy_only[:limit],
     }
-    active = [job for job in jobs if job.get("state") == "active"]
     if actor:
         result["owned"] = [compact_job(job) for job in active if job.get("owner") == actor][:limit]
         result["active_other"] = [compact_job(job) for job in active if job.get("owner") != actor][:limit]
     else:
-        result["active"] = [compact_job(job) for job in active][:limit]
+        result["active"] = [compact_job(job) for job in active[:limit]]
     if raw_scope:
         scope = canonical_scope(raw_scope)
         result["focus"] = {"scope": scope, "job": job_for(state, scope), "claim": claim_for(state, scope)}
@@ -189,20 +245,6 @@ def prune_operations(state: dict) -> None:
     ordered = sorted(ops.items(), key=lambda item: str(item[1].get("at", "")))
     for key, _ in ordered[: len(ops) - MAX_OPERATIONS]:
         ops.pop(key, None)
-
-
-def prune_completed_jobs(state: dict) -> bool:
-    jobs = state["coordinator"]["jobs"]
-    completed = [
-        (scope, job) for scope, job in jobs.items()
-        if isinstance(job, dict) and job.get("state") == "completed"
-    ]
-    if len(completed) <= MAX_COMPLETED_JOBS:
-        return False
-    completed.sort(key=lambda item: (str(item[1].get("updated_at", "")), item[0]))
-    for scope, _ in completed[: len(completed) - MAX_COMPLETED_JOBS]:
-        jobs.pop(scope, None)
-    return True
 
 
 def idempotent(state: dict, operation_id: str | None, signature: dict):
@@ -228,12 +270,33 @@ def remember(state: dict, operation_id: str | None, signature: dict, result: dic
     return result
 
 
+def preserve_checkpoint_or_remove(state: dict, scope: str, checkpoint: str | None, *, updated_at: str | None = None) -> None:
+    if checkpoint:
+        existing = job_for(state, scope) or {}
+        extra = {
+            key: value for key, value in existing.items()
+            if key not in {"job_id", "scope", "state", "owner", "lease_expires_at", "claim_timestamp", "checkpoint", "updated_at"}
+        }
+        state["coordinator"]["jobs"][scope] = {
+            "job_id": scope,
+            "scope": scope,
+            "state": "checkpoint",
+            "owner": None,
+            "lease_expires_at": None,
+            "claim_timestamp": None,
+            "checkpoint": checkpoint,
+            "updated_at": updated_at or iso(),
+            **extra,
+        }
+    else:
+        state["coordinator"]["jobs"].pop(scope, None)
+
+
 def sweep_expired(state: dict) -> tuple[list[dict], bool]:
     now = now_dt()
-    expired = []
+    expired: list[dict] = []
     changed = False
-    jobs = state["coordinator"]["jobs"]
-    for scope, job in list(jobs.items()):
+    for scope, job in list(state["coordinator"]["jobs"].items()):
         if not isinstance(job, dict) or job.get("state") != "active":
             continue
         lease = job.get("lease_expires_at")
@@ -241,60 +304,55 @@ def sweep_expired(state: dict) -> tuple[list[dict], bool]:
         if not isinstance(lease, str) or not isinstance(owner, str):
             continue
         try:
-            is_expired = parse_iso(lease) <= now
+            if parse_iso(lease) > now:
+                continue
         except Exception:
-            continue
-        if not is_expired:
             continue
         current = claim_for(state, scope)
         if current and current.get("actor") == owner:
             expected_timestamp = job.get("claim_timestamp")
             if isinstance(expected_timestamp, str) and current.get("timestamp") != expected_timestamp:
-                # A legacy/current MCP writer renewed this claim after the coordinator
-                # recorded its lease. Treat the live claim as newer authority and stop
-                # automatic expiry rather than deleting work we no longer own safely.
                 job["claim_timestamp"] = current.get("timestamp")
                 job["lease_expires_at"] = None
                 job["updated_at"] = current.get("timestamp")
                 changed = True
                 continue
-            state["claims"] = [c for c in state["claims"] if c["scope"] != scope]
-        job["state"] = "ready"
-        job["owner"] = None
-        job["lease_expires_at"] = None
-        job["updated_at"] = iso(now)
-        expired.append({"scope": scope, "previous_owner": owner, "checkpoint": job.get("checkpoint")})
+            state["claims"] = [claim for claim in state["claims"] if claim.get("scope") != scope]
+        checkpoint = job.get("checkpoint") if isinstance(job.get("checkpoint"), str) else None
+        preserve_checkpoint_or_remove(state, scope, checkpoint, updated_at=iso(now))
+        expired.append({"scope": scope, "previous_owner": owner, "checkpoint": checkpoint})
         changed = True
     return expired, changed
 
 
 def operate(store: Path, command: str, actor: str | None = None, raw_scope: str | None = None,
             *, lease_seconds: int = DEFAULT_LEASE_S, checkpoint: str | None = None,
-            operation_id: str | None = None, finding_id: str | None = None,
-            source: str | None = None, summary: str | None = None, limit: int = 8,
+            operation_id: str | None = None, limit: int = 8,
             expected_claim_timestamp: str | None = None) -> dict:
     with StoreLock(store):
         state = load_state(store)
+        normalized = normalize_jobs(state)
         swept, sweep_changed = sweep_expired(state)
-        retention_changed = prune_completed_jobs(state)
-        state_changed = sweep_changed or retention_changed
+        state_changed = normalized or sweep_changed
+
         if command in {"list", "sweep", "snapshot"}:
             if state_changed:
                 persist(store, state)
             if command == "list":
-                return {"claims": sorted(state["claims"], key=lambda c: c["scope"])}
+                return {"claims": sorted(state["claims"], key=lambda claim: claim["scope"])}
             if command == "snapshot":
                 return snapshot_state(state, actor=actor, raw_scope=raw_scope, limit=limit, expired=swept)
             return {"ok": True, "expired": swept}
 
+        if raw_scope is None:
+            raise ValueError("scope required")
+        scope = canonical_scope(raw_scope)
+
         if command == "recover":
             if actor is None:
                 raise ValueError("expected owner required")
-            if raw_scope is None:
-                raise ValueError("scope required")
             if not expected_claim_timestamp:
                 raise ValueError("--expected-claim-timestamp required")
-            scope = canonical_scope(raw_scope)
             signature = {
                 "command": command,
                 "expected_owner": actor,
@@ -307,178 +365,53 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                     persist(store, state)
                 return replay
             current = claim_for(state, scope)
-            job = job_for(state, scope)
             if current is None:
                 result = {"ok": False, "reason": "scope_not_claimed"}
             elif current.get("actor") != actor or current.get("timestamp") != expected_claim_timestamp:
                 result = {"ok": False, "reason": "claim_changed", "claim": current}
-            elif job is not None:
-                result = {"ok": False, "reason": "managed_claim_use_lease_sweep", "claim": current, "job": job}
             else:
-                state["claims"] = [c for c in state["claims"] if c.get("scope") != scope]
-                timestamp = iso()
-                state["coordinator"]["jobs"][scope] = {
-                    "job_id": scope,
-                    "scope": scope,
-                    "state": "ready",
-                    "owner": None,
-                    "lease_expires_at": None,
-                    "claim_timestamp": expected_claim_timestamp,
-                    "updated_at": timestamp,
-                }
-                result = {"ok": True, "recovered": current, "job": state["coordinator"]["jobs"][scope]}
+                state["claims"] = [claim for claim in state["claims"] if claim.get("scope") != scope]
+                job = job_for(state, scope)
+                saved_checkpoint = job.get("checkpoint") if isinstance(job, dict) and isinstance(job.get("checkpoint"), str) else None
+                preserve_checkpoint_or_remove(state, scope, saved_checkpoint)
+                result = {"ok": True, "recovered": current}
+                if saved_checkpoint:
+                    result["checkpoint"] = saved_checkpoint
             result = remember(state, operation_id, signature, result)
             persist(store, state)
             return result
 
-        if command == "next":
-            if actor is None:
-                raise ValueError("actor required")
-            actor = validate_claim_actor(actor)
-            signature = {"command": command, "actor": actor, "lease_seconds": lease_seconds}
-            replay = idempotent(state, operation_id, signature)
-            if replay is not None:
-                if state_changed:
-                    persist(store, state)
-                return replay
-            result = {"ok": False, "reason": "no_actionable_job", "expired": swept}
-            ready_jobs = sorted(
-                (job for job in state["coordinator"]["jobs"].values()
-                 if job.get("state") == "ready" and not claim_for(state, job["scope"])),
-                key=lambda job: (job.get("updated_at") or "", job["scope"]),
-            )
-            for job in ready_jobs:
-                scope = job["scope"]
-                timestamp = iso()
-                claim = {"actor": actor, "scope": scope, "timestamp": timestamp}
-                state["claims"].append(claim)
-                job.update({
-                    "state": "active",
-                    "owner": actor,
-                    "lease_expires_at": iso(now_dt() + timedelta(seconds=lease_seconds)),
-                    "claim_timestamp": timestamp,
-                    "updated_at": timestamp,
-                })
-                result = {"ok": True, "claim": claim, "job": job, "expired": swept}
-                break
-            result = remember(state, operation_id, signature, result)
-            persist(store, state)
-            return result
+        if command == "inspect":
+            if state_changed:
+                persist(store, state)
+            return {"ok": True, "job": job_for(state, scope), "claim": claim_for(state, scope)}
 
-        if command == "handoff":
-            if actor is None:
-                raise ValueError("actor required")
-            if raw_scope is None:
-                raise ValueError("scope required")
-            parent_scope = canonical_scope(raw_scope)
-            finding = canonical_scope(finding_id or "")
-            source_value = (source or "").strip()
-            summary_value = (summary or "").strip()
-            if not source_value:
-                raise ValueError("source must not be empty")
-            if not summary_value:
-                raise ValueError("summary must not be empty")
-            if len(source_value) > MAX_HANDOFF_SOURCE_CHARS:
-                raise ValueError(f"source exceeds {MAX_HANDOFF_SOURCE_CHARS} characters")
-            if len(summary_value) > MAX_HANDOFF_SUMMARY_CHARS:
-                raise ValueError(f"summary exceeds {MAX_HANDOFF_SUMMARY_CHARS} characters")
-            scope = f"{parent_scope}::handoff:{finding}"
-            signature = {
-                "command": command,
-                "actor": actor,
-                "scope": parent_scope,
-                "finding_id": finding,
-                "source": source_value,
-                "summary": summary_value,
-            }
-            replay = idempotent(state, operation_id, signature)
-            if replay is not None:
-                if state_changed:
-                    persist(store, state)
-                return replay
-            existing = job_for(state, scope)
-            if existing is not None:
-                result = {"ok": False, "reason": "finding_id_conflict", "job": existing}
-            else:
-                timestamp = iso()
-                handoff = {
-                    "parent_scope": parent_scope,
-                    "finding_id": finding,
-                    "reported_by": actor,
-                    "source": source_value,
-                    "summary": summary_value,
-                    "reported_at": timestamp,
-                }
-                job = {
-                    "job_id": scope,
-                    "scope": scope,
-                    "state": "ready",
-                    "owner": None,
-                    "lease_expires_at": None,
-                    "claim_timestamp": None,
-                    "checkpoint": summary_value,
-                    "updated_at": timestamp,
-                    "handoff": handoff,
-                }
-                state["coordinator"]["jobs"][scope] = job
-                result = {"ok": True, "job": job, "handoff": handoff}
-            result = remember(state, operation_id, signature, result)
-            persist(store, state)
-            return result
-
-        if raw_scope is None:
-            raise ValueError("scope required")
-        scope = canonical_scope(raw_scope)
+        if actor is None:
+            raise ValueError("actor required")
         if command in {"claim", "heartbeat"}:
-            if actor is None:
-                raise ValueError("actor required")
             actor = validate_claim_actor(actor)
-        signature = {"command": command, "scope": scope}
-        if actor is not None:
-            signature["actor"] = actor
-        if checkpoint is not None:
-            signature["checkpoint"] = checkpoint
+        signature = {"command": command, "scope": scope, "actor": actor}
         if command in {"claim", "heartbeat"}:
             signature["lease_seconds"] = lease_seconds
+        if checkpoint is not None:
+            signature["checkpoint"] = checkpoint
         replay = idempotent(state, operation_id, signature)
         if replay is not None:
             if state_changed:
                 persist(store, state)
             return replay
 
-        if command in {"enqueue", "ready"}:
-            job = job_for(state, scope)
-            if job is None:
-                job = {"job_id": scope, "scope": scope}
-                state["coordinator"]["jobs"][scope] = job
-            if job.get("state") == "completed":
-                result = {"ok": False, "reason": "job_completed", "job": job}
-            elif job.get("state") == "active":
-                result = {"ok": False, "reason": "job_active", "job": job}
-            else:
-                job.update({"state": "ready", "owner": None, "lease_expires_at": None, "updated_at": iso()})
-                if checkpoint is not None:
-                    job["checkpoint"] = checkpoint
-                result = {"ok": True, "job": job}
-            result = remember(state, operation_id, signature, result)
-            persist(store, state)
-            return result
-
-        if actor is None:
-            raise ValueError("actor required")
-
         current = claim_for(state, scope)
-        job = job_for(state, scope)
-        result: dict
-
+        existing = job_for(state, scope)
         if command == "claim":
-            if current and current["actor"] != actor:
+            if current and current.get("actor") != actor:
                 result = {"ok": False, "reason": "scope_already_claimed", "claim": current}
             else:
                 timestamp = iso()
                 claim = {"actor": actor, "scope": scope, "timestamp": timestamp}
-                state["claims"] = [c for c in state["claims"] if c["scope"] != scope] + [claim]
+                state["claims"] = [item for item in state["claims"] if item.get("scope") != scope] + [claim]
                 deadline = now_dt() + timedelta(seconds=lease_seconds)
+                saved_checkpoint = checkpoint if checkpoint is not None else ((existing or {}).get("checkpoint"))
                 state["coordinator"]["jobs"][scope] = {
                     "job_id": scope,
                     "scope": scope,
@@ -486,50 +419,42 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                     "owner": actor,
                     "lease_expires_at": iso(deadline),
                     "claim_timestamp": timestamp,
-                    "checkpoint": checkpoint if checkpoint is not None else (job or {}).get("checkpoint"),
+                    "checkpoint": saved_checkpoint,
                     "updated_at": timestamp,
                 }
                 result = {"ok": True, "claim": claim}
         elif command == "heartbeat":
             if not current:
                 result = {"ok": False, "reason": "scope_not_claimed"}
-            elif current["actor"] != actor:
+            elif current.get("actor") != actor:
                 result = {"ok": False, "reason": "claim_belongs_to_another_actor", "claim": current}
             else:
                 timestamp = iso()
                 current["timestamp"] = timestamp
                 deadline = now_dt() + timedelta(seconds=lease_seconds)
-                if job is None:
-                    job = {"job_id": scope, "scope": scope, "checkpoint": checkpoint}
-                    state["coordinator"]["jobs"][scope] = job
-                job.update({"state": "active", "owner": actor, "lease_expires_at": iso(deadline), "claim_timestamp": timestamp, "updated_at": timestamp})
-                if checkpoint is not None:
-                    job["checkpoint"] = checkpoint
+                saved_checkpoint = checkpoint if checkpoint is not None else ((existing or {}).get("checkpoint"))
+                state["coordinator"]["jobs"][scope] = {
+                    "job_id": scope,
+                    "scope": scope,
+                    "state": "active",
+                    "owner": actor,
+                    "lease_expires_at": iso(deadline),
+                    "claim_timestamp": timestamp,
+                    "checkpoint": saved_checkpoint,
+                    "updated_at": timestamp,
+                }
                 result = {"ok": True, "claim": current}
-        elif command in {"release", "block", "complete"}:
+        elif command == "release":
             if not current:
                 result = {"ok": False, "reason": "scope_not_claimed"}
-            elif current["actor"] != actor:
+            elif current.get("actor") != actor:
                 result = {"ok": False, "reason": "claim_belongs_to_another_actor", "claim": current}
             else:
-                state["claims"] = [c for c in state["claims"] if c["scope"] != scope]
-                timestamp = iso()
-                if command != "release" or job is not None:
-                    if job is None:
-                        job = {"job_id": scope, "scope": scope}
-                        state["coordinator"]["jobs"][scope] = job
-                    job.update({
-                        "state": {"release": "ready", "block": "blocked", "complete": "completed"}[command],
-                        "owner": None,
-                        "lease_expires_at": None,
-                        "updated_at": timestamp,
-                    })
-                    if checkpoint is not None:
-                        job["checkpoint"] = checkpoint
-                key = "released" if command == "release" else command
-                result = {"ok": True, key: current}
-        elif command == "inspect":
-            result = {"ok": True, "job": job, "claim": current}
+                state["claims"] = [item for item in state["claims"] if item.get("scope") != scope]
+                preserve_checkpoint_or_remove(state, scope, checkpoint)
+                result = {"ok": True, "released": current}
+                if checkpoint:
+                    result["checkpoint"] = checkpoint
         else:
             raise ValueError(f"unknown command: {command}")
 
@@ -544,40 +469,27 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list")
     sub.add_parser("sweep")
+    snapshot = sub.add_parser("snapshot")
+    snapshot.add_argument("--actor")
+    snapshot.add_argument("--scope")
+    snapshot.add_argument("--limit", type=int, default=8)
     recover = sub.add_parser("recover")
     recover.add_argument("actor")
     recover.add_argument("scope")
     recover.add_argument("--expected-claim-timestamp", required=True)
     recover.add_argument("--operation-id")
-    snapshot = sub.add_parser("snapshot")
-    snapshot.add_argument("--actor")
-    snapshot.add_argument("--scope")
-    snapshot.add_argument("--limit", type=int, default=8)
-    nxt = sub.add_parser("next")
-    nxt.add_argument("actor")
-    nxt.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_S)
-    nxt.add_argument("--operation-id")
-    handoff = sub.add_parser("handoff")
-    handoff.add_argument("actor")
-    handoff.add_argument("scope")
-    handoff.add_argument("--finding-id", required=True)
-    handoff.add_argument("--source", required=True)
-    handoff.add_argument("--summary", required=True)
-    handoff.add_argument("--operation-id")
-    for name in ("enqueue", "ready"):
-        p = sub.add_parser(name)
-        p.add_argument("scope")
-        p.add_argument("--operation-id")
-        p.add_argument("--checkpoint")
-    for name in ("claim", "heartbeat", "release", "block", "complete", "inspect"):
-        p = sub.add_parser(name)
-        p.add_argument("actor")
-        p.add_argument("scope")
-        p.add_argument("--operation-id")
+    inspect = sub.add_parser("inspect")
+    inspect.add_argument("scope_or_actor")
+    inspect.add_argument("legacy_scope", nargs="?")
+    inspect.add_argument("--operation-id")
+    for name in ("claim", "heartbeat", "release"):
+        command = sub.add_parser(name)
+        command.add_argument("actor")
+        command.add_argument("scope")
+        command.add_argument("--operation-id")
         if name in {"claim", "heartbeat"}:
-            p.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_S)
-        if name in {"claim", "heartbeat", "block", "complete"}:
-            p.add_argument("--checkpoint")
+            command.add_argument("--lease-seconds", type=int, default=DEFAULT_LEASE_S)
+        command.add_argument("--checkpoint")
     return parser
 
 
@@ -589,22 +501,14 @@ def main() -> int:
         elif args.cmd == "snapshot":
             result = operate(args.store, args.cmd, args.actor, args.scope, limit=args.limit)
         elif args.cmd == "recover":
-            result = operate(args.store, args.cmd, args.actor, args.scope, operation_id=args.operation_id, expected_claim_timestamp=args.expected_claim_timestamp)
-        elif args.cmd == "next":
-            result = operate(args.store, args.cmd, args.actor, lease_seconds=args.lease_seconds, operation_id=args.operation_id)
-        elif args.cmd == "handoff":
             result = operate(
-                args.store,
-                args.cmd,
-                args.actor,
-                args.scope,
+                args.store, args.cmd, args.actor, args.scope,
                 operation_id=args.operation_id,
-                finding_id=args.finding_id,
-                source=args.source,
-                summary=args.summary,
+                expected_claim_timestamp=args.expected_claim_timestamp,
             )
-        elif args.cmd in {"enqueue", "ready"}:
-            result = operate(args.store, args.cmd, raw_scope=args.scope, checkpoint=args.checkpoint, operation_id=args.operation_id)
+        elif args.cmd == "inspect":
+            scope = args.legacy_scope or args.scope_or_actor
+            result = operate(args.store, args.cmd, raw_scope=scope, operation_id=args.operation_id)
         else:
             result = operate(
                 args.store,
@@ -618,7 +522,7 @@ def main() -> int:
         print(json.dumps(result, separators=(",", ":")))
         return 0
     except TimeoutError as exc:
-        print(json.dumps({"ok": False, "reason": "store_locked", "error": str(exc)}), file=sys.stderr)
+        print(json.dumps({"ok": False, "reason": "store_locked", "error": str(exc)}, separators=(",", ":")), file=sys.stderr)
         return 75
     except Exception as exc:
         print(str(exc), file=sys.stderr)

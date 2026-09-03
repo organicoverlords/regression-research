@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.36 - 2026-09-03.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
+**Version 1.37 - 2026-09-03.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank history, handoffs, recalled context, and stale prose.
@@ -12,9 +12,8 @@
 - Finish the bounded outcome. Debug with the next discriminating test from live facts; once the failing boundary is isolated, fix/test it and reopen diagnosis only if that fails. Unrelated work stays out unless needed for acceptance or safety.
 
 ### Route failure is local
-- Prefer `plugin2` when healthy. If unavailable, maintenance, missing/stale, or repeatedly failing, switch immediately to Commander for local machine/`git`/`gh` work when allowed; do not wait for plugin2 recovery.
-- A failed route is not task failure. Plugin2 loss alone never justifies `TOOL_BLOCKED` or ending a run while Commander or another route can continue.
-- Preserve process identity across routes; recover at natural boundaries without fixed retry cutoffs or tight loops.
+- Prefer production `MCPv3` via VPS. On failure use `plugin2`, then Commander/GitHub as supported; do not wait for one route.
+- Route failure is capability-local, not task failure, while another route or independent work remains. Preserve process identity; avoid tight retry loops.
 
 ### Data safety
 - Do not destroy or rewrite irreplaceable masters, assets, captures, evidence, datasets, secrets, dirty work, or another actor's history; use only recoverable operations you can name.
@@ -31,13 +30,13 @@
 ### Ownership, scheduling, and fan-in
 - Task ownership includes cleanup. Branches, worktrees, stashes, and recovery refs are task state, not storage: preserve unique work once, then remove task-created Git state when work lands/closes/is abandoned. Keep feature branches only for active work/open PRs; leave primary checkout clean on current default.
 - Do not centralize routine resilience. An actor that claims scope owns that exact BUSY lifecycle; peer task steering or reassignment requires explicit current scope.
-- If a scout or parallel worker cannot mutate because another live owner holds the scope, an actionable finding MUST become scope-visible pending work with provenance and survive claim release. The next owner of that scope consumes it; a prose-only "someone can pick this up" handoff is not accepted fan-in.
+- If another owner blocks a scout/parallel mutation, preserve the finding in the project issue/PR and optionally a bounded release checkpoint. Checkpoints are context, never queue/priority state.
 
 ### Coordination and BUSY
 - The standalone coordinator defined by current live repo/runtime state is collision/ownership authority only. Its records are coordination bookkeeping, never backlog, priority, progress, liveness, capacity, cleanup, or admission. GitHub issues/PRs own delivery work; Stack Delivery is workflow projection only. Claim only for shared-mutation collision risk or a repo contract; read-only and isolated low-risk mutation need no ceremonial claim. Acquire exact scope. On Windows call `%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd` through any shell; do not require MCP `BusyCoordinator` or legacy MCP BUSY tools.
 - Every claim actor must identify its harness (`ChatGPT`, `Codex`, `Claude`, `OpenCode`, `CommandCode`, or `Traycer`) plus a task/session suffix; generic anonymous actor names are forbidden.
 - MCP/plugin connectors are transport, not ownership or scheduling authority. Any worker may call the standalone coordinator through its shell; missing legacy `busy_*` tools cannot block mutation after the canonical check. Aggregate process/worktree counts are diagnostics, not claims.
-- If another live owner holds the scope, yield mutation, preserve actionable findings as pending scope state, and continue elsewhere. A claim alone does not prove liveness: when its session/process is proven terminated, immediately `recover` the exact claim with recorded owner + timestamp; this preserves its checkpoint and returns the job ready. Release/complete the scope whenever mutation stops, switches, completes, or hands off.
+- If another live owner holds the scope, yield and continue elsewhere. A claim does not prove liveness; after proving its owner terminated, `recover` using the recorded owner + timestamp. Recovery may preserve checkpoint context but never creates ready work or proves reassignment. Release the exact scope when mutation stops, switches, or completes.
 - Legacy BUSY claims persist until release; age alone does not prove staleness. Issue titles, branches, PRs, processes, schedules, receipts, and legacy claims are evidence/projections, not ownership authorities. If the coordinator is temporarily unavailable, preserve ownership evidence and do not assume the scope is free.
 
 ### Navigation minimap

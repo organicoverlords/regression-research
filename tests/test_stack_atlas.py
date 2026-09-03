@@ -41,9 +41,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("memory_bank.py timeline", timeline["entrypoints"])
         self.assertIn("never recursive Vault scans", timeline["boundary"])
 
-        checkpoint = find_features("checkpoint handoff")[0]
-        self.assertEqual(checkpoint["id"], "coordination.checkpoint_handoff")
+        checkpoint = find_features("checkpoint resume")[0]
+        self.assertEqual(checkpoint["id"], "coordination.checkpoint_context")
         self.assertIn("busy_coordinator", checkpoint["owner_components"])
+        self.assertIn("never backlog", checkpoint["boundary"])
 
         reports = find_features("worker reports")[0]
         self.assertEqual(reports["id"], "worker.reports")

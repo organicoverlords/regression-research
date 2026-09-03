@@ -14,7 +14,7 @@ flowchart LR
   end
 
   subgraph COORD["ONE COORDINATION AUTHORITY"]
-    BC["Standalone BusyCoordinator\nclaims + jobs + checkpoints + handoffs + recovery"]
+    BC["Standalone BusyCoordinator\nclaims + exact-scope checkpoints + recovery"]
     STORE["canonical busy-claims.json"]
     BC --> STORE
   end
