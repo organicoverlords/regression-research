@@ -99,7 +99,7 @@ class MemoryTimelineTests(unittest.TestCase):
         rule["evidence"] = ["user-instruction:test"]
         rule["behavior_rule"] = True
         advisory = self.e("advisory", "2026-08-29T09:00:00+03:00", "Historical suggestion", kind="lesson")
-        orientation = build_orientation([advisory, rule], projects=[], behavior_rules=8)
+        orientation = build_orientation([advisory, rule], projects=[])
         self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["rule"])
         self.assertEqual(orientation["behavior_profile"][0]["authority_role"], "USER_EXPLICIT")
         self.assertTrue(orientation["behavior_profile"][0]["behavior_rule_type"])
@@ -121,7 +121,7 @@ class MemoryTimelineTests(unittest.TestCase):
             rule["evidence"] = ["user-instruction:test"]
             rule["behavior_rule"] = True
             rules.append(rule)
-        orientation = build_orientation(rules, projects=[], behavior_rules=2)
+        orientation = build_orientation(rules, projects=[])
         self.assertEqual(len(orientation["behavior_profile"]), 33)
         self.assertEqual({item["id"] for item in orientation["behavior_profile"]}, {rule["id"] for rule in rules})
 

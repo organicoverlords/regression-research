@@ -322,27 +322,10 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
 
 
 
-def build_fresh_session_startup_contract() -> dict[str, Any]:
-    """Return the lightweight ChatGPT continuity/live-truth contract."""
-    return {
-        "continuity": "current conversation + ChatGPT Memory carry active task, referents, constraints, evidence, and recent decisions",
-        "short_turns": "short or elliptical turns inherit established context; current explicit facts update or override remembered context",
-        "stack_atlas_glance": "for stack/infra work consult Atlas before judging relevance or blast radius, then use the relevant live proof routes",
-        "vault_history": "Vault is optional searchable history/notebook/evidence; retrieve targeted context only when it materially helps",
-        "tool_schema_discovery": "reuse loaded schemas when valid; refresh when stale, changed, failed, or missing; broaden discovery when needed",
-        "current_status_refresh": "before a status-dependent answer, re-check the relevant live sources; memory and prior snapshots are not current truth",
-        "worker_status_truth": "for user-facing worker status, inspect current MCP execution evidence over a bounded recent window (normally five minutes): in-flight work or a continuing recent stream tied to the worker/scope proves activity; do not require a child process at sampling; claims, leases, heartbeats, checkpoints, schedules, enabled flags, and old snapshots have zero positive weight",
-        "worker_progress_truth": "report actual work from concrete outputs such as completed commands/tools/tests, commits, artifacts, or PR updates; claim timestamps may delimit the window only and claim existence adds zero progress evidence",
-        "worker_status_reporting": "status reports only current execution plus measured actual work; never present coordinator active/claim/lease/heartbeat/checkpoint state as activity; without in-flight or recent execution evidence say not working, and say unverified only when execution evidence cannot be inspected",
-        "continuation": "keep useful inherited/project work moving; context retrieval or status reporting is not task completion",
-        "documentation": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
-        "personal_instructions_bridge": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
-    }
-
 
 def build_orientation(
     entries: Iterable[dict[str, Any]], *, projects: Iterable[str] = ("p3", "tiny3d", "lowvram"),
-    recent_events: int = 8, error_threads: int = 4, project_events: int = 3, behavior_rules: int = 32,
+    recent_events: int = 8, error_threads: int = 4, project_events: int = 3,
     repo_events: Iterable[dict[str, Any]] | None = None, repo_snapshots: Iterable[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build one compact fresh-chat continuity index from curated memory plus optional local Git history."""
@@ -426,7 +409,6 @@ def build_orientation(
 
     authorized = behavioral_context(items)
     # Governing rules are never silently evicted by a presentation budget.
-    # The behavior_rules argument remains accepted for CLI compatibility only.
     behavior = [
         compact_behavior(entry) for entry in authorized
         if (entry.get("behavioral_authority") or {}).get("role") == "USER_EXPLICIT"
