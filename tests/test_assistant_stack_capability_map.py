@@ -20,13 +20,12 @@ class AssistantStackCapabilityMapTests(unittest.TestCase):
         ids = [item["id"] for item in self.data["capabilities"]]
         self.assertEqual(len(ids), len(set(ids)))
 
-    def test_coordinator_already_owns_resume_primitives(self):
-        for capability in ("mutation_ownership", "jobs_queue", "checkpoint", "handoff"):
-            with self.subTest(capability=capability):
-                self.assertEqual(
-                    self.capabilities[capability]["owner"],
-                    "standalone_busy_coordinator",
-                )
+    def test_coordinator_owns_only_mutation_and_exact_scope_context(self):
+        self.assertEqual(self.capabilities["mutation_ownership"]["owner"], "standalone_busy_coordinator")
+        self.assertEqual(self.capabilities["checkpoint"]["owner"], "standalone_busy_coordinator")
+        self.assertEqual(self.capabilities["delivery_backlog"]["owner"], "github_project_delivery_state")
+        self.assertEqual(self.capabilities["actionable_fan_in"]["owner"], "github_project_delivery_state")
+        self.assertIn("busy_coordinator", self.capabilities["delivery_backlog"]["never_authority"])
     def test_transport_and_projection_do_not_claim_coordination_authority(self):
         self.assertEqual(self.capabilities["process_execution"]["owner"], "replaceable_process_transport")
         self.assertEqual(self.capabilities["product_progress_projection"]["owner"], "DevProgressBoard_derived_state")
@@ -44,7 +43,7 @@ class AssistantStackCapabilityMapTests(unittest.TestCase):
     def test_issue_271_is_preserved_as_duplicate_design_regression(self):
         example = self.data["negative_example"]
         self.assertEqual(example["issue"], "organicoverlords/regression-research#271")
-        self.assertIn("BusyCoordinator already exposes", example["missed_existing"])
+        self.assertIn("BusyCoordinator already exposed exact-scope", example["missed_existing"])
         self.assertIn("inspect its current interface", example["required_future_behavior"])
 
     def test_product_stage_ownership_follows_current_repo_architecture(self):

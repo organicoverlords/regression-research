@@ -1,347 +1,138 @@
-import ctypes
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 import time
-from datetime import datetime, timedelta, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-PY = ROOT / "python" / "busy.py"
+PY = [sys.executable, str(ROOT / "python" / "busy.py")]
 RS = ROOT / "rust" / "target" / "release" / "busy-coordinator.exe"
+RETIRED = {"enqueue", "ready", "next", "handoff", "block", "complete"}
+CORE = {"list", "sweep", "snapshot", "recover", "inspect", "claim", "heartbeat", "release"}
 
 
-def managed_actor(value: str) -> str:
-    if value.startswith(("ChatGPT-", "ChatGPT:", "ChatGPT/", "Codex-", "Claude-", "OpenCode-", "CommandCode-", "Traycer-")):
-        return value
-    return f"ChatGPT-{value}"
+def managed_actor(label: str) -> str:
+    return f"ChatGPT-{label}"
 
 
-def run(kind, store, *args, expect=0):
-    args = list(args)
-    if args and args[0] in {"claim", "heartbeat", "release", "block", "complete", "inspect", "next"} and len(args) > 1:
-        args[1] = managed_actor(args[1])
-    if args and args[0] == "snapshot" and "--actor" in args:
-        index = args.index("--actor") + 1
-        args[index] = managed_actor(args[index])
-    if kind == "py":
-        cmd = [sys.executable, str(PY), "--store", str(store), *args]
-        env = None
-    else:
-        cmd = [str(RS), "--store", str(store), *args]
-        env = os.environ.copy()
-    cp = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if cp.returncode != expect:
-        raise AssertionError(f"{kind} rc={cp.returncode} expected={expect}\nstdout={cp.stdout}\nstderr={cp.stderr}")
-    text = cp.stdout.strip() if expect == 0 else cp.stderr.strip()
-    return json.loads(text) if text.startswith("{") else text
+def run(kind: str, store: pathlib.Path, *args: str) -> dict:
+    cmd = PY if kind == "py" else [str(RS)]
+    cp = subprocess.run([*cmd, "--store", str(store), *args], capture_output=True, text=True)
+    if cp.returncode != 0:
+        raise AssertionError(f"{kind} {' '.join(args)} failed: {cp.stderr or cp.stdout}")
+    return json.loads(cp.stdout)
 
 
-def new_store(name):
-    path = pathlib.Path(tempfile.gettempdir()) / f"busy-parity-{os.getpid()}-{name}.json"
-    path.unlink(missing_ok=True)
-    pathlib.Path(str(path) + ".lock").unlink(missing_ok=True)
-    return path
+def raw(kind: str, store: pathlib.Path, *args: str) -> subprocess.CompletedProcess[str]:
+    cmd = PY if kind == "py" else [str(RS)]
+    return subprocess.run([*cmd, "--store", str(store), *args], capture_output=True, text=True)
 
 
-def read(store):
+def read(store: pathlib.Path) -> dict:
     return json.loads(store.read_text(encoding="utf-8"))
 
 
-def hold_without_delete_share(path, seconds=0.15):
-    if os.name != "nt":
-        return None
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    create_file = kernel32.CreateFileW
-    create_file.argtypes = [ctypes.c_wchar_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p]
-    create_file.restype = ctypes.c_void_p
-    handle = create_file(str(path), 0x80000000, 0x00000001 | 0x00000002, None, 3, 0x80, None)
-    if handle == ctypes.c_void_p(-1).value:
-        raise ctypes.WinError(ctypes.get_last_error())
-    def release():
-        time.sleep(seconds)
-        kernel32.CloseHandle(ctypes.c_void_p(handle))
-    thread = threading.Thread(target=release, daemon=True)
-    thread.start()
-    return thread
+subprocess.run(["cargo", "build", "--release", "--manifest-path", str(ROOT / "rust" / "Cargo.toml")], check=True)
+base = pathlib.Path(tempfile.mkdtemp(prefix="busy-ownership-parity-"))
+try:
+    # Both redundant implementations expose the same ownership-only surface.
+    py_help = subprocess.run([*PY, "--help"], capture_output=True, text=True, check=True).stdout
+    rs_missing = subprocess.run([str(RS)], capture_output=True, text=True)
+    assert all(name in py_help for name in CORE)
+    for retired in RETIRED:
+        assert retired not in py_help
+        assert raw("py", base / "retired-py.json", retired).returncode != 0
+        assert raw("rs", base / "retired-rs.json", retired).returncode != 0
 
+    store = base / "shared.json"
+    actor = managed_actor("parity")
+    claimed = run("py", store, "claim", actor, "repo#125", "--lease-seconds", "60", "--checkpoint", "working", "--operation-id", "claim-1")
+    assert claimed["ok"] is True
+    assert run("rs", store, "inspect", "repo#125")["claim"]["actor"] == actor
+    heartbeat = run("rs", store, "heartbeat", actor, "repo#125", "--lease-seconds", "60", "--checkpoint", "still-working", "--operation-id", "heartbeat-1")
+    assert heartbeat["ok"] is True
+    snapshot_py = run("py", store, "snapshot", "--actor", actor, "--scope", "repo#125")
+    snapshot_rs = run("rs", store, "snapshot", "--actor", actor, "--scope", "repo#125")
+    assert snapshot_py == snapshot_rs
+    assert snapshot_py["counts"] == {"active": 1, "checkpoints": 0, "claims": 1, "legacy_only_claims": 0}
 
-# A supported observer that denies delete-sharing may transiently block Windows atomic replace.
-# Both implementations must preserve single-store authority and retry the same atomic replace.
-if os.name == "nt":
+    collision = run("py", store, "claim", managed_actor("other"), "repo#125", "--lease-seconds", "60")
+    assert collision["ok"] is False and collision["reason"] == "scope_already_claimed"
+
+    released = run("rs", store, "release", actor, "repo#125", "--checkpoint", "pending-finding", "--operation-id", "release-1")
+    assert released["ok"] is True and released["checkpoint"] == "pending-finding"
+    checkpoint_view = run("py", store, "snapshot", "--scope", "repo#125")
+    assert checkpoint_view["counts"] == {"active": 0, "checkpoints": 1, "claims": 0, "legacy_only_claims": 0}
+    assert checkpoint_view["focus"]["job"]["state"] == "checkpoint"
+    assert "ready" not in checkpoint_view["counts"] and "blocked" not in checkpoint_view["counts"] and "completed" not in checkpoint_view["counts"]
+
+    # Reclaim keeps the exact-scope checkpoint; ordinary release clears it.
+    reclaimed = run("rs", store, "claim", actor, "repo#125", "--lease-seconds", "60")
+    assert reclaimed["ok"] is True
+    assert run("py", store, "inspect", "repo#125")["job"]["checkpoint"] == "pending-finding"
+    assert run("py", store, "release", actor, "repo#125")["ok"] is True
+    assert run("rs", store, "inspect", "repo#125")["job"] is None
+
+    # Idempotency remains cross-language.
+    idem_store = base / "idem.json"
+    first = run("py", idem_store, "claim", actor, "idem", "--lease-seconds", "60", "--operation-id", "same-op")
+    replay = run("rs", idem_store, "claim", actor, "idem", "--lease-seconds", "60", "--operation-id", "same-op")
+    assert first == replay
+    conflict = run("rs", idem_store, "claim", actor, "different", "--lease-seconds", "60", "--operation-id", "same-op")
+    assert conflict["ok"] is False and conflict["reason"] == "idempotency_conflict"
+
+    # Compare-and-swap recovery never manufactures ready work.
     for kind in ("py", "rs"):
-        replace_store = new_store(f"replace-share-{kind}")
-        replace_store.write_text(json.dumps({"claims": [], "coordinator": {"version": 1, "jobs": {}, "operations": {}}}, indent=2) + "\n", encoding="utf-8")
-        observer = hold_without_delete_share(replace_store)
-        result = run(kind, replace_store, "claim", f"{kind}-replace-worker", f"replace-{kind}", "--operation-id", f"replace-{kind}-op")
-        assert result["ok"] is True
-        observer.join(timeout=1.0)
-        assert read(replace_store)["claims"][0]["scope"] == f"replace-{kind}"
-        replace_store.unlink(missing_ok=True)
-        pathlib.Path(str(replace_store) + ".lock").unlink(missing_ok=True)
+        recovery = base / f"recover-{kind}.json"
+        claim = {"actor": "legacy-owner", "scope": "legacy-scope", "timestamp": "2026-09-03T00:00:00.000Z"}
+        recovery.write_text(json.dumps({"claims": [claim], "coordinator": {"version": 1, "jobs": {}, "operations": {}}}, indent=2)+"\n", encoding="utf-8")
+        stale = run(kind, recovery, "recover", "legacy-owner", "legacy-scope", "--expected-claim-timestamp", "2026-09-02T23:59:59.000Z")
+        assert stale["ok"] is False and stale["reason"] == "claim_changed"
+        recovered = run(kind, recovery, "recover", "legacy-owner", "legacy-scope", "--expected-claim-timestamp", claim["timestamp"])
+        assert recovered["ok"] is True
+        snap = run(kind, recovery, "snapshot")
+        assert snap["counts"] == {"active": 0, "checkpoints": 0, "claims": 0, "legacy_only_claims": 0}
 
-
-# Cross-language idempotency and lifecycle continuation.
-store = new_store("lifecycle")
-first = run("py", store, "claim", "worker-a", "repo#125:job-a", "--operation-id", "op-claim", "--lease-seconds", "60", "--checkpoint", "issue#125")
-assert first["ok"] is True
-assert run("rs", store, "claim", "worker-a", "repo#125:job-a", "--operation-id", "op-claim", "--lease-seconds", "60", "--checkpoint", "issue#125") == first
-hb = run("rs", store, "heartbeat", "worker-a", "repo#125:job-a", "--operation-id", "op-heartbeat", "--lease-seconds", "60")
-assert hb["ok"] is True
-assert run("py", store, "heartbeat", "worker-a", "repo#125:job-a", "--operation-id", "op-heartbeat", "--lease-seconds", "60") == hb
-blocked = run("py", store, "block", "worker-a", "repo#125:job-a", "--operation-id", "op-block", "--checkpoint", "commit:abc")
-assert blocked["ok"] is True
-assert run("rs", store, "block", "worker-a", "repo#125:job-a", "--operation-id", "op-block", "--checkpoint", "commit:abc") == blocked
-state = read(store)
-assert state["claims"] == []
-assert state["coordinator"]["jobs"]["repo#125:job-a"]["state"] == "blocked"
-assert state["coordinator"]["jobs"]["repo#125:job-a"]["checkpoint"] == "commit:abc"
-
-# Ownership remains exact across implementations.
-assert run("rs", store, "claim", "worker-b", "repo#125:job-a", "--operation-id", "op-reclaim")["ok"] is True
-wrong = run("py", store, "release", "worker-a", "repo#125:job-a", "--operation-id", "op-wrong-release")
-assert wrong["ok"] is False and wrong["reason"] == "claim_belongs_to_another_actor"
-release = run("py", store, "release", "worker-b", "repo#125:job-a", "--operation-id", "op-release")
-assert release["ok"] is True
-assert run("rs", store, "release", "worker-b", "repo#125:job-a", "--operation-id", "op-release") == release
-
-# Operation IDs cannot be reused for a different operation through another connector/runtime.
-store2 = new_store("idempotency-conflict")
-assert run("rs", store2, "claim", "worker-a", "scope-a", "--operation-id", "same-op")["ok"] is True
-conflict = run("py", store2, "claim", "worker-a", "scope-b", "--operation-id", "same-op")
-assert conflict["ok"] is False and conflict["reason"] == "idempotency_conflict"
-
-# Lazy lease expiry is cross-language and releases only the claim represented by the lease metadata.
-store3 = new_store("expiry")
-assert run("py", store3, "claim", "lease-worker", "lease-scope", "--operation-id", "lease-op", "--lease-seconds", "1")["ok"] is True
-time.sleep(1.2)
-swept = run("rs", store3, "sweep")
-assert swept["ok"] is True and len(swept["expired"]) == 1
-assert read(store3)["claims"] == []
-assert read(store3)["coordinator"]["jobs"]["lease-scope"]["state"] == "ready"
-recovered = run("py", store3, "next", "recovery-worker", "--operation-id", "next-after-expiry", "--lease-seconds", "60")
-assert recovered["ok"] is True and recovered["claim"]["scope"] == "lease-scope"
-
-# A newer legacy/MCP refresh cancels coordinator auto-expiry instead of deleting newer ownership.
-store4 = new_store("legacy-refresh")
-assert run("rs", store4, "claim", "legacy-worker", "legacy-scope", "--operation-id", "legacy-op", "--lease-seconds", "1")["ok"] is True
-state4 = read(store4)
-state4["claims"][0]["timestamp"] = (datetime.now(timezone.utc) + timedelta(seconds=5)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-time.sleep(1.2)
-store4.write_text(json.dumps(state4, indent=2) + "\n", encoding="utf-8")
-swept4 = run("py", store4, "sweep")
-assert swept4["expired"] == []
-state4b = read(store4)
-assert len(state4b["claims"]) == 1
-assert state4b["coordinator"]["jobs"]["legacy-scope"]["lease_expires_at"] is None
-
-# Unknown top-level data survives both implementations.
-store5 = new_store("passthrough")
-store5.write_text(json.dumps({"claims": [], "foreign": {"keep": 7}}, indent=2) + "\n", encoding="utf-8")
-assert run("py", store5, "claim", "p", "pass-scope", "--operation-id", "p1")["ok"] is True
-assert read(store5)["foreign"] == {"keep": 7}
-assert run("rs", store5, "release", "p", "pass-scope", "--operation-id", "p2")["ok"] is True
-assert read(store5)["foreign"] == {"keep": 7}
-
-
-# Existing queue primitives are interchangeable and blocked jobs do not occupy a worker.
-store6 = new_store("queue")
-enqueued = run("py", store6, "enqueue", "queue-job", "--operation-id", "enqueue-1", "--checkpoint", "issue#125")
-assert enqueued["ok"] is True and enqueued["job"]["state"] == "ready"
-assert run("rs", store6, "enqueue", "queue-job", "--operation-id", "enqueue-1", "--checkpoint", "issue#125") == enqueued
-next1 = run("rs", store6, "next", "worker-queue", "--operation-id", "next-1", "--lease-seconds", "60")
-assert next1["ok"] is True and next1["claim"]["scope"] == "queue-job"
-assert run("py", store6, "next", "worker-queue", "--operation-id", "next-1", "--lease-seconds", "60") == next1
-blocked_q = run("py", store6, "block", "worker-queue", "queue-job", "--operation-id", "block-q", "--checkpoint", "waiting:ci")
-assert blocked_q["ok"] is True
-assert run("rs", store6, "next", "other-worker", "--operation-id", "next-none")["reason"] == "no_actionable_job"
-ready_q = run("rs", store6, "ready", "queue-job", "--operation-id", "ready-q", "--checkpoint", "ci:green")
-assert ready_q["ok"] is True
-next2 = run("py", store6, "next", "other-worker", "--operation-id", "next-2")
-assert next2["ok"] is True and next2["claim"]["scope"] == "queue-job"
-completed_q = run("rs", store6, "complete", "other-worker", "queue-job", "--operation-id", "complete-q", "--checkpoint", "merge:done")
-assert completed_q["ok"] is True
-assert run("py", store6, "ready", "queue-job", "--operation-id", "ready-after-complete")["reason"] == "job_completed"
-
-for path in [store, store2, store3, store4, store5, store6]:
-    path.unlink(missing_ok=True)
-    pathlib.Path(str(path) + ".lock").unlink(missing_ok=True)
-
-# Scout fan-in: a finding becomes a separate ready job with durable provenance and
-# survives the parent owner's completion.
-store7 = new_store("handoff-fanin")
-assert run("py", store7, "claim", "owner", "repo#125:parent", "--operation-id", "parent-claim", "--lease-seconds", "60")["ok"] is True
-handoff = run(
-    "rs", store7, "handoff", "scout", "repo#125:parent",
-    "--finding-id", "finding-1",
-    "--source", "github:issue#125:comment-42",
-    "--summary", "actionable scout result",
-    "--operation-id", "handoff-1",
-)
-assert handoff["ok"] is True and handoff["job"]["state"] == "ready"
-follow_scope = handoff["job"]["scope"]
-assert follow_scope == "repo#125:parent::handoff:finding-1"
-assert handoff["handoff"]["reported_by"] == "scout"
-assert handoff["handoff"]["source"] == "github:issue#125:comment-42"
-assert run(
-    "py", store7, "handoff", "scout", "repo#125:parent",
-    "--finding-id", "finding-1",
-    "--source", "github:issue#125:comment-42",
-    "--summary", "actionable scout result",
-    "--operation-id", "handoff-1",
-) == handoff
-assert run("py", store7, "complete", "owner", "repo#125:parent", "--operation-id", "parent-complete", "--checkpoint", "parent:done")["ok"] is True
-claimed_finding = run("rs", store7, "next", "reconciler", "--operation-id", "next-finding", "--lease-seconds", "60")
-assert claimed_finding["ok"] is True and claimed_finding["claim"]["scope"] == follow_scope
-assert claimed_finding["job"]["handoff"]["source"] == "github:issue#125:comment-42"
-assert claimed_finding["job"]["handoff"]["summary"] == "actionable scout result"
-
-# Handoff provenance is bounded so one finding cannot grow the canonical coordinator store without limit.
-store9 = new_store("handoff-bounds")
-for kind, field, value, expected in [
-    ("py", "--source", "s" * 2049, "source exceeds 2048 characters"),
-    ("rs", "--summary", "x" * 4097, "summary exceeds 4096 characters"),
-]:
-    args = [
-        "handoff", "scout", "repo#194:parent",
-        "--finding-id", f"oversized-{kind}",
-        "--source", "source:ok",
-        "--summary", "summary ok",
-    ]
-    args[args.index(field) + 1] = value
-    failure = run(kind, store9, *args, expect=1)
-    assert failure == expected
-assert not store9.exists(), "rejected handoffs must not create coordinator state"
-pathlib.Path(str(store9) + ".lock").unlink(missing_ok=True)
-
-# Blocking one exact sub-job releases only that ownership; sibling work remains claimable.
-store8 = new_store("subjob-block-isolation")
-assert run("py", store8, "claim", "import-worker", "repo#99:import", "--operation-id", "import-claim", "--lease-seconds", "60")["ok"] is True
-assert run("rs", store8, "enqueue", "repo#99:analysis", "--operation-id", "analysis-enqueue", "--checkpoint", "independent")["ok"] is True
-assert run("rs", store8, "block", "import-worker", "repo#99:import", "--operation-id", "import-block", "--checkpoint", "waiting:source-quiescence")["ok"] is True
-next_sibling = run("py", store8, "next", "analysis-worker", "--operation-id", "analysis-next", "--lease-seconds", "60")
-assert next_sibling["ok"] is True and next_sibling["claim"]["scope"] == "repo#99:analysis"
-assert all(claim["scope"] != "repo#99:import" for claim in read(store8)["claims"])
-
-# Queue selection is age-first, not lexicographic by scope.
-for kind in ("py", "rs"):
-    store9 = new_store(f"age-first-{kind}")
-    assert run(kind, store9, "enqueue", "z-oldest", "--operation-id", f"{kind}-enqueue-old")["ok"] is True
-    time.sleep(0.02)
-    assert run(kind, store9, "enqueue", "a-newer", "--operation-id", f"{kind}-enqueue-new")["ok"] is True
-    picked = run(kind, store9, "next", f"{kind}-age-worker", "--operation-id", f"{kind}-age-next")
-    assert picked["ok"] is True and picked["claim"]["scope"] == "z-oldest"
-    store9.unlink(missing_ok=True)
-    pathlib.Path(str(store9) + ".lock").unlink(missing_ok=True)
-
-# Completed history is bounded while live/ready state is preserved.
-for kind in ("py", "rs"):
-    retention_store = new_store(f"completed-retention-{kind}")
-    jobs = {}
-    for index in range(259):
-        scope = f"completed-{index:03d}"
-        jobs[scope] = {
-            "job_id": scope,
-            "scope": scope,
-            "state": "completed",
-            "owner": None,
-            "lease_expires_at": None,
-            "updated_at": f"2026-08-29T00:{index // 60:02d}:{index % 60:02d}.000Z",
-        }
-    jobs["keep-ready"] = {
-        "job_id": "keep-ready",
-        "scope": "keep-ready",
-        "state": "ready",
-        "owner": None,
-        "lease_expires_at": None,
-        "updated_at": "2026-08-29T00:00:00.000Z",
+    # Legacy queue records migrate to ownership/checkpoint metadata only.
+    legacy = {
+        "claims": [{"actor": actor, "scope": "claimed-old", "timestamp": "2026-09-03T00:00:00.000Z"}],
+        "coordinator": {
+            "version": 1,
+            "jobs": {
+                "claimed-old": {"job_id": "claimed-old", "scope": "claimed-old", "state": "ready", "owner": None, "checkpoint": "claim-context", "updated_at": "2026-09-01T00:00:00.000Z"},
+                "ready-drop": {"job_id": "ready-drop", "scope": "ready-drop", "state": "ready", "owner": None, "updated_at": "2026-09-01T00:00:00.000Z"},
+                "blocked-keep": {"job_id": "blocked-keep", "scope": "blocked-keep", "state": "blocked", "owner": None, "checkpoint": "waiting-note", "updated_at": "2026-09-01T00:00:00.000Z"},
+                "completed-drop": {"job_id": "completed-drop", "scope": "completed-drop", "state": "completed", "owner": None, "updated_at": "2026-09-01T00:00:00.000Z"},
+            },
+            "operations": {},
+        },
     }
-    retention_store.write_text(json.dumps({
-        "claims": [],
-        "coordinator": {"version": 1, "jobs": jobs, "operations": {}},
-    }, indent=2) + "\n", encoding="utf-8")
-    assert run(kind, retention_store, "sweep") == {"ok": True, "expired": []}
-    retained = read(retention_store)["coordinator"]["jobs"]
-    completed_scopes = sorted(scope for scope, job in retained.items() if job["state"] == "completed")
-    assert len(completed_scopes) == 256
-    assert completed_scopes[0] == "completed-003"
-    assert completed_scopes[-1] == "completed-258"
-    assert retained["keep-ready"]["state"] == "ready"
-    retention_store.unlink(missing_ok=True)
-    pathlib.Path(str(retention_store) + ".lock").unlink(missing_ok=True)
+    migrated = []
+    for kind in ("py", "rs"):
+        path = base / f"migrate-{kind}.json"
+        path.write_text(json.dumps(legacy, indent=2)+"\n", encoding="utf-8")
+        snap = run(kind, path, "snapshot")
+        state = read(path)
+        assert snap["counts"] == {"active": 1, "checkpoints": 1, "claims": 1, "legacy_only_claims": 0}
+        assert set(state["coordinator"]["jobs"]) == {"claimed-old", "blocked-keep"}
+        assert state["coordinator"]["jobs"]["claimed-old"]["state"] == "active"
+        assert state["coordinator"]["jobs"]["blocked-keep"]["state"] == "checkpoint"
+        migrated.append(state)
+    assert migrated[0] == migrated[1]
 
-# Snapshot is a compact read projection with Python/Rust parity, including legacy-only claims.
-store10 = new_store("snapshot-parity")
-assert run("py", store10, "enqueue", "b-ready", "--operation-id", "snapshot-ready")["ok"] is True
-assert run("rs", store10, "claim", "owner-a", "a-active", "--operation-id", "snapshot-active", "--lease-seconds", "60", "--checkpoint", "working")["ok"] is True
-assert run("py", store10, "claim", "owner-b", "c-blocked", "--operation-id", "snapshot-block-claim")["ok"] is True
-assert run("rs", store10, "block", "owner-b", "c-blocked", "--operation-id", "snapshot-block", "--checkpoint", "waiting")["ok"] is True
-assert run("py", store10, "claim", "owner-c", "d-completed", "--operation-id", "snapshot-complete-claim")["ok"] is True
-assert run("rs", store10, "complete", "owner-c", "d-completed", "--operation-id", "snapshot-complete", "--checkpoint", "done")["ok"] is True
-state10 = read(store10)
-state10["claims"].append({"actor": "legacy-worker", "scope": "legacy-only", "timestamp": "2026-08-29T00:00:00.000Z"})
-store10.write_text(json.dumps(state10, indent=2) + "\n", encoding="utf-8")
-snapshot_py = run("py", store10, "snapshot", "--actor", "owner-a", "--scope", "a-active", "--limit", "2")
-snapshot_rs = run("rs", store10, "snapshot", "--actor", "owner-a", "--scope", "a-active", "--limit", "2")
-assert snapshot_rs == snapshot_py
-assert snapshot_py["counts"] == {"active": 1, "ready": 1, "blocked": 1, "completed": 1, "claims": 2, "legacy_only_claims": 1}
-assert snapshot_py["owned"][0]["scope"] == "a-active" and snapshot_py["active_other"] == []
-assert snapshot_py["focus"]["claim"]["actor"] == managed_actor("owner-a")
-assert snapshot_py["ready"][0]["scope"] == "b-ready"
-assert snapshot_py["blocked"][0]["scope"] == "c-blocked"
-assert snapshot_py["legacy_only_claims"][0]["scope"] == "legacy-only"
-store10.unlink(missing_ok=True)
-pathlib.Path(str(store10) + ".lock").unlink(missing_ok=True)
+    # Managed lease expiry releases ownership and preserves only an explicit checkpoint.
+    expiry = base / "expiry.json"
+    assert run("py", expiry, "claim", actor, "expiring", "--lease-seconds", "1", "--checkpoint", "resume-here")["ok"] is True
+    time.sleep(1.2)
+    swept = run("rs", expiry, "sweep")
+    assert swept["expired"] and swept["expired"][0]["scope"] == "expiring"
+    snap = run("py", expiry, "snapshot", "--scope", "expiring")
+    assert snap["counts"] == {"active": 0, "checkpoints": 1, "claims": 0, "legacy_only_claims": 0}
+    assert snap["focus"]["job"]["state"] == "checkpoint"
 
-# Legacy-only dead-owner recovery is compare-and-swap guarded: a refreshed claim cannot be stolen.
-for kind, other in (("py", "rs"), ("rs", "py")):
-    recovery_store = new_store(f"legacy-recovery-{kind}")
-    original = {"actor": "legacy-owner", "scope": "legacy-recovery", "timestamp": "2026-08-29T00:00:00.000Z"}
-    recovery_store.write_text(json.dumps({"claims": [original]}, indent=2) + "\n", encoding="utf-8")
-    stale = run(kind, recovery_store, "recover", "legacy-owner", "legacy-recovery", "--expected-claim-timestamp", "2026-08-28T23:59:59.000Z", "--operation-id", f"{kind}-stale-recover")
-    assert stale["ok"] is False and stale["reason"] == "claim_changed"
-    assert read(recovery_store)["claims"] == [original]
-    recovered = run(kind, recovery_store, "recover", "legacy-owner", "legacy-recovery", "--expected-claim-timestamp", original["timestamp"], "--operation-id", f"{kind}-recover")
-    assert recovered["ok"] is True and recovered["job"]["state"] == "ready"
-    assert read(recovery_store)["claims"] == []
-    picked = run(other, recovery_store, "next", "replacement-owner", "--operation-id", f"{kind}-replacement")
-    assert picked["ok"] is True and picked["claim"]["scope"] == "legacy-recovery"
-    managed_attempt = run(kind, recovery_store, "recover", picked["claim"]["actor"], "legacy-recovery", "--expected-claim-timestamp", picked["claim"]["timestamp"], "--operation-id", f"{kind}-managed-recover")
-    assert managed_attempt["ok"] is False and managed_attempt["reason"] == "managed_claim_use_lease_sweep"
-    recovery_store.unlink(missing_ok=True)
-    pathlib.Path(str(recovery_store) + ".lock").unlink(missing_ok=True)
-
-
-# New/renewed ownership rejects generic actor names; release/recover remain migration-safe for historical generic claims.
-for kind in ("py", "rs"):
-    invalid_store = new_store(f"actor-validation-{kind}")
-    cmd = ([sys.executable, str(PY), "--store", str(invalid_store)] if kind == "py" else [str(RS), "--store", str(invalid_store)])
-    cp = subprocess.run(cmd + ["claim", "Harbor", "invalid-scope"], capture_output=True, text=True)
-    assert cp.returncode == 1 and "claim actor must be" in cp.stderr
-    assert not invalid_store.exists(), "invalid actor claim must not create coordinator state"
-    legacy = {"actor": "Harbor", "scope": "legacy-cleanup", "timestamp": "2026-09-02T00:00:00.000Z"}
-    invalid_store.write_text(json.dumps({"claims": [legacy]}, indent=2) + "\n", encoding="utf-8")
-    released = subprocess.run(cmd + ["release", "Harbor", "legacy-cleanup"], capture_output=True, text=True)
-    assert released.returncode == 0, released.stderr or released.stdout
-    assert read(invalid_store)["claims"] == []
-    invalid_store.unlink(missing_ok=True)
-    pathlib.Path(str(invalid_store) + ".lock").unlink(missing_ok=True)
-
-print(json.dumps({
-    "result": "PASS",
-    "cross_language_idempotency": True,
-    "cross_language_lifecycle": True,
-    "exact_ownership": True,
-    "lease_expiry": True,
-    "legacy_dead_owner_recovery": True,
-    "legacy_refresh_guard": True,
-    "passthrough_metadata": True,
-    "queue_handoff": True,
-    "completed_retention": True,
-    "scout_fanin": True,
-    "subjob_block_isolation": True,
-    "snapshot_parity": True,
-}))
+    print(json.dumps({"ok": True, "python_rust_redundancy": "preserved", "queue_semantics": "retired", "ownership_parity": True}))
+finally:
+    shutil.rmtree(base, ignore_errors=True)

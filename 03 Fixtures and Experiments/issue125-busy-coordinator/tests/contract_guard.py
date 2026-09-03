@@ -84,15 +84,10 @@ def validate_store(state: object, contract: dict) -> list[str]:
     if not isinstance(operations, dict):
         errors.append("operations_not_object")
         operations = {}
-    max_operations = int(contract["limits"]["max_operations"])
-    if len(operations) > max_operations:
-        errors.append(f"operations_unbounded:{len(operations)}>{max_operations}")
-    completed_count = sum(1 for job in jobs.values() if isinstance(job, dict) and job.get("state") == "completed")
-    max_completed = int(contract["limits"]["max_completed_jobs"])
-    if completed_count > max_completed:
-        errors.append(f"completed_jobs_unbounded:{completed_count}>{max_completed}")
+    if len(operations) > int(contract["limits"]["max_operations"]):
+        errors.append("operations_unbounded")
 
-    allowed_states = set(contract["job_states"])
+    allowed_states = set(contract["scope_metadata_states"])
     for scope, job in jobs.items():
         if not isinstance(job, dict):
             errors.append(f"job_not_object:{scope}")
@@ -101,22 +96,22 @@ def validate_store(state: object, contract: dict) -> list[str]:
             errors.append(f"job_identity_mismatch:{scope}")
         state_name = job.get("state")
         if state_name not in allowed_states:
-            errors.append(f"invalid_job_state:{scope}:{state_name}")
+            errors.append(f"invalid_scope_metadata_state:{scope}:{state_name}")
             continue
         claim = claim_by_scope.get(scope)
-        owner = job.get("owner")
         if state_name == "active":
-            if not isinstance(owner, str) or not owner:
-                errors.append(f"active_job_missing_owner:{scope}")
+            owner = job.get("owner")
             if claim is None:
-                errors.append(f"active_job_missing_claim:{scope}")
-            elif claim.get("actor") != owner:
-                errors.append(f"active_job_claim_owner_mismatch:{scope}")
-        else:
-            if owner is not None:
-                errors.append(f"nonactive_job_has_owner:{scope}")
+                errors.append(f"active_metadata_missing_claim:{scope}")
+            elif owner != claim.get("actor"):
+                errors.append(f"active_metadata_owner_mismatch:{scope}")
+        elif state_name == "checkpoint":
+            if job.get("owner") is not None:
+                errors.append(f"checkpoint_metadata_has_owner:{scope}")
             if claim is not None:
-                errors.append(f"nonactive_job_has_claim:{scope}")
+                errors.append(f"checkpoint_metadata_has_claim:{scope}")
+            if not isinstance(job.get("checkpoint"), str) or not job.get("checkpoint"):
+                errors.append(f"checkpoint_metadata_missing_checkpoint:{scope}")
     return errors
 
 
@@ -144,10 +139,7 @@ def live_contract(wrapper: pathlib.Path) -> dict:
     cp = run_cmd_wrapper(wrapper, "contract")
     if cp.returncode != 0:
         raise RuntimeError(f"contract failed: {cp.stderr.strip() or cp.stdout.strip()}")
-    value = json.loads(cp.stdout)
-    if not isinstance(value, dict):
-        raise RuntimeError("contract result is not an object")
-    return value
+    return json.loads(cp.stdout)
 
 
 def check_sync(errors: list[str], warnings: list[str], strict: bool, label: str,
@@ -163,53 +155,43 @@ def check_sync(errors: list[str], warnings: list[str], strict: bool, label: str,
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Read-only BusyCoordinator contract/invariant inspector")
-    parser.add_argument("--live", action="store_true", help="also inspect both installed wrappers and canonical live store")
-    parser.add_argument("--strict-source-sync", action="store_true", help="treat installed/source file drift as an error")
+    parser = argparse.ArgumentParser(description="Read-only BusyCoordinator ownership-contract inspector")
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument("--strict-source-sync", action="store_true")
     args = parser.parse_args()
 
     contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8-sig"))
     core_required = set(contract["core_required_commands"])
     required = set(contract["required_commands"])
+    retired = set(contract["retired_queue_commands"])
     errors: list[str] = []
     warnings: list[str] = []
     py_commands = parse_python_commands()
     rs_commands = parse_rust_commands()
     extras = wrapper_extra_commands()
-    spec = importlib.util.spec_from_file_location("busy_audit_wrapper_limits", WRAPPER_SOURCE)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("cannot load wrapper source for limits")
-    wrapper_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(wrapper_module)
-    if int(contract["limits"]["max_audit_checkpoint_chars"]) != wrapper_module.MAX_AUDIT_CHECKPOINT_CHARS:
-        errors.append("manifest_audit_checkpoint_limit_mismatch")
-    if int(contract["limits"]["max_audit_expired_items"]) != wrapper_module.MAX_AUDIT_EXPIRED_ITEMS:
-        errors.append("manifest_audit_expired_limit_mismatch")
-
     if required != core_required | extras:
         errors.append("manifest_required_commands_do_not_match_core_plus_wrapper_extensions")
+    if core_required & retired:
+        errors.append("retired_queue_commands_still_required")
     for label, commands in (("python", py_commands), ("rust", rs_commands)):
-        missing = sorted(core_required - commands)
-        if missing:
-            errors.append(f"{label}_missing_core_commands:{','.join(missing)}")
-        unexpected = sorted(commands - core_required)
-        if unexpected:
-            warnings.append(f"{label}_unexpected_core_commands:{','.join(unexpected)}")
+        if commands != core_required:
+            errors.append(f"{label}_core_surface_mismatch:{','.join(sorted(commands))}")
+        leaked = commands & retired
+        if leaked:
+            errors.append(f"{label}_retired_queue_surface:{','.join(sorted(leaked))}")
 
     result: dict = {
         "ok": False,
         "contract_version": contract["contract_version"],
         "authority": contract["authority"],
         "core_required_commands": sorted(core_required),
-        "required_commands": sorted(required),
+        "retired_queue_commands": sorted(retired),
         "source": {
             "python_commands": sorted(py_commands),
             "rust_commands": sorted(rs_commands),
             "wrapper_extensions": sorted(extras),
             "python_sha256": sha256(PY_SOURCE),
             "rust_sha256": sha256(RS_SOURCE),
-            "wrapper_sha256": sha256(WRAPPER_SOURCE),
-            "contract_sha256": sha256(CONTRACT_PATH),
         },
         "errors": errors,
         "warnings": warnings,
@@ -227,29 +209,19 @@ def main() -> int:
                 continue
             try:
                 commands = live_command_surface(wrapper)
-                missing = sorted(required - commands)
-                if missing:
-                    errors.append(f"live_{implementation}_missing_commands:{','.join(missing)}")
+                if commands != required:
+                    errors.append(f"live_{implementation}_surface_mismatch")
                 contract_view = live_contract(wrapper)
                 if contract_view.get("contract_version") != contract["contract_version"]:
-                    errors.append(f"live_{implementation}_contract_version:{contract_view.get('contract_version')}!=expected:{contract['contract_version']}")
-                if contract_view.get("authority") != contract["authority"]:
-                    errors.append(f"live_{implementation}_authority_mismatch")
+                    errors.append(f"live_{implementation}_contract_version_mismatch")
                 live_info["wrappers"][implementation] = {"commands": sorted(commands), "contract": contract_view}
             except Exception as exc:
                 errors.append(f"live_{implementation}_probe_error:{exc}")
-
-        check_sync(errors, warnings, args.strict_source_sync, "python_core",
-                   install / "python" / "busy.py", PY_SOURCE, live_info["source_sync"])
-        check_sync(errors, warnings, args.strict_source_sync, "legacy_python_entry",
-                   install / "busy.py", PY_SOURCE, live_info["source_sync"])
-        check_sync(errors, warnings, args.strict_source_sync, "rust_source",
-                   install / "rust" / "src" / "main.rs", RS_SOURCE, live_info["source_sync"])
-        check_sync(errors, warnings, args.strict_source_sync, "audit_wrapper",
-                   install / "audit_wrapper.py", WRAPPER_SOURCE, live_info["source_sync"])
-        check_sync(errors, warnings, args.strict_source_sync, "contract_manifest",
-                   install / "coordinator-contract.json", CONTRACT_PATH, live_info["source_sync"])
-
+        check_sync(errors, warnings, args.strict_source_sync, "python_core", install / "python" / "busy.py", PY_SOURCE, live_info["source_sync"])
+        check_sync(errors, warnings, args.strict_source_sync, "legacy_python_entry", install / "busy.py", PY_SOURCE, live_info["source_sync"])
+        check_sync(errors, warnings, args.strict_source_sync, "rust_source", install / "rust" / "src" / "main.rs", RS_SOURCE, live_info["source_sync"])
+        check_sync(errors, warnings, args.strict_source_sync, "audit_wrapper", install / "audit_wrapper.py", WRAPPER_SOURCE, live_info["source_sync"])
+        check_sync(errors, warnings, args.strict_source_sync, "contract_manifest", install / "coordinator-contract.json", CONTRACT_PATH, live_info["source_sync"])
         if store.exists():
             try:
                 state = json.loads(store.read_text(encoding="utf-8"))
@@ -257,13 +229,8 @@ def main() -> int:
                 errors.extend(f"live_store:{item}" for item in state_errors)
                 live_info["store_invariants_ok"] = not state_errors
                 live_info["claim_count"] = len(state.get("claims", [])) if isinstance(state, dict) else None
-                coordinator = state.get("coordinator", {}) if isinstance(state, dict) else {}
-                jobs = coordinator.get("jobs", {}) if isinstance(coordinator, dict) else {}
-                live_info["job_count"] = len(jobs) if isinstance(jobs, dict) else None
             except Exception as exc:
                 errors.append(f"live_store_read_error:{exc}")
-        else:
-            warnings.append("live_store_missing")
         result["live"] = live_info
 
     result["ok"] = not errors

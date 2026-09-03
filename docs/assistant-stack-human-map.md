@@ -15,7 +15,7 @@ flowchart LR
   P --> C
   C --> U
 
-  C -. "uses invisibly" .-> B["BusyCoordinator\nownership + jobs + checkpoints + handoffs"]
+  C -. "uses invisibly" .-> B["BusyCoordinator\nownership + exact-scope checkpoints"]
   C -. "uses invisibly" .-> V["Vault + policy + repo docs\ncontinuity + rules"]
   C -. "uses invisibly" .-> T["Replaceable transports\nplugin2 / Remote Desktop Commander"]
 
@@ -37,7 +37,7 @@ flowchart TB
   SP["Canonical shared policy\nCROSS-PROJECT INVARIANTS"]
   AG["Repo AGENTS.md\nREPO-LOCAL RULES"]
   NS["NORTH_STAR / equivalent\nPROJECT DIRECTION"]
-  BC["Standalone BusyCoordinator\nCLAIMS / JOBS / CHECKPOINTS / HANDOFFS"]
+  BC["Standalone BusyCoordinator\nCLAIMS / EXACT-SCOPE CHECKPOINTS"]
   GIT["Local filesystem + Git\nLOCAL BYTES / BRANCH / HEAD / DIRTY"]
   GH["GitHub\nREMOTE ISSUE / PR / PUBLISHED REVISION"]
   CI["Exact CI run\nCI RESULT"]
@@ -144,10 +144,10 @@ The current product architecture is `LowVRAM -> Tiny3D -> P3`. TinyLab is histor
 | What direction is this project heading? | `NORTH_STAR.md` / equivalent | worker recency |
 | Who owns each product stage? | Current LowVRAM/Tiny3D/P3 repo architecture contracts | old migration issue, old handoff, progress-board projection |
 | Who owns this mutable scope? | **BusyCoordinator** | branch, process, issue title, scheduler |
-| What work is ready/active/blocked? | **BusyCoordinator jobs** | board status / labels |
-| Where did this scope leave off? | **BusyCoordinator checkpoint** | a new resume database |
-| How is actionable pending work handed off? | **BusyCoordinator `handoff`** | prose-only comment |
-| How do we run a local command? | available transport: plugin2 / RDC / shell | transport as ownership |
+| What delivery work is ready/blocked? | **Project issue/PR state** | BusyCoordinator claims/checkpoints |
+| Where did this exact scope leave off? | **BusyCoordinator checkpoint context** | backlog / priority / liveness |
+| How is actionable pending work fanned in? | **Project issue/PR state** + optional exact-scope checkpoint | prose-only comment |
+| How do we run a local command? | production MCPv3/VPS; plugin2 / RDC / GitHub fallbacks as supported | transport as ownership |
 | What bytes/branch/HEAD are actually local? | filesystem + Git/worktree | GitHub prose / memory |
 | What is published remotely? | GitHub | local branch alone |
 | Did CI pass this artifact? | exact workflow/run | expected outcome |
@@ -170,7 +170,7 @@ The current product architecture is `LowVRAM -> Tiny3D -> P3`. TinyLab is histor
 - **Canonical shared policy** — one logical owner of cross-project behavioral invariants.
 - **Repo `AGENTS.md`** — repo-local operating contract.
 - **`NORTH_STAR.md` / equivalent** — project direction and finish line.
-- **Standalone BusyCoordinator** — one live owner of claims, jobs, checkpoints, handoffs and recovery.
+- **Standalone BusyCoordinator** — one live owner of exact mutation claims, bounded exact-scope checkpoint context and recovery.
 - **BusyCoordinator canonical store** — `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json`; durable coordinator state, not a file to hand-edit around the coordinator.
 - **ChatGPTMcpClean / plugin2** — stable process transport/front door; coordination stays outside it.
 - **Remote Desktop Commander** — alternate authorized machine/files/process transport.
@@ -189,7 +189,7 @@ The current product architecture is `LowVRAM -> Tiny3D -> P3`. TinyLab is histor
 
 ## 8. The #271 mistake this map must prevent
 
-We proposed a new resume/context concept containing a registry, structured checkpoints and resume packets. Live inspection later showed that BusyCoordinator already had the key resumability machinery: jobs, checkpoints, `snapshot`, `inspect`, `next`, `recover`, and `handoff` creating a resumable ready child job.
+We proposed a new resume/context concept containing a registry, structured checkpoints and resume packets. Live inspection showed BusyCoordinator already had useful exact-scope checkpoint, `snapshot`, `inspect`, and `recover` primitives. The correction is to reuse that context without making BusyCoordinator a delivery queue or handoff scheduler.
 
 So the missing thing was **visibility of an existing capability**, not another runtime system.
 

@@ -26,6 +26,7 @@ COMPONENT_ALIASES = {
     "webgpt": "chatgpt_session",
     "mcp": "mcp_front_door",
     "plugin2": "mcp_front_door",
+    "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
     "tailscale": "tailscale_ingress",
@@ -437,14 +438,14 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "coordination.ownership": {
         "owner_components": ["busy_coordinator"],
         "triggers": ["busy", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
-        "entrypoints": ["busy-python.cmd inspect <actor> <scope>", "claim", "release", "recover", "snapshot"],
+        "entrypoints": ["busy-python.cmd inspect <scope>", "claim", "heartbeat", "release", "recover", "snapshot"],
         "boundary": "Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress.",
     },
-    "coordination.checkpoint_handoff": {
+    "coordination.checkpoint_context": {
         "owner_components": ["busy_coordinator"],
-        "triggers": ["checkpoint", "handoff", "resume", "pending work", "next action"],
-        "entrypoints": ["busy-python.cmd inspect", "handoff", "next", "claim --checkpoint"],
-        "boundary": "Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue.",
+        "triggers": ["checkpoint", "resume", "scope context", "where did this scope leave off"],
+        "entrypoints": ["busy-python.cmd inspect <scope>", "claim --checkpoint", "heartbeat --checkpoint", "release --checkpoint"],
+        "boundary": "Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR.",
     },
     "worker.reports": {
         "owner_components": ["worker_reports"],
@@ -454,8 +455,8 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_front_door", "desktop_commander_remote"],
-        "triggers": ["process execution", "shell", "file access", "mcp", "plugin2", "commander", "tool route"],
-        "entrypoints": ["discover/attempt current MCP tool contract", "Desktop Commander semantic file/process operation"],
+        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "plugin2", "commander", "tool route"],
+        "entrypoints": ["production MCPv3/VPS process contract", "discover/attempt supported fallback transport", "Desktop Commander semantic file/process operation"],
         "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
     },
     "progress.board": {

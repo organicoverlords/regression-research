@@ -1,31 +1,39 @@
 # #125 standalone BUSY coordinator
 
-Purpose: move BUSY/job coordination out of the MCP tool schema without changing the user's workflow or creating a second authority.
+Purpose: keep exact shared-mutation ownership outside the MCP tool schema without creating a second authority or turning coordination into a work queue.
 
-Two interchangeable core implementations are kept deliberately feature-equivalent:
+Two interchangeable core implementations are deliberately retained for redundancy and parity:
 
 - `python/busy.py`
 - `rust/` (`busy-coordinator.exe` after build)
 
-Both operate on the same canonical `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json` plus its existing atomic `.lock`. They preserve unknown top-level metadata so current MCP0 and either standalone implementation can coexist during rollout.
+Both operate on the same canonical `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json` plus its atomic `.lock`. Python and Rust must remain feature-equivalent. The coordinator owns collision/ownership only; GitHub issues/PRs own delivery work and operator boards remain projections.
 
-Core coordinator operations are `list`, `sweep`, `snapshot`, `enqueue`, `ready`, `next`, `recover`, `handoff`, `claim`, `heartbeat`, `release`, `block`, `complete`, and `inspect`. New or renewed ownership (`claim`, `next`, `heartbeat`) requires an actor identity with one approved harness (`ChatGPT`, `Codex`, `Claude`, `OpenCode`, `CommandCode`, or `Traycer`) plus a task/session suffix. `release`, `complete`, and `recover` intentionally accept historical actor strings so legacy generic claims can still be relinquished or recovered safely. Job identity is the canonical trimmed scope string. Optional operation IDs make retries idempotent across connector/runtime changes. Leases are renewable; expired coordinator-owned work returns to `ready`; a newer legacy/MCP claim timestamp disables automatic expiry rather than deleting newer ownership. Block/complete persist a checkpoint and release ownership automatically.
+Core operations are `list`, `sweep`, `snapshot`, `recover`, `claim`, `heartbeat`, `release`, and `inspect`. The former queue/workflow operations `enqueue`, `ready`, `next`, `handoff`, `block`, and `complete` are intentionally retired from the command contract because they created backlog/scheduling semantics with no current operational consumers.
 
-`snapshot` is a bounded read projection of live coordinator state: job-state counts, legacy-only claims, ready/blocked work, optional actor ownership, and optional exact-scope focus. Its result limit is clamped to 1-32 entries and is feature-equivalent across Python and Rust.
+The existing `coordinator.jobs` store key is retained for migration compatibility, but it now contains only exact-scope ownership/checkpoint metadata:
 
-`recover <expected-owner> <scope> --expected-claim-timestamp <timestamp>` is the narrow dead-owner recovery primitive for **legacy-only** claims. Liveness proof stays outside the coordinator: callers may invoke `recover` only after independently establishing that the owner is dead. Recovery uses the exact observed owner plus claim timestamp as a compare-and-swap token, refuses a refreshed/replaced claim with `claim_changed`, and refuses coordinator-managed claims with `managed_claim_use_lease_sweep`. Successful recovery removes only the matched legacy claim and promotes its scope to `ready`, so the normal queue can reassign it.
+- `active` metadata accompanies a live managed claim and may carry its renewable lease and checkpoint.
+- `checkpoint` metadata is unowned context for the same exact scope. It is not ready work, priority, liveness, capacity, or admission.
 
-The tool apps are separate from MCP. They are intended to be invoked through an existing process tool or directly from the local machine; neither implementation is registered as a GPT/MCP tool. The MCP connectors remain interchangeable transport entrances, not ownership systems.
+Legacy `ready`/`blocked`/`completed` records are normalized on the next coordinator operation. Records with no live claim and no checkpoint disappear; records with a checkpoint are reduced to unowned `checkpoint` metadata; records with a live claim become `active` ownership metadata. This migration removes queue state without introducing another database.
 
-`coordinator-contract.json` is the machine-readable compatibility contract. Installed Python and Rust wrappers share one append-only observability sidecar and therefore expose the same additional `contract`, `log`, and `audit` commands without adding fields or authority to the canonical ownership store. `contract` reports the contract/state-schema version, `log` records caller-supplied tool events, and `audit` reads bounded recent history. Coordinator audit events include a bounded projection of returned job/claim/handoff state plus the requested checkpoint, so `audit --scope <scope>` preserves transition evidence without creating another history database or changing core command results. Audit failure is non-authoritative: it may warn, but it does not change the result of a coordinator state command. The raw Python payload and Rust executable remain directly callable core implementations for parity/fallback testing.
+New or renewed ownership (`claim`, `heartbeat`) requires an actor identity with an approved harness (`ChatGPT`, `Codex`, `Claude`, `OpenCode`, `CommandCode`, or `Traycer`) plus a task/session suffix. `release` and `recover` intentionally accept historical actor strings so old claims can still be relinquished or recovered safely.
 
-`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` by default without changing the canonical store; generated wrappers resolve their installed Python/Rust payload relative to the wrapper location so alternate destinations remain self-contained.
-The installer also overwrites the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` entrypoint with the current Python implementation so older callers cannot retain a destructive claims-only writer.
+`release` removes ownership. A caller may explicitly pass `--checkpoint <text>` to preserve exact-scope context after release; without an explicit release checkpoint the managed metadata is removed. `recover <expected-owner> <scope> --expected-claim-timestamp <timestamp>` is compare-and-swap guarded and removes only the exact observed claim. If that scope carried a checkpoint, recovery preserves it as unowned checkpoint metadata rather than manufacturing a ready job.
+
+`snapshot` is a bounded ownership projection: claim count, managed active ownership, legacy-only claims, unowned checkpoints, optional actor ownership, and optional exact-scope focus. It contains no queue depth, blocked count, completed count, or next-work selection.
+
+The tool apps are separate from MCP and can be invoked through any supported process route. MCP/plugin routes are transports, not ownership systems.
+
+`coordinator-contract.json` is the machine-readable compatibility contract. Installed Python and Rust wrappers share one append-only observability sidecar and expose the same additional `contract`, `log`, and `audit` commands without adding authority to the canonical ownership store. Audit failure is non-authoritative.
+
+`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` by default, preserving both Python and Rust implementations and the canonical store. The installer also refreshes the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` compatibility entrypoint with the current Python core.
 
 Verification:
 
 ```powershell
-cargo build --release --manifest-path .\rust\Cargo.toml
+cargo fmt --manifest-path .\rust\Cargo.toml
 cargo test --manifest-path .\rust\Cargo.toml
 python .\tests\contract_guard.py
 python .\tests\coordinator_parity.py
@@ -33,13 +41,4 @@ python .\tests\install_compatibility.py
 python .\tests\mixed_contention.py
 ```
 
-`coordinator-contract.json` is the versioned machine-readable contract for authority identity, canonical store/schema, core and wrapper command surfaces, job states, bounded operation/completed-job history, and observability limits. `contract_guard.py` checks both source cores plus the shared wrapper against that contract without touching coordinator state; `--live` additionally reads both installed wrappers and the canonical store directly, and `--strict-source-sync` turns installed/source drift into a hard failure.
-
-`coordinator_parity.py` proves cross-language idempotency, lifecycle continuation, exact ownership, lease expiry, compare-and-swap legacy dead-owner recovery, legacy-refresh safety, metadata passthrough, snapshot parity, and blocked/next-work handoff. `install_compatibility.py` proves installation preserves coordinator state and Python/Rust snapshot parity. `mixed_contention.py` races Python and Rust writers against the same lock/store.
-
-Do not add a dashboard, dispatcher UI, scoring system, workflow language, connector-specific ownership state, or another database. Normal user interaction remains an issue request, `go`, or `continue`.
-
-
-## Scout finding fan-in
-
-`handoff <actor> <parent-scope> --finding-id <id> --source <provenance> --summary <text>` creates a separate ready follow-up job at `<parent-scope>::handoff:<id>`. The job stores structured `handoff` provenance (`parent_scope`, `finding_id`, `reported_by`, `source`, `summary`, `reported_at`) and is selected by the existing `next` command. It does not require or create ownership of the parent scope, so a scout blocked by a real live owner can durably fan work in without weakening BUSY authority. Parent release, block, or completion does not remove the follow-up job. Handoff provenance is bounded at 2,048 characters for `source` and 4,096 characters for `summary` so a single finding cannot grow the canonical coordinator store without limit and the documented maxima remain callable through the canonical Windows `.cmd` wrappers.
+Do not add a dashboard, dispatcher UI, scoring system, workflow language, queue, priority system, connector-specific ownership state, or another database. Normal user interaction remains an issue request, `go`, or `continue`.
