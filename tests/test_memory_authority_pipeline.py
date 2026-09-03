@@ -49,7 +49,7 @@ class MemoryAuthorityPipelineTests(unittest.TestCase):
             "confidence_reason": "Explicit user instruction.",
         }
 
-    def test_record_behavior_rule_cannot_mint_runtime_authority(self):
+    def test_record_behavior_rule_surface_is_not_exposed(self):
         with tempfile.TemporaryDirectory() as raw:
             bank, registry = self.setup_paths(raw)
             proc = self.run_cli(
@@ -61,7 +61,7 @@ class MemoryAuthorityPipelineTests(unittest.TestCase):
                 "--evidence", "user-instruction:test", "--behavior-rule", check=False,
             )
             self.assertEqual(proc.returncode, 2)
-            self.assertIn("--behavior-rule is retired", proc.stdout)
+            self.assertIn("unrecognized arguments: --behavior-rule", proc.stderr)
 
     def test_raw_typed_record_cannot_mint_authority(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -75,25 +75,6 @@ class MemoryAuthorityPipelineTests(unittest.TestCase):
             payload = json.loads(rejected.stdout)
             self.assertEqual(payload["typed_uncurated"], ["mem-forged"])
 
-    def test_promote_behavior_is_retired(self):
-        with tempfile.TemporaryDirectory() as raw:
-            bank, registry = self.setup_paths(raw)
-            entry = self.trusted_rule("mem-stranded")
-            bank.write_text(json.dumps(entry) + "\n", encoding="utf-8")
-            proc = self.run_cli(bank, registry, "promote-behavior", "mem-stranded", check=False)
-            self.assertEqual(proc.returncode, 2)
-            self.assertIn("Vault runtime authority promotion is retired", proc.stdout)
-
-
-    def test_promote_policy_is_retired(self):
-        with tempfile.TemporaryDirectory() as raw:
-            bank, registry = self.setup_paths(raw)
-            entry = self.trusted_rule("mem-policy")
-            bank.write_text(json.dumps(entry) + "\n", encoding="utf-8")
-            proc = self.run_cli(bank, registry, "promote-policy", "mem-policy", check=False)
-            self.assertEqual(proc.returncode, 2)
-            self.assertIn("Vault runtime authority promotion is retired", proc.stdout)
-
     def test_superseded_historical_rule_stays_non_authoritative(self):
         with tempfile.TemporaryDirectory() as raw:
             bank, registry = self.setup_paths(raw)
@@ -102,16 +83,6 @@ class MemoryAuthorityPipelineTests(unittest.TestCase):
             bank.write_text(json.dumps(old) + "\n" + json.dumps(new) + "\n", encoding="utf-8")
             hits = json.loads(self.run_cli(bank, registry, "behavior-search", "inherited work").stdout)
             self.assertEqual(hits, [])
-
-
-    def test_rejected_rule_cannot_bypass_retirement(self):
-        with tempfile.TemporaryDirectory() as raw:
-            bank, registry = self.setup_paths(raw)
-            entry = self.trusted_rule("mem-rejected", state="REJECTED")
-            bank.write_text(json.dumps(entry) + "\n", encoding="utf-8")
-            proc = self.run_cli(bank, registry, "promote-behavior", "mem-rejected", check=False)
-            self.assertEqual(proc.returncode, 2)
-            self.assertIn("Vault runtime authority promotion is retired", proc.stdout)
 
 
     def test_registry_orphan_is_rejected(self):
