@@ -16,6 +16,8 @@ It also projects source-presence coverage for the six assistant-history surfaces
 
 Codex additionally contributes metadata-only `CODEX_THREAD` events from the primary local `.codex/state_5.sqlite` `threads` table when that registered source is present. The adapter reads identifiers, timestamps, source type, cwd, Git metadata, model metadata, and archive state; it intentionally does not read titles, prompts, previews, item bodies, or transcript content. Missing/unreadable thread metadata is surfaced as a coverage error and never as evidence that behavior did not occur.
 
+Claude additionally contributes session-level `CLAUDE_SESSION` events from the primary local `.claude/history.jsonl` history index when that registered source is present. Entries are aggregated by `sessionId` into earliest/latest timestamps, project scope, and entry count. Text-bearing `display` and `pastedContents` values are discarded and never emitted into the timeline. Missing/malformed history remains an explicit coverage gap/error rather than evidence about behavior.
+
 Stash and reflog metadata are also emitted as queryable `OBSERVED_FACT` events so recoverable Git history can be found by subject, SHA, ref/selector, project, or repository path. Their messages are metadata only and never prove the intent, effect, or correctness of the referenced changes.
 
 Every event also carries an explicit epistemic class. `OBSERVED_FACT` means source metadata or runtime state was directly observed. `REPRODUCED_FACT` and `INFERENCE` are reserved for producers that explicitly justify those stronger meanings; the timeline never infers them from filenames, commit messages, proximity, or a `PROVEN` label. Documents, memory records, and worker self-reports remain `HISTORICAL_CLAIM` by default.
