@@ -335,7 +335,7 @@ def build_fresh_session_startup_contract() -> dict[str, Any]:
         "worker_progress_truth": "report actual work from concrete outputs such as completed commands/tools/tests, commits, artifacts, or PR updates; claim timestamps may delimit the window only and claim existence adds zero progress evidence",
         "worker_status_reporting": "status reports only current execution plus measured actual work; never present coordinator active/claim/lease/heartbeat/checkpoint state as activity; without in-flight or recent execution evidence say not working, and say unverified only when execution evidence cannot be inspected",
         "continuation": "keep useful inherited/project work moving; context retrieval or status reporting is not task completion",
-        "documentation": "04 Operating Contracts/fresh-chat-startup-orientation.md",
+        "documentation": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
         "personal_instructions_bridge": "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     }
 
