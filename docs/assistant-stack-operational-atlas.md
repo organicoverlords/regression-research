@@ -196,8 +196,8 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Resources: board state
 - Dependents: human_orientation; chatgpt_orientation
 - Runbook: C:\Users\Lauri\Desktop\DevProgressBoard
-- Supervisor: Board-Watchdog.ps1 / feed scripts
-- Self-heal: projection-specific
+- Supervisor: none; board.py owns serving and reconciliation
+- Self-heal: service_local_reconcile_retry
 
 ### `agent_rules`
 
