@@ -37,4 +37,4 @@ Keep output bounded, but also bound polling frequency and repeated same-route re
 
 ## Reproduction
 
-Run `python tools/five_day_correlation.py`. Canonical outputs are `02 Evidence/five-day-control-plane-20260821-25/five-day-correlation-dataset.json` and `.csv`. The JSON embeds source status, version boundaries, PR joins, outcome joins, and a checksum.
+The one-time `five_day_correlation.py` generator was retired after issue #28 closed; the canonical outputs remain `02 Evidence/five-day-control-plane-20260821-25/five-day-correlation-dataset.json` and `.csv`. The JSON embeds source status, version boundaries, PR joins, outcome joins, and a checksum.
