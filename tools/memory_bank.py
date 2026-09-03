@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import secrets
 import sys
@@ -18,7 +17,7 @@ try:
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_orientation, build_recurrence_context, build_timeline
     from .memory_policy_changes import recent_memory_policy_changes
-    from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
+    from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
@@ -28,7 +27,7 @@ except ImportError:
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_orientation, build_recurrence_context, build_timeline
     from memory_policy_changes import recent_memory_policy_changes
-    from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
+    from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
     from worker_report_history import worker_history_events
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
@@ -418,17 +417,14 @@ def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str
     }
 
 
-def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, strategy: str | None = None) -> list[dict[str, Any]]:
-    selected_strategy = (strategy or os.environ.get("MEMORY_RETRIEVAL_STRATEGY", "hybrid")).strip().casefold()
-    if selected_strategy == "legacy" or history:
-        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
-    if selected_strategy != "hybrid":
-        raise BankError(f"unknown memory retrieval strategy: {selected_strategy}")
+def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False) -> list[dict[str, Any]]:
+    if history:
+        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=True)
     try:
         from .memory_hybrid import search_entries_hybrid
     except ImportError:
         from memory_hybrid import search_entries_hybrid
-    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=history)
+    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=False)
 
 
 def search_behavior_memory(
@@ -679,7 +675,6 @@ def _main() -> int:
     orient.add_argument("--project-events", type=int, default=3)
     orient.add_argument("--repo-events", type=int, default=12, help="maximum local Git commits read per repo")
     orient.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH", help="explicit local Git repo; repeatable")
-    orient.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
     orient.add_argument("--no-repos", action="store_true", help="disable local Git projection")
 
     timeline_cmd = sub.add_parser("timeline", help="derived chronology over memory, immutable worker reports, and optional local Git events")
@@ -691,7 +686,6 @@ def _main() -> int:
     timeline_cmd.add_argument("--with-repos", action="store_true", help="merge read-only local Git commit events into general/project views")
     timeline_cmd.add_argument("--repo-events", type=int, default=20)
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
-    timeline_cmd.add_argument("--operator-live", type=Path, help="optional operator-live.json used only to discover repo paths")
     timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="immutable worker-report history root")
     timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history")
 
@@ -790,8 +784,7 @@ def _main() -> int:
                 specs = [parse_repo_arg(value) for value in args.repo]
                 if not specs:
                     vault_root = Path(__file__).resolve().parents[1]
-                    operator_live = args.operator_live or default_operator_live(vault_root)
-                    specs = discover_repo_specs(operator_live, vault_root=vault_root)
+                    specs = discover_repo_specs(vault_root=vault_root)
                 repo_history = collect_repo_history(specs, limit_per_repo=args.repo_events)
             _print_json(build_orientation(
                 entries, projects=projects, recent_events=args.recent_events, error_threads=args.error_threads,
@@ -804,8 +797,7 @@ def _main() -> int:
                 specs = [parse_repo_arg(value) for value in args.repo]
                 if not specs:
                     vault_root = Path(__file__).resolve().parents[1]
-                    operator_live = args.operator_live or default_operator_live(vault_root)
-                    specs = discover_repo_specs(operator_live, vault_root=vault_root)
+                    specs = discover_repo_specs(vault_root=vault_root)
                 repo_events = collect_repo_history(specs, limit_per_repo=args.repo_events)["events"]
             worker_events = [] if args.no_workers else worker_history_events(args.worker_history)
             report = build_timeline(

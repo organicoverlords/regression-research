@@ -22,6 +22,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+    def test_live_powershell_probe_is_bounded(self):
+        completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
+        with patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
+            __import__("tools.stack_atlas", fromlist=["_powershell_json"])._powershell_json("Get-Process")
+        self.assertEqual(run.call_args.kwargs["timeout"], 5)
+
+    def test_live_powershell_probe_timeout_is_explicit(self):
+        timeout = __import__("subprocess").TimeoutExpired(["powershell"], 5)
+        with patch("tools.stack_atlas.subprocess.run", side_effect=timeout):
+            with self.assertRaisesRegex(RuntimeError, "timed out after 5s"):
+                __import__("tools.stack_atlas", fromlist=["_powershell_json"])._powershell_json("Get-Process")
+
     def test_bootstrap_atlas_is_small_directory_not_live_status_cache(self):
         atlas = build_bootstrap_atlas()
         self.assertEqual(atlas["schema"], "atlas.v1")
@@ -118,10 +130,11 @@ class StackAtlasTests(unittest.TestCase):
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "agent_rules", "repo_rule_pointer", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
-            "github_actions", "github_runner", "dev_progress_board", "operator_live", "worker_reports",
+            "github_actions", "github_runner", "dev_progress_board", "worker_reports",
             "lowvram", "asset_library", "tiny3d", "p3",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
+        self.assertNotIn("operator_live", ids)
 
     def test_product_flow_and_roles_match_current_repo_architecture(self):
         atlas = __import__("tools.stack_atlas", fromlist=["PRODUCT_FLOW"])

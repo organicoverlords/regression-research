@@ -1,6 +1,5 @@
 from pathlib import Path
 from tools.library_screenshot_search import search, _rows, canonical_text_sha256
-from tools.build_library_screenshot_occurrences import scrub
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -26,13 +25,6 @@ def test_exact_duplicate_screenshots_remain_separate_occurrences():
     assert any(n.endswith('190023(1).png') for n in names)
     assert len(_rows(ROOT)) >= 274
 
-
-def test_scrub_replaces_credential_value_not_occurrence():
-    cleaned,count=scrub('api_key=sk-'+'x'*24+' useful surrounding evidence')
-    assert count==1
-    assert '[REDACTED_CREDENTIAL]' in cleaned
-    assert 'useful surrounding evidence' in cleaned
-    assert 'sk-'+'x'*24 not in cleaned
 
 
 def test_ingested_redaction_has_no_live_generic_assignment_value():

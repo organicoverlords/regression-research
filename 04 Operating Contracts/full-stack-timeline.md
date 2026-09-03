@@ -31,5 +31,3 @@ Explicit `supersedes` and `contradicts` links are projected as relationships and
 For mutation, inspect the repository's `mutation_admission`. `DIRECT_OK` means the checkout is a clean named worker/convergence branch. `main`, `master`, `dev`, and `develop` are protected human/integration branches and are never worker mutation targets. `ISOLATE_REQUIRED` means preserve that checkout and use or claim a clean named work branch/already-owned safe lane.
 
 For current runtime claims, verify the smallest named live source from Stack Atlas. The timeline is evidence and navigation, not proof of present liveness.
-
-At low disk, use `tools/build_admission.py`. A denied disk-growing build/worktree does not stop the worker while `non_disk_work_admitted=true`; continue bounded source, test, review, integration, CI, or convergence work that does not materially grow disk.

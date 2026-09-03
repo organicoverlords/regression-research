@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-import json
+import os
 import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
+
+try:
+    from .stack_atlas import PRODUCT_ROOTS
+except ImportError:
+    from stack_atlas import PRODUCT_ROOTS
 
 ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
 
@@ -15,17 +20,6 @@ ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
 class RepoSpec:
     project: str
     path: Path
-
-
-def default_operator_live(vault_root: Path) -> Path:
-    # Canonical Vault is usually a Desktop sibling of DevProgressBoard, while
-    # development worktrees may live one directory deeper under vault-worktrees.
-    bases = [vault_root.parent, vault_root.parent.parent, vault_root.parent.parent.parent]
-    for base in bases:
-        candidate = base / "DevProgressBoard" / "state" / "operator-live.json"
-        if candidate.is_file():
-            return candidate
-    return vault_root.parent / "DevProgressBoard" / "state" / "operator-live.json"
 
 
 def _run_git(path: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -47,39 +41,24 @@ def _git_value(path: Path, *args: str) -> str | None:
     return value or None
 
 
-def discover_repo_specs(operator_live: Path | None, *, vault_root: Path | None = None) -> list[RepoSpec]:
-    """Discover canonical project repos from live operator metadata, with Vault optional.
-
-    The operator file is only a path registry here. Commit history is read directly
-    from each local Git object database, so stale dashboard event projections do not
-    become the timeline source of truth.
-    """
+def discover_repo_specs(*, vault_root: Path | None = None) -> list[RepoSpec]:
+    """Discover available canonical product repos directly from Stack Atlas roots."""
     specs: list[RepoSpec] = []
-    seen: set[tuple[str, str]] = set()
-    if operator_live is not None and operator_live.is_file():
-        try:
-            raw = json.loads(operator_live.read_text(encoding="utf-8-sig"))
-        except (OSError, json.JSONDecodeError):
-            raw = {}
-        for item in raw.get("repos") or []:
-            if not isinstance(item, dict) or not item.get("available"):
-                continue
-            project = str(item.get("id") or "").strip().casefold()
-            path_text = str(item.get("path") or "").strip()
-            if not project or not path_text:
-                continue
-            path = Path(path_text)
-            key = (project, str(path.resolve()).casefold()) if path.exists() else (project, path_text.casefold())
-            if key in seen:
-                continue
-            seen.add(key)
-            specs.append(RepoSpec(project=project, path=path))
+    seen: set[str] = set()
+    for project, raw in PRODUCT_ROOTS.items():
+        path = Path(os.path.expandvars(raw))
+        if not (path / ".git").exists():
+            continue
+        key = str(path.resolve()).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        specs.append(RepoSpec(project=project, path=path))
     if vault_root is not None and (vault_root / ".git").exists():
-        key = ("vault", str(vault_root.resolve()).casefold())
+        key = str(vault_root.resolve()).casefold()
         if key not in seen:
             specs.append(RepoSpec(project="vault", path=vault_root))
     return specs
-
 
 def parse_repo_arg(value: str) -> RepoSpec:
     project, sep, path = value.partition("=")

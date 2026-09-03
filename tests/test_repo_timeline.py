@@ -1,8 +1,8 @@
-import json
 import os
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from tools.repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, git_commit_events, parse_repo_arg
@@ -68,16 +68,12 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0]["sha"], newest)
 
-    def test_operator_live_is_only_repo_path_discovery(self):
+    def test_repo_discovery_uses_canonical_product_roots_without_projection(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             repo = self.make_repo(root)
-            operator = root / "operator-live.json"
-            operator.write_text(json.dumps({
-                "repos": [{"id": "tiny3d", "path": str(repo), "available": True}],
-                "recent_progress": [{"project": "tiny3d", "sha": "fabricated", "title": "must not be consumed"}],
-            }), encoding="utf-8")
-            specs = discover_repo_specs(operator)
+            with patch("tools.repo_timeline.PRODUCT_ROOTS", {"tiny3d": str(repo), "missing": str(root / "missing")}):
+                specs = discover_repo_specs()
             self.assertEqual(specs, [RepoSpec("tiny3d", repo)])
             history = collect_repo_history(specs, limit_per_repo=5)
             self.assertEqual(history["events"], [])

@@ -33,7 +33,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
 | `execution.transport` | vps_edge_ingress, mcp_front_door | production MCPv3/VPS process contract; plugin2 when available | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
-| `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
+| `progress.board` | dev_progress_board | C:\Users\Lauri\Desktop\DevProgressBoard | Derived orientation/projection only; reconcile important claims with canonical sources. |
 
 ## Product flow
 
@@ -193,7 +193,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Canonical sources: C:\Users\Lauri\Desktop\DevProgressBoard
 - Live status: board process/feed age; never treat projection as authority
 - Independent recovery: read canonical repo/coordinator/runtime sources directly
-- Resources: operator-live.json; board state
+- Resources: board state
 - Dependents: human_orientation; chatgpt_orientation
 - Runbook: C:\Users\Lauri\Desktop\DevProgressBoard
 - Supervisor: Board-Watchdog.ps1 / feed scripts
@@ -328,19 +328,6 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Runbook: repo workflow files
 - Supervisor: GitHub Actions
 - Self-heal: external
-
-### `operator_live`
-
-- Role: `projection:near-live`
-- Capabilities: source_read
-- Canonical sources: C:\Users\Lauri\Desktop\DevProgressBoard\state\operator-live.json
-- Live status: projection timestamp/age; reconcile canonical sources
-- Independent recovery: read coordinator/Git/CI/runtime directly
-- Resources: operator-live.json
-- Dependents: chatgpt_orientation
-- Runbook: C:\Users\Lauri\Desktop\DevProgressBoard
-- Supervisor: DevProgressBoard feeds
-- Self-heal: projection_specific
 
 ### `lowvram`
 

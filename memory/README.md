@@ -74,7 +74,7 @@ Build an optional historical/project orientation from curated memory plus whatev
 python tools\memory_bank.py orient
 ```
 
-`orient` uses `operator-live.json` only as an optional repository-path registry. Commit events are read directly from each local Git object database; dashboard `recent_progress` is not accepted as commit evidence. Missing repos degrade independently instead of blocking orientation. Mainline (`origin/main`) commits and unmerged lane commits are labeled separately so swarm activity stays visible without being mistaken for landed state.
+`orient` discovers available product repositories directly from the Stack Atlas canonical product roots; explicit `--repo PROJECT=PATH` arguments remain available for additional repositories. Commit events are read directly from each local Git object database, so dashboard projections are not repo-history inputs. Missing repos degrade independently instead of blocking orientation. Mainline (`origin/main`) commits and unmerged lane commits are labeled separately so swarm activity stays visible without being mistaken for landed state.
 
 Inspect chronology directly:
 
@@ -115,7 +115,3 @@ Every bank/candidate record can be classified through the bounded deterministic 
 Ordinary recall excludes records classified as historical, ephemeral, expired or strongly sensitive, while explicit `history` preserves their evidence trail. `PROVISIONAL` remains explicit review work. New writes auto-fill `project` only when exactly one descriptor project can be inferred safely; explicit `--project` wins.
 
 Classify one bank record incrementally with `python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>`. The completed #87 exhaustive normalization receipts remain preserved under `02 Evidence/` as historical acceptance evidence; current operation does not regenerate them.
-
-## Candidate extraction
-
-Prepare compact candidate records from bounded source snippets with python tools\extract_memory_candidates.py <sources.jsonl> <candidates.jsonl>. Source snippets declare source_id, source_class, scope, \timestamp, evidence, and content. The extractor recognizes corrections, decisions, lessons, status receipts, explicit RULE: lines, and standalone ALL-CAPS rules. Extracted claims remain PROVISIONAL until curation; extractor-only provenance fields are removed when candidates are migrated into the strict bank schema.
