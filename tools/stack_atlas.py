@@ -219,20 +219,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "dependents": ["github_actions"],
         "runbook": [r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1"],
     },
-    "vault_history": {
-        "role": "context:history-notebook",
-        "capabilities": ["memory_read", "memory_write"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\memory", "tools/memory_bank.py"],
-        "live_status": [
-            "targeted Vault search/context/history/timeline/recent-titles when needed; do not recursively scan the Vault filesystem for ordinary recall",
-        ],
-        "supervisor": "none",
-        "self_heal": "not_applicable",
-        "independent_recovery": ["continue without Vault; current conversation/memory and live sources remain available"],
-        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"],
-        "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["memory/README.md"],
-    },
     "local_git": {
         "role": "local_source_truth",
         "capabilities": ["source_read", "repository_mutate"],
@@ -424,7 +410,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source.",
     },
     "vault.history": {
-        "owner_components": ["vault_history"],
+        "owner_components": ["memory_bank"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],
         "entrypoints": ["memory_bank.py search", "memory_bank.py context", "memory_bank.py history", "memory_bank.py timeline", "memory_bank.py orient", "memory_bank.py recent-titles", "memory_bank.py changes"],
         "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",

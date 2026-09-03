@@ -2,7 +2,7 @@
 
 The ChatGPT behavior-bootstrap pipeline is retired. Normal ChatGPT continuity now comes from the current conversation and ChatGPT Memory.
 
-`python tools/memory_bank.py bootstrap`, `/Agent Bootstrap/chatgpt-bootstrap.json`, and `/Agent Bootstrap/agents.md` are legacy/recovery surfaces only. They must not be loaded as startup behavior, published as current behavior authority, or used to override current conversation, ChatGPT Memory, Stack Atlas, shared policy, or live evidence.
+The former `memory_bank.py bootstrap` command and `/Agent Bootstrap/chatgpt-bootstrap.json` / `agents.md` behavior artifacts are retired historical names; the command is no longer exposed and the artifacts are not published as current behavior authority. They must not override current conversation, ChatGPT Memory, Stack Atlas, shared policy, or live evidence.
 
 The Stack Atlas remains an operational map and may still be published independently at `/Agent Bootstrap/stack-atlas.json`. For stack/infra work, consult it before reasoning about dependencies or blast radius, then verify current state through the live proof routes it names.
 

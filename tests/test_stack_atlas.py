@@ -37,6 +37,7 @@ class StackAtlasTests(unittest.TestCase):
     def test_feature_search_surfaces_existing_owner_before_archaeology(self):
         timeline = find_features("vault timeline")[0]
         self.assertEqual(timeline["id"], "vault.history")
+        self.assertEqual(timeline["owner_components"], ["memory_bank"])
         self.assertIn("memory_bank.py timeline", timeline["entrypoints"])
         self.assertIn("never recursive Vault scans", timeline["boundary"])
 
@@ -136,7 +137,7 @@ class StackAtlasTests(unittest.TestCase):
             "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "dev_progress_board", "operator_live", "worker_reports",
-            "lowvram", "asset_library", "tinylab", "tiny3d", "p3", "vault_history",
+            "lowvram", "asset_library", "tinylab", "tiny3d", "p3",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
 

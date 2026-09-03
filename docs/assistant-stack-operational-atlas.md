@@ -27,7 +27,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
 | `stack.timeline` | local_git, worker_reports, vps_edge_ingress, tailscale_ingress, file_transfer, visual_proof | python tools/full_stack_timeline.py --output <path>; Git refs/worktrees/reflogs; Vault durable documents; worker report history; live runtime probes | Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source. |
-| `vault.history` | vault_history | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
+| `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
 | `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
@@ -198,19 +198,6 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Runbook: C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1
 - Supervisor: runner-specific hidden launcher
 - Self-heal: runner-specific; do not infer fleet health from one process
-
-### `vault_history`
-
-- Role: `context:history-notebook`
-- Capabilities: memory_read, memory_write
-- Canonical sources: C:\Users\Lauri\Desktop\vault\memory; tools/memory_bank.py
-- Live status: targeted Vault search/context/history/timeline/recent-titles when needed; do not recursively scan the Vault filesystem for ordinary recall
-- Independent recovery: continue without Vault; current conversation/memory and live sources remain available
-- Resources: memory-bank.jsonl; behavior-authority-registry.json
-- Dependents: chatgpt_session; execution_workers
-- Runbook: memory/README.md
-- Supervisor: none
-- Self-heal: not_applicable
 
 ### `local_git`
 

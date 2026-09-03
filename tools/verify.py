@@ -54,7 +54,6 @@ MEMORY_PATHS = {
     "docs/assistant-stack-architecture.md",
     "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     "04 Operating Contracts/chatgpt-bootstrap-distribution.md",
-    "tools/chatgpt_bootstrap_artifact.py",
     "tools/stack_atlas.py",
     "tools/memory_authority.py",
     "tools/memory_bank.py",
@@ -192,8 +191,7 @@ def verify_memory() -> None:
             sys.executable,
             "-m",
             "py_compile",
-            "tools/chatgpt_bootstrap_artifact.py",
-            "tools/stack_atlas.py",
+                    "tools/stack_atlas.py",
             "tools/memory_authority.py",
             "tools/memory_bank.py",
             "tools/memory_classification.py",
@@ -210,7 +208,6 @@ def verify_memory() -> None:
     run([sys.executable, "tools/memory_bank.py", "validate"])
     run([sys.executable, "tools/memory_bank.py", "authority-validate"])
     run([sys.executable, "tools/provenance.py", "validate"])
-    run([sys.executable, "tools/chatgpt_bootstrap_artifact.py", "publication-plan"])
     run(
         [
             sys.executable,
