@@ -195,22 +195,18 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     return base
 
 def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
-    records_by_hash: dict[str, dict[str, Any]] = {}
-    if not history_root.exists():
-        return []
-    for path in sorted(history_root.glob("*/*.json")):
+    records: list[dict[str, Any]] = []
+    canonical_root = history_root / "_reports"
+    if not canonical_root.exists():
+        return records
+    for path in sorted(canonical_root.glob("*.json")):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if not str(payload.get("schema") or "").startswith("worker-report-history.v"):
-            continue
-        report_hash = str(payload.get("report_sha256") or path.resolve())
-        # During migration a report may exist in both legacy history/<name>/ and the
-        # canonical history/_reports/ store. Count the immutable report identity once.
-        if report_hash not in records_by_hash or path.parent.name == "_reports":
-            records_by_hash[report_hash] = payload
-    return list(records_by_hash.values())
+        if str(payload.get("schema") or "").startswith("worker-report-history.v"):
+            records.append(payload)
+    return records
 
 
 def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
@@ -323,11 +319,11 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
         event_at = item.get("finished_at") or item.get("archived_at")
         if not event_at:
             continue
-        worker = str(item.get("worker") or "worker")
+        display_label = str(item.get("display_label") or item.get("worker") or "worker")
         scope = str(item.get("scope") or "")
         outcome = str(item.get("outcome") or item.get("state") or "report")
         events.append({
-            "id": f"worker:{worker}:{item.get('report_sha256') or event_at}",
+            "id": f"worker:{item.get('report_sha256') or event_at}",
             "source_type": "WORKER_REPORT",
             "authority": "DERIVED_WORKER_HISTORY",
             "event_at": event_at,
