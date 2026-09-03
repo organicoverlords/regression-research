@@ -1,0 +1,35 @@
+﻿{
+    "fixture":  "commander_conversation_developer_mcp_restriction",
+    "date":  "2026-09-03",
+    "failure":  {
+                    "adapter":  "Remote Desktop Commander",
+                    "operation":  "start_process",
+                    "command":  "Write-Output \u0027COMMANDER_LIVE_OK\u0027",
+                    "observed":  "ToolError: FORBIDDEN: This conversation is restricted to developer MCPs",
+                    "expected_classification":  "conversation_runtime_admission_restriction",
+                    "forbidden_classifications":  [
+                                                      "commander_offline",
+                                                      "device_disconnected",
+                                                      "watchdog_failure",
+                                                      "mcp_network_error",
+                                                      "local_process_failure"
+                                                  ]
+                },
+    "positive_control":  {
+                             "adapter":  "plugin2",
+                             "operation":  "start_process",
+                             "observed":  "successful local PowerShell execution in the same conversation",
+                             "proves":  "machine execution remains available through an admitted developer MCP route"
+                         },
+    "historical_receipt_gap":  {
+                                   "earlier_occurrence":  "assume occurred per explicit user correction",
+                                   "exact_receipt_preserved":  false,
+                                   "rule":  "do not fabricate exact earlier receipt; keep recurrence provisional except for later reproduced event"
+                               },
+    "pass_criteria":  [
+                          "classify current Commander error as conversation/runtime admission restriction",
+                          "treat restriction as adapter-local while another route works",
+                          "preserve earlier missing receipt as an evidence gap",
+                          "do not diagnose Commander/network/device failure from this receipt alone"
+                      ]
+}
