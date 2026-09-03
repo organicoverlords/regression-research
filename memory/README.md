@@ -46,13 +46,9 @@ Glance at the bounded recent-title startup window (current entries only):
 python tools\memory_bank.py recent-titles
 ```
 
-This returns at most 10 titles by default (hard cap 20), newest first, without dumping memory bodies. Use it as a cheap hint window when starting repo work or routing a quick note; it is not authority and does not replace live repo/runtime inspection or targeted semantic recall. Rejected and superseded entries are excluded just like ordinary recall. Existing entries derive a stable display title from bounded text; new entries may optionally supply `--title`.
+This returns at most 10 titles by default (hard cap 20), newest first, without dumping memory bodies. Use it as a cheap hint window when starting repo work or routing targeted recall; it is not authority and does not replace live repo/runtime inspection or targeted semantic recall. Rejected and superseded entries are excluded just like ordinary recall. Existing entries derive a stable display title from bounded text; new entries may optionally supply `--title`.
 
-Append one compact entry:
-
-```powershell
-python tools\memory_bank.py append --kind lesson --scope p3 --project p3 --tag fleet --tag convergence --text "Validated work must converge or retire." --state PROVEN --evidence "github:organicoverlords/p3#528"
-```
+Assistant-authored durable writes use the single provenance-preserving `record` command. It requires the verbatim user source message plus a separate assistant interpretation and confidence rationale; this prevents a second free-form write path from bypassing provenance.
 
 New writes should set `--project` when a memory belongs to one project. Time-bounded facts/instructions may set `--expires-at <ISO-8601-with-offset>`; expired entries stay available to explicit history but are automatically excluded from ordinary recall, recent titles, hybrid retrieval, and behavioral authority. Stored `status` entries are also excluded from the default task context so live state is re-read instead of inherited.
 
@@ -91,7 +87,7 @@ The normal continuity path has **no full-conversation download dependency**. Cur
 
 A successful canonical memory write is not fully handed off until GitHub `main` contains it. Canonical **writes** reconcile with `origin/main` automatically: entries are merged by immutable memory ID, remote-only entries are pulled into the local bank, and local-only entries are published through an isolated memory-only commit. Canonical reads intentionally do not fetch, reconcile, claim, or mutate anything; they read the local snapshot and degrade locally. Unrelated dirty files and unrelated local branch commits are never staged into a synchronization commit.
 
-Canonical `note`, `append`, and `record` operations run under a bounded local sync lock, reconcile before writing, then publish after writing. That lock protects atomic file/Git reconciliation only; it is not task ownership, a worker lease, or a second coordinator. A racing `main` update is fetched and retried without overwriting either side. After a proven sync, a checkout that tracks `origin/main` is fast-forwarded when Git can preserve unrelated dirty work; the memory-only fallback advances the branch only when the working bank exactly matches the remote result, so a successful write does not normally leave the canonical checkout one commit behind or the bank spuriously dirty. If the local append succeeds but GitHub publication cannot be proven, the command fails visibly with an explicit `local memory was saved` message; do not append a duplicate. Any later canonical CLI call retries pending reconciliation.
+Canonical `record` operations run under a bounded local sync lock, reconcile before writing, then publish after writing. That lock protects atomic file/Git reconciliation only; it is not task ownership, a worker lease, or a second coordinator. A racing `main` update is fetched and retried without overwriting either side. After a proven sync, a checkout that tracks `origin/main` is fast-forwarded when Git can preserve unrelated dirty work; the memory-only fallback advances the branch only when the working bank exactly matches the remote result, so a successful write does not normally leave the canonical checkout one commit behind or the bank spuriously dirty. If the local append succeeds but GitHub publication cannot be proven, the command fails visibly with an explicit `local memory was saved` message; do not append a duplicate. Any later canonical CLI call retries pending reconciliation.
 
 A GitHub-only worker may read the bank directly from `main`. Before changing `memory-bank.jsonl` through GitHub, it must start from current `main`, preserve append-only history, and merge the coherent memory-only change promptly rather than leaving it stranded on a worker branch. The next canonical local CLI call imports remote-only entries automatically.
 

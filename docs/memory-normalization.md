@@ -20,7 +20,7 @@ Ordinary recall, recent-title orientation, hybrid recall, and behavioral authori
 
 ## Incremental operation
 
-New canonical writes through `memory_bank.py append` and `record` automatically persist a `project` when exactly one project is safely inferable from descriptors. Explicit `--project` remains authoritative. The classifier itself can inspect one existing record without rescanning the corpus:
+New canonical writes through `memory_bank.py record` automatically persist a `project` when exactly one project is safely inferable from descriptors. Explicit `--project` remains authoritative. The classifier itself can inspect one existing record without rescanning the corpus:
 
 ```powershell
 python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>
