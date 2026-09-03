@@ -26,13 +26,13 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
-| `stack.timeline` | local_git, worker_reports, tailscale_ingress, file_transfer, visual_proof | python tools/full_stack_timeline.py --output <path>; Git refs/worktrees/reflogs; Vault durable documents; worker report history; live runtime probes | Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source. |
+| `stack.timeline` | local_git, worker_reports, vps_edge_ingress, tailscale_ingress, file_transfer, visual_proof | python tools/full_stack_timeline.py --output <path>; Git refs/worktrees/reflogs; Vault durable documents; worker report history; live runtime probes | Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source. |
 | `vault.history` | vault_history | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
 | `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <actor> <scope>; claim; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_handoff` | busy_coordinator | busy-python.cmd inspect; handoff; next; claim --checkpoint | Reuse coordinator checkpoint/handoff state; do not create a second resume registry or queue. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\<WorkerName>.md; C:\Users\Lauri\Desktop\vault\worker-reports\metrics.json; python tools/worker_report_history.py summary --history-root worker-reports/history | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
-| `execution.transport` | mcp_front_door, desktop_commander_remote | discover/attempt current MCP tool contract; Desktop Commander semantic file/process operation | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
+| `execution.transport` | vps_edge_ingress, mcp_front_door, desktop_commander_remote | discover/attempt current MCP tool contract; Desktop Commander semantic file/process operation | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 | `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
 
 ## Product flow
@@ -61,7 +61,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `process_transport_front_door`
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1; chatgpt-mcp-clean/src/front-door.ts
-- Live status: root front-door health plus exact tool contract/semantic call; root / may remain on 3003; production path-scoped minimal clones normally bypass this front door via direct Funnel handlers; ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity
+- Live status: root front-door health plus exact tool contract/semantic call; root / may remain on 3003; current MCPv3 production ingress bypasses it through the VPS Caddy + reverse-SSH edge to clone 3011; ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity
 - Independent recovery: inactive backend generation for root + atomic front-door switch; do not use root recovery to rewrite direct clone handlers
 - Resources: front-door port; active-backend.json; process-routes.json
 - Dependents: chatgpt_process_transport
@@ -86,24 +86,37 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `generation_pinned_process_transport_clone`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
-- Live status: clone health; exact tool contract; process receipt/control route; direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers; 2026-09-02 closure: production clone ingress is direct to a compatible clone listener; require route verification + exact contract + fresh-chat 5-start/5-read closure
-- Independent recovery: sibling compatible clone + direct Funnel route promotion; stable-front-door clone fan-in is bounded fallback/experiment only; preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback; client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn
-- Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control; Tailscale /clone-* handler; clone OAuth/OpenID metadata handlers
+- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1; %LOCALAPPDATA%\McpVpsEdge\start-tunnel.ps1; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
+- Live status: clone health; exact tool contract; process receipt/control route; direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers; 2026-09-03 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> persistent reverse SSH -> clone 3011; final scheduled path passed 100/100 initialize/initialized/start_process and live MCPv3 calls
+- Independent recovery: VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path; Tailscale Funnel is non-production fallback/diagnostic ingress only; preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback; client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn
+- Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control; VPS Caddy/reverse-SSH route; legacy Tailscale /clone-* handler; clone OAuth/OpenID metadata handlers
 - Dependents: chatgpt_process_transport
-- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md
 - Supervisor: instance launcher / owning generation
 - Self-heal: generation_specific
 
+### `vps_edge_ingress`
+
+- Role: `public_mcp_edge_and_observer`
+- Capabilities: source_read, runtime_validate, artifact_transfer
+- Canonical sources: %LOCALAPPDATA%\McpVpsEdge\start-tunnel.ps1; %LOCALAPPDATA%\McpVpsEdge\vps_mcp_reverse_tunnel.py; %LOCALAPPDATA%\McpVpsEdge\publish-artifact.ps1; 5.61.91.127:/etc/caddy/Caddyfile
+- Live status: https://5-61-91-127.sslip.io/edge-status; https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp; Windows scheduled task McpVpsEdgeTunnel; VPS mcp-edge-health.timer
+- Independent recovery: local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn; Tailscale may be used only as an explicitly revalidated non-production fallback
+- Resources: VPS 5.61.91.127; public TCP 80/443; SSH TCP 22; VPS loopback 3011 reverse listener; /srv/mcp-artifacts; /var/lib/mcp-edge/status.json
+- Dependents: mcp_minimal_clone; file_transfer; chatgpt_process_transport
+- Runbook: 01 Reports/2026-09-03_MCP_vps_edge_cutover.md
+- Supervisor: Caddy/systemd on VPS plus Windows McpVpsEdgeTunnel scheduled task
+- Self-heal: reverse tunnel reconnect loop + systemd-managed Caddy/health timers
+
 ### `tailscale_ingress`
 
-- Role: `network_ingress_proxy`
+- Role: `legacy_network_ingress_fallback`
 - Capabilities: source_read, runtime_validate
 - Canonical sources: C:\Program Files\Tailscale\tailscale.exe; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
-- Live status: tailscale status; tailscale serve status --json; listener on Tailscale HTTPS port; exact public route to local target
+- Live status: non-production after 2026-09-03 VPS cutover; tailscale status; tailscale serve status --json; if fallback is attempted, require a fresh full MCP handshake before relying on it
 - Independent recovery: local backend/clone can be tested directly without public ingress; ingress failure must not authorize backend churn
 - Resources: Serve/Funnel config; HTTPS listener; /clone-* route handlers; OAuth/OpenID metadata route handlers
-- Dependents: mcp_minimal_clone; mcp_front_door
+- Dependents: mcp_minimal_clone
 - Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
 - Supervisor: Tailscale service
 - Self-heal: service_specific; route edits require explicit verification
@@ -112,8 +125,8 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `artifact_transfer_bridge`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: current conversation file attachments; %LOCALAPPDATA%\DesktopCommanderFallback; ChatGPT files/library connector when exposed; generated sandbox artifacts
-- Live status: source path exists; destination path exists; byte size matches; SHA-256 matches end to end
+- Canonical sources: current conversation file attachments; %LOCALAPPDATA%\DesktopCommanderFallback; ChatGPT files/library connector when exposed; generated sandbox artifacts; %LOCALAPPDATA%\McpVpsEdge\publish-artifact.ps1
+- Live status: source path exists; destination path exists; byte size matches; SHA-256 matches end to end; VPS artifact URL downloads identical bytes and expires after 24 hours
 - Independent recovery: use another exposed transfer route only after preserving the same source bytes and hash
 - Resources: artifact bytes; source path/ref; destination path/ref; size; SHA-256
 - Dependents: chatgpt_session; execution_workers; visual_proof

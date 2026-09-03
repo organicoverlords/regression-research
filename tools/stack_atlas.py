@@ -17,6 +17,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
+VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 COMMANDER_ROOT = r"%LOCALAPPDATA%\DesktopCommanderFallback"
 ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
 CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
@@ -29,6 +30,10 @@ COMPONENT_ALIASES = {
     "busy": "busy_coordinator",
     "tailscale": "tailscale_ingress",
     "funnel": "tailscale_ingress",
+    "vps": "vps_edge_ingress",
+    "edge": "vps_edge_ingress",
+    "vps edge": "vps_edge_ingress",
+    "mcp edge": "vps_edge_ingress",
     "transfer": "file_transfer",
     "file transfer": "file_transfer",
     "visual proof": "visual_proof",
@@ -63,7 +68,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1", "chatgpt-mcp-clean/src/front-door.ts"],
         "live_status": [
             "root front-door health plus exact tool contract/semantic call",
-            "root / may remain on 3003; production path-scoped minimal clones normally bypass this front door via direct Funnel handlers",
+            "root / may remain on 3003; current MCPv3 production ingress bypasses it through the VPS Caddy + reverse-SSH edge to clone 3011",
             "ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity",
         ],
         "supervisor": "ChatGPTMcpClean keepalive FrontDoor role",
@@ -93,46 +98,59 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
+        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\start-tunnel.ps1", MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
         "live_status": [
             "clone health",
             "exact tool contract",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "2026-09-02 closure: production clone ingress is direct to a compatible clone listener; require route verification + exact contract + fresh-chat 5-start/5-read closure",
+            "2026-09-03 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> persistent reverse SSH -> clone 3011; final scheduled path passed 100/100 initialize/initialized/start_process and live MCPv3 calls",
         ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
         "independent_recovery": [
-            "sibling compatible clone + direct Funnel route promotion; stable-front-door clone fan-in is bounded fallback/experiment only",
+            "VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path; Tailscale Funnel is non-production fallback/diagnostic ingress only",
             "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback",
             "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
         ],
-        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "Tailscale /clone-* handler", "clone OAuth/OpenID metadata handlers"],
+        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy/reverse-SSH route", "legacy Tailscale /clone-* handler", "clone OAuth/OpenID metadata handlers"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [
             MCP_ROOT + r"\AGENTS.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
+            "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
         ],
     },
+    "vps_edge_ingress": {
+        "role": "public_mcp_edge_and_observer",
+        "capabilities": ["source_read", "runtime_validate", "artifact_transfer"],
+        "canonical_sources": [VPS_EDGE_ROOT + r"\start-tunnel.ps1", VPS_EDGE_ROOT + r"\vps_mcp_reverse_tunnel.py", VPS_EDGE_ROOT + r"\publish-artifact.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
+        "live_status": ["https://5-61-91-127.sslip.io/edge-status", "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp", "Windows scheduled task McpVpsEdgeTunnel", "VPS mcp-edge-health.timer"],
+        "supervisor": "Caddy/systemd on VPS plus Windows McpVpsEdgeTunnel scheduled task",
+        "self_heal": "reverse tunnel reconnect loop + systemd-managed Caddy/health timers",
+        "independent_recovery": ["local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn", "Tailscale may be used only as an explicitly revalidated non-production fallback"],
+        "resources": ["VPS 5.61.91.127", "public TCP 80/443", "SSH TCP 22", "VPS loopback 3011 reverse listener", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
+        "dependents": ["mcp_minimal_clone", "file_transfer", "chatgpt_process_transport"],
+        "runbook": ["01 Reports/2026-09-03_MCP_vps_edge_cutover.md"],
+    },
     "tailscale_ingress": {
-        "role": "network_ingress_proxy",
+        "role": "legacy_network_ingress_fallback",
         "capabilities": ["source_read", "runtime_validate"],
         "canonical_sources": [r"C:\Program Files\Tailscale\tailscale.exe", MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
-        "live_status": ["tailscale status", "tailscale serve status --json", "listener on Tailscale HTTPS port", "exact public route to local target"],
+        "live_status": ["non-production after 2026-09-03 VPS cutover", "tailscale status", "tailscale serve status --json", "if fallback is attempted, require a fresh full MCP handshake before relying on it"],
         "supervisor": "Tailscale service",
         "self_heal": "service_specific; route edits require explicit verification",
         "independent_recovery": ["local backend/clone can be tested directly without public ingress; ingress failure must not authorize backend churn"],
         "resources": ["Serve/Funnel config", "HTTPS listener", "/clone-* route handlers", "OAuth/OpenID metadata route handlers"],
-        "dependents": ["mcp_minimal_clone", "mcp_front_door"],
+        "dependents": ["mcp_minimal_clone"],
         "runbook": [MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation file attachments", r"%LOCALAPPDATA%\DesktopCommanderFallback", "ChatGPT files/library connector when exposed", "generated sandbox artifacts"],
-        "live_status": ["source path exists", "destination path exists", "byte size matches", "SHA-256 matches end to end"],
+        "canonical_sources": ["current conversation file attachments", r"%LOCALAPPDATA%\DesktopCommanderFallback", "ChatGPT files/library connector when exposed", "generated sandbox artifacts", VPS_EDGE_ROOT + r"\publish-artifact.ps1"],
+        "live_status": ["source path exists", "destination path exists", "byte size matches", "SHA-256 matches end to end", "VPS artifact URL downloads identical bytes and expires after 24 hours"],
         "supervisor": "surface-specific; no single transfer authority",
         "self_heal": "route_specific",
         "independent_recovery": ["use another exposed transfer route only after preserving the same source bytes and hash"],
@@ -399,7 +417,7 @@ PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_CO
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "stack.timeline": {
-        "owner_components": ["local_git", "worker_reports", "tailscale_ingress", "file_transfer", "visual_proof"],
+        "owner_components": ["local_git", "worker_reports", "vps_edge_ingress", "tailscale_ingress", "file_transfer", "visual_proof"],
         "triggers": ["full stack timeline", "stack timeline", "whole stack", "project visibility", "branches", "reflog", "audits", "incidents", "runtime topology"],
         "entrypoints": ["python tools/full_stack_timeline.py --output <path>", "Git refs/worktrees/reflogs", "Vault durable documents", "worker report history", "live runtime probes"],
         "boundary": "Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source.",
@@ -435,7 +453,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
     "execution.transport": {
-        "owner_components": ["mcp_front_door", "desktop_commander_remote"],
+        "owner_components": ["vps_edge_ingress", "mcp_front_door", "desktop_commander_remote"],
         "triggers": ["process execution", "shell", "file access", "mcp", "plugin2", "commander", "tool route"],
         "entrypoints": ["discover/attempt current MCP tool contract", "Desktop Commander semantic file/process operation"],
         "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",

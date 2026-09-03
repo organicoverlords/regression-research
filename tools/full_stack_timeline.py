@@ -5,6 +5,7 @@ import json
 import os
 import re
 import subprocess
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -210,6 +211,11 @@ def collect_live_runtime() -> dict[str, Any]:
     tailscale = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Tailscale" / "tailscale.exe"
     if tailscale.is_file():
         runtime["tailscale_serve"] = _safe_json_command(str(tailscale), "serve", "status", "--json")
+    try:
+        with urllib.request.urlopen("https://5-61-91-127.sslip.io/edge-status", timeout=5) as response:
+            runtime["vps_edge"] = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        runtime["vps_edge"] = {"status": "UNAVAILABLE", "error": f"{type(exc).__name__}: {exc}"}
     ps = "$p=Get-CimInstance Win32_Process | Where-Object {$_.CommandLine -match 'ChatGPTMcpClean|DesktopCommander|tailscale'} | Select-Object ProcessId,Name,CommandLine; $ids=@($p.ProcessId); $l=Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object {$ids -contains $_.OwningProcess} | Select-Object LocalAddress,LocalPort,OwningProcess; [pscustomobject]@{processes=$p;listeners=$l}|ConvertTo-Json -Depth 5 -Compress"
     runtime["machine_routes"] = _safe_json_command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps)
     return runtime
