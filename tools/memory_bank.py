@@ -370,19 +370,6 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
     ]
 
 
-def build_startup_bootstrap(entries: list[dict[str, Any]]) -> dict[str, Any]:
-    """Legacy compatibility marker. Vault is no longer a runtime ChatGPT bootstrap."""
-    return {
-        "schema_version": 2,
-        "status": "RETIRED",
-        "purpose": "legacy compatibility only; Vault is optional history/notebook/evidence",
-        "continuity": "current conversation + ChatGPT/harness memory",
-        "stack_map": "Stack Atlas for stack/infra work",
-        "current_truth": "relevant live sources",
-        "vault": "targeted search/context/history only when useful",
-    }
-
-
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
     if not path.is_file():
         return {"classes": {}, "sources": []}
@@ -785,8 +772,6 @@ def _main() -> int:
     context.add_argument("--max-chars", type=int, default=DEFAULT_CONTEXT_CHARS)
     context.add_argument("--with-history", action="store_true", help="also search the preserved full-conversation corpus")
 
-    sub.add_parser("bootstrap", help="legacy compatibility marker; no runtime ChatGPT bootstrap")
-
     orient = sub.add_parser("orient", help="optional historical/project orientation view")
     orient.add_argument("--project", action="append", default=[])
     orient.add_argument("--recent-events", type=int, default=8)
@@ -901,9 +886,6 @@ def _main() -> int:
                 raise BankError("--behavior-rule is retired; use ChatGPT Memory/current instructions for behavior and record Vault notes as ordinary history")
             entry = append_entry(args.bank, values)
             _print_json(entry)
-            return 0
-        if args.command == "bootstrap":
-            _print_json(build_startup_bootstrap(entries), compact=True)
             return 0
         if args.command == "orient":
             projects = args.project or ["p3", "tiny3d", "lowvram"]
