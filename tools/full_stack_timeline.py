@@ -24,6 +24,7 @@ DATE_RE = re.compile(r"(?P<date>20\d{2}[-_]?[01]\d[-_]?[0-3]\d)(?:[_-]?(?P<time>
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".jsonl", ".yaml", ".yml", ".toml", ".ps1", ".py"}
 SKIP_DIRS = {".git", ".pytest_cache", "node_modules", "__pycache__", ".tmp"}
 EPISTEMIC_CLASSES = ("OBSERVED_FACT", "REPRODUCED_FACT", "INFERENCE", "HISTORICAL_CLAIM")
+EXPLICIT_EVIDENCE_SCHEMA = "full-stack-timeline-events.v1"
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(args), cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
@@ -92,6 +93,52 @@ def collect_document_sources(root: Path) -> list[dict[str, Any]]:
         })
     items.sort(key=lambda item: (item.get("event_at_hint") or item["modified_at"], item["relative_path"]), reverse=True)
     return items
+
+
+def collect_explicit_evidence_events(root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    manifest_root = root / "02 Evidence" / "timeline-events"
+    events: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    if not manifest_root.is_dir():
+        return events, errors
+    required = ("id", "event_at", "title", "epistemic_class", "epistemic_basis", "evidence")
+    for path in sorted(manifest_root.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append({"path": str(path), "error": f"invalid manifest JSON: {exc}"})
+            continue
+        if payload.get("schema") != EXPLICIT_EVIDENCE_SCHEMA or not isinstance(payload.get("events"), list):
+            errors.append({"path": str(path), "error": f"expected schema {EXPLICIT_EVIDENCE_SCHEMA} with events array"})
+            continue
+        for index, raw in enumerate(payload["events"]):
+            if not isinstance(raw, dict):
+                errors.append({"path": str(path), "event_index": index, "error": "event must be an object"})
+                continue
+            missing = [field for field in required if field not in raw or raw.get(field) in (None, "", [])]
+            if missing:
+                errors.append({"path": str(path), "event_index": index, "error": f"missing required fields: {', '.join(missing)}"})
+                continue
+            epistemic_class = str(raw.get("epistemic_class"))
+            if epistemic_class not in EPISTEMIC_CLASSES:
+                errors.append({"path": str(path), "event_index": index, "error": f"invalid epistemic_class: {epistemic_class}"})
+                continue
+            evidence = raw.get("evidence")
+            if not isinstance(evidence, list) or not evidence or any(not isinstance(item, str) or not item.strip() for item in evidence):
+                errors.append({"path": str(path), "event_index": index, "error": "evidence must be a non-empty string array"})
+                continue
+            item = dict(raw)
+            item["source_type"] = "STRUCTURED_EVIDENCE_EVENT"
+            item["authority"] = "EXPLICIT_EVIDENCE_MANIFEST"
+            item["manifest_path"] = path.relative_to(root).as_posix()
+            item["evidence"] = list(evidence)
+            item["supersedes"] = _relation_values(item.get("supersedes"))
+            item["contradicts"] = _relation_values(item.get("contradicts"))
+            events.append(item)
+    events.sort(key=_sort_time, reverse=True)
+    return events, errors
+
+
 def checkout_mutation_admission(state: dict[str, Any]) -> dict[str, Any]:
     reasons: list[str] = []
     if not state.get("available", True):
@@ -346,6 +393,7 @@ def _matches(item: dict[str, Any], query: str) -> bool:
 def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpec] = (), query: str = "", commit_limit: int = 0, reflog_limit: int = 120, live: bool = True) -> dict[str, Any]:
     specs = discover_full_stack_repos(vault_root, extra_specs)
     documents = collect_document_sources(vault_root)
+    explicit_evidence, explicit_evidence_errors = collect_explicit_evidence_events(vault_root)
     memory = collect_memory_events(vault_root / "memory" / "memory-bank.jsonl")
     worker_root = vault_root / "worker-reports" / "history"
     workers = []
@@ -355,7 +403,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         item["epistemic_basis"] = "finalized worker self-report; useful lagging evidence but not current-state or liveness proof"
         workers.append(item)
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
-    events, relationships = _project_explicit_relationships([*documents, *memory, *workers, *commits])
+    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *memory, *workers, *commits])
     if query:
         events = [item for item in events if _matches(item, query)]
         visible_ids = {str(item.get("id")) for item in events if item.get("id")}
@@ -371,7 +419,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
             "git": "branches, refs, tags, stashes, worktrees and reflogs come directly from each local Git object database",
             "runtime": "live probes are current observations only for the instant collected",
-            "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require an explicit producer that justifies them; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
+            "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require explicit structured evidence with basis + evidence refs; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
             "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
             "storage": "read-only projection; no new database, queue, coordinator or authority is created",
         },
@@ -380,10 +428,13 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         "repo_snapshots": history["repo_snapshots"],
         "events": events,
         "relationships": relationships,
+        "structured_evidence_errors": explicit_evidence_errors,
         "epistemic_counts": _epistemic_counts(events),
         "counts": {
             "repositories": len(specs),
             "documents": len(documents),
+            "explicit_evidence_events": len(explicit_evidence),
+            "explicit_evidence_errors": len(explicit_evidence_errors),
             "memory_events": len(memory),
             "worker_events": len(workers),
             "git_commits": len(commits),

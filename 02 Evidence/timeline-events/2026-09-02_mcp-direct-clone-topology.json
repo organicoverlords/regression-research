@@ -1,0 +1,61 @@
+{
+  "schema": "full-stack-timeline-events.v1",
+  "events": [
+    {
+      "id": "evidence:mcp-direct-clone-closure-20260902",
+      "event_at": "2026-09-02T19:41:00+03:00",
+      "title": "Direct clone ingress closure passed same-chat and fresh-chat controls",
+      "project": "mcp",
+      "scope": "mcp/clone-ingress-topology",
+      "epistemic_class": "REPRODUCED_FACT",
+      "epistemic_basis": "After restoring direct clone ingress, the same-chat control completed 10/10 starts and 10/10 original-ID reads, the fresh-chat control completed 5/5 starts and 5/5 original-ID reads, both with zero drops/retries, and the three OAuth/OpenID metadata endpoints returned HTTP 200.",
+      "evidence": [
+        "01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
+        "02 Evidence/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_timeline.json",
+        "github:organicoverlords/chatgpt-mcp-clean#37"
+      ],
+      "runtime_generation": "clone-a-known-good-61b0d79",
+      "symptom": "Client-visible process calls and original-ID reads completed cleanly after direct ingress restoration.",
+      "result": {
+        "same_chat": {
+          "starts_ok": 10,
+          "starts_total": 10,
+          "reads_ok": 10,
+          "reads_total": 10,
+          "drops": 0,
+          "retries": 0
+        },
+        "fresh_chat": {
+          "starts_ok": 5,
+          "starts_total": 5,
+          "reads_ok": 5,
+          "reads_total": 5,
+          "drops": 0,
+          "retries": 0
+        },
+        "metadata_http_status": 200
+      }
+    },
+    {
+      "id": "evidence:mcp-single-front-door-regression-boundary-20260902",
+      "event_at": "2026-09-02T19:41:00+03:00",
+      "title": "Single-front-door clone routing identified as the documented regression boundary",
+      "project": "mcp",
+      "scope": "mcp/clone-ingress-topology",
+      "epistemic_class": "INFERENCE",
+      "epistemic_basis": "The study correlates the preserved Aug-27 rollback state, zero clone-a arrivals at the 3003 front door during the good period, Sep-1 commits 412c566 and 8413054 that promoted single-front-door routing, and the clean direct-route restoration. Together these support identifying the later single-front-door canonicalization as the regression boundary rather than treating chronology alone as causal proof.",
+      "evidence": [
+        "01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
+        "02 Evidence/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_timeline.json",
+        "git:chatgpt-mcp-clean:412c566",
+        "git:chatgpt-mcp-clean:8413054"
+      ],
+      "commit_refs": [
+        "412c566",
+        "8413054"
+      ],
+      "symptom": "A failed Aug-27 front-door clone experiment later became documented as the canonical production model.",
+      "result": "Treat the single-front-door regression boundary as an evidence-backed inference, not an automatically observed fact."
+    }
+  ]
+}

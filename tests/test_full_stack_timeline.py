@@ -11,6 +11,7 @@ from tools.full_stack_timeline import (
     _project_explicit_relationships,
     collect_all_commit_events,
     collect_document_sources,
+    collect_explicit_evidence_events,
     collect_git_state,
     collect_memory_events,
     checkout_mutation_admission,
@@ -104,6 +105,27 @@ class FullStackTimelineTests(unittest.TestCase):
         self.assertEqual(counts["REPRODUCED_FACT"], 0)
         self.assertEqual(counts["INFERENCE"], 0)
         self.assertEqual(counts["HISTORICAL_CLAIM"], 0)
+
+    def test_explicit_evidence_manifest_ingests_only_declared_valid_events(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            manifest_dir = root / "02 Evidence" / "timeline-events"
+            manifest_dir.mkdir(parents=True)
+            (manifest_dir / "sample.json").write_text(
+                '{"schema":"full-stack-timeline-events.v1","events":['
+                '{"id":"repro","event_at":"2026-09-02T19:41:00+03:00","title":"Closure reproduced","epistemic_class":"REPRODUCED_FACT","epistemic_basis":"exact closure replay passed","evidence":["proof.json"],"supersedes":["old"]},'
+                '{"id":"bad","event_at":"2026-09-02T19:42:00+03:00","title":"Bad class","epistemic_class":"PROVEN","epistemic_basis":"label only","evidence":["claim.md"]}'
+                ']}',
+                encoding="utf-8",
+            )
+            events, errors = collect_explicit_evidence_events(root)
+            self.assertEqual([event["id"] for event in events], ["repro"])
+            self.assertEqual(events[0]["source_type"], "STRUCTURED_EVIDENCE_EVENT")
+            self.assertEqual(events[0]["authority"], "EXPLICIT_EVIDENCE_MANIFEST")
+            self.assertEqual(events[0]["epistemic_class"], "REPRODUCED_FACT")
+            self.assertEqual(events[0]["supersedes"], ["old"])
+            self.assertEqual(len(errors), 1)
+            self.assertIn("invalid epistemic_class", errors[0]["error"])
 
     def test_mutation_admission_rejects_dirty_or_stale_checkout(self):
         with tempfile.TemporaryDirectory() as d:
