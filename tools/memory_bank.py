@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
-    from .memory_authority import (AUTHORITY_REGISTRY, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
+    from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
+    from .memory_authority import (AUTHORITY_REGISTRY, annotate_memory, behavioral_authority, behavioral_context, configure_authority_registry, validate_authority_registry)
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
@@ -22,8 +22,8 @@ try:
     from .stack_atlas import build_bootstrap_atlas
     from .worker_report_history import summarize_history, worker_history_events
 except ImportError:
-    from memory_git_sync import MemorySyncError, sync_bank, sync_behavior_bundle, sync_lock
-    from memory_authority import (AUTHORITY_REGISTRY, ROLE_USER, annotate_memory, authority_curation_errors, behavioral_authority, behavioral_context, configure_authority_registry, curate_authority_registry_local, validate_authority_registry)
+    from memory_git_sync import MemorySyncError, sync_bank, sync_lock
+    from memory_authority import (AUTHORITY_REGISTRY, annotate_memory, behavioral_authority, behavioral_context, configure_authority_registry, validate_authority_registry)
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
@@ -225,62 +225,6 @@ def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
             _sync_canonical_locked(path, strict=True)
             return saved
     return _append_entry_file(path, entry)
-
-
-def _is_canonical_authority_registry(path: Path) -> bool:
-    try:
-        return path.resolve() == AUTHORITY_REGISTRY.resolve()
-    except OSError:
-        return False
-
-
-def append_behavior_entry(path: Path, values: dict[str, Any], registry_path: Path) -> dict[str, Any]:
-    """Trusted record path: persist a verbatim user rule and curate it in the same sync commit."""
-    entry = _prepare_entry(values)
-    errors = authority_curation_errors(entry, ROLE_USER)
-    if errors:
-        raise BankError("behavior authority curation rejected: " + "; ".join(errors))
-    canonical = _is_canonical_bank(path) and _is_canonical_authority_registry(registry_path)
-    if canonical:
-        with sync_lock(path):
-            _sync_canonical_locked(path, strict=False)
-            saved = _append_entry_file(path, entry)
-            try:
-                result = sync_behavior_bundle(
-                    path, registry_path, add_user_ids={entry["id"]}, publish=True
-                )
-            except MemorySyncError as exc:
-                raise BankError(
-                    "local behavior memory and authority curation were saved; canonical sync NOT_PROVEN: "
-                    f"{exc}; do not append a duplicate"
-                ) from exc
-            configure_authority_registry(registry_path)
-            if result.get("pushed"):
-                print("MEMORY_BEHAVIOR_SYNC " + json.dumps(result, ensure_ascii=False), file=sys.stderr)
-            if behavioral_authority(saved).get("role") != ROLE_USER:
-                raise BankError("behavior rule persisted but USER_EXPLICIT authority was not established")
-            return saved
-
-    original_bank = path.read_bytes() if path.exists() else None
-    original_registry = registry_path.read_bytes() if registry_path.exists() else None
-    try:
-        saved = _append_entry_file(path, entry)
-        entries = _read_bank_file(path)
-        curate_authority_registry_local(entries, entry["id"], ROLE_USER, path=registry_path)
-        if behavioral_authority(saved).get("role") != ROLE_USER:
-            raise BankError("behavior rule persisted but USER_EXPLICIT authority was not established")
-        return saved
-    except Exception:
-        if original_bank is None:
-            path.unlink(missing_ok=True)
-        else:
-            path.write_bytes(original_bank)
-        if original_registry is None:
-            registry_path.unlink(missing_ok=True)
-        else:
-            registry_path.write_bytes(original_registry)
-        configure_authority_registry(registry_path if registry_path.exists() else AUTHORITY_REGISTRY)
-        raise
 
 
 def _tokens(value: str) -> set[str]:
