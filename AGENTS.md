@@ -4,7 +4,7 @@
 <!-- Generated from C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md. Do not edit between these markers; edit the source and run sync-agent-policy.mjs. -->
 ## Shared agent policy
 
-**Version 1.39 - 2026-09-03.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
+**Version 1.40 - 2026-09-03.** Applies to every agent working in `p3`, `Tiny3D`, `lowvram3d-studio`, and Desktop workspace. Edit `C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md` and sync only the targets that need the change; never edit generated repo blocks directly.
 
 ### Authority and bounded scope
 - Current user instruction and live repo/runtime state outrank history, handoffs, recalled context, and stale prose.
@@ -23,7 +23,7 @@
 - Inspect before recursive deletion. Reproducible task-owned caches/build outputs may be removed when safe.
 - Generated proof/media stays out of Git/LFS; durable product/source LFS is local-cache-first and quota failures are not retried.
 - Never use `git clean -xdf`, `git reset --hard`, `git checkout -- .`, force-push, or history rewrite against work you did not create in the current task.
-- Dirty/behind state is not a blocker or proof of current behavior. Preserve relevant dirty work, but before opening a fix lane, verify current live/default acceptance still fails. Never clean, stash, reset, duplicate, or isolate merely to obtain a clean tree.
+- Dirty/behind is not a blocker. Preserve relevant dirty work. Swarm lanes need no global precheck or shared build/runtime/proof gate. Check current owner/default only for duplicate fixes. Never clean, stash, reset, duplicate, or isolate merely for a clean tree.
 
 ### Evidence and acceptance
 - Claim only what observed evidence proves; builds/logs/files/proxies do not prove runtime or visible acceptance.
