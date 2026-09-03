@@ -18,7 +18,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             result = archive_finalized_report(report, root / "history")
             archived = Path(result["path"])
             self.assertTrue(result["archived"])
-            self.assertEqual(archived.parent.name, "Juniper")
+            self.assertEqual(archived.parent.name, "_reports")
             self.assertEqual(archived.read_bytes(), raw)
 
     def test_derives_duration_and_useful_metadata_without_worker_calculation(self):
@@ -81,12 +81,12 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metrics["captured_runs"], 1)
             self.assertEqual(metrics["average_duration_minutes"], 22.8)
             self.assertEqual(metrics["average_target_utilization_pct"], 95.0)
-            self.assertEqual(metrics["by_worker_latest"]["Juniper"]["duration_minutes"], 22.8)
+            self.assertEqual(metrics["latest_reports"][0]["duration_minutes"], 22.8)
 
     def test_summary_keeps_capacity_distinct_from_uptime(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            history = root / "history" / "Alder"
+            history = root / "history" / "_reports"
             history.mkdir(parents=True)
             payload = {
                 "schema": "worker-report-history.v2", "worker": "Alder",
@@ -102,7 +102,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
     def test_history_metadata_becomes_timeline_event(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            history = root / "history" / "Cedar"
+            history = root / "history" / "_reports"
             history.mkdir(parents=True)
             payload = {
                 "schema": "worker-report-history.v2", "report_sha256": "abc", "worker": "Cedar",
@@ -176,7 +176,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
     def test_legacy_short_run_is_flagged_unexplained_without_guessing_from_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            history = root / "history" / "Harbor"
+            history = root / "history" / "_reports"
             history.mkdir(parents=True)
             payload = {
                 "schema": "worker-report-history.v2", "worker": "Harbor", "state": "DONE",
@@ -186,10 +186,9 @@ class WorkerReportHistoryTests(unittest.TestCase):
             }
             (history / "legacy.json").write_text(json.dumps(payload), encoding="utf-8")
             metrics = summarize_history(root / "history")
-            latest = metrics["by_worker_latest"]["Harbor"]
-            self.assertEqual(latest["stop_reason"], "UNEXPLAINED")
-            self.assertTrue(latest["early_stop"])
-            self.assertEqual(set(latest["pending_gate_classes"]), {"EXTERNAL", "PROOF"})
+            self.assertEqual(metrics["latest_reports"][0]["stop_reason"], "UNEXPLAINED")
+            self.assertEqual(metrics["early_stop_reason_counts"], {"UNEXPLAINED": 1})
+            self.assertEqual(metrics["pending_gate_counts"], {"EXTERNAL": 1, "PROOF": 1})
             self.assertEqual(metrics["early_stops_unexplained"], 1)
 
     def test_running_report_is_rejected(self):
