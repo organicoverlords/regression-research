@@ -111,6 +111,7 @@ class FullStackTimelineTests(unittest.TestCase):
             root = Path(d)
             manifest_dir = root / "02 Evidence" / "timeline-events"
             manifest_dir.mkdir(parents=True)
+            (root / "proof.json").write_text("{}", encoding="utf-8")
             (manifest_dir / "sample.json").write_text(
                 '{"schema":"full-stack-timeline-events.v1","events":['
                 '{"id":"repro","event_at":"2026-09-02T19:41:00+03:00","title":"Closure reproduced","epistemic_class":"REPRODUCED_FACT","epistemic_basis":"exact closure replay passed","evidence":["proof.json"],"supersedes":["old"]},'
@@ -126,6 +127,45 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertEqual(events[0]["supersedes"], ["old"])
             self.assertEqual(len(errors), 1)
             self.assertIn("invalid epistemic_class", errors[0]["error"])
+
+    def test_stronger_explicit_evidence_requires_existing_local_proof(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            manifest_dir = root / "02 Evidence" / "timeline-events"
+            manifest_dir.mkdir(parents=True)
+            (manifest_dir / "bad.json").write_text(
+                '{"schema":"full-stack-timeline-events.v1","events":['
+                '{"id":"missing","event_at":"2026-09-02T19:41:00+03:00","title":"Missing local proof","epistemic_class":"REPRODUCED_FACT","epistemic_basis":"claimed replay","evidence":["02 Evidence/missing.json","github:org/repo#1"]},'
+                '{"id":"external-only","event_at":"2026-09-02T19:42:00+03:00","title":"External only","epistemic_class":"INFERENCE","epistemic_basis":"claimed inference","evidence":["github:org/repo#1","git:repo:abc"]}'
+                ']}',
+                encoding="utf-8",
+            )
+            events, errors = collect_explicit_evidence_events(root)
+            self.assertEqual(events, [])
+            self.assertEqual(len(errors), 2)
+            messages = [error["error"] for error in errors]
+            self.assertTrue(any("missing local evidence" in message for message in messages))
+            self.assertTrue(any("requires at least one existing Vault-relative evidence file" in message for message in messages))
+
+    def test_stronger_explicit_evidence_records_verified_local_and_external_refs(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            proof = root / "02 Evidence" / "proof.json"
+            proof.parent.mkdir(parents=True)
+            proof.write_text("{}", encoding="utf-8")
+            manifest_dir = proof.parent / "timeline-events"
+            manifest_dir.mkdir()
+            (manifest_dir / "good.json").write_text(
+                '{"schema":"full-stack-timeline-events.v1","events":['
+                '{"id":"repro","event_at":"2026-09-02T19:41:00+03:00","title":"Verified replay","epistemic_class":"REPRODUCED_FACT","epistemic_basis":"exact replay passed","evidence":["02 Evidence/proof.json","github:org/repo#1","git:repo:abc"]}'
+                ']}',
+                encoding="utf-8",
+            )
+            events, errors = collect_explicit_evidence_events(root)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["evidence_validation"]["verified_local"], ["02 Evidence/proof.json"])
+            self.assertEqual(events[0]["evidence_validation"]["external_refs"], ["github:org/repo#1", "git:repo:abc"])
 
     def test_mutation_admission_rejects_dirty_or_stale_checkout(self):
         with tempfile.TemporaryDirectory() as d:

@@ -25,6 +25,8 @@ TEXT_EXTENSIONS = {".md", ".txt", ".json", ".jsonl", ".yaml", ".yml", ".toml", "
 SKIP_DIRS = {".git", ".pytest_cache", "node_modules", "__pycache__", ".tmp"}
 EPISTEMIC_CLASSES = ("OBSERVED_FACT", "REPRODUCED_FACT", "INFERENCE", "HISTORICAL_CLAIM")
 EXPLICIT_EVIDENCE_SCHEMA = "full-stack-timeline-events.v1"
+STRONG_EPISTEMIC_CLASSES = {"OBSERVED_FACT", "REPRODUCED_FACT", "INFERENCE"}
+EXTERNAL_EVIDENCE_PREFIXES = ("git:", "github:", "http://", "https://")
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(args), cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
@@ -95,6 +97,31 @@ def collect_document_sources(root: Path) -> list[dict[str, Any]]:
     return items
 
 
+def _validate_explicit_evidence(root: Path, evidence: list[str], epistemic_class: str) -> tuple[dict[str, Any] | None, str | None]:
+    root_resolved = root.resolve()
+    verified_local: list[str] = []
+    external_refs: list[str] = []
+    for raw in evidence:
+        value = raw.strip()
+        if value.startswith(EXTERNAL_EVIDENCE_PREFIXES):
+            external_refs.append(value)
+            continue
+        candidate = Path(value)
+        if candidate.is_absolute():
+            return None, f"local evidence must be Vault-relative: {value}"
+        resolved = (root / candidate).resolve()
+        try:
+            resolved.relative_to(root_resolved)
+        except ValueError:
+            return None, f"local evidence escapes Vault root: {value}"
+        if not resolved.is_file():
+            return None, f"missing local evidence: {value}"
+        verified_local.append(candidate.as_posix())
+    if epistemic_class in STRONG_EPISTEMIC_CLASSES and not verified_local:
+        return None, f"{epistemic_class} requires at least one existing Vault-relative evidence file"
+    return {"verified_local": verified_local, "external_refs": external_refs}, None
+
+
 def collect_explicit_evidence_events(root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     manifest_root = root / "02 Evidence" / "timeline-events"
     events: list[dict[str, Any]] = []
@@ -127,11 +154,16 @@ def collect_explicit_evidence_events(root: Path) -> tuple[list[dict[str, Any]], 
             if not isinstance(evidence, list) or not evidence or any(not isinstance(item, str) or not item.strip() for item in evidence):
                 errors.append({"path": str(path), "event_index": index, "error": "evidence must be a non-empty string array"})
                 continue
+            evidence_validation, evidence_error = _validate_explicit_evidence(root, evidence, epistemic_class)
+            if evidence_error:
+                errors.append({"path": str(path), "event_index": index, "error": evidence_error})
+                continue
             item = dict(raw)
             item["source_type"] = "STRUCTURED_EVIDENCE_EVENT"
             item["authority"] = "EXPLICIT_EVIDENCE_MANIFEST"
             item["manifest_path"] = path.relative_to(root).as_posix()
             item["evidence"] = list(evidence)
+            item["evidence_validation"] = evidence_validation
             item["supersedes"] = _relation_values(item.get("supersedes"))
             item["contradicts"] = _relation_values(item.get("contradicts"))
             events.append(item)
