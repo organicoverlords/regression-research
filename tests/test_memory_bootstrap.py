@@ -1,22 +1,12 @@
 import json
-import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
-from tools.chatgpt_bootstrap_artifact import (
-    DEFAULT_LIBRARY_PATH,
-    build_chatgpt_bootstrap_artifact,
-    publication_plan,
-    render_artifact_bytes,
-    verify_artifact_copy,
-    write_artifact_copy,
-)
 from tools.memory_bank import build_startup_bootstrap, load_bank
-from tools.stack_atlas import ATLAS_LIBRARY_PATH, render_library_atlas_bytes
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RETIRED_LIBRARY_PATH = "/Agent Bootstrap/chatgpt-bootstrap.json"
 
 
 class MemoryBootstrapRetirementTests(unittest.TestCase):
@@ -41,7 +31,7 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("optional searchable history, notebook, evidence", text)
         self.assertIn("Keep useful work and the recurring worker fleet moving", text)
         self.assertNotIn("memory_bank.py bootstrap", text)
-        self.assertNotIn(DEFAULT_LIBRARY_PATH, text)
+        self.assertNotIn(RETIRED_LIBRARY_PATH, text)
 
     def test_session_contract_has_no_vault_startup_gate(self):
         text = (ROOT / "04 Operating Contracts/fresh-chat-startup-orientation.md").read_text(encoding="utf-8")
@@ -55,49 +45,11 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
     def test_distribution_contract_retires_behavior_bootstrap(self):
         text = (ROOT / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
         self.assertIn("behavior-bootstrap pipeline is retired", text)
-        self.assertIn(DEFAULT_LIBRARY_PATH, text)
+        self.assertIn(RETIRED_LIBRARY_PATH, text)
         self.assertIn("legacy/recovery surfaces only", text)
         self.assertIn("Stack Atlas remains an operational map", text)
         self.assertIn("searchable history/notebook/evidence", text)
         self.assertNotIn("Library publisher worker contract", text)
-
-    def test_generated_bootstrap_artifact_is_only_a_retired_tombstone(self):
-        artifact = build_chatgpt_bootstrap_artifact()
-        self.assertTrue(artifact["retired"])
-        self.assertEqual(artifact["authority"], "NONE")
-        self.assertEqual(artifact["library_path"], DEFAULT_LIBRARY_PATH)
-        self.assertEqual(artifact["payload"]["status"], "RETIRED")
-        self.assertNotIn("behavior", artifact["payload"])
-        self.assertNotIn("policy", artifact["payload"])
-        self.assertLess(len(render_artifact_bytes()), 1000)
-
-    def test_publication_plan_refuses_bootstrap_and_preserves_atlas(self):
-        plan = publication_plan()
-        self.assertEqual(plan["status"], "RETIRED_NO_LIBRARY_ARTIFACT")
-        self.assertFalse(plan["publish"])
-        self.assertEqual(plan["library_path"], DEFAULT_LIBRARY_PATH)
-        self.assertEqual(plan["stack_atlas"]["library_path"], ATLAS_LIBRARY_PATH)
-        self.assertEqual(plan["stack_atlas"]["bytes"], len(render_library_atlas_bytes()))
-
-    def test_retired_artifact_verification_remains_byte_exact(self):
-        expected = render_artifact_bytes()
-        with tempfile.TemporaryDirectory() as td:
-            copy = Path(td) / "chatgpt-bootstrap.json"
-            copy.write_bytes(expected)
-            self.assertEqual(verify_artifact_copy(copy)["status"], "PROVEN")
-            copy.write_bytes(expected + b" ")
-            self.assertEqual(verify_artifact_copy(copy)["status"], "MISMATCH")
-
-    def test_atomic_writer_preserves_existing_copy_on_replace_failure(self):
-        original = b"last-known-good\n"
-        replacement = render_artifact_bytes()
-        with tempfile.TemporaryDirectory() as td:
-            output = Path(td) / "chatgpt-bootstrap.json"
-            output.write_bytes(original)
-            with patch("tools.chatgpt_bootstrap_artifact.os.replace", side_effect=OSError("replace failed")):
-                with self.assertRaisesRegex(OSError, "replace failed"):
-                    write_artifact_copy(output, replacement)
-            self.assertEqual(output.read_bytes(), original)
 
     def test_shared_policy_treats_vault_as_optional_history(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
