@@ -1,6 +1,6 @@
 # Memory normalization and classification
 
-Issue #87 uses one bounded deterministic classifier over the canonical append-only memory bank and candidate layer. Classification is derived metadata, not a second source of truth and not permission to promote an unsupported claim.
+Issue #87 established one bounded deterministic classifier over the canonical append-only memory bank and candidate layer. Classification is derived metadata, not a second source of truth and not permission to promote an unsupported claim.
 
 ## Bounded taxonomy
 
@@ -26,14 +26,8 @@ New canonical writes through `memory_bank.py append` and `record` automatically 
 python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>
 ```
 
-The full derived audit is regenerated with:
-
-```powershell
-python tools\memory_normalization_report.py --output "02 Evidence\2026-08-29-memory-normalization.json"
-```
-
-That report accounts for every current bank/candidate record, includes the taxonomy, counts by category/domain/project/role/source/state/disposition, supersession and exact-duplicate accounting, and explicit `review_queue`, `ambiguous_records`, and `uncategorized` sections. A committed report is a point-in-time receipt tied to source hashes; it is not a mutable recall database.
+The exhaustive #87 normalization pass is complete. Its committed JSON receipts under `02 Evidence/` remain historical acceptance evidence tied to the source snapshots used at the time; current operation does not regenerate or consult those point-in-time reports.
 
 ## Review boundary
 
-A record is allowed to remain unresolved only by appearing explicitly in the report review queue. Ambiguous project assignment, sensitivity review, unsupported hypothesis state, or an unreviewed candidate must never disappear into an implicit default. Candidate-only records use the same classifier and accounting path as bank records; source-specific ingestion does not create a parallel memory format.
+Ambiguous project assignment, sensitivity review, unsupported hypothesis state, or an unreviewed candidate must remain explicit in the current classifier/result path rather than disappearing into an implicit default. Candidate-only records use the same classifier and accounting semantics as bank records; source-specific ingestion does not create a parallel memory format.
