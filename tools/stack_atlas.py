@@ -214,7 +214,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "supervisor": "Board-Watchdog.ps1 / feed scripts",
         "self_heal": "projection-specific",
         "independent_recovery": ["read canonical repo/coordinator/runtime sources directly"],
-        "resources": ["operator-live.json", "board state"],
+        "resources": ["board state"],
         "dependents": ["human_orientation", "chatgpt_orientation"],
         "runbook": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
     },
@@ -289,14 +289,6 @@ COMPONENTS.update({
         "live_status": ["exact workflow run/check status"], "supervisor": "GitHub Actions", "self_heal": "external",
         "independent_recovery": ["local proof may supplement, never impersonate exact CI"], "resources": ["workflow runs", "checks"],
         "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo workflow files"],
-    },
-    "operator_live": {
-        "role": "projection:near-live", "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\DevProgressBoard\state\operator-live.json"],
-        "live_status": ["projection timestamp/age; reconcile canonical sources"], "supervisor": "DevProgressBoard feeds",
-        "self_heal": "projection_specific", "independent_recovery": ["read coordinator/Git/CI/runtime directly"],
-        "resources": ["operator-live.json"], "dependents": ["chatgpt_orientation"],
-        "runbook": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
     },
 })
 
@@ -397,9 +389,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
     },
     "progress.board": {
-        "owner_components": ["dev_progress_board", "operator_live"],
-        "triggers": ["progress board", "dashboard", "stack delivery", "operator live", "overview"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\DevProgressBoard", "state/operator-live.json"],
+        "owner_components": ["dev_progress_board"],
+        "triggers": ["progress board", "dashboard", "stack delivery", "overview"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
         "boundary": "Derived orientation/projection only; reconcile important claims with canonical sources.",
     },
 }
