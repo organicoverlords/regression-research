@@ -26,7 +26,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
-| `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
+| `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
 | `project.current_truth` | agent_rules, north_star, local_git, github | agent-rules RULES.md + applicable context; repo NORTH_STAR/equivalent; git status/HEAD + recent all-branch history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
