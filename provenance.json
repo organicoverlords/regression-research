@@ -731,6 +731,83 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Current explicit user direction supersedes the historical mandatory startup Vault glance while preserving targeted history retrieval for specific past-fact needs."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "not_assigned",
+      "report_path": "01 Reports/2026-09-03_0152_EEST_mcp-debugging-live-mutation-loop_premature-merge_incident_report.md",
+      "title": "MCP debugging live-mutation loop and premature merge incident",
+      "date": "2026-09-03T01:52:03+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Cross-thread MCP debugging control incident. Exact report creation time is taken from the report; supporting Codex extracts currently remain outside the tracked provenance index and are not guessed as canonical evidence paths."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "recovery_record_not_incident_id",
+      "report_path": "01 Reports/2026-09-03_0342_EEST_MCP_Aug27-29_restore_plus_32KB_recovery.md",
+      "title": "MCP Aug 27-29 restore + 32KB recovery - 2026-09-03 03:42 EEST",
+      "date": "2026-09-03T03:42:00+03:00",
+      "evidence_type": "recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Historical MCP source/runtime recovery record. The filename supplies the minute-level report time; no separate evidence artifact is guessed."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "not_assigned",
+      "report_path": "01 Reports/2026-09-03_1708_EEST_commander-conversation-developer-mcp-restriction_incident_report.md",
+      "title": "Incident report - Commander rejected by conversation-level developer-MCP restriction",
+      "date": "2026-09-03T17:08:00+03:00",
+      "evidence_type": "tool_admission_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-03_commander-conversation-developer-mcp-restriction.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Conversation-level Commander admission restriction with a tracked replay fixture. The exact earlier occurrence receipt remains intentionally unavailable as documented by the report."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "topology_record_not_incident_id",
+      "report_path": "01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
+      "title": "MCP VPS edge cutover - 2026-09-03",
+      "date": "2026-09-03T00:00:00+03:00",
+      "evidence_type": "runtime_topology_record",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Current MCP VPS-edge topology/recovery runbook. The report has only a calendar date, so midnight is a conservative index date marker rather than a claimed event time."
     }
   ],
   "orphan_evidence": [
