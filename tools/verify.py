@@ -119,13 +119,6 @@ def run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT, check=True)
 
 
-def verify_changelog(base_ref: str | None) -> None:
-    command = [sys.executable, ".github/scripts/check_changelog_landing.py"]
-    if base_ref:
-        command.extend(["--base-ref", base_ref])
-    run(command)
-
-
 def verify_entrypoint() -> None:
     run([sys.executable, "-m", "py_compile", "tools/verify.py"])
     run([sys.executable, "-m", "unittest", "tests.test_verify", "-v"])
@@ -265,7 +258,6 @@ def main() -> int:
     changed = set() if run_all else changed_files(args.base_ref)
     areas = select_areas(changed, run_all=run_all)
 
-    verify_changelog(args.base_ref)
     verify_entrypoint()
     for area in areas:
         if area == "stack":

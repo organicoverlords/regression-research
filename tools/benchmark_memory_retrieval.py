@@ -9,14 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.memory_bank import load_bank, search_entries
+from tools.memory_bank import load_bank
 from tools.memory_hybrid import search_entries_hybrid
 
 DEFAULT_BANK = ROOT / "memory" / "memory-bank.jsonl"
 DEFAULT_FIXTURE = ROOT / "tests" / "fixtures" / "memory-retrieval-eval-v1.json"
 
 
-def evaluate(bank: Path, fixture: Path, strategy: str = "baseline") -> dict:
+def evaluate(bank: Path, fixture: Path) -> dict:
     entries = load_bank(bank)
     spec = json.loads(fixture.read_text(encoding="utf-8-sig"))
     known = {e["id"] for e in entries}
@@ -42,12 +42,11 @@ def evaluate(bank: Path, fixture: Path, strategy: str = "baseline") -> dict:
         return sorted(resolved)
 
     details = []
-    search = search_entries_hybrid if strategy == "hybrid" else search_entries
     for case in spec["cases"]:
         missing = [item for item in case["expected"] if item not in known]
         if missing:
             raise SystemExit(f"fixture references missing memory IDs for {case['id']}: {missing}")
-        hits = search(entries, case["query"], limit=5)
+        hits = search_entries_hybrid(entries, case["query"], limit=5)
         ids = [h["id"] for h in hits]
         resolved_expected = current_expected(case["expected"])
         expected = set(resolved_expected)
@@ -70,7 +69,7 @@ def evaluate(bank: Path, fixture: Path, strategy: str = "baseline") -> dict:
 
     negatives = [r for r in details if r["cohort"] == "abstain"]
     return {
-        "fixture_version": spec["version"], "bank_entries": len(entries), "strategy": strategy,
+        "fixture_version": spec["version"], "bank_entries": len(entries), "strategy": "hybrid",
         "metrics": {
             "paraphrase": positive_metrics("paraphrase"),
             "exact_control": positive_metrics("exact_control"),
@@ -85,9 +84,8 @@ def main() -> int:
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--strategy", choices=("baseline", "hybrid"), default="baseline")
     args = parser.parse_args()
-    result = evaluate(args.bank, args.fixture, args.strategy)
+    result = evaluate(args.bank, args.fixture)
     rendered = json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

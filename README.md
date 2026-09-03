@@ -1,11 +1,5 @@
 # Regression Research
 
-<!-- CHANGELOG-LANDING:BEGIN -->
-## Project timeline
-
-Canonical history: [CHANGELOG.md](CHANGELOG.md)
-<!-- CHANGELOG-LANDING:END -->
-
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
 next move was, and enough preserved state to replay the case later.
 This is research evidence. It is not an operating contract and not a worker prompt.
