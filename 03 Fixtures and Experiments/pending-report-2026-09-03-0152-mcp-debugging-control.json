@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-20260903-0152-mcp-debugging-control",
+  "title": "MCP debugging live-mutation loop and premature merge incident",
+  "source_report": "01 Reports/2026-09-03_0152_EEST_mcp-debugging-live-mutation-loop_premature-merge_incident_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}

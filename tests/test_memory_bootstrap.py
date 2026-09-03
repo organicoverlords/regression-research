@@ -2,7 +2,6 @@ import json
 import unittest
 from pathlib import Path
 
-from tools.memory_bank import build_startup_bootstrap, load_bank
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,19 +9,6 @@ RETIRED_LIBRARY_PATH = "/Agent Bootstrap/chatgpt-bootstrap.json"
 
 
 class MemoryBootstrapRetirementTests(unittest.TestCase):
-    def test_legacy_bootstrap_is_tiny_retirement_marker(self):
-        payload = build_startup_bootstrap(load_bank())
-        rendered = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-        self.assertEqual(payload["status"], "RETIRED")
-        self.assertIn("history/notebook/evidence", payload["purpose"])
-        self.assertIn("ChatGPT/harness memory", payload["continuity"])
-        self.assertIn("Stack Atlas", payload["stack_map"])
-        self.assertIn("live sources", payload["current_truth"])
-        self.assertNotIn("behavior_profile", payload)
-        self.assertNotIn("canonical_policy_profile", payload)
-        self.assertNotIn("recent_memory_glance", payload)
-        self.assertLess(len(rendered), 1000)
-
     def test_personal_instructions_use_memory_atlas_and_live_truth(self):
         text = (ROOT / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").read_text(encoding="utf-8")
         self.assertIn("ChatGPT Memory for continuity", text)
@@ -46,7 +32,8 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         text = (ROOT / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
         self.assertIn("behavior-bootstrap pipeline is retired", text)
         self.assertIn(RETIRED_LIBRARY_PATH, text)
-        self.assertIn("legacy/recovery surfaces only", text)
+        self.assertIn("command is no longer exposed", text)
+        self.assertIn("not published as current behavior authority", text)
         self.assertIn("Stack Atlas remains an operational map", text)
         self.assertIn("searchable history/notebook/evidence", text)
         self.assertNotIn("Library publisher worker contract", text)

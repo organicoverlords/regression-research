@@ -1,0 +1,8 @@
+{
+  "id": "pending-report-20260903-vps-edge-cutover",
+  "title": "MCP VPS edge cutover",
+  "source_report": "01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Report is preserved and indexed, but no replay-ready scoring contract is established."
+}
