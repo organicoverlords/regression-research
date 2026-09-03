@@ -1,0 +1,6 @@
+{
+  "status": "OBSERVED_NOT_REPLAY_READY",
+  "purpose": "Placeholder evidence contract for recovered canonical Vault reports that do not yet have a normalized replay fixture.",
+  "failure_candidate": null,
+  "success_candidate": null
+}

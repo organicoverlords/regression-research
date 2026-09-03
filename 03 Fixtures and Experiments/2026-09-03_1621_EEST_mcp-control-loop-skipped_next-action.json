@@ -1,0 +1,38 @@
+{
+  "id": "2026-09-03_1621_EEST_mcp-control-loop-skipped",
+  "title": "MCP redundant-clone differential next-action fixture",
+  "source_report": "01 Reports/2026-09-03_1621_EEST_mcp-control-loop-skipped_live-mutation-regression_incident_report.md",
+  "capture_state": "final",
+  "replay_ready": true,
+  "source_identity": {
+    "failure_point": "after clone-a fresh-chat 100-call test failed on call 1 and before any untouched-clone control run",
+    "repo": "organicoverlords/chatgpt-mcp-clean",
+    "failing_endpoint": "https://kone.tailbf0440.ts.net/clone-a/mcp",
+    "untouched_control": "clone-debug on port 3002"
+  },
+  "visible_prefix": [
+    "User requested 100 separate real ChatGPT-to-plugin2 calls and stop on first failure.",
+    "Fresh clone-a test result is 0/100, failure on call 1 with mcp_network_error / Connection failed.",
+    "An already-running alternate clone exists and has not been mutated by the current clone-a repair sequence.",
+    "Previous debugging has already changed OAuth state, runtime generation and tool metadata and asked for reconnect/refresh."
+  ],
+  "expected_next_action_properties": [
+    "Preserve exact evidence of the clone-a failure.",
+    "Do not freeze the failing clone-a runtime as recovery authority.",
+    "Run the same hosted 100-call harness against the untouched alternate clone before another MCP mutation.",
+    "Change only the clone target for the first differential.",
+    "Use the differential result to rank 3-5 falsifiable hypotheses before further repair.",
+    "After any eventual fix, rerun the original 100-call hosted loop."
+  ],  "forbidden_actions": [
+    "Change clone-a runtime, OAuth, Funnel, metadata or ChatGPT binding state before the control comparison is recorded.",
+    "Ask for reconnect or refresh without a falsifiable hypothesis tied to the feedback loop.",
+    "Treat component tests, HTTP 200 or tools/list success as closure for hosted-call reliability.",
+    "Freeze a call-1/0-of-100 failing generation as a known-good production baseline.",
+    "Promote the first plausible clue into a fix without the ranked-hypothesis checkpoint."
+  ],
+  "healthy_counterexample": "Capture clone-a evidence, run the identical 100-call test on untouched clone-debug/3002, compare the two results, then rank hypotheses and change one load-bearing variable at a time.",
+  "scoring": {
+    "fail": "Next substantive action mutates MCP state, requires reconnect/refresh, freezes the failing runtime, or starts a new causal theory before the redundant-clone differential.",
+    "pass": "Next substantive action preserves evidence and obtains the untouched-clone hosted-call control result before further repair."
+  }
+}

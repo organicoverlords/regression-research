@@ -154,9 +154,11 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     duration_minutes = round(duration_seconds / 60, 2) if duration_seconds is not None else None
     utilization = round(duration_minutes / TARGET_RUN_MINUTES * 100, 1) if duration_minutes is not None else None
     base: dict[str, Any] = {
-        "schema": "worker-report-history.v4",
+        "schema": "worker-report-history.v5",
         "report_sha256": digest,
-        "worker": fields.get("worker") or archive_path.parent.name,
+        "automation_id": fields.get("automation_id"),
+        "display_label": fields.get("display_label") or fields.get("worker"),
+        "worker": fields.get("display_label") or fields.get("worker") or "unknown",
         "state": fields.get("state"),
         "started_at": started_at,
         "finished_at": finished_at,
@@ -193,17 +195,22 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     return base
 
 def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
+    records_by_hash: dict[str, dict[str, Any]] = {}
     if not history_root.exists():
-        return records
+        return []
     for path in sorted(history_root.glob("*/*.json")):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if str(payload.get("schema") or "").startswith("worker-report-history.v"):
-            records.append(payload)
-    return records
+        if not str(payload.get("schema") or "").startswith("worker-report-history.v"):
+            continue
+        report_hash = str(payload.get("report_sha256") or path.resolve())
+        # During migration a report may exist in both legacy history/<name>/ and the
+        # canonical history/_reports/ store. Count the immutable report identity once.
+        if report_hash not in records_by_hash or path.parent.name == "_reports":
+            records_by_hash[report_hash] = payload
+    return list(records_by_hash.values())
 
 
 def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
@@ -236,37 +243,16 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
     transport_or_binding_runs = [x for x in records if int(x.get("transport_drops") or 0) > 0 or int(x.get("binding_drops") or 0) > 0]
     transport_or_binding_stop_runs = [x for x in transport_or_binding_runs if x in tool_failure_stop_runs]
 
-    by_worker: dict[str, dict[str, Any]] = {}
-    for item in sorted(records, key=lambda x: str(x.get("finished_at") or x.get("archived_at") or "")):
-        worker = str(item.get("worker") or "unknown")
-        by_worker[worker] = {
-            "finished_at": item.get("finished_at"),
-            "duration_minutes": item.get("duration_minutes"),
-            "target_utilization_pct": item.get("target_utilization_pct"),
-            "repo": item.get("repo"),
-            "scope": item.get("scope"),
-            "state": item.get("state"),
-            "remaining_gate": item.get("remaining_gate"),
-            "pending_gate_classes": item.get("pending_gate_classes"),
-            "stop_reason": item.get("stop_reason"),
-            "stop_reason_source": item.get("stop_reason_source"),
-            "stop_detail": item.get("stop_detail"),
-            "early_stop": item.get("early_stop"),
-            "transport_drops": item.get("transport_drops"),
-            "binding_drops": item.get("binding_drops"),
-            "safety_blocks": item.get("safety_blocks"),
-            "other_tool_failures": item.get("other_tool_failures"),
-            "legacy_unclassified_tool_drops": item.get("legacy_unclassified_tool_drops"),
-            "tool_failures_total": item.get("tool_failures_total"),
-            "tool_failure_effect": item.get("tool_failure_effect"),
-            "tool_drops": item.get("tool_drops"),
-            "tool_drop_effect": item.get("tool_drop_effect"),
-        }
+    def record_sort_key(item: dict[str, Any]) -> float:
+        parsed = _parse_time(item.get("finished_at") or item.get("archived_at"))
+        return parsed.timestamp() if parsed is not None else float("-inf")
+
+    ordered_records = sorted(records, key=record_sort_key)
 
     total_minutes = round(sum(durations), 2)
     window_minutes = hours * 60.0
     return {
-        "schema": "worker-report-metrics.v3",
+        "schema": "worker-report-metrics.v4",
         "generated_at": now.isoformat(),
         "window_hours": float(hours),
         "target_run_minutes": TARGET_RUN_MINUTES,
@@ -298,7 +284,23 @@ def summarize_history(history_root: Path, *, hours: float = 24.0) -> dict[str, A
         "worker_minutes": total_minutes,
         "equivalent_continuous_workers": round(total_minutes / window_minutes, 3) if window_minutes else None,
         "capacity_pct_of_one_continuous_worker": round(total_minutes / window_minutes * 100.0, 1) if window_minutes else None,
-        "by_worker_latest": by_worker,
+        # Names are display labels, not identity keys. This ordered list is the supervisor's
+        # rename-safe discovery surface; report_sha256 is the immutable report identity.
+        "latest_reports": [
+            {
+                "report_sha256": item.get("report_sha256"),
+                "automation_id": item.get("automation_id"),
+                "display_label": item.get("display_label") or item.get("worker"),
+                "finished_at": item.get("finished_at"),
+                "duration_minutes": item.get("duration_minutes"),
+                "repo": item.get("repo"),
+                "scope": item.get("scope"),
+                "state": item.get("state"),
+                "stop_reason": item.get("stop_reason"),
+                "archive_path": item.get("archive_path"),
+            }
+            for item in reversed(ordered_records[-20:])
+        ],
     }
 
 def _project_from_repo(repo: str | None) -> str | None:
@@ -331,8 +333,10 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "event_at": event_at,
             "recorded_at": item.get("archived_at") or event_at,
             "project": _project_from_repo(item.get("repo")),
-            "worker": worker,
-            "title": f"{worker}: {outcome}" + (f" - {scope}" if scope else ""),
+            "automation_id": item.get("automation_id"),
+            "display_label": display_label,
+            "worker": display_label,
+            "title": f"{display_label}: {outcome}" + (f" - {scope}" if scope else ""),
             "summary": item.get("last_event") or item.get("mutation") or "",
             "kind": "worker_report",
             "scope": scope,
@@ -375,12 +379,18 @@ def write_metrics_projection(history_root: Path, output: Path | None = None, *, 
 def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
     raw = report.read_bytes()
     fields = _fields(raw)
-    state = fields.get("state", "").upper()
+    # Older/current worker writers sometimes use `outcome: COMPLETE` without a separate
+    # `state:` field. Treat a terminal delivery token in either field as finalized.
+    state = (fields.get("state") or fields.get("outcome") or "").upper()
     if state not in {"COMPLETE", "WAITING", "BLOCKED", "DONE"}:
         raise ValueError(f"report is not finalized: state={state or 'MISSING'}")
     worker = fields.get("worker") or report.stem
+    fields.setdefault("worker", worker)
+    fields.setdefault("state", state)
     digest = hashlib.sha256(raw).hexdigest()
-    target_dir = history_root / worker
+    # Canonical archive identity is content-addressed, never the mutable display name.
+    # This prevents renames or name reuse from hiding/overwriting report history.
+    target_dir = history_root / "_reports"
     target = target_dir / f"{digest}.md"
     metadata_path = target_dir / f"{digest}.json"
     target_dir.mkdir(parents=True, exist_ok=True)

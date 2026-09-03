@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import hashlib
@@ -41,30 +41,23 @@ def parse_report(path: Path) -> dict[str, Any]:
         if ":" not in line:
             continue
         key, value = line.split(":", 1)
-        key = key.strip().lstrip("\ufeff")
+        key = key.strip()
         if key and key.replace("_", "").isalnum() and (key[0].isalpha() or key[0] == "_"):
             fields[key.lower()] = value.strip()
-    started_at = fields.get("started_at")
     activity = fields.get("last_activity_at")
-    started = _parse_time(started_at)
     parsed = _parse_time(activity)
     age_minutes = None
-    duration_minutes = None
     if parsed is not None:
         age_minutes = round((_now().astimezone(timezone.utc) - parsed.astimezone(timezone.utc)).total_seconds() / 60, 1)
-    if started is not None and parsed is not None:
-        seconds = (parsed.astimezone(timezone.utc) - started.astimezone(timezone.utc)).total_seconds()
-        if seconds >= 0:
-            duration_minutes = round(seconds / 60, 2)
     return {
-        "worker": fields.get("worker") or path.stem,
+        "automation_id": fields.get("automation_id"),
+        "display_label": fields.get("display_label") or fields.get("worker") or path.stem,
+        "worker": fields.get("display_label") or fields.get("worker") or path.stem,
         "state": fields.get("state"),
         "outcome": fields.get("outcome"),
         "repo": fields.get("repo"),
         "scope": fields.get("scope"),
-        "started_at": started_at,
         "last_activity_at": activity,
-        "duration_minutes": duration_minutes,
         "activity_age_minutes": age_minutes,
         "last_event": fields.get("last_event"),
         "mutation": fields.get("mutation"),
@@ -90,8 +83,8 @@ def _safe_worker(worker: str) -> str:
     return cleaned or "worker"
 
 
-def event_id(worker: str, event_kind: str, report_sha256: str) -> str:
-    material = f"{worker}\n{event_kind}\n{report_sha256}".encode("utf-8")
+def event_id(event_kind: str, report_sha256: str) -> str:
+    material = f"{event_kind}\n{report_sha256}".encode("utf-8")
     return hashlib.sha256(material).hexdigest()
 
 
@@ -101,13 +94,13 @@ def receipt_path(report_dir: Path, event: str) -> Path:
 
 def candidate_events(report: dict[str, Any], *, stale_minutes: float) -> list[dict[str, Any]]:
     state = (report.get("state") or "").upper()
-    primary_kind = "blocked" if state == "BLOCKED" else "waiting" if state == "WAITING" else "completed" if state in {"COMPLETE", "DONE"} else "report_update"
+    primary_kind = "blocked" if state == "BLOCKED" else "completed" if state in {"DONE", "COMPLETE"} else "report_update"
     kinds = [primary_kind]
     age = report.get("activity_age_minutes")
     if state == "RUNNING" and isinstance(age, (int, float)) and age > stale_minutes:
         kinds.append("stale_running")
     return [
-        {**report, "event_kind": kind, "event_id": event_id(str(report["worker"]), kind, str(report["report_sha256"]))}
+        {**report, "event_kind": kind, "event_id": event_id(kind, str(report["report_sha256"]))}
         for kind in kinds
     ]
 
@@ -128,7 +121,13 @@ def claim_events(report_dir: Path, *, actor: str, busy: Path, stale_minutes: flo
     claimed: list[dict[str, Any]] = []
     claimed_elsewhere = 0
     already_handled = 0
-    reports = sorted(report_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True) if report_dir.exists() else []
+    reports = []
+    if report_dir.exists():
+        reports.extend(report_dir.glob("*.md"))  # legacy display-name snapshots
+        current_dir = report_dir / "current"
+        if current_dir.exists():
+            reports.extend(current_dir.glob("*.md"))  # automation-ID keyed current snapshots
+        reports = sorted(reports, key=lambda p: p.stat().st_mtime, reverse=True)
     for path in reports:
         report = parse_report(path)
         for event in candidate_events(report, stale_minutes=stale_minutes):
@@ -136,8 +135,8 @@ def claim_events(report_dir: Path, *, actor: str, busy: Path, stale_minutes: flo
             if receipt.exists():
                 already_handled += 1
                 continue
-            scope = f"{scope_prefix}:{_safe_worker(str(event['worker']))}:{event['event_kind']}:{event['event_id'][:16]}"
-            checkpoint = f"supervise {event['worker']} {event['event_kind']} report {event['report_sha256'][:12]}"
+            scope = f"{scope_prefix}:{event['event_kind']}:{event['event_id'][:16]}"
+            checkpoint = f"supervise report {event['report_sha256'][:12]} {event['event_kind']} ({event.get('display_label') or 'unlabeled'})"
             code, payload, _ = _busy_call(busy, ["claim", "--lease-seconds", str(lease_seconds), "--checkpoint", checkpoint, actor, scope])
             if code == 0 and payload and payload.get("ok"):
                 claimed.append({**event, "claim_actor": actor, "claim_scope": scope, "receipt_path": str(receipt)})
