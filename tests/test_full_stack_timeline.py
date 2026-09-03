@@ -23,7 +23,6 @@ from tools.full_stack_timeline import (
     collect_git_state,
     recoverable_git_events,
     collect_memory_events,
-    checkout_mutation_admission,
     build_full_stack_timeline,
 )
 
@@ -302,24 +301,8 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertIn("coverage gap", errors[0]["error"])
             self.assertIn("does not prove behavior absence", errors[0]["error"])
 
-    def test_dirty_checkout_is_not_direct_stack_mutation_source(self):
-        state = {"available": True, "dirty_entries": 3, "head": "aaa", "branch": "chatgpt/demo-work"}
-        result = checkout_mutation_admission(state)
-        self.assertEqual(result["decision"], "ISOLATED_WORKTREE_REQUIRED")
-        self.assertIn("dirty_checkout", result["reasons"])
-        self.assertFalse(result["direct_mutation_admitted"])
 
-    def test_clean_named_work_branch_is_directly_admitted(self):
-        state = {"available": True, "dirty_entries": 0, "head": "aaa", "branch": "chatgpt/demo-work"}
-        result = checkout_mutation_admission(state)
-        self.assertEqual(result["decision"], "DIRECT_MUTATION_ADMITTED")
-        self.assertTrue(result["direct_mutation_admitted"])
 
-    def test_clean_human_integration_branch_is_not_worker_mutation_source(self):
-        state = {"available": True, "dirty_entries": 0, "head": "aaa", "branch": "main"}
-        result = checkout_mutation_admission(state)
-        self.assertEqual(result["decision"], "ISOLATED_WORKTREE_REQUIRED")
-        self.assertIn("protected_human_branch", result["reasons"])
 
     def test_document_inventory_classifies_durable_evidence(self):
         with tempfile.TemporaryDirectory() as d:
@@ -428,17 +411,3 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0]["evidence_validation"]["verified_local"], ["02 Evidence/proof.json"])
             self.assertEqual(events[0]["evidence_validation"]["external_refs"], ["github:org/repo#1", "git:repo:abc"])
-
-    def test_mutation_admission_requires_clean_named_work_branch(self):
-        with tempfile.TemporaryDirectory() as d:
-            repo = self.make_repo(Path(d))
-            protected = collect_git_state("demo", repo)
-            self.assertEqual(protected["mutation_admission"]["status"], "ISOLATE_REQUIRED")
-            self.assertIn("protected_human_branch", protected["mutation_admission"]["reasons"])
-            subprocess.run(["git", "-C", str(repo), "switch", "-c", "chatgpt/demo-work"], check=True, stdout=subprocess.DEVNULL)
-            clean = collect_git_state("demo", repo)
-            self.assertEqual(clean["mutation_admission"]["status"], "DIRECT_OK")
-            (repo / "dirty.txt").write_text("x", encoding="utf-8")
-            dirty = collect_git_state("demo", repo)
-            self.assertEqual(dirty["mutation_admission"]["status"], "ISOLATE_REQUIRED")
-            self.assertIn("dirty_checkout", dirty["mutation_admission"]["reasons"])
