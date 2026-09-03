@@ -32,7 +32,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\metrics.json; python tools/worker_report_history.py summary --history-root worker-reports/history | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
-| `execution.transport` | vps_edge_ingress, mcp_front_door, desktop_commander_remote | production MCPv3/VPS process contract; discover/attempt supported fallback transport; Desktop Commander semantic file/process operation | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
+| `execution.transport` | vps_edge_ingress, mcp_front_door | production MCPv3/VPS process contract; plugin2 when available | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 | `progress.board` | dev_progress_board, operator_live | C:\Users\Lauri\Desktop\DevProgressBoard; state/operator-live.json | Derived orientation/projection only; reconcile important claims with canonical sources. |
 
 ## Product flow
@@ -125,7 +125,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `artifact_transfer_bridge`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: current conversation file attachments; %LOCALAPPDATA%\DesktopCommanderFallback; ChatGPT files/library connector when exposed; generated sandbox artifacts; %LOCALAPPDATA%\McpVpsEdge\publish-artifact.ps1
+- Canonical sources: current conversation file attachments; ChatGPT files/library connector when exposed; generated sandbox artifacts; %LOCALAPPDATA%\McpVpsEdge\publish-artifact.ps1
 - Live status: source path exists; destination path exists; byte size matches; SHA-256 matches end to end; VPS artifact URL downloads identical bytes and expires after 24 hours
 - Independent recovery: use another exposed transfer route only after preserving the same source bytes and hash
 - Resources: artifact bytes; source path/ref; destination path/ref; size; SHA-256
@@ -146,45 +146,6 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md
 - Supervisor: project-specific proof workflow
 - Self-heal: not_applicable
-
-### `desktop_commander_watchdog`
-
-- Role: `machine_transport_supervisor`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: %LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1
-- Live status: watchdog process; device/relay connection; semantic execution call
-- Independent recovery: MCP process route only when independently proven available and sufficient
-- Resources: Commander fallback install; relay session
-- Dependents: desktop_commander_remote
-- Runbook: %LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1
-- Supervisor: host startup / watchdog process
-- Self-heal: owns Commander child recovery
-
-### `desktop_commander_remote`
-
-- Role: `machine_transport_relay_client`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: %LOCALAPPDATA%\DesktopCommanderFallback\app\...\desktop-commander\dist\index.js
-- Live status: device online is insufficient; require Commander semantic operation
-- Independent recovery: must prove another machine execution route before disruption
-- Resources: hosted relay/device session
-- Dependents: desktop_commander_local; chatgpt_machine_execution; execution_workers
-- Runbook: %LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1
-- Supervisor: desktop_commander_watchdog
-- Self-heal: watchdog_expected_but_not_safe-to-kill-proof
-
-### `desktop_commander_local`
-
-- Role: `machine_transport_execution_child`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: %LOCALAPPDATA%\DesktopCommanderFallback\app\...\desktop-commander\dist\index.js
-- Live status: Commander semantic file/process operation
-- Independent recovery: prove another machine execution route before disruption
-- Resources: machine files; spawned process handles
-- Dependents: chatgpt_machine_execution; execution_workers
-- Runbook: %LOCALAPPDATA%\DesktopCommanderFallback\watchdog.ps1
-- Supervisor: desktop_commander_remote
-- Self-heal: parent/watchdog_may_recreate; never assume without proof
 
 ### `github_runner`
 
@@ -450,4 +411,4 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 OS PIDs are ephemeral lookup keys only. `blast-radius --pid <pid>` resolves stable identity from executable/command line, ancestry, supervisor/config/resource evidence, then reports affected control paths and a destructive verdict.
 
-Commander and MCP are separate declared process trees. Never infer independence from tool names: observed shared-resource coupling is additional evidence and must be included in blast-radius analysis.
+MCP/VPS process identity is derived from executable, command line, ancestry, supervisor, and resource evidence; never infer safety from a tool name alone.
