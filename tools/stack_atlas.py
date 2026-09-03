@@ -588,15 +588,24 @@ def blast_radius(
         "required_next": required_next,
         "authority": ATLAS_CONTRACT["authority"],
     }
+LIVE_PROBE_TIMEOUT_SECONDS = 5
+
+
 def _powershell_json(script: str) -> Any:
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=LIVE_PROBE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Stack Atlas live probe timed out after {LIVE_PROBE_TIMEOUT_SECONDS}s"
+        ) from exc
     text = result.stdout.strip()
     return json.loads(text) if text else []
 
