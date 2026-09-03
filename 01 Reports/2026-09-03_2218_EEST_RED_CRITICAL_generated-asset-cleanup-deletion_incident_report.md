@@ -161,3 +161,24 @@ This failure should become expensive to repeat. A regression fixture or cleanup 
 **RED CRITICAL remains ACTIVE.**
 
 The destructive cleanup was stopped after the user identified the violation. No further deletion should be justified by broad size scans or path-name heuristics. The next legitimate action on this incident is recovery/duplicate verification for `C:\out`, followed by enforcement of the fail-closed asset cleanup boundary.
+
+## 2026-09-04 recovery follow-up: recurrence cause and known-good path
+
+The cleanup incident exposed a second recurring failure: the stack had protection prose but no current first-response disk-recovery map. That made each low-space event start with filesystem archaeology. The assistant repeatedly used recursive/logical-size scans that were slow or misleading on worktrees, LFS, hydrated Unreal state and linked/shared storage. After wasting time, urgency then increased the risk of crossing the protected-data boundary. This is a recurrence of the August 23 disk-pressure class, not a new unrelated problem.
+
+The successful recovery path used direct allocation evidence and actual free-space receipts instead of trusting logical directory totals. Observed high-yield safe actions during this incident included:
+
+1. Stremio server media cache, with Stremio idle: **11.98 GiB actually reclaimed**.
+2. Unreal global Derived Data Cache, after Unreal/Zen were idle: **7.90 GiB actually reclaimed**.
+3. Lossless compression of idle LowVRAM/P3/MCP tool state: **3.12 GiB actually reclaimed** in the measured batch.
+4. Lossless compression of old standalone Unreal projects: **1.47 GiB actually reclaimed** while preserving every file.
+5. P3 LFS object compression preserved all local objects but yielded only **0.56 GiB**, proving that apparent logical size alone is not enough to prioritize a reclaim action.
+6. Lossless compression of the installed UE 5.8 tree provided the largest remaining gain and crossed the machine back over the 100-GiB operating target. Its exact isolated delta cannot be attributed cleanly because other workers were writing concurrently, so only the observed free-space checkpoints are claimed. UE files remained readable/compressed and a later `UnrealEditor-Cmd.exe` launched from the installation.
+
+The machine reached a verified final checkpoint of **102.33 GiB free**, up from the incident low near **25.6 GiB**.
+
+The cached WizTree/MFT export already present at `C:\Temp\wiztree*.csv` was the turning point: it exposed real allocated owners without another filesystem walk. Future recovery must prefer a recent allocation/MFT export or the North Star recovery map before any broad recursive scan.
+
+### Prevention owner
+
+This behavior is now owned by the current `NORTH_STAR.md`, not by this historical report. The North Star defines the first-response order, protected classes, actual-free-space verification requirement, and the prohibition on broad recursive rediscovery when known allocation evidence exists. The existing replay fixture `03 Fixtures and Experiments/data-destruction-disk-pressure.json` now covers both destructive asset cleanup and recursive-rediscovery recurrence.

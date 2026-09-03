@@ -32,6 +32,19 @@ If a known regression reappears, one of these must be true and explicitly identi
 
 Bad data must be correctable without destroying history. Superseded evidence stays traceable, and corrected evidence must identify what changed and why.
 
+### Known machine disk-recovery invariant
+
+Disk pressure is a recurring stack failure, not an invitation to rediscover the machine from scratch. The August 23 and September 3 incidents proved both sides of the failure: broad logical-size archaeology wastes time on worktrees/LFS/shared state, while urgency can then push cleanup across the protected asset boundary. The first response must therefore use a known recovery path and fail closed on product data.
+
+- Start from the real free-space reading and current process/ownership state. Do **not** begin with broad recursive `robocopy`/`du`/profile/disk logical-size scans. If a recent MFT/WizTree allocation export already exists, use it; otherwise inspect only named known consumers.
+- Prefer verified reproducible reclaim in this order: idle application media caches that are not protected browser data; Unreal DDC/shader/UBA and other engine caches when their owner is idle; idle runner `_work` and task-owned build/intermediate state; idle reproducible tool/runtime caches. If deletion is unsafe but the data is cold and compressible, prefer lossless NTFS compression over deleting it.
+- Generated assets/results, source libraries/masters, proof/evidence, dirty or unique work, active/warm lanes, Vault, Downloads, browser caches, and the pagefile are not generic disk-reclaim targets. A path named `out`, `results`, `cache`, or similar is not disposable by name.
+- Process-free is necessary for many cleanup actions but never sufficient. Destructive reclaim requires positive recoverability/provenance.
+- Verify the **actual C: free-space delta after each reclaim action**. Logical directory size is discovery evidence only; if deletion or compression does not increase free space, do not count it as reclaimed capacity.
+- Restore the current machine operating headroom target before resuming disk-growing work; on this machine the established working target is at least 100 GiB free. Do not widen into protected data merely to reach the target.
+
+This is a North Star invariant because the user should not have to supervise disk archaeology or re-teach protected-data boundaries during each low-space incident. The replay fixture `03 Fixtures and Experiments/data-destruction-disk-pressure.json` must reject both asset-destructive cleanup and broad recursive rediscovery.
+
 ## Evidence coverage
 
 The evidence model must not depend on one assistant surface. Local histories from **ChatGPT, OpenCode, Claude, Codex, Traycer, and Command-Code** are complementary evidence sources for the same operating stack.
