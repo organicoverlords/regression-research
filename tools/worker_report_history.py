@@ -437,11 +437,18 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _default_history_root(report: Path) -> Path:
+    parent = report.parent
+    if parent.name.casefold() == "current":
+        return parent.parent / "history"
+    return parent / "history"
+
+
 def main() -> int:
     args = build_parser().parse_args()
     try:
         if args.command == "archive":
-            history_root = args.history_root or args.report.parent / "history"
+            history_root = args.history_root or _default_history_root(args.report)
             result = archive_finalized_report(args.report, history_root)
         else:
             result = write_metrics_projection(args.history_root, args.write, hours=args.hours) if args.write else summarize_history(args.history_root, hours=args.hours)
