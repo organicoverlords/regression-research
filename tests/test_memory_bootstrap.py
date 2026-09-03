@@ -28,15 +28,6 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("optional notebook-style enrichment", text)
         self.assertNotIn("behavior delivery ->", text)
 
-    def test_distribution_contract_retires_behavior_bootstrap(self):
-        text = (ROOT / "04 Operating Contracts/chatgpt-bootstrap-distribution.md").read_text(encoding="utf-8")
-        self.assertIn("behavior-bootstrap pipeline is retired", text)
-        self.assertIn(RETIRED_LIBRARY_PATH, text)
-        self.assertIn("command is no longer exposed", text)
-        self.assertIn("not published as current behavior authority", text)
-        self.assertIn("Stack Atlas remains an operational map", text)
-        self.assertIn("searchable history/notebook/evidence", text)
-        self.assertNotIn("Library publisher worker contract", text)
 
     def test_shared_policy_treats_vault_as_optional_history(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

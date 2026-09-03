@@ -42,7 +42,6 @@ MEMORY_PATHS = {
     "memory/README.md",
     "docs/assistant-stack-architecture.md",
     "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
-    "04 Operating Contracts/chatgpt-bootstrap-distribution.md",
     "tools/stack_atlas.py",
     "tools/memory_authority.py",
     "tools/memory_bank.py",
