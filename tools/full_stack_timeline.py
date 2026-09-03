@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from .repo_timeline import RepoSpec, collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
-    from .stack_atlas import COMPONENTS, PRODUCT_COMPONENTS, PRODUCT_ROOTS, MCP_ROOT
+    from .repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, parse_repo_arg
+    from .stack_atlas import COMPONENTS, PRODUCT_COMPONENTS, MCP_ROOT
     from .worker_report_history import worker_history_events
 except ImportError:
-    from repo_timeline import RepoSpec, collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
-    from stack_atlas import COMPONENTS, PRODUCT_COMPONENTS, PRODUCT_ROOTS, MCP_ROOT
+    from repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, parse_repo_arg
+    from stack_atlas import COMPONENTS, PRODUCT_COMPONENTS, MCP_ROOT
     from worker_report_history import worker_history_events
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -664,10 +664,7 @@ def _dedupe_specs(specs: Iterable[RepoSpec]) -> list[RepoSpec]:
 
 
 def discover_full_stack_repos(vault_root: Path, extras: Iterable[RepoSpec] = ()) -> list[RepoSpec]:
-    operator = default_operator_live(vault_root)
-    specs = list(discover_repo_specs(operator, vault_root=vault_root))
-    for project, raw in PRODUCT_ROOTS.items():
-        specs.append(RepoSpec(project, Path(os.path.expandvars(raw))))
+    specs = list(discover_repo_specs(vault_root=vault_root))
     candidates = {
         "agents": Path.home() / ".agents",
         "mcp": Path(os.path.expandvars(MCP_ROOT)),
