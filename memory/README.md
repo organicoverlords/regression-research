@@ -74,7 +74,7 @@ Build an optional historical/project orientation from curated memory plus whatev
 python tools\memory_bank.py orient
 ```
 
-`orient` uses `operator-live.json` only as an optional repository-path registry. Commit events are read directly from each local Git object database; dashboard `recent_progress` is not accepted as commit evidence. Missing repos degrade independently instead of blocking orientation. Mainline (`origin/main`) commits and unmerged lane commits are labeled separately so swarm activity stays visible without being mistaken for landed state.
+`orient` discovers available product repositories directly from the Stack Atlas canonical product roots; explicit `--repo PROJECT=PATH` arguments remain available for additional repositories. Commit events are read directly from each local Git object database, so dashboard projections are not repo-history inputs. Missing repos degrade independently instead of blocking orientation. Mainline (`origin/main`) commits and unmerged lane commits are labeled separately so swarm activity stays visible without being mistaken for landed state.
 
 Inspect chronology directly:
 

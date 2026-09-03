@@ -117,10 +117,11 @@ class StackAtlasTests(unittest.TestCase):
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
-            "github_actions", "github_runner", "dev_progress_board", "operator_live", "worker_reports",
+            "github_actions", "github_runner", "dev_progress_board", "worker_reports",
             "lowvram", "asset_library", "tiny3d", "p3",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
+        self.assertNotIn("operator_live", ids)
 
     def test_product_flow_and_roles_match_current_repo_architecture(self):
         atlas = __import__("tools.stack_atlas", fromlist=["PRODUCT_FLOW"])
