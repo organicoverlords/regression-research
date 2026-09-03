@@ -1227,13 +1227,6 @@
       "notes": "Recovered assistant behavior rules snapshot; historical contract as it stood."
     },
     {
-      "path": "04 Operating Contracts/OLD GLOBAL CHATGPT WORK RULES — FOCUSED RECOVERY.txt",
-      "type": "contract_snapshot",
-      "date": "2026-08-20",
-      "linked_incident": null,
-      "notes": "Focused recovery of old global ChatGPT work rules; historical contract snapshot."
-    },
-    {
       "path": "90 Raw Transcripts/share-6a868251-ec24-83ed-992a-6681a66defcb.txt",
       "type": "raw_transcript",
       "date": "unknown",
