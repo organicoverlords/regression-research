@@ -15,6 +15,7 @@ from tools.full_stack_timeline import (
     _project_explicit_relationships,
     collect_all_commit_events,
     collect_assistant_surface_coverage,
+    collect_claude_session_events,
     collect_codex_thread_events,
     collect_document_sources,
     collect_explicit_evidence_events,
@@ -146,6 +147,54 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertIn("does not prove that behavior did not occur", by_id["codex-history"]["epistemic_basis"])
             self.assertEqual(by_id["chatgpt-history"]["coverage_status"], "REGISTRY_MISSING")
             self.assertTrue(by_id["chatgpt-history"]["coverage_gap"])
+
+    def test_claude_session_events_aggregate_metadata_without_emitting_content(self):
+        with tempfile.TemporaryDirectory() as d:
+            claude_root = Path(d) / ".claude"
+            claude_root.mkdir()
+            history_path = claude_root / "history.jsonl"
+            rows = [
+                {
+                    "display": "SECRET_FIRST_PROMPT",
+                    "pastedContents": {"1": "SECRET_PASTED_CONTENT"},
+                    "timestamp": 1783707061717,
+                    "project": r"C:\repo",
+                    "sessionId": "session-12345678",
+                },
+                {
+                    "display": "SECRET_SECOND_PROMPT",
+                    "pastedContents": {},
+                    "timestamp": 1783707062717,
+                    "project": r"C:\repo",
+                    "sessionId": "session-12345678",
+                },
+            ]
+            history_path.write_text("\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8")
+
+            events, errors = collect_claude_session_events(claude_root)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(events), 1)
+            event = events[0]
+            self.assertEqual(event["source_type"], "CLAUDE_SESSION")
+            self.assertEqual(event["epistemic_class"], "OBSERVED_FACT")
+            self.assertEqual(event["content_coverage"], "METADATA_ONLY")
+            self.assertEqual(event["history_entries"], 2)
+            self.assertEqual(event["projects"], [r"C:\repo"])
+            self.assertEqual(event["project_scope"], r"C:\repo")
+            self.assertFalse(event["project_scope_conflict"])
+            self.assertLess(datetime.fromisoformat(event["event_at"]), datetime.fromisoformat(event["updated_at"]))
+            serialized = json.dumps(event)
+            self.assertNotIn("SECRET_FIRST_PROMPT", serialized)
+            self.assertNotIn("SECRET_SECOND_PROMPT", serialized)
+            self.assertNotIn("SECRET_PASTED_CONTENT", serialized)
+
+    def test_claude_missing_history_is_explicit_gap_not_behavior_absence(self):
+        with tempfile.TemporaryDirectory() as d:
+            events, errors = collect_claude_session_events(Path(d) / ".claude")
+            self.assertEqual(events, [])
+            self.assertEqual(len(errors), 1)
+            self.assertIn("coverage gap", errors[0]["error"])
+            self.assertIn("does not prove behavior absence", errors[0]["error"])
 
     def test_codex_thread_events_use_metadata_only_and_preserve_repo_scope(self):
         with tempfile.TemporaryDirectory() as d:

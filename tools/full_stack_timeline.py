@@ -152,6 +152,88 @@ def collect_assistant_surface_coverage(
     return events, errors
 
 
+def collect_claude_session_events(claude_root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project metadata-only Claude session chronology from the local history index."""
+    history_path = claude_root / "history.jsonl"
+    if not history_path.is_file():
+        return [], [{
+            "path": str(history_path),
+            "error": "Claude history index is unavailable; this is a coverage gap and does not prove behavior absence",
+        }]
+
+    sessions: dict[str, dict[str, Any]] = {}
+    errors: list[dict[str, Any]] = []
+    try:
+        with history_path.open("r", encoding="utf-8", errors="replace") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    errors.append({
+                        "path": str(history_path),
+                        "line": line_number,
+                        "error": f"invalid Claude history JSON: {exc.msg}",
+                    })
+                    continue
+                session_id = str(row.get("sessionId") or "").strip()
+                timestamp = row.get("timestamp")
+                if not session_id or not isinstance(timestamp, (int, float)):
+                    continue
+                record = sessions.setdefault(session_id, {
+                    "first_timestamp_ms": timestamp,
+                    "last_timestamp_ms": timestamp,
+                    "projects": set(),
+                    "history_entries": 0,
+                })
+                record["first_timestamp_ms"] = min(record["first_timestamp_ms"], timestamp)
+                record["last_timestamp_ms"] = max(record["last_timestamp_ms"], timestamp)
+                record["history_entries"] += 1
+                project = row.get("project")
+                if isinstance(project, str) and project.strip():
+                    record["projects"].add(project)
+    except OSError as exc:
+        return [], [{
+            "path": str(history_path),
+            "error": f"Claude history index unavailable: {exc}; this is a coverage gap and does not prove behavior absence",
+        }]
+
+    events: list[dict[str, Any]] = []
+    for session_id, record in sessions.items():
+        try:
+            event_at = datetime.fromtimestamp(float(record["first_timestamp_ms"]) / 1000.0, tz=timezone.utc).isoformat()
+            updated_at = datetime.fromtimestamp(float(record["last_timestamp_ms"]) / 1000.0, tz=timezone.utc).isoformat()
+        except (TypeError, ValueError, OSError, OverflowError) as exc:
+            errors.append({
+                "path": str(history_path),
+                "session_id": session_id,
+                "error": f"invalid Claude session timestamp: {exc}",
+            })
+            continue
+        projects = sorted(record["projects"])
+        events.append({
+            "source_type": "CLAUDE_SESSION",
+            "authority": "LOCAL_CLAUDE_HISTORY_JSONL",
+            "epistemic_class": "OBSERVED_FACT",
+            "epistemic_basis": "primary local Claude session metadata observed from history.jsonl; text-bearing display/pasted content is discarded and never emitted, and metadata does not prove task outcome or behavior",
+            "id": f"claude-session:{session_id}",
+            "event_at": event_at,
+            "updated_at": updated_at,
+            "title": f"Claude session metadata {session_id[:8]}",
+            "surface": "Claude",
+            "source_id": "claude-history",
+            "source_path": str(history_path),
+            "content_coverage": "METADATA_ONLY",
+            "session_id": session_id,
+            "history_entries": record["history_entries"],
+            "projects": projects,
+            "project_scope": projects[0] if len(projects) == 1 else None,
+            "project_scope_conflict": len(projects) > 1,
+        })
+    return events, errors
+
+
 def collect_codex_thread_events(codex_root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Project metadata-only Codex thread chronology from the local primary state store."""
     db_path = codex_root / "state_5.sqlite"
@@ -649,6 +731,9 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     documents = collect_document_sources(vault_root)
     explicit_evidence, explicit_evidence_errors = collect_explicit_evidence_events(vault_root)
     assistant_coverage, assistant_coverage_errors = collect_assistant_surface_coverage(vault_root)
+    claude_coverage = next((item for item in assistant_coverage if item.get("source_id") == "claude-history"), None)
+    claude_root = Path(str(claude_coverage["resolved_path"])) if claude_coverage and claude_coverage.get("coverage_status") == "SOURCE_PRESENT" else None
+    claude_events, claude_errors = collect_claude_session_events(claude_root) if claude_root is not None else ([], [])
     codex_coverage = next((item for item in assistant_coverage if item.get("source_id") == "codex-history"), None)
     codex_root = Path(str(codex_coverage["resolved_path"])) if codex_coverage and codex_coverage.get("coverage_status") == "SOURCE_PRESENT" else None
     codex_events, codex_errors = collect_codex_thread_events(codex_root) if codex_root is not None else ([], [])
@@ -663,7 +748,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
     git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
     recovery_events = recoverable_git_events(git_states)
-    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *codex_events, *memory, *workers, *commits, *recovery_events])
+    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *claude_events, *codex_events, *memory, *workers, *commits, *recovery_events])
     if query:
         events = [item for item in events if _matches(item, query)]
         visible_ids = {str(item.get("id")) for item in events if item.get("id")}
@@ -678,7 +763,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
             "git": "commits plus searchable stash/reflog metadata, branches, refs, tags and worktrees come directly from each local Git object database; Git messages never prove effect or intent",
             "runtime": "live probes are current observations only for the instant collected",
-            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; Codex thread metadata is read from its local state_5.sqlite without transcript/user content; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
+            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; Claude session metadata is projected from history.jsonl and Codex thread metadata from state_5.sqlite while text/transcript content is excluded from emitted events; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
             "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require explicit structured evidence with basis + evidence refs; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
             "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
             "storage": "read-only projection; no new database, queue, coordinator or authority is created",
@@ -690,6 +775,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         "relationships": relationships,
         "assistant_surface_coverage": assistant_coverage,
         "assistant_surface_coverage_errors": assistant_coverage_errors,
+        "claude_session_errors": claude_errors,
         "codex_thread_errors": codex_errors,
         "structured_evidence_errors": explicit_evidence_errors,
         "epistemic_counts": _epistemic_counts(events),
@@ -700,6 +786,8 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "explicit_evidence_errors": len(explicit_evidence_errors),
             "assistant_surface_sources": len(assistant_coverage),
             "assistant_surface_gaps": sum(1 for item in assistant_coverage if item.get("coverage_gap")),
+            "claude_session_events": len(claude_events),
+            "claude_session_errors": len(claude_errors),
             "codex_thread_events": len(codex_events),
             "codex_thread_errors": len(codex_errors),
             "memory_events": len(memory),
