@@ -221,7 +221,7 @@ class MemoryTimelineTests(unittest.TestCase):
             bank = Path(d) / "bank.jsonl"
             rows = [self.e(f"e{i}", f"2026-08-29T0{i}:00:00+03:00", f"Event {i}", scope="p3/build", project="p3") for i in range(1, 4)]
             bank.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
-            proc = subprocess.run([sys.executable, str(ROOT / "tools" / "memory_timeline.py"), "--bank", str(bank), "--view", "project", "--project", "p3", "--limit", "2"], capture_output=True, text=True, encoding="utf-8", check=True)
+            proc = subprocess.run([sys.executable, str(ROOT / "tools" / "memory_bank.py"), "--bank", str(bank), "timeline", "--view", "project", "--project", "p3", "--limit", "2", "--no-workers"], capture_output=True, text=True, encoding="utf-8", check=True)
             payload = json.loads(proc.stdout)
             self.assertEqual(payload["authority"], "DERIVED_HISTORY_ONLY")
             self.assertEqual(len(payload["events"]), 2)

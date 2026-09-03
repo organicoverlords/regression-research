@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import argparse
-import json
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -491,36 +489,3 @@ def build_orientation(
         "projects": project_index,
         "repo_snapshots": list(repo_snapshots or []),
     }
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Derived chronological continuity views over the canonical memory bank.")
-    parser.add_argument("--bank", type=Path, default=Path(__file__).resolve().parents[1] / "memory" / "memory-bank.jsonl")
-    parser.add_argument("--view", choices=("general", "project", "errors"), default="general")
-    parser.add_argument("--project")
-    parser.add_argument("--query", default="")
-    parser.add_argument("--thread")
-    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
-    parser.add_argument("--days", type=int)
-    args = parser.parse_args()
-    try:
-        from .memory_bank import load_bank
-    except ImportError:
-        from memory_bank import load_bank
-    since = None
-    if args.days is not None:
-        if args.days < 0:
-            parser.error("--days must be non-negative")
-        since = datetime.now(timezone.utc) - timedelta(days=args.days)
-    report = build_timeline(load_bank(args.bank), view=args.view, project=args.project, query=args.query, thread=args.thread, limit=args.limit, since=since)
-    payload = json.dumps(report, ensure_ascii=False, separators=(",", ":")) + "\n"
-    stream = getattr(__import__("sys").stdout, "buffer", None)
-    if stream is None:
-        print(json.dumps(report, ensure_ascii=True))
-    else:
-        stream.write(payload.encode("utf-8", "backslashreplace"))
-        stream.flush()
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
