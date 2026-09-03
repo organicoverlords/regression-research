@@ -517,7 +517,10 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     evidence: list[str] = []
     component: str | None = None
 
-    if "desktopcommanderfallback" in ancestry_text and "watchdog.ps1" in command:
+    if "mcpvpsedge" in ancestry_text or "vps_mcp_reverse_tunnel.py" in command:
+        component = "vps_edge_ingress"
+        evidence.append("McpVpsEdge reverse-tunnel process ancestry")
+    elif "desktopcommanderfallback" in ancestry_text and "watchdog.ps1" in command:
         component = "desktop_commander_watchdog"
         evidence.append("DesktopCommanderFallback watchdog command")
     elif "desktopcommanderfallback" in ancestry_text and "desktop-commander" in command and "remote --persist-session" in command:
@@ -529,9 +532,12 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     elif "chatgptmcpclean" in ancestry_text and "front-door" in ancestry_text:
         component = "mcp_front_door"
         evidence.append("ChatGPTMcpClean front-door process ancestry")
-    elif "chatgptmcpclean" in ancestry_text and "start-minimal-clone.ps1" in ancestry_text:
+    elif (
+        ("chatgptmcpclean" in ancestry_text and "start-minimal-clone.ps1" in ancestry_text)
+        or "launch-mcp-vps-origin.ps1" in ancestry_text
+    ):
         component = "mcp_minimal_clone"
-        evidence.append("ChatGPTMcpClean minimal-clone launcher ancestry")
+        evidence.append("serving minimal-clone launcher ancestry")
     elif "chatgptmcpclean" in ancestry_text:
         component = "mcp_backend"
         evidence.append("ChatGPTMcpClean backend/supervisor ancestry")
@@ -587,6 +593,8 @@ def _destructive_verdict(component: str | None) -> tuple[str, str]:
         return "BLOCK_COORDINATION_AUTHORITY", "use BusyCoordinator contract/recovery; do not kill around its state store"
     if component.startswith("desktop_commander"):
         return "BLOCK_CONTROL_PATH_DEPENDENCY", "prove independent machine execution recovery before any disruption"
+    if component == "vps_edge_ingress":
+        return "BLOCK_ACTIVE_TRANSPORT", "prove an alternate machine-execution route and preserve the serving clone before edge disruption"
     if component == "mcp_front_door":
         return "BLOCK_ACTIVE_TRANSPORT", "update an inactive backend and switch only after exact compatibility proof"
     if component in {"mcp_backend", "mcp_minimal_clone"}:
