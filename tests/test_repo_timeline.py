@@ -40,34 +40,33 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(events[0]["refs"], ["#617"])
             self.assertEqual(events[0]["source_type"], "GIT_COMMIT")
             self.assertEqual(events[0]["authority"], "REPO_HISTORY")
-            self.assertEqual(events[0]["repo_state"], "UNKNOWN")
+            self.assertEqual(events[0]["repo_state"], "ALL_BRANCHES")
             self.assertNotEqual(events[0]["sha"], old)
 
-    def test_mainline_and_lane_commits_are_distinguished(self):
+    def test_all_branch_history_preserves_reachable_commits_without_main_privilege(self):
         with tempfile.TemporaryDirectory() as d:
             repo = self.make_repo(Path(d))
-            main = self.commit(repo, "main.txt", "mainline", "2026-08-28T10:00:00+03:00")
-            subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", main], check=True)
-            lane = self.commit(repo, "lane.txt", "worker lane", "2026-08-29T01:00:00+03:00")
+            older = self.commit(repo, "older.txt", "older integration commit", "2026-08-28T10:00:00+03:00")
+            subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", older], check=True)
+            newer = self.commit(repo, "newer.txt", "worker branch commit", "2026-08-29T01:00:00+03:00")
+            subprocess.run(["git", "-C", str(repo), "branch", "worker/topic", newer], check=True)
             events = git_commit_events(RepoSpec("p3", repo), limit=5)
             by_sha = {event["sha"]: event for event in events}
-            self.assertEqual(by_sha[main]["repo_state"], "MAINLINE")
-            self.assertTrue(by_sha[main]["on_origin_main"])
-            self.assertEqual(by_sha[lane]["repo_state"], "LANE")
-            self.assertFalse(by_sha[lane]["on_origin_main"])
+            self.assertIn(older, by_sha)
+            self.assertIn(newer, by_sha)
+            self.assertEqual(by_sha[older]["repo_state"], "ALL_BRANCHES")
+            self.assertEqual(by_sha[newer]["repo_state"], "ALL_BRANCHES")
+            self.assertNotIn("on_origin_main", by_sha[older])
 
-    def test_busy_lane_cannot_crowd_mainline_out_of_small_window(self):
+    def test_small_window_returns_newest_commit_across_all_branches(self):
         with tempfile.TemporaryDirectory() as d:
             repo = self.make_repo(Path(d))
-            main = self.commit(repo, "main.txt", "landed", "2026-08-28T10:00:00+03:00")
-            subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", main], check=True)
-            self.commit(repo, "lane1.txt", "lane one", "2026-08-29T01:00:00+03:00")
-            newest_lane = self.commit(repo, "lane2.txt", "lane two", "2026-08-29T02:00:00+03:00")
+            self.commit(repo, "old.txt", "old", "2026-08-28T10:00:00+03:00")
+            self.commit(repo, "mid.txt", "mid", "2026-08-29T01:00:00+03:00")
+            newest = self.commit(repo, "new.txt", "newest", "2026-08-29T02:00:00+03:00")
             events = git_commit_events(RepoSpec("p3", repo), limit=1)
-            self.assertEqual(len(events), 2)
-            by_state = {event["repo_state"]: event for event in events}
-            self.assertEqual(by_state["MAINLINE"]["sha"], main)
-            self.assertEqual(by_state["LANE"]["sha"], newest_lane)
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["sha"], newest)
 
     def test_repo_discovery_uses_canonical_product_roots_without_projection(self):
         with tempfile.TemporaryDirectory() as d:

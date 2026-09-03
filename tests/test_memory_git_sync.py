@@ -3,10 +3,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import MemorySyncError, _align_checkout, _git, _memory_commit_message, _write_bank, merge_bank_entries
+from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _git, _memory_commit_message, _validate_sync_branch, _write_bank, merge_bank_entries
 
 
 class MemoryGitSyncTests(unittest.TestCase):
+    def test_memory_sync_uses_dedicated_non_protected_branch(self):
+        self.assertEqual(BRANCH, "memory/live")
+        _validate_sync_branch()
+        with patch("tools.memory_git_sync.BRANCH", "main"):
+            with self.assertRaisesRegex(MemorySyncError, "refuses protected branch"):
+                _validate_sync_branch()
+
     def test_remote_order_is_preserved_and_local_only_entries_append(self):
         remote = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}]
         local = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}, {"id": "c", "text": "local"}]
@@ -49,7 +56,7 @@ class MemoryGitSyncTests(unittest.TestCase):
     def test_align_checkout_fast_forwards_memory_commit_preserving_other_dirty_work(self):
         with tempfile.TemporaryDirectory() as raw:
             repo = Path(raw)
-            _git("init", "-b", "main", cwd=repo)
+            _git("init", "-b", "memory/live", cwd=repo)
             _git("config", "user.email", "memory-sync@example.invalid", cwd=repo)
             _git("config", "user.name", "memory-sync-test", cwd=repo)
             bank = repo / "memory" / "memory-bank.jsonl"
@@ -67,9 +74,8 @@ class MemoryGitSyncTests(unittest.TestCase):
             target = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
             _git("reset", "--hard", base, cwd=repo)
             _git("remote", "add", "origin", str(repo), cwd=repo)
-            _git("update-ref", "refs/remotes/origin/main", target, cwd=repo)
-            _git("config", "branch.main.remote", "origin", cwd=repo)
-            _git("config", "branch.main.merge", "refs/heads/main", cwd=repo)
+            _git("update-ref", "refs/remotes/origin/memory/live", target, cwd=repo)
+            _git("branch", "--set-upstream-to", "origin/memory/live", "memory/live", cwd=repo)
 
             agents.write_text("dirty policy work\n", encoding="utf-8")
             bank.write_text('{"id":"old"}\n{"id":"new"}\n', encoding="utf-8", newline="\n")

@@ -20,12 +20,13 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertNotIn(RETIRED_LIBRARY_PATH, text)
 
 
-    def test_shared_policy_treats_vault_as_optional_history(self):
+    def test_vault_policy_is_centralized_and_local_agents_is_pointer_only(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("### Navigation minimap", text)
-        self.assertIn("Vault is history/evidence", text)
-        self.assertIn("never recursively scan Vault or make it a startup gate", text)
+        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\RULES.md", text)
+        self.assertIn(r"contexts\vault.md", text)
+        self.assertIn("pointer-only", text)
         self.assertNotIn("memory_bank.py bootstrap", text)
+        self.assertNotIn("### Navigation minimap", text)
 
     def test_worker_contract_stays_small_and_non_blocking(self):
         text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")

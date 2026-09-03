@@ -82,7 +82,6 @@ def repo_snapshot(spec: RepoSpec) -> dict[str, Any]:
         "branch": _git_value(path, "branch", "--show-current"),
         "head": _git_value(path, "rev-parse", "HEAD"),
         "origin": _git_value(path, "remote", "get-url", "origin"),
-        "origin_main": _git_value(path, "rev-parse", "origin/main"),
     })
     proc = _run_git(path, "status", "--porcelain=v1", check=False)
     if proc.returncode == 0:
@@ -116,9 +115,8 @@ def _git_log_rows(path: Path, revisions: list[str], *, limit: int, since: dateti
     return rows
 
 
-def _event_from_row(spec: RepoSpec, row: tuple[str, str, str, str], *, origin: str | None, repo_state: str) -> dict[str, Any]:
+def _event_from_row(spec: RepoSpec, row: tuple[str, str, str, str], *, origin: str | None) -> dict[str, Any]:
     sha, event_at, title, decorations = row
-    on_origin_main = True if repo_state == "MAINLINE" else (False if repo_state == "LANE" else None)
     return {
         "id": f"git:{spec.project}:{sha}",
         "source_type": "GIT_COMMIT",
@@ -134,34 +132,26 @@ def _event_from_row(spec: RepoSpec, row: tuple[str, str, str, str], *, origin: s
         "decorations": decorations,
         "repo_path": str(spec.path),
         "origin": origin,
-        "on_origin_main": on_origin_main,
-        "repo_state": repo_state,
+        "repo_state": "ALL_BRANCHES",
         "thread_id": f"repo:{spec.project}",
         "thread_source": "PROJECT_REPO_STREAM",
     }
 
 
 def git_commit_events(spec: RepoSpec, *, limit: int = 20, since: datetime | None = None) -> list[dict[str, Any]]:
-    """Return balanced landed + lane chronology from local Git without network access.
+    """Return one bounded date-ordered chronology across every local/remote branch ref.
 
-    `limit` is reserved independently for the mainline and lane streams so a busy
-    swarm cannot hide the last landed commits from a compact orientation view.
+    No branch, including main/default, receives a privileged quota. Decorations preserve
+    the refs that make each commit reachable so workers can orient from the actual live
+    workstreams instead of treating one integration branch as the project timeline.
     """
     if limit <= 0 or not spec.path.is_dir():
         return []
     if _run_git(spec.path, "rev-parse", "--git-dir", check=False).returncode != 0:
         return []
     origin = _git_value(spec.path, "remote", "get-url", "origin")
-    origin_main = _git_value(spec.path, "rev-parse", "origin/main")
-    events: list[dict[str, Any]] = []
-    if origin_main:
-        main_rows = _git_log_rows(spec.path, ["origin/main"], limit=limit, since=since)
-        lane_rows = _git_log_rows(spec.path, ["--all", "--not", "origin/main"], limit=limit, since=since)
-        events.extend(_event_from_row(spec, row, origin=origin, repo_state="MAINLINE") for row in main_rows)
-        events.extend(_event_from_row(spec, row, origin=origin, repo_state="LANE") for row in lane_rows)
-    else:
-        rows = _git_log_rows(spec.path, ["--all"], limit=limit, since=since)
-        events.extend(_event_from_row(spec, row, origin=origin, repo_state="UNKNOWN") for row in rows)
+    rows = _git_log_rows(spec.path, ["--all"], limit=limit, since=since)
+    events = [_event_from_row(spec, row, origin=origin) for row in rows]
     events.sort(key=lambda event: (datetime.fromisoformat(event["event_at"].replace("Z", "+00:00")), event["id"]), reverse=True)
     return events
 

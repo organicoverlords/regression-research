@@ -28,6 +28,6 @@ Stronger historical findings enter through `02 Evidence/timeline-events/*.json` 
 
 Explicit `supersedes` and `contradicts` links are projected as relationships and reverse `superseded_by` / `contradicted_by` references when both records are present. No contradiction or causal edge is synthesized from chronology or text similarity. Historical documents and reports never become current truth merely because they appear in the timeline.
 
-For mutation, inspect the repository's `mutation_admission`. `DIRECT_OK` means the checkout is clean and at current `origin/main`. `ISOLATE_REQUIRED` means preserve that checkout and use an admitted isolated worktree or already-owned safe lane.
+For mutation, inspect the repository's `mutation_admission`. `DIRECT_OK` means the checkout is a clean named worker/convergence branch. `main`, `master`, `dev`, and `develop` are protected human/integration branches and are never worker mutation targets. `ISOLATE_REQUIRED` means preserve that checkout and use or claim a clean named work branch/already-owned safe lane.
 
 For current runtime claims, verify the smallest named live source from Stack Atlas. The timeline is evidence and navigation, not proof of present liveness.

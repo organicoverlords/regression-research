@@ -1,0 +1,76 @@
+{
+  "schema": "full-stack-timeline-events.v1",
+  "events": [
+    {
+      "id": "evidence:agent-rules-authority-centralized-20260904",
+      "event_at": "2026-09-04T00:33:00+03:00",
+      "title": "Agent policy authority centralized into one rules repo",
+      "project": "vault",
+      "scope": "agent-rules/policy-authority",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "Direct Git/filesystem inspection verified a private organicoverlords/agent-rules repository with default rules/live, central RULES/context files, retired local generated-policy machinery, pointer-only downstream rule files, and focused regressions for the new Atlas/all-branch model.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "git:agent-rules:648c9db",
+        "github:organicoverlords/agent-rules"
+      ],
+      "result": {
+        "canonical_rule_repo": "organicoverlords/agent-rules",
+        "default_branch": "rules/live",
+        "local_policy_authority": "retired",
+        "repo_rule_files": "pointer-only",
+        "worker_history_orientation": "all-branches",
+        "product_integration_branches": "protected-human-validation"
+      }
+    },
+    {
+      "id": "evidence:memory-sync-protected-main-violation-20260904",
+      "event_at": "2026-09-04T00:39:29+03:00",
+      "title": "Memory writer main-branch publication trap contained on dedicated memory/live branch",
+      "project": "vault",
+      "scope": "vault/memory-sync-protected-main",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "The required memory record path published a04cdb1 directly to main because memory_git_sync.py hard-coded BRANCH=main. main then independently advanced to c6c17b6, making history rewrite unsafe. Exact a04cdb1 was preserved as memory/live; the repair candidate uses memory/live and rejects protected branches, and a repository-local pre-push guard immediately blocks direct protected-branch pushes.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "git:regression-research:a04cdb11551fe3e5193a4857b6dfe6cb579d300c",
+        "git:regression-research:c6c17b6985859b26399a5cb0484bbb59eef023d4"
+      ],
+      "result": {
+        "accidental_commit": "a04cdb11551fe3e5193a4857b6dfe6cb579d300c",
+        "preserved_branch": "memory/live",
+        "main_left_at": "c6c17b6985859b26399a5cb0484bbb59eef023d4",
+        "memory_sync_tests": 8,
+        "protected_push_guard": "PASS"
+      }
+    },
+    {
+      "id": "evidence:agent-rules-five-repo-convergence-ready-20260904",
+      "event_at": "2026-09-04T01:39:07+03:00",
+      "title": "Five-repo pointer convergence prepared without advancing protected branches",
+      "project": "vault",
+      "scope": "agent-rules/five-repo-convergence",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "Direct ls-remote verification confirmed the exact pushed P3, Tiny3D, LowVRAM, MCP, and Vault named-branch candidates plus the current protected branch heads. Canonical rules/live was fetched and resolved directly. Unpushed local Vault convergence commits are excluded from delivered candidate evidence. Protected branches were deliberately left untouched pending explicit user approval.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "git:agent-rules:ad93f5c1a86ab88d536bf4bf7cc1ab24228fed4e",
+        "git:p3:f246ff7a32c4e9d4b8565f5e4e64fadbf72f4da3",
+        "git:tiny3d:333ef57aa313cf0431d9845f8689e6b00ede113c",
+        "git:lowvram:e838e818494bb70c95366aabac3c8e4f960e539f",
+        "git:mcp:45005d7c9645e958af22d7712944fc0bf2b18c88",
+        "git:regression-research:bffa5f1fbdb2651624050f55ec44953f89cc3812"
+      ],
+      "result": {
+        "canonical_rules_head": "ad93f5c1a86ab88d536bf4bf7cc1ab24228fed4e",
+        "p3_candidate": "f246ff7a32c4e9d4b8565f5e4e64fadbf72f4da3",
+        "tiny3d_candidate": "333ef57aa313cf0431d9845f8689e6b00ede113c",
+        "lowvram_candidate": "e838e818494bb70c95366aabac3c8e4f960e539f",
+        "mcp_candidate": "45005d7c9645e958af22d7712944fc0bf2b18c88",
+        "protected_branch_policy": "pending-explicit-user-approval",
+        "vault_candidate": "bffa5f1fbdb2651624050f55ec44953f89cc3812",
+        "unpublished_local_vault_commits": "excluded-from-delivered-candidate"
+      }
+    }
+  ]
+}

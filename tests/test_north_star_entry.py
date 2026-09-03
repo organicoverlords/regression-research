@@ -3,6 +3,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RULES_ROOT = Path(r"C:\Users\Lauri\Documents\agent-rules")
+VAULT_CONTEXT = RULES_ROOT / "contexts" / "vault.md"
 DIRECTIVE = (
     "- In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, "
     "memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as "
@@ -32,31 +34,35 @@ BIG_CHANGE_INTERRUPT = (
 
 
 class NorthStarEntryTests(unittest.TestCase):
-    def test_agents_requires_current_north_star_before_substantive_stack_work(self):
+    def test_agents_points_to_canonical_rules_and_vault_context(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(DIRECTIVE), 1)
+        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\RULES.md", agents)
+        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\contexts\vault.md", agents)
+        self.assertIn("pointer-only", agents)
+        self.assertNotIn(DIRECTIVE, agents)
 
+    def test_agents_requires_current_north_star_before_substantive_stack_work(self):
+        context = VAULT_CONTEXT.read_text(encoding="utf-8")
+        self.assertEqual(context.count(DIRECTIVE), 1)
 
     def test_vault_is_optional_history_not_startup(self):
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(NAVIGATION_HEADING), 1)
-        self.assertEqual(agents.count(ATLAS_ORDER), 1)
-        self.assertEqual(agents.count(SEARCH_BEFORE_INVENTING), 1)
-        self.assertNotIn("memory_bank.py bootstrap", agents)
-        self.assertIn("Vault is history/evidence", agents)
-
+        rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
+        self.assertEqual(rules.count(NAVIGATION_HEADING), 1)
+        self.assertEqual(rules.count(ATLAS_ORDER), 1)
+        self.assertEqual(rules.count(SEARCH_BEFORE_INVENTING), 1)
+        self.assertNotIn("memory_bank.py bootstrap", rules)
+        self.assertIn("Vault is history/evidence", rules)
 
     def test_read_only_investigation_never_claims_busy(self):
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(INVESTIGATION_BOUNDARY), 1)
+        context = VAULT_CONTEXT.read_text(encoding="utf-8")
+        self.assertEqual(context.count(INVESTIGATION_BOUNDARY), 1)
         self.assertIn("Read-only investigation and analysis remain unclaimed", INVESTIGATION_BOUNDARY)
         self.assertIn("standalone BusyCoordinator", INVESTIGATION_BOUNDARY)
         self.assertIn("do not create claims merely to think, inspect, or answer", INVESTIGATION_BOUNDARY)
 
-
     def test_large_worker_changes_recheck_current_interrupt_state(self):
-        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertEqual(agents.count(BIG_CHANGE_INTERRUPT), 1)
+        context = VAULT_CONTEXT.read_text(encoding="utf-8")
+        self.assertEqual(context.count(BIG_CHANGE_INTERRUPT), 1)
         self.assertIn("scope-visible pending handoffs/findings", BIG_CHANGE_INTERRUPT)
         self.assertIn("newer stop, superseding handoff, or scope change", BIG_CHANGE_INTERRUPT)
         self.assertIn("not per-command polling", BIG_CHANGE_INTERRUPT)

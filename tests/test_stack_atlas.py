@@ -121,13 +121,14 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
         self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
+        self.assertEqual(component_details("rules")["id"], "agent_rules")
 
     def test_bootstrap_directory_covers_major_stack_surfaces(self):
         atlas = build_bootstrap_atlas()
         ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS) | set(__import__("tools.stack_atlas", fromlist=["PRODUCT_ROOTS"]).PRODUCT_ROOTS)
         expected = {
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
-            "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
+            "agent_rules", "repo_rule_pointer", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "dev_progress_board", "worker_reports",
             "lowvram", "asset_library", "tiny3d", "p3",
@@ -166,13 +167,20 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("Supervisor", text)
         self.assertIn("Resources", text)
 
-    def test_repo_agents_requires_atlas_before_stack_work(self):
+    def test_vault_agents_is_pointer_only_to_canonical_rules(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("consume the current Stack Atlas", agents)
-        self.assertIn("before deciding relevance or blast radius", agents)
-        self.assertIn("deep-lookup only the components/live proof routes relevant to the task", agents)
-        self.assertIn("unresolved dependency or recovery impact blocks the action", agents)
-        self.assertIn("PID is only an ephemeral lookup key", agents)
+        self.assertEqual(len(agents.rstrip().splitlines()), 7)
+        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\RULES.md", agents)
+        self.assertIn(r"contexts\vault.md", agents)
+        self.assertIn("pointer-only", agents)
+        self.assertNotIn("SHARED-AGENT-POLICY", agents)
+        self.assertNotIn("### Navigation minimap", agents)
+
+    def test_memory_bank_publishes_only_through_dedicated_memory_branch(self):
+        memory = component_details("memory_bank")
+        joined = " ".join([*memory["canonical_sources"], *memory["live_status"]])
+        self.assertIn("origin/memory/live", joined)
+        self.assertIn("forbidden publication targets", joined)
 
     def test_every_component_declares_its_own_live_truth_and_recovery_routes(self):
         atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS", "PRODUCT_ROOTS"])
