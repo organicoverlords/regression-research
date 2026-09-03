@@ -27,6 +27,14 @@ EPISTEMIC_CLASSES = ("OBSERVED_FACT", "REPRODUCED_FACT", "INFERENCE", "HISTORICA
 EXPLICIT_EVIDENCE_SCHEMA = "full-stack-timeline-events.v1"
 STRONG_EPISTEMIC_CLASSES = {"OBSERVED_FACT", "REPRODUCED_FACT", "INFERENCE"}
 EXTERNAL_EVIDENCE_PREFIXES = ("git:", "github:", "http://", "https://")
+ASSISTANT_HISTORY_SOURCES = (
+    ("chatgpt-history", "ChatGPT"),
+    ("opencode-history", "OpenCode"),
+    ("claude-history", "Claude"),
+    ("codex-history", "Codex"),
+    ("traycer-artifacts", "Traycer"),
+    ("command-code-history", "Command-Code"),
+)
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(args), cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
@@ -69,6 +77,78 @@ def _category(path: Path, root: Path) -> str:
     if name in {"readme.md", "changelog.md", "north_star.md", "agents.md"}:
         return "project_document"
     return "other_durable_source"
+
+
+def _resolve_assistant_history_location(vault_root: Path, home: Path, location: str) -> Path | None:
+    if location == "preserved ChatGPT conversation/export corpus":
+        return vault_root / "memory" / "conversations"
+    if location.startswith("local/"):
+        return home / Path(location[len("local/"):])
+    return None
+
+
+def collect_assistant_surface_coverage(
+    vault_root: Path, *, home: Path | None = None, observed_at: str | None = None
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    home = home or Path.home()
+    observed_at = observed_at or datetime.now(timezone.utc).isoformat()
+    registry_path = vault_root / "memory" / "sources.json"
+    errors: list[dict[str, Any]] = []
+    inventory: dict[str, dict[str, Any]] = {}
+    try:
+        payload = json.loads(registry_path.read_text(encoding="utf-8-sig"))
+        rows = payload.get("candidate_source_inventory")
+        if not isinstance(rows, list):
+            raise ValueError("candidate_source_inventory must be an array")
+        inventory = {str(item.get("id")): item for item in rows if isinstance(item, dict) and item.get("id")}
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        errors.append({"path": str(registry_path), "error": f"assistant source registry unavailable: {exc}"})
+
+    events: list[dict[str, Any]] = []
+    for source_id, surface in ASSISTANT_HISTORY_SOURCES:
+        raw = inventory.get(source_id)
+        location = str(raw.get("location") or "") if raw else ""
+        resolved = _resolve_assistant_history_location(vault_root, home, location) if location else None
+        if raw is None:
+            status = "REGISTRY_MISSING"
+            path_kind = None
+            basis = "required assistant-history source is missing from the source registry; this is a coverage gap and does not prove that behavior did not occur"
+        elif resolved is None:
+            status = "UNRESOLVED_LOCATION"
+            path_kind = None
+            basis = "assistant-history registry location is not concrete enough for filesystem verification; this is a coverage gap and does not prove source absence or behavior"
+        elif resolved.is_dir():
+            status = "SOURCE_PRESENT"
+            path_kind = "directory"
+            basis = "configured assistant-history source directory presence observed at collection time; this does not prove content completeness, freshness, or any behavior claim"
+        elif resolved.is_file():
+            status = "SOURCE_PRESENT"
+            path_kind = "file"
+            basis = "configured assistant-history source file presence observed at collection time; this does not prove content completeness, freshness, or any behavior claim"
+        else:
+            status = "SOURCE_MISSING"
+            path_kind = "missing"
+            basis = "configured assistant-history source path absence observed at collection time; this is a coverage gap and does not prove that behavior did not occur"
+        events.append({
+            "source_type": "ASSISTANT_SURFACE_COVERAGE",
+            "authority": "LOCAL_SOURCE_REGISTRY_AND_FILESYSTEM",
+            "epistemic_class": "OBSERVED_FACT",
+            "epistemic_basis": basis,
+            "id": f"assistant-coverage:{source_id}:{observed_at}",
+            "event_at": observed_at,
+            "title": f"{surface} history coverage: {status}",
+            "surface": surface,
+            "source_id": source_id,
+            "registry_class": raw.get("class") if raw else None,
+            "declared_availability": raw.get("availability") if raw else None,
+            "registry_location": location or None,
+            "resolved_path": str(resolved) if resolved is not None else None,
+            "path_kind": path_kind,
+            "coverage_status": status,
+            "coverage_gap": status != "SOURCE_PRESENT",
+            "content_coverage": "UNASSESSED",
+        })
+    return events, errors
 
 
 def collect_document_sources(root: Path) -> list[dict[str, Any]]:
@@ -491,6 +571,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     specs = discover_full_stack_repos(vault_root, extra_specs)
     documents = collect_document_sources(vault_root)
     explicit_evidence, explicit_evidence_errors = collect_explicit_evidence_events(vault_root)
+    assistant_coverage, assistant_coverage_errors = collect_assistant_surface_coverage(vault_root)
     memory = collect_memory_events(vault_root / "memory" / "memory-bank.jsonl")
     worker_root = vault_root / "worker-reports" / "history"
     workers = []
@@ -502,7 +583,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
     git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
     recovery_events = recoverable_git_events(git_states)
-    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *memory, *workers, *commits, *recovery_events])
+    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *memory, *workers, *commits, *recovery_events])
     if query:
         events = [item for item in events if _matches(item, query)]
         visible_ids = {str(item.get("id")) for item in events if item.get("id")}
@@ -517,6 +598,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
             "git": "commits plus searchable stash/reflog metadata, branches, refs, tags and worktrees come directly from each local Git object database; Git messages never prove effect or intent",
             "runtime": "live probes are current observations only for the instant collected",
+            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
             "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require explicit structured evidence with basis + evidence refs; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
             "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
             "storage": "read-only projection; no new database, queue, coordinator or authority is created",
@@ -526,6 +608,8 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         "repo_snapshots": history["repo_snapshots"],
         "events": events,
         "relationships": relationships,
+        "assistant_surface_coverage": assistant_coverage,
+        "assistant_surface_coverage_errors": assistant_coverage_errors,
         "structured_evidence_errors": explicit_evidence_errors,
         "epistemic_counts": _epistemic_counts(events),
         "counts": {
@@ -533,6 +617,8 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "documents": len(documents),
             "explicit_evidence_events": len(explicit_evidence),
             "explicit_evidence_errors": len(explicit_evidence_errors),
+            "assistant_surface_sources": len(assistant_coverage),
+            "assistant_surface_gaps": sum(1 for item in assistant_coverage if item.get("coverage_gap")),
             "memory_events": len(memory),
             "worker_events": len(workers),
             "git_commits": len(commits),
