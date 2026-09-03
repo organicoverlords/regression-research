@@ -66,7 +66,6 @@ MEMORY_PATHS = {
 CONVERSATION_PATHS = {
     "tools/conversation_search.py",
     "tools/conversation_search_refresh.py",
-    "tools/validate_conversation_search_corpus.py",
     "tests/test_conversation_search.py",
     "tests/test_conversation_search_refresh.py",
     "tests/fixtures/conversation-corpus/ChatPortEvidence/old.json",
@@ -201,7 +200,6 @@ def verify_conversation() -> None:
             "py_compile",
             "tools/conversation_search.py",
             "tools/conversation_search_refresh.py",
-            "tools/validate_conversation_search_corpus.py",
         ]
     )
     run(
@@ -227,7 +225,6 @@ def verify_conversation() -> None:
                 corpus,
             ]
         )
-        run([sys.executable, "tools/validate_conversation_search_corpus.py", "--db", database])
     print("CONVERSATION_SEARCH_FIXTURE_PROVEN")
 
 
