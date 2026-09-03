@@ -27,7 +27,6 @@ Run `python tools/wip_hygiene.py` for a separate non-destructive inventory of un
 | `03 Fixtures and Experiments/` | Replay-ready fixtures with scoring criteria |
 | `04 Operating Contracts/` | Snapshots of contracts as they stood, for dating drift |
 | `90 Raw Transcripts/` | Unchanged source exports |
-| `99 Duplicate Archive/` | Superseded duplicates, kept rather than deleted |
 
 ## How a case is recorded
 
@@ -69,7 +68,7 @@ Source provenance across reports, evidence, and raw transcripts is indexed in
 [`provenance.json`](provenance.json) (machine-readable). It maps each report in
 `01 Reports` to evidence files, raw transcripts, contract snapshots, dates, and
 evidence type, records missing or unresolved links explicitly, and marks
-duplicate/superseded artifacts in `99 Duplicate Archive`. Validate with
+duplicate/superseded report entries directly in the provenance index. Validate with
 `python tools/provenance.py validate`.
 
 ## Bounded WebGPT reporting
