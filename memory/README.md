@@ -114,7 +114,7 @@ Every bank/candidate record can be classified through the bounded deterministic 
 
 Ordinary recall excludes records classified as historical, ephemeral, expired or strongly sensitive, while explicit `history` preserves their evidence trail. `PROVISIONAL` remains explicit review work. New writes auto-fill `project` only when exactly one descriptor project can be inferred safely; explicit `--project` wins.
 
-Classify one bank record incrementally with `python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>`. Regenerate exhaustive #87 accounting with `python tools\memory_normalization_report.py --output <report.json>`. The normalization report is a derived point-in-time audit with source hashes, not another recall authority.
+Classify one bank record incrementally with `python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>`. The completed #87 exhaustive normalization receipts remain preserved under `02 Evidence/` as historical acceptance evidence; current operation does not regenerate them.
 
 ## Candidate extraction
 
