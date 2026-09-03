@@ -16,10 +16,9 @@ try:
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
-    from .memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
+    from .memory_timeline import build_orientation, build_recurrence_context, build_timeline
     from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
-    from .stack_atlas import build_bootstrap_atlas
     from .worker_report_history import summarize_history, worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
@@ -27,10 +26,9 @@ except ImportError:
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
-    from memory_timeline import build_behavior_bootstrap, build_orientation, build_recurrence_context, build_timeline
+    from memory_timeline import build_orientation, build_recurrence_context, build_timeline
     from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, default_operator_live, discover_repo_specs, parse_repo_arg
-    from stack_atlas import build_bootstrap_atlas
     from worker_report_history import summarize_history, worker_history_events
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
