@@ -152,6 +152,107 @@ def collect_assistant_surface_coverage(
     return events, errors
 
 
+def collect_opencode_session_events(db_path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Project metadata-only OpenCode session chronology from the local primary database."""
+    if not db_path.is_file():
+        return [], [{
+            "path": str(db_path),
+            "error": "OpenCode session metadata store is unavailable; this is a coverage gap and does not prove behavior absence",
+        }]
+
+    events: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True, timeout=1.0)
+        columns = {str(row[1]) for row in connection.execute("PRAGMA table_info(session)")}
+        required = {"id", "time_created"}
+        if not required.issubset(columns):
+            missing = ", ".join(sorted(required - columns))
+            raise ValueError(f"session table missing required columns: {missing}")
+        wanted = [
+            "id", "project_id", "workspace_id", "parent_id", "directory", "version", "agent", "model",
+            "time_created", "time_updated", "time_archived",
+        ]
+        selected = [name for name in wanted if name in columns]
+        sql = f"SELECT {', '.join(selected)} FROM session ORDER BY time_created, id"
+        for values in connection.execute(sql):
+            row = dict(zip(selected, values))
+            session_id = str(row["id"])
+            try:
+                event_at = datetime.fromtimestamp(float(row["time_created"]) / 1000.0, tz=timezone.utc).isoformat()
+                updated_at = (
+                    datetime.fromtimestamp(float(row["time_updated"]) / 1000.0, tz=timezone.utc).isoformat()
+                    if row.get("time_updated") is not None
+                    else None
+                )
+                archived_at = (
+                    datetime.fromtimestamp(float(row["time_archived"]) / 1000.0, tz=timezone.utc).isoformat()
+                    if row.get("time_archived") is not None
+                    else None
+                )
+            except (TypeError, ValueError, OSError, OverflowError) as exc:
+                errors.append({
+                    "path": str(db_path),
+                    "session_id": session_id,
+                    "error": f"invalid OpenCode session timestamp: {exc}",
+                })
+                continue
+
+            model_raw = row.get("model")
+            model_id = None
+            model_provider = None
+            model_variant = None
+            if isinstance(model_raw, str) and model_raw:
+                try:
+                    model_payload = json.loads(model_raw)
+                except json.JSONDecodeError:
+                    model_id = model_raw
+                else:
+                    if isinstance(model_payload, dict):
+                        model_id = model_payload.get("id")
+                        model_provider = model_payload.get("providerID") or model_payload.get("provider_id")
+                        model_variant = model_payload.get("variant")
+                    else:
+                        model_id = model_raw
+
+            events.append({
+                "source_type": "OPENCODE_SESSION",
+                "authority": "LOCAL_OPENCODE_SQLITE",
+                "epistemic_class": "OBSERVED_FACT",
+                "epistemic_basis": "primary local OpenCode session metadata observed directly from opencode.db; title/metadata/prompt/message/part content and credentials are intentionally not read, and metadata does not prove task outcome or behavior",
+                "id": f"opencode-session:{session_id}",
+                "event_at": event_at,
+                "updated_at": updated_at,
+                "archived_at": archived_at,
+                "title": f"OpenCode session metadata {session_id[:8]}",
+                "surface": "OpenCode",
+                "source_id": "opencode-history",
+                "source_path": str(db_path),
+                "content_coverage": "METADATA_ONLY",
+                "session_id": session_id,
+                "project_id": row.get("project_id"),
+                "workspace_id": row.get("workspace_id"),
+                "parent_id": row.get("parent_id"),
+                "directory": row.get("directory"),
+                "version": row.get("version"),
+                "agent": row.get("agent"),
+                "model_id": model_id,
+                "model_provider": model_provider,
+                "model_variant": model_variant,
+                "archived": archived_at is not None,
+            })
+    except (sqlite3.Error, ValueError) as exc:
+        errors.append({
+            "path": str(db_path),
+            "error": f"OpenCode session metadata unreadable: {exc}; this is a coverage gap and does not prove behavior absence",
+        })
+    finally:
+        if connection is not None:
+            connection.close()
+    return events, errors
+
+
 def collect_claude_session_events(claude_root: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Project metadata-only Claude session chronology from the local history index."""
     history_path = claude_root / "history.jsonl"
@@ -731,6 +832,9 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     documents = collect_document_sources(vault_root)
     explicit_evidence, explicit_evidence_errors = collect_explicit_evidence_events(vault_root)
     assistant_coverage, assistant_coverage_errors = collect_assistant_surface_coverage(vault_root)
+    opencode_coverage = next((item for item in assistant_coverage if item.get("source_id") == "opencode-history"), None)
+    opencode_db = Path(str(opencode_coverage["resolved_path"])) if opencode_coverage and opencode_coverage.get("coverage_status") == "SOURCE_PRESENT" else None
+    opencode_events, opencode_errors = collect_opencode_session_events(opencode_db) if opencode_db is not None else ([], [])
     claude_coverage = next((item for item in assistant_coverage if item.get("source_id") == "claude-history"), None)
     claude_root = Path(str(claude_coverage["resolved_path"])) if claude_coverage and claude_coverage.get("coverage_status") == "SOURCE_PRESENT" else None
     claude_events, claude_errors = collect_claude_session_events(claude_root) if claude_root is not None else ([], [])
@@ -748,7 +852,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
     git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
     recovery_events = recoverable_git_events(git_states)
-    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *claude_events, *codex_events, *memory, *workers, *commits, *recovery_events])
+    events, relationships = _project_explicit_relationships([*documents, *explicit_evidence, *assistant_coverage, *opencode_events, *claude_events, *codex_events, *memory, *workers, *commits, *recovery_events])
     if query:
         events = [item for item in events if _matches(item, query)]
         visible_ids = {str(item.get("id")) for item in events if item.get("id")}
@@ -763,7 +867,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
             "git": "commits plus searchable stash/reflog metadata, branches, refs, tags and worktrees come directly from each local Git object database; Git messages never prove effect or intent",
             "runtime": "live probes are current observations only for the instant collected",
-            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; Claude session metadata is projected from history.jsonl and Codex thread metadata from state_5.sqlite while text/transcript content is excluded from emitted events; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
+            "assistant_surfaces": "ChatGPT/OpenCode/Claude/Codex/Traycer/Command-Code source presence is checked from the existing memory/sources.json registry; OpenCode session metadata is projected from opencode.db, Claude session metadata from history.jsonl, and Codex thread metadata from state_5.sqlite while text/transcript content is excluded from emitted events; present paths do not prove content completeness and missing/unresolved paths remain explicit coverage gaps",
             "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require explicit structured evidence with basis + evidence refs; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
             "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
             "storage": "read-only projection; no new database, queue, coordinator or authority is created",
@@ -775,6 +879,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
         "relationships": relationships,
         "assistant_surface_coverage": assistant_coverage,
         "assistant_surface_coverage_errors": assistant_coverage_errors,
+        "opencode_session_errors": opencode_errors,
         "claude_session_errors": claude_errors,
         "codex_thread_errors": codex_errors,
         "structured_evidence_errors": explicit_evidence_errors,
@@ -786,6 +891,8 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "explicit_evidence_errors": len(explicit_evidence_errors),
             "assistant_surface_sources": len(assistant_coverage),
             "assistant_surface_gaps": sum(1 for item in assistant_coverage if item.get("coverage_gap")),
+            "opencode_session_events": len(opencode_events),
+            "opencode_session_errors": len(opencode_errors),
             "claude_session_events": len(claude_events),
             "claude_session_errors": len(claude_errors),
             "codex_thread_events": len(codex_events),

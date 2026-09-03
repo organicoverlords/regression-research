@@ -17,6 +17,7 @@ from tools.full_stack_timeline import (
     collect_assistant_surface_coverage,
     collect_claude_session_events,
     collect_codex_thread_events,
+    collect_opencode_session_events,
     collect_document_sources,
     collect_explicit_evidence_events,
     collect_git_state,
@@ -147,6 +148,59 @@ class FullStackTimelineTests(unittest.TestCase):
             self.assertIn("does not prove that behavior did not occur", by_id["codex-history"]["epistemic_basis"])
             self.assertEqual(by_id["chatgpt-history"]["coverage_status"], "REGISTRY_MISSING")
             self.assertTrue(by_id["chatgpt-history"]["coverage_gap"])
+
+    def test_opencode_session_events_use_metadata_only_and_skip_content_columns(self):
+        with tempfile.TemporaryDirectory() as d:
+            db_path = Path(d) / "opencode.db"
+            connection = sqlite3.connect(db_path)
+            connection.execute(
+                """CREATE TABLE session (
+                    id TEXT, project_id TEXT, workspace_id TEXT, parent_id TEXT, directory TEXT, version TEXT,
+                    agent TEXT, model TEXT, time_created INTEGER, time_updated INTEGER, time_archived INTEGER,
+                    title TEXT, metadata TEXT, summary_diffs TEXT
+                )"""
+            )
+            connection.execute(
+                "INSERT INTO session VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "ses_test", "project-1", "workspace-1", "parent-1", r"C:\repo", "1.2.3", "build",
+                    json.dumps({"id": "model-test", "providerID": "provider-test", "variant": "high"}),
+                    1783707061717, 1783708061717, None,
+                    "SECRET_TITLE", "SECRET_METADATA", "SECRET_DIFFS",
+                ),
+            )
+            connection.commit()
+            connection.close()
+
+            events, errors = collect_opencode_session_events(db_path)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(events), 1)
+            event = events[0]
+            self.assertEqual(event["source_type"], "OPENCODE_SESSION")
+            self.assertEqual(event["epistemic_class"], "OBSERVED_FACT")
+            self.assertEqual(event["content_coverage"], "METADATA_ONLY")
+            self.assertEqual(event["project_id"], "project-1")
+            self.assertEqual(event["workspace_id"], "workspace-1")
+            self.assertEqual(event["parent_id"], "parent-1")
+            self.assertEqual(event["directory"], r"C:\repo")
+            self.assertEqual(event["agent"], "build")
+            self.assertEqual(event["model_id"], "model-test")
+            self.assertEqual(event["model_provider"], "provider-test")
+            self.assertEqual(event["model_variant"], "high")
+            self.assertFalse(event["archived"])
+            self.assertEqual(datetime.fromisoformat(event["event_at"]).tzinfo, timezone.utc)
+            serialized = json.dumps(event)
+            self.assertNotIn("SECRET_TITLE", serialized)
+            self.assertNotIn("SECRET_METADATA", serialized)
+            self.assertNotIn("SECRET_DIFFS", serialized)
+
+    def test_opencode_missing_store_is_explicit_gap_not_behavior_absence(self):
+        with tempfile.TemporaryDirectory() as d:
+            events, errors = collect_opencode_session_events(Path(d) / "opencode.db")
+            self.assertEqual(events, [])
+            self.assertEqual(len(errors), 1)
+            self.assertIn("coverage gap", errors[0]["error"])
+            self.assertIn("does not prove behavior absence", errors[0]["error"])
 
     def test_claude_session_events_aggregate_metadata_without_emitting_content(self):
         with tempfile.TemporaryDirectory() as d:
