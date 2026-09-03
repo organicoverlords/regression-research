@@ -1113,6 +1113,26 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Recovered from previously uncommitted Vault work during 2026-09-03 primary-checkout reconciliation; preserved rather than discarded."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-03_2218_EEST_RED_CRITICAL_generated-asset-cleanup-deletion_incident_report.md",
+      "title": "RED CRITICAL: generated asset deletion during disk cleanup",
+      "date": "2026-09-03T22:18:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Recovered from the previously dirty primary Vault checkout during 2026-09-03 reconciliation; RED CRITICAL remains ACTIVE pending recovery/duplicate verification and prevention enforcement."
     }
   ],
   "orphan_evidence": [
