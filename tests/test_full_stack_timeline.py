@@ -4,7 +4,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.full_stack_timeline import collect_document_sources, collect_git_state, checkout_mutation_admission
+from tools.full_stack_timeline import (
+    EPISTEMIC_CLASSES,
+    RepoSpec,
+    _epistemic_counts,
+    _project_explicit_relationships,
+    collect_all_commit_events,
+    collect_document_sources,
+    collect_git_state,
+    collect_memory_events,
+    checkout_mutation_admission,
+)
 
 
 class FullStackTimelineTests(unittest.TestCase):
@@ -56,11 +66,44 @@ class FullStackTimelineTests(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("x", encoding="utf-8")
             docs = collect_document_sources(root)
-            by_name = {Path(item["path"]).name: item["category"] for item in docs}
-            self.assertEqual(by_name["README.md"], "project_document")
-            self.assertEqual(by_name["CHANGELOG.md"], "project_document")
-            self.assertEqual(by_name["red-alert_bug_report.md"], "incident_or_audit")
-            self.assertEqual(by_name["repro.json"], "fixture_or_experiment")
+            by_name = {Path(item["path"]).name: item for item in docs}
+            self.assertEqual(by_name["README.md"]["category"], "project_document")
+            self.assertEqual(by_name["CHANGELOG.md"]["category"], "project_document")
+            self.assertEqual(by_name["red-alert_bug_report.md"]["category"], "incident_or_audit")
+            self.assertEqual(by_name["repro.json"]["category"], "fixture_or_experiment")
+            self.assertTrue(all(item["epistemic_class"] == "HISTORICAL_CLAIM" for item in docs))
+            self.assertEqual(by_name["repro.json"]["epistemic_class"], "HISTORICAL_CLAIM")
+
+    def test_git_commit_metadata_is_observed_fact_not_claimed_effect(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = self.make_repo(Path(d))
+            events = collect_all_commit_events(RepoSpec("demo", repo))
+            self.assertEqual(events[0]["epistemic_class"], "OBSERVED_FACT")
+            self.assertEqual(events[0]["epistemic_basis"], "commit object metadata observed in local Git")
+
+    def test_memory_claims_preserve_explicit_supersession_without_upgrading_truth(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "memory-bank.jsonl"
+            bank.write_text(
+                '{"id":"old","timestamp":"2026-09-01T10:00:00+03:00","title":"old claim"}\n'
+                '{"id":"new","timestamp":"2026-09-02T10:00:00+03:00","title":"correction","supersedes":["old"],"contradicts":["other"]}\n',
+                encoding="utf-8",
+            )
+            events = collect_memory_events(bank)
+            self.assertTrue(all(event["epistemic_class"] == "HISTORICAL_CLAIM" for event in events))
+            projected, relationships = _project_explicit_relationships(events)
+            by_id = {event["id"]: event for event in projected}
+            self.assertEqual(by_id["old"]["superseded_by"], ["new"])
+            self.assertTrue(all(rel["explicit"] for rel in relationships))
+            self.assertEqual({rel["relation"] for rel in relationships}, {"SUPERSEDES", "CONTRADICTS"})
+
+    def test_epistemic_counts_keep_unobserved_classes_visible(self):
+        counts = _epistemic_counts([{"epistemic_class": "OBSERVED_FACT"}])
+        self.assertEqual(tuple(counts), EPISTEMIC_CLASSES)
+        self.assertEqual(counts["OBSERVED_FACT"], 1)
+        self.assertEqual(counts["REPRODUCED_FACT"], 0)
+        self.assertEqual(counts["INFERENCE"], 0)
+        self.assertEqual(counts["HISTORICAL_CLAIM"], 0)
 
     def test_mutation_admission_rejects_dirty_or_stale_checkout(self):
         with tempfile.TemporaryDirectory() as d:

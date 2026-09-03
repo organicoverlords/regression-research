@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATE_RE = re.compile(r"(?P<date>20\d{2}[-_]?[01]\d[-_]?[0-3]\d)(?:[_-]?(?P<time>[0-2]\d[0-5]\d))?")
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".jsonl", ".yaml", ".yml", ".toml", ".ps1", ".py"}
 SKIP_DIRS = {".git", ".pytest_cache", "node_modules", "__pycache__", ".tmp"}
+EPISTEMIC_CLASSES = ("OBSERVED_FACT", "REPRODUCED_FACT", "INFERENCE", "HISTORICAL_CLAIM")
 def _run(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(args), cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
 
@@ -80,6 +81,8 @@ def collect_document_sources(root: Path) -> list[dict[str, Any]]:
         items.append({
             "source_type": "DOCUMENT",
             "authority": "HISTORICAL_OR_DOCUMENTARY_EVIDENCE",
+            "epistemic_class": "HISTORICAL_CLAIM",
+            "epistemic_basis": "document presence is observed; document contents remain historical/documentary claims until separately reproduced or observed",
             "category": _category(path, root),
             "path": str(path),
             "relative_path": path.relative_to(root).as_posix(),
@@ -202,6 +205,8 @@ def _safe_json_command(*args: str) -> Any:
 def collect_live_runtime() -> dict[str, Any]:
     runtime: dict[str, Any] = {
         "authority": "LIVE_RUNTIME_OBSERVATION",
+        "epistemic_class": "OBSERVED_FACT",
+        "epistemic_basis": "live probe result observed during this collection run",
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "atlas_components": sorted({**COMPONENTS, **PRODUCT_COMPONENTS}),
     }
@@ -234,11 +239,18 @@ def collect_memory_events(bank: Path) -> list[dict[str, Any]]:
         events.append({
             "source_type": "VAULT_MEMORY",
             "authority": "HISTORICAL_EVIDENCE_ONLY",
+            "epistemic_class": "HISTORICAL_CLAIM",
+            "epistemic_basis": "memory record is preserved history; its state label does not promote it to current truth",
             "id": item.get("id"),
             "event_at": event_at,
             "title": item.get("title") or item.get("summary") or item.get("kind") or item.get("id"),
             "scope": item.get("scope"),
             "kind": item.get("kind"),
+            "state": item.get("state"),
+            "project": item.get("project"),
+            "thread": item.get("thread"),
+            "supersedes": list(item.get("supersedes") or []),
+            "contradicts": list(item.get("contradicts") or []),
         })
     return events
 def collect_all_commit_events(spec: RepoSpec, *, limit: int = 0) -> list[dict[str, Any]]:
@@ -259,6 +271,8 @@ def collect_all_commit_events(spec: RepoSpec, *, limit: int = 0) -> list[dict[st
         events.append({
             "source_type": "GIT_COMMIT",
             "authority": "LOCAL_GIT_OBJECT_DATABASE",
+            "epistemic_class": "OBSERVED_FACT",
+            "epistemic_basis": "commit object metadata observed in local Git",
             "id": f"git:{spec.project}:{sha}",
             "event_at": row["event_at"],
             "title": row["title"],
@@ -268,6 +282,54 @@ def collect_all_commit_events(spec: RepoSpec, *, limit: int = 0) -> list[dict[st
             "repo_path": str(spec.path),
         })
     return events
+
+
+def _relation_values(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if item]
+    return []
+
+
+def _project_explicit_relationships(events: Iterable[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    projected = [dict(item) for item in events]
+    by_id = {str(item["id"]): item for item in projected if item.get("id")}
+    relationships: list[dict[str, Any]] = []
+    for item in projected:
+        source_id = str(item.get("id") or "")
+        if not source_id:
+            continue
+        for field, relation, reverse_field in (
+            ("supersedes", "SUPERSEDES", "superseded_by"),
+            ("contradicts", "CONTRADICTS", "contradicted_by"),
+        ):
+            for target_id in _relation_values(item.get(field)):
+                relationships.append({
+                    "relation": relation,
+                    "from_id": source_id,
+                    "to_id": target_id,
+                    "explicit": True,
+                    "source_type": item.get("source_type"),
+                })
+                target = by_id.get(target_id)
+                if target is not None:
+                    target.setdefault(reverse_field, []).append(source_id)
+    for item in projected:
+        for field in ("superseded_by", "contradicted_by"):
+            if field in item:
+                item[field] = sorted(set(item[field]))
+    relationships.sort(key=lambda rel: (rel["from_id"], rel["relation"], rel["to_id"]))
+    return projected, relationships
+
+
+def _epistemic_counts(events: Iterable[dict[str, Any]]) -> dict[str, int]:
+    counts = {name: 0 for name in EPISTEMIC_CLASSES}
+    for item in events:
+        value = str(item.get("epistemic_class") or "")
+        if value in counts:
+            counts[value] += 1
+    return counts
 
 
 def _sort_time(item: dict[str, Any]) -> str:
@@ -286,11 +348,18 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
     documents = collect_document_sources(vault_root)
     memory = collect_memory_events(vault_root / "memory" / "memory-bank.jsonl")
     worker_root = vault_root / "worker-reports" / "history"
-    workers = worker_history_events(worker_root)
+    workers = []
+    for raw in worker_history_events(worker_root):
+        item = dict(raw)
+        item["epistemic_class"] = "HISTORICAL_CLAIM"
+        item["epistemic_basis"] = "finalized worker self-report; useful lagging evidence but not current-state or liveness proof"
+        workers.append(item)
     commits = [event for spec in specs for event in collect_all_commit_events(spec, limit=commit_limit)]
-    events = [*documents, *memory, *workers, *commits]
+    events, relationships = _project_explicit_relationships([*documents, *memory, *workers, *commits])
     if query:
         events = [item for item in events if _matches(item, query)]
+        visible_ids = {str(item.get("id")) for item in events if item.get("id")}
+        relationships = [rel for rel in relationships if rel["from_id"] in visible_ids or rel["to_id"] in visible_ids]
     events.sort(key=_sort_time, reverse=True)
     git_states = [collect_git_state(spec.project, spec.path, reflog_limit=reflog_limit) for spec in specs]
     history = collect_repo_history(specs, limit_per_repo=20)
@@ -302,12 +371,16 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "history": "documents, memory, worker reports and Git chronology are evidence with provenance, not current truth by themselves",
             "git": "branches, refs, tags, stashes, worktrees and reflogs come directly from each local Git object database",
             "runtime": "live probes are current observations only for the instant collected",
+            "epistemics": "OBSERVED_FACT is directly observed metadata/runtime state; REPRODUCED_FACT and INFERENCE require an explicit producer that justifies them; documents, memory and worker reports remain HISTORICAL_CLAIM by default",
+            "relationships": "only explicit supersedes/contradicts links are projected; chronology, matching text and proximity never create a contradiction or causal edge",
             "storage": "read-only projection; no new database, queue, coordinator or authority is created",
         },
         "query": query,
         "repositories": git_states,
         "repo_snapshots": history["repo_snapshots"],
         "events": events,
+        "relationships": relationships,
+        "epistemic_counts": _epistemic_counts(events),
         "counts": {
             "repositories": len(specs),
             "documents": len(documents),
@@ -315,6 +388,7 @@ def build_full_stack_timeline(vault_root: Path, *, extra_specs: Iterable[RepoSpe
             "worker_events": len(workers),
             "git_commits": len(commits),
             "matching_events": len(events),
+            "explicit_relationships": len(relationships),
         },
         "worker_metrics": summarize_history(worker_root, hours=24.0) if worker_root.exists() else {},
     }
