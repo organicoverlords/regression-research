@@ -363,7 +363,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],
-        "entrypoints": ["memory_bank.py search", "memory_bank.py context", "memory_bank.py history", "memory_bank.py timeline", "memory_bank.py orient", "memory_bank.py recent-titles", "memory_bank.py changes"],
+        "entrypoints": ["memory_bank.py search", "memory_bank.py context", "memory_bank.py history", "memory_bank.py timeline", "memory_bank.py recent-titles", "memory_bank.py changes"],
         "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
     },
     "project.current_truth": {

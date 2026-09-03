@@ -7,10 +7,8 @@ from typing import Any, Iterable
 
 try:
     from .memory_classification import classify_entry, projects_from_text, token_words
-    from .memory_authority import behavioral_context
 except ImportError:
     from memory_classification import classify_entry, projects_from_text, token_words
-    from memory_authority import behavioral_context
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
@@ -319,113 +317,3 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
             } for event in events],
         })
     return out
-
-
-
-
-def build_orientation(
-    entries: Iterable[dict[str, Any]], *, projects: Iterable[str] = ("p3", "tiny3d", "lowvram"),
-    recent_events: int = 8, error_threads: int = 4, project_events: int = 3,
-    repo_events: Iterable[dict[str, Any]] | None = None, repo_snapshots: Iterable[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """Build one compact fresh-chat continuity index from curated memory plus optional local Git history."""
-    items = list(entries)
-    repo_items = list(repo_events or [])
-    general = build_timeline(items, view="general", limit=max(1, recent_events) * 2, repo_events=repo_items)
-    errors = build_timeline(items, view="errors", limit=MAX_LIMIT)
-    error_index = [{
-        "thread_id": thread["thread_id"],
-        "event_count": thread["event_count"],
-        "latest_event_at": thread["latest_event_at"],
-        "latest_title": thread["latest_title"],
-        "latest_disposition": thread["latest_disposition"],
-        "projects": thread["projects"],
-        "entities": thread["entities"],
-    } for thread in errors["threads"][:max(0, error_threads)]]
-
-    project_index: dict[str, Any] = {}
-    snapshots_by_project = {str(item.get("project") or "").casefold(): dict(item) for item in (repo_snapshots or []) if item.get("project")}
-    for project in projects:
-        key = str(project).strip().casefold()
-        if not key:
-            continue
-        memory_report = build_timeline(items, view="project", project=key, limit=MAX_LIMIT)
-        explicit = [event for event in memory_report["events"] if event.get("project_linkage") == "EXPLICIT_PROJECT"]
-        linked = [event for event in memory_report["events"] if event.get("project_linkage") == "ENTITY_MENTION"]
-        slots = max(1, project_events)
-        explicit_current = [event for event in explicit if event.get("disposition") == "CURRENT_DURABLE"]
-        explicit_historical = [event for event in explicit if event.get("disposition") != "CURRENT_DURABLE"]
-        linked_current = [event for event in linked if event.get("disposition") == "CURRENT_DURABLE"]
-        linked_historical = [event for event in linked if event.get("disposition") != "CURRENT_DURABLE"]
-        chosen_memory = [*explicit_current, *linked_current, *explicit_historical, *linked_historical][:slots]
-        project_commits = [event for event in repo_items if str(event.get("project") or "").casefold() == key]
-        project_index[key] = {
-            "memory_events": memory_report["matching_events"],
-            "explicit_project_events": len(explicit),
-            "entity_linked_events": len(linked),
-            "latest_memory": [{
-                "id": event["id"], "event_at": event["event_at"], "title": event["title"],
-                "semantic_category": event["semantic_category"], "disposition": event["disposition"],
-                "project_linkage": event.get("project_linkage"),
-            } for event in chosen_memory],
-            "latest_commits": [{
-                "id": event["id"], "event_at": event["event_at"], "title": event["title"],
-                "sha": event.get("sha"), "short_sha": event.get("short_sha"), "refs": list(event.get("refs") or []),
-                "repo_state": event.get("repo_state"), "decorations": event.get("decorations"),
-            } for event in project_commits[:slots]],
-        }
-        if key in snapshots_by_project:
-            project_index[key]["repo"] = snapshots_by_project[key]
-
-    eligible_memory = [
-        event for event in general["events"]
-        if event.get("source_type") == "VAULT_MEMORY"
-        and event.get("disposition") in {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"}
-    ][:max(1, recent_events)]
-    eligible_repo = [event for event in general["events"] if event.get("source_type") == "GIT_COMMIT"][:max(1, recent_events)]
-    recent = [*eligible_memory, *eligible_repo]
-    recent.sort(key=lambda event: (_dt(str(event["event_at"])), str(event["id"])), reverse=True)
-
-    def compact_behavior(entry: dict[str, Any]) -> dict[str, Any]:
-        authority = dict(entry.get("behavioral_authority") or {})
-        return {
-            "id": entry.get("id"),
-            "scope": entry.get("scope"),
-            "kind": entry.get("kind"),
-            "title": _title(entry),
-            "text": _clip(entry.get("text"), 360),
-            "behavior_rule_type": bool(authority.get("may_change_behavior")),
-            "authority_role": authority.get("role"),
-            "authority_basis": authority.get("basis"),
-            "precedence": authority.get("precedence"),
-        }
-
-    authorized = behavioral_context(items)
-    # Governing rules are never silently evicted by a presentation budget.
-    behavior = [
-        compact_behavior(entry) for entry in authorized
-        if (entry.get("behavioral_authority") or {}).get("role") == "USER_EXPLICIT"
-    ]
-    canonical_policy = [
-        compact_behavior(entry) for entry in authorized
-        if (entry.get("behavioral_authority") or {}).get("role") == "CANONICAL_POLICY"
-    ]
-
-    return {
-        "schema_version": 1,
-        "authority": "DERIVED_HISTORY_ONLY",
-        "contract": {
-            "purpose": "fresh-chat continuity index, not live status",
-            "source": "curated memory plus optional local Git history; no full-conversation archive or download dependency",
-            "repo_history": "read-only local Git projection; no network fetch and no automatic memory write",
-            "follow_up": "use timeline/context/live sources before treating an incident or project event as current truth",
-            "behavior_profile": "historical records once typed as behavior; forensic metadata only, not runtime authority",
-            "canonical_policy_profile": "historical policy projection; live shared/repo policy must be read from its current source",
-        },
-        "behavior_profile": behavior,
-        "canonical_policy_profile": canonical_policy,
-        "recent_events": recent[: max(2, recent_events * 2)],
-        "recent_error_threads": error_index,
-        "projects": project_index,
-        "repo_snapshots": list(repo_snapshots or []),
-    }

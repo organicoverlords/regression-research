@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import tools.memory_authority as memory_authority
 
-from tools.memory_timeline import build_orientation, build_recurrence_context, build_timeline, needs_timeline_fallback
+from tools.memory_timeline import build_recurrence_context, build_timeline, needs_timeline_fallback
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -94,88 +94,11 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(by_id["linked"]["project_linkage"], "ENTITY_MENTION")
         self.assertEqual(by_id["linked"]["projects"], [])
 
-    def test_orientation_includes_current_explicit_behavior_profile(self):
-        rule = self.e("rule", "2026-08-29T10:00:00+03:00", "Keep working until the bounded task is done.", kind="preference")
-        rule["evidence"] = ["user-instruction:test"]
-        rule["behavior_rule"] = True
-        advisory = self.e("advisory", "2026-08-29T09:00:00+03:00", "Historical suggestion", kind="lesson")
-        orientation = build_orientation([advisory, rule], projects=[])
-        self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["rule"])
-        self.assertEqual(orientation["behavior_profile"][0]["authority_role"], "USER_EXPLICIT")
-        self.assertTrue(orientation["behavior_profile"][0]["behavior_rule_type"])
-        self.assertEqual(orientation["behavior_profile"][0]["authority_basis"], "explicit_behavior_rule_type")
-        self.assertIn("forensic metadata only, not runtime authority", orientation["contract"]["behavior_profile"])
-
-    def test_orientation_keeps_canonical_policy_separate_from_user_behavior(self):
-        user_rule = self.e("user", "2026-08-29T10:00:00+03:00", "User rule", kind="preference", evidence=["user-instruction:test"])
-        user_rule["behavior_rule"] = True
-        policy = self.e("policy", "2026-08-29T11:00:00+03:00", "Repo policy", kind="decision", evidence=["repo-policy:test"])
-        orientation = build_orientation([policy, user_rule], projects=[])
-        self.assertEqual([item["id"] for item in orientation["behavior_profile"]], ["user"])
-        self.assertEqual([item["id"] for item in orientation["canonical_policy_profile"]], ["policy"])
-
-    def test_orientation_never_silently_evicts_behavior_rules(self):
-        rules = []
-        for index in range(33):
-            rule = self.e(f"rule-{index}", f"2026-08-{(index % 28) + 1:02d}T10:00:00+03:00", f"Rule {index}", kind="preference")
-            rule["evidence"] = ["user-instruction:test"]
-            rule["behavior_rule"] = True
-            rules.append(rule)
-        orientation = build_orientation(rules, projects=[])
-        self.assertEqual(len(orientation["behavior_profile"]), 33)
-        self.assertEqual({item["id"] for item in orientation["behavior_profile"]}, {rule["id"] for rule in rules})
-
-    def test_orientation_prioritizes_explicit_project_events_over_incidental_mentions(self):
-        explicit = self.e("p3-explicit", "2026-08-28T20:00:00+03:00", "P3 durable event", scope="p3/build", project="p3")
-        newer_link = self.e("p3-mentioned", "2026-08-29T02:00:00+03:00", "Global incident mentioning P3", scope="assistant-orchestration/incident")
-        orientation = build_orientation([explicit, newer_link], projects=["p3"], recent_events=2, error_threads=1, project_events=1)
-        project = orientation["projects"]["p3"]
-        self.assertEqual(project["explicit_project_events"], 1)
-        self.assertEqual(project["entity_linked_events"], 1)
-        self.assertEqual(project["latest_memory"][0]["id"], "p3-explicit")
-        self.assertEqual(project["latest_memory"][0]["project_linkage"], "EXPLICIT_PROJECT")
-        self.assertIn("no full-conversation archive", orientation["contract"]["source"])
-
-    def test_orientation_prefers_current_project_event_over_newer_superseded_event(self):
-        current = self.e("current", "2026-08-28T20:00:00+03:00", "Current LowVRAM rule", scope="lowvram/build", project="lowvram")
-        old = self.e("old", "2026-08-29T01:00:00+03:00", "Old LowVRAM rule", scope="lowvram/build", project="lowvram")
-        replacement = self.e("replacement", "2026-08-29T02:00:00+03:00", "Replacement outside project", kind="correction", scope="global/correction", supersedes=["old"])
-        orientation = build_orientation([current, old, replacement], projects=["lowvram"], project_events=1)
-        self.assertEqual(orientation["projects"]["lowvram"]["latest_memory"][0]["id"], "current")
-        self.assertEqual(orientation["projects"]["lowvram"]["latest_memory"][0]["disposition"], "CURRENT_DURABLE")
-
-    def test_orientation_recent_events_exclude_historical_and_superseded_noise(self):
-        old = self.e("old", "2026-08-29T02:00:00+03:00", "Old", scope="mcp/error")
-        replacement = self.e("replacement", "2026-08-29T02:30:00+03:00", "Replacement", kind="correction", scope="mcp/error", supersedes=["old"])
-        checkpoint = self.e("checkpoint", "2026-08-29T02:45:00+03:00", "Tool checkpoint", kind="status", scope="tool-availability/checkpoint")
-        current = self.e("current", "2026-08-29T02:15:00+03:00", "Current durable", scope="global")
-        orientation = build_orientation([old, replacement, checkpoint, current], projects=[], recent_events=8)
-        ids = [event["id"] for event in orientation["recent_events"]]
-        self.assertIn("replacement", ids)
-        self.assertIn("current", ids)
-        self.assertNotIn("old", ids)
-        self.assertNotIn("checkpoint", ids)
-
     def test_timeline_has_no_full_conversation_archive_dependency(self):
         source = (ROOT / "tools" / "memory_timeline.py").read_text(encoding="utf-8")
         self.assertNotIn("conversation_search", source)
         self.assertNotIn("conversation_corpus", source)
         self.assertNotIn("memory/conversations", source)
-
-    def test_orientation_merges_repo_events_without_promoting_them_to_memory(self):
-        memory = self.e("mem", "2026-08-29T01:00:00+03:00", "Durable project decision", scope="p3/decision", project="p3")
-        repo_event = {
-            "id": "git:p3:abc", "source_type": "GIT_COMMIT", "authority": "REPO_HISTORY",
-            "event_at": "2026-08-29T02:00:00+03:00", "project": "p3", "projects": ["p3"],
-            "title": "fix HUD proof (#617)", "summary": "fix HUD proof (#617)", "sha": "abcdef",
-            "short_sha": "abcdef", "refs": ["#617"], "repo_state": "ALL_BRANCHES", "decorations": "worker/topic",
-            "thread_id": "repo:p3", "thread_source": "PROJECT_REPO_STREAM",
-        }
-        orientation = build_orientation([memory], projects=["p3"], repo_events=[repo_event], project_events=2)
-        self.assertEqual(orientation["projects"]["p3"]["latest_commits"][0]["sha"], "abcdef")
-        self.assertEqual(orientation["projects"]["p3"]["latest_memory"][0]["id"], "mem")
-        self.assertEqual(repo_event["authority"], "REPO_HISTORY")
-        self.assertIn("no automatic memory write", orientation["contract"]["repo_history"])
 
     def test_general_and_project_timeline_include_worker_history_without_promoting_it(self):
         memory = self.e("mem", "2026-08-29T01:00:00+03:00", "Durable decision", scope="p3/decision", project="p3")

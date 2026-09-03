@@ -66,15 +66,12 @@ Do not automatically promote or load Vault records into live behavior. Use targe
 
 ## Shared continuity and timeline views
 
-The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. Read commands (`recent`, `search`, `context`, `orient`, `timeline`) are local, side-effect free, and do not claim BUSY/ownership, create queues, or require a daemon. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
+The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. Read commands (`recent`, `search`, `context`, `timeline`) are local, side-effect free, and do not claim BUSY/ownership, create queues, or require a daemon. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
 
 Build an optional historical/project orientation from curated memory plus whatever canonical local Git repositories are available:
 
 ```powershell
-python tools\memory_bank.py orient
 ```
-
-`orient` discovers available product repositories directly from the Stack Atlas canonical product roots; explicit `--repo PROJECT=PATH` arguments remain available for additional repositories. Commit events are read directly from each local Git object database, so dashboard projections are not repo-history inputs. Missing repos degrade independently instead of blocking orientation. Mainline (`origin/main`) commits and unmerged lane commits are labeled separately so swarm activity stays visible without being mistaken for landed state.
 
 Inspect chronology directly:
 

@@ -15,7 +15,7 @@ try:
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
-    from .memory_timeline import build_orientation, build_recurrence_context, build_timeline
+    from .memory_timeline import build_recurrence_context, build_timeline
     from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
     from .worker_report_history import worker_history_events
@@ -25,7 +25,7 @@ except ImportError:
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
-    from memory_timeline import build_orientation, build_recurrence_context, build_timeline
+    from memory_timeline import build_recurrence_context, build_timeline
     from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
     from worker_report_history import worker_history_events
@@ -668,15 +668,6 @@ def _main() -> int:
     context.add_argument("--max-chars", type=int, default=DEFAULT_CONTEXT_CHARS)
     context.add_argument("--with-history", action="store_true", help="also search the preserved full-conversation corpus")
 
-    orient = sub.add_parser("orient", help="optional historical/project orientation view")
-    orient.add_argument("--project", action="append", default=[])
-    orient.add_argument("--recent-events", type=int, default=8)
-    orient.add_argument("--error-threads", type=int, default=4)
-    orient.add_argument("--project-events", type=int, default=3)
-    orient.add_argument("--repo-events", type=int, default=12, help="maximum local Git commits read per repo")
-    orient.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH", help="explicit local Git repo; repeatable")
-    orient.add_argument("--no-repos", action="store_true", help="disable local Git projection")
-
     timeline_cmd = sub.add_parser("timeline", help="derived chronology over memory, immutable worker reports, and optional local Git events")
     timeline_cmd.add_argument("query", nargs="?", default="")
     timeline_cmd.add_argument("--view", choices=("general", "project", "errors"), default="general")
@@ -776,20 +767,6 @@ def _main() -> int:
                 values["turn_task"] = args.turn_task
             entry = append_entry(args.bank, values)
             _print_json(entry)
-            return 0
-        if args.command == "orient":
-            projects = args.project or ["p3", "tiny3d", "lowvram"]
-            repo_history = {"events": [], "repo_snapshots": []}
-            if not args.no_repos:
-                specs = [parse_repo_arg(value) for value in args.repo]
-                if not specs:
-                    vault_root = Path(__file__).resolve().parents[1]
-                    specs = discover_repo_specs(vault_root=vault_root)
-                repo_history = collect_repo_history(specs, limit_per_repo=args.repo_events)
-            _print_json(build_orientation(
-                entries, projects=projects, recent_events=args.recent_events, error_threads=args.error_threads,
-                project_events=args.project_events, repo_events=repo_history["events"], repo_snapshots=repo_history["repo_snapshots"],
-            ))
             return 0
         if args.command == "timeline":
             repo_events = []
