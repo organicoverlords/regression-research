@@ -156,7 +156,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "live_status": ["https://5-61-91-127.sslip.io/edge-status", "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp", "Windows scheduled task McpVpsEdgeTunnel", "VPS mcp-edge-health.timer"],
         "supervisor": "Caddy/systemd on VPS plus Windows McpVpsEdgeTunnel scheduled task",
         "self_heal": "reverse tunnel reconnect loop + systemd-managed Caddy/health timers",
-        "mutation_policy_owner": r"C:\Users\Lauri\Documents\agent-rules\contexts\mcp.md",
         "independent_recovery": ["local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn", "Tailscale may be used only as an explicitly revalidated non-production fallback"],
         "resources": ["VPS 5.61.91.127", "public TCP 80/443", "SSH TCP 22", "VPS loopback 3011 reverse listener", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
         "dependents": ["mcp_minimal_clone", "file_transfer", "chatgpt_process_transport"],
@@ -623,8 +622,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "behavior": [
             "current user instruction is first authority",
             "use live repo/runtime/tool evidence for current truth",
-            "when a live shared system is working and the task is a bounded bug/theory, diagnose and reproduce off-path first; do not use production as the experiment or mutate/restart it merely to prove a theory",
-            "if our change regresses a previously working live state, restore the last known-good state before reporting/freezing/further rollout; preserve regression evidence separately",
             "for any stack/infra work, consult Atlas first to resolve owner/entrypoint/dependents/resources before mutation; then leave Atlas and use the live owner; ordinary P3/Tiny3D/LowVRAM product work bypasses Atlas",
             "Vault/memory is history/evidence; use targeted retrieval when past work matters",
             "worker reports/schedules are evidence, not liveness; use live MCP activity for liveness sanity",
