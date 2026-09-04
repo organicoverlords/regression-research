@@ -9,7 +9,7 @@ Canonical history: [CHANGELOG.md](CHANGELOG.md)
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
 next move was, and enough preserved state to replay the case later.
 This is research evidence. It is not an operating contract and not a worker prompt.
-Operating rules live in `C:\Users\Lauri\Documents\agent-rules\RULES.md` plus the applicable `contexts\<project>.md`. Repository `AGENTS.md` files are pointer-only.
+Shared agent instructions live only in `C:\Users\Lauri\.agents\RULES.md` and `C:\Users\Lauri\.agents\AGENTS.md`. Repository `AGENTS.md`/`CLAUDE.md` files are pointer-only.
 
 Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
 

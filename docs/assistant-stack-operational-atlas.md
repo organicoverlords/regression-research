@@ -27,7 +27,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
 | `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
-| `project.current_truth` | agent_rules, north_star, local_git, github | agent-rules RULES.md + applicable context; repo NORTH_STAR/equivalent; git status/HEAD + recent all-branch history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
+| `project.current_truth` | agent_rules, north_star, local_git, github | shared .agents RULES.md + AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD + relevant branch/commit history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
@@ -148,7 +148,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Independent recovery: classify why the previous proof failed and change a load-bearing condition before another expensive retry
 - Resources: capture; manifest; review verdict; acceptance requirement
 - Dependents: p3; worker_reports
-- Runbook: C:\Users\Lauri\Documents\agent-rules\contexts\p3.md
+- Runbook: C:\Users\Lauri\.agents\contexts\p3.md
 - Supervisor: project-specific proof workflow
 - Self-heal: not_applicable
 
@@ -174,7 +174,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Independent recovery: preserve dirty/foreign state; use isolated worktree
 - Resources: working tree; .git/worktrees
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -187,7 +187,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Independent recovery: local Git remains local source truth; publication waits for GitHub
 - Resources: remote refs; issues; PRs; workflow runs
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: external service
 - Self-heal: external
 
@@ -195,12 +195,12 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 - Role: `authority:agent-rules`
 - Capabilities: source_read, repository_mutate
-- Canonical sources: C:\Users\Lauri\Documents\agent-rules\RULES.md; C:\Users\Lauri\Documents\agent-rules\contexts; organicoverlords/agent-rules@rules/live
-- Live status: read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters
+- Canonical sources: C:\Users\Lauri\.agents\RULES.md; C:\Users\Lauri\.agents\AGENTS.md; organicoverlords/agents@main
+- Live status: read exact agents/main commit plus RULES.md and AGENTS.md; reconcile local/remote ref when mutation matters
 - Independent recovery: current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable
-- Resources: RULES.md; contexts/*.md; rules/live
+- Resources: RULES.md; AGENTS.md; main
 - Dependents: chatgpt_session; execution_workers; repo_rule_pointer
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -209,11 +209,11 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Role: `navigation:rule-pointer`
 - Capabilities: source_read
 - Canonical sources: pointer-only AGENTS.md/CLAUDE.md/equivalent
-- Live status: verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body
+- Live status: verify pointer names shared .agents RULES.md and AGENTS.md and contains no copied policy body
 - Independent recovery: read agent_rules directly; a missing/stale pointer never creates a second policy authority
 - Resources: pointer files only
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 

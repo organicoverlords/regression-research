@@ -33,6 +33,17 @@ class StackAtlasTests(unittest.TestCase):
         self.assertGreaterEqual(memory["commit_headroom_gb"], 0)
         self.assertNotIn("ram_free_gb", pc)
 
+    def test_agent_rule_authority_is_single_shared_repo(self):
+        details = component_details("agent_rules")
+        self.assertEqual(details["canonical_sources"][0], r"C:\Users\Lauri\.agents\RULES.md")
+        self.assertEqual(details["canonical_sources"][1], r"C:\Users\Lauri\.agents\AGENTS.md")
+        self.assertEqual(details["canonical_sources"][2], "organicoverlords/agents@main")
+        self.assertEqual(details["resources"], ["RULES.md", "AGENTS.md", "main"])
+        glance = build_live_bootstrap_glance()
+        self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
+        self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
+        self.assertNotIn("rule_contexts", glance["paths"])
+
     def test_live_bootstrap_glance_is_compact_and_decision_focused(self):
         glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":"))

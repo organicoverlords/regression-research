@@ -22,8 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
-AGENT_RULES_ROOT = r"C:\Users\Lauri\Documents\agent-rules"
-AGENT_RULES_REMOTE = "organicoverlords/agent-rules@rules/live"
+AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
+AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
 CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 COMPONENT_ALIASES = {
@@ -238,18 +238,18 @@ COMPONENTS: dict[str, dict[str, Any]] = {
 COMPONENTS.update({
     "agent_rules": {
         "role": "authority:agent-rules", "capabilities": ["source_read", "repository_mutate"],
-        "canonical_sources": [AGENT_RULES_ROOT + r"\RULES.md", AGENT_RULES_ROOT + r"\contexts", AGENT_RULES_REMOTE],
-        "live_status": ["read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters"],
+        "canonical_sources": [AGENT_RULES_ROOT + r"\RULES.md", AGENT_RULES_ROOT + r"\AGENTS.md", AGENT_RULES_REMOTE],
+        "live_status": ["read exact agents/main commit plus RULES.md and AGENTS.md; reconcile local/remote ref when mutation matters"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable"],
-        "resources": ["RULES.md", "contexts/*.md", "rules/live"],
+        "resources": ["RULES.md", "AGENTS.md", "main"],
         "dependents": ["chatgpt_session", "execution_workers", "repo_rule_pointer"],
         "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "repo_rule_pointer": {
         "role": "navigation:rule-pointer", "capabilities": ["source_read"],
         "canonical_sources": ["pointer-only AGENTS.md/CLAUDE.md/equivalent"],
-        "live_status": ["verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body"],
+        "live_status": ["verify pointer names shared .agents RULES.md and AGENTS.md and contains no copied policy body"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read agent_rules directly; a missing/stale pointer never creates a second policy authority"],
         "resources": ["pointer files only"],
@@ -326,7 +326,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
-        "entrypoints": ["agent-rules RULES.md + applicable context", "repo NORTH_STAR/equivalent", "git status/HEAD + recent all-branch history", "exact GitHub issue/PR/check/runtime evidence"],
+        "entrypoints": ["shared .agents RULES.md + AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
     "coordination.ownership": {
@@ -365,7 +365,7 @@ def build_bootstrap_atlas() -> dict[str, Any]:
     return {
         "schema": "atlas.v1",
         "must": "Map only: locate stack/infra owners and routes, then leave Atlas and read the live owner. Product repos stay outside Atlas.",
-        "rules": r"C:\Users\Lauri\Documents\agent-rules\RULES.md",
+        "rules": r"C:\Users\Lauri\.agents\RULES.md",
         "vault": r"C:\Users\Lauri\Desktop\vault",
         "history_command": r"python -m tools.memory_bank orient --recent-events 20 --repo-events 3",
         "worker_reports": r"C:\Users\Lauri\Desktop\vault\worker-reports",
@@ -609,8 +609,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "paths": {
             "bootstrap": str(ROOT / "tools" / "stack_atlas.py"),
-            "rules": r"C:\Users\Lauri\Documents\agent-rules\RULES.md",
-            "rule_contexts": r"C:\Users\Lauri\Documents\agent-rules\contexts",
+            "rules": r"C:\Users\Lauri\.agents\RULES.md",
+            "agents": r"C:\Users\Lauri\.agents\AGENTS.md",
             "vault": str(ROOT),
             "worker_reports": str(ROOT / "worker-reports"),
             "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
