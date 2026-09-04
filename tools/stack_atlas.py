@@ -204,18 +204,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
-    "dev_progress_board": {
-        "role": "derived_progress_projection",
-        "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
-        "live_status": ["board process/feed age; never treat projection as authority"],
-        "supervisor": "none; board.py owns serving and reconciliation",
-        "self_heal": "service_local_reconcile_retry",
-        "independent_recovery": ["read canonical repo/coordinator/runtime sources directly"],
-        "resources": ["board state"],
-        "dependents": ["human_orientation", "chatgpt_orientation"],
-        "runbook": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
-    },
 }
 
 COMPONENTS.update({
@@ -388,12 +376,6 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "entrypoints": ["production MCPv3/VPS process contract", "plugin2 when available"],
         "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
     },
-    "progress.board": {
-        "owner_components": ["dev_progress_board"],
-        "triggers": ["progress board", "dashboard", "stack delivery", "overview"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
-        "boundary": "Derived orientation/projection only; reconcile important claims with canonical sources.",
-    },
 }
 
 def _expand_env(value: str) -> str:
@@ -476,9 +458,6 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     elif "start-githubrunnerhidden.ps1" in ancestry_text or "actions-runner" in ancestry_text:
         component = "github_runner"
         evidence.append("GitHub runner launcher ancestry")
-    elif "devprogressboard" in ancestry_text:
-        component = "dev_progress_board"
-        evidence.append("DevProgressBoard process ancestry")
     elif "busycoordinator" in ancestry_text or "busy-python.cmd" in ancestry_text or "busy-rust.cmd" in ancestry_text:
         component = "busy_coordinator"
         evidence.append("BusyCoordinator command path")
@@ -677,7 +656,7 @@ def render_manual() -> str:
     ]
     for feature_id, spec in inventory["features"].items():
         lines.append(f"| `{feature_id}` | {', '.join(spec['owner_components'])} | {'; '.join(spec['entrypoints'])} | {spec['boundary']} |")
-    lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])
+    lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and derived projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])
     for name, spec in inventory["components"].items():
         lines.extend([f"### `{name}`", "", f"- Role: `{spec['role']}`", f"- Capabilities: {', '.join(spec['capabilities']) or 'none'}"])
         for label, key in (("Canonical sources", "canonical_sources"), ("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
