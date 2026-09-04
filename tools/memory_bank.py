@@ -16,7 +16,6 @@ try:
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_recurrence_context, build_timeline
-    from .memory_policy_changes import recent_memory_policy_changes
     from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
     from .worker_report_history import worker_history_events
 except ImportError:
@@ -26,7 +25,6 @@ except ImportError:
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_recurrence_context, build_timeline
-    from memory_policy_changes import recent_memory_policy_changes
     from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
     from worker_report_history import worker_history_events
 
@@ -608,27 +606,6 @@ def _main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
     sub.add_parser("authority-validate", help="validate authority registry against the current bank")
-    note = sub.add_parser("note", help="save a quick durable note")
-    note.add_argument("text")
-    note.add_argument("--scope", default="global")
-    note.add_argument("--event-at")
-    note.add_argument("--thread")
-
-    append = sub.add_parser("append")
-    append.add_argument("--kind", required=True, choices=sorted(KINDS))
-    append.add_argument("--scope", required=True)
-    append.add_argument("--tag", action="append", default=[])
-    append.add_argument("--title")
-    append.add_argument("--project")
-    append.add_argument("--expires-at")
-    append.add_argument("--event-at")
-    append.add_argument("--thread")
-    append.add_argument("--text", required=True)
-    append.add_argument("--state", required=True, choices=sorted(STATES))
-    append.add_argument("--evidence", action="append", default=[])
-    append.add_argument("--supersedes", action="append", default=[])
-    append.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
-
     record = sub.add_parser("record", help="save an assistant-authored memory with verbatim user provenance")
     record.add_argument("--kind", required=True, choices=sorted(KINDS))
     record.add_argument("--scope", required=True)
@@ -689,10 +666,6 @@ def _main() -> int:
     recent_titles = sub.add_parser("recent-titles", aliases=["recent"])
     recent_titles.add_argument("--limit", type=int, default=DEFAULT_RECENT_TITLES_LIMIT)
 
-    changes = sub.add_parser("changes", help="read-only Git-derived memory and policy change log")
-    changes.add_argument("--limit", type=int, default=20)
-    changes.add_argument("--ref", default="HEAD")
-
     args = parser.parse_args()
     try:
         configure_authority_registry(args.authority_registry)
@@ -704,40 +677,6 @@ def _main() -> int:
             result = validate_authority_registry(entries, path=args.authority_registry)
             _print_json(result)
             return 0 if result.get("status") == "PROVEN" else 2
-        if args.command == "note":
-            text = args.text.strip()
-            tags = ["quick-note"]
-            if text.casefold().startswith(("error:", "error ")):
-                tags.append("error")
-            values = {"kind": "lesson", "scope": args.scope, "tags": tags, "text": text, "state": "PROVISIONAL", "evidence": [], "supersedes": [], "behavior_rule": False}
-            if args.event_at:
-                values["event_at"] = args.event_at
-            if args.thread:
-                values["thread"] = args.thread
-            entry = append_entry(args.bank, values)
-            _print_json(entry)
-            return 0
-        if args.command == "append":
-            if args.standalone_correction and args.kind != "correction":
-                raise BankError("--standalone-correction is valid only with --kind correction")
-            if args.kind == "correction" and not args.supersedes and not args.standalone_correction:
-                raise BankError("correction must name at least one --supersedes memory id, or explicitly use --standalone-correction")
-            known_ids = {item["id"] for item in entries}
-            missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
-            if missing_supersedes:
-                raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
-            values = {"kind": args.kind, "scope": args.scope, "tags": args.tag, "title": args.title, "text": args.text, "state": args.state, "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": False}
-            if args.project:
-                values["project"] = args.project
-            if args.expires_at:
-                values["expires_at"] = args.expires_at
-            if args.event_at:
-                values["event_at"] = args.event_at
-            if args.thread:
-                values["thread"] = args.thread
-            entry = append_entry(args.bank, values)
-            _print_json(entry)
-            return 0
         if args.command == "record":
             if args.standalone_correction and args.kind != "correction":
                 raise BankError("--standalone-correction is valid only with --kind correction")
@@ -788,9 +727,6 @@ def _main() -> int:
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
-            return 0
-        if args.command == "changes":
-            _print_json(recent_memory_policy_changes(ref=args.ref, limit=args.limit))
             return 0
         if args.command == "behavior-search":
             _print_json([annotate_memory(entry) for entry in search_behavior_memory(entries, args.query, limit=args.limit)])

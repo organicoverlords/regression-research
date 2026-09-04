@@ -3,9 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+try:
+    from .memory_lifecycle import is_expired
+except ImportError:
+    from memory_lifecycle import is_expired
 
 PROJECT_MARKERS = {
     "p3": ("p3",),
@@ -201,20 +205,6 @@ def _semantic_category(entry: dict[str, Any], projects: set[str]) -> str:
     return "LESSON"
 
 
-def _is_expired(entry: dict[str, Any], now: datetime | None = None) -> bool:
-    raw = entry.get("expires_at")
-    if not raw:
-        return False
-    try:
-        stamp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    if stamp.tzinfo is None:
-        return False
-    current = now or datetime.now().astimezone()
-    return stamp <= current
-
-
 def _persisted_strings(value: Any):
     if isinstance(value, str):
         yield value
@@ -240,7 +230,7 @@ def _sensitivity(entry: dict[str, Any]) -> tuple[str, list[str]]:
 
 def _durability(entry: dict[str, Any], category: str, domain: str) -> str:
     scope = str(entry.get("scope") or "").casefold()
-    if _is_expired(entry):
+    if is_expired(entry):
         return "HISTORICAL"
     if any(fragment in scope for fragment in _EPHEMERAL_SCOPE_FRAGMENTS):
         return "EPHEMERAL"
@@ -293,7 +283,7 @@ def classify_entry(entry: dict[str, Any]) -> dict[str, Any]:
         "entities": _entities(entry, projects),
         "durability": durability,
         "sensitivity": sensitivity,
-        "expired": _is_expired(entry),
+        "expired": is_expired(entry),
         "confidence": confidence,
         "review_reasons": sorted(set(review_reasons)),
     }
