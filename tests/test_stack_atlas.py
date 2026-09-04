@@ -141,7 +141,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(find_features("definitely-unknown-capability"), [])
         self.assertEqual(find_features("workers")[0]["id"], "execution_workers")
         self.assertEqual(find_features("atlas")[0]["id"], "stack_atlas")
-        self.assertEqual(find_features("mcpv3")[0]["id"], "vps_edge_ingress")
+        self.assertEqual(find_features("mcpv3")[0]["id"], "mcpv3_surface")
         results = find_features("current state", limit=2)
         self.assertLessEqual(len(results), 2)
         self.assertTrue(all(item["authority"] == ATLAS_CONTRACT["authority"] for item in results))
@@ -161,6 +161,41 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["status"], "UNRESOLVED")
         self.assertEqual(result["destructive_verdict"], "BLOCK_UNKNOWN_TOPOLOGY")
         self.assertIn("stable_component_identity", result["unknowns"])
+
+    def test_mcpv3_lookup_starts_from_semantics_not_edge(self):
+        details = component_details("mcpv3")
+        self.assertEqual(details["id"], "mcpv3_surface")
+        sources = " ".join(details["canonical_sources"])
+        self.assertIn("process-tool-contract.json", sources)
+        self.assertIn("process-manager.js", sources)
+        self.assertIn("wait_ms", details["boundary"])
+        self.assertIn("aggregate duration alone", details["boundary"])
+        self.assertIn("tool contract/schema", details["diagnostic_order"][0])
+        self.assertIn("VPS edge/reverse-SSH only", " ".join(details["diagnostic_order"]))
+
+    def test_mcpv3_stall_search_requires_semantic_latency_classification(self):
+        result = find_features("mcpv3 stall")[0]
+        self.assertEqual(result["id"], "execution.transport")
+        self.assertIn("mcpv3_surface", result["owner_components"])
+        self.assertIn("process-tool-contract.json", " ".join(result["entrypoints"]))
+        self.assertIn("Expected wait/poll windows", result["boundary"])
+        self.assertIn("aggregate duration alone", result["boundary"])
+
+    def test_busy_lookup_forces_current_contract_and_ownership_boundary(self):
+        details = component_details("busy")
+        self.assertEqual(details["id"], "busy_coordinator")
+        sources = " ".join(details["canonical_sources"])
+        self.assertIn("coordinator-contract.json", sources)
+        self.assertIn("busy.py", sources)
+        self.assertIn("--help", " ".join(details["live_status"]))
+        self.assertIn("ownership only", details["boundary"])
+        self.assertIn("queue/workflow commands are retired", details["boundary"])
+
+    def test_atlas_contract_requires_contract_first_debugging(self):
+        gate = ATLAS_CONTRACT["debugging_gate"]
+        self.assertIn("contract/help", gate)
+        self.assertIn("requested waits", gate)
+        self.assertIn("child-command runtime", gate)
 
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
         details = component_details("mcp_front_door")
@@ -201,7 +236,7 @@ class StackAtlasTests(unittest.TestCase):
         atlas = build_bootstrap_atlas()
         ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS)
         expected = {
-            "stack_atlas", "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
+            "stack_atlas", "busy_coordinator", "mcpv3_surface", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "agent_rules", "repo_rule_pointer", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "worker_reports",
