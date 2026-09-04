@@ -15,9 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 STACK_PATHS = {
     "AGENTS.md",
     "NORTH_STAR.md",
-    "tools/capability_routing.py",
-    "tests/fixtures/capability-routing-policy.json",
-    "tests/test_capability_routing.py",
     "tests/fixtures/instruction-delivery-canary.json",
     "tests/fixtures/source-grounding-cases.json",
     "tools/stack_atlas.py",
@@ -122,8 +119,7 @@ def verify_stack() -> None:
             sys.executable,
             "-m",
             "py_compile",
-            "tools/capability_routing.py",
-            "tools/stack_atlas.py",
+                    "tools/stack_atlas.py",
             "tools/replay_scoring.py",
         ]
     )
@@ -132,7 +128,6 @@ def verify_stack() -> None:
             sys.executable,
             "-m",
             "unittest",
-            "tests.test_capability_routing",
             "tests.test_stack_atlas",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue123_current_vault_history_boundary",

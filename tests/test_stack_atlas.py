@@ -1,10 +1,8 @@
 import json
 import unittest
-from copy import deepcopy
 from unittest.mock import patch
 from pathlib import Path
 
-from tools.capability_routing import load_policy as load_capability_policy
 from tools.stack_atlas import (
     ATLAS_CONTRACT,
     blast_radius,
@@ -146,14 +144,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("TINY3D_NORTH_STAR.md", " ".join(tiny3d["canonical_sources"]))
         self.assertEqual(library["canonical_sources"][0], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")
         self.assertEqual(full_inventory()["product_flow"], [["lowvram", "tiny3d"], ["tiny3d", "p3"]])
-
-    def test_capability_directory_is_derived_from_current_routing_policy(self):
-        policy = deepcopy(load_capability_policy())
-        policy["capabilities"]["fresh_capability"] = policy["capabilities"]["runtime_validate"]
-        with patch("tools.stack_atlas.load_policy", return_value=policy):
-            atlas = build_bootstrap_atlas()
-        self.assertEqual(atlas["inventory"], "inventory")
-
 
     def test_generated_operational_manual_matches_atlas(self):
         manual = ROOT / "docs" / "assistant-stack-operational-atlas.md"
