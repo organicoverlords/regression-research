@@ -43,6 +43,15 @@ def test_archive_cli_routes_current_snapshot_to_canonical_history(tmp_path: Path
     canonical_history = (reports / "history").resolve()
     assert archived.is_relative_to(canonical_history)
     assert archived.read_bytes() == raw
-    assert not (reports / "metrics.json").exists()
+    metrics_path = reports / "metrics.json"
+    assert metrics_path.exists()
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    assert metrics["schema"] == "worker-report-metrics.v1"
+    assert metrics["runs_with_duration"] == 1
+    assert metrics["average_duration_minutes"] == 5.0
+    assert metrics["average_target_utilization_pct"] == 20.8
+    assert metrics["latest_reports"][0]["automation_id"] == "worker-id"
+    assert "early_stop" not in metrics["latest_reports"][0]
+    assert "tool_failures_total" not in metrics["latest_reports"][0]
     assert not archived.is_relative_to((current / "history").resolve())
     assert not (current / "history").exists()
