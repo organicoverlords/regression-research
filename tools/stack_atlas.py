@@ -8,11 +8,6 @@ import subprocess
 from pathlib import Path
 from typing import Any, Iterable
 
-try:
-    from .capability_routing import load_policy, validate_policy
-except ImportError:
-    from capability_routing import load_policy, validate_policy
-
 ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
@@ -407,7 +402,6 @@ def _expand_env(value: str) -> str:
 
 def build_bootstrap_atlas() -> dict[str, Any]:
     """Compact directory for the on-demand Atlas CLI."""
-    validate_policy(load_policy())
     return {
         "schema": "atlas.v1",
         "must": "Stack work: load canonical inventory before reasoning/answer/change; lookup touched components for live proof; unknown blast radius blocks disruption.",
@@ -657,7 +651,6 @@ def full_inventory() -> dict[str, Any]:
     return {
         "schema": "stack-atlas.inventory.v1",
         "contract": ATLAS_CONTRACT,
-        "capability_policy": validate_policy(load_policy()),
         "features": FEATURE_INDEX,
         "components": {name: component_details(name) for name in [*COMPONENTS, *PRODUCT_ROOTS]},
         "product_flow": [list(edge) for edge in PRODUCT_FLOW],
@@ -675,14 +668,13 @@ def render_manual() -> str:
         "",
         "For stack/infra work, consume the compact Atlas first and deep-lookup every relevant component before reasoning, answering, redesigning, repairing, or mutating. Fetch status from the named live route. If identity, dependency role, supervisor, self-heal, blast radius, or independent recovery is unknown, disruptive action is blocked.",
         "",
-        "## Capability routing",
+        "## Feature discovery",
         "",
-        "| Capability | Ordered adapter roles | Fallback |",
-        "| --- | --- | --- |",
+        "Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.",
+        "",
+        "| Feature | Owner components | Entrypoints | Boundary |",
+        "| --- | --- | --- | --- |",
     ]
-    for name, spec in inventory["capability_policy"]["capabilities"].items():
-        lines.append(f"| `{name}` | {' -> '.join(spec['ordered_adapter_roles'])} | `{spec['fallback_mode']}` |")
-    lines.extend(["", "## Feature discovery", "", "Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.", "", "| Feature | Owner components | Entrypoints | Boundary |", "| --- | --- | --- | --- |"])
     for feature_id, spec in inventory["features"].items():
         lines.append(f"| `{feature_id}` | {', '.join(spec['owner_components'])} | {'; '.join(spec['entrypoints'])} | {spec['boundary']} |")
     lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])

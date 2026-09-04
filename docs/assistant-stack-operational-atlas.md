@@ -6,20 +6,6 @@
 
 For stack/infra work, consume the compact Atlas first and deep-lookup every relevant component before reasoning, answering, redesigning, repairing, or mutating. Fetch status from the named live route. If identity, dependency role, supervisor, self-heal, blast radius, or independent recovery is unknown, disruptive action is blocked.
 
-## Capability routing
-
-| Capability | Ordered adapter roles | Fallback |
-| --- | --- | --- |
-| `coordination` | live_ownership | `no_second_authority` |
-| `source_read` | source_native_read -> verified_local_read -> public_read | `ordered_supported_fallback` |
-| `repository_mutate` | repo_native_write -> verified_local_repo_write | `ordered_supported_fallback` |
-| `runtime_validate` | local_runtime_validation -> equivalent_ci_validation | `ordered_supported_fallback` |
-| `connected_account_action` | source_native_account_adapter | `none` |
-| `artifact_create` | artifact_native_adapter | `none` |
-| `schedule` | scheduler_adapter | `none` |
-| `memory_read` | side_effect_free_memory_read | `none` |
-| `memory_write` | audited_memory_write | `none` |
-
 ## Feature discovery
 
 Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.
