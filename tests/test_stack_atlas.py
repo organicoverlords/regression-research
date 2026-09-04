@@ -158,8 +158,9 @@ class StackAtlasTests(unittest.TestCase):
     def test_vault_agents_is_pointer_only_to_canonical_rules(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertEqual(len(agents.rstrip().splitlines()), 7)
-        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\RULES.md", agents)
-        self.assertIn(r"contexts\vault.md", agents)
+        self.assertIn(r"C:\Users\Lauri\.agents\RULES.md", agents)
+        self.assertIn(r"C:\Users\Lauri\.agents\AGENTS.md", agents)
+        self.assertNotIn("contexts", agents.casefold())
         self.assertIn("pointer-only", agents)
         self.assertNotIn("SHARED-AGENT-POLICY", agents)
         self.assertNotIn("### Navigation minimap", agents)

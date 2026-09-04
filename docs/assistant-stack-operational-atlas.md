@@ -13,7 +13,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
 | `vault.history` | memory_bank | memory_bank.py search; memory_bank.py search --history; memory_bank.py context; memory_bank.py timeline; memory_bank.py recent-titles | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
-| `project.current_truth` | agent_rules, north_star, local_git, github | agent-rules RULES.md + applicable context; repo NORTH_STAR/equivalent; git status/HEAD + recent all-branch history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
+| `project.current_truth` | agent_rules, north_star, local_git, github | shared .agents RULES.md + AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD + relevant branch/commit history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
@@ -127,7 +127,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: classify why the previous proof failed and change a load-bearing condition before another expensive retry
 - Resources: capture; manifest; review verdict; acceptance requirement
 - Dependents: p3; worker_reports
-- Runbook: C:\Users\Lauri\Documents\agent-rules\contexts\p3.md
+- Runbook: C:\Users\Lauri\.agents\AGENTS.md
 - Supervisor: project-specific proof workflow
 - Self-heal: not_applicable
 
@@ -153,7 +153,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: preserve dirty/foreign state; use isolated worktree
 - Resources: working tree; .git/worktrees
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -166,7 +166,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: local Git remains local source truth; publication waits for GitHub
 - Resources: remote refs; issues; PRs; workflow runs
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: external service
 - Self-heal: external
 
@@ -174,12 +174,12 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `authority:agent-rules`
 - Capabilities: source_read, repository_mutate
-- Canonical sources: C:\Users\Lauri\Documents\agent-rules\RULES.md; C:\Users\Lauri\Documents\agent-rules\contexts; organicoverlords/agent-rules@rules/live
-- Live status: read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters
+- Canonical sources: C:\Users\Lauri\.agents\RULES.md; C:\Users\Lauri\.agents\AGENTS.md; organicoverlords/agents@main
+- Live status: read exact agents/main commit plus RULES.md and AGENTS.md; reconcile local/remote ref when mutation matters
 - Independent recovery: current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable
-- Resources: RULES.md; contexts/*.md; rules/live
+- Resources: RULES.md; AGENTS.md; main
 - Dependents: chatgpt_session; execution_workers; repo_rule_pointer
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -188,11 +188,11 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `navigation:rule-pointer`
 - Capabilities: source_read
 - Canonical sources: pointer-only AGENTS.md/CLAUDE.md/equivalent
-- Live status: verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body
+- Live status: verify pointer names shared .agents RULES.md and AGENTS.md and contains no copied policy body
 - Independent recovery: read agent_rules directly; a missing/stale pointer never creates a second policy authority
 - Resources: pointer files only
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -309,7 +309,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM
 - Resources: source recovery; image-to-3D generation; geometry; textures; provenance; producer visual QA
 - Dependents: tiny3d
-- Runbook: C:\Users\Lauri\Documents\agent-rules\contexts\lowvram.md; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md
+- Runbook: C:\Users\Lauri\.agents\AGENTS.md; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
@@ -335,7 +335,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM
 - Resources: compilation; rigging/skinning; animation/deformation preparation; validation/adapters; packaging/lifecycle evidence; catalogue/library
 - Dependents: p3
-- Runbook: C:\Users\Lauri\Documents\agent-rules\contexts\tiny3d.md; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
+- Runbook: C:\Users\Lauri\.agents\AGENTS.md; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 
@@ -348,7 +348,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof
 - Resources: Unreal/game materialization; runtime acceptance; gameplay/visual proof
 - Dependents: none
-- Runbook: C:\Users\Lauri\Documents\agent-rules\contexts\p3.md
+- Runbook: C:\Users\Lauri\.agents\AGENTS.md
 - Supervisor: project-specific
 - Self-heal: project-specific
 

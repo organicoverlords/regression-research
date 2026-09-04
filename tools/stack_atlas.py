@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
-AGENT_RULES_ROOT = r"C:\Users\Lauri\Documents\agent-rules"
-AGENT_RULES_REMOTE = "organicoverlords/agent-rules@rules/live"
+AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
+AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
     "webgpt": "chatgpt_session",
@@ -166,7 +166,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["classify why the previous proof failed and change a load-bearing condition before another expensive retry"],
         "resources": ["capture", "manifest", "review verdict", "acceptance requirement"],
         "dependents": ["p3", "worker_reports"],
-        "runbook": [AGENT_RULES_ROOT + r"\contexts\p3.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md"],
     },
     "github_runner": {
         "role": "ci_execution_worker",
@@ -209,18 +209,18 @@ COMPONENTS: dict[str, dict[str, Any]] = {
 COMPONENTS.update({
     "agent_rules": {
         "role": "authority:agent-rules", "capabilities": ["source_read", "repository_mutate"],
-        "canonical_sources": [AGENT_RULES_ROOT + r"\RULES.md", AGENT_RULES_ROOT + r"\contexts", AGENT_RULES_REMOTE],
-        "live_status": ["read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters"],
+        "canonical_sources": [AGENT_RULES_ROOT + r"\RULES.md", AGENT_RULES_ROOT + r"\AGENTS.md", AGENT_RULES_REMOTE],
+        "live_status": ["read exact agents/main commit plus RULES.md and AGENTS.md; reconcile local/remote ref when mutation matters"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable"],
-        "resources": ["RULES.md", "contexts/*.md", "rules/live"],
+        "resources": ["RULES.md", "AGENTS.md", "main"],
         "dependents": ["chatgpt_session", "execution_workers", "repo_rule_pointer"],
         "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "repo_rule_pointer": {
         "role": "navigation:rule-pointer", "capabilities": ["source_read"],
         "canonical_sources": ["pointer-only AGENTS.md/CLAUDE.md/equivalent"],
-        "live_status": ["verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body"],
+        "live_status": ["verify pointer names shared .agents RULES.md and AGENTS.md and contains no copied policy body"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read agent_rules directly; a missing/stale pointer never creates a second policy authority"],
         "resources": ["pointer files only"],
@@ -297,7 +297,7 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM"],
         "resources": ["source recovery", "image-to-3D generation", "geometry", "textures", "provenance", "producer visual QA"],
         "dependents": ["tiny3d"],
-        "runbook": [AGENT_RULES_ROOT + r"\contexts\lowvram.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
     },
     "asset_library": {
         "role": "storage:tiny3d_asset_library",
@@ -321,7 +321,7 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM"],
         "resources": ["compilation", "rigging/skinning", "animation/deformation preparation", "validation/adapters", "packaging/lifecycle evidence", "catalogue/library"],
         "dependents": ["p3"],
-        "runbook": [AGENT_RULES_ROOT + r"\contexts\tiny3d.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
     },
     "p3": {
         "role": "consumer:game_runtime_acceptance",
@@ -333,7 +333,7 @@ PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof"],
         "resources": ["Unreal/game materialization", "runtime acceptance", "gameplay/visual proof"],
         "dependents": [],
-        "runbook": [AGENT_RULES_ROOT + r"\contexts\p3.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md"],
     },
 }
 PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
@@ -349,7 +349,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
-        "entrypoints": ["agent-rules RULES.md + applicable context", "repo NORTH_STAR/equivalent", "git status/HEAD + recent all-branch history", "exact GitHub issue/PR/check/runtime evidence"],
+        "entrypoints": ["shared .agents RULES.md + AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
     "coordination.ownership": {
