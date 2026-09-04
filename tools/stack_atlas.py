@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
@@ -20,8 +19,6 @@ MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\Documents\agent-rules"
 AGENT_RULES_REMOTE = "organicoverlords/agent-rules@rules/live"
-ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
-CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
     "webgpt": "chatgpt_session",
@@ -409,13 +406,12 @@ def _expand_env(value: str) -> str:
 
 
 def build_bootstrap_atlas() -> dict[str, Any]:
-    """Cheap mandatory pointer to the canonical generated Atlas."""
+    """Compact directory for the on-demand Atlas CLI."""
     validate_policy(load_policy())
     return {
         "schema": "atlas.v1",
         "must": "Stack work: load canonical inventory before reasoning/answer/change; lookup touched components for live proof; unknown blast radius blocks disruption.",
-        "library": ATLAS_LIBRARY_PATH,
-        "local_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py",
+        "entrypoint": r"python tools\stack_atlas.py",
         "inventory": "inventory",
         "find": "find <query>",
         "lookup": "lookup <id-or-alias>",
@@ -666,42 +662,6 @@ def full_inventory() -> dict[str, Any]:
         "components": {name: component_details(name) for name in [*COMPONENTS, *PRODUCT_ROOTS]},
         "product_flow": [list(edge) for edge in PRODUCT_FLOW],
     }
-def render_library_atlas_bytes() -> bytes:
-    artifact = {
-        "artifact_schema_version": 1,
-        "authority": "DERIVED_OPERATIONAL_VIEW_NOT_AUTHORITY",
-        "library_path": ATLAS_LIBRARY_PATH,
-        "source": {
-            "stack_atlas_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest().upper(),
-            "capability_policy_sha256": hashlib.sha256(CAPABILITY_POLICY_PATH.read_bytes()).hexdigest().upper(),
-        },
-        "inventory": full_inventory(),
-    }
-    return (json.dumps(artifact, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
-
-
-def atlas_publication_plan() -> dict[str, Any]:
-    data = render_library_atlas_bytes()
-    return {
-        "status": "EXPECTED_LIBRARY_ARTIFACT",
-        "library_path": ATLAS_LIBRARY_PATH,
-        "bytes": len(data),
-        "sha256": hashlib.sha256(data).hexdigest().upper(),
-        "acceptance": "retrieve Library copy and require byte-exact match",
-    }
-
-
-def verify_library_atlas_copy(path: Path) -> dict[str, Any]:
-    expected = render_library_atlas_bytes()
-    actual = path.read_bytes()
-    return {
-        "status": "PROVEN" if actual == expected else "MISMATCH",
-        "library_path": ATLAS_LIBRARY_PATH,
-        "expected_bytes": len(expected),
-        "actual_bytes": len(actual),
-        "expected_sha256": hashlib.sha256(expected).hexdigest().upper(),
-        "actual_sha256": hashlib.sha256(actual).hexdigest().upper(),
-    }
 
 
 def render_manual() -> str:
@@ -741,11 +701,6 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("bootstrap-glance")
     sub.add_parser("inventory")
-    sub.add_parser("library-plan")
-    lib_render = sub.add_parser("library-render")
-    lib_render.add_argument("--output", type=Path, required=True)
-    lib_verify = sub.add_parser("library-verify")
-    lib_verify.add_argument("copy", type=Path)
     manual = sub.add_parser("manual")
     manual.add_argument("--output", type=Path)
     find = sub.add_parser("find")
@@ -762,15 +717,6 @@ def main() -> int:
         value = build_bootstrap_atlas()
     elif args.command == "inventory":
         value = full_inventory()
-    elif args.command == "library-plan":
-        value = atlas_publication_plan()
-    elif args.command == "library-render":
-        data = render_library_atlas_bytes()
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_bytes(data)
-        value = {"status": "RENDERED", "path": str(args.output), "bytes": len(data), "library_path": ATLAS_LIBRARY_PATH}
-    elif args.command == "library-verify":
-        value = verify_library_atlas_copy(args.copy)
     elif args.command == "manual":
         text = render_manual()
         if args.output:
