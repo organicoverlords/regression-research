@@ -67,27 +67,6 @@ def parse_repo_arg(value: str) -> RepoSpec:
     return RepoSpec(project=project.strip().casefold(), path=Path(path.strip()))
 
 
-def repo_snapshot(spec: RepoSpec) -> dict[str, Any]:
-    path = spec.path
-    available = path.is_dir() and _run_git(path, "rev-parse", "--git-dir", check=False).returncode == 0
-    snapshot: dict[str, Any] = {
-        "project": spec.project,
-        "path": str(path),
-        "available": available,
-        "source_type": "LOCAL_GIT",
-    }
-    if not available:
-        return snapshot
-    snapshot.update({
-        "branch": _git_value(path, "branch", "--show-current"),
-        "head": _git_value(path, "rev-parse", "HEAD"),
-        "origin": _git_value(path, "remote", "get-url", "origin"),
-    })
-    proc = _run_git(path, "status", "--porcelain=v1", check=False)
-    if proc.returncode == 0:
-        snapshot["dirty_entries"] = len([line for line in proc.stdout.splitlines() if line.strip()])
-    return snapshot
-
 
 def _refs_from_title(title: str) -> list[str]:
     return [f"#{match.group('number')}" for match in ISSUE_REF_RE.finditer(title)]
@@ -156,15 +135,12 @@ def git_commit_events(spec: RepoSpec, *, limit: int = 20, since: datetime | None
     return events
 
 def collect_repo_history(specs: Iterable[RepoSpec], *, limit_per_repo: int = 20, since: datetime | None = None) -> dict[str, Any]:
-    snapshots: list[dict[str, Any]] = []
     events: list[dict[str, Any]] = []
     for spec in specs:
-        snapshots.append(repo_snapshot(spec))
         events.extend(git_commit_events(spec, limit=limit_per_repo, since=since))
     events.sort(key=lambda event: (datetime.fromisoformat(event["event_at"].replace("Z", "+00:00")), event["id"]), reverse=True)
     return {
         "authority": "LOCAL_REPO_HISTORY",
         "contract": "local Git history only; no network fetch and no memory authority",
-        "repo_snapshots": snapshots,
         "events": events,
     }

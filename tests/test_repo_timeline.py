@@ -77,7 +77,6 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(specs, [RepoSpec("tiny3d", repo)])
             history = collect_repo_history(specs, limit_per_repo=5)
             self.assertEqual(history["events"], [])
-            self.assertEqual(history["repo_snapshots"][0]["project"], "tiny3d")
 
     def test_collect_repo_history_reads_actual_local_git_not_external_projection(self):
         with tempfile.TemporaryDirectory() as d:
@@ -96,8 +95,6 @@ class RepoTimelineTests(unittest.TestCase):
                 RepoSpec("missing", Path(d) / "does-not-exist"), RepoSpec("p3", repo),
             ], limit_per_repo=3)
             self.assertEqual(history["events"][0]["sha"], sha)
-            self.assertFalse(history["repo_snapshots"][0]["available"])
-            self.assertTrue(history["repo_snapshots"][1]["available"])
 
     def test_explicit_repo_argument_is_simple_shared_input(self):
         spec = parse_repo_arg(r"p3=C:\work\p3")
