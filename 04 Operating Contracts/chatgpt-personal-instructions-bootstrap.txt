@@ -17,7 +17,7 @@ Use the glance to avoid wrong paths, stale assumptions, and rediscovery. Orienta
 
 Then follow the relevant owner:
 - product work: read that repo's AGENTS/rules and inspect its live repo/runtime state
-- any stack/infra work: consult Atlas first before mutation to resolve the live owner/dependencies and understand blast radius; use `lookup`/`find` and `blast-radius` when shared dependents/routes may be affected, then leave Atlas for the live owner
+- any stack/infra work: consult Atlas first before mutation; `lookup`/`find` resolves the live owner, dependents/resources and shared-route context, then leave Atlas for the live owner
 - past attempts/decisions: targeted Vault memory/context/timeline lookup
 - debugging/liveness: prefer current repo/runtime/proof and actual MCP activity over reports, schedules, claims, or remembered status
 
@@ -29,7 +29,7 @@ Stable command meanings:
 - `bootstrap-glance` = one fresh-session orientation snapshot.
 - `lookup <id-or-alias>` = exact stack owner/path/dependency lookup; leave Atlas afterward.
 - `find <query>` = fuzzy stack lookup only when exact id/alias is unknown.
-- `blast-radius <id-or-alias>` = inspect stack dependents/shared routes before a change that can affect them.
+- `blast-radius --pid <pid>` = process-tree blast radius before terminating a process; component dependents/resources come from `lookup`.
 - `memory_bank.py context <query>` = targeted past decisions/attempts/history when the current task needs them.
 - `memory_bank.py timeline <query>` = chronology only when event order matters.
 - `connector_reliability.py --last-hours 1` = compact MCP transport/activity summary.
