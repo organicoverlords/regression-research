@@ -28,7 +28,7 @@ class StandaloneRepoSmoke(unittest.TestCase):
             self.assertFalse(any(hit["id"] == "mem-20260825-chain-lightning" for hit in ordinary_hits))
 
             history = subprocess.run(
-                [sys.executable, str(dst / "tools" / "memory_bank.py"), "history", "Chain Lightning", "--scope", "p3"],
+                [sys.executable, str(dst / "tools" / "memory_bank.py"), "search", "Chain Lightning", "--scope", "p3", "--history"],
                 cwd=dst, text=True, encoding="utf-8", capture_output=True, env=env,
             )
             self.assertEqual(history.returncode, 0, history.stderr)
