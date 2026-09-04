@@ -129,6 +129,75 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metadata["legacy_unclassified_tool_drops"], 0)
 
 
+    def test_current_report_rejects_missing_canonical_fields_and_aliases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "0123456789abcdef0123456789abcdef"
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstate: COMPLETE\noutcome: SUBSTANTIVE_PROGRESS\n"
+                "repo: p3\nscope: p3#803\nmutations: changed gameplay\nvalidation: PASS\n"
+                "remaining_heavy_gate: runtime proof\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "started_at.*last_activity_at.*mutation.*remaining_gate"):
+                archive_finalized_report(report, root / "history")
+
+    def test_current_report_requires_filename_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            report = current / "0123456789abcdef0123456789abcdef.md"
+            report.write_text(
+                "automation_id: fedcba9876543210fedcba9876543210\n"
+                "started_at: 2099-01-01T00:00:00+00:00\nlast_activity_at: 2099-01-01T00:23:00+00:00\n"
+                "repo: p3\nscope: p3#803\nstate: COMPLETE\noutcome: SUBSTANTIVE_PROGRESS\n"
+                "mutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "automation_id does not match filename"):
+                archive_finalized_report(report, root / "history")
+
+    def test_current_report_rejects_invalid_or_reversed_timestamps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "0123456789abcdef0123456789abcdef"
+            report = current / f"{automation_id}.md"
+            common = (
+                f"automation_id: {automation_id}\nrepo: p3\nscope: p3#803\nstate: COMPLETE\n"
+                "outcome: SUBSTANTIVE_PROGRESS\nmutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n"
+            )
+            report.write_text(common + "started_at: not-a-time\nlast_activity_at: 2099-01-01T00:23:00+00:00\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "started_at is not a valid"):
+                archive_finalized_report(report, root / "history")
+            report.write_text(common + "started_at: 2099-01-01T00:24:00+00:00\nlast_activity_at: 2099-01-01T00:23:00+00:00\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "precedes started_at"):
+                archive_finalized_report(report, root / "history")
+
+    def test_valid_current_report_archives_and_derives_duration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "0123456789abcdef0123456789abcdef"
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\ndisplay_label: Birch\n"
+                "started_at: 2099-01-01T00:00:00+00:00\nlast_activity_at: 2099-01-01T00:23:00+00:00\n"
+                "repo: p3\nscope: p3#803\nstate: COMPLETE\noutcome: SUBSTANTIVE_PROGRESS\n"
+                "mutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["duration_minutes"], 23.0)
+            self.assertEqual(metadata["target_utilization_pct"], 95.8)
+
     def test_running_report_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

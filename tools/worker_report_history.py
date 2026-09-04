@@ -22,6 +22,10 @@ VALID_STOP_REASONS = {
 }
 VALID_TOOL_DROP_EFFECTS = {"RECOVERED_CONTINUED", "CONTRIBUTED_TO_STOP", "BLOCKED_REQUIRED_ROUTE"}
 CLASSIFIED_FAILURE_FIELDS = ("transport_drops", "binding_drops", "safety_blocks", "other_tool_failures")
+CURRENT_REPORT_REQUIRED_FIELDS = (
+    "automation_id", "started_at", "last_activity_at", "repo", "scope", "state",
+    "outcome", "mutation", "validation", "remaining_gate",
+)
 
 
 def _fields(raw: bytes) -> dict[str, str]:
@@ -45,6 +49,26 @@ def _parse_time(value: str | None) -> datetime | None:
     except ValueError:
         return None
     return parsed if parsed.tzinfo else parsed.astimezone()
+
+def _validate_current_report(report: Path, fields: dict[str, str]) -> None:
+    """Fail closed on malformed stable current/<automation-id>.md reports."""
+    if report.parent.name.casefold() != "current":
+        return
+    missing = [key for key in CURRENT_REPORT_REQUIRED_FIELDS if not fields.get(key, "").strip()]
+    if missing:
+        raise ValueError("current report missing required canonical field(s): " + ", ".join(missing))
+    automation_id = fields["automation_id"].strip()
+    if report.stem.casefold() != automation_id.casefold():
+        raise ValueError(f"current report automation_id does not match filename: {automation_id} != {report.stem}")
+    started = _parse_time(fields["started_at"])
+    last_activity = _parse_time(fields["last_activity_at"])
+    if started is None:
+        raise ValueError("current report started_at is not a valid ISO-8601 timestamp")
+    if last_activity is None:
+        raise ValueError("current report last_activity_at is not a valid ISO-8601 timestamp")
+    if last_activity < started:
+        raise ValueError("current report last_activity_at precedes started_at")
+
 
 def _int_field(value: Any) -> int | None:
     if value in (None, ""):
@@ -276,7 +300,8 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
 def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
     raw = report.read_bytes()
     fields = _fields(raw)
-    # Older/current worker writers sometimes use `outcome: COMPLETE` without a separate
+    _validate_current_report(report, fields)
+    # Older/history worker writers sometimes use `outcome: COMPLETE` without a separate
     # `state:` field. Treat a terminal delivery token in either field as finalized.
     state = (fields.get("state") or fields.get("outcome") or "").upper()
     if state not in {"COMPLETE", "WAITING", "BLOCKED", "DONE"}:
