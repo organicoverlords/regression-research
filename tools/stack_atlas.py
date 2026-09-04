@@ -266,7 +266,7 @@ COMPONENTS.update({
         "canonical_sources": ["tools/memory_bank.py", "memory/memory-bank.jsonl", "origin/memory/live"],
         "live_status": ["memory_bank.py validate / bounded read", "writes reconcile through dedicated origin/memory/live; protected main/master/dev/develop are forbidden publication targets"],
         "supervisor": "none", "self_heal": "not_applicable", "independent_recovery": ["continue without optional history enrichment"],
-        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json", "memory/live"], "dependents": ["chatgpt_session", "execution_workers"],
+        "resources": ["memory-bank.jsonl", "memory/live"], "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
     "worker_reports": {

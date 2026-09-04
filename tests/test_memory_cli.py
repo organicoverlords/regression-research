@@ -66,12 +66,12 @@ class MemoryCliTests(unittest.TestCase):
             self.assertIn("verbatim-source", created["tags"])
             self.assertEqual(len(bank.read_text(encoding="utf-8").splitlines()), 1)
 
-    def test_record_cli_is_nonbehavioral_and_rejects_behavior_flag(self):
+    def test_record_cli_omits_legacy_behavior_metadata_and_rejects_behavior_flag(self):
         with tempfile.TemporaryDirectory() as d:
             bank = Path(d) / "bank.jsonl"
             args = self.record_args(kind="preference", scope="assistant-orchestration/test", text="Test behavior type", source="Test behavior type")
             ordinary = json.loads(self.run_cli(bank, *args, "--evidence", "user-instruction:test", check=True).stdout)
-            self.assertFalse(ordinary["behavior_rule"])
+            self.assertNotIn("behavior_rule", ordinary)
             typed = self.run_cli(bank, *args, "--behavior-rule")
             self.assertNotEqual(typed.returncode, 0)
             self.assertIn("unrecognized arguments: --behavior-rule", typed.stderr)

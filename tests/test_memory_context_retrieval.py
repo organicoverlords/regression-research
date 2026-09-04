@@ -1,16 +1,9 @@
 import unittest
-from unittest.mock import patch
 
-import tools.memory_authority as memory_authority
 from tools.memory_bank import search_context_memory
 
 
 class MemoryContextRetrievalTests(unittest.TestCase):
-    def setUp(self):
-        authority_patch = patch.object(memory_authority, "VERIFIED_USER_AUTHORITY_IDS", memory_authority.VERIFIED_USER_AUTHORITY_IDS | {"rule"})
-        authority_patch.start()
-        self.addCleanup(authority_patch.stop)
-
     @staticmethod
     def entry(ident, text, *, project=None, scope="global"):
         out = {
@@ -22,18 +15,18 @@ class MemoryContextRetrievalTests(unittest.TestCase):
             out["project"] = project
         return out
 
-    def test_single_token_can_recall_only_explicit_behavior(self):
-        behavior = self.entry("rule", "slopwall incident capture rule", scope="assistant-orchestration/slopwall")
-        behavior["kind"] = "preference"
-        behavior["evidence"] = ["user-instruction:test"]
-        behavior["behavior_rule"] = True
+    def test_single_token_context_query_stays_closed(self):
+        old_rule = self.entry("rule", "slopwall incident capture rule", scope="assistant-orchestration/slopwall")
+        old_rule["behavior_rule"] = True
+        old_rule["evidence"] = ["user-instruction:test"]
         advisory = self.entry("incident", "slopwall historical incident")
-        hits = search_context_memory([advisory, behavior], "slopwall", limit=8)
-        self.assertEqual([hit["id"] for hit in hits], ["rule"])
+        self.assertEqual(search_context_memory([advisory, old_rule], "slopwall", limit=8), [])
 
-    def test_single_token_without_explicit_behavior_stays_closed(self):
-        advisory = self.entry("incident", "slopwall historical incident")
-        self.assertEqual(search_context_memory([advisory], "slopwall", limit=8), [])
+    def test_multitoken_context_uses_relevance_not_authority(self):
+        relevant = self.entry("relevant", "preserve inherited task evidence")
+        unrelated = self.entry("other", "unrelated historical note")
+        hits = search_context_memory([unrelated, relevant], "preserve inherited", limit=8)
+        self.assertEqual([hit["id"] for hit in hits], ["relevant"])
 
     def test_named_project_gets_reserved_recall_budget(self):
         globals_ = [self.entry(f"g{i}", f"build routing generic note {i}") for i in range(12)]

@@ -34,26 +34,22 @@ STACK_PATHS = {
 
 
 MEMORY_PATHS = {
-    "memory/behavior-authority-registry.json",
     "memory/README.md",
     "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     "tools/stack_atlas.py",
-    "tools/memory_authority.py",
     "tools/memory_bank.py",
     "tools/memory_classification.py",
+    "tools/memory_context.py",
     "tools/memory_git_sync.py",
     "tools/memory_hybrid.py",
     "tools/memory_timeline.py",
-    "tools/benchmark_memory_behavior_retrieval.py",
     "tools/benchmark_memory_retrieval.py",
     "tools/provenance.py",
-    "tests/fixtures/memory-behavior-retrieval-v1.json",
-    "tests/test_memory_authority.py",
-    "tests/test_memory_authority_pipeline.py",
     "tests/test_memory_bank.py",
     "tests/test_memory_bootstrap.py",
     "tests/test_memory_classification.py",
     "tests/test_memory_cli.py",
+    "tests/test_memory_context.py",
     "tests/test_memory_context_retrieval.py",
     "tests/test_memory_git_sync.py",
     "tests/test_memory_retrieval_quality.py",
@@ -154,19 +150,17 @@ def verify_memory() -> None:
             "-m",
             "py_compile",
                     "tools/stack_atlas.py",
-            "tools/memory_authority.py",
-            "tools/memory_bank.py",
+                    "tools/memory_bank.py",
             "tools/memory_classification.py",
+            "tools/memory_context.py",
             "tools/memory_git_sync.py",
             "tools/memory_hybrid.py",
             "tools/memory_timeline.py",
-            "tools/benchmark_memory_behavior_retrieval.py",
-            "tools/benchmark_memory_retrieval.py",
+                    "tools/benchmark_memory_retrieval.py",
             "tools/provenance.py",
         ]
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
-    run([sys.executable, "tools/memory_bank.py", "authority-validate"])
     run([sys.executable, "tools/provenance.py", "validate"])
     run(
         [
@@ -174,12 +168,11 @@ def verify_memory() -> None:
             "-m",
             "pytest",
             "-q",
-            "tests/test_memory_authority.py",
-            "tests/test_memory_authority_pipeline.py",
-            "tests/test_memory_bank.py",
+                            "tests/test_memory_bank.py",
             "tests/test_memory_bootstrap.py",
             "tests/test_memory_classification.py",
             "tests/test_memory_cli.py",
+            "tests/test_memory_context.py",
             "tests/test_memory_context_retrieval.py",
             "tests/test_memory_git_sync.py",
             "tests/test_memory_retrieval_quality.py",
@@ -189,7 +182,7 @@ def verify_memory() -> None:
             "tests/test_taxonomy_matrix.py",
         ]
     )
-    print("MEMORY_AUTHORITY_RETRIEVAL_PROVEN")
+    print("MEMORY_HISTORY_RETRIEVAL_PROVEN")
 
 
 def verify_conversation() -> None:

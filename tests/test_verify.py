@@ -10,8 +10,8 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"NORTH_STAR.md"}), ["stack"])
         self.assertEqual(select_areas({"AGENTS.md"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
-        self.assertEqual(select_areas({"tools/memory_authority.py"}), ["memory"])
-        self.assertEqual(select_areas({"memory/behavior-authority-registry.json"}), ["memory"])
+        self.assertEqual(select_areas({"tools/memory_context.py"}), ["memory"])
+        self.assertEqual(select_areas({"memory/README.md"}), ["memory"])
         self.assertEqual(select_areas({"README.md"}), [])
 
     def test_verifier_changes_run_every_area(self):

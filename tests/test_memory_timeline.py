@@ -4,10 +4,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
-
-import tools.memory_authority as memory_authority
-
 from tools.memory_timeline import build_recurrence_context, build_timeline, needs_timeline_fallback
 
 
@@ -15,14 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MemoryTimelineTests(unittest.TestCase):
-    def setUp(self):
-        synthetic_users = {"rule", "user", *(f"rule-{i}" for i in range(40))}
-        synthetic_policies = {"policy"}
-        user_patch = patch.object(memory_authority, "VERIFIED_USER_AUTHORITY_IDS", memory_authority.VERIFIED_USER_AUTHORITY_IDS | synthetic_users)
-        policy_patch = patch.object(memory_authority, "VERIFIED_CANONICAL_AUTHORITY_IDS", memory_authority.VERIFIED_CANONICAL_AUTHORITY_IDS | synthetic_policies)
-        user_patch.start(); policy_patch.start()
-        self.addCleanup(user_patch.stop); self.addCleanup(policy_patch.stop)
-
     @staticmethod
     def e(memory_id, timestamp, text, *, kind="lesson", scope="global", state="PROVEN", title=None, tags=None, evidence=None, supersedes=None, project=None, event_at=None):
         out = {

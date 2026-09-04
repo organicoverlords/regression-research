@@ -11,7 +11,6 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from .memory_authority import (AUTHORITY_REGISTRY, annotate_memory, behavioral_authority, behavioral_context, configure_authority_registry, validate_authority_registry)
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
@@ -20,7 +19,6 @@ try:
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from memory_authority import (AUTHORITY_REGISTRY, annotate_memory, behavioral_authority, behavioral_context, configure_authority_registry, validate_authority_registry)
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
@@ -76,13 +74,8 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError(f"invalid kind: {entry['kind']}")
     if entry["state"] not in STATES:
         raise BankError(f"invalid state: {entry['state']}")
-    if "behavior_rule" in entry:
-        if not isinstance(entry["behavior_rule"], bool):
-            raise BankError("behavior_rule must be a boolean when present")
-        if entry["behavior_rule"] and entry["kind"] not in {"decision", "lesson", "preference", "correction"}:
-            raise BankError("behavior_rule=true requires decision, lesson, preference, or correction kind")
-        if entry["behavior_rule"] and not any(str(item).startswith("user-instruction:") for item in entry.get("evidence", [])):
-            raise BankError("behavior_rule=true requires explicit user-instruction provenance")
+    if "behavior_rule" in entry and not isinstance(entry["behavior_rule"], bool):
+        raise BankError("behavior_rule must be a boolean when present")
     if "project" in entry and (not isinstance(entry["project"], str) or not entry["project"].strip()):
         raise BankError("project must be a non-empty string when present")
     if "thread" in entry and (not isinstance(entry["thread"], str) or not entry["thread"].strip()):
@@ -247,6 +240,13 @@ def _ordinary_recall_eligible(entry: dict[str, Any], superseded: set[str]) -> bo
     return True
 
 
+def annotate_memory(entry: dict[str, Any]) -> dict[str, Any]:
+    """Attach derived classification only; Vault memory is evidence, not behavior authority."""
+    annotated = dict(entry)
+    annotated["classification"] = classify_entry(entry)
+    return annotated
+
+
 def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None) -> list[dict[str, Any]]:
     effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, DEFAULT_RECENT_TITLES_LIMIT if limit is None else limit))
     if effective_limit == 0:
@@ -267,7 +267,6 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
             "title": derive_display_title(entry),
             "kind": entry["kind"],
             "scope": entry["scope"],
-            "authority": behavioral_authority(entry)["role"],
         }
         for entry in current[:effective_limit]
     ]
@@ -425,39 +424,11 @@ def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: s
     return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=False)
 
 
-def search_behavior_memory(
-    entries: list[dict[str, Any]], query: str, *, limit: int = MAX_RECALL_LIMIT,
-) -> list[dict[str, Any]]:
-    """Search only current behavior-authority records; authority is decided before relevance."""
-    effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
-    return search_memory_entries(behavioral_context(entries), query, limit=effective_limit, history=False)
-
-
-def _merge_behavior_context(
-    behavior_hits: list[dict[str, Any]], ordinary_hits: list[dict[str, Any]], limit: int
-) -> list[dict[str, Any]]:
-    """Reserve up to two relevant procedural slots before advisory context."""
-    selected: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for entry in behavior_hits[: min(2, limit)]:
-        ident = str(entry.get("id") or "")
-        if ident and ident not in seen:
-            selected.append(entry)
-            seen.add(ident)
-    for entry in ordinary_hits:
-        ident = str(entry.get("id") or "")
-        if ident and ident not in seen:
-            selected.append(entry)
-            seen.add(ident)
-        if len(selected) >= limit:
-            break
-    return selected[:limit]
-
-
 def search_context_memory(
     entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
     tags: list[str] | None = None, limit: int = MAX_RECALL_LIMIT,
 ) -> list[dict[str, Any]]:
+    """Return bounded evidence context without promoting stored memory into behavior authority."""
     effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
     selectors = context_selectors(query)
     filtered = [entry for entry in entries if entry_matches_selectors(entry, selectors)]
@@ -466,30 +437,11 @@ def search_context_memory(
 
     if not projects:
         residual_tokens = _tokens(residual)
-        if not residual_tokens:
-            return []
         if len(residual_tokens) < 2:
-            # Single-token context queries remain closed to ordinary memory to avoid
-            # broad accidental dumps, but an explicitly authorized behavioral rule
-            # may be a deliberate trigger (for example, a user-defined stop word).
-            behavior_entries = [
-                entry for entry in filtered
-                if behavioral_authority(entry).get("may_change_behavior")
-            ]
-            return search_memory_entries(
-                behavior_entries, residual, scope=scope, tags=tags,
-                limit=effective_limit, history=False,
-            )
-        behavior_entries = [
-            entry for entry in filtered if behavioral_authority(entry).get("may_change_behavior")
-        ]
-        behavior_hits = search_memory_entries(
-            behavior_entries, residual, scope=scope, tags=tags, limit=min(2, effective_limit), history=False
-        )
-        ordinary_hits = search_memory_entries(
+            return []
+        return search_memory_entries(
             filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False
         )
-        return _merge_behavior_context(behavior_hits, ordinary_hits, effective_limit)
 
     project_entries: list[dict[str, Any]] = []
     entity_project_entries: list[dict[str, Any]] = []
@@ -499,9 +451,6 @@ def search_context_memory(
         if labels["projects"] & projects:
             project_entries.append(entry)
         elif not labels["projects"]:
-            # Secondary entity labels may recover cross-project/global memories that
-            # genuinely mention the requested project without re-scoping them as that
-            # project's authority. They are fallback context, never primary metadata.
             entities = set(classify_entry(entry).get("entities") or [])
             if entities & projects:
                 entity_project_entries.append(entry)
@@ -510,15 +459,16 @@ def search_context_memory(
 
     project_target = max(1, (effective_limit * 3 + 3) // 4)
     if len(_tokens(residual)) >= 1:
-        # The project selector is already established mechanically, so rank inside
-        # the explicit project subset first, then use entity-linked cross-project
-        # evidence to fill unused project slots.
-        project_hits = search_memory_entries(project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False)
+        project_hits = search_memory_entries(
+            project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False
+        )
         remaining_project = project_target - len(project_hits)
         if remaining_project > 0:
-            project_hits.extend(search_memory_entries(entity_project_entries, residual, scope=scope, tags=tags, limit=remaining_project, history=False))
+            project_hits.extend(search_memory_entries(
+                entity_project_entries, residual, scope=scope, tags=tags,
+                limit=remaining_project, history=False
+            ))
     else:
-        # Generic 'work on <project>' needs durable orientation, not semantic noise.
         candidates = [*project_entries, *entity_project_entries]
         superseded = {old for entry in candidates for old in entry.get("supersedes", [])}
         project_hits = [
@@ -541,18 +491,10 @@ def search_context_memory(
     remaining = effective_limit - len(project_hits)
     ambient_hits: list[dict[str, Any]] = []
     if remaining > 0 and len(_tokens(residual)) >= 2:
-        ambient_hits = search_memory_entries(ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False)
-    ordinary_hits = [*project_hits, *ambient_hits]
-    if len(_tokens(residual)) >= 2:
-        behavior_entries = [
-            entry for entry in filtered if behavioral_authority(entry).get("may_change_behavior")
-        ]
-        behavior_hits = search_memory_entries(
-            behavior_entries, residual, scope=scope, tags=tags, limit=min(2, effective_limit), history=False
+        ambient_hits = search_memory_entries(
+            ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False
         )
-        return _merge_behavior_context(behavior_hits, ordinary_hits, effective_limit)
-    return ordinary_hits[:effective_limit]
-
+    return [*project_hits, *ambient_hits][:effective_limit]
 
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int | None = None, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
     default_limit = DEFAULT_HISTORY_LIMIT if history else DEFAULT_RECALL_LIMIT
@@ -604,10 +546,8 @@ def _print_json(value: Any, *, compact: bool = False) -> None:
 def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
-    parser.add_argument("--authority-registry", type=Path, default=AUTHORITY_REGISTRY)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate")
-    sub.add_parser("authority-validate", help="validate authority registry against the current bank")
     record = sub.add_parser("record", help="save an assistant-authored memory with verbatim user provenance")
     record.add_argument("--kind", required=True, choices=sorted(KINDS))
     record.add_argument("--scope", required=True)
@@ -635,10 +575,6 @@ def _main() -> int:
     search.add_argument("--limit", type=int)
     search.add_argument("--history", action="store_true")
 
-    behavior = sub.add_parser("behavior-search", help="search only current behavior-authority records")
-    behavior.add_argument("query")
-    behavior.add_argument("--limit", type=int, default=MAX_RECALL_LIMIT)
-
     context = sub.add_parser("context", help="build a compact task-scoped context pack from curated memory and historical corpus")
     context.add_argument("query")
     context.add_argument("--scope")
@@ -664,15 +600,10 @@ def _main() -> int:
 
     args = parser.parse_args()
     try:
-        configure_authority_registry(args.authority_registry)
         entries = load_bank(args.bank)
         if args.command == "validate":
             _print_json({"status": "PROVEN", "entries": len(entries)})
             return 0
-        if args.command == "authority-validate":
-            result = validate_authority_registry(entries, path=args.authority_registry)
-            _print_json(result)
-            return 0 if result.get("status") == "PROVEN" else 2
         if args.command == "record":
             if args.standalone_correction and args.kind != "correction":
                 raise BankError("--standalone-correction is valid only with --kind correction")
@@ -686,7 +617,7 @@ def _main() -> int:
                 "kind": args.kind, "scope": args.scope,
                 "tags": [*args.tag, "assistant-recorded", "verbatim-source"],
                 "title": args.title, "text": args.text, "state": args.state,
-                "evidence": args.evidence, "supersedes": args.supersedes, "behavior_rule": False,
+                "evidence": args.evidence, "supersedes": args.supersedes,
                 "source_messages": args.source_message, "interpretation": args.interpretation,
                 "confidence": args.confidence, "confidence_reason": args.confidence_reason,
             }
@@ -720,9 +651,6 @@ def _main() -> int:
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
-            return 0
-        if args.command == "behavior-search":
-            _print_json([annotate_memory(entry) for entry in search_behavior_memory(entries, args.query, limit=args.limit)])
             return 0
         if args.command == "context":
             selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
