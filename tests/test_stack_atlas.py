@@ -1,4 +1,5 @@
 import json
+import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -7,17 +8,59 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     blast_radius,
     build_bootstrap_atlas,
+    build_live_bootstrap_glance,
     classify_process,
     component_details,
     find_features,
     full_inventory,
     render_manual,
+    _bootstrap_pc_status,
+    _bootstrap_worker_status,
+    _bootstrap_disk_trend,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+    def test_live_bootstrap_displays_machine_workers_and_active_sessions(self):
+        sample_workers = {
+            "available": True,
+            "latest_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+            "attention": [{"worker": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+        }
+        with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
+            glance = build_live_bootstrap_glance()
+        payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
+        self.assertLess(len(payload), 12000)
+        self.assertIn("trend", glance["pc"]["disk"])
+        memory = glance["pc"]["memory"]
+        self.assertIn("commit_headroom_gb", memory)
+        self.assertEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        for session in glance["mcp"]["active_sessions"]:
+            self.assertIn("caller_id", session)
+            self.assertIn("cwd", session)
+            self.assertIn("workspace", session)
+            self.assertIn("busy_titles", session)
+            self.assertLessEqual(session["activity_age_seconds"], 300)
+        self.assertIn("notable_conditions", glance)
+        self.assertIn("latest_per_worker", glance["workers"])
+
+    def test_disk_trend_can_report_approx_24h_loss(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.jsonl"
+            now = datetime.now(timezone.utc)
+            rows = [
+                {"at": (now - timedelta(hours=24)).isoformat(), "free_gb": 115.0},
+                {"at": (now - timedelta(hours=2)).isoformat(), "free_gb": 70.0},
+            ]
+            path.write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+            with patch("tools.stack_atlas.BOOTSTRAP_OBSERVATION_PATH", path):
+                trend = _bootstrap_disk_trend(55.0)
+            self.assertEqual(trend["previous"]["lost_gb"], 15.0)
+            self.assertEqual(trend["approx_24h"]["lost_gb"], 60.0)
+
     def test_live_powershell_probe_is_bounded(self):
         completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
         with patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
