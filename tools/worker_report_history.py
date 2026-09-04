@@ -3,7 +3,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import datetime
+import statistics
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +118,55 @@ def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
     return records
 
 
+def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
+    now = datetime.now().astimezone()
+    cutoff = now - timedelta(hours=hours)
+    records: list[dict[str, Any]] = []
+    for item in load_history_metadata(history_root):
+        archived = _parse_time(item.get("archived_at"))
+        if archived is not None and archived >= cutoff:
+            records.append(item)
+
+    durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
+    utilizations = [float(item["target_utilization_pct"]) for item in records if isinstance(item.get("target_utilization_pct"), (int, float))]
+    records.sort(key=lambda item: _parse_time(item.get("archived_at")) or datetime.min.astimezone())
+    latest = [
+        {
+            "report_sha256": item.get("report_sha256"),
+            "automation_id": item.get("automation_id"),
+            "display_label": item.get("display_label") or item.get("worker"),
+            "archived_at": item.get("archived_at"),
+            "finished_at": item.get("finished_at"),
+            "duration_minutes": item.get("duration_minutes"),
+            "target_utilization_pct": item.get("target_utilization_pct"),
+            "repo": item.get("repo"),
+            "scope": item.get("scope"),
+            "state": item.get("state"),
+            "outcome": item.get("outcome"),
+            "stop_reason": item.get("reported_stop_reason") or item.get("stop_reason"),
+        }
+        for item in reversed(records[-20:])
+    ]
+    return {
+        "schema": "worker-report-metrics.v1",
+        "generated_at": now.isoformat(),
+        "window_hours": hours,
+        "reports": len(records),
+        "runs_with_duration": len(durations),
+        "average_duration_minutes": round(statistics.mean(durations), 2) if durations else None,
+        "median_duration_minutes": round(statistics.median(durations), 2) if durations else None,
+        "average_target_utilization_pct": round(statistics.mean(utilizations), 1) if utilizations else None,
+        "latest_reports": latest,
+    }
+
+
+def write_metrics_projection(history_root: Path, *, hours: float = 24.0) -> tuple[Path, dict[str, Any]]:
+    metrics = build_metrics_projection(history_root, hours=hours)
+    target = history_root.parent / "metrics.json"
+    target.write_text(json.dumps(metrics, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return target, metrics
+
+
 def _project_from_repo(repo: str | None) -> str | None:
     if not repo:
         return None
@@ -195,6 +245,7 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metrics_path, metrics = write_metrics_projection(history_root)
     return {
         "ok": True,
         "archived": archived,
@@ -207,6 +258,8 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         "target_run_minutes": metadata.get("target_run_minutes"),
         "target_utilization_pct": metadata.get("target_utilization_pct"),
         "stop_reason": metadata.get("reported_stop_reason") or metadata.get("stop_reason"),
+        "metrics_path": str(metrics_path),
+        "fleet_average_utilization_pct": metrics.get("average_target_utilization_pct"),
     }
 
 
