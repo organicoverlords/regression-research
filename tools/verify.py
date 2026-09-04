@@ -58,9 +58,7 @@ MEMORY_PATHS = {
 
 CONVERSATION_PATHS = {
     "tools/conversation_search.py",
-    "tools/conversation_search_refresh.py",
     "tests/test_conversation_search.py",
-    "tests/test_conversation_search_refresh.py",
     "tests/fixtures/conversation-corpus/ChatPortEvidence/old.json",
     "tests/fixtures/conversation-corpus/ChatGPTLocalExporter/new.json",
 }
@@ -187,8 +185,7 @@ def verify_conversation() -> None:
             "-m",
             "py_compile",
             "tools/conversation_search.py",
-            "tools/conversation_search_refresh.py",
-        ]
+                ]
     )
     run(
         [
@@ -196,7 +193,6 @@ def verify_conversation() -> None:
             "-m",
             "unittest",
             "tests.test_conversation_search",
-            "tests.test_conversation_search_refresh",
             "-v",
         ]
     )
@@ -206,10 +202,11 @@ def verify_conversation() -> None:
         run(
             [
                 sys.executable,
-                "tools/conversation_search_refresh.py",
+                "tools/conversation_search.py",
                 "--db",
                 database,
-                "--corpus-root",
+                "index",
+                "--root",
                 corpus,
             ]
         )

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -409,6 +410,28 @@ def index_roots(db: Path, roots: Iterable[Path], force: bool = False) -> dict[st
         conn.close()
 
 
+def rebuild_index(db: Path, roots: Iterable[Path]) -> dict[str, Any]:
+    """Atomically replace the disposable search index from the selected preserved roots."""
+    roots = list(roots)
+    db.parent.mkdir(parents=True, exist_ok=True)
+    temp = db.with_name(db.name + f".rebuild-{os.getpid()}")
+    for path in (temp, Path(str(temp) + "-wal"), Path(str(temp) + "-shm")):
+        path.unlink(missing_ok=True)
+    result = index_roots(temp, roots, force=True)
+    if result["status"] != "PROVEN":
+        return result
+    for sidecar in (Path(str(temp) + "-wal"), Path(str(temp) + "-shm")):
+        if sidecar.exists() and sidecar.stat().st_size:
+            raise RuntimeError(f"temporary SQLite sidecar did not checkpoint: {sidecar}")
+        sidecar.unlink(missing_ok=True)
+    for sidecar in (Path(str(db) + "-wal"), Path(str(db) + "-shm")):
+        sidecar.unlink(missing_ok=True)
+    os.replace(temp, db)
+    result["db"] = str(db)
+    result["rebuild"] = "atomic-fresh"
+    return result
+
+
 def _fts_query(query: str) -> str:
     tokens = re.findall(r"[\w-]+", query, flags=re.UNICODE)
     if not tokens:
@@ -642,7 +665,6 @@ def main() -> int:
         default=[],
         help="Source root to index; repeatable. Defaults to the canonical Vault corpus.",
     )
-    index.add_argument("--force", action="store_true")
     search = sub.add_parser("search")
     search.add_argument("query")
     search.add_argument("--literal", action="store_true")
@@ -657,9 +679,9 @@ def main() -> int:
         if args.command == "index":
             roots = args.root or [DEFAULT_CORPUS_ROOT]
             if not all(root.exists() for root in roots):
-                _print({"status": "NOT_PROVEN", "error": "canonical Vault conversation corpus is missing", "roots": [str(root) for root in roots]})
+                _print({"status": "NOT_PROVEN", "error": "conversation corpus root is missing", "roots": [str(root) for root in roots]})
                 return 2
-            _print(index_roots(args.db, roots, force=args.force))
+            _print(rebuild_index(args.db, roots))
             return 0
         if args.command == "search":
             report = search_report(args.db, args.query, args.literal, args.limit, args.context_chars)
