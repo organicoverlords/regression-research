@@ -16,18 +16,43 @@ from tools.stack_atlas import (
     render_manual,
     render_library_atlas_bytes,
     atlas_publication_plan,
+    _bootstrap_pc_status,
+    _bootstrap_worker_status,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+    def test_live_bootstrap_pc_status_includes_commit_headroom(self):
+        pc = _bootstrap_pc_status()
+        memory = pc["memory"]
+        for field in ("physical_free_gb", "commit_used_gb", "commit_limit_gb", "commit_headroom_gb", "commit_used_pct", "status"):
+            self.assertIn(field, memory)
+        self.assertGreaterEqual(memory["commit_headroom_gb"], 0)
+        self.assertNotIn("ram_free_gb", pc)
+
+    def test_live_bootstrap_worker_status_is_actionable_per_worker(self):
+        workers = _bootstrap_worker_status()
+        self.assertEqual(workers["target_run_minutes"], 24.0)
+        self.assertIn("latest_per_worker", workers)
+        self.assertIn("attention", workers)
+        self.assertIn("fleet", workers)
+        seen = set()
+        for item in workers["latest_per_worker"]:
+            self.assertNotIn(item["automation_id"], seen)
+            seen.add(item["automation_id"])
+            self.assertIn(item["classification"], {"ON_TARGET", "SHORT", "PREMATURE", "SEVERELY_PREMATURE", "UNKNOWN"})
+            self.assertEqual(item["target_minutes"], 24.0)
+            self.assertIn("age_minutes", item)
+        self.assertEqual(workers["fleet"]["workers_seen"], len(workers["latest_per_worker"]))
+
     def test_bootstrap_atlas_is_small_directory_not_live_status_cache(self):
         atlas = build_bootstrap_atlas()
         self.assertEqual(atlas["schema"], "atlas.v1")
-        self.assertIn("Stack/infra only", atlas["must"])
-        self.assertIn("quick locator", atlas["must"])
-        self.assertIn("do not route ordinary product-repo work through Atlas", atlas["must"])
+        self.assertIn("Map only", atlas["must"])
+        self.assertIn("leave Atlas", atlas["must"])
+        self.assertIn("Product repos stay outside Atlas", atlas["must"])
         self.assertNotIn("live_overlay", atlas)
         self.assertEqual(atlas["find"], "find <query>")
         self.assertLess(len(json.dumps(atlas)), 12000)
@@ -57,6 +82,9 @@ class StackAtlasTests(unittest.TestCase):
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])
         self.assertEqual(find_features("definitely-unknown-capability"), [])
+        self.assertEqual(find_features("workers")[0]["id"], "execution_workers")
+        self.assertEqual(find_features("atlas")[0]["id"], "stack_atlas")
+        self.assertEqual(find_features("mcpv3")[0]["id"], "vps_edge_ingress")
         results = find_features("current state", limit=2)
         self.assertLessEqual(len(results), 2)
         self.assertTrue(all(item["authority"] == ATLAS_CONTRACT["authority"] for item in results))
@@ -137,7 +165,8 @@ class StackAtlasTests(unittest.TestCase):
         policy["capabilities"]["fresh_capability"] = policy["capabilities"]["runtime_validate"]
         with patch("tools.stack_atlas.load_policy", return_value=policy):
             atlas = build_bootstrap_atlas()
-        self.assertEqual(atlas["inventory"], "inventory")
+        self.assertNotIn("inventory", atlas)
+        self.assertNotIn("library", atlas)
 
 
     def test_generated_operational_manual_matches_atlas(self):

@@ -384,6 +384,21 @@ def _bootstrap_pc_status() -> dict[str, Any]:
     class MEMORYSTATUSEX(ctypes.Structure):
         _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong), ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong), ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong), ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong), ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
     mem = MEMORYSTATUSEX(); mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX); ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
+    physical_total = mem.ullTotalPhys / 2**30
+    physical_free = mem.ullAvailPhys / 2**30
+    commit_limit = mem.ullTotalPageFile / 2**30
+    commit_used = (mem.ullTotalPageFile - mem.ullAvailPageFile) / 2**30
+    commit_headroom = mem.ullAvailPageFile / 2**30
+    commit_used_pct = (commit_used * 100 / commit_limit) if commit_limit else 0.0
+    physical_free_pct = (physical_free * 100 / physical_total) if physical_total else 0.0
+    if commit_headroom < 2 or commit_used_pct >= 95:
+        memory_status = "COMMIT_CRITICAL"
+    elif commit_headroom < 8 or commit_used_pct >= 88:
+        memory_status = "COMMIT_WATCH"
+    elif physical_free < 1.5:
+        memory_status = "PHYSICAL_TIGHT_COMMIT_OK"
+    else:
+        memory_status = "OK"
     disk = shutil.disk_usage("C:\\")
     disk_free_gb = disk.free / 2**30
     disk_status = "LOW" if disk_free_gb < 25 else ("WATCH" if disk_free_gb < 100 else "OK")
@@ -395,7 +410,16 @@ def _bootstrap_pc_status() -> dict[str, Any]:
             gpu = {"vram_used_mb": round(used), "vram_total_mb": round(total), "vram_free_mb": round(total-used), "utilization_pct": round(util)}
     except Exception:
         pass
-    return {"ram_total_gb": round(mem.ullTotalPhys/2**30,1), "ram_free_gb": round(mem.ullAvailPhys/2**30,1), "commit_used_gb": round((mem.ullTotalPageFile-mem.ullAvailPageFile)/2**30,1), "commit_limit_gb": round(mem.ullTotalPageFile/2**30,1), "disk": {"drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1), "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1), "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25}, "gpu": gpu}
+    return {
+        "memory": {
+            "physical_total_gb": round(physical_total,1), "physical_free_gb": round(physical_free,1), "physical_free_pct": round(physical_free_pct,1),
+            "commit_used_gb": round(commit_used,1), "commit_limit_gb": round(commit_limit,1), "commit_headroom_gb": round(commit_headroom,1), "commit_used_pct": round(commit_used_pct,1),
+            "status": memory_status,
+            "interpretation": "physical free RAM alone is not commit exhaustion; judge memory pressure from commit used/limit/headroom together",
+        },
+        "disk": {"drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1), "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1), "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25},
+        "gpu": gpu,
+    }
 
 
 def _bootstrap_worker_status() -> dict[str, Any]:
@@ -403,18 +427,81 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     if not history_root.exists():
         return {"available": False, "path": str(history_root)}
     try:
-        from tools.worker_report_history import build_metrics_projection
+        from tools.worker_report_history import load_history_metadata
     except ImportError:
-        from worker_report_history import build_metrics_projection
-    data = build_metrics_projection(history_root, hours=24.0)
-    seen=set(); runs=[]
-    for item in data.get("latest_reports", []):
-        key=(item.get("automation_id"), item.get("finished_at"))
-        if key in seen: continue
-        seen.add(key)
-        runs.append({k:item.get(k) for k in ("automation_id","display_label","finished_at","duration_minutes","target_utilization_pct","repo","scope","state","outcome","stop_reason")})
-        if len(runs) >= 5: break
-    return {"available": True, "path": str(history_root), "generated_at": data.get("generated_at"), "window_hours": data.get("window_hours"), "average_duration_minutes": data.get("average_duration_minutes"), "median_duration_minutes": data.get("median_duration_minutes"), "average_target_utilization_pct": data.get("average_target_utilization_pct"), "latest_distinct_runs": runs}
+        from worker_report_history import load_history_metadata
+    now = datetime.now(timezone.utc)
+    records = load_history_metadata(history_root)
+    latest_by_worker: dict[str, dict[str, Any]] = {}
+    for item in records:
+        worker_id = str(item.get("automation_id") or "").strip()
+        if not worker_id:
+            continue
+        raw_finished = str(item.get("finished_at") or item.get("archived_at") or "")
+        try:
+            finished = datetime.fromisoformat(raw_finished.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except ValueError:
+            continue
+        prev = latest_by_worker.get(worker_id)
+        if prev is not None and finished <= prev["_finished_dt"]:
+            continue
+        duration = item.get("duration_minutes")
+        target = item.get("target_run_minutes")
+        if not isinstance(target, (int, float)) or target <= 0:
+            target = 24.0
+        utilization = item.get("target_utilization_pct")
+        if not isinstance(utilization, (int, float)) and isinstance(duration, (int, float)):
+            utilization = round(float(duration) * 100 / float(target), 1)
+        util = float(utilization) if isinstance(utilization, (int, float)) else None
+        if util is None:
+            classification = "UNKNOWN"
+        elif util < 25:
+            classification = "SEVERELY_PREMATURE"
+        elif util < 60:
+            classification = "PREMATURE"
+        elif util < 80:
+            classification = "SHORT"
+        else:
+            classification = "ON_TARGET"
+        age_minutes = max(0.0, (now - finished).total_seconds() / 60)
+        latest_by_worker[worker_id] = {
+            "_finished_dt": finished,
+            "automation_id": worker_id,
+            "display_label": item.get("display_label") or item.get("worker"),
+            "finished_at": raw_finished,
+            "age_minutes": round(age_minutes,1),
+            "duration_minutes": round(float(duration),2) if isinstance(duration,(int,float)) else None,
+            "target_minutes": round(float(target),2),
+            "target_utilization_pct": round(util,1) if util is not None else None,
+            "classification": classification,
+            "scope": item.get("scope"),
+            "stop_reason": item.get("reported_stop_reason") or item.get("stop_reason"),
+        }
+    latest = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:5]
+    for item in latest:
+        item.pop("_finished_dt", None)
+    util_values = [x["target_utilization_pct"] for x in latest if isinstance(x.get("target_utilization_pct"),(int,float))]
+    duration_values = [x["duration_minutes"] for x in latest if isinstance(x.get("duration_minutes"),(int,float))]
+    attention = [
+        {"worker": x.get("display_label"), "duration_minutes": x.get("duration_minutes"), "target_minutes": x.get("target_minutes"), "utilization_pct": x.get("target_utilization_pct"), "classification": x.get("classification"), "age_minutes": x.get("age_minutes")}
+        for x in latest if x.get("classification") in {"SHORT","PREMATURE","SEVERELY_PREMATURE"}
+    ]
+    return {
+        "available": True,
+        "generated_at": now.isoformat(),
+        "target_run_minutes": 24.0,
+        "latest_per_worker": latest,
+        "fleet": {
+            "workers_seen": len(latest),
+            "average_latest_duration_minutes": round(sum(duration_values)/len(duration_values),2) if duration_values else None,
+            "average_latest_utilization_pct": round(sum(util_values)/len(util_values),1) if util_values else None,
+            "on_target_count": sum(1 for x in latest if x.get("classification") == "ON_TARGET"),
+            "short_or_worse_count": len(attention),
+        },
+        "attention": attention,
+        "classification": {"ON_TARGET": ">=80% of 24m target", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
+        "path": str(history_root),
+    }
 
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
