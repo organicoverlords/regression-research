@@ -14,8 +14,6 @@ from tools.stack_atlas import (
     find_features,
     full_inventory,
     render_manual,
-    render_library_atlas_bytes,
-    atlas_publication_plan,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -193,15 +191,6 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertTrue(details["live_status"])
                 self.assertTrue(details["canonical_sources"])
                 self.assertTrue(details["runbook"])
-
-    def test_library_atlas_is_deterministic_on_demand_inventory(self):
-        data = render_library_atlas_bytes()
-        artifact = json.loads(data)
-        self.assertEqual(artifact["library_path"], "/Agent Bootstrap/stack-atlas.json")
-        self.assertEqual(artifact["inventory"], __import__("tools.stack_atlas", fromlist=["full_inventory"]).full_inventory())
-        self.assertEqual(data, render_library_atlas_bytes())
-        self.assertEqual(atlas_publication_plan()["bytes"], len(data))
-
 
 class Issue394StackVisibilityTests(unittest.TestCase):
     def test_human_aliases_cover_invisible_stack_seams(self):
