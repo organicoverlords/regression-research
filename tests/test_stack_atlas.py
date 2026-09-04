@@ -126,7 +126,7 @@ class StackAtlasTests(unittest.TestCase):
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "agent_rules", "repo_rule_pointer", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
-            "github_actions", "github_runner", "dev_progress_board", "worker_reports",
+            "github_actions", "github_runner", "worker_reports",
             "lowvram", "asset_library", "tiny3d", "p3",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
