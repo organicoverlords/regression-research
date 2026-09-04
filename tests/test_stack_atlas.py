@@ -25,9 +25,9 @@ class StackAtlasTests(unittest.TestCase):
     def test_bootstrap_atlas_is_small_directory_not_live_status_cache(self):
         atlas = build_bootstrap_atlas()
         self.assertEqual(atlas["schema"], "atlas.v1")
-        self.assertIn("load canonical inventory before reasoning/answer/change", atlas["must"])
-        self.assertIn("touched components for live proof", atlas["must"])
-        self.assertIn("blocks disruption", atlas["must"])
+        self.assertIn("Stack/infra only", atlas["must"])
+        self.assertIn("quick locator", atlas["must"])
+        self.assertIn("do not route ordinary product-repo work through Atlas", atlas["must"])
         self.assertNotIn("live_overlay", atlas)
         self.assertEqual(atlas["find"], "find <query>")
         self.assertLess(len(json.dumps(atlas)), 12000)
@@ -108,33 +108,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(component_details("plugin2")["id"], "mcp_front_door")
         self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
         self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
+        self.assertEqual(component_details("ci")["id"], "github_actions")
+        self.assertEqual(component_details("atlas")["id"], "stack_atlas")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
 
     def test_bootstrap_directory_covers_major_stack_surfaces(self):
         atlas = build_bootstrap_atlas()
-        ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS) | set(__import__("tools.stack_atlas", fromlist=["PRODUCT_ROOTS"]).PRODUCT_ROOTS)
+        ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS)
         expected = {
-            "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
-            "shared_policy", "repo_agents", "north_star", "chatgpt_memory", "memory_bank",
+            "stack_atlas", "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
+            "agent_rules", "repo_rule_pointer", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
-            "github_actions", "github_runner", "dev_progress_board", "worker_reports",
-            "lowvram", "asset_library", "tiny3d", "p3",
+            "github_actions", "github_runner", "worker_reports",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
         self.assertNotIn("operator_live", ids)
 
-    def test_product_flow_and_roles_match_current_repo_architecture(self):
-        atlas = __import__("tools.stack_atlas", fromlist=["PRODUCT_FLOW"])
-        self.assertEqual(atlas.PRODUCT_FLOW, (("lowvram", "tiny3d"), ("tiny3d", "p3")))
-        lowvram = component_details("lowvram")
-        tiny3d = component_details("tiny3d")
-        library = component_details("asset_library")
-        self.assertEqual(lowvram["role"], "generator:image_to_3d")
-        self.assertEqual(tiny3d["role"], "product:post_generation_asset_compiler")
-        self.assertIn("README.md", " ".join(lowvram["canonical_sources"]))
-        self.assertIn("TINY3D_NORTH_STAR.md", " ".join(tiny3d["canonical_sources"]))
-        self.assertEqual(library["canonical_sources"][0], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")
-        self.assertEqual(full_inventory()["product_flow"], [["lowvram", "tiny3d"], ["tiny3d", "p3"]])
+    def test_product_repositories_are_outside_atlas(self):
+        for name in ("p3", "tiny3d", "lowvram", "asset_library", "p3 build", "build contention"):
+            with self.subTest(name=name), self.assertRaises(KeyError):
+                component_details(name)
+        inventory = full_inventory()
+        self.assertNotIn("product_flow", inventory)
+        self.assertIn("STACK_INFRA_MAP_ONLY", inventory["contract"]["scope"])
 
     def test_capability_directory_is_derived_from_current_routing_policy(self):
         policy = deepcopy(load_capability_policy())
@@ -153,18 +149,18 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("Independent recovery", text)
         self.assertIn("Supervisor", text)
         self.assertIn("Resources", text)
+        self.assertNotIn("## Product flow", text)
+        self.assertIn("P3, Tiny3D, LowVRAM", text)
 
-    def test_repo_agents_requires_atlas_before_stack_work(self):
+    def test_repo_agents_stays_pointer_only(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("consume the current Stack Atlas", agents)
-        self.assertIn("before deciding relevance or blast radius", agents)
-        self.assertIn("deep-lookup only the components/live proof routes relevant to the task", agents)
-        self.assertIn("unresolved dependency or recovery impact blocks the action", agents)
-        self.assertIn("PID is only an ephemeral lookup key", agents)
+        self.assertIn("pointer-only", agents)
+        self.assertNotIn("consume the current Stack Atlas", agents)
+        self.assertNotIn("deep-lookup", agents)
 
     def test_every_component_declares_its_own_live_truth_and_recovery_routes(self):
-        atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS", "PRODUCT_ROOTS"])
-        for component in [*atlas.COMPONENTS, *atlas.PRODUCT_ROOTS]:
+        atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS"])
+        for component in atlas.COMPONENTS:
             with self.subTest(component=component):
                 details = component_details(component)
                 for field in ("canonical_sources", "live_status", "supervisor", "self_heal", "independent_recovery", "resources", "dependents", "runbook"):
@@ -190,9 +186,3 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("file transfer")["id"], "file_transfer")
         self.assertEqual(component_details("visual proof")["id"], "visual_proof")
         self.assertEqual(component_details("workers")["id"], "execution_workers")
-
-    def test_full_stack_timeline_is_discoverable_by_workers(self):
-        found = find_features("full stack timeline")
-        self.assertTrue(found)
-        self.assertEqual(found[0]["id"], "stack.timeline")
-        self.assertIn("full_stack_timeline.py", " ".join(found[0]["entrypoints"]))

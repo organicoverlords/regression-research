@@ -4,7 +4,7 @@
 
 ## Operating invariant
 
-For stack/infra work, consume the compact Atlas first and deep-lookup every relevant component before reasoning, answering, redesigning, repairing, or mutating. Fetch status from the named live route. If identity, dependency role, supervisor, self-heal, blast radius, or independent recovery is unknown, disruptive action is blocked.
+Atlas is a fast map for stack/infra only: locate the smallest relevant stack owner, entrypoint, dependency, or blast radius, then leave Atlas and work from that live owner. Do not use Atlas to navigate ordinary P3, Tiny3D, LowVRAM, or other product-repository work. Atlas does not plan work, establish product truth, or require deep lookups before ordinary reasoning.
 
 ## Capability routing
 
@@ -26,22 +26,27 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
-| `stack.timeline` | local_git, worker_reports, vps_edge_ingress, tailscale_ingress, file_transfer, visual_proof | python tools/full_stack_timeline.py --output <path>; Git refs/worktrees/reflogs; Vault durable documents; worker report history; live runtime probes | Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source. |
 | `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
-| `project.current_truth` | repo_agents, north_star, local_git, github | admitted worktree AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD/origin; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
+| `project.current_truth` | agent_rules, north_star, local_git, github | agent-rules RULES.md + applicable context; repo NORTH_STAR/equivalent; git status/HEAD + recent all-branch history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
 | `execution.transport` | vps_edge_ingress, mcp_front_door | production MCPv3/VPS process contract; plugin2 when available | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
-| `progress.board` | dev_progress_board | C:\Users\Lauri\Desktop\DevProgressBoard | Derived orientation/projection only; reconcile important claims with canonical sources. |
-
-## Product flow
-
-`LowVRAM -> Tiny3D -> P3`
-
-Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.
 
 ## Components
+
+### `stack_atlas`
+
+- Role: `navigation:stack-map`
+- Capabilities: source_read
+- Canonical sources: C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py; C:\Users\Lauri\Desktop\vault\docs\assistant-stack-operational-atlas.md
+- Live status: lookup/find for stack component location and dependency map; blast-radius for disruptive process impact
+- Independent recovery: use the named stack owner directly; Atlas unavailability never blocks already-located work
+- Resources: stack component map; dependency map; entrypoints; blast-radius metadata
+- Dependents: chatgpt_session; execution_workers
+- Runbook: C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py
+- Supervisor: none
+- Self-heal: not_applicable
 
 ### `busy_coordinator`
 
@@ -130,7 +135,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: use another exposed transfer route only after preserving the same source bytes and hash
 - Resources: artifact bytes; source path/ref; destination path/ref; size; SHA-256
 - Dependents: chatgpt_session; execution_workers; visual_proof
-- Runbook: 04 Operating Contracts/full-stack-timeline.md
+- Runbook: %LOCALAPPDATA%\McpVpsEdge\publish-artifact.ps1
 - Supervisor: surface-specific; no single transfer authority
 - Self-heal: route_specific
 
@@ -143,7 +148,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: classify why the previous proof failed and change a load-bearing condition before another expensive retry
 - Resources: capture; manifest; review verdict; acceptance requirement
 - Dependents: p3; worker_reports
-- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md
+- Runbook: C:\Users\Lauri\Documents\agent-rules\contexts\p3.md
 - Supervisor: project-specific proof workflow
 - Self-heal: not_applicable
 
@@ -165,11 +170,11 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `local_source_truth`
 - Capabilities: source_read, repository_mutate
 - Canonical sources: per-repo filesystem/.git/worktrees
-- Live status: git status; HEAD; origin/main; worktree list
+- Live status: git status; HEAD; recent git log --all history; local/remote branch refs; worktree list
 - Independent recovery: preserve dirty/foreign state; use isolated worktree
 - Resources: working tree; .git/worktrees
 - Dependents: chatgpt_session; execution_workers
-- Runbook: repo AGENTS.md
+- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
@@ -182,47 +187,34 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Independent recovery: local Git remains local source truth; publication waits for GitHub
 - Resources: remote refs; issues; PRs; workflow runs
 - Dependents: chatgpt_session; execution_workers
-- Runbook: repo AGENTS.md
+- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
 - Supervisor: external service
 - Self-heal: external
 
-### `dev_progress_board`
+### `agent_rules`
 
-- Role: `derived_progress_projection`
-- Capabilities: source_read
-- Canonical sources: C:\Users\Lauri\Desktop\DevProgressBoard
-- Live status: board process/feed age; never treat projection as authority
-- Independent recovery: read canonical repo/coordinator/runtime sources directly
-- Resources: board state
-- Dependents: human_orientation; chatgpt_orientation
-- Runbook: C:\Users\Lauri\Desktop\DevProgressBoard
-- Supervisor: Board-Watchdog.ps1 / feed scripts
-- Self-heal: projection-specific
-
-### `shared_policy`
-
-- Role: `authority:cross-project`
-- Capabilities: source_read
-- Canonical sources: C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md
-- Live status: read current shared policy
-- Independent recovery: current instruction + repo rules remain authoritative
-- Resources: generated policy blocks
-- Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md
+- Role: `authority:agent-rules`
+- Capabilities: source_read, repository_mutate
+- Canonical sources: C:\Users\Lauri\Documents\agent-rules\RULES.md; C:\Users\Lauri\Documents\agent-rules\contexts; organicoverlords/agent-rules@rules/live
+- Live status: read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters
+- Independent recovery: current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable
+- Resources: RULES.md; contexts/*.md; rules/live
+- Dependents: chatgpt_session; execution_workers; repo_rule_pointer
+- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
 - Supervisor: none
 - Self-heal: not_applicable
 
-### `repo_agents`
+### `repo_rule_pointer`
 
-- Role: `authority:repo-local`
-- Capabilities: source_read, repository_mutate
-- Canonical sources: admitted worktree AGENTS.md
-- Live status: read admitted-worktree AGENTS.md
-- Independent recovery: block repo mutation until readable
-- Resources: AGENTS.md
+- Role: `navigation:rule-pointer`
+- Capabilities: source_read
+- Canonical sources: pointer-only AGENTS.md/CLAUDE.md/equivalent
+- Live status: verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body
+- Independent recovery: read agent_rules directly; a missing/stale pointer never creates a second policy authority
+- Resources: pointer files only
 - Dependents: chatgpt_session; execution_workers
-- Runbook: repo AGENTS.md
-- Supervisor: repo-local
+- Runbook: C:\Users\Lauri\Documents\agent-rules\RULES.md
+- Supervisor: none
 - Self-heal: not_applicable
 
 ### `north_star`
@@ -230,7 +222,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Role: `direction:project`
 - Capabilities: source_read
 - Canonical sources: repo NORTH_STAR/equivalent
-- Live status: read current direction doc
+- Live status: read current direction doc; derive obvious unmet product outcomes into actionable work and prefer visible progress
 - Independent recovery: current user direction outranks stale prose
 - Resources: NORTH_STAR/equivalent
 - Dependents: chatgpt_session; execution_workers
@@ -255,10 +247,10 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `context:bounded-history`
 - Capabilities: memory_read, memory_write
-- Canonical sources: tools/memory_bank.py; memory/memory-bank.jsonl
-- Live status: memory_bank.py validate / bounded read
+- Canonical sources: tools/memory_bank.py; memory/memory-bank.jsonl; origin/memory/live
+- Live status: memory_bank.py validate / bounded read; writes reconcile through dedicated origin/memory/live; protected main/master/dev/develop are forbidden publication targets
 - Independent recovery: continue without optional history enrichment
-- Resources: memory-bank.jsonl; behavior-authority-registry.json
+- Resources: memory-bank.jsonl; behavior-authority-registry.json; memory/live
 - Dependents: chatgpt_session; execution_workers
 - Runbook: memory/README.md
 - Supervisor: none
@@ -281,7 +273,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `session:user-facing`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: current conversation; ChatGPT Memory; Atlas; current authorities
+- Canonical sources: current conversation; ChatGPT Memory; agent_rules; Atlas; current authorities
 - Live status: current task + relevant live-source refresh
 - Independent recovery: current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional
 - Resources: current task context
@@ -294,7 +286,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `executor:bounded`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: fresh-worker launch contract; repo AGENTS.md
+- Canonical sources: fresh-worker launch contract; agent_rules
 - Live status: independent execution/activity evidence
 - Independent recovery: preserve task/checkpoint; use another proven execution route
 - Resources: claimed scope; worktree; execution route
@@ -328,58 +320,6 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Runbook: repo workflow files
 - Supervisor: GitHub Actions
 - Self-heal: external
-
-### `lowvram`
-
-- Role: `generator:image_to_3d`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\lowvram3d-repo; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md
-- Live status: read current LowVRAM repo architecture before historical migration/issues; inspect current generator filesystem/Git/runtime as applicable
-- Independent recovery: preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM
-- Resources: source recovery; image-to-3D generation; geometry; textures; provenance; producer visual QA
-- Dependents: tiny3d
-- Runbook: C:\Users\Lauri\Desktop\lowvram3d-repo\AGENTS.md; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md
-- Supervisor: project-specific
-- Self-heal: project-specific
-
-### `asset_library`
-
-- Role: `storage:tiny3d_asset_library`
-- Capabilities: source_read
-- Canonical sources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; C:\Users\Lauri\Desktop\tiny3d\README.md
-- Live status: Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters
-- Independent recovery: rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority
-- Resources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; .tiny3d/library/index-v1.json
-- Dependents: tiny3d
-- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
-- Supervisor: Tiny3D
-- Self-heal: product-specific
-
-### `tiny3d`
-
-- Role: `product:post_generation_asset_compiler`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\tiny3d; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
-- Live status: read current Tiny3D repo architecture before historical migration/issues; inspect current compiler/library Git/runtime evidence as applicable
-- Independent recovery: consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM
-- Resources: compilation; rigging/skinning; animation/deformation preparation; validation/adapters; packaging/lifecycle evidence; catalogue/library
-- Dependents: p3
-- Runbook: C:\Users\Lauri\Desktop\tiny3d\AGENTS.md; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
-- Supervisor: project-specific
-- Self-heal: project-specific
-
-### `p3`
-
-- Role: `consumer:game_runtime_acceptance`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Documents\Unreal Projects\p3
-- Live status: inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance
-- Independent recovery: Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof
-- Resources: Unreal/game materialization; runtime acceptance; gameplay/visual proof
-- Dependents: none
-- Runbook: C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md
-- Supervisor: project-specific
-- Self-heal: project-specific
 
 ## Process identity and blast radius
 

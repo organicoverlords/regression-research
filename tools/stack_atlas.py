@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
+AGENT_RULES_ROOT = r"C:\Users\Lauri\Documents\agent-rules"
+AGENT_RULES_REMOTE = "organicoverlords/agent-rules@rules/live"
 ATLAS_LIBRARY_PATH = "/Agent Bootstrap/stack-atlas.json"
 CAPABILITY_POLICY_PATH = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
 COMPONENT_ALIASES = {
@@ -40,16 +42,37 @@ COMPONENT_ALIASES = {
     "proof": "visual_proof",
     "worker": "execution_workers",
     "workers": "execution_workers",
+    "rules": "agent_rules",
+    "agent rules": "agent_rules",
+    "policy": "agent_rules",
+    "repo rules": "repo_rule_pointer",
+    "ci": "github_actions",
+    "atlas": "stack_atlas",
+    "stack atlas": "stack_atlas",
+    "stack-atlas": "stack_atlas",
 }
 
 ATLAS_CONTRACT = {
     "authority": "DERIVED_OPERATIONAL_VIEW_NOT_AUTHORITY",
-    "stack_work_gate": "before stack/infra reasoning, answers, redesign, repair, or mutation, consume the compact Atlas; load the relevant deep runbook before modification",
+    "scope": "STACK_INFRA_MAP_ONLY; product repositories such as P3, Tiny3D, and LowVRAM are outside Atlas",
+    "stack_work_gate": "for stack/infra work only, use Atlas as a fast map to locate the smallest relevant stack owner, dependencies, entrypoints, and blast radius; once located, leave Atlas and use the live owner",
     "pid_semantics": "PID is an ephemeral live lookup key only; stable identity comes from executable/command line/ancestry/supervisor/config/resources",
     "destructive_gate": "unknown component identity, dependency role, supervisor, self-heal, blast radius, or independent recovery means BLOCK destructive action",
     "live_status": "fetch from the named live authority at use time; Atlas never promotes cached status to current truth",
 }
 COMPONENTS: dict[str, dict[str, Any]] = {
+    "stack_atlas": {
+        "role": "navigation:stack-map",
+        "capabilities": ["source_read"],
+        "canonical_sources": [str(ROOT / "tools" / "stack_atlas.py"), str(ROOT / "docs" / "assistant-stack-operational-atlas.md")],
+        "live_status": ["lookup/find for stack component location and dependency map; blast-radius for disruptive process impact"],
+        "supervisor": "none",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["use the named stack owner directly; Atlas unavailability never blocks already-located work"],
+        "resources": ["stack component map", "dependency map", "entrypoints", "blast-radius metadata"],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": [str(ROOT / "tools" / "stack_atlas.py")],
+    },
     "busy_coordinator": {
         "role": "coordination_authority",
         "capabilities": ["coordination"],
@@ -156,7 +179,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["use another exposed transfer route only after preserving the same source bytes and hash"],
         "resources": ["artifact bytes", "source path/ref", "destination path/ref", "size", "SHA-256"],
         "dependents": ["chatgpt_session", "execution_workers", "visual_proof"],
-        "runbook": ["04 Operating Contracts/full-stack-timeline.md"],
+        "runbook": [VPS_EDGE_ROOT + r"\publish-artifact.ps1"],
     },
     "visual_proof": {
         "role": "acceptance:user_visible_evidence",
@@ -168,7 +191,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["classify why the previous proof failed and change a load-bearing condition before another expensive retry"],
         "resources": ["capture", "manifest", "review verdict", "acceptance requirement"],
         "dependents": ["p3", "worker_reports"],
-        "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\contexts\p3.md"],
     },
     "github_runner": {
         "role": "ci_execution_worker",
@@ -186,13 +209,13 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "local_source_truth",
         "capabilities": ["source_read", "repository_mutate"],
         "canonical_sources": ["per-repo filesystem/.git/worktrees"],
-        "live_status": ["git status", "HEAD", "origin/main", "worktree list"],
+        "live_status": ["git status", "HEAD", "recent git log --all history", "local/remote branch refs", "worktree list"],
         "supervisor": "none",
         "self_heal": "not_applicable",
         "independent_recovery": ["preserve dirty/foreign state; use isolated worktree"],
         "resources": ["working tree", ".git/worktrees"],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["repo AGENTS.md"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "github": {
         "role": "remote_publication_and_workflow_evidence",
@@ -204,39 +227,34 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["local Git remains local source truth; publication waits for GitHub"],
         "resources": ["remote refs", "issues", "PRs", "workflow runs"],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["repo AGENTS.md"],
-    },
-    "dev_progress_board": {
-        "role": "derived_progress_projection",
-        "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
-        "live_status": ["board process/feed age; never treat projection as authority"],
-        "supervisor": "Board-Watchdog.ps1 / feed scripts",
-        "self_heal": "projection-specific",
-        "independent_recovery": ["read canonical repo/coordinator/runtime sources directly"],
-        "resources": ["board state"],
-        "dependents": ["human_orientation", "chatgpt_orientation"],
-        "runbook": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
 }
 
 COMPONENTS.update({
-    "shared_policy": {
-        "role": "authority:cross-project", "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
-        "live_status": ["read current shared policy"], "supervisor": "none", "self_heal": "not_applicable",
-        "independent_recovery": ["current instruction + repo rules remain authoritative"], "resources": ["generated policy blocks"],
-        "dependents": ["chatgpt_session", "execution_workers"], "runbook": [r"C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md"],
+    "agent_rules": {
+        "role": "authority:agent-rules", "capabilities": ["source_read", "repository_mutate"],
+        "canonical_sources": [AGENT_RULES_ROOT + r"\RULES.md", AGENT_RULES_ROOT + r"\contexts", AGENT_RULES_REMOTE],
+        "live_status": ["read exact rules/live commit and applicable context file; reconcile local/remote ref when mutation matters"],
+        "supervisor": "none", "self_heal": "not_applicable",
+        "independent_recovery": ["current explicit user instruction and live repo/runtime evidence remain higher authority if the rules repo is temporarily unavailable"],
+        "resources": ["RULES.md", "contexts/*.md", "rules/live"],
+        "dependents": ["chatgpt_session", "execution_workers", "repo_rule_pointer"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
-    "repo_agents": {
-        "role": "authority:repo-local", "capabilities": ["source_read", "repository_mutate"],
-        "canonical_sources": ["admitted worktree AGENTS.md"], "live_status": ["read admitted-worktree AGENTS.md"],
-        "supervisor": "repo-local", "self_heal": "not_applicable", "independent_recovery": ["block repo mutation until readable"],
-        "resources": ["AGENTS.md"], "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo AGENTS.md"],
+    "repo_rule_pointer": {
+        "role": "navigation:rule-pointer", "capabilities": ["source_read"],
+        "canonical_sources": ["pointer-only AGENTS.md/CLAUDE.md/equivalent"],
+        "live_status": ["verify pointer names canonical agent-rules RULES.md/context and contains no copied policy body"],
+        "supervisor": "none", "self_heal": "not_applicable",
+        "independent_recovery": ["read agent_rules directly; a missing/stale pointer never creates a second policy authority"],
+        "resources": ["pointer files only"],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "north_star": {
         "role": "direction:project", "capabilities": ["source_read"], "canonical_sources": ["repo NORTH_STAR/equivalent"],
-        "live_status": ["read current direction doc"], "supervisor": "repo-local", "self_heal": "not_applicable",
+        "live_status": ["read current direction doc; derive obvious unmet product outcomes into actionable work and prefer visible progress"], "supervisor": "repo-local", "self_heal": "not_applicable",
         "independent_recovery": ["current user direction outranks stale prose"], "resources": ["NORTH_STAR/equivalent"],
         "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo NORTH_STAR/equivalent"],
     },
@@ -250,9 +268,10 @@ COMPONENTS.update({
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
-        "canonical_sources": ["tools/memory_bank.py", "memory/memory-bank.jsonl"], "live_status": ["memory_bank.py validate / bounded read"],
+        "canonical_sources": ["tools/memory_bank.py", "memory/memory-bank.jsonl", "origin/memory/live"],
+        "live_status": ["memory_bank.py validate / bounded read", "writes reconcile through dedicated origin/memory/live; protected main/master/dev/develop are forbidden publication targets"],
         "supervisor": "none", "self_heal": "not_applicable", "independent_recovery": ["continue without optional history enrichment"],
-        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json"], "dependents": ["chatgpt_session", "execution_workers"],
+        "resources": ["memory-bank.jsonl", "behavior-authority-registry.json", "memory/live"], "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["memory/README.md"],
     },
     "worker_reports": {
@@ -266,13 +285,13 @@ COMPONENTS.update({
     },
     "chatgpt_session": {
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation", "ChatGPT Memory", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
+        "canonical_sources": ["current conversation", "ChatGPT Memory", "agent_rules", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
         "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
         "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
     },
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["fresh-worker launch contract", "repo AGENTS.md"], "live_status": ["independent execution/activity evidence"],
+        "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
         "supervisor": "ChatGPT + BusyCoordinator ownership", "self_heal": "worker_specific",
         "independent_recovery": ["preserve task/checkpoint; use another proven execution route"],
         "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
@@ -292,66 +311,8 @@ COMPONENTS.update({
     },
 })
 
-PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
-    "lowvram": {
-        "role": "generator:image_to_3d",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\lowvram3d-repo", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md"],
-        "live_status": ["read current LowVRAM repo architecture before historical migration/issues", "inspect current generator filesystem/Git/runtime as applicable"],
-        "supervisor": "project-specific",
-        "self_heal": "project-specific",
-        "independent_recovery": ["preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM"],
-        "resources": ["source recovery", "image-to-3D generation", "geometry", "textures", "provenance", "producer visual QA"],
-        "dependents": ["tiny3d"],
-        "runbook": [r"C:\Users\Lauri\Desktop\lowvram3d-repo\AGENTS.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
-    },
-    "asset_library": {
-        "role": "storage:tiny3d_asset_library",
-        "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
-        "live_status": ["Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters"],
-        "supervisor": "Tiny3D",
-        "self_heal": "product-specific",
-        "independent_recovery": ["rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority"],
-        "resources": [r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", ".tiny3d/library/index-v1.json"],
-        "dependents": ["tiny3d"],
-        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
-    },
-    "tiny3d": {
-        "role": "product:post_generation_asset_compiler",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\tiny3d", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
-        "live_status": ["read current Tiny3D repo architecture before historical migration/issues", "inspect current compiler/library Git/runtime evidence as applicable"],
-        "supervisor": "project-specific",
-        "self_heal": "project-specific",
-        "independent_recovery": ["consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM"],
-        "resources": ["compilation", "rigging/skinning", "animation/deformation preparation", "validation/adapters", "packaging/lifecycle evidence", "catalogue/library"],
-        "dependents": ["p3"],
-        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\AGENTS.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
-    },
-    "p3": {
-        "role": "consumer:game_runtime_acceptance",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\Documents\Unreal Projects\p3"],
-        "live_status": ["inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance"],
-        "supervisor": "project-specific",
-        "self_heal": "project-specific",
-        "independent_recovery": ["Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof"],
-        "resources": ["Unreal/game materialization", "runtime acceptance", "gameplay/visual proof"],
-        "dependents": [],
-        "runbook": [r"C:\Users\Lauri\Documents\Unreal Projects\p3\AGENTS.md"],
-    },
-}
-PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
-PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
-    "stack.timeline": {
-        "owner_components": ["local_git", "worker_reports", "vps_edge_ingress", "tailscale_ingress", "file_transfer", "visual_proof"],
-        "triggers": ["full stack timeline", "stack timeline", "whole stack", "project visibility", "branches", "reflog", "audits", "incidents", "runtime topology"],
-        "entrypoints": ["python tools/full_stack_timeline.py --output <path>", "Git refs/worktrees/reflogs", "Vault durable documents", "worker report history", "live runtime probes"],
-        "boundary": "Read-only provenance projection across the whole stack. It is not a new authority; current claims still require the named live source.",
-    },
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles", "changes"],
@@ -359,9 +320,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
     },
     "project.current_truth": {
-        "owner_components": ["repo_agents", "north_star", "local_git", "github"],
+        "owner_components": ["agent_rules", "north_star", "local_git", "github"],
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
-        "entrypoints": ["admitted worktree AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD/origin", "exact GitHub issue/PR/check/runtime evidence"],
+        "entrypoints": ["agent-rules RULES.md + applicable context", "repo NORTH_STAR/equivalent", "git status/HEAD + recent all-branch history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
     "coordination.ownership": {
@@ -388,12 +349,6 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "entrypoints": ["production MCPv3/VPS process contract", "plugin2 when available"],
         "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
     },
-    "progress.board": {
-        "owner_components": ["dev_progress_board"],
-        "triggers": ["progress board", "dashboard", "stack delivery", "overview"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\DevProgressBoard"],
-        "boundary": "Derived orientation/projection only; reconcile important claims with canonical sources.",
-    },
 }
 
 def _expand_env(value: str) -> str:
@@ -405,7 +360,7 @@ def build_bootstrap_atlas() -> dict[str, Any]:
     validate_policy(load_policy())
     return {
         "schema": "atlas.v1",
-        "must": "Stack work: load canonical inventory before reasoning/answer/change; lookup touched components for live proof; unknown blast radius blocks disruption.",
+        "must": "Stack/infra only: use Atlas as a quick locator for stack owner/dependencies/blast radius; do not route ordinary product-repo work through Atlas.",
         "library": ATLAS_LIBRARY_PATH,
         "local_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py",
         "inventory": "inventory",
@@ -419,8 +374,6 @@ def component_details(name: str) -> dict[str, Any]:
     name = COMPONENT_ALIASES.get(name.casefold(), name)
     if name in COMPONENTS:
         return {"id": name, "requested_as": requested, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
-    if name in PRODUCT_COMPONENTS:
-        return {"id": name, "requested_as": requested, **PRODUCT_COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
     raise KeyError(requested)
 
 
@@ -478,9 +431,6 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     elif "start-githubrunnerhidden.ps1" in ancestry_text or "actions-runner" in ancestry_text:
         component = "github_runner"
         evidence.append("GitHub runner launcher ancestry")
-    elif "devprogressboard" in ancestry_text:
-        component = "dev_progress_board"
-        evidence.append("DevProgressBoard process ancestry")
     elif "busycoordinator" in ancestry_text or "busy-python.cmd" in ancestry_text or "busy-rust.cmd" in ancestry_text:
         component = "busy_coordinator"
         evidence.append("BusyCoordinator command path")
@@ -588,15 +538,24 @@ def blast_radius(
         "required_next": required_next,
         "authority": ATLAS_CONTRACT["authority"],
     }
+LIVE_PROBE_TIMEOUT_SECONDS = 5
+
+
 def _powershell_json(script: str) -> Any:
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=LIVE_PROBE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Stack Atlas live probe timed out after {LIVE_PROBE_TIMEOUT_SECONDS}s"
+        ) from exc
     text = result.stdout.strip()
     return json.loads(text) if text else []
 
@@ -646,8 +605,7 @@ def full_inventory() -> dict[str, Any]:
         "contract": ATLAS_CONTRACT,
         "capability_policy": validate_policy(load_policy()),
         "features": FEATURE_INDEX,
-        "components": {name: component_details(name) for name in [*COMPONENTS, *PRODUCT_ROOTS]},
-        "product_flow": [list(edge) for edge in PRODUCT_FLOW],
+        "components": {name: component_details(name) for name in COMPONENTS},
     }
 def render_library_atlas_bytes() -> bytes:
     artifact = {
@@ -696,7 +654,7 @@ def render_manual() -> str:
         "",
         "## Operating invariant",
         "",
-        "For stack/infra work, consume the compact Atlas first and deep-lookup every relevant component before reasoning, answering, redesigning, repairing, or mutating. Fetch status from the named live route. If identity, dependency role, supervisor, self-heal, blast radius, or independent recovery is unknown, disruptive action is blocked.",
+        "Atlas is a fast map for stack/infra only: locate the smallest relevant stack owner, entrypoint, dependency, or blast radius, then leave Atlas and work from that live owner. Do not use Atlas to navigate ordinary P3, Tiny3D, LowVRAM, or other product-repository work. Atlas does not plan work, establish product truth, or require deep lookups before ordinary reasoning.",
         "",
         "## Capability routing",
         "",
@@ -708,7 +666,7 @@ def render_manual() -> str:
     lines.extend(["", "## Feature discovery", "", "Use `find <query>` when you know the need but not the component. Search this derived index before proposing new stack machinery.", "", "| Feature | Owner components | Entrypoints | Boundary |", "| --- | --- | --- | --- |"])
     for feature_id, spec in inventory["features"].items():
         lines.append(f"| `{feature_id}` | {', '.join(spec['owner_components'])} | {'; '.join(spec['entrypoints'])} | {spec['boundary']} |")
-    lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and progress-board projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])
+    lines.extend(["", "## Components", ""])
     for name, spec in inventory["components"].items():
         lines.extend([f"### `{name}`", "", f"- Role: `{spec['role']}`", f"- Capabilities: {', '.join(spec['capabilities']) or 'none'}"])
         for label, key in (("Canonical sources", "canonical_sources"), ("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
