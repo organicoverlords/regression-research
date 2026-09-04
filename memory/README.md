@@ -32,12 +32,12 @@ python tools\memory_bank.py context "p3 orchestrator: work on P3"
 
 Add `--with-history` only when the task actually needs preserved full-conversation evidence. The default context path stays on the curated bank and does not fan out into the raw conversation corpus.
 
-`context` uses the same validated retrieval path but applies a hard prompt budget and separates durable notes from historical conversation evidence. PROVISIONAL and stored `status` matches are omitted from the default durable section; they remain available through explicit `search`/`history`. Historical frequency and excerpts are always advisory evidence, never authority. This is the preferred compact handoff surface when product-level ChatGPT memory/history is disabled.
+`context` uses the same validated retrieval path but applies a hard prompt budget and separates durable notes from historical conversation evidence. PROVISIONAL and stored `status` matches are omitted from the default durable section; they remain available through explicit `search --history`. Historical frequency and excerpts are always advisory evidence, never authority. This is the preferred compact handoff surface when product-level ChatGPT memory/history is disabled.
 
 Inspect historical/rejected/superseded entries:
 
 ```powershell
-python tools\memory_bank.py history "6KB threshold" --scope mcp
+python tools\memory_bank.py search "6KB threshold" --scope mcp --history
 ```
 
 Glance at the bounded recent-title startup window (current entries only):
@@ -63,11 +63,6 @@ Do not automatically promote or load Vault records into live behavior. Use targe
 ## Shared continuity and timeline views
 
 The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. Read commands (`recent`, `search`, `context`, `timeline`) are local, side-effect free, and do not claim BUSY/ownership, create queues, or require a daemon. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
-
-Build an optional historical/project orientation from curated memory plus whatever canonical local Git repositories are available:
-
-```powershell
-```
 
 Inspect chronology directly:
 

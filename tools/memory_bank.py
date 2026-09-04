@@ -554,8 +554,10 @@ def search_context_memory(
     return ordinary_hits[:effective_limit]
 
 
-def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
-    effective_limit = min(MAX_RECALL_LIMIT, max(0, int(limit)))
+def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int | None = None, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
+    default_limit = DEFAULT_HISTORY_LIMIT if history else DEFAULT_RECALL_LIMIT
+    hard_cap = MAX_HISTORY_LIMIT if history else MAX_RECALL_LIMIT
+    effective_limit = min(hard_cap, max(0, default_limit if limit is None else int(limit)))
     manual = search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
     if history or not query.strip() or effective_limit == 0:
         return manual
@@ -630,7 +632,7 @@ def _main() -> int:
     search.add_argument("query", nargs="?", default="")
     search.add_argument("--scope")
     search.add_argument("--tag", action="append", default=[])
-    search.add_argument("--limit", type=int, default=DEFAULT_RECALL_LIMIT)
+    search.add_argument("--limit", type=int)
     search.add_argument("--history", action="store_true")
 
     behavior = sub.add_parser("behavior-search", help="search only current behavior-authority records")
@@ -656,12 +658,6 @@ def _main() -> int:
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
     timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="immutable worker-report history root")
     timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history")
-
-    history = sub.add_parser("history")
-    history.add_argument("query", nargs="?", default="")
-    history.add_argument("--scope")
-    history.add_argument("--tag", action="append", default=[])
-    history.add_argument("--limit", type=int, default=DEFAULT_HISTORY_LIMIT)
 
     recent_titles = sub.add_parser("recent-titles", aliases=["recent"])
     recent_titles.add_argument("--limit", type=int, default=DEFAULT_RECENT_TITLES_LIMIT)
@@ -721,9 +717,6 @@ def _main() -> int:
                 limit=args.limit, repo_events=repo_events, worker_events=worker_events,
             )
             _print_json(report)
-            return 0
-        if args.command == "history":
-            _print_json([annotate_memory(entry) for entry in search_entries(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=True)])
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
