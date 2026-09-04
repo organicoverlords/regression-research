@@ -3,7 +3,7 @@
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
 next move was, and enough preserved state to replay the case later.
 This is research evidence. It is not an operating contract and not a worker prompt.
-Canonical agent rules live in `C:\Users\Lauri\Documents\agent-rules\RULES.md` plus the applicable `contexts/*.md`; repo `AGENTS.md` files are pointer-only.
+Shared agent instructions live only in `C:\Users\Lauri\.agents\RULES.md` and `C:\Users\Lauri\.agents\AGENTS.md`; repo `AGENTS.md`/`CLAUDE.md` files are pointer-only.
 
 Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
 
@@ -40,7 +40,7 @@ Historical full conversations are part of the same Vault memory corpus under the
 For current Personal Instructions / bootstrap boundaries, use [`04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt`](04%20Operating%20Contracts/chatgpt-personal-instructions-bootstrap.txt); for stack architecture and live-owner navigation, use [`docs/assistant-stack-operational-atlas.md`](docs/assistant-stack-operational-atlas.md). The exact #122 repaired blocks remain historical evidence rather than current account configuration.
 
 
-Memory Bank ordinary retrieval uses the deterministic hybrid ranker validated in #172; explicit historical search keeps lexical history semantics. Vault memory is evidence/context only: stored user wording, old policy references, and legacy behavior metadata remain searchable provenance but never become runtime behavior authority. Current conversation, canonical `agent-rules`, and live repo/runtime sources own behavior and current truth. The canonical JSONL is unchanged by retrieval and derived indexes remain disposable.
+Memory Bank ordinary retrieval uses the deterministic hybrid ranker validated in #172; explicit historical search keeps lexical history semantics. Vault memory is evidence/context only: stored user wording, old policy references, and legacy behavior metadata remain searchable provenance but never become runtime behavior authority. Current conversation, canonical `.agents` contract, and live repo/runtime sources own behavior and current truth. The canonical JSONL is unchanged by retrieval and derived indexes remain disposable.
 
 ## Provenance
 
