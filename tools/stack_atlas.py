@@ -397,9 +397,14 @@ def _bootstrap_pc_status() -> dict[str, Any]:
 
 
 def _bootstrap_worker_status() -> dict[str, Any]:
-    path = ROOT / "worker-reports" / "metrics.json"
-    if not path.exists(): return {"available": False, "path": str(path)}
-    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    history_root = ROOT / "worker-reports" / "history"
+    if not history_root.exists():
+        return {"available": False, "path": str(history_root)}
+    try:
+        from tools.worker_report_history import build_metrics_projection
+    except ImportError:
+        from worker_report_history import build_metrics_projection
+    data = build_metrics_projection(history_root, hours=24.0)
     seen=set(); runs=[]
     for item in data.get("latest_reports", []):
         key=(item.get("automation_id"), item.get("finished_at"))
@@ -407,7 +412,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         seen.add(key)
         runs.append({k:item.get(k) for k in ("automation_id","display_label","finished_at","duration_minutes","target_utilization_pct","repo","scope","state","outcome","stop_reason")})
         if len(runs) >= 5: break
-    return {"available": True, "path": str(path), "generated_at": data.get("generated_at"), "average_duration_minutes": data.get("average_duration_minutes"), "median_duration_minutes": data.get("median_duration_minutes"), "average_target_utilization_pct": data.get("average_target_utilization_pct"), "latest_distinct_runs": runs}
+    return {"available": True, "path": str(history_root), "generated_at": data.get("generated_at"), "window_hours": data.get("window_hours"), "average_duration_minutes": data.get("average_duration_minutes"), "median_duration_minutes": data.get("median_duration_minutes"), "average_target_utilization_pct": data.get("average_target_utilization_pct"), "latest_distinct_runs": runs}
 
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
