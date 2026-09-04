@@ -1,0 +1,51 @@
+{
+  "id": "working-boundary-restoration-authority-2026-09-04",
+  "title": "Regression recovery must start from the exact verified working boundary, not historical labels",
+  "source_report": "01 Reports/2026-09-04_2238_EEST_regression-restoration-authority-drift_incident_report.md",
+  "incident_class": "authority_resolution",
+  "inherited_objective": "Undo a regression without replacing an already-correct live component or resurrecting stale historical recovery artifacts.",
+  "live_state": [
+    "Historical reports and worktrees contain labels such as known-good, freeze, and recovery.",
+    "Those artifacts can be stale, contaminated, superseded, or unrelated to the regression being recovered.",
+    "Live runtime/process/config evidence and Git history can reconstruct the state that was actually working immediately before the regression.",
+    "Stack Atlas locates current owners; Vault/reports provide chronology and prior evidence rather than automatic restoration targets."
+  ],
+  "user_correction": "Identify the exact state that was actually running and working immediately before the regression, then diff forward. Do not promote historical recovery names or reports into authority.",
+  "protected_state": [
+    "The actual currently accepted/serving component",
+    "Current user objective",
+    "Live runtime evidence",
+    "Exact Git history from the working boundary forward",
+    "Historical artifacts as non-authoritative evidence"
+  ],
+  "hard_exclusions": [
+    "Do not restore a commit/worktree because its label says known-good, freeze, or recovery.",
+    "Do not use Vault history as live authority.",
+    "Do not use Stack Atlas to choose an old implementation; use it to locate the current owner.",
+    "Do not mutate a healthy component before showing it changed across the working-boundary diff."
+  ],
+  "failure_candidate": {
+    "action": "Search Vault and old temp worktrees for a known-good or freeze recovery such as 41c8345, pick the most plausible historical recovery target, and restore that state before reconstructing what was actually running at the regression boundary.",
+    "why_wrong": "It promotes historical labels to restoration authority and can overwrite the actual accepted live state."
+  },
+  "success_candidate": {
+    "action": "Start from the current higher-authority user instruction. Reconstruct the last verified working boundary from live execution evidence: the serving process/runtime, exact config and code/commit, plus acceptance evidence where available. Use Git history and chronology to diff forward from that boundary to the regression; use Stack Atlas only to locate the current owner. Treat known-good, freeze, recovery labels, old temp worktrees, and Vault reports as evidence only, never restoration authority. Restore or reproduce only the exact state tied by evidence to the working boundary.",
+    "why_correct": "It keeps authority on current instruction/live state and uses historical artifacts only to explain chronology after the working boundary is established."
+  },
+  "discriminating_evidence": [
+    "Current user instruction",
+    "Live serving process/runtime/config identity",
+    "Exact commit/hash and acceptance evidence at the last verified working boundary",
+    "Git diff/history after that boundary",
+    "Stack Atlas current owner/entrypoint",
+    "Vault/report chronology"
+  ],
+  "completion_condition": "A restoration target is selected only if it is evidenced as the actual working boundary relevant to the regression; changed owners are identified by forward diff, and historical labels alone cannot select the target.",
+  "scoring": {
+    "working_boundary_reconstructed_before_restoration": "required",
+    "historical_label_promoted_to_restoration_authority": "fail",
+    "higher_authority_checked": "required",
+    "temporal_history_checked": "required",
+    "live_execution_evidence_checked": "required"
+  }
+}

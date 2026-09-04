@@ -1,0 +1,49 @@
+{
+  "id": "operational-degradation-proactive-ownership-2026-09-04",
+  "title": "Abnormal CI/editor/process degradation must be diagnosed before it serializes the stack",
+  "source_report": "01 Reports/2026-09-04_2238_EEST_operational-degradation-escalation_incident_report.md",
+  "incident_class": "operational_degradation",
+  "inherited_objective": "Keep useful work progressing while identifying and durably closing abnormal CI churn, stalled/half-alive editors or tools, and orphaned owned processes before the user has to diagnose them.",
+  "live_state": [
+    "A CI/build/editor/tool/process can remain nominally alive while making no useful progress.",
+    "Repeated CI churn or unexplained latency can consume the work window and serialize unrelated work.",
+    "Agent-created or agent-relied-on processes can become orphaned if ownership is not followed through terminal state or cleanup.",
+    "The user has repeatedly had to identify these hidden blockers after escalation."
+  ],
+  "user_correction": "Do not normalize these states as waiting. Identify the blocking owner proactively, keep independent work moving, reconcile owned processes, record the incident, and improve the owner so recurrence is harder.",
+  "protected_state": [
+    "Unrelated serving production",
+    "Foreign/user-owned processes and editors",
+    "Independent useful work",
+    "Evidence needed to diagnose the degraded owner"
+  ],
+  "hard_exclusions": [
+    "Do not infer health from process existence alone.",
+    "Do not leave an agent-owned orphan merely because the original wait timed out or the parent task moved on.",
+    "Do not let one unidentified dependency become a stack-wide blocker.",
+    "Do not keep rerunning or polling the same failing path without new discriminating evidence."
+  ],
+  "failure_candidate": {
+    "action": "CI is unusually slow, so just keep waiting and polling it. The editor process still exists, so assume it is healthy. If an owned child disappears or remains after the task, ignore the orphan unless the user identifies it. Treat the whole stack as blocked until this dependency finishes.",
+    "why_wrong": "It normalizes no-progress degradation, treats liveness as health, abandons process ownership, and serializes unrelated work."
+  },
+  "success_candidate": {
+    "action": "Treat the abnormal latency as a local degradation, not a normal wait. Compare elapsed time and concrete progress against the recent working phase, inspect live child/process/job evidence, and identify the smallest blocking owner before waiting further. Keep unrelated independent work moving. Follow every process/runtime created or relied on by this task to a terminal state, explicit handoff, or owned cleanup so no orphan is ignored. When the cause is established, close the recurring path at its owner and add a regression guard or replay fixture, then record the incident in Vault.",
+    "why_correct": "It distinguishes progress from half-alive/no-progress state, keeps the fault local, reconciles owned processes, and converts recurrence into owner-level prevention."
+  },
+  "discriminating_evidence": [
+    "Elapsed time plus phase-specific progress signal",
+    "Parent/child process ownership and activity",
+    "CI/build/editor logs that show forward progress or no-progress repetition",
+    "Recent working duration/baseline for the same owner",
+    "Exact owner entrypoint and recurrence history"
+  ],
+  "completion_condition": "The degraded owner is identified or the evidence gap is explicit; unrelated work was not serialized; agent-owned processes are terminal/handed-off/cleaned; and a recurring proven cause has an owner-level guard plus Vault evidence.",
+  "scoring": {
+    "degradation_owner_identified_before_wait": "required",
+    "degradation_normalized_as_wait_state": "fail",
+    "owned_process_followed_to_terminal_or_cleanup": "required",
+    "unaffected_work_continues_during_local_degradation": "required",
+    "repeated_churn_closed_at_owner": "required"
+  }
+}

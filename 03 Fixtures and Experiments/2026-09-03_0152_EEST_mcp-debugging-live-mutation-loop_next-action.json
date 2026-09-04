@@ -2,8 +2,8 @@
   "id": "2026-09-03_0152_EEST_mcp-debugging-live-mutation-loop",
   "title": "MCP debugging premature-merge next-action fixture",
   "source_report": "01 Reports/2026-09-03_0152_EEST_mcp-debugging-live-mutation-loop_premature-merge_incident_report.md",
-  "capture_state": "final",
-  "replay_ready": true,
+  "capture_state": "pending",
+  "replay_ready": false,
   "source_identity": {
     "failure_point": "after full npm test exposed 6000 != 32000 and before commit/push/merge of launcher patch",
     "conversation": "current ChatGPT MCP tool-drop regression conversation",
@@ -62,5 +62,6 @@
       "boundary": "User points out incident cluster followed MCP changes and later explicitly orders live-topology rollback while preserving evidence.",
       "failure_pattern": "Multiple plausible technical/policy causes were promoted and revised; user repeatedly had to restore chronology, scope, and causal discipline."
     }
-  ]
+  ],
+  "note": "Legacy next-action evidence recovered before the current replay fixture schema. Preserve as evidence only; complete the current success/failure replay contract before reenabling deterministic scoring."
 }
