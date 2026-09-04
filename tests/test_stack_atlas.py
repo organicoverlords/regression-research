@@ -146,6 +146,23 @@ class StackAtlasTests(unittest.TestCase):
         self.assertLessEqual(len(results), 2)
         self.assertTrue(all(item["authority"] == ATLAS_CONTRACT["authority"] for item in results))
 
+    def test_local_git_never_prefers_clean_stale_origin_over_live_wip(self):
+        details = component_details("local_git")
+        self.assertIn("Cleanliness is not authority", details["boundary"])
+        self.assertIn("origin/main", details["boundary"])
+        self.assertIn("relevant live HEAD", details["boundary"])
+        order = " ".join(details["diagnostic_order"])
+        self.assertIn("relevant live checkout/HEAD", order)
+        self.assertIn("verified relevant live lineage/HEAD", order)
+        self.assertIn("never silently reset", order)
+
+    def test_project_current_truth_routes_dirty_and_clean_branch_questions_to_live_lineage(self):
+        result = find_features("dirty clean branch origin main stale worktree")[0]
+        self.assertEqual(result["id"], "project.current_truth")
+        self.assertIn("relevant live git status/HEAD", " ".join(result["entrypoints"]))
+        self.assertIn("Cleanliness does not make origin/main", result["boundary"])
+        self.assertIn("verified live lineage", result["boundary"])
+
     def test_pid_is_lookup_key_not_component_identity(self):
         self.assertIn("ephemeral live lookup key", ATLAS_CONTRACT["pid_semantics"])
         self.assertIn("stable identity", ATLAS_CONTRACT["pid_semantics"])

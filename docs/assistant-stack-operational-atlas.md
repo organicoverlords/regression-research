@@ -27,7 +27,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
 | `vault.history` | memory_bank | memory_bank.py search; memory_bank.py context; memory_bank.py history; memory_bank.py timeline; memory_bank.py orient; memory_bank.py recent-titles; memory_bank.py changes | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
-| `project.current_truth` | agent_rules, north_star, local_git, github | shared .agents RULES.md + AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD + relevant branch/commit history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
+| `project.current_truth` | agent_rules, north_star, local_git, github | shared .agents RULES.md + AGENTS.md; relevant live git status/HEAD + attributed dirty state; relevant branch/commit history + remote refs; repo NORTH_STAR/equivalent; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority. Cleanliness does not make origin/main, a remote ref, or a fresh worktree newer or more authoritative than relevant live HEAD/WIP; isolate from the verified live lineage rather than substituting it. |
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
@@ -188,10 +188,12 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Capabilities: source_read, repository_mutate
 - Canonical sources: per-repo filesystem/.git/worktrees
 - Live status: git status; HEAD; recent git log --all history; local/remote branch refs; worktree list
-- Independent recovery: preserve dirty/foreign state; use isolated worktree
+- Independent recovery: preserve dirty/foreign state; isolate from the verified relevant live lineage rather than substituting a cleaner stale branch
 - Resources: working tree; .git/worktrees
 - Dependents: chatgpt_session; execution_workers
 - Runbook: C:\Users\Lauri\.agents\RULES.md
+- Boundary: Cleanliness is not authority. A clean origin/main or clean worktree must not replace a relevant live HEAD, dirty checkout, or verified WIP merely because it is cleaner.
+- Diagnostic order: identify the relevant live checkout/HEAD and attribute dirty state -> inspect relevant branch/commit history and remote refs -> when isolation is needed, fork from the verified relevant live lineage/HEAD unless evidence establishes a different working boundary -> preserve foreign/unique dirty state; never silently reset to a cleaner remote branch
 - Supervisor: none
 - Self-heal: not_applicable
 
