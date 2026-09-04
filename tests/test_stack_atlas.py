@@ -128,6 +128,14 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("inactive backend generation", " ".join(details["independent_recovery"]))
         self.assertIn("exact tool contract", " ".join(details["live_status"]))
 
+    def test_mcp_restart_policy_has_one_owner(self):
+        details = component_details("mcpv3")
+        self.assertEqual(details["mutation_policy_owner"], r"C:\Users\Lauri\Documents\agent-rules\contexts\mcp.md")
+        self.assertNotIn("mutation_boundary", details)
+        self.assertNotIn("safe_test_routes", details)
+        glance = build_live_bootstrap_glance()
+        self.assertTrue(any("restore the last known-good state" in rule for rule in glance["behavior"]))
+
     def test_vps_edge_process_classifies_and_blocks_disruption(self):
         process = {
             "pid": 480, "ppid": 1, "name": "python.exe",

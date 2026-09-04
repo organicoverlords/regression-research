@@ -156,8 +156,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "live_status": ["https://5-61-91-127.sslip.io/edge-status", "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp", "Windows scheduled task McpVpsEdgeTunnel", "VPS mcp-edge-health.timer"],
         "supervisor": "Caddy/systemd on VPS plus Windows McpVpsEdgeTunnel scheduled task",
         "self_heal": "reverse tunnel reconnect loop + systemd-managed Caddy/health timers",
-        "mutation_boundary": "PRODUCTION_FROZEN: working live VPS Caddy/reverse-SSH/3011/OAuth/launcher/tunnel is not a test surface. Diagnose and prove changes on local clone, shadow listener, unused VPS port, or other inactive lane first. Busy ownership prevents collision but never authorizes cutover. Restart/rewire live production only with current explicit user authorization and a ready rollback.",
-        "safe_test_routes": ["local clone/direct backend test", "shadow reverse-SSH listener on unused VPS port", "inactive Caddy config validation", "off-path /health probe through the candidate tunnel", "explicitly revalidated non-production fallback"],
+        "mutation_policy_owner": r"C:\Users\Lauri\Documents\agent-rules\contexts\mcp.md",
         "independent_recovery": ["local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn", "Tailscale may be used only as an explicitly revalidated non-production fallback"],
         "resources": ["VPS 5.61.91.127", "public TCP 80/443", "SSH TCP 22", "VPS loopback 3011 reverse listener", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
         "dependents": ["mcp_minimal_clone", "file_transfer", "chatgpt_process_transport"],
@@ -625,11 +624,11 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "current user instruction is first authority",
             "use live repo/runtime/tool evidence for current truth",
             "when a live shared system is working and the task is a bounded bug/theory, diagnose and reproduce off-path first; do not use production as the experiment or mutate/restart it merely to prove a theory",
+            "if our change regresses a previously working live state, restore the last known-good state before reporting/freezing/further rollout; preserve regression evidence separately",
             "for any stack/infra work, consult Atlas first to resolve owner/entrypoint/dependents/resources before mutation; then leave Atlas and use the live owner; ordinary P3/Tiny3D/LowVRAM product work bypasses Atlas",
             "Vault/memory is history/evidence; use targeted retrieval when past work matters",
             "worker reports/schedules are evidence, not liveness; use live MCP activity for liveness sanity",
             "BusyCoordinator is exact-scope collision control only: claim shared mutation scope immediately before risky mutation, but a claim never authorizes the change or proves it safe",
-            "MCP production ingress is protected shared infrastructure: do not restart or rewire live VPS Caddy, reverse-SSH tunnel/listeners, port 3011, OAuth, launcher, or edge tunnel without current explicit user authorization; off-path tests do not authorize live cutover",
             "read canonical RULES.md plus applicable context before mutation",
             "do not rebuild deleted/parallel systems before checking existing owners/history",
             "disk cleanup is fail-closed: generated product assets/proofs/lineage, user files, browser caches, dirty/unique work and foreign warm state are protected; old/process-free/output-looking is never enough to delete",
@@ -769,7 +768,7 @@ def _destructive_verdict(component: str | None) -> tuple[str, str]:
     if component == "busy_coordinator":
         return "BLOCK_COORDINATION_AUTHORITY", "use BusyCoordinator contract/recovery; do not kill around its state store"
     if component == "vps_edge_ingress":
-        return "BLOCK_ACTIVE_TRANSPORT", "prove an alternate machine-execution route and preserve the serving clone before edge disruption"
+        return "BLOCK_ACTIVE_TRANSPORT", "generic process disruption is blocked; deliberate MCP restart/cutover follows the canonical MCP context owner"
     if component == "mcp_front_door":
         return "BLOCK_ACTIVE_TRANSPORT", "update an inactive backend and switch only after exact compatibility proof"
     if component in {"mcp_backend", "mcp_minimal_clone"}:
