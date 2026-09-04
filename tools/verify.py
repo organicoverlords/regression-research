@@ -40,7 +40,6 @@ MEMORY_PATHS = {
     "tools/memory_git_sync.py",
     "tools/memory_hybrid.py",
     "tools/memory_timeline.py",
-    "tools/benchmark_memory_retrieval.py",
     "tools/provenance.py",
     "tests/test_memory_bank.py",
     "tests/test_memory_bootstrap.py",
@@ -149,8 +148,7 @@ def verify_memory() -> None:
             "tools/memory_git_sync.py",
             "tools/memory_hybrid.py",
             "tools/memory_timeline.py",
-                    "tools/benchmark_memory_retrieval.py",
-            "tools/provenance.py",
+                            "tools/provenance.py",
         ]
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
