@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY = ROOT / "tests" / "fixtures" / "capability-routing-policy.json"
@@ -81,82 +81,3 @@ def validate_policy(policy: dict[str, Any]) -> dict[str, Any]:
     if capabilities["memory_write"].get("requires") != "explicit_user_authorization":
         raise CapabilityRoutingError("memory writes must require explicit user authorization")
     return policy
-
-
-def _normalize_role_iterable(roles: Iterable[str], *, label: str) -> list[str]:
-    if isinstance(roles, (str, bytes)):
-        raise CapabilityRoutingError(f"{label} must be an iterable of role strings, not a string")
-    normalized = list(roles)
-    if any(not isinstance(role, str) or not role for role in normalized):
-        raise CapabilityRoutingError(f"{label} must contain only non-empty strings")
-    return normalized
-
-
-def resolve_reachable_roles(
-    available_roles: Iterable[str],
-    *,
-    role_providers: Mapping[str, Iterable[str]] | None = None,
-    failed_roles: Iterable[str] = (),
-) -> set[str]:
-    failed = set(_normalize_role_iterable(failed_roles, label="failed_roles"))
-    available = _normalize_role_iterable(available_roles, label="available_roles")
-    reachable = {role for role in available if role not in failed}
-
-    providers: dict[str, list[str]] = {}
-    for provider, provided_roles in (role_providers or {}).items():
-        if not isinstance(provider, str) or not provider:
-            raise CapabilityRoutingError("role provider names must be non-empty strings")
-        providers[provider] = _normalize_role_iterable(
-            provided_roles,
-            label=f"{provider}: provided roles",
-        )
-
-    changed = True
-    while changed:
-        changed = False
-        for provider, provided_roles in providers.items():
-            if provider not in reachable:
-                continue
-            for role in provided_roles:
-                if role in failed or role in reachable:
-                    continue
-                reachable.add(role)
-                changed = True
-    return reachable
-
-
-def select_adapter(
-    capability: str,
-    available_roles: Iterable[str],
-    *,
-    failed_roles: Iterable[str] = (),
-    role_providers: Mapping[str, Iterable[str]] | None = None,
-    policy: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    policy = validate_policy(policy or load_policy())
-    capabilities = policy["capabilities"]
-    if capability not in capabilities:
-        raise CapabilityRoutingError(f"unknown capability: {capability}")
-    failed = set(_normalize_role_iterable(failed_roles, label="failed_roles"))
-    available = resolve_reachable_roles(
-        available_roles,
-        role_providers=role_providers,
-        failed_roles=failed,
-    )
-    spec = capabilities[capability]
-    for role in spec["ordered_adapter_roles"]:
-        if role in available and role not in failed:
-            return {
-                "status": "selected",
-                "capability": capability,
-                "adapter_role": role,
-                "failure_scope": "capability_local",
-            }
-    return {
-        "status": "degraded",
-        "capability": capability,
-        "adapter_role": None,
-        "failure_scope": "capability_local",
-        "next_action": spec["when_unavailable"],
-        "fallback_mode": spec["fallback_mode"],
-    }
