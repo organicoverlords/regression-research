@@ -104,7 +104,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\start-tunnel.ps1", MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
+        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\start-tunnel.ps1"],
         "live_status": [
             "clone health",
             "exact tool contract",
@@ -115,11 +115,11 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
         "independent_recovery": [
-            "VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path; Tailscale Funnel is non-production fallback/diagnostic ingress only",
+            "VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path",
             "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback",
             "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
         ],
-        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy/reverse-SSH route", "legacy Tailscale /clone-* handler", "clone OAuth/OpenID metadata handlers"],
+        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy/reverse-SSH route", "clone OAuth/OpenID metadata handlers"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [
             MCP_ROOT + r"\AGENTS.md",
@@ -141,16 +141,16 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "runbook": ["01 Reports/2026-09-03_MCP_vps_edge_cutover.md"],
     },
     "tailscale_ingress": {
-        "role": "legacy_network_ingress_fallback",
+        "role": "secondary_network_ingress_fallback",
         "capabilities": ["source_read", "runtime_validate"],
-        "canonical_sources": [r"C:\Program Files\Tailscale\tailscale.exe", MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
-        "live_status": ["non-production after 2026-09-03 VPS cutover", "tailscale status", "tailscale serve status --json", "if fallback is attempted, require a fresh full MCP handshake before relying on it"],
-        "supervisor": "Tailscale service",
+        "canonical_sources": [r"C:\Program Files\Tailscale\tailscale.exe", MCP_ROOT + r"\keepalive.ps1"],
+        "live_status": ["secondary public ingress after the 2026-09-03 VPS cutover", "MCP_PUBLIC_ORIGIN host", "tailscale funnel status --json", "stable front door 127.0.0.1:3003", "if fallback is used, require a fresh full MCP handshake before relying on it"],
+        "supervisor": "Tailscale service; Funnel configuration owner is ChatGPTMcpClean keepalive.ps1",
         "self_heal": "service_specific; route edits require explicit verification",
-        "independent_recovery": ["local backend/clone can be tested directly without public ingress; ingress failure must not authorize backend churn"],
-        "resources": ["Serve/Funnel config", "HTTPS listener", "/clone-* route handlers", "OAuth/OpenID metadata route handlers"],
-        "dependents": ["mcp_minimal_clone"],
-        "runbook": [MCP_ROOT + r"\scripts\set-direct-clone-funnel.ps1"],
+        "independent_recovery": ["production MCPv3/VPS remains independent; the stable front door can be tested locally without Tailscale ingress"],
+        "resources": ["Funnel config", "HTTPS listener", "stable front-door proxy"],
+        "dependents": ["mcp_front_door"],
+        "runbook": [MCP_ROOT + r"\keepalive.ps1"],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",

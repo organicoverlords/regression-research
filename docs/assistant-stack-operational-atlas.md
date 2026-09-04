@@ -85,10 +85,10 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `generation_pinned_process_transport_clone`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1; %LOCALAPPDATA%\McpVpsEdge\start-tunnel.ps1; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
+- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1; %LOCALAPPDATA%\McpVpsEdge\start-tunnel.ps1
 - Live status: clone health; exact tool contract; process receipt/control route; direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers; 2026-09-03 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> persistent reverse SSH -> clone 3011; final scheduled path passed 100/100 initialize/initialized/start_process and live MCPv3 calls
-- Independent recovery: VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path; Tailscale Funnel is non-production fallback/diagnostic ingress only; preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback; client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn
-- Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control; VPS Caddy/reverse-SSH route; legacy Tailscale /clone-* handler; clone OAuth/OpenID metadata handlers
+- Independent recovery: VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path; preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback; client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn
+- Resources: clone port; oauth.json; transport.jsonl; shared-process-receipts; process-control; VPS Caddy/reverse-SSH route; clone OAuth/OpenID metadata handlers
 - Dependents: chatgpt_process_transport
 - Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md; C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md
 - Supervisor: instance launcher / owning generation
@@ -109,15 +109,15 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 ### `tailscale_ingress`
 
-- Role: `legacy_network_ingress_fallback`
+- Role: `secondary_network_ingress_fallback`
 - Capabilities: source_read, runtime_validate
-- Canonical sources: C:\Program Files\Tailscale\tailscale.exe; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
-- Live status: non-production after 2026-09-03 VPS cutover; tailscale status; tailscale serve status --json; if fallback is attempted, require a fresh full MCP handshake before relying on it
-- Independent recovery: local backend/clone can be tested directly without public ingress; ingress failure must not authorize backend churn
-- Resources: Serve/Funnel config; HTTPS listener; /clone-* route handlers; OAuth/OpenID metadata route handlers
-- Dependents: mcp_minimal_clone
-- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\scripts\set-direct-clone-funnel.ps1
-- Supervisor: Tailscale service
+- Canonical sources: C:\Program Files\Tailscale\tailscale.exe; %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
+- Live status: secondary public ingress after the 2026-09-03 VPS cutover; MCP_PUBLIC_ORIGIN host; tailscale funnel status --json; stable front door 127.0.0.1:3003; if fallback is used, require a fresh full MCP handshake before relying on it
+- Independent recovery: production MCPv3/VPS remains independent; the stable front door can be tested locally without Tailscale ingress
+- Resources: Funnel config; HTTPS listener; stable front-door proxy
+- Dependents: mcp_front_door
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1
+- Supervisor: Tailscale service; Funnel configuration owner is ChatGPTMcpClean keepalive.ps1
 - Self-heal: service_specific; route edits require explicit verification
 
 ### `file_transfer`
