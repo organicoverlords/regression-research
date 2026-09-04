@@ -1,5 +1,4 @@
 {
-  "schema_version": "2.2",
   "classes": {
     "CURRENT_USER": 100,
     "LIVE_CANONICAL": 95,
@@ -10,266 +9,86 @@
   },
   "sources": [
     {
-      "id": "current-user",
       "class": "CURRENT_USER",
       "match_prefixes": [
         "user-instruction:"
-      ],
-      "role": "explicit current or durable user instruction"
+      ]
     },
     {
-      "id": "shared-current-policy",
       "class": "LIVE_CANONICAL",
       "match_prefixes": [
         "shared-policy:",
         "agents-policy:",
         "docs-policy:",
         "repo-policy:"
-      ],
-      "role": "current canonical agent-rules policy inspected from organicoverlords/agent-rules rules/live"
+      ]
     },
     {
-      "id": "live-github",
       "class": "VERIFIED_EVIDENCE",
       "match_prefixes": [
         "github:",
         "commit:",
         "p3:"
-      ],
-      "role": "verified repository issue, PR, commit, or project evidence"
+      ]
     },
     {
-      "id": "regression",
       "class": "VERIFIED_EVIDENCE",
       "match_prefixes": [
         "regression:",
         "incident:"
-      ],
-      "role": "regression reports, fixtures, and evidence"
+      ]
     },
     {
-      "id": "current-spec",
       "class": "LIVE_CANONICAL",
       "match_prefixes": [
         "spec:"
-      ],
-      "role": "current reviewed design or operating contract"
+      ]
     },
     {
-      "id": "durable-memory",
       "class": "DURABLE_MEMORY",
       "match_prefixes": [
         "durable-memory:",
         "aitube-memory:",
         "level6-memory:",
         "personal-context:"
-      ],
-      "role": "durable memory or personal-context source"
+      ]
     },
     {
-      "id": "historical-context",
       "class": "HISTORICAL_CONTEXT",
       "match_prefixes": [
         "claude-history:",
         "codex-history:",
         "nexus-memory:",
         "shared-policy-snapshot:"
-      ],
-      "role": "historical context useful for reconstruction"
+      ]
     },
     {
-      "id": "opencode-history",
       "class": "HISTORICAL_CONTEXT",
       "match_prefixes": [
         "opencode-history:",
         "opencode-log:"
-      ],
-      "role": "OpenCode local history/log evidence; historical context unless independently current-verified"
+      ]
     },
     {
-      "id": "command-code-history",
       "class": "HISTORICAL_CONTEXT",
       "match_prefixes": [
         "command-code-history:",
         "command-code-log:"
-      ],
-      "role": "Command-Code local history/log evidence; historical context unless independently current-verified"
+      ]
     },
     {
-      "id": "legacy-seed",
       "class": "RECOVERY_ONLY",
       "match_prefixes": [
         "legacy-seed:",
         "memory-backup:"
-      ],
-      "role": "legacy bootstrap/seed/backups; recovery and historical comparison only"
+      ]
     },
     {
-      "id": "traycer-history",
       "class": "HISTORICAL_CONTEXT",
       "match_prefixes": [
         "traycer-history:",
         "traycer-review:"
-      ],
-      "role": "Traycer/Tracer review and routing artifacts; historical/context unless independently current-verified"
+      ]
     }
-  ],
-  "candidate_source_inventory": [
-    {
-      "id": "regression-research",
-      "location": "organicoverlords/regression-research",
-      "class": "VERIFIED_EVIDENCE",
-      "scope": "global",
-      "freshness": "git-current",
-      "availability": "available"
-    },
-    {
-      "id": "agents-repo",
-      "location": "organicoverlords/agents",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "verify-current-policy-before-promotion",
-      "availability": "available"
-    },
-    {
-      "id": "docs-repo",
-      "location": "organicoverlords/docs",
-      "class": "LIVE_CANONICAL",
-      "scope": "global",
-      "freshness": "git-current",
-      "availability": "available"
-    },
-    {
-      "id": "agent-rules-repo",
-      "location": "organicoverlords/agent-rules@rules/live + C:/Users/Lauri/Documents/agent-rules",
-      "class": "LIVE_CANONICAL",
-      "scope": "global",
-      "freshness": "rules-live-current",
-      "availability": "available",
-      "role": "single canonical global/context agent rule authority; no generated downstream copies"
-    },
-    {
-      "id": "repo-rule-pointer",
-      "location": "project-repo/AGENTS.md or equivalent pointer",
-      "class": "VERIFIED_EVIDENCE",
-      "scope": "project",
-      "freshness": "pointer-current",
-      "availability": "available",
-      "role": "navigation pointer to canonical agent-rules; explicitly not policy authority"
-    },
-    {
-      "id": "local-agents",
-      "location": "local/.agents",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "mixed-current-and-snapshots",
-      "availability": "available"
-    },
-    {
-      "id": "chatgpt-history",
-      "location": "preserved ChatGPT conversation/export corpus",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "artifact-timestamp",
-      "availability": "available"
-    },
-    {
-      "id": "opencode-history",
-      "location": "local/.local/share/opencode/opencode.db",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "verify-local-path-before-ingestion",
-      "availability": "unknown",
-      "role": "first-class evidence source; do not infer absence or current state until the local source is verified"
-    },
-    {
-      "id": "claude-history",
-      "location": "local/.claude",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "historical-turns",
-      "availability": "available"
-    },
-    {
-      "id": "codex-history",
-      "location": "local/.codex",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "historical-rollouts",
-      "availability": "available"
-    },
-    {
-      "id": "traycer-artifacts",
-      "location": "local Traycer/TRACER.md/review artifacts",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "artifact-timestamp",
-      "availability": "available"
-    },
-    {
-      "id": "command-code-history",
-      "location": "local/.commandcode/projects",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "verify-local-path-before-ingestion",
-      "availability": "unknown",
-      "role": "first-class evidence source; do not infer absence or current state until the local source is verified"
-    },
-    {
-      "id": "nexus-memory",
-      "location": "local/.nexus_memory",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "global",
-      "freshness": "historical",
-      "availability": "available",
-      "observed_file_count": 1,
-      "observed_at": "2026-08-25T12:41:00+03:00"
-    },
-    {
-      "id": "chatgpt-personal-context",
-      "location": "ChatGPT durable memory/personal context",
-      "class": "DURABLE_MEMORY",
-      "scope": "user",
-      "freshness": "surface-managed",
-      "availability": "optional"
-    },
-    {
-      "id": "aitube-memory",
-      "location": "organicoverlords/AITubeTranscript",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "aitube",
-      "freshness": "git-current-contracts",
-      "availability": "available"
-    },
-    {
-      "id": "level6-memory",
-      "location": "organicoverlords/level6-memory-brain-rust",
-      "class": "HISTORICAL_CONTEXT",
-      "scope": "memory-system",
-      "freshness": "git-current-contracts",
-      "availability": "available"
-    },
-    {
-      "id": "project-repos",
-      "location": "organicoverlords project repositories",
-      "class": "VERIFIED_EVIDENCE",
-      "scope": "project",
-      "freshness": "live-git-state",
-      "availability": "available"
-    },
-    {
-      "id": "legacy-seed",
-      "location": "legacy chatgpt-memory-seed/backups",
-      "class": "RECOVERY_ONLY",
-      "scope": "global",
-      "freshness": "stale-unless-verified",
-      "availability": "available"
-    }
-  ],
-  "excluded_runtime_dependency": [
-    "ContextRelay",
-    "browser automation",
-    "Level6 daemon",
-    "MCP availability"
   ]
 }
