@@ -71,6 +71,36 @@
         "vault_candidate": "bffa5f1fbdb2651624050f55ec44953f89cc3812",
         "unpublished_local_vault_commits": "excluded-from-delivered-candidate"
       }
+    },
+    {
+      "id": "evidence:agent-rules-convergence-integrated-20260904",
+      "event_at": "2026-09-04T04:25:01+03:00",
+      "title": "Canonical agent rules converged into integration branches; per-merge approval interpretation retired",
+      "project": "vault",
+      "scope": "agent-rules/five-repo-convergence",
+      "epistemic_class": "OBSERVED_FACT",
+      "epistemic_basis": "Direct live GitHub/Git verification confirmed P3 #811, Tiny3D #307, LowVRAM #124 and MCP #57 integrated; Vault main is pointer-only with agent_rules as Atlas authority; stale task refs were pruned while warm worktrees/caches were preserved. Canonical rules/live explicitly requires prompt safe convergence without per-merge approval unless work is explicitly held.",
+      "evidence": [
+        "01 Reports/2026-09-04_0033_EEST_agent-rules-authority-centralization_incident_report.md",
+        "memory:mem-20260904-33a24173",
+        "git:agent-rules:2116909bbb619b0fa28bbdc4aa4bd845a2aa1b97",
+        "git:p3:c1c32a7f9cd9eb9b9efbd9e36a9fbeda15e9ceef",
+        "git:tiny3d:91a7e633c87a076881b36d0c03c2078412505659",
+        "git:lowvram:ceef4d4049eaaf35fb77449f7a9386c0de584f57",
+        "git:mcp:8727a7d608912d4b631c8d11a515ee392518bba2",
+        "git:regression-research:3da70915e17e5a181175a3cd7df60464eb22e266"
+      ],
+      "result": {
+        "branch_model": "verified-ready-work-converges-without-per-merge-approval",
+        "integration_branch": "clean-proven-baseline-not-worker-workspace",
+        "p3_merge": "c1c32a7f9cd9eb9b9efbd9e36a9fbeda15e9ceef",
+        "tiny3d_merge": "91a7e633c87a076881b36d0c03c2078412505659",
+        "lowvram_merge": "ceef4d4049eaaf35fb77449f7a9386c0de584f57",
+        "mcp_merge": "8727a7d608912d4b631c8d11a515ee392518bba2",
+        "merged_task_refs": "pruned",
+        "warm_workspace_state": "preserved",
+        "superseding_memory": "mem-20260904-33a24173"
+      }
     }
   ]
 }

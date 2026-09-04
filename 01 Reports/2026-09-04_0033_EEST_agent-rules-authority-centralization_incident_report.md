@@ -43,3 +43,18 @@ Live remote verification at 2026-09-04 01:39 EEST confirmed the canonical rules 
 - Vault remote candidate `chatgpt/agent-rules-authority-20260904` = `bffa5f1fbdb2651624050f55ec44953f89cc3812`; protected Vault `main` = `98a0ed3f1b976b5929861c9739d3107f15e47898`. The local migration worktree also contains later unpushed convergence commits and concurrent dirty work from another actor; those are explicitly not treated as delivered candidate evidence and are not published by this task.
 
 All protected product/integration branches remain outside this cutover. They still carry the old local policy until the user explicitly approves advancing the converged candidates. This is deliberate: the agent work is prepared and evidenced on named branches first; protected human-validation branches are not silently updated by workers.
+
+## Resolution — verified convergence now lands automatically
+The earlier section "Final five-repo convergence candidate — protected branches pending user approval" is a historical snapshot of an intermediate interpretation and is superseded by the live canonical branch rule plus the merged outcomes below. The corrected rule is: keep the default integration branch clean and proven, do ordinary work on named branches, and merge verified ready work promptly through the normal safe PR/merge path without waiting for per-merge user approval unless the user explicitly placed that work on hold.
+
+Direct live merge evidence:
+- P3 PR #811 merged as `c1c32a7f9cd9eb9b9efbd9e36a9fbeda15e9ceef`; the final candidate removed 913 lines of duplicated local agent policy, retired the local policy injector, and preserved newer P3 convergence work.
+- Tiny3D PR #307 merged as `91a7e633c87a076881b36d0c03c2078412505659`.
+- LowVRAM PR #124 merged as `ceef4d4049eaaf35fb77449f7a9386c0de584f57`; its final head also retired the obsolete provider-policy plane.
+- MCP PR #57 is integrated on `master` at `8727a7d608912d4b631c8d11a515ee392518bba2`.
+- Vault `main` is pointer-only and its live Atlas names `agent_rules` as the sole policy authority; current verified Vault integration head at this resolution boundary was `3da70915e17e5a181175a3cd7df60464eb22e266`.
+- Canonical `agent-rules/rules/live` at this resolution boundary was `2116909bbb619b0fa28bbdc4aa4bd845a2aa1b97`.
+
+Branch/ref cleanup was completed separately from workspace cleanup. Superseded P3/Tiny pointer remotes were deleted with exact SHA guards; merged task-created local refs were pruned across P3, Tiny3D, MCP, LowVRAM, and `agent-rules`. Clean MCP and LowVRAM pointer worktrees were detached onto their integrated commits and kept in place. No Unreal/editor worktree, LFS hydration, `Intermediate`, `Binaries`, DDC, proof/runtime state, or other warm reproducible workspace state was deleted merely because a Git branch was removed.
+
+The final superseding memory-bank correction is `mem-20260904-33a24173`; it supersedes `mem-20260904-cb38ce61`, which immediately replaced `mem-20260904-1bfc720f` but contained an invocation-escaping defect in one verbatim quoted source message. `mem-20260904-33a24173` restores the exact source text and is the current historical provenance record for branch-convergence semantics. Reports and memory remain historical evidence only; live canonical rules and exact repo/runtime evidence remain current truth.
