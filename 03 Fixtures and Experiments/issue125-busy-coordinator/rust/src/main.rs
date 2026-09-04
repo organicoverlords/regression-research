@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Write};
+use std::io::{self, Seek, SeekFrom, Write};
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -204,7 +204,7 @@ fn persist(store: &Path, state: &StoreFile) -> Result<(), String> {
     let tmp = PathBuf::from(format!("{}.{}.tmp", store.display(), std::process::id()));
     let mut bytes = serde_json::to_vec_pretty(state).map_err(|e| e.to_string())?;
     bytes.push(b'\n');
-    fs::write(&tmp, bytes).map_err(|e| e.to_string())?;
+    fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
     let src = wide_null(tmp.as_os_str());
     let dst = wide_null(store.as_os_str());
     let deadline = Instant::now() + REPLACE_TIMEOUT;
@@ -220,9 +220,24 @@ fn persist(store: &Path, state: &StoreFile) -> Result<(), String> {
             return Ok(());
         }
         let error = io::Error::last_os_error();
-        if !matches!(error.raw_os_error(), Some(5 | 32)) || Instant::now() >= deadline {
+        if !matches!(error.raw_os_error(), Some(5 | 32)) {
             let _ = fs::remove_file(&tmp);
             return Err(format!("cannot replace BUSY store: {error}"));
+        }
+        if Instant::now() >= deadline {
+            // A Windows reader can deny delete sharing while still allowing writes.
+            // The coordinator lock serializes writers, so preserve progress by
+            // overwriting the existing file in place when rename cannot ever win.
+            let mut file = OpenOptions::new()
+                .write(true)
+                .open(store)
+                .map_err(|fallback| format!("cannot replace BUSY store: {error}; in-place fallback failed: {fallback}"))?;
+            file.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
+            file.write_all(&bytes).map_err(|e| e.to_string())?;
+            file.set_len(bytes.len() as u64).map_err(|e| e.to_string())?;
+            file.sync_all().map_err(|e| e.to_string())?;
+            let _ = fs::remove_file(&tmp);
+            return Ok(());
         }
         thread::sleep(REPLACE_RETRY);
     }

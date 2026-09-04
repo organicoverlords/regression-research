@@ -121,18 +121,39 @@ def load_state(store: Path) -> dict:
 
 def persist(store: Path, state: dict) -> None:
     store.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(state, indent=2, sort_keys=False) + "\n").encode("utf-8")
     tmp = Path(str(store) + f".{os.getpid()}.tmp")
-    tmp.write_text(json.dumps(state, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+    tmp.write_bytes(payload)
     deadline = time.monotonic() + REPLACE_TIMEOUT_S
+    last_error: PermissionError | None = None
     while True:
         try:
             os.replace(tmp, store)
             return
-        except PermissionError:
-            if time.monotonic() >= deadline:
-                tmp.unlink(missing_ok=True)
-                raise
-            time.sleep(REPLACE_RETRY_S)
+        except PermissionError as exc:
+            last_error = exc
+            if time.monotonic() < deadline:
+                time.sleep(REPLACE_RETRY_S)
+                continue
+            break
+
+    # Windows readers may keep the store open without FILE_SHARE_DELETE. In that
+    # state replace/rename is impossible for the lifetime of the reader even though
+    # ordinary writes are still permitted. The coordinator lock still serializes all
+    # writers, so fall back to an in-place overwrite rather than wedging ownership.
+    try:
+        with open(store, "r+b", buffering=0) as handle:
+            handle.seek(0)
+            handle.write(payload)
+            handle.truncate()
+            os.fsync(handle.fileno())
+        tmp.unlink(missing_ok=True)
+        return
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        if last_error is not None:
+            raise last_error
+        raise
 
 
 def claim_for(state: dict, scope: str):
