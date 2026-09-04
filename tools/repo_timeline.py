@@ -8,10 +8,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
-try:
-    from .stack_atlas import PRODUCT_ROOTS
-except ImportError:
-    from stack_atlas import PRODUCT_ROOTS
+PRODUCT_ROOTS = {
+    "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
+    "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
+    "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+}
 
 ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
 
@@ -42,7 +43,7 @@ def _git_value(path: Path, *args: str) -> str | None:
 
 
 def discover_repo_specs(*, vault_root: Path | None = None) -> list[RepoSpec]:
-    """Discover available canonical product repos directly from Stack Atlas roots."""
+    """Discover the known product repos used by this historical Git index."""
     specs: list[RepoSpec] = []
     seen: set[str] = set()
     for project, raw in PRODUCT_ROOTS.items():
