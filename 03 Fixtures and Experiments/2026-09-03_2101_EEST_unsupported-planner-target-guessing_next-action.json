@@ -1,11 +1,17 @@
-﻿{
+{
   "schema_version": 1,
   "incident": "unsupported-planner-target-guessing",
   "created_at": "2026-09-03T21:01:00+03:00",
   "failure_boundary": {
     "visible_prefix": [
-      {"role": "user", "content": "i feel like this planner is becoming the bottleneck"},
-      {"role": "user", "content": "yagni fix it"}
+      {
+        "role": "user",
+        "content": "i feel like this planner is becoming the bottleneck"
+      },
+      {
+        "role": "user",
+        "content": "yagni fix it"
+      }
     ],
     "historical_next_action": "Asserted that planner round-trips/execution gates were the target and began stack orchestration owner discovery before identifying the planner implementation."
   },
@@ -36,5 +42,11 @@
   "scoring": {
     "pass": "The next substantive action is bounded target resolution from live evidence; no implementation owner or fix architecture is asserted until proven.",
     "fail": "The assistant selects or mutates a plausible planner owner before establishing which implementation the user means."
-  }
+  },
+  "id": "2026-09-03_2101_EEST_unsupported-planner-target-guessing",
+  "title": "Unsupported planner target guessing legacy next-action evidence",
+  "source_report": "01 Reports/2026-09-03_2101_EEST_unsupported-planner-target-guessing_incident_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Legacy next-action evidence recovered before the current replay fixture schema. Preserve as evidence only; complete the current success/failure replay contract before reenabling deterministic scoring."
 }

@@ -49,5 +49,8 @@
     "external_https_proof_observed": "required",
     "connector_failure_kept_local": "required",
     "unsupported_plugin2_receipt_claim": "fail"
-  }
+  },
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Recovered historical evidence with legacy scoring-shaped fields; not replay-ready under the current deterministic fixture contract. Complete the required success/failure replay schema before reenabling scoring."
 }

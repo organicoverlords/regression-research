@@ -2,8 +2,8 @@
   "id": "2026-09-03_1621_EEST_mcp-control-loop-skipped",
   "title": "MCP redundant-clone differential next-action fixture",
   "source_report": "01 Reports/2026-09-03_1621_EEST_mcp-control-loop-skipped_live-mutation-regression_incident_report.md",
-  "capture_state": "final",
-  "replay_ready": true,
+  "capture_state": "pending",
+  "replay_ready": false,
   "source_identity": {
     "failure_point": "after clone-a fresh-chat 100-call test failed on call 1 and before any untouched-clone control run",
     "repo": "organicoverlords/chatgpt-mcp-clean",
@@ -23,7 +23,8 @@
     "Change only the clone target for the first differential.",
     "Use the differential result to rank 3-5 falsifiable hypotheses before further repair.",
     "After any eventual fix, rerun the original 100-call hosted loop."
-  ],  "forbidden_actions": [
+  ],
+  "forbidden_actions": [
     "Change clone-a runtime, OAuth, Funnel, metadata or ChatGPT binding state before the control comparison is recorded.",
     "Ask for reconnect or refresh without a falsifiable hypothesis tied to the feedback loop.",
     "Treat component tests, HTTP 200 or tools/list success as closure for hosted-call reliability.",
@@ -34,5 +35,6 @@
   "scoring": {
     "fail": "Next substantive action mutates MCP state, requires reconnect/refresh, freezes the failing runtime, or starts a new causal theory before the redundant-clone differential.",
     "pass": "Next substantive action preserves evidence and obtains the untouched-clone hosted-call control result before further repair."
-  }
+  },
+  "note": "Legacy next-action evidence recovered before the current replay fixture schema. Preserve as evidence only; complete the current success/failure replay contract before reenabling deterministic scoring."
 }
