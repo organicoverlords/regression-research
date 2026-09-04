@@ -1,5 +1,6 @@
 import io
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -8,7 +9,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.conversation_search import _print, discover_roots, index_roots, search_db, search_report
+from tools.conversation_search import _print, discover_roots, index_roots, rebuild_index, search_db, search_report
 from tools.memory_bank import _print_json, search_all_memory
 
 
@@ -239,6 +240,32 @@ class ConversationSearchTests(unittest.TestCase):
             stream.flush()
         payload = raw.getvalue().decode("utf-8")
         self.assertEqual(json.loads(payload)["text"], "\ue200")
+
+    def test_atomic_rebuild_prunes_old_provenance(self):
+        old = conversation("old", "Old", "downloads-only phrase", "old answer", 100)
+        (self.old / "old.json").write_text(json.dumps(old), encoding="utf-8")
+        index_roots(self.db, [self.old])
+        self.assertTrue(search_db(self.db, "downloads-only phrase", literal=True))
+
+        corpus = Path(self.tmp.name) / "vault" / "memory" / "conversations" / "raw"
+        corpus.mkdir(parents=True)
+        current = conversation("vault", "Vault", "vault-only phrase", "vault answer", 200)
+        (corpus / "vault.json").write_text(json.dumps(current), encoding="utf-8")
+        result = rebuild_index(self.db, [corpus])
+        self.assertEqual(result["status"], "PROVEN")
+        self.assertEqual(result["rebuild"], "atomic-fresh")
+        self.assertEqual(search_db(self.db, "downloads-only phrase", literal=True), [])
+        hits = search_db(self.db, "vault-only phrase", literal=True)
+        self.assertEqual(len(hits), 1)
+        self.assertIn(str(corpus), hits[0]["sources"][0])
+
+        conn = sqlite3.connect(self.db)
+        try:
+            locators = [row[0] for row in conn.execute("SELECT locator FROM sources")]
+        finally:
+            conn.close()
+        self.assertTrue(locators)
+        self.assertTrue(all(str(corpus) in locator for locator in locators))
 
     def test_incremental_reindex_removes_stale_message_version(self):
         path = self.new / "conversations.json"

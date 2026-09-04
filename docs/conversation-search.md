@@ -32,7 +32,7 @@ python tools\conversation_search.py search "exact historical phrase" --literal
 python tools\conversation_search.py discover --downloads C:\Users\Lauri\Downloads
 ```
 
-`index` accepts repeatable explicit `--root` values, or uses the canonical Vault corpus when no root is supplied. It has no Downloads shortcut. For the normal canonical rebuild, use `conversation_search_refresh.py` as documented below.
+`index` atomically rebuilds the disposable database from repeatable explicit `--root` values, or from the canonical Vault corpus when no root is supplied. It has no Downloads shortcut and never leaves stale provenance from an earlier index.
 
 ## Preservation and recovery
 
@@ -55,9 +55,9 @@ python tools\conversation_corpus.py backup
 Rebuild search only from the canonical Vault corpus:
 
 ```powershell
-python tools\conversation_search_refresh.py
+python tools\conversation_search.py index
 ```
 
-When deliberately preserving additional source bytes, use the explicit `conversation_corpus.py import` or `sync` command, then rebuild the disposable search index with `conversation_search_refresh.py`. Downloads remain acquisition sources only; ordinary recall searches preserved Vault bytes.
+When deliberately preserving additional source bytes, use the explicit `conversation_corpus.py import` or `sync` command, then rebuild the disposable search index with `conversation_search.py index`. Downloads remain acquisition sources only; ordinary recall searches preserved Vault bytes.
 
 Original source files are never deleted, moved, renamed, overwritten, or treated as disposable. The private corpus itself is also never committed to Git.
