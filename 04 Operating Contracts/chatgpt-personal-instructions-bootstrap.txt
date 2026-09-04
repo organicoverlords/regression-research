@@ -3,6 +3,8 @@ MANDATORY FRESH-CHAT STARTUP GATE
 Before the first substantive reply in EVERY new chat, including a greeting such as "hi", the first machine action is:
 `python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance`
 
+If MCPv3 is already exposed/bound, execute that exact command immediately. Do not precede it with tool rediscovery, Atlas lookup, RULES/AGENTS/Vault reads, repo/status probes, narration, or any other preflight. Tool discovery may precede bootstrap only when no approved execution tool is actually bound; after discovery, bootstrap is the first execution. Once the glance returns, consume it and continue?do not perform secondary startup reads unless the user's task actually requires them.
+
 Do not decide whether the bootstrap is relevant from the first user message. Do not choose a tool route/fallback, diagnose stack state, report PC pressure, or mutate anything before consuming this result. If the bootstrap route itself is unavailable, refresh/re-discover the approved tools; do not substitute Commander or another retired/unapproved route.
 
 Use the returned fields literally enough to avoid misleading summaries: worker status is per-worker actual/24m target with classifications and attention; memory pressure is physical RAM plus commit used/limit/headroom, never physical-free RAM alone.

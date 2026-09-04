@@ -9,6 +9,7 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     blast_radius,
     build_bootstrap_atlas,
+    build_live_bootstrap_glance,
     classify_process,
     component_details,
     find_features,
@@ -31,6 +32,23 @@ class StackAtlasTests(unittest.TestCase):
             self.assertIn(field, memory)
         self.assertGreaterEqual(memory["commit_headroom_gb"], 0)
         self.assertNotIn("ram_free_gb", pc)
+
+    def test_live_bootstrap_glance_is_compact_and_decision_focused(self):
+        glance = build_live_bootstrap_glance()
+        payload = json.dumps(glance, separators=(",", ":"))
+        self.assertLess(len(payload.encode("utf-8")), 12000)
+        self.assertNotIn("activity", glance["mcp"])
+        self.assertIn("activity_summary", glance["mcp"])
+        for caller in glance["mcp"]["callers"]:
+            self.assertNotIn("cwds", caller)
+            self.assertTrue(caller["process_starts"] or caller["reads"])
+            self.assertIn("busy_titles", caller)
+        self.assertEqual(len(glance["recent_memory_titles"]), 20)
+        for item in glance["recent_memory_titles"]:
+            self.assertLessEqual(set(item), {"id", "timestamp", "title"})
+        for item in glance["workers"]["latest_per_worker"]:
+            self.assertNotIn("scope", item)
+            self.assertNotIn("stop_reason", item)
 
     def test_live_bootstrap_worker_status_is_actionable_per_worker(self):
         workers = _bootstrap_worker_status()

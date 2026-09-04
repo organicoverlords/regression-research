@@ -474,8 +474,6 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             "target_minutes": round(float(target),2),
             "target_utilization_pct": round(util,1) if util is not None else None,
             "classification": classification,
-            "scope": item.get("scope"),
-            "stop_reason": item.get("reported_stop_reason") or item.get("stop_reason"),
         }
     latest = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:5]
     for item in latest:
@@ -499,8 +497,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             "short_or_worse_count": len(attention),
         },
         "attention": attention,
-        "classification": {"ON_TARGET": ">=80% of 24m target", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
-        "path": str(history_root),
+        "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
     }
 
 
@@ -509,70 +506,88 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
     if not logs:
-        return {"available": False, "callers": [], "activity": [], "source": None}
+        return {"available": False, "status": "MISSING", "callers": []}
     source = logs[0]
     rows = []
     try:
         with source.open("r", encoding="utf-8-sig") as handle:
-            for raw in deque(handle, maxlen=600):
+            for raw in deque(handle, maxlen=400):
                 try:
                     rows.append(json.loads(raw))
                 except json.JSONDecodeError:
                     pass
     except OSError as exc:
-        return {"available": False, "callers": [], "activity": [], "source": str(source), "error": str(exc)}
-    busy_by_caller: dict[str, dict[str, list[str]]] = {}
+        return {"available": False, "status": "ERROR", "callers": [], "error": str(exc)}
+
+    callers: dict[str, dict[str, Any]] = {}
+    counts = {"starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0}
+    last_kill = None
+    last_event_at = None
+    for row in rows:
+        event = row.get("event")
+        at = row.get("at")
+        if at and (last_event_at is None or at > last_event_at):
+            last_event_at = at
+        if event == "process_started": counts["starts"] += 1
+        elif event == "process_read": counts["reads"] += 1
+        elif event == "process_exit_observed":
+            counts["exits"] += 1
+            if row.get("exit_code") not in (None, 0): counts["nonzero_exits"] += 1
+        elif event == "process_killed":
+            counts["kills"] += 1
+            last_kill = {k: row.get(k) for k in ("at", "caller_id", "owner_caller_id", "pid") if row.get(k) is not None}
+        caller = row.get("caller_id") or row.get("owner_caller_id")
+        if not caller:
+            continue
+        item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": []})
+        if at and (item["last_at"] is None or at > item["last_at"]): item["last_at"] = at
+        if event == "process_started":
+            item["process_starts"] += 1
+            cwd = row.get("cwd")
+            if cwd and cwd not in item["cwds"]: item["cwds"].append(cwd)
+        elif event == "process_read":
+            item["reads"] += 1
+
+    caller_list = [x for x in sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True) if x.get("process_starts") or x.get("reads")][:8]
+    recent_ids = {item["caller_id"] for item in caller_list}
+    busy_titles: dict[str, list[str]] = {cid: [] for cid in recent_ids}
     try:
         busy = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd"))
-        proc = subprocess.run([str(busy), "list"], text=True, capture_output=True, timeout=3)
+        proc = subprocess.run([str(busy), "list"], text=True, capture_output=True, timeout=2)
         claims = json.loads(proc.stdout).get("claims", []) if proc.returncode == 0 and proc.stdout.strip() else []
-        actors = {str(c.get("actor") or "") for c in claims if c.get("actor")}
-        receipts = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors\shared-process-receipts"))
-        actor_to_caller: dict[str, str] = {}
-        for rp in sorted(receipts.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:300]:
-            if len(actor_to_caller) >= len(actors): break
-            try: receipt = json.loads(rp.read_text(encoding="utf-8-sig"))
-            except Exception: continue
+        active = {str(c.get("actor") or ""): c for c in claims if c.get("actor")}
+        remaining = set(active)
+        receipts = root / "shared-process-receipts"
+        for rp in sorted(receipts.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:120]:
+            if not remaining:
+                break
+            try:
+                receipt = json.loads(rp.read_text(encoding="utf-8-sig"))
+            except Exception:
+                continue
             caller = receipt.get("caller_id")
-            if not caller: continue
+            if caller not in recent_ids:
+                continue
             command = str(receipt.get("command") or "")
-            for actor in actors - actor_to_caller.keys():
-                quoted = (f"claim '{actor}'" in command) or (f'claim "{actor}"' in command)
-                bare = f"claim {actor} " in command
-                if quoted or bare: actor_to_caller[actor] = caller
-        for claim in claims:
-            actor = str(claim.get("actor") or "")
-            caller = actor_to_caller.get(actor)
-            if not caller: continue
-            entry = busy_by_caller.setdefault(caller, {"titles": [], "scopes": []})
-            if actor and actor not in entry["titles"]: entry["titles"].append(actor)
-            scope = str(claim.get("scope") or "")
-            if scope and scope not in entry["scopes"]: entry["scopes"].append(scope)
+            for actor in list(remaining):
+                if (f"claim '{actor}'" in command) or (f'claim "{actor}"' in command) or (f"claim {actor} " in command):
+                    busy_titles[caller].append(actor)
+                    remaining.discard(actor)
     except Exception:
         pass
 
-    callers: dict[str, dict[str, Any]] = {}
-    activity = []
-    for row in rows:
-        caller = row.get("caller_id") or row.get("owner_caller_id")
-        if caller:
-            item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": [], "busy_titles": [], "busy_scopes": []})
-            at = row.get("at")
-            if at and (item["last_at"] is None or at > item["last_at"]): item["last_at"] = at
-            if row.get("event") == "process_started":
-                item["process_starts"] += 1
-                cwd = row.get("cwd")
-                if cwd and cwd not in item["cwds"]: item["cwds"].append(cwd)
-            elif row.get("event") == "process_read": item["reads"] += 1
-        if row.get("event") in {"process_started", "process_exit_observed", "process_killed"}:
-            activity.append({k: row.get(k) for k in ("at", "event", "caller_id", "owner_caller_id", "process_id", "pid", "cwd", "exit_code") if row.get(k) is not None})
-    caller_list = sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True)[:20]
     for item in caller_list:
-        item["cwds"] = item["cwds"][-4:]
-        busy = busy_by_caller.get(item["caller_id"], {})
-        item["busy_titles"] = busy.get("titles", [])
-        item["busy_scopes"] = busy.get("scopes", [])[:12]
-    return {"available": True, "source": str(source), "callers": caller_list, "activity": activity[-30:]}
+        cwds = item.pop("cwds", [])
+        item["cwd"] = cwds[-1] if cwds else None
+        item["busy_titles"] = busy_titles.get(item["caller_id"], [])
+    source_age = max(0.0, (datetime.now(timezone.utc) - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
+    return {
+        "available": True,
+        "status": "LIVE" if source_age <= 60 else "STALE",
+        "source_age_seconds": round(source_age,1),
+        "callers": caller_list,
+        "activity_summary": {**counts, "sample_rows": len(rows), "last_event_at": last_event_at, "last_kill": last_kill},
+    }
 
 
 def _bootstrap_memory_titles() -> list[dict[str, Any]]:
@@ -580,7 +595,7 @@ def _bootstrap_memory_titles() -> list[dict[str, Any]]:
         from tools.memory_bank import load_bank, recent_title_entries
     except ImportError:
         from memory_bank import load_bank, recent_title_entries
-    return recent_title_entries(load_bank(), limit=20)
+    return [{k: item.get(k) for k in ("id", "timestamp", "title")} for item in recent_title_entries(load_bank(), limit=20)]
 
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
@@ -1012,7 +1027,10 @@ def main() -> int:
         else:
             processes, ports, resources = capture_windows_processes(), capture_windows_ports(), []
         value = blast_radius(args.pid, processes, ports=ports, resource_observations=resources)
-    print(json.dumps(value, indent=2, sort_keys=True))
+    if args.command == "bootstrap-glance":
+        print(json.dumps(value, separators=(",", ":"), sort_keys=True))
+    else:
+        print(json.dumps(value, indent=2, sort_keys=True))
     return 0
 
 
