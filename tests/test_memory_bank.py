@@ -91,18 +91,15 @@ class MemoryBankValidationTests(unittest.TestCase):
         bad = self.valid(); bad["project"] = ""
         with self.assertRaises(BankError): validate_entry(bad)
 
-    def test_behavior_rule_type_is_explicit_boolean_and_kind_checked(self):
+    def test_behavior_rule_is_typed_forensic_metadata_only(self):
         e = self.valid()
-        e["kind"] = "preference"
+        e["kind"] = "fact"
         e["behavior_rule"] = True
-        e["evidence"] = ["user-instruction:test"]
         validate_entry(e)
-        bad = self.valid(); bad["behavior_rule"] = "true"
-        with self.assertRaises(BankError): validate_entry(bad)
-        bad = self.valid(); bad["kind"] = "fact"; bad["behavior_rule"] = True
-        with self.assertRaises(BankError): validate_entry(bad)
-        bad = self.valid(); bad["kind"] = "preference"; bad["behavior_rule"] = True
-        with self.assertRaisesRegex(BankError, "user-instruction provenance"): validate_entry(bad)
+        bad = self.valid()
+        bad["behavior_rule"] = "true"
+        with self.assertRaises(BankError):
+            validate_entry(bad)
 
     def test_thread_validates_nonempty(self):
         e = self.valid()

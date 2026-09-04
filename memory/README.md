@@ -50,7 +50,7 @@ This returns at most 10 titles by default (hard cap 20), newest first, without d
 
 Assistant-authored durable writes use the single provenance-preserving `record` command. It requires the verbatim user source message plus a separate assistant interpretation and confidence rationale; this prevents a second free-form write path from bypassing provenance.
 
-New writes should set `--project` when a memory belongs to one project. Time-bounded facts/instructions may set `--expires-at <ISO-8601-with-offset>`; expired entries stay available to explicit history but are automatically excluded from ordinary recall, recent titles, hybrid retrieval, and behavioral authority. Stored `status` entries are also excluded from the default task context so live state is re-read instead of inherited.
+New writes should set `--project` when a memory belongs to one project. Time-bounded facts/instructions may set `--expires-at <ISO-8601-with-offset>`; expired entries stay available to explicit history but are automatically excluded from ordinary recall, recent titles, and hybrid retrieval. Stored `status` entries are also excluded from the default task context so live state is re-read instead of inherited.
 
 These are ordinary repository commands. MCP/local workers may invoke them when they have repo access, but MCP availability is not part of the memory contract.
 
@@ -90,16 +90,16 @@ If a GitHub-only worker cannot prove the mirror is current, **do not replace or 
 
 ## Source relevance and recall budget
 
-Recall is relevance-first. Source authority may only reorder entries that already match the query, scope, or tags; it must never cause unrelated high-authority memories to surface.
+Recall is relevance-first. Source provenance weight may only reorder entries that already match the query, scope, or tags; it must never cause unrelated high-authority memories to surface.
 
 Source classes are ranked in `sources.json`: current user instruction, live canonical policy, verified evidence, durable memory/personal context, historical context, then recovery-only material. Old seeds/backups remain searchable history but do not compete as current truth against canonical or verified sources.
 
-Ordinary `search` is intentionally narrow: blank unscoped searches return no entries, the default is 5 results, and the hard maximum is 8. Explicit `history` may expand to at most 20 entries. Individual entries are bounded to 2000 text characters, 12 tags, 16 evidence pointers, and 16 supersession pointers. Broader context requires an explicit follow-up search rather than one accidental dump.
+Ordinary `search` is intentionally narrow: blank unscoped searches return no entries, the default is 5 results, and the hard maximum is 8. Explicit `search --history` may expand to at most 20 entries. Individual entries are bounded to 2000 text characters, 12 tags, 16 evidence pointers, and 16 supersession pointers. Broader context requires an explicit follow-up search rather than one accidental dump.
 
 ## Classification and normalization
 
 Every bank/candidate record can be classified through the bounded deterministic taxonomy documented in [`docs/memory-normalization.md`](../docs/memory-normalization.md). The classifier derives semantic category, primary domain, project/role/entity labels, durability, sensitivity and review reasons without changing claim state or authority. Project/role inference uses descriptors only; a project name mentioned only in the body does not silently re-scope a record.
 
-Ordinary recall excludes records classified as historical, ephemeral, expired or strongly sensitive, while explicit `history` preserves their evidence trail. `PROVISIONAL` remains explicit review work. New writes auto-fill `project` only when exactly one descriptor project can be inferred safely; explicit `--project` wins.
+Ordinary recall excludes records classified as historical, ephemeral, expired or strongly sensitive, while explicit `search --history` preserves their evidence trail. `PROVISIONAL` remains explicit review work. New writes auto-fill `project` only when exactly one descriptor project can be inferred safely; explicit `--project` wins.
 
 Classify one bank record incrementally with `python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>`. The completed #87 exhaustive normalization receipts remain preserved under `02 Evidence/` as historical acceptance evidence; current operation does not regenerate them.

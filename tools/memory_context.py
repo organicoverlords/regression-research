@@ -60,18 +60,14 @@ def _clip(text: Any, limit: int) -> str:
 
 
 def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
-    authority = dict(entry.get("behavioral_authority") or {})
     classification = dict(entry.get("classification") or {})
     out = {
         "id": entry.get("id"),
-        "title": entry.get("title") or _clip(entry.get("text"), 120),
+        "title": _clip(entry.get("title") or entry.get("text"), 120),
         "kind": entry.get("kind"),
         "scope": entry.get("scope"),
         "state": entry.get("state"),
         "text": _clip(entry.get("text"), MAX_ENTRY_TEXT),
-        "authority": authority.get("role", "ADVISORY_EVIDENCE"),
-        "may_change_behavior": bool(authority.get("may_change_behavior", False)),
-        "authority_scope": authority.get("authority_scope", "evidence_only"),
         "evidence": list(entry.get("evidence") or [])[:4],
     }
     if classification:
@@ -85,7 +81,6 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
     if roles:
         out["roles"] = roles
     return out
-
 
 def _compact_history(entry: dict[str, Any]) -> dict[str, Any]:
     if entry.get("retrieval_role") == "AGGREGATE_SIGNAL":
@@ -106,7 +101,6 @@ def _compact_history(entry: dict[str, Any]) -> dict[str, Any]:
         "created_at": entry.get("created_at"),
         "match": _clip(entry.get("match") or entry.get("text"), MAX_HISTORY_TEXT),
         "sources": list(entry.get("sources") or [])[:2],
-        "authority": "ADVISORY_EVIDENCE",
     }
 
 
@@ -117,7 +111,7 @@ def _json_size(value: Any) -> int:
 def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
     """Drop lowest-value tail records until the serialized pack fits the hard budget."""
     max_chars = max(MIN_CONTEXT_CHARS, min(MAX_CONTEXT_CHARS, int(max_chars)))
-    order = ("historical_evidence", "timeline", "durable_memory", "behavior_authority")
+    order = ("historical_evidence", "timeline", "durable_memory")
     while True:
         pack["serialized_chars"] = _json_size({k: v for k, v in pack.items() if k != "serialized_chars"})
         actual = _json_size(pack)
@@ -138,16 +132,11 @@ def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
 
 
 def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: Iterable[dict[str, Any]] | None = None, max_chars: int = DEFAULT_CONTEXT_CHARS) -> dict[str, Any]:
-    """Build a task-scoped context package without promoting history into authority.
-
-    The caller owns retrieval. This function only separates source roles and applies
-    a hard prompt-size budget. It never changes canonical memory or source state.
-    """
+    """Build a bounded evidence package; stored Vault records never become runtime behavior authority."""
     query = " ".join(str(query or "").split())
     if not query:
         raise ValueError("context query must not be blank")
 
-    behavior: list[dict[str, Any]] = []
     durable: list[dict[str, Any]] = []
     historical: list[dict[str, Any]] = []
     omitted_provisional = 0
@@ -171,9 +160,7 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         if query_roles and entry_roles and not (query_roles & entry_roles):
             omitted_role_mismatch += 1
             continue
-        if compact["may_change_behavior"]:
-            behavior.append(compact)
-        elif compact.get("state") != "PROVEN":
+        if compact.get("state") != "PROVEN":
             omitted_provisional += 1
         elif compact.get("kind") == "status":
             omitted_status += 1
@@ -186,12 +173,10 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         "query": query,
         "selectors": {"projects": sorted(query_projects), "roles": sorted(query_roles)},
         "contract": {
-            "behavior_authority": "only explicitly authorized stored behavior; current user instruction still wins",
-            "durable_memory": "proven durable/advisory memory, not live machine/repo truth",
+            "durable_memory": "proven anchored historical evidence, never runtime policy or live machine/repo truth",
             "historical_evidence": "historical evidence only; never authority by retrieval frequency or recency",
             "timeline": "derived chronology only; thread membership and recency do not prove causality or current truth",
         },
-        "behavior_authority": behavior,
         "durable_memory": durable,
         "historical_evidence": historical,
         "timeline": list(timeline or []),

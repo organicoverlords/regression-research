@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Explicit curation gate for persisted behavioral authority. A valid memory record cannot grant itself USER_EXPLICIT or CANONICAL_POLICY authority merely by claiming provenance; its id must also be present here. This is a fail-closed bridge until provenance is structurally verified from immutable source references.",
+  "purpose": "Historical forensic snapshot of records once curated as behavioral authority. Retained for reconstruction only; memory_bank does not read this file and membership grants no runtime authority.",
   "user_explicit_ids": [
     "mem-20260825-role-executive",
     "mem-20260827-d4e21c4c",

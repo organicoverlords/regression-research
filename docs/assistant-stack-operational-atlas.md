@@ -257,7 +257,7 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Canonical sources: tools/memory_bank.py; memory/memory-bank.jsonl; origin/memory/live
 - Live status: memory_bank.py validate / bounded read; writes reconcile through dedicated origin/memory/live; protected main/master/dev/develop are forbidden publication targets
 - Independent recovery: continue without optional history enrichment
-- Resources: memory-bank.jsonl; behavior-authority-registry.json; memory/live
+- Resources: memory-bank.jsonl; memory/live
 - Dependents: chatgpt_session; execution_workers
 - Runbook: memory/README.md
 - Supervisor: none
