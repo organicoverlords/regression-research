@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from concurrent.futures import ThreadPoolExecutor
 
 try:
     from .capability_routing import load_policy, validate_policy
@@ -360,14 +364,180 @@ def build_bootstrap_atlas() -> dict[str, Any]:
     validate_policy(load_policy())
     return {
         "schema": "atlas.v1",
-        "must": "Stack/infra only: use Atlas as a quick locator for stack owner/dependencies/blast radius; do not route ordinary product-repo work through Atlas.",
-        "library": ATLAS_LIBRARY_PATH,
+        "must": "Map only: locate stack/infra owners and routes, then leave Atlas and read the live owner. Product repos stay outside Atlas.",
+        "rules": r"C:\Users\Lauri\Documents\agent-rules\RULES.md",
+        "vault": r"C:\Users\Lauri\Desktop\vault",
+        "history_command": r"python -m tools.memory_bank orient --recent-events 20 --repo-events 3",
+        "worker_reports": r"C:\Users\Lauri\Desktop\vault\worker-reports",
+        "worker_metrics": r"C:\Users\Lauri\Desktop\vault\worker-reports\metrics.json",
+        "mcp_activity_command": r"python C:\Users\Lauri\Desktop\vault\tools\connector_reliability.py --last-hours 1",
         "local_fallback": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py",
-        "inventory": "inventory",
         "find": "find <query>",
         "lookup": "lookup <id-or-alias>",
         "blast": "blast-radius --pid <pid>",
     }
+
+
+def _bootstrap_pc_status() -> dict[str, Any]:
+    class MEMORYSTATUSEX(ctypes.Structure):
+        _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong), ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong), ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong), ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong), ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+    mem = MEMORYSTATUSEX(); mem.dwLength = ctypes.sizeof(MEMORYSTATUSEX); ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem))
+    disk = shutil.disk_usage("C:\\")
+    disk_free_gb = disk.free / 2**30
+    disk_status = "LOW" if disk_free_gb < 25 else ("WATCH" if disk_free_gb < 100 else "OK")
+    gpu = None
+    try:
+        proc = subprocess.run(["nvidia-smi", "--query-gpu=memory.used,memory.total,utilization.gpu", "--format=csv,noheader,nounits"], text=True, capture_output=True, timeout=3)
+        if proc.returncode == 0 and proc.stdout.strip():
+            used, total, util = [float(x.strip()) for x in proc.stdout.splitlines()[0].split(",")]
+            gpu = {"vram_used_mb": round(used), "vram_total_mb": round(total), "vram_free_mb": round(total-used), "utilization_pct": round(util)}
+    except Exception:
+        pass
+    return {"ram_total_gb": round(mem.ullTotalPhys/2**30,1), "ram_free_gb": round(mem.ullAvailPhys/2**30,1), "commit_used_gb": round((mem.ullTotalPageFile-mem.ullAvailPageFile)/2**30,1), "commit_limit_gb": round(mem.ullTotalPageFile/2**30,1), "disk": {"drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1), "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1), "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25}, "gpu": gpu}
+
+
+def _bootstrap_worker_status() -> dict[str, Any]:
+    path = ROOT / "worker-reports" / "metrics.json"
+    if not path.exists(): return {"available": False, "path": str(path)}
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    seen=set(); runs=[]
+    for item in data.get("latest_reports", []):
+        key=(item.get("automation_id"), item.get("finished_at"))
+        if key in seen: continue
+        seen.add(key)
+        runs.append({k:item.get(k) for k in ("automation_id","display_label","finished_at","duration_minutes","target_utilization_pct","repo","scope","state","outcome","stop_reason")})
+        if len(runs) >= 5: break
+    return {"available": True, "path": str(path), "generated_at": data.get("generated_at"), "average_duration_minutes": data.get("average_duration_minutes"), "median_duration_minutes": data.get("median_duration_minutes"), "average_target_utilization_pct": data.get("average_target_utilization_pct"), "latest_distinct_runs": runs}
+
+
+def _bootstrap_mcp_status() -> dict[str, Any]:
+    from collections import deque
+    root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
+    logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+    if not logs:
+        return {"available": False, "callers": [], "activity": [], "source": None}
+    source = logs[0]
+    rows = []
+    try:
+        with source.open("r", encoding="utf-8-sig") as handle:
+            for raw in deque(handle, maxlen=600):
+                try:
+                    rows.append(json.loads(raw))
+                except json.JSONDecodeError:
+                    pass
+    except OSError as exc:
+        return {"available": False, "callers": [], "activity": [], "source": str(source), "error": str(exc)}
+    busy_by_caller: dict[str, dict[str, list[str]]] = {}
+    try:
+        busy = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd"))
+        proc = subprocess.run([str(busy), "list"], text=True, capture_output=True, timeout=3)
+        claims = json.loads(proc.stdout).get("claims", []) if proc.returncode == 0 and proc.stdout.strip() else []
+        actors = {str(c.get("actor") or "") for c in claims if c.get("actor")}
+        receipts = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors\shared-process-receipts"))
+        actor_to_caller: dict[str, str] = {}
+        for rp in sorted(receipts.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:300]:
+            if len(actor_to_caller) >= len(actors): break
+            try: receipt = json.loads(rp.read_text(encoding="utf-8-sig"))
+            except Exception: continue
+            caller = receipt.get("caller_id")
+            if not caller: continue
+            command = str(receipt.get("command") or "")
+            for actor in actors - actor_to_caller.keys():
+                quoted = (f"claim '{actor}'" in command) or (f'claim "{actor}"' in command)
+                bare = f"claim {actor} " in command
+                if quoted or bare: actor_to_caller[actor] = caller
+        for claim in claims:
+            actor = str(claim.get("actor") or "")
+            caller = actor_to_caller.get(actor)
+            if not caller: continue
+            entry = busy_by_caller.setdefault(caller, {"titles": [], "scopes": []})
+            if actor and actor not in entry["titles"]: entry["titles"].append(actor)
+            scope = str(claim.get("scope") or "")
+            if scope and scope not in entry["scopes"]: entry["scopes"].append(scope)
+    except Exception:
+        pass
+
+    callers: dict[str, dict[str, Any]] = {}
+    activity = []
+    for row in rows:
+        caller = row.get("caller_id") or row.get("owner_caller_id")
+        if caller:
+            item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": [], "busy_titles": [], "busy_scopes": []})
+            at = row.get("at")
+            if at and (item["last_at"] is None or at > item["last_at"]): item["last_at"] = at
+            if row.get("event") == "process_started":
+                item["process_starts"] += 1
+                cwd = row.get("cwd")
+                if cwd and cwd not in item["cwds"]: item["cwds"].append(cwd)
+            elif row.get("event") == "process_read": item["reads"] += 1
+        if row.get("event") in {"process_started", "process_exit_observed", "process_killed"}:
+            activity.append({k: row.get(k) for k in ("at", "event", "caller_id", "owner_caller_id", "process_id", "pid", "cwd", "exit_code") if row.get(k) is not None})
+    caller_list = sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True)[:20]
+    for item in caller_list:
+        item["cwds"] = item["cwds"][-4:]
+        busy = busy_by_caller.get(item["caller_id"], {})
+        item["busy_titles"] = busy.get("titles", [])
+        item["busy_scopes"] = busy.get("scopes", [])[:12]
+    return {"available": True, "source": str(source), "callers": caller_list, "activity": activity[-30:]}
+
+
+def _bootstrap_memory_titles() -> list[dict[str, Any]]:
+    try:
+        from tools.memory_bank import load_bank, recent_title_entries
+    except ImportError:
+        from memory_bank import load_bank, recent_title_entries
+    return recent_title_entries(load_bank(), limit=20)
+
+
+def build_live_bootstrap_glance() -> dict[str, Any]:
+    """Single compact factual session bootstrap."""
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        f_pc = pool.submit(_bootstrap_pc_status)
+        f_workers = pool.submit(_bootstrap_worker_status)
+        f_mcp = pool.submit(_bootstrap_mcp_status)
+        f_memories = pool.submit(_bootstrap_memory_titles)
+        pc, workers, mcp, memories = f_pc.result(), f_workers.result(), f_mcp.result(), f_memories.result()
+    return {
+        "schema": "bootstrap.v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "paths": {
+            "bootstrap": str(ROOT / "tools" / "stack_atlas.py"),
+            "rules": r"C:\Users\Lauri\Documents\agent-rules\RULES.md",
+            "rule_contexts": r"C:\Users\Lauri\Documents\agent-rules\contexts",
+            "vault": str(ROOT),
+            "worker_reports": str(ROOT / "worker-reports"),
+            "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+            "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
+            "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
+            "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
+            "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
+        },
+        "behavior": [
+            "current user instruction is first authority",
+            "use live repo/runtime/tool evidence for current truth",
+            "for any stack/infra work, consult Atlas first to resolve owner/dependencies and understand blast radius before mutation; then leave Atlas and use the live owner; ordinary P3/Tiny3D/LowVRAM product work bypasses Atlas",
+            "Vault/memory is history/evidence; use targeted retrieval when past work matters",
+            "worker reports/schedules are evidence, not liveness; use live MCP activity for liveness sanity",
+            "read canonical RULES.md plus applicable context before mutation",
+            "do not rebuild deleted/parallel systems before checking existing owners/history",
+            "disk cleanup is fail-closed: generated product assets/proofs/lineage, user files, browser caches, dirty/unique work and foreign warm state are protected; old/process-free/output-looking is never enough to delete",
+            "batch obvious reads; avoid repeated polling, rediscovery, and serial micro-probes",
+        ],
+        "commands": {
+            "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+            "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
+            "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
+            "stack_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius <id-or-alias>",
+            "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
+            "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
+            "mcp_hour": r"python C:\Users\Lauri\Desktop\vault\tools\connector_reliability.py --last-hours 1",
+        },
+        "pc": pc,
+        "workers": workers,
+        "mcp": mcp,
+        "recent_memory_titles": memories,
+    }
+
 
 def component_details(name: str) -> dict[str, Any]:
     requested = name
@@ -378,6 +548,17 @@ def component_details(name: str) -> dict[str, Any]:
 
 
 def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
+    normalized = query.strip().casefold()
+    direct = COMPONENT_ALIASES.get(normalized, normalized)
+    if direct in COMPONENTS:
+        detail = component_details(query)
+        return [{
+            "id": direct,
+            "owner_components": [direct],
+            "entrypoints": list(detail.get("runbook") or detail.get("canonical_sources") or []),
+            "boundary": "Stack component locator only; leave Atlas and inspect the live owner.",
+            "authority": ATLAS_CONTRACT["authority"],
+        }]
     terms = [term for term in re.split(r"[^a-z0-9]+", query.casefold()) if term]
     if not terms:
         return []
@@ -680,8 +861,8 @@ def render_manual() -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Derived stack capability/dependency Atlas; never a runtime authority.")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("bootstrap-glance")
-    sub.add_parser("inventory")
+    sub.add_parser("bootstrap-glance", help="one compact fresh-session orientation snapshot: paths, defaults, memory titles, PC/workers, live MCP")
+    sub.add_parser("inventory", help="full stack inventory; deep audit only, never normal startup")
     sub.add_parser("library-plan")
     lib_render = sub.add_parser("library-render")
     lib_render.add_argument("--output", type=Path, required=True)
@@ -689,18 +870,18 @@ def main() -> int:
     lib_verify.add_argument("copy", type=Path)
     manual = sub.add_parser("manual")
     manual.add_argument("--output", type=Path)
-    find = sub.add_parser("find")
+    find = sub.add_parser("find", help="fuzzy stack/infra navigation when exact component id is unknown")
     find.add_argument("query")
     find.add_argument("--limit", type=int, default=5)
-    lookup = sub.add_parser("lookup")
+    lookup = sub.add_parser("lookup", help="resolve one exact stack component id/alias to owner, entrypoint, dependencies and live-status hints")
     lookup.add_argument("component")
-    blast = sub.add_parser("blast-radius")
+    blast = sub.add_parser("blast-radius", help="show dependents/resources for a disruptive stack/infra change")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
     args = parser.parse_args()
 
     if args.command == "bootstrap-glance":
-        value = build_bootstrap_atlas()
+        value = build_live_bootstrap_glance()
     elif args.command == "inventory":
         value = full_inventory()
     elif args.command == "library-plan":

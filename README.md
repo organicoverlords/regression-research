@@ -9,8 +9,7 @@ Canonical history: [CHANGELOG.md](CHANGELOG.md)
 Evidence bank for assistant behaviour regressions: what went wrong, what the correct
 next move was, and enough preserved state to replay the case later.
 This is research evidence. It is not an operating contract and not a worker prompt.
-Operating rules live in each project's `AGENTS.md`, generated from
-`C:\Users\Lauri\.agents\SHARED-AGENT-POLICY.md`.
+Operating rules live in `C:\Users\Lauri\Documents\agent-rules\RULES.md` plus the applicable `contexts\<project>.md`. Repository `AGENTS.md` files are pointer-only.
 
 Run `python tools/verify.py` for the same deterministic, fixture-only verification used by CI. It does not read or rebuild the live conversation corpus.
 
@@ -37,6 +36,12 @@ the actual completion condition.
 
 Positive examples count. A case where the next move after a correction was right is
 as useful as one where it was wrong, and both are needed to tell them apart.
+
+## Fresh-session orientation and stable commands
+
+The single fresh-session orientation entrypoint is `python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance`. It is a compact minimap, not product truth. It returns stable paths, concise defaults, exactly 20 recent memory titles, PC/disk pressure, recent worker utilization, and live MCP callers/activity including attributable Busy titles/scopes.
+
+Stable follow-ups are intentionally boring: for any stack/infra work, consult Atlas before mutation?`stack_atlas.py lookup <id-or-alias>` for an exact owner, `stack_atlas.py find <query>` only when the exact stack name is unknown, and `stack_atlas.py blast-radius <id>` when shared dependents/routes may be affected?then leave Atlas for the live owner. Use `python -m tools.memory_bank context <query>` for targeted past decisions/attempts, `python -m tools.memory_bank timeline <query>` only when chronology matters, and `python tools\connector_reliability.py --last-hours 1` for compact MCP transport activity. `stack_atlas.py inventory` is a deep-audit command, never normal startup. Product repos remain their own live truth after orientation.
 
 ## Using it
 
