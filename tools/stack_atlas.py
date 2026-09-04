@@ -19,6 +19,7 @@ except ImportError:
     from capability_routing import load_policy, validate_policy
 
 ROOT = Path(__file__).resolve().parents[1]
+ATLAS_LIVE_ROOT = Path(r"C:\Users\Lauri\Desktop\vault")
 BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
@@ -31,7 +32,7 @@ COMPONENT_ALIASES = {
     "webgpt": "chatgpt_session",
     "mcp": "mcp_front_door",
     "plugin2": "mcp_front_door",
-    "mcpv3": "vps_edge_ingress",
+    "mcpv3": "mcpv3_surface",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
     "tailscale": "tailscale_ingress",
@@ -63,31 +64,78 @@ ATLAS_CONTRACT = {
     "pid_semantics": "PID is an ephemeral live lookup key only; stable identity comes from executable/command line/ancestry/supervisor/config/resources",
     "destructive_gate": "unknown component identity, dependency role, supervisor, self-heal, blast radius, or independent recovery means BLOCK destructive action",
     "live_status": "fetch from the named live authority at use time; Atlas never promotes cached status to current truth",
+    "debugging_gate": "before diagnosing or repairing an owned program, read its current contract/help and smallest relevant implementation path; classify requested waits and child-command runtime as expected time before attributing unexplained latency to transport or infrastructure",
 }
 COMPONENTS: dict[str, dict[str, Any]] = {
     "stack_atlas": {
         "role": "navigation:stack-map",
         "capabilities": ["source_read"],
-        "canonical_sources": [str(ROOT / "tools" / "stack_atlas.py"), str(ROOT / "docs" / "assistant-stack-operational-atlas.md")],
+        "canonical_sources": [str(ATLAS_LIVE_ROOT / "tools" / "stack_atlas.py"), str(ATLAS_LIVE_ROOT / "docs" / "assistant-stack-operational-atlas.md")],
         "live_status": ["lookup/find for stack component location and dependency map; blast-radius for disruptive process impact"],
         "supervisor": "none",
         "self_heal": "not_applicable",
         "independent_recovery": ["use the named stack owner directly; Atlas unavailability never blocks already-located work"],
         "resources": ["stack component map", "dependency map", "entrypoints", "blast-radius metadata"],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": [str(ROOT / "tools" / "stack_atlas.py")],
+        "runbook": [str(ATLAS_LIVE_ROOT / "tools" / "stack_atlas.py")],
     },
     "busy_coordinator": {
         "role": "coordination_authority",
         "capabilities": ["coordination"],
-        "canonical_sources": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd", BUSY_STORE],
-        "live_status": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot", "inspect <scope>"],
+        "canonical_sources": [
+            r"%LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json",
+            r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd",
+            r"%LOCALAPPDATA%\BusyCoordinator\busy.py",
+            BUSY_STORE,
+        ],
+        "live_status": [
+            r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd --help",
+            r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot",
+            "inspect <scope>",
+        ],
+        "boundary": "Exact shared-mutation ownership only. Read the installed contract/help before use; queue/workflow commands are retired and must not be guessed from history.",
+        "diagnostic_order": [
+            "installed coordinator-contract.json and busy-python.cmd --help",
+            "inspect the exact scope and snapshot current ownership",
+            "read busy.py only when contract/runtime behavior is inconsistent",
+            "repair the coordinator only after reproducing a contract violation; never replace it with a second ownership system",
+        ],
         "supervisor": "none; CLI/service contract owns durable store semantics",
         "self_heal": "not_applicable",
         "independent_recovery": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover"],
         "resources": [BUSY_STORE],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["AGENTS.md", r"%LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json"],
+        "runbook": [r"%LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json", "AGENTS.md"],
+    },
+    "mcpv3_surface": {
+        "role": "navigation:production-mcp-surface",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [
+            MCP_ROOT + r"\config\process-tool-contract.json",
+            MCP_ROOT + r"\dist\lib\process-manager.js",
+            MCP_ROOT + r"\scripts\start-minimal-clone.ps1",
+            VPS_EDGE_ROOT + r"\vps_mcp_reverse_tunnel.py",
+        ],
+        "live_status": [
+            "current exposed MCPv3 tool schema/description",
+            "semantic start_process/read_output behavior under the requested wait settings",
+            "clone/backend receipt and transport evidence",
+            "VPS edge/SSH evidence only when arrival/connectivity evidence points at ingress",
+        ],
+        "boundary": "Navigation surface, not a mutation owner. Expected wait_ms/read waits and child-command runtime are not transport stalls; aggregate duration alone cannot select the failing layer.",
+        "diagnostic_order": [
+            "read the current tool contract/schema and process-manager implementation semantics",
+            "reproduce the exact semantic operation and separate requested wait plus child-command runtime from unexplained delay",
+            "inspect clone/backend receipt and transport evidence for unexplained delay or no-arrival",
+            "inspect VPS edge/reverse-SSH only when lower-layer evidence indicates ingress/connectivity failure",
+            "mutate only the exact proven failing owner; working production is not the experiment path",
+        ],
+        "supervisor": "composite navigation only; see selected live owner",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["select the proven failing MCP component and use its own recovery path; a client-visible symptom never authorizes broad MCP churn"],
+        "resources": ["tool contract", "process manager semantics", "clone/backend receipts", "VPS edge/reverse-SSH"],
+        "dependents": ["chatgpt_process_transport"],
+        "runbook": [MCP_ROOT + r"\config\process-tool-contract.json", MCP_ROOT + r"\AGENTS.md"],
     },
     "mcp_front_door": {
         "role": "process_transport_front_door",
@@ -348,10 +396,15 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
     "execution.transport": {
-        "owner_components": ["vps_edge_ingress", "mcp_front_door"],
-        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "plugin2", "tool route"],
-        "entrypoints": ["production MCPv3/VPS process contract", "plugin2 when available"],
-        "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
+        "owner_components": ["mcpv3_surface", "mcp_front_door", "vps_edge_ingress"],
+        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "plugin2", "tool route", "stall", "slow", "latency", "timeout"],
+        "entrypoints": [
+            r"%LOCALAPPDATA%\ChatGPTMcpClean\config\process-tool-contract.json",
+            r"%LOCALAPPDATA%\ChatGPTMcpClean\dist\lib\process-manager.js",
+            "semantic operation with requested waits/runtime classified",
+            "clone/backend receipts before VPS edge/SSH diagnosis",
+        ],
+        "boundary": "Transport only. Expected wait/poll windows and child-command runtime are not stalls; aggregate duration alone cannot justify infrastructure repair.",
     },
 }
 
@@ -713,7 +766,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "behavior": [
             "current user instruction is first authority",
             "use live repo/runtime/tool evidence for current truth",
-            "for any stack/infra work, consult Atlas first to resolve owner/entrypoint/dependents/resources before mutation; then leave Atlas and use the live owner; ordinary P3/Tiny3D/LowVRAM product work bypasses Atlas",
+            "for stack/infra work, use Atlas to resolve the owner and required diagnostic entrypoints; read that live contract/help and relevant implementation before interpreting symptoms or mutating; ordinary P3/Tiny3D/LowVRAM product work bypasses Atlas",
             "Vault/memory is history/evidence; use targeted retrieval when past work matters",
             "worker reports/schedules are evidence, not liveness; use live MCP activity for liveness sanity",
             "BusyCoordinator is exact-scope collision control only: claim shared mutation scope immediately before risky mutation, but a claim never authorizes the change or proves it safe",
@@ -1053,6 +1106,10 @@ def render_manual() -> str:
         for label, key in (("Canonical sources", "canonical_sources"), ("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
             values = "; ".join(str(item) for item in spec.get(key, []))
             lines.append(f"- {label}: {values or 'none'}")
+        if spec.get("boundary"):
+            lines.append(f"- Boundary: {spec['boundary']}")
+        if spec.get("diagnostic_order"):
+            lines.append(f"- Diagnostic order: {' -> '.join(str(item) for item in spec['diagnostic_order'])}")
         lines.extend([f"- Supervisor: {spec['supervisor']}", f"- Self-heal: {spec['self_heal']}", ""])
     lines.extend(["## Process identity and blast radius", "", "OS PIDs are ephemeral lookup keys only. `blast-radius --pid <pid>` resolves stable identity from executable/command line, ancestry, supervisor/config/resource evidence, then reports affected control paths and a destructive verdict.", "", "MCP/VPS process identity is derived from executable, command line, ancestry, supervisor, and resource evidence; never infer safety from a tool name alone.", ""])
     return "\n".join(lines).rstrip()

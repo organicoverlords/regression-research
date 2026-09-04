@@ -31,7 +31,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint; release --checkpoint | Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
-| `execution.transport` | vps_edge_ingress, mcp_front_door | production MCPv3/VPS process contract; plugin2 when available | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
+| `execution.transport` | mcpv3_surface, mcp_front_door, vps_edge_ingress | %LOCALAPPDATA%\ChatGPTMcpClean\config\process-tool-contract.json; %LOCALAPPDATA%\ChatGPTMcpClean\dist\lib\process-manager.js; semantic operation with requested waits/runtime classified; clone/backend receipts before VPS edge/SSH diagnosis | Transport only. Expected wait/poll windows and child-command runtime are not stalls; aggregate duration alone cannot justify infrastructure repair. |
 
 ## Components
 
@@ -52,13 +52,30 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 - Role: `coordination_authority`
 - Capabilities: coordination
-- Canonical sources: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd; %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
-- Live status: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot; inspect <scope>
+- Canonical sources: %LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json; %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd; %LOCALAPPDATA%\BusyCoordinator\busy.py; %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
+- Live status: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd --help; %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot; inspect <scope>
 - Independent recovery: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover
 - Resources: %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
 - Dependents: chatgpt_session; execution_workers
-- Runbook: AGENTS.md; %LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json
+- Runbook: %LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json; AGENTS.md
+- Boundary: Exact shared-mutation ownership only. Read the installed contract/help before use; queue/workflow commands are retired and must not be guessed from history.
+- Diagnostic order: installed coordinator-contract.json and busy-python.cmd --help -> inspect the exact scope and snapshot current ownership -> read busy.py only when contract/runtime behavior is inconsistent -> repair the coordinator only after reproducing a contract violation; never replace it with a second ownership system
 - Supervisor: none; CLI/service contract owns durable store semantics
+- Self-heal: not_applicable
+
+### `mcpv3_surface`
+
+- Role: `navigation:production-mcp-surface`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: %LOCALAPPDATA%\ChatGPTMcpClean\config\process-tool-contract.json; %LOCALAPPDATA%\ChatGPTMcpClean\dist\lib\process-manager.js; %LOCALAPPDATA%\ChatGPTMcpClean\scripts\start-minimal-clone.ps1; %LOCALAPPDATA%\McpVpsEdge\vps_mcp_reverse_tunnel.py
+- Live status: current exposed MCPv3 tool schema/description; semantic start_process/read_output behavior under the requested wait settings; clone/backend receipt and transport evidence; VPS edge/SSH evidence only when arrival/connectivity evidence points at ingress
+- Independent recovery: select the proven failing MCP component and use its own recovery path; a client-visible symptom never authorizes broad MCP churn
+- Resources: tool contract; process manager semantics; clone/backend receipts; VPS edge/reverse-SSH
+- Dependents: chatgpt_process_transport
+- Runbook: %LOCALAPPDATA%\ChatGPTMcpClean\config\process-tool-contract.json; %LOCALAPPDATA%\ChatGPTMcpClean\AGENTS.md
+- Boundary: Navigation surface, not a mutation owner. Expected wait_ms/read waits and child-command runtime are not transport stalls; aggregate duration alone cannot select the failing layer.
+- Diagnostic order: read the current tool contract/schema and process-manager implementation semantics -> reproduce the exact semantic operation and separate requested wait plus child-command runtime from unexplained delay -> inspect clone/backend receipt and transport evidence for unexplained delay or no-arrival -> inspect VPS edge/reverse-SSH only when lower-layer evidence indicates ingress/connectivity failure -> mutate only the exact proven failing owner; working production is not the experiment path
+- Supervisor: composite navigation only; see selected live owner
 - Self-heal: not_applicable
 
 ### `mcp_front_door`
