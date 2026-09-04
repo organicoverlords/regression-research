@@ -123,6 +123,30 @@ try:
         migrated.append(state)
     assert migrated[0] == migrated[1]
 
+
+    # Windows readers can hold the canonical file without delete sharing. Writers
+    # must still be able to claim/release instead of wedging on rename forever.
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        reader_store = base / "reader-held.json"
+        reader_actor = managed_actor("reader-held")
+        assert run("py", reader_store, "claim", reader_actor, "reader-held-scope", "--lease-seconds", "60")["ok"] is True
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+        kernel32.CreateFileW.restype = wintypes.HANDLE
+        handle = kernel32.CreateFileW(str(reader_store), 0x80000000, 0x1 | 0x2, None, 3, 0x80, None)
+        invalid = wintypes.HANDLE(-1).value
+        if handle == invalid:
+            raise OSError(ctypes.get_last_error(), "CreateFileW reader fixture failed")
+        try:
+            assert run("py", reader_store, "heartbeat", reader_actor, "reader-held-scope", "--lease-seconds", "60")["ok"] is True
+            assert run("rs", reader_store, "release", reader_actor, "reader-held-scope")["ok"] is True
+            assert read(reader_store)["claims"] == []
+        finally:
+            kernel32.CloseHandle(handle)
+
     # Managed lease expiry releases ownership and preserves only an explicit checkpoint.
     expiry = base / "expiry.json"
     assert run("py", expiry, "claim", actor, "expiring", "--lease-seconds", "1", "--checkpoint", "resume-here")["ok"] is True
