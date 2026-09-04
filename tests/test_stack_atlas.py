@@ -1,4 +1,5 @@
 import json
+import tempfile
 import unittest
 from copy import deepcopy
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from tools.stack_atlas import (
     atlas_publication_plan,
     _bootstrap_pc_status,
     _bootstrap_worker_status,
+    _bootstrap_disk_trend,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +34,26 @@ class StackAtlasTests(unittest.TestCase):
             self.assertIn(field, memory)
         self.assertGreaterEqual(memory["commit_headroom_gb"], 0)
         self.assertNotIn("ram_free_gb", pc)
+        self.assertIn("trend", pc["disk"])
+        self.assertIn("previous", pc["disk"]["trend"])
+        self.assertIn("approx_24h", pc["disk"]["trend"])
+
+
+    def test_disk_trend_reports_previous_and_approx_24h_observations(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.jsonl"
+            now = datetime.now(timezone.utc)
+            rows = [
+                {"at": (now - timedelta(hours=24)).isoformat(), "free_gb": 115.0},
+                {"at": (now - timedelta(hours=2)).isoformat(), "free_gb": 70.0},
+            ]
+            path.write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+            with patch("tools.stack_atlas.BOOTSTRAP_OBSERVATION_PATH", path):
+                trend = _bootstrap_disk_trend(55.0)
+            self.assertEqual(trend["previous"]["lost_gb"], 15.0)
+            self.assertEqual(trend["approx_24h"]["lost_gb"], 60.0)
+            self.assertAlmostEqual(trend["approx_24h"]["age_hours"], 24.0, delta=0.1)
 
     def test_agent_rule_authority_is_single_shared_repo(self):
         details = component_details("agent_rules")
@@ -50,10 +72,16 @@ class StackAtlasTests(unittest.TestCase):
         self.assertLess(len(payload.encode("utf-8")), 12000)
         self.assertNotIn("activity", glance["mcp"])
         self.assertIn("activity_summary", glance["mcp"])
-        for caller in glance["mcp"]["callers"]:
+        self.assertEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        for caller in glance["mcp"]["active_sessions"]:
             self.assertNotIn("cwds", caller)
             self.assertTrue(caller["process_starts"] or caller["reads"])
             self.assertIn("busy_titles", caller)
+            self.assertIn("workspace", caller)
+            self.assertIn("activity_age_seconds", caller)
+            self.assertLessEqual(caller["activity_age_seconds"], 300)
+        self.assertIn("notable_conditions", glance)
+        self.assertIsInstance(glance["notable_conditions"], list)
         self.assertEqual(len(glance["recent_memory_titles"]), 20)
         for item in glance["recent_memory_titles"]:
             self.assertLessEqual(set(item), {"id", "timestamp", "title"})

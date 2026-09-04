@@ -378,6 +378,70 @@ def build_bootstrap_atlas() -> dict[str, Any]:
     }
 
 
+
+BOOTSTRAP_OBSERVATION_PATH = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\bootstrap-observations.jsonl"))
+
+
+def _bootstrap_disk_trend(current_free_gb: float) -> dict[str, Any]:
+    """Observed disk deltas for display only; never scheduling or authority state."""
+    now = datetime.now(timezone.utc)
+    observations: list[dict[str, Any]] = []
+    try:
+        if BOOTSTRAP_OBSERVATION_PATH.exists():
+            from collections import deque
+            with BOOTSTRAP_OBSERVATION_PATH.open("r", encoding="utf-8-sig") as handle:
+                for raw in deque(handle, maxlen=256):
+                    try:
+                        item = json.loads(raw)
+                        at = datetime.fromisoformat(str(item.get("at") or "").replace("Z", "+00:00")).astimezone(timezone.utc)
+                        observations.append({"at": at, "free_gb": float(item["free_gb"])})
+                    except Exception:
+                        continue
+    except OSError:
+        observations = []
+
+    previous = None
+    candidates_24h = []
+    for item in observations:
+        age_hours = (now - item["at"]).total_seconds() / 3600
+        if age_hours >= (1 / 60) and (previous is None or item["at"] > previous["at"]):
+            previous = item
+        if 12 <= age_hours <= 36:
+            candidates_24h.append((abs(age_hours - 24), age_hours, item))
+
+    def view(item: dict[str, Any], age_hours: float) -> dict[str, Any]:
+        delta = current_free_gb - item["free_gb"]
+        return {"age_hours": round(age_hours, 2), "previous_free_gb": round(item["free_gb"], 1), "delta_free_gb": round(delta, 1), "lost_gb": round(max(0.0, -delta), 1)}
+
+    result: dict[str, Any] = {"previous": None, "approx_24h": None}
+    if previous is not None:
+        result["previous"] = view(previous, (now - previous["at"]).total_seconds() / 3600)
+    if candidates_24h:
+        _, age_hours, item = min(candidates_24h, key=lambda x: x[0])
+        result["approx_24h"] = view(item, age_hours)
+
+    try:
+        if not observations or (now - observations[-1]["at"]).total_seconds() >= 300:
+            BOOTSTRAP_OBSERVATION_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with BOOTSTRAP_OBSERVATION_PATH.open("a", encoding="utf-8", newline="\n") as handle:
+                handle.write(json.dumps({"at": now.isoformat(), "free_gb": round(current_free_gb, 2)}, separators=(",", ":")) + "\n")
+    except OSError:
+        pass
+    return result
+
+
+def _bootstrap_session_workspace(cwd: str | None) -> str | None:
+    if not cwd:
+        return None
+    low = cwd.replace("/", "\\").casefold()
+    if "tiny3d" in low: return "Tiny3D"
+    if "lowvram" in low: return "LowVRAM"
+    if "\\.agents" in low: return "Agents"
+    if "\\vault" in low: return "Vault"
+    if "unreal projects\\p3" in low or "p3-" in low or "-p3-" in low or "user-v2" in low or "v2-" in low or "-v2" in low or "meteor" in low: return "P3"
+    if "chatgptmcpclean" in low or "mcp-" in low or "\\mcp" in low: return "MCP"
+    return Path(cwd).name or cwd
+
 def _bootstrap_pc_status() -> dict[str, Any]:
     class MEMORYSTATUSEX(ctypes.Structure):
         _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong), ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong), ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong), ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong), ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
@@ -415,7 +479,7 @@ def _bootstrap_pc_status() -> dict[str, Any]:
             "status": memory_status,
             "interpretation": "physical free RAM alone is not commit exhaustion; judge memory pressure from commit used/limit/headroom together",
         },
-        "disk": {"drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1), "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1), "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25},
+        "disk": {"drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1), "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1), "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25, "trend": _bootstrap_disk_trend(disk_free_gb)},
         "gpu": gpu,
     }
 
@@ -504,7 +568,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
     if not logs:
-        return {"available": False, "status": "MISSING", "callers": []}
+        return {"available": False, "status": "MISSING", "active_sessions": [], "active_session_count": 0}
     source = logs[0]
     rows = []
     try:
@@ -515,7 +579,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
                 except json.JSONDecodeError:
                     pass
     except OSError as exc:
-        return {"available": False, "status": "ERROR", "callers": [], "error": str(exc)}
+        return {"available": False, "status": "ERROR", "active_sessions": [], "active_session_count": 0, "error": str(exc)}
 
     callers: dict[str, dict[str, Any]] = {}
     counts = {"starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0}
@@ -574,16 +638,27 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     except Exception:
         pass
 
+    now = datetime.now(timezone.utc)
+    active_sessions = []
     for item in caller_list:
         cwds = item.pop("cwds", [])
         item["cwd"] = cwds[-1] if cwds else None
+        item["workspace"] = _bootstrap_session_workspace(item["cwd"])
         item["busy_titles"] = busy_titles.get(item["caller_id"], [])
-    source_age = max(0.0, (datetime.now(timezone.utc) - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
+        try:
+            last_dt = datetime.fromisoformat(str(item.get("last_at") or "").replace("Z", "+00:00")).astimezone(timezone.utc)
+            item["activity_age_seconds"] = round(max(0.0, (now - last_dt).total_seconds()), 1)
+        except ValueError:
+            item["activity_age_seconds"] = None
+        if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= 300:
+            active_sessions.append(item)
+    source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
     return {
         "available": True,
         "status": "LIVE" if source_age <= 60 else "STALE",
         "source_age_seconds": round(source_age,1),
-        "callers": caller_list,
+        "active_session_count": len(active_sessions),
+        "active_sessions": active_sessions,
         "activity_summary": {**counts, "sample_rows": len(rows), "last_event_at": last_event_at, "last_kill": last_kill},
     }
 
@@ -604,6 +679,22 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_mcp = pool.submit(_bootstrap_mcp_status)
         f_memories = pool.submit(_bootstrap_memory_titles)
         pc, workers, mcp, memories = f_pc.result(), f_workers.result(), f_mcp.result(), f_memories.result()
+    notable_conditions: list[str] = []
+    disk = pc.get("disk", {})
+    if disk.get("status") != "OK":
+        notable_conditions.append(f"disk_{str(disk.get('status')).casefold()}_free_{disk.get('free_gb')}gb")
+    trend = disk.get("trend", {}) if isinstance(disk, dict) else {}
+    approx_24h = trend.get("approx_24h") if isinstance(trend, dict) else None
+    previous = trend.get("previous") if isinstance(trend, dict) else None
+    if isinstance(approx_24h, dict) and float(approx_24h.get("lost_gb") or 0) >= 5:
+        notable_conditions.append(f"disk_lost_{approx_24h.get('lost_gb')}gb_over_{approx_24h.get('age_hours')}h")
+    elif isinstance(previous, dict) and float(previous.get("lost_gb") or 0) >= 5:
+        notable_conditions.append(f"disk_lost_{previous.get('lost_gb')}gb_over_{previous.get('age_hours')}h")
+    memory_status = pc.get("memory", {}).get("status")
+    if memory_status and memory_status != "OK":
+        notable_conditions.append(f"memory_{str(memory_status).casefold()}_commit_headroom_{pc.get('memory', {}).get('commit_headroom_gb')}gb")
+    for item in workers.get("attention", []) if isinstance(workers, dict) else []:
+        notable_conditions.append(f"worker_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
     return {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -626,7 +717,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "Vault/memory is history/evidence; use targeted retrieval when past work matters",
             "worker reports/schedules are evidence, not liveness; use live MCP activity for liveness sanity",
             "BusyCoordinator is exact-scope collision control only: claim shared mutation scope immediately before risky mutation, but a claim never authorizes the change or proves it safe",
-            "read canonical RULES.md plus applicable context before mutation",
+            "read shared RULES.md and AGENTS.md before mutation",
             "do not rebuild deleted/parallel systems before checking existing owners/history",
             "disk cleanup is fail-closed: generated product assets/proofs/lineage, user files, browser caches, dirty/unique work and foreign warm state are protected; old/process-free/output-looking is never enough to delete",
             "batch obvious reads; avoid repeated polling, rediscovery, and serial micro-probes",
@@ -643,6 +734,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "pc": pc,
         "workers": workers,
         "mcp": mcp,
+        "notable_conditions": notable_conditions,
         "recent_memory_titles": memories,
     }
 
