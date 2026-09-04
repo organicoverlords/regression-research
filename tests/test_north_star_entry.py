@@ -17,11 +17,8 @@ ATLAS_ORDER = "Stack Atlas -> smallest relevant live authority -> targeted Vault
 SEARCH_BEFORE_INVENTING = "If a capability seems missing, search Atlas before designing another"
 
 
-INVESTIGATION_BOUNDARY = (
-    "- Read-only investigation and analysis remain unclaimed. Use the standalone BusyCoordinator "
-    "for mutation according to the shared coordination rule; do not create claims merely to think, "
-    "inspect, or answer."
-)
+READ_ONLY_CLAIM_RULE = "Read-only work and independent low-risk mutation need no claim."
+
 
 BIG_CHANGE_INTERRUPT = (
     "- Before a large or hard-to-reverse mutation or landing step, such as a broad rebase/rewrite, "
@@ -53,12 +50,10 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertNotIn("memory_bank.py bootstrap", rules)
         self.assertIn("Vault is history/evidence", rules)
 
-    def test_read_only_investigation_never_claims_busy(self):
-        context = VAULT_CONTEXT.read_text(encoding="utf-8")
-        self.assertEqual(context.count(INVESTIGATION_BOUNDARY), 1)
-        self.assertIn("Read-only investigation and analysis remain unclaimed", INVESTIGATION_BOUNDARY)
-        self.assertIn("standalone BusyCoordinator", INVESTIGATION_BOUNDARY)
-        self.assertIn("do not create claims merely to think, inspect, or answer", INVESTIGATION_BOUNDARY)
+    def test_read_only_work_does_not_claim_busy(self):
+        rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
+        self.assertEqual(rules.count(READ_ONLY_CLAIM_RULE), 1)
+
 
     def test_large_worker_changes_recheck_current_interrupt_state(self):
         context = VAULT_CONTEXT.read_text(encoding="utf-8")

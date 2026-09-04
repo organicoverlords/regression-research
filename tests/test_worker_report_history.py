@@ -9,7 +9,7 @@ from tools.worker_report_history import archive_finalized_report, worker_history
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
-    def test_archives_exact_finalized_bytes_under_worker_directory(self):
+    def test_archives_exact_finalized_bytes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             report = root / "Juniper.md"
@@ -21,24 +21,32 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(archived.parent.name, "_reports")
             self.assertEqual(archived.read_bytes(), raw)
 
-    def test_derives_duration_and_useful_metadata_without_worker_calculation(self):
+    def test_derives_runtime_and_preserves_reported_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             report = root / "Cedar.md"
             report.write_text(
                 "worker: Cedar\nstate: COMPLETE\nstarted_at: 2026-09-02T18:00:00+03:00\n"
                 "last_activity_at: 2026-09-02T18:23:30+03:00\nrepo: organicoverlords/p3\n"
-                "scope: p3#414\noutcome: SUBSTANTIVE_PROGRESS\nmutation: PR #764 merged\n"
-                "validation: focused PASS\nremaining_gate: none\n",
+                "scope: p3#414\noutcome: SUBSTANTIVE_PROGRESS\nmutations: PR #764 merged\n"
+                "validation: focused PASS\nremaining_heavy_gate: runtime proof\n"
+                "stop_reason: SUBSTANTIVE_SLICES_PUBLISHED\n",
                 encoding="utf-8",
             )
             result = archive_finalized_report(report, root / "history")
             metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["schema"], "worker-report-history.v6")
             self.assertEqual(metadata["duration_seconds"], 1410.0)
             self.assertEqual(metadata["duration_minutes"], 23.5)
             self.assertEqual(metadata["target_run_minutes"], 24.0)
             self.assertEqual(metadata["target_utilization_pct"], 97.9)
             self.assertEqual(metadata["mutation"], "PR #764 merged")
+            self.assertEqual(metadata["remaining_gate"], "runtime proof")
+            self.assertEqual(metadata["stop_reason"], "SUBSTANTIVE_SLICES_PUBLISHED")
+            self.assertEqual(metadata["reported_fields"]["stop_reason"], "SUBSTANTIVE_SLICES_PUBLISHED")
+            self.assertNotIn("pending_gate_classes", metadata)
+            self.assertNotIn("tool_failures_total", metadata)
+            self.assertNotIn("early_stop", metadata)
 
     def test_identical_report_deduplicates_and_preserves_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -65,20 +73,18 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 report.write_text(f"worker: {worker}\nstate: {state}\n", encoding="utf-8")
                 self.assertTrue(archive_finalized_report(report, root / "history")["ok"])
 
-
-
-    def test_history_metadata_becomes_timeline_event(self):
+    def test_history_metadata_becomes_timeline_event_and_reads_v5_raw_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             history = root / "history" / "_reports"
             history.mkdir(parents=True)
             payload = {
-                "schema": "worker-report-history.v2", "report_sha256": "abc", "worker": "Cedar",
+                "schema": "worker-report-history.v5", "report_sha256": "abc", "worker": "Cedar",
                 "state": "COMPLETE", "outcome": "SUBSTANTIVE_PROGRESS",
                 "finished_at": "2099-01-01T00:23:00+00:00", "archived_at": "2099-01-01T00:23:02+00:00",
                 "duration_minutes": 23.0, "target_run_minutes": 24.0, "target_utilization_pct": 95.8,
                 "repo": "organicoverlords/p3", "scope": "p3#414", "last_event": "PR #764 merged",
-                "remaining_gate": "none",
+                "remaining_gate": "none", "reported_stop_reason": "SUBSTANTIVE_SLICES_PUBLISHED", "stop_reason": "OTHER",
             }
             (history / "abc.json").write_text(json.dumps(payload), encoding="utf-8")
             event = worker_history_events(root / "history")[0]
@@ -87,47 +93,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(event["duration_minutes"], 23.0)
             self.assertEqual(event["target_utilization_pct"], 95.8)
             self.assertEqual(event["remaining_gate"], "none")
-
-    def test_short_run_preserves_explicit_stop_reason_and_tool_drop_effect(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            report = root / "Juniper.md"
-            report.write_text(
-                "worker: Juniper\nstate: WAITING\nstarted_at: 2099-01-01T00:00:00+00:00\n"
-                "last_activity_at: 2099-01-01T00:08:00+00:00\nrepo: organicoverlords/regression-research\n"
-                "scope: regression-research#193\nremaining_gate: hosted CI check pending\n"
-                "stop_reason: TOOL_BLOCKED\nstop_detail: required route kept dropping after bounded recovery\n"
-                "tool_drops: 3\ntool_drop_effect: BLOCKED_REQUIRED_ROUTE\n",
-                encoding="utf-8",
-            )
-            result = archive_finalized_report(report, root / "history")
-            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
-            self.assertTrue(metadata["early_stop"])
-            self.assertEqual(metadata["stop_reason"], "TOOL_BLOCKED")
-            self.assertEqual(metadata["stop_reason_source"], "WORKER_REPORTED")
-            self.assertEqual(metadata["tool_drops"], 3)
-            self.assertEqual(metadata["tool_drop_effect"], "BLOCKED_REQUIRED_ROUTE")
-            self.assertIn("EXTERNAL", metadata["pending_gate_classes"])
-
-    def test_classified_failures_keep_safety_blocks_out_of_transport_totals(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            report = root / "Harbor.md"
-            report.write_text(
-                "worker: Harbor\nstate: BLOCKED\nstarted_at: 2099-01-01T00:00:00+00:00\n"
-                "last_activity_at: 2099-01-01T00:05:00+00:00\nstop_reason: TOOL_BLOCKED\n"
-                "transport_drops: 2\nbinding_drops: 1\nsafety_blocks: 6\nother_tool_failures: 0\n"
-                "tool_failure_effect: BLOCKED_REQUIRED_ROUTE\n",
-                encoding="utf-8",
-            )
-            result = archive_finalized_report(report, root / "history")
-            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
-            self.assertEqual(metadata["transport_drops"], 2)
-            self.assertEqual(metadata["binding_drops"], 1)
-            self.assertEqual(metadata["safety_blocks"], 6)
-            self.assertEqual(metadata["tool_failures_total"], 9)
-            self.assertEqual(metadata["legacy_unclassified_tool_drops"], 0)
-
+            self.assertEqual(event["stop_reason"], "SUBSTANTIVE_SLICES_PUBLISHED")
 
     def test_current_report_rejects_missing_canonical_fields_and_aliases(self):
         with tempfile.TemporaryDirectory() as tmp:
