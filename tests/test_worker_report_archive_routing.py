@@ -17,7 +17,13 @@ def test_archive_cli_routes_current_snapshot_to_canonical_history(tmp_path: Path
         "display_label: TestWorker\n"
         "started_at: 2026-09-03T21:00:00+03:00\n"
         "last_activity_at: 2026-09-03T21:05:00+03:00\n"
+        "repo: p3\n"
+        "scope: p3#test\n"
         "state: WAITING\n"
+        "outcome: WAITING_EXTERNAL\n"
+        "mutation: none\n"
+        "validation: archive routing fixture\n"
+        "remaining_gate: external wait\n"
         "stop_reason: WAITING_EXTERNAL\n"
     ).encode("utf-8")
     report.write_bytes(raw)
