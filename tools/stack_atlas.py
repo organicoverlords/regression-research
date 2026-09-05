@@ -582,21 +582,37 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     }
 
 
+def _read_jsonl_tail(path: Path, max_lines: int, *, max_bytes: int = 8 * 1024 * 1024, chunk_bytes: int = 256 * 1024) -> list[Any]:
+    """Parse only the bounded tail of an append-only JSONL file."""
+    data = b""
+    size = path.stat().st_size
+    position = size
+    with path.open("rb") as handle:
+        while position > 0 and data.count(b"\n") <= max_lines and len(data) < max_bytes:
+            take = min(chunk_bytes, position, max_bytes - len(data))
+            if take <= 0:
+                break
+            position -= take
+            handle.seek(position)
+            data = handle.read(take) + data
+
+    rows: list[Any] = []
+    for raw in data.splitlines()[-max_lines:]:
+        try:
+            rows.append(json.loads(raw.decode("utf-8-sig")))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            pass
+    return rows
+
+
 def _bootstrap_mcp_status() -> dict[str, Any]:
-    from collections import deque
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
     if not logs:
         return {"available": False, "status": "MISSING", "active_sessions": [], "active_session_count": 0}
     source = logs[0]
-    rows = []
     try:
-        with source.open("r", encoding="utf-8-sig") as handle:
-            for raw in deque(handle, maxlen=400):
-                try:
-                    rows.append(json.loads(raw))
-                except json.JSONDecodeError:
-                    pass
+        rows = _read_jsonl_tail(source, 400)
     except OSError as exc:
         return {"available": False, "status": "ERROR", "active_sessions": [], "active_session_count": 0, "error": str(exc)}
 
@@ -620,12 +636,14 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         caller = row.get("caller_id") or row.get("owner_caller_id")
         if not caller:
             continue
-        item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": []})
+        item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": [], "process_ids": []})
         if at and (item["last_at"] is None or at > item["last_at"]): item["last_at"] = at
         if event == "process_started":
             item["process_starts"] += 1
             cwd = row.get("cwd")
             if cwd and cwd not in item["cwds"]: item["cwds"].append(cwd)
+            process_id = row.get("process_id")
+            if process_id and process_id not in item["process_ids"]: item["process_ids"].append(process_id)
         elif event == "process_read":
             item["reads"] += 1
 
@@ -639,15 +657,20 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         active = {str(c.get("actor") or ""): c for c in claims if c.get("actor")}
         remaining = set(active)
         receipts = root / "shared-process-receipts"
-        for rp in sorted(receipts.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:120]:
+        # Transport rows already carry the exact process receipt UUID. Read only those
+        # receipts represented in the bounded transport tail instead of stat/sorting the
+        # entire receipt directory on every bootstrap.
+        receipt_refs = [
+            (item["caller_id"], receipts / f"{process_id}.json")
+            for item in caller_list
+            for process_id in item.get("process_ids", [])
+        ]
+        for caller, rp in reversed(receipt_refs):
             if not remaining:
                 break
             try:
                 receipt = json.loads(rp.read_text(encoding="utf-8-sig"))
             except Exception:
-                continue
-            caller = receipt.get("caller_id")
-            if caller not in recent_ids:
                 continue
             command = str(receipt.get("command") or "")
             for actor in list(remaining):
@@ -661,6 +684,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     active_sessions = []
     for item in caller_list:
         cwds = item.pop("cwds", [])
+        item.pop("process_ids", None)
         item["cwd"] = cwds[-1] if cwds else None
         item["workspace"] = _bootstrap_session_workspace(item["cwd"])
         item["busy_titles"] = busy_titles.get(item["caller_id"], [])
