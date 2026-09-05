@@ -17,6 +17,7 @@ LOCAL_CONTENTION_STOP_MARKERS = (
 )
 USER_END_MARKERS = ("user interrupt", "user supersed")
 CONTINUATION_STOP_REASON = "premature finalization rejected; run continuing"
+MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
 PROVEN_NO_SAFE_WORK_MARKERS = (
     "task-level blocker", "safe existing execution surfaces", "independent useful work", "exhausted",
 )
@@ -40,6 +41,23 @@ def _fields(raw: bytes) -> dict[str, str]:
     return result
 
 
+def _duplicate_field_names(raw: bytes) -> list[str]:
+    text = raw.decode("utf-8", errors="replace")
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, _ = line.split(":", 1)
+        key = key.strip().lstrip("\ufeff").lower()
+        if not key or not key.replace("_", "").isalnum():
+            continue
+        if key in seen:
+            duplicates.add(key)
+        seen.add(key)
+    return sorted(duplicates)
+
+
 def _parse_time(value: str | None) -> datetime | None:
     if not value:
         return None
@@ -50,10 +68,13 @@ def _parse_time(value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.astimezone()
 
 
-def _validate_current_report(report: Path, fields: dict[str, str]) -> None:
+def _validate_current_report(report: Path, fields: dict[str, str], raw: bytes) -> None:
     """Fail closed on malformed stable current/<automation-id>.md reports."""
     if report.parent.name.casefold() != "current":
         return
+    duplicates = _duplicate_field_names(raw)
+    if duplicates:
+        raise ValueError("current report contains duplicate canonical field(s): " + ", ".join(duplicates))
     missing = [key for key in CURRENT_REPORT_REQUIRED_FIELDS if not fields.get(key, "").strip()]
     if missing:
         raise ValueError("current report missing required canonical field(s): " + ", ".join(missing))
@@ -73,6 +94,13 @@ def _validate_current_report(report: Path, fields: dict[str, str]) -> None:
 def _validate_run_finished(fields: dict[str, str]) -> None:
     if str(fields.get("state") or "").strip().upper() != "RUN_FINISHED":
         return
+    last_activity = _parse_time(fields.get("last_activity_at"))
+    now = datetime.now().astimezone()
+    if last_activity is not None and last_activity > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+        raise ValueError(
+            "premature RUN_FINISHED blocked: last_activity_at is in the future; "
+            "this run is NOT finished and future time cannot satisfy utilization"
+        )
     started = _parse_time(fields.get("started_at"))
     finished = _parse_time(fields.get("last_activity_at"))
     if started is None or finished is None:
@@ -162,13 +190,21 @@ def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
     return records
 
 
+def _history_chronology_is_plausible(item: dict[str, Any]) -> bool:
+    finished = _parse_time(item.get("finished_at"))
+    archived = _parse_time(item.get("archived_at"))
+    if finished is None or archived is None:
+        return True
+    return finished <= archived + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS)
+
+
 def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
     now = datetime.now().astimezone()
     cutoff = now - timedelta(hours=hours)
     records: list[dict[str, Any]] = []
     for item in load_history_metadata(history_root):
         archived = _parse_time(item.get("archived_at"))
-        if archived is not None and archived >= cutoff:
+        if archived is not None and archived >= cutoff and _history_chronology_is_plausible(item):
             records.append(item)
 
     durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
@@ -226,6 +262,8 @@ def _project_from_repo(repo: str | None) -> str | None:
 def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for item in load_history_metadata(history_root):
+        if not _history_chronology_is_plausible(item):
+            continue
         event_at = item.get("finished_at") or item.get("archived_at")
         if not event_at:
             continue
@@ -267,7 +305,7 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
 def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
     raw = report.read_bytes()
     fields = _fields(raw)
-    _validate_current_report(report, fields)
+    _validate_current_report(report, fields, raw)
     try:
         _validate_run_finished(fields)
     except ValueError:
