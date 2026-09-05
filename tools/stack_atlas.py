@@ -25,6 +25,12 @@ VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
+BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
+BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
+BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
+BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
+BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
+BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
@@ -517,14 +523,53 @@ def _bootstrap_pc_status() -> dict[str, Any]:
     disk = shutil.disk_usage("C:\\")
     disk_free_gb = disk.free / 2**30
     disk_status = "LOW" if disk_free_gb < 25 else ("WATCH" if disk_free_gb < 100 else "OK")
+    gpu_cache, gpu_cache_age = _bootstrap_cache_read("gpu.json", BOOTSTRAP_GPU_CACHE_SECONDS)
     gpu = None
+    nvml_initialized = False
     try:
-        proc = subprocess.run(["nvidia-smi", "--query-gpu=memory.used,memory.total,utilization.gpu", "--format=csv,noheader,nounits"], text=True, capture_output=True, timeout=3)
-        if proc.returncode == 0 and proc.stdout.strip():
-            used, total, util = [float(x.strip()) for x in proc.stdout.splitlines()[0].split(",")]
-            gpu = {"vram_used_mb": round(used), "vram_total_mb": round(total), "vram_free_mb": round(total-used), "utilization_pct": round(util)}
+        nvml = ctypes.WinDLL("nvml.dll")
+        class NvmlMemory(ctypes.Structure):
+            _fields_ = [("total", ctypes.c_ulonglong), ("free", ctypes.c_ulonglong), ("used", ctypes.c_ulonglong)]
+        class NvmlUtilization(ctypes.Structure):
+            _fields_ = [("gpu", ctypes.c_uint), ("memory", ctypes.c_uint)]
+        nvml.nvmlInit_v2.restype = ctypes.c_int
+        nvml.nvmlDeviceGetHandleByIndex_v2.argtypes = [ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p)]
+        nvml.nvmlDeviceGetHandleByIndex_v2.restype = ctypes.c_int
+        nvml.nvmlDeviceGetMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(NvmlMemory)]
+        nvml.nvmlDeviceGetMemoryInfo.restype = ctypes.c_int
+        nvml.nvmlDeviceGetUtilizationRates.argtypes = [ctypes.c_void_p, ctypes.POINTER(NvmlUtilization)]
+        nvml.nvmlDeviceGetUtilizationRates.restype = ctypes.c_int
+        if nvml.nvmlInit_v2() != 0:
+            raise OSError("nvml init failed")
+        nvml_initialized = True
+        handle = ctypes.c_void_p()
+        memory = NvmlMemory()
+        utilization = NvmlUtilization()
+        if nvml.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(handle)) != 0:
+            raise OSError("nvml device lookup failed")
+        if nvml.nvmlDeviceGetMemoryInfo(handle, ctypes.byref(memory)) != 0:
+            raise OSError("nvml memory query failed")
+        if nvml.nvmlDeviceGetUtilizationRates(handle, ctypes.byref(utilization)) != 0:
+            raise OSError("nvml utilization query failed")
+        fresh_gpu = {
+            "vram_used_mb": round(memory.used / 2**20),
+            "vram_total_mb": round(memory.total / 2**20),
+            "vram_free_mb": round(memory.free / 2**20),
+            "utilization_pct": round(utilization.gpu),
+        }
+        _bootstrap_cache_write("gpu.json", fresh_gpu)
+        gpu = {**fresh_gpu, "sample_status": "LIVE", "sample_age_seconds": 0.0}
     except Exception:
-        pass
+        if gpu_cache is not None:
+            gpu = {**gpu_cache, "sample_status": "CACHED_RECENT", "sample_age_seconds": round(gpu_cache_age or 0.0, 1)}
+        else:
+            gpu = {"available": False, "sample_status": "FAST_PROBE_UNAVAILABLE"}
+    finally:
+        if nvml_initialized:
+            try:
+                nvml.nvmlShutdown()
+            except Exception:
+                pass
     return {
         "memory": {
             "physical_total_gb": round(physical_total,1), "physical_free_gb": round(physical_free,1), "physical_free_pct": round(physical_free_pct,1),
@@ -545,6 +590,13 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         from tools.worker_report_history import _history_chronology_is_plausible, load_history_metadata
     except ImportError:
         from worker_report_history import _history_chronology_is_plausible, load_history_metadata
+    use_cache = getattr(load_history_metadata, "__module__", "") in {"tools.worker_report_history", "worker_report_history"}
+    if use_cache:
+        cached, cache_age = _bootstrap_cache_read("worker-status.json", BOOTSTRAP_WORKER_CACHE_SECONDS)
+        if cached is not None:
+            cached = dict(cached)
+            cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS}
+            return cached
     now = datetime.now(timezone.utc)
     stale_after_minutes = 90.0
     records = load_history_metadata(history_root)
@@ -611,7 +663,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         {"worker": x.get("display_label"), "age_minutes": x.get("age_minutes"), "last_archived_classification": x.get("classification")}
         for x in latest_archived if x.get("report_freshness") == "STALE"
     ]
-    return {
+    result = {
         "available": True,
         "generated_at": now.isoformat(),
         "target_run_minutes": 24.0,
@@ -637,7 +689,13 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         "attention": attention,
         "stale_reports": stale_reports,
         "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
+        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS},
     }
+    if use_cache:
+        cache_payload = dict(result)
+        cache_payload.pop("cache", None)
+        _bootstrap_cache_write("worker-status.json", cache_payload)
+    return result
 
 
 def _read_jsonl_tail(path: Path, max_lines: int, *, max_bytes: int = 8 * 1024 * 1024, chunk_bytes: int = 256 * 1024) -> list[Any]:
@@ -661,6 +719,44 @@ def _read_jsonl_tail(path: Path, max_lines: int, *, max_bytes: int = 8 * 1024 * 
         except (UnicodeDecodeError, json.JSONDecodeError):
             pass
     return rows
+
+
+def _bootstrap_cache_path(name: str) -> Path:
+    root = Path(os.path.expandvars(r"%LOCALAPPDATA%\StackAtlas\bootstrap-cache"))
+    return root / name
+
+
+def _bootstrap_cache_read(name: str, max_age_seconds: float) -> tuple[dict[str, Any] | None, float | None]:
+    path = _bootstrap_cache_path(name)
+    try:
+        age = max(0.0, datetime.now(timezone.utc).timestamp() - path.stat().st_mtime)
+        if age > max_age_seconds:
+            return None, age
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        return (payload, age) if isinstance(payload, dict) else (None, age)
+    except (OSError, json.JSONDecodeError):
+        return None, None
+
+
+def _bootstrap_cache_write(name: str, payload: dict[str, Any]) -> None:
+    path = _bootstrap_cache_path(name)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def _bootstrap_busy_claims_direct() -> list[dict[str, Any]]:
+    path = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    claims = payload.get("claims", []) if isinstance(payload, dict) else []
+    return [item for item in claims if isinstance(item, dict)]
 
 
 def _parse_event_time(value: Any) -> datetime | None:
@@ -731,6 +827,12 @@ def _read_jsonl_window(
 
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
+    cached, cache_age = _bootstrap_cache_read("mcp-status.json", BOOTSTRAP_MCP_CACHE_SECONDS)
+    if cached is not None:
+        cached = dict(cached)
+        cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS}
+        return cached
+
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
     if not logs:
@@ -783,22 +885,24 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= activity_window_seconds:
             active_items.append(item)
 
-    recent_ids = {item["caller_id"] for item in active_items}
+    workspace_counts: dict[str, int] = {}
+    for item in active_items:
+        cwds = item.get("cwds", [])
+        workspace = _bootstrap_session_workspace(cwds[-1] if cwds else None)
+        workspace_counts[workspace or "Unknown"] = workspace_counts.get(workspace or "Unknown", 0) + 1
+
+    sampled_items = active_items[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT]
+    recent_ids = {item["caller_id"] for item in sampled_items}
     busy_titles: dict[str, list[str]] = {cid: [] for cid in recent_ids}
     try:
-        busy = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd"))
-        proc = subprocess.run([str(busy), "list"], text=True, capture_output=True, timeout=2)
-        claims = json.loads(proc.stdout).get("claims", []) if proc.returncode == 0 and proc.stdout.strip() else []
+        claims = _bootstrap_busy_claims_direct()
         active = {str(c.get("actor") or ""): c for c in claims if c.get("actor")}
         remaining = set(active)
         receipts = root / "shared-process-receipts"
-        # Transport rows already carry the exact process receipt UUID. Read only those
-        # receipts represented in the bounded transport tail instead of stat/sorting the
-        # entire receipt directory on every bootstrap.
-        busy_receipts_per_session_limit = 8
+        busy_receipts_per_session_limit = 4
         receipt_refs = [
             (item["caller_id"], receipts / f"{process_id}.json")
-            for item in active_items
+            for item in sampled_items
             for process_id in item.get("process_ids", [])[-busy_receipts_per_session_limit:]
         ]
         for caller, rp in reversed(receipt_refs):
@@ -817,40 +921,55 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         pass
 
     active_sessions = []
-    for item in active_items:
+    for original in sampled_items:
+        item = dict(original)
         cwds = item.pop("cwds", [])
         item.pop("process_ids", None)
         item["cwd"] = cwds[-1] if cwds else None
         item["workspace"] = _bootstrap_session_workspace(item["cwd"])
         item["busy_titles"] = busy_titles.get(item["caller_id"], [])
+        item = {k: item.get(k) for k in ("caller_id", "activity_age_seconds", "cwd", "workspace", "busy_titles")}
         active_sessions.append(item)
     source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
-    return {
+    result = {
         "available": True,
         "status": "LIVE" if source_age <= 60 else "STALE",
         "source_age_seconds": round(source_age,1),
-        "active_session_count": len(active_sessions),
+        "active_session_count": len(active_items),
         "active_session_count_status": "COMPLETE" if activity_window_complete else "LOWER_BOUND",
         "active_sessions": active_sessions,
+        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+        "active_sessions_truncated": len(active_items) > len(active_sessions),
+        "workspace_counts": workspace_counts,
         "activity_summary": {
             **counts,
             "sample_rows": len(rows),
             "sample_bytes": sample_bytes,
             "activity_window_seconds": activity_window_seconds,
             "activity_window_complete": activity_window_complete,
-            "busy_receipts_per_session_limit": 8,
+            "busy_receipts_per_sampled_session_limit": 4,
             "last_event_at": last_event_at,
             "last_kill": last_kill,
         },
+        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
     }
+    cache_payload = dict(result)
+    cache_payload.pop("cache", None)
+    _bootstrap_cache_write("mcp-status.json", cache_payload)
+    return result
 
 
 def _bootstrap_memory_titles() -> list[dict[str, Any]]:
+    cached, _ = _bootstrap_cache_read("memory-titles.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
+    if cached is not None and isinstance(cached.get("items"), list):
+        return cached["items"]
     try:
         from tools.memory_bank import load_bank, recent_title_entries
     except ImportError:
         from memory_bank import load_bank, recent_title_entries
-    return [{k: item.get(k) for k in ("id", "timestamp", "title")} for item in recent_title_entries(load_bank(), limit=20)]
+    items = [{k: item.get(k) for k in ("id", "timestamp", "title")} for item in recent_title_entries(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)]
+    _bootstrap_cache_write("memory-titles.json", {"items": items})
+    return items
 
 
 def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
@@ -906,6 +1025,12 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"worker_report_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
     for item in workers.get("stale_reports", []) if isinstance(workers, dict) else []:
         notable_conditions.append(f"worker_report_{item.get('worker')}_stale_{item.get('age_minutes')}m_since_archive")
+    worker_glance = {
+        key: workers.get(key) for key in (
+            "available", "generated_at", "evidence_semantics", "current_scheduler_membership",
+            "archive_sample", "attention", "stale_reports", "cache",
+        ) if key in workers
+    } if isinstance(workers, dict) else workers
     return {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -935,7 +1060,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
         },
         "pc": pc,
-        "workers": workers,
+        "workers": worker_glance,
         "mcp": mcp,
         "mcp_known_good_freeze": mcp_known_good_freeze,
         "notable_conditions": notable_conditions,
