@@ -665,6 +665,61 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(status["active_session_count"], 2)
         self.assertEqual(status["active_session_count_semantics"], MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
 
+    def test_mcp_status_healthy_backend_keeps_service_live_when_activity_source_is_stale(self):
+        from datetime import datetime, timedelta, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            clone.mkdir(parents=True)
+            old = datetime.now(timezone.utc) - timedelta(minutes=10)
+            path = clone / "transport.jsonl"
+            path.write_text(json.dumps({
+                "event": "process_started", "at": old.isoformat().replace("+00:00", "Z"),
+                "caller_id": "caller_old", "process_id": "p-old", "cwd": r"C:\work",
+            }) + "\n", encoding="utf-8")
+            old_ts = old.timestamp()
+            os.utime(path, (old_ts, old_ts))
+            health = {
+                "available": True, "status": "LIVE", "http_status": 200,
+                "backend_generation": "backend-3011-test", "pid": 1234, "live_process_count": 2,
+            }
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health), \
+                 patch("tools.stack_atlas._bootstrap_busy_claims_direct", return_value=[]):
+                status = _bootstrap_mcp_status()
+
+        self.assertEqual(status["status"], "LIVE")
+        self.assertEqual(status["service_health"]["backend_generation"], "backend-3011-test")
+        self.assertEqual(status["activity_evidence_status"], "STALE")
+        self.assertEqual(status["active_session_count"], 0)
+        self.assertEqual(status["active_session_count_status"], "LOWER_BOUND")
+        self.assertFalse(status["activity_summary"]["activity_window_complete"])
+        self.assertTrue(status["activity_summary"]["source_window_complete"])
+
+    def test_mcp_status_missing_transport_can_prove_service_live_but_not_caller_count_complete(self):
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            (local / "ChatGPTMcpClean" / "minimal-connectors").mkdir(parents=True)
+            health = {
+                "available": True, "status": "LIVE", "http_status": 200,
+                "backend_generation": "backend-3011-test", "pid": 1234, "live_process_count": 1,
+            }
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health):
+                status = _bootstrap_mcp_status()
+
+        self.assertTrue(status["available"])
+        self.assertEqual(status["status"], "LIVE")
+        self.assertEqual(status["activity_evidence_status"], "MISSING")
+        self.assertEqual(status["active_session_count_status"], "LOWER_BOUND")
+        self.assertEqual(status["active_session_count"], 0)
+
     def test_mcp_bootstrap_reuses_five_second_live_summary(self):
         from datetime import datetime, timezone
         import os
