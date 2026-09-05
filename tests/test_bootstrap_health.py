@@ -52,7 +52,10 @@ class BootstrapHealthTests(unittest.TestCase):
             "recent_memory_titles": [{"title": "historical bulk"}],
         }
         compact = _bootstrap_cli_view(full)
-        self.assertEqual(compact["workers"]["manual_current"]["recent_running_reports"][0]["scope"], "current task")
+        self.assertNotIn("manual_current", compact["workers"])
+        self.assertNotIn("attention", compact["workers"])
+        self.assertEqual(compact["workers"]["current_activity"]["authority"], "live_mcp_runtime_evidence")
+        self.assertEqual(compact["workers"]["current_activity"]["observed_session_count"], 1)
         self.assertEqual(compact["mcp"]["active_session_count"], 1)
         self.assertEqual(compact["github"]["status"], "OK")
         self.assertEqual(compact["mcp_known_good_freeze"]["status"], "CANDIDATE_KNOWN_GOOD")
