@@ -225,6 +225,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("never retained after release/recovery/expiry", checkpoint["boundary"])
         self.assertIn("never backlog", checkpoint["boundary"])
 
+        commander = find_features("commander fallback")[0]
+        self.assertEqual(commander["id"], "execution.transport")
+        commander_routes = " ".join(commander["entrypoints"])
+        self.assertIn("Remote Desktop Commander", commander_routes)
+        self.assertIn("changed state or new evidence", commander_routes)
+
         reports = find_features("worker reports")[0]
         self.assertEqual(reports["id"], "worker.reports")
         self.assertIn("worker_reports", reports["owner_components"])
@@ -238,6 +244,7 @@ class StackAtlasTests(unittest.TestCase):
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])
         self.assertEqual(find_features("definitely-unknown-capability"), [])
+        self.assertEqual(find_features("plugin2"), [])
         results = find_features("current state", limit=2)
         self.assertLessEqual(len(results), 2)
         self.assertTrue(all(item["authority"] == ATLAS_CONTRACT["authority"] for item in results))
@@ -286,7 +293,6 @@ class StackAtlasTests(unittest.TestCase):
 
     def test_natural_component_aliases_resolve(self):
         self.assertEqual(component_details("mcp")["id"], "mcp_front_door")
-        self.assertEqual(component_details("plugin2")["id"], "mcp_front_door")
         self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
         self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")

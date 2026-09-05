@@ -17,7 +17,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint | Live exact-scope ownership context only; never retained after release/recovery/expiry and never backlog, priority, handoff scheduling, liveness, or reassignment. Durable continuation belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
-| `execution.transport` | vps_edge_ingress, mcp_front_door | production MCPv3/VPS process contract; plugin2 when available | Transport only; tool availability does not confer ownership, scheduling, or product authority. |
+| `execution.transport` | vps_edge_ingress, mcp_front_door | preferred MCPv3 binding when healthy and exposed; retired Remote Desktop Commander fallback whenever preferred MCPv3 is unavailable; retry failed routes only on changed state or new evidence | Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 
 ## Product flow
 

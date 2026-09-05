@@ -22,7 +22,6 @@ COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
     "webgpt": "chatgpt_session",
     "mcp": "mcp_front_door",
-    "plugin2": "mcp_front_door",
     "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
@@ -376,9 +375,12 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_front_door"],
-        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "plugin2", "tool route"],
-        "entrypoints": ["production MCPv3/VPS process contract", "plugin2 when available"],
-        "boundary": "Transport only; tool availability does not confer ownership, scheduling, or product authority.",
+        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "commander", "desktop commander", "fallback", "tool route"],
+        "entrypoints": [
+            "preferred MCPv3 binding when healthy and exposed",
+            "retired Remote Desktop Commander fallback whenever preferred MCPv3 is unavailable; retry failed routes only on changed state or new evidence",
+        ],
+        "boundary": "Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority.",
     },
 }
 
