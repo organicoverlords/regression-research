@@ -12,7 +12,9 @@ from tools.worker_report_history import archive_finalized_report, begin_timed_ru
 
 class WorkerReportHistoryTests(unittest.TestCase):
     @staticmethod
-    def _write_timed_start_receipt(report: Path, observed_started_at: str) -> Path:
+    def _write_timed_start_receipt(
+        report: Path, observed_started_at: str, *, reported_started_at: str | None = None
+    ) -> Path:
         receipt = report.parent.parent / ".supervision" / f"{report.stem}.start.json"
         receipt.parent.mkdir(parents=True, exist_ok=True)
         receipt.write_text(
@@ -20,11 +22,13 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "schema": "worker-run-start.v1",
                 "automation_id": report.stem,
                 "observed_started_at": observed_started_at,
-                "reported_started_at": observed_started_at,
+                "reported_started_at": reported_started_at or observed_started_at,
                 "initial_report_sha256": "fixture",
             }) + "\n",
             encoding="utf-8",
         )
+        observed = datetime.fromisoformat(observed_started_at.replace("Z", "+00:00"))
+        os.utime(receipt, (observed.timestamp(), observed.timestamp()))
         return receipt
 
     def test_archives_exact_finalized_bytes(self):
@@ -371,7 +375,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "stop_reason: useful work window materially exhausted\n",
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "Under 80% utilization"):
+            with self.assertRaisesRegex(ValueError, "reported started_at changed after timed run begin"):
                 archive_finalized_report(report, root / "history")
             self.assertTrue((root / ".supervision" / f"{automation_id}.start.json").exists())
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
@@ -392,8 +396,45 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 encoding="utf-8",
             )
             stale_observed = (now - timedelta(minutes=60)).isoformat()
-            receipt = self._write_timed_start_receipt(report, stale_observed)
+            current_started = (now - timedelta(minutes=5)).isoformat()
+            receipt = self._write_timed_start_receipt(
+                report, stale_observed, reported_started_at=current_started
+            )
             with self.assertRaisesRegex(ValueError, "start receipt is stale for this generation"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue(receipt.exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_timed_run_rejects_receipt_payload_backdated_before_file_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "8" * 32
+            now = datetime.now().astimezone()
+            started = now - timedelta(minutes=20)
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            receipt = current.parent / ".supervision" / f"{automation_id}.start.json"
+            receipt.parent.mkdir(parents=True)
+            receipt.write_text(
+                json.dumps({
+                    "schema": "worker-run-start.v1",
+                    "automation_id": automation_id,
+                    "observed_started_at": started.isoformat(),
+                    "reported_started_at": started.isoformat(),
+                    "initial_report_sha256": "forged",
+                }) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "does not match receipt file write time"):
                 archive_finalized_report(report, root / "history")
             self.assertTrue(receipt.exists())
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
