@@ -45,6 +45,8 @@ class StackAtlasTests(unittest.TestCase):
             self.assertLessEqual(session["activity_age_seconds"], 300)
         self.assertIn("notable_conditions", glance)
         self.assertIn("latest_per_worker", glance["workers"])
+        self.assertNotIn("mcp_hour", glance["commands"])
+        self.assertNotIn("connector_reliability.py", json.dumps(glance))
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone

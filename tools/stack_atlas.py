@@ -748,7 +748,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
-            "mcp_hour": r"python C:\Users\Lauri\Desktop\vault\tools\connector_reliability.py --last-hours 1",
         },
         "pc": pc,
         "workers": workers,
