@@ -209,15 +209,15 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metadata["target_utilization_pct"], 95.8)
 
 
-    def test_premature_run_finished_rejects_local_contention_stop_patterns(self):
+    def test_short_timed_runs_archive_with_utilization_as_observability_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "current"
             current.mkdir()
             cases = (
                 ("5.55", "2020-01-01T00:05:33+00:00", "Useful bounded window exhausted; heavy runtime acceptance remains a separate resource-dependent gate."),
-                ("13.52", "2020-01-01T00:13:31+00:00", "Bounded selection found no additional safe mutation while collision ownership was unavailable and the heavy runtime lane was occupied."),
-                ("7.03", "2020-01-01T00:07:02+00:00", "Useful independent work window exhausted while heavy Unreal lane remained occupied."),
+                ("13.52", "2020-01-01T00:13:31+00:00", "Coherent source work complete; collision-owned runtime proof remains recorded for the parent acceptance."),
+                ("7.03", "2020-01-01T00:07:02+00:00", "Coherent work identity complete for this run; Unreal runtime proof remains a separate gate."),
             )
             for suffix, finished_at, stop_reason in cases:
                 with self.subTest(duration=suffix):
@@ -226,19 +226,19 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     report.write_text(
                         f"automation_id: {automation_id}\nstarted_at: 2020-01-01T00:00:00+00:00\n"
                         f"last_activity_at: {finished_at}\nrepo: p3\nscope: p3#960\nstate: RUN_FINISHED\n"
-                        "outcome: validated existing WIP\nmutation: no source mutation\nvalidation: PASS\n"
+                        "outcome: validated coherent existing WIP\nmutation: no source mutation\nvalidation: PASS\n"
                         f"remaining_gate: heavy runtime acceptance\nstop_reason: {stop_reason}\n",
                         encoding="utf-8",
                     )
                     self._write_timed_start_receipt(report, "2020-01-01T00:00:00+00:00")
-                    with self.assertRaisesRegex(ValueError, "this run is NOT finished"):
-                        archive_finalized_report(report, root / "history")
-                    current_text = report.read_text(encoding="utf-8")
-                    self.assertIn("state: RUNNING", current_text)
-                    self.assertNotIn("state: RUN_FINISHED", current_text)
-                    self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
-                    self.assertNotIn(stop_reason, current_text)
-                    self.assertFalse((root / "history" / "_reports").exists())
+                    result = archive_finalized_report(report, root / "history")
+                    metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+                    self.assertTrue(result["ok"])
+                    self.assertLess(metadata["target_utilization_pct"], 80.0)
+                    self.assertEqual(metadata["stop_reason"], stop_reason)
+                    self.assertEqual(metadata["remaining_gate"], "heavy runtime acceptance")
+                    self.assertFalse((root / ".supervision" / f"{automation_id}.start.json").exists())
+
 
     def test_run_finished_rejects_future_last_activity_and_restores_running(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -440,7 +440,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
             self.assertFalse((root / "history" / "_reports").exists())
 
-    def test_late_begin_cannot_self_attest_true_no_safe_work_exception(self):
+    def test_short_ordinary_timed_run_uses_observed_start_without_completion_gate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "current"
@@ -451,7 +451,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             report = current / f"{automation_id}.md"
             report.write_text(
                 f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
-                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#570\nstate: RUNNING\n"
                 "outcome: active\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n",
                 encoding="utf-8",
             )
@@ -459,16 +459,19 @@ class WorkerReportHistoryTests(unittest.TestCase):
             finished = datetime.now().astimezone()
             report.write_text(
                 f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
-                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
-                "outcome: claimed work\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n"
-                "stop_reason: task-level blocker proven after safe existing execution surfaces and independent useful work were exhausted\n",
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#570\nstate: RUN_FINISHED\n"
+                "outcome: coherent scope complete\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: coherent scope complete\n",
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "late begin cannot establish early-stop eligibility"):
-                archive_finalized_report(report, root / "history")
-            self.assertTrue(Path(begin["receipt_path"]).exists())
-            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
-            self.assertFalse((root / "history" / "_reports").exists())
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertTrue(result["ok"])
+            self.assertEqual(metadata["observed_started_at"], begin["observed_started_at"])
+            self.assertLess(metadata["duration_minutes"], 0.1)
+            self.assertLess(metadata["target_utilization_pct"], 1.0)
+            self.assertFalse(Path(begin["receipt_path"]).exists())
+
 
     def test_timed_run_archive_uses_observed_start_and_consumes_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
