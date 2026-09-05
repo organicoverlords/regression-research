@@ -34,6 +34,7 @@ BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
+BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT = 4
 BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES = 30.0
 BOOTSTRAP_MANUAL_REPORT_READ_BYTES = 16 * 1024
 AGENT_RULES_REMOTE = "organicoverlords/agents@main"
@@ -624,12 +625,26 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
     scan_paths = report_paths[:BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT]
     running_reports: list[dict[str, Any]] = []
     malformed_running_reports = 0
+    malformed_running_sample: list[dict[str, Any]] = []
 
     def clipped(value: Any, limit: int) -> str:
         raw = str(value or "").strip()
         if len(raw) <= limit:
             return raw
         return raw[: max(0, limit - 3)] + "..."
+
+    def record_malformed(report_path: Path, reason: str, fields: dict[str, str] | None = None, value: Any = None) -> None:
+        nonlocal malformed_running_reports
+        malformed_running_reports += 1
+        if len(malformed_running_sample) >= BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT:
+            return
+        item = {"filename": report_path.name, "reason": reason}
+        run_id = str((fields or {}).get("run_id") or "").strip()
+        if run_id:
+            item["run_id"] = clipped(run_id, 120)
+        if value is not None:
+            item["value"] = clipped(value, 120)
+        malformed_running_sample.append(item)
 
     for report_path in scan_paths:
         try:
@@ -640,16 +655,20 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
             if str(fields.get("state") or "").strip().upper() != "RUNNING":
                 continue
             run_id = str(fields.get("run_id") or "").strip()
-            if not run_id or report_path.stem.casefold() != run_id.casefold():
-                malformed_running_reports += 1
+            if not run_id:
+                record_malformed(report_path, "missing_run_id", fields)
                 continue
-            last_activity = _parse_time(fields.get("last_activity_at"))
+            if report_path.stem.casefold() != run_id.casefold():
+                record_malformed(report_path, "run_id_filename_mismatch", fields)
+                continue
+            raw_last_activity = fields.get("last_activity_at")
+            last_activity = _parse_time(raw_last_activity)
             if last_activity is None:
-                malformed_running_reports += 1
+                record_malformed(report_path, "invalid_last_activity_at", fields, raw_last_activity)
                 continue
             last_activity_utc = last_activity.astimezone(timezone.utc)
             if last_activity_utc > now + timedelta(seconds=60):
-                malformed_running_reports += 1
+                record_malformed(report_path, "future_last_activity_at", fields, raw_last_activity)
                 continue
             report_mtime = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
             age_minutes = max(
@@ -668,8 +687,8 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
                 "last_activity_at": str(fields.get("last_activity_at") or "").strip(),
                 "_age_minutes": age_minutes,
             })
-        except (OSError, UnicodeError, ValueError, TypeError):
-            malformed_running_reports += 1
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            record_malformed(report_path, f"read_or_parse_error:{type(exc).__name__}")
 
     running_reports.sort(key=lambda item: item["_age_minutes"])
     recent_running = [
@@ -698,6 +717,8 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         "recent_running_reports": sample,
         "recent_running_reports_truncated": len(recent_running) > len(sample),
         "malformed_running_reports_in_scan": malformed_running_reports,
+        "malformed_running_reports": malformed_running_sample,
+        "malformed_running_reports_truncated": malformed_running_reports > len(malformed_running_sample),
     }
 
 def _bootstrap_worker_status() -> dict[str, Any]:
