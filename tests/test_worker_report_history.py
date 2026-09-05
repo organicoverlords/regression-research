@@ -191,6 +191,8 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     current_text = report.read_text(encoding="utf-8")
                     self.assertIn("state: RUNNING", current_text)
                     self.assertNotIn("state: RUN_FINISHED", current_text)
+                    self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
+                    self.assertNotIn(stop_reason, current_text)
                     self.assertFalse((root / "history" / "_reports").exists())
 
     def test_run_finished_allows_on_target_or_true_terminal_reason(self):

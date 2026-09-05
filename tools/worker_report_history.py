@@ -277,7 +277,14 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
             if marker in raw:
                 tmp = report.with_name(report.name + ".continuation.tmp")
                 try:
-                    tmp.write_bytes(raw.replace(marker, b"state: RUNNING", 1))
+                    updated = raw.replace(marker, b"state: RUNNING", 1)
+                    lines = updated.splitlines(keepends=True)
+                    for index, line in enumerate(lines):
+                        if line.startswith(b"stop_reason:"):
+                            ending = b"\r\n" if line.endswith(b"\r\n") else (b"\n" if line.endswith(b"\n") else b"")
+                            lines[index] = b"stop_reason: premature finalization rejected; run continuing" + ending
+                            break
+                    tmp.write_bytes(b"".join(lines))
                     tmp.replace(report)
                 except OSError:
                     try:
