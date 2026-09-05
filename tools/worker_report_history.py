@@ -16,6 +16,7 @@ LOCAL_CONTENTION_STOP_MARKERS = (
     "unreal/runtime", "pending ci", "pending proof",
 )
 USER_END_MARKERS = ("user interrupt", "user supersed")
+CONTINUATION_STOP_REASON = "premature finalization rejected; run continuing"
 PROVEN_NO_SAFE_WORK_MARKERS = (
     "task-level blocker", "safe existing execution surfaces", "independent useful work", "exhausted",
 )
@@ -282,7 +283,7 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
                     for index, line in enumerate(lines):
                         if line.startswith(b"stop_reason:"):
                             ending = b"\r\n" if line.endswith(b"\r\n") else (b"\n" if line.endswith(b"\n") else b"")
-                            lines[index] = b"stop_reason: premature finalization rejected; run continuing" + ending
+                            lines[index] = b"stop_reason: " + CONTINUATION_STOP_REASON.encode("utf-8") + ending
                             break
                     tmp.write_bytes(b"".join(lines))
                     tmp.replace(report)
@@ -292,6 +293,14 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
                     except OSError:
                         pass
         raise
+    if (
+        str(fields.get("state") or "").strip().upper() == "RUN_FINISHED"
+        and str(fields.get("stop_reason") or "").strip().casefold() == CONTINUATION_STOP_REASON.casefold()
+    ):
+        raise ValueError(
+            "RUN_FINISHED report still has the continuation stop_reason sentinel; "
+            "replace it with a truthful terminal stop_reason before archiving"
+        )
     state = (fields.get("state") or fields.get("outcome") or "").upper()
     if state not in {"RUN_FINISHED", "COMPLETE", "WAITING", "BLOCKED", "DONE"}:
         raise ValueError(f"report is not finalized: state={state or 'MISSING'}")

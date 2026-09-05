@@ -217,6 +217,38 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     )
                     self.assertTrue(archive_finalized_report(report, root / "history")["ok"])
 
+    def test_on_target_run_finished_rejects_stale_continuation_stop_reason_without_reopening_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "d" * 32
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                "last_activity_at: 2099-01-01T00:20:00+00:00\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: premature finalization rejected; run continuing\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "continuation stop_reason sentinel"):
+                archive_finalized_report(report, root / "history")
+            current_text = report.read_text(encoding="utf-8")
+            self.assertIn("state: RUN_FINISHED", current_text)
+            self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
+            self.assertFalse((root / "history" / "_reports").exists())
+
+            report.write_text(
+                current_text.replace(
+                    "stop_reason: premature finalization rejected; run continuing",
+                    "stop_reason: useful work window materially exhausted",
+                ),
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["archived"])
+
     def test_running_report_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
