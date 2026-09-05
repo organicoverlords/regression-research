@@ -364,9 +364,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "coordination.checkpoint_context": {
         "owner_components": ["busy_coordinator"],
-        "triggers": ["checkpoint", "resume", "scope context", "where did this scope leave off"],
-        "entrypoints": ["busy-python.cmd inspect <scope>", "claim --checkpoint", "heartbeat --checkpoint", "release --checkpoint"],
-        "boundary": "Exact-scope context only; never backlog, priority, handoff scheduling, liveness, or reassignment. Pending delivery work belongs in the project issue/PR.",
+        "triggers": ["checkpoint", "resume", "live scope context", "why is this scope claimed"],
+        "entrypoints": ["busy-python.cmd inspect <scope>", "claim --checkpoint", "heartbeat --checkpoint"],
+        "boundary": "Live exact-scope ownership context only; never retained after release/recovery/expiry and never backlog, priority, handoff scheduling, liveness, or reassignment. Durable continuation belongs in the project issue/PR.",
     },
     "worker.reports": {
         "owner_components": ["worker_reports"],

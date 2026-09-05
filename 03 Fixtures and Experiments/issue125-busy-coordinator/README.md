@@ -11,18 +11,15 @@ Both operate on the same canonical `%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-c
 
 Core operations are `list`, `sweep`, `snapshot`, `recover`, `claim`, `heartbeat`, `release`, and `inspect`. The former queue/workflow operations `enqueue`, `ready`, `next`, `handoff`, `block`, and `complete` are intentionally retired from the command contract because they created backlog/scheduling semantics with no current operational consumers.
 
-The existing `coordinator.jobs` store key is retained for migration compatibility, but it now contains only exact-scope ownership/checkpoint metadata:
+The existing `coordinator.jobs` store key is retained for migration compatibility, but it contains metadata only for scopes that are currently owned. `active` metadata accompanies a live managed claim and may carry its renewable lease and checkpoint. Unowned metadata is not retained.
 
-- `active` metadata accompanies a live managed claim and may carry its renewable lease and checkpoint.
-- `checkpoint` metadata is unowned context for the same exact scope. It is not ready work, priority, liveness, capacity, or admission.
-
-Legacy `ready`/`blocked`/`completed` records are normalized on the next coordinator operation. Records with no live claim and no checkpoint disappear; records with a checkpoint are reduced to unowned `checkpoint` metadata; records with a live claim become `active` ownership metadata. This migration removes queue state without introducing another database.
+Legacy `ready`/`blocked`/`completed` records and old unowned `checkpoint` records are discarded on the next coordinator operation. A record survives normalization only when the same exact scope has a live claim, in which case it becomes `active` ownership metadata. This keeps durable work/history in the project issue/PR instead of duplicating it into BUSY.
 
 New or renewed ownership (`claim`, `heartbeat`) requires an actor identity with an approved harness (`ChatGPT`, `Codex`, `Claude`, `OpenCode`, `CommandCode`, or `Traycer`) plus a task/session suffix. `release` and `recover` intentionally accept historical actor strings so old claims can still be relinquished or recovered safely.
 
-`release` removes ownership. A caller may explicitly pass `--checkpoint <text>` to preserve exact-scope context after release; without an explicit release checkpoint the managed metadata is removed. `recover <expected-owner> <scope> --expected-claim-timestamp <timestamp>` is compare-and-swap guarded and removes only the exact observed claim. If that scope carried a checkpoint, recovery preserves it as unowned checkpoint metadata rather than manufacturing a ready job.
+`release` removes ownership and its metadata. A caller may still pass `--checkpoint <text>` for call/result compatibility, but that text is not persisted after release. `recover <expected-owner> <scope> --expected-claim-timestamp <timestamp>` is compare-and-swap guarded and removes only the exact observed claim; any live checkpoint may be returned in the recovery result but is not retained afterward. Lease expiry follows the same rule.
 
-`snapshot` is a bounded ownership projection: claim count, managed active ownership, legacy-only claims, unowned checkpoints, optional actor ownership, and optional exact-scope focus. It contains no queue depth, blocked count, completed count, or next-work selection.
+`snapshot` is a bounded ownership projection: claim count, managed active ownership, legacy-only claims, optional actor ownership, and optional exact-scope focus. It contains no queue depth, checkpoint backlog, blocked count, completed count, or next-work selection.
 
 The tool apps are separate from MCP and can be invoked through any supported process route. MCP/plugin routes are transports, not ownership systems.
 

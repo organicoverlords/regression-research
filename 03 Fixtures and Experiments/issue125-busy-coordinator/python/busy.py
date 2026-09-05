@@ -166,7 +166,7 @@ def job_for(state: dict, scope: str):
 
 
 def normalize_jobs(state: dict) -> bool:
-    """Migrate legacy queue/job records into ownership/checkpoint metadata only."""
+    """Migrate legacy queue/checkpoint records into live ownership metadata only."""
     jobs = state["coordinator"]["jobs"]
     claims = {claim["scope"]: claim for claim in state["claims"]}
     normalized: dict[str, dict] = {}
@@ -179,37 +179,25 @@ def normalize_jobs(state: dict) -> bool:
         except ValueError:
             continue
         claim = claims.get(scope)
+        if claim is None:
+            continue
         checkpoint = raw_job.get("checkpoint") if isinstance(raw_job.get("checkpoint"), str) else None
         extra = {key: value for key, value in raw_job.items() if key not in known}
-        if claim is not None:
-            item = {
-                "job_id": scope,
-                "scope": scope,
-                "state": "active",
-                "owner": claim["actor"],
-                "lease_expires_at": raw_job.get("lease_expires_at") if isinstance(raw_job.get("lease_expires_at"), str) else None,
-                "claim_timestamp": claim["timestamp"],
-                "checkpoint": checkpoint,
-                "updated_at": claim["timestamp"],
-                **extra,
-            }
-            normalized[scope] = item
-        elif checkpoint:
-            item = {
-                "job_id": scope,
-                "scope": scope,
-                "state": "checkpoint",
-                "owner": None,
-                "lease_expires_at": None,
-                "claim_timestamp": None,
-                "checkpoint": checkpoint,
-                "updated_at": raw_job.get("updated_at") if isinstance(raw_job.get("updated_at"), str) else iso(),
-                **extra,
-            }
-            normalized[scope] = item
+        normalized[scope] = {
+            "job_id": scope,
+            "scope": scope,
+            "state": "active",
+            "owner": claim["actor"],
+            "lease_expires_at": raw_job.get("lease_expires_at") if isinstance(raw_job.get("lease_expires_at"), str) else None,
+            "claim_timestamp": claim["timestamp"],
+            "checkpoint": checkpoint,
+            "updated_at": claim["timestamp"],
+            **extra,
+        }
     changed = normalized != jobs
     state["coordinator"]["jobs"] = normalized
     return changed
+
 
 
 def compact_job(job: dict) -> dict:
@@ -229,21 +217,15 @@ def snapshot_state(state: dict, *, actor: str | None = None, raw_scope: str | No
         (job for job in jobs.values() if isinstance(job, dict) and job.get("state") == "active"),
         key=lambda job: str(job.get("scope", "")),
     )
-    checkpoints = sorted(
-        (job for job in jobs.values() if isinstance(job, dict) and job.get("state") == "checkpoint"),
-        key=lambda job: str(job.get("scope", "")),
-    )
     managed_scopes = {str(job.get("scope")) for job in active}
     legacy_only = [claim for claim in claims if claim["scope"] not in managed_scopes]
     result = {
         "ok": True,
         "counts": {
             "active": len(active),
-            "checkpoints": len(checkpoints),
             "claims": len(claims),
             "legacy_only_claims": len(legacy_only),
         },
-        "checkpoints": [compact_job(job) for job in checkpoints[:limit]],
         "legacy_only_claims": legacy_only[:limit],
     }
     if actor:
@@ -257,6 +239,7 @@ def snapshot_state(state: dict, *, actor: str | None = None, raw_scope: str | No
     if expired:
         result["expired"] = expired[:limit]
     return result
+
 
 
 def prune_operations(state: dict) -> None:
@@ -291,26 +274,9 @@ def remember(state: dict, operation_id: str | None, signature: dict, result: dic
     return result
 
 
-def preserve_checkpoint_or_remove(state: dict, scope: str, checkpoint: str | None, *, updated_at: str | None = None) -> None:
-    if checkpoint:
-        existing = job_for(state, scope) or {}
-        extra = {
-            key: value for key, value in existing.items()
-            if key not in {"job_id", "scope", "state", "owner", "lease_expires_at", "claim_timestamp", "checkpoint", "updated_at"}
-        }
-        state["coordinator"]["jobs"][scope] = {
-            "job_id": scope,
-            "scope": scope,
-            "state": "checkpoint",
-            "owner": None,
-            "lease_expires_at": None,
-            "claim_timestamp": None,
-            "checkpoint": checkpoint,
-            "updated_at": updated_at or iso(),
-            **extra,
-        }
-    else:
-        state["coordinator"]["jobs"].pop(scope, None)
+def remove_scope_metadata(state: dict, scope: str) -> None:
+    state["coordinator"]["jobs"].pop(scope, None)
+
 
 
 def sweep_expired(state: dict) -> tuple[list[dict], bool]:
@@ -340,7 +306,7 @@ def sweep_expired(state: dict) -> tuple[list[dict], bool]:
                 continue
             state["claims"] = [claim for claim in state["claims"] if claim.get("scope") != scope]
         checkpoint = job.get("checkpoint") if isinstance(job.get("checkpoint"), str) else None
-        preserve_checkpoint_or_remove(state, scope, checkpoint, updated_at=iso(now))
+        remove_scope_metadata(state, scope)
         expired.append({"scope": scope, "previous_owner": owner, "checkpoint": checkpoint})
         changed = True
     return expired, changed
@@ -394,7 +360,7 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                 state["claims"] = [claim for claim in state["claims"] if claim.get("scope") != scope]
                 job = job_for(state, scope)
                 saved_checkpoint = job.get("checkpoint") if isinstance(job, dict) and isinstance(job.get("checkpoint"), str) else None
-                preserve_checkpoint_or_remove(state, scope, saved_checkpoint)
+                remove_scope_metadata(state, scope)
                 result = {"ok": True, "recovered": current}
                 if saved_checkpoint:
                     result["checkpoint"] = saved_checkpoint
@@ -472,7 +438,7 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
                 result = {"ok": False, "reason": "claim_belongs_to_another_actor", "claim": current}
             else:
                 state["claims"] = [item for item in state["claims"] if item.get("scope") != scope]
-                preserve_checkpoint_or_remove(state, scope, checkpoint)
+                remove_scope_metadata(state, scope)
                 result = {"ok": True, "released": current}
                 if checkpoint:
                     result["checkpoint"] = checkpoint

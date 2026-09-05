@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_version": 4,
+  "contract_version": 5,
   "authority": "standalone_busy_coordinator",
   "canonical_store": {
     "windows": "%LOCALAPPDATA%\\\\ChatGPTMcpClean\\\\.state\\\\busy-claims.json",
@@ -31,8 +31,7 @@
     "audit"
   ],
   "scope_metadata_states": [
-    "active",
-    "checkpoint"
+    "active"
   ],
   "retired_queue_commands": [
     "enqueue",
@@ -55,7 +54,7 @@
     "one canonical claims store",
     "one claim per exact scope",
     "active scope metadata has a matching claim and owner",
-    "checkpoint metadata never grants ownership or becomes backlog",
+    "unowned scope metadata is not retained in the BUSY store",
     "queue selection, priority, blocked, completed, and handoff scheduling are outside coordinator authority",
     "operation replay history stays bounded",
     "legacy-only claims remain distinct from coordinator-managed ownership metadata",

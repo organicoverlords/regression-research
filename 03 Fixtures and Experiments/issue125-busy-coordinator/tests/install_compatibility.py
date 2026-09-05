@@ -42,7 +42,8 @@ try:
     rs = run_wrapper(wrappers["rust"], store, "snapshot", "--scope", "scope")
     assert py == rs
     assert run_wrapper(wrappers["rust"], store, "release", actor, "scope", "--checkpoint", "pending")["ok"] is True
-    assert run_wrapper(wrappers["python"], store, "snapshot")["counts"]["checkpoints"] == 1
+    assert run_wrapper(wrappers["python"], store, "snapshot")["counts"]["active"] == 0
+    assert run_wrapper(wrappers["python"], store, "inspect", "scope")["job"] is None
 
     # Observability is non-authoritative: core ownership must keep working even if
     # audit_wrapper.py is missing or broken. Only contract/log/audit depend on it.

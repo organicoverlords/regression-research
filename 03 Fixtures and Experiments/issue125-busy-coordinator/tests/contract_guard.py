@@ -99,19 +99,12 @@ def validate_store(state: object, contract: dict) -> list[str]:
             errors.append(f"invalid_scope_metadata_state:{scope}:{state_name}")
             continue
         claim = claim_by_scope.get(scope)
-        if state_name == "active":
-            owner = job.get("owner")
-            if claim is None:
-                errors.append(f"active_metadata_missing_claim:{scope}")
-            elif owner != claim.get("actor"):
-                errors.append(f"active_metadata_owner_mismatch:{scope}")
-        elif state_name == "checkpoint":
-            if job.get("owner") is not None:
-                errors.append(f"checkpoint_metadata_has_owner:{scope}")
-            if claim is not None:
-                errors.append(f"checkpoint_metadata_has_claim:{scope}")
-            if not isinstance(job.get("checkpoint"), str) or not job.get("checkpoint"):
-                errors.append(f"checkpoint_metadata_missing_checkpoint:{scope}")
+        owner = job.get("owner")
+        if claim is None:
+            errors.append(f"active_metadata_missing_claim:{scope}")
+        elif owner != claim.get("actor"):
+            errors.append(f"active_metadata_owner_mismatch:{scope}")
+
     return errors
 
 
