@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_metrics_projection, worker_history_events
+from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_metrics_projection, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -137,6 +137,77 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(event["proof_artifact_sha256"], metadata["proof_artifact_sha256"])
             self.assertIn("C:/proofs/capture-index.json", event["refs"])
             self.assertNotIn("visual_proof_pass", event)
+
+    def test_video_manifest_alias_is_normalized_without_inventing_review_or_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = root / "Ash.md"
+            legacy_manifest = r'"C:\P3Proofs\20260904-054340-video\manifest.json"'
+            legacy_runtime = r'"C:\proof-worktree\visual-polish-runtime.mp4"'
+            report.write_text(
+                "worker: Repo Worker Ash\nstate: COMPLETE\noutcome: playable MP4 PROVEN; review pending\n"
+                "repo: organicoverlords/p3\nscope: p3#803\n"
+                f"video_manifest: {legacy_manifest}\n"
+                f"runtime_proof: {legacy_runtime}\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            expected = r"C:\P3Proofs\20260904-054340-video\manifest.json"
+            self.assertEqual(metadata["proof_artifact"], expected)
+            self.assertIsNone(metadata["proof_artifact_sha256"])
+            self.assertIsNone(metadata["visual_proof_run"])
+            self.assertIsNone(metadata["visual_proof_review"])
+            event = worker_history_events(root / "history")[0]
+            self.assertEqual(event["proof_artifact"], expected)
+            self.assertIsNone(event["proof_artifact_sha256"])
+            self.assertIn(expected, event["refs"])
+            self.assertNotIn("visual_proof_pass", event)
+
+    def test_proof_artifact_precedence_over_proof_index_and_video_manifest(self):
+        fields = {
+            "proof_artifact": "C:/proofs/canonical.json",
+            "proof_index": "C:/proofs/index.json",
+            "video_manifest": '"C:\\\\P3Proofs\\\\run\\\\manifest.json"',
+            "proof_artifact_sha256": "a" * 64,
+            "proof_index_sha256": "b" * 64,
+        }
+        self.assertEqual(
+            _proof_artifact_fields(fields),
+            ("C:/proofs/canonical.json", "a" * 64),
+        )
+
+    def test_existing_v6_metadata_normalizes_video_manifest_from_reported_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history" / "_reports"
+            history.mkdir(parents=True)
+            payload = {
+                "schema": "worker-report-history.v6",
+                "report_sha256": "legacy-video-manifest",
+                "worker": "Repo Worker Ash",
+                "state": "COMPLETE",
+                "outcome": "playable MP4 PROVEN; review pending",
+                "repo": "organicoverlords/p3",
+                "scope": "p3#803",
+                "finished_at": "2026-09-04T05:44:52+00:00",
+                "archived_at": "2026-09-04T05:45:00+00:00",
+                "reported_fields": {
+                    "video_manifest": '"C:\\\\P3Proofs\\\\20260904-054340-video\\\\manifest.json"',
+                    "runtime_proof": '"C:\\\\proof-worktree\\\\visual-polish-runtime.mp4"',
+                },
+                "visual_proof_run": None,
+                "visual_proof_review": None,
+            }
+            (history / "legacy-video-manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+            events = worker_history_events(root / "history")
+            self.assertEqual(len(events), 1)
+            expected = r"C:\P3Proofs\20260904-054340-video\manifest.json"
+            self.assertEqual(events[0]["proof_artifact"], expected)
+            self.assertIsNone(events[0]["proof_artifact_sha256"])
+            self.assertIn(expected, events[0]["refs"])
+            self.assertIsNone(events[0]["visual_proof_run"])
+            self.assertIsNone(events[0]["visual_proof_review"])
 
     def test_existing_v6_metadata_normalizes_proof_index_from_reported_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
