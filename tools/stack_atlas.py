@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import time
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -27,6 +28,8 @@ AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
+BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
+BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
 BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
@@ -1003,6 +1006,40 @@ def _read_jsonl_window(
     return rows, coverage_complete, bytes_read
 
 
+
+def _bootstrap_mcp_backend_health() -> dict[str, Any]:
+    """Bounded direct health proof for the canonical local production backend."""
+    started = time.perf_counter()
+    try:
+        request = urllib.request.Request(BOOTSTRAP_MCP_HEALTH_URL, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(request, timeout=BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS) as response:
+            http_status = int(getattr(response, "status", response.getcode()))
+            raw = response.read(8192)
+        payload = json.loads(raw.decode("utf-8"))
+        healthy = (
+            http_status == 200
+            and payload.get("status") == "ok"
+            and payload.get("name") == "shell-mcp"
+            and payload.get("role") == "backend"
+            and int(payload.get("port") or 0) == 3011
+        )
+        return {
+            "available": bool(healthy),
+            "status": "LIVE" if healthy else "UNHEALTHY",
+            "http_status": http_status,
+            "backend_generation": payload.get("backend_generation"),
+            "pid": payload.get("pid"),
+            "live_process_count": payload.get("live_process_count"),
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    except Exception as exc:
+        return {
+            "available": False,
+            "status": "UNAVAILABLE",
+            "error": str(exc),
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+
 def _bootstrap_mcp_status() -> dict[str, Any]:
     cached, cache_age = _bootstrap_cache_read("mcp-status.json", BOOTSTRAP_MCP_CACHE_SECONDS)
     if cached is not None:
@@ -1013,11 +1050,47 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
 
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
-    if not logs:
-        return {"available": False, "status": "MISSING", "active_sessions": [], "active_session_count": 0}
-    source = logs[0]
     now = datetime.now(timezone.utc)
     activity_window_seconds = 300
+    if not logs:
+        service_health = _bootstrap_mcp_backend_health()
+        result = {
+            "available": bool(service_health.get("available")),
+            "status": "LIVE" if service_health.get("status") == "LIVE" else "MISSING",
+            "source_age_seconds": None,
+            "service_health": service_health,
+            "activity_evidence_status": "MISSING",
+            "active_session_count": 0,
+            "active_session_count_status": "LOWER_BOUND",
+            "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
+            "active_sessions": [],
+            "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+            "active_sessions_truncated": False,
+            "workspace_counts": {},
+            "activity_summary": {
+                "starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0,
+                "sample_rows": 0, "sample_bytes": 0,
+                "activity_window_seconds": activity_window_seconds,
+                "activity_window_complete": False,
+                "source_window_complete": False,
+                "busy_receipts_per_sampled_session_limit": 4,
+                "last_event_at": None, "last_kill": None,
+            },
+            "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
+        }
+        cache_payload = dict(result)
+        cache_payload.pop("cache", None)
+        _bootstrap_cache_write("mcp-status.json", cache_payload)
+        return result
+    source = logs[0]
+    source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
+    source_liveness_fresh = source_age <= 60
+    source_activity_fresh = source_age <= activity_window_seconds
+    service_health = (
+        {"available": None, "status": "NOT_PROBED_FRESH_TRANSPORT"}
+        if source_liveness_fresh
+        else _bootstrap_mcp_backend_health()
+    )
     cutoff = now - timedelta(seconds=activity_window_seconds)
     try:
         rows, activity_window_complete, sample_bytes = _read_jsonl_window(source, cutoff)
@@ -1108,13 +1181,19 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         item["busy_titles"] = busy_titles.get(item["caller_id"], [])
         item = {k: item.get(k) for k in ("caller_id", "activity_age_seconds", "cwd", "workspace", "busy_titles")}
         active_sessions.append(item)
-    source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
+    activity_evidence_complete = bool(activity_window_complete and source_activity_fresh)
+    service_live = service_health.get("status") == "LIVE"
     result = {
         "available": True,
-        "status": "LIVE" if source_age <= 60 else "STALE",
+        "status": "LIVE" if source_liveness_fresh or service_live else "STALE",
         "source_age_seconds": round(source_age,1),
+        "service_health": service_health,
+        "activity_evidence_status": (
+            "FRESH" if activity_evidence_complete
+            else ("BOUNDED" if source_activity_fresh else "STALE")
+        ),
         "active_session_count": len(active_items),
-        "active_session_count_status": "COMPLETE" if activity_window_complete else "LOWER_BOUND",
+        "active_session_count_status": "COMPLETE" if activity_evidence_complete else "LOWER_BOUND",
         "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
         "active_sessions": active_sessions,
         "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
@@ -1125,7 +1204,8 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
             "sample_rows": len(rows),
             "sample_bytes": sample_bytes,
             "activity_window_seconds": activity_window_seconds,
-            "activity_window_complete": activity_window_complete,
+            "activity_window_complete": activity_evidence_complete,
+            "source_window_complete": activity_window_complete,
             "busy_receipts_per_sampled_session_limit": 4,
             "last_event_at": last_event_at,
             "last_kill": last_kill,
