@@ -1,0 +1,11 @@
+{
+  "id": "pending-mcp-worker-liveness-auditability-20260905",
+  "title": "MCP worker liveness evidence boundary and auditability",
+  "source_reports": [
+    "01 Reports/2026-09-05_2312_EEST_MCP_worker_liveness_policy_blindness_incident_report.md",
+    "01 Reports/2026-09-05_2318_EEST_Vault_audit_addendum_for_569.md"
+  ],
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Live evidence boundaries and concrete implementation defects are preserved, but no taxonomy failure/success replay pair is established yet."
+}

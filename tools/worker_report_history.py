@@ -5,7 +5,7 @@ import hashlib
 import json
 import statistics
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -315,8 +315,8 @@ def _dedupe_manual_run_records(records: list[dict[str, Any]]) -> list[dict[str, 
         if previous is None:
             selected[run_id] = item
             continue
-        item_key = (_parse_time(item.get("archived_at")) or datetime.min.astimezone(), str(item.get("report_sha256") or ""))
-        previous_key = (_parse_time(previous.get("archived_at")) or datetime.min.astimezone(), str(previous.get("report_sha256") or ""))
+        item_key = (_parse_time(item.get("archived_at")) or datetime.min.replace(tzinfo=timezone.utc), str(item.get("report_sha256") or ""))
+        previous_key = (_parse_time(previous.get("archived_at")) or datetime.min.replace(tzinfo=timezone.utc), str(previous.get("report_sha256") or ""))
         if item_key > previous_key:
             selected[run_id] = item
     return anonymous + list(selected.values())
@@ -342,7 +342,7 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
     for item in records:
         for tag in item.get("finding_tags") or []:
             tag_counts[str(tag)] += 1
-    records.sort(key=lambda item: _parse_time(item.get("archived_at")) or datetime.min.astimezone())
+    records.sort(key=lambda item: _parse_time(item.get("archived_at")) or datetime.min.replace(tzinfo=timezone.utc))
     latest = []
     for item in reversed(records[-20:]):
         row = {
