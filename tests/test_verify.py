@@ -1,7 +1,8 @@
+import sys
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, select_areas
+from tools.verify import changed_files, run_pytest, select_areas
 
 
 class VerifyTests(unittest.TestCase):
@@ -33,6 +34,27 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(
             changed_files("origin/main"),
             {"tools/verify.py", "tests/test_verify.py", "README.md"},
+        )
+
+    @patch("tools.verify.run")
+    @patch("tools.verify.tempfile.TemporaryDirectory")
+    def test_pytest_uses_isolated_basetemp(self, temporary_directory, run_command):
+        temporary_directory.return_value.__enter__.return_value = r"C:\Temp\rr-pytest-unique"
+
+        run_pytest(["tests/test_memory_bank.py"])
+
+        temporary_directory.assert_called_once_with(prefix="regression-research-pytest-")
+        self.assertEqual(
+            run_command.call_args.args[0],
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                "--basetemp",
+                r"C:\Temp\rr-pytest-unique",
+                "tests/test_memory_bank.py",
+            ],
         )
 
 

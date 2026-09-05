@@ -104,6 +104,11 @@ def run(command: list[str]) -> None:
     subprocess.run(command, cwd=ROOT, check=True)
 
 
+def run_pytest(test_paths: list[str]) -> None:
+    with tempfile.TemporaryDirectory(prefix="regression-research-pytest-") as temp_dir:
+        run([sys.executable, "-m", "pytest", "-q", "--basetemp", temp_dir, *test_paths])
+
+
 def verify_entrypoint() -> None:
     run([sys.executable, "-m", "py_compile", "tools/verify.py"])
     run([sys.executable, "-m", "unittest", "tests.test_verify", "-v"])
@@ -153,13 +158,9 @@ def verify_memory() -> None:
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
     run([sys.executable, "tools/provenance.py", "validate"])
-    run(
+    run_pytest(
         [
-            sys.executable,
-            "-m",
-            "pytest",
-            "-q",
-                            "tests/test_memory_bank.py",
+            "tests/test_memory_bank.py",
             "tests/test_memory_bootstrap.py",
             "tests/test_memory_classification.py",
             "tests/test_memory_cli.py",
