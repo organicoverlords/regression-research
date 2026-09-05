@@ -164,6 +164,53 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(metadata["duration_minutes"], 23.0)
             self.assertEqual(metadata["target_utilization_pct"], 95.8)
 
+
+    def test_premature_run_finished_rejects_local_contention_stop_patterns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            cases = (
+                ("5.55", "2099-01-01T00:05:33+00:00", "Useful bounded window exhausted; heavy runtime acceptance remains a separate resource-dependent gate."),
+                ("13.52", "2099-01-01T00:13:31+00:00", "Bounded selection found no additional safe mutation while collision ownership was unavailable and the heavy runtime lane was occupied."),
+                ("7.03", "2099-01-01T00:07:02+00:00", "Useful independent work window exhausted while heavy Unreal lane remained occupied."),
+            )
+            for suffix, finished_at, stop_reason in cases:
+                with self.subTest(duration=suffix):
+                    automation_id = (suffix.replace(".", "") + "0" * 32)[:32]
+                    report = current / f"{automation_id}.md"
+                    report.write_text(
+                        f"automation_id: {automation_id}\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                        f"last_activity_at: {finished_at}\nrepo: p3\nscope: p3#960\nstate: RUN_FINISHED\n"
+                        "outcome: validated existing WIP\nmutation: no source mutation\nvalidation: PASS\n"
+                        f"remaining_gate: heavy runtime acceptance\nstop_reason: {stop_reason}\n",
+                        encoding="utf-8",
+                    )
+                    with self.assertRaisesRegex(ValueError, "local contention is not a task-level stop reason"):
+                        archive_finalized_report(report, root / "history")
+
+    def test_run_finished_allows_on_target_or_true_terminal_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            cases = (
+                ("a" * 32, "2099-01-01T00:20:00+00:00", "heavy runtime lane occupied"),
+                ("b" * 32, "2099-01-01T00:05:00+00:00", "user interrupted the run"),
+                ("c" * 32, "2099-01-01T00:05:00+00:00", "task-level blocker proven after safe existing execution surfaces and independent useful work were exhausted"),
+            )
+            for automation_id, finished_at, stop_reason in cases:
+                with self.subTest(automation_id=automation_id):
+                    report = current / f"{automation_id}.md"
+                    report.write_text(
+                        f"automation_id: {automation_id}\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                        f"last_activity_at: {finished_at}\nrepo: p3\nscope: p3#960\nstate: RUN_FINISHED\n"
+                        "outcome: useful work\nmutation: no source mutation\nvalidation: PASS\n"
+                        f"remaining_gate: none\nstop_reason: {stop_reason}\n",
+                        encoding="utf-8",
+                    )
+                    self.assertTrue(archive_finalized_report(report, root / "history")["ok"])
+
     def test_running_report_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
