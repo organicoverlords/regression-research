@@ -27,6 +27,10 @@ AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
+BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
+BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
+BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
+BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
 MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes"
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
@@ -1270,8 +1274,26 @@ def _bootstrap_vault_status() -> dict[str, Any]:
 
 
 def _bootstrap_github_status() -> dict[str, Any]:
-    """Bounded GitHub service/auth health; never lists issues, PRs, checks, or workflows."""
+    """Bounded cached GitHub health; never lists issues, PRs, checks, or workflows."""
     started = time.perf_counter()
+    cached, cache_age = _bootstrap_cache_read("github-status.json", BOOTSTRAP_GITHUB_CACHE_SECONDS)
+    if cached is not None:
+        cached_status = str(cached.get("status") or "")
+        cache_max_age = (
+            BOOTSTRAP_GITHUB_CACHE_SECONDS
+            if cached_status in {"OK", "WATCH"}
+            else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
+        )
+        if cache_age is not None and cache_age <= cache_max_age:
+            cached = dict(cached)
+            cached["cache"] = {
+                "used": True,
+                "age_seconds": round(cache_age, 3),
+                "max_age_seconds": cache_max_age,
+            }
+            cached["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+            return cached
+
     gh = shutil.which("gh")
     result: dict[str, Any] = {
         "available": False,
@@ -1280,62 +1302,69 @@ def _bootstrap_github_status() -> dict[str, Any]:
         "authenticated": False,
         "api_reachable": False,
     }
-    if not gh:
-        result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
-        return result
 
-    try:
-        auth = subprocess.run(
-            [gh, "auth", "status", "--active", "--hostname", "github.com"],
-            text=True,
-            capture_output=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        result.update({"status": "DEGRADED", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
-        return result
-    result["authenticated"] = auth.returncode == 0
-    if auth.returncode != 0:
-        result.update({"status": "UNAVAILABLE", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
-        return result
+    if gh:
+        api: subprocess.CompletedProcess[str] | None = None
+        try:
+            api = subprocess.run(
+                [gh, "api", "rate_limit"],
+                text=True,
+                capture_output=True,
+                timeout=BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
 
-    try:
-        api = subprocess.run(
-            [gh, "api", "rate_limit"],
-            text=True,
-            capture_output=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        result.update({"available": True, "status": "DEGRADED", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
-        return result
-    result["api_reachable"] = api.returncode == 0
-    result["available"] = result["authenticated"] and result["api_reachable"]
-    if api.returncode != 0:
-        result.update({"status": "DEGRADED", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
-        return result
+        if api is not None and api.returncode == 0:
+            # A successful authenticated API call proves both auth and reachability;
+            # avoid the redundant `gh auth status` subprocess on the normal path.
+            result.update({"available": True, "authenticated": True, "api_reachable": True})
+            try:
+                payload = json.loads(api.stdout)
+                core = payload.get("resources", {}).get("core", {}) if isinstance(payload, dict) else {}
+                limit = int(core.get("limit") or 0)
+                remaining = int(core.get("remaining") or 0)
+                used = int(core.get("used") or 0)
+                reset = int(core.get("reset") or 0)
+                remaining_pct = round((remaining / limit) * 100, 1) if limit > 0 else None
+                result["rate_limit"] = {
+                    "limit": limit,
+                    "remaining": remaining,
+                    "used": used,
+                    "remaining_pct": remaining_pct,
+                    "reset_at": datetime.fromtimestamp(reset, timezone.utc).isoformat() if reset > 0 else None,
+                }
+                result["status"] = "WATCH" if limit > 0 and remaining_pct is not None and remaining_pct < 10 else "OK"
+            except (json.JSONDecodeError, TypeError, ValueError, OverflowError):
+                result["status"] = "DEGRADED"
+        else:
+            # Only pay for the secondary auth probe when the API probe fails. This
+            # distinguishes missing/invalid auth from transient API reachability loss.
+            auth: subprocess.CompletedProcess[str] | None = None
+            try:
+                auth = subprocess.run(
+                    [gh, "auth", "status", "--active", "--hostname", "github.com"],
+                    text=True,
+                    capture_output=True,
+                    timeout=BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            result["authenticated"] = bool(auth is not None and auth.returncode == 0)
+            result["status"] = "DEGRADED" if result["authenticated"] else "UNAVAILABLE"
 
-    try:
-        payload = json.loads(api.stdout)
-        core = payload.get("resources", {}).get("core", {}) if isinstance(payload, dict) else {}
-        limit = int(core.get("limit") or 0)
-        remaining = int(core.get("remaining") or 0)
-        used = int(core.get("used") or 0)
-        reset = int(core.get("reset") or 0)
-        remaining_pct = round((remaining / limit) * 100, 1) if limit > 0 else None
-        result["rate_limit"] = {
-            "limit": limit,
-            "remaining": remaining,
-            "used": used,
-            "remaining_pct": remaining_pct,
-            "reset_at": datetime.fromtimestamp(reset, timezone.utc).isoformat() if reset > 0 else None,
-        }
-        result["status"] = "WATCH" if limit > 0 and remaining_pct is not None and remaining_pct < 10 else "OK"
-    except (json.JSONDecodeError, TypeError, ValueError, OverflowError):
-        result["status"] = "DEGRADED"
+    cache_max_age = (
+        BOOTSTRAP_GITHUB_CACHE_SECONDS
+        if result["status"] in {"OK", "WATCH"}
+        else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
+    )
+    result["cache"] = {"used": False, "age_seconds": 0.0, "max_age_seconds": cache_max_age}
     result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    cache_payload = dict(result)
+    cache_payload.pop("cache", None)
+    cache_payload.pop("latency_ms", None)
+    _bootstrap_cache_write("github-status.json", cache_payload)
     return result
-
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
