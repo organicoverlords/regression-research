@@ -70,6 +70,18 @@ class WorkerFindingsSummaryTests(unittest.TestCase):
             self.assertEqual(timed["active_tagged_pct"], 50.0)
             self.assertEqual(summary["findings"]["tag_counts"], {"build": 1, "bug": 1, "resource": 1})
 
+    def test_normalizes_quoted_whole_field_tags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_current(root, "timed", "quoted", tags='"resource,improvement,proof"', findings="quoted producer")
+            summary = build_summary(root)
+            self.assertEqual(
+                summary["findings"]["tag_counts"],
+                {"improvement": 1, "proof": 1, "resource": 1},
+            )
+            recent = summary["findings"]["recent"][0]
+            self.assertEqual(recent["finding_tags"], ["improvement", "proof", "resource"])
+
     def test_ignores_finalized_current_reports_to_avoid_double_counting(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
