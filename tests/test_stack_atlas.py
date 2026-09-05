@@ -100,6 +100,27 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(gate["semantics"]["go_continue_fix_are_not_production_authorization"])
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
 
+    def test_production_change_gate_covers_shared_agent_rules_serving_root(self):
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        blocked = production_change_gate(
+            "agent_rules", actor="ChatGPT:test", busy_scope="agents:RULES.md",
+            explicit_user_authorization=False, independent_rollback_verified=True, offpath_proof_verified=True,
+            busy_status=busy,
+        )
+        self.assertEqual(blocked["verdict"], "BLOCK")
+        self.assertTrue(blocked["target"]["shared_production"])
+        self.assertEqual(blocked["reasons"], ["missing_explicit_live_production_authorization"])
+        self.assertEqual(blocked["live_dependencies"], {})
+
+        allowed = production_change_gate(
+            "agent_rules", actor="ChatGPT:test", busy_scope="agents:RULES.md",
+            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            busy_status=busy,
+        )
+        self.assertEqual(allowed["verdict"], "PASS")
+        self.assertEqual(allowed["reasons"], [])
+        self.assertTrue(allowed["target"]["shared_production"])
+
     def test_production_change_gate_blocks_without_independent_rollback(self):
         mcp = {
             "available": True, "status": "LIVE", "active_session_count": 3,
