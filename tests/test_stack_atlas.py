@@ -332,6 +332,86 @@ class StackAtlasTests(unittest.TestCase):
         self.assertFalse(manual["malformed_running_reports_truncated"])
         self.assertIn("not_process_liveness", manual["evidence_semantics"])
 
+    def test_manual_recent_count_is_complete_when_scan_cap_reaches_stale_mtime(self):
+        from datetime import datetime, timedelta, timezone
+        from tools.stack_atlas import BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT, _bootstrap_manual_current_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "worker-reports" / "manual" / "current"
+            current.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+
+            def write_report(run_id: str, state: str, activity: datetime) -> None:
+                report = current / f"{run_id}.md"
+                report.write_text(
+                    "\n".join([
+                        f"run_id: {run_id}",
+                        f"last_activity_at: {activity.isoformat()}",
+                        r"repo: C:\repo",
+                        "scope: bounded freshness test",
+                        f"state: {state}",
+                        "",
+                    ]),
+                    encoding="utf-8",
+                )
+                ts = activity.timestamp()
+                os.utime(report, (ts, ts))
+
+            write_report("manual-recent", "RUNNING", now - timedelta(minutes=1))
+            for index in range(BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT):
+                write_report(
+                    f"manual-old-{index:03d}",
+                    "RUN_FINISHED",
+                    now - timedelta(minutes=60, seconds=index),
+                )
+
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                manual = _bootstrap_manual_current_status(now)
+
+        self.assertEqual(manual["current_report_file_count"], BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT + 1)
+        self.assertEqual(manual["scanned_report_file_count"], BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT)
+        self.assertTrue(manual["scan_truncated"])
+        self.assertTrue(manual["recent_scan_cutoff_reached"])
+        self.assertEqual(manual["recent_running_report_count"], 1)
+        self.assertEqual(manual["recent_running_report_count_status"], "COMPLETE")
+
+    def test_manual_recent_count_stays_lower_bound_when_scan_cap_is_all_recent(self):
+        from datetime import datetime, timedelta, timezone
+        from tools.stack_atlas import BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT, _bootstrap_manual_current_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "worker-reports" / "manual" / "current"
+            current.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+
+            for index in range(BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT + 1):
+                run_id = f"manual-recent-{index:03d}"
+                activity = now - timedelta(seconds=index)
+                report = current / f"{run_id}.md"
+                report.write_text(
+                    "\n".join([
+                        f"run_id: {run_id}",
+                        f"last_activity_at: {activity.isoformat()}",
+                        r"repo: C:\repo",
+                        "scope: bounded freshness test",
+                        "state: RUNNING",
+                        "",
+                    ]),
+                    encoding="utf-8",
+                )
+                ts = activity.timestamp()
+                os.utime(report, (ts, ts))
+
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                manual = _bootstrap_manual_current_status(now)
+
+        self.assertTrue(manual["scan_truncated"])
+        self.assertFalse(manual["recent_scan_cutoff_reached"])
+        self.assertEqual(manual["recent_running_report_count"], BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT)
+        self.assertEqual(manual["recent_running_report_count_status"], "LOWER_BOUND")
+
     def test_worker_archive_sample_is_not_presented_as_current_scheduler_fleet(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
