@@ -41,10 +41,17 @@ def _normalize_tags(value: Any) -> list[str]:
         raw = value
     else:
         text = str(value).strip()
+        if len(text) >= 2 and text[0] == text[-1] and text[0] in {"\"", "'"}:
+            text = text[1:-1].strip()
         if not text or text.casefold() == "none":
             return []
         raw = text.split(",")
-    return sorted({str(tag).strip().casefold() for tag in raw if str(tag).strip() and str(tag).strip().casefold() != "none"})
+    tags = set()
+    for tag in raw:
+        normalized = str(tag).strip().strip("\"'").strip().casefold()
+        if normalized and normalized != "none":
+            tags.add(normalized)
+    return sorted(tags)
 
 
 def _history_records(history_root: Path, *, population: str, cutoff: datetime) -> list[dict[str, Any]]:
