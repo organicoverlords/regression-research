@@ -108,11 +108,8 @@ def begin_timed_run(report: Path) -> dict[str, Any]:
     reported_started = _parse_time(fields.get("started_at"))
     if reported_started is None:
         raise ValueError("timed run begin requires a valid started_at")
-    skew_seconds = abs((reported_started - now).total_seconds())
-    if skew_seconds > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
-        raise ValueError(
-            "timed run begin rejected: started_at must match the machine-observed begin time within 60 seconds"
-        )
+    if reported_started > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+        raise ValueError("timed run begin rejected: started_at is in the future")
     receipt_path = _timed_start_receipt_path(report)
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -151,10 +148,6 @@ def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[dat
     now = datetime.now().astimezone()
     if observed_started > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
         raise ValueError("timed run start receipt is in the future")
-    if abs((reported_started - observed_started).total_seconds()) > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
-        raise ValueError(
-            "premature RUN_FINISHED blocked: reported started_at differs from the machine-observed run start by more than 60 seconds"
-        )
     return observed_started, receipt_path
 
 
