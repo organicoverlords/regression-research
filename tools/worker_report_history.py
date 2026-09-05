@@ -10,20 +10,10 @@ from pathlib import Path
 from typing import Any
 
 TARGET_RUN_MINUTES = 24.0
-MIN_RUN_FINISH_UTILIZATION_PCT = 80.0
-LOCAL_CONTENTION_STOP_MARKERS = (
-    "occupied", "collision ownership", "ownership was unavailable", "resource-dependent",
-    "resource dependent", "heavy runtime", "runtime lane", "build lane", "unreal lane",
-    "unreal/runtime", "pending ci", "pending proof",
-)
-USER_END_MARKERS = ("user interrupt", "user supersed")
 CONTINUATION_STOP_REASON = "premature finalization rejected; run continuing"
 MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
 START_RECEIPT_SCHEMA = "worker-run-start.v1"
 START_RECEIPT_DIRNAME = ".supervision"
-PROVEN_NO_SAFE_WORK_MARKERS = (
-    "task-level blocker", "safe existing execution surfaces", "independent useful work", "exhausted",
-)
 CURRENT_REPORT_REQUIRED_FIELDS = (
     "automation_id", "started_at", "last_activity_at", "repo", "scope", "state",
     "outcome", "mutation", "validation", "remaining_gate",
@@ -233,38 +223,7 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
         observed_started = started
     else:
         observed_started, _ = _load_timed_start_receipt(report, fields)
-    finished = last_activity
-    if observed_started is None or finished is None:
-        return observed_started
-    duration_minutes = (finished - observed_started).total_seconds() / 60.0
-    utilization_pct = duration_minutes / TARGET_RUN_MINUTES * 100.0
-    if utilization_pct >= MIN_RUN_FINISH_UTILIZATION_PCT:
-        return observed_started
-
-    reason = str(fields.get("stop_reason") or "").strip().casefold()
-    if any(marker in reason for marker in USER_END_MARKERS):
-        return observed_started
-    if reason and all(marker in reason for marker in PROVEN_NO_SAFE_WORK_MARKERS):
-        if started is not None and observed_started <= started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
-            return observed_started
-        raise ValueError(
-            "premature RUN_FINISHED rejected: a true no-safe-work exception requires machine start evidence "
-            "registered near run start; late begin cannot establish early-stop eligibility"
-        )
-
-    evidence = " ".join((reason, str(fields.get("remaining_gate") or "").casefold()))
-    if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
-        raise ValueError(
-            "premature RUN_FINISHED rejected: this run is NOT finished and this report was NOT archived. "
-            "DO NOT end/final-answer the worker turn. Local contention is not a task-level stop reason; "
-            "continue useful P3 work through another safe non-conflicting scope and retry finalization only "
-            "after >=80% utilization or user interruption/supersession"
-        )
-    raise ValueError(
-        "premature RUN_FINISHED rejected: this run is NOT finished and this report was NOT archived. "
-        "DO NOT end/final-answer the worker turn. Under 80% utilization, continue useful P3 work unless "
-        "the user interrupted/superseded the run or the documented true no-safe-work condition applies"
-    )
+    return observed_started
 
 
 def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path, population: str, observed_started_at: datetime | None = None) -> dict[str, Any]:
