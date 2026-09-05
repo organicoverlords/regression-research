@@ -36,6 +36,13 @@ ALLOWED_FINDING_TAGS = frozenset({
     "bug", "error", "regression", "wrapper_anomaly", "route_problem", "contention",
     "performance", "improvement", "tooling", "ci", "build", "proof", "resource", "other",
 })
+FINDING_TAG_ALIASES = {
+    "collision": "contention",
+    "resource_issue": "resource",
+    "proof_gap": "proof",
+    "convergence": "improvement",
+    "product": "other",
+}
 
 
 
@@ -165,7 +172,8 @@ def _parse_finding_tags(fields: dict[str, str]) -> list[str]:
     raw = str(fields.get("finding_tags") or "").strip()
     if not raw or raw.casefold() == "none":
         return []
-    tags = sorted({part.strip().casefold().replace("-", "_").replace(" ", "_") for part in raw.split(",") if part.strip()})
+    normalized = {part.strip().casefold().replace("-", "_").replace(" ", "_") for part in raw.split(",") if part.strip()}
+    tags = sorted({FINDING_TAG_ALIASES.get(tag, tag) for tag in normalized})
     invalid = [tag for tag in tags if tag not in ALLOWED_FINDING_TAGS]
     if invalid:
         raise ValueError("unknown finding_tags: " + ", ".join(invalid))
@@ -335,6 +343,26 @@ def _history_chronology_is_plausible(item: dict[str, Any]) -> bool:
     return finished <= archived + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS)
 
 
+def _dedupe_manual_run_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep one deterministic newest valid archive per logical manual run_id."""
+    selected: dict[str, dict[str, Any]] = {}
+    anonymous: list[dict[str, Any]] = []
+    for item in records:
+        run_id = str(item.get("run_id") or "").strip().casefold()
+        if not run_id:
+            anonymous.append(item)
+            continue
+        previous = selected.get(run_id)
+        if previous is None:
+            selected[run_id] = item
+            continue
+        item_key = (_parse_time(item.get("archived_at")) or datetime.min.astimezone(), str(item.get("report_sha256") or ""))
+        previous_key = (_parse_time(previous.get("archived_at")) or datetime.min.astimezone(), str(previous.get("report_sha256") or ""))
+        if item_key > previous_key:
+            selected[run_id] = item
+    return anonymous + list(selected.values())
+
+
 def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
     population = _report_population(history_root=history_root)
     now = datetime.now().astimezone()
@@ -346,6 +374,9 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
         archived = _parse_time(item.get("archived_at"))
         if archived is not None and archived >= cutoff and _history_chronology_is_plausible(item):
             records.append(item)
+
+    if population == "manual":
+        records = _dedupe_manual_run_records(records)
 
     durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
     tag_counts: Counter[str] = Counter()
@@ -418,12 +449,14 @@ def _project_from_repo(repo: str | None) -> str | None:
 
 def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
     population = _report_population(history_root=history_root)
+    records = [
+        item for item in load_history_metadata(history_root)
+        if _metadata_population(item) == population and _history_chronology_is_plausible(item)
+    ]
+    if population == "manual":
+        records = _dedupe_manual_run_records(records)
     events: list[dict[str, Any]] = []
-    for item in load_history_metadata(history_root):
-        if _metadata_population(item) != population:
-            continue
-        if not _history_chronology_is_plausible(item):
-            continue
+    for item in records:
         event_at = item.get("finished_at") or item.get("archived_at")
         if not event_at:
             continue
