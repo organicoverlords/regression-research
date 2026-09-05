@@ -348,6 +348,19 @@ PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
 PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "work.intake": {
+        "owner_components": ["agent_rules", "github", "local_git", "busy_coordinator"],
+        "triggers": ["issue first", "start work", "new task", "technical work", "issue", "pr", "busy claim", "before mutation", "dirty state", "wip", "handoff", "convergence"],
+        "entrypoints": [
+            "bounded matching issue/PR search in the owning repo",
+            "continue the matching issue or create one when none exists",
+            "relevant live git status/HEAD + attributed dirty state",
+            f"{BUSY_CMD} inspect <exact-scope>",
+            f"{BUSY_CMD} claim <actor> <exact-scope>",
+            "before yielding: commit/branch/PR coherent work or record exact remaining dirty paths/checkpoint on the issue",
+        ],
+        "boundary": "Ordered navigation to the existing .agents issue-first contract: inspect/claim occurs immediately before shared mutation. The GitHub issue is the shared convergence record, not a queue, priority, capacity, or admission system. Busy is exact mutation collision control only. No new workflow authority is created.",
+    },
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
@@ -850,6 +863,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "bootstrap": str(ROOT / "tools" / "stack_atlas.py"),
             "rules": r"C:\Users\Lauri\.agents\RULES.md",
             "agents": r"C:\Users\Lauri\.agents\AGENTS.md",
+            "issue_first_work_intake": r"C:\Users\Lauri\.agents\RULES.md",
             "vault": str(ROOT),
             "worker_reports": str(ROOT / "worker-reports"),
             "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
