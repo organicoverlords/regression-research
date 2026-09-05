@@ -56,6 +56,28 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
 
+    def test_worker_status_reads_runtime_history_from_live_root_not_source_root(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            source_root = root / "source"
+            live_root = root / "live"
+            source_root.mkdir()
+            history_root = live_root / "worker-reports" / "history"
+            history_root.mkdir(parents=True)
+            record = {
+                "automation_id": "worker-1",
+                "display_label": "Repo Worker Test",
+                "finished_at": "2026-09-05T02:00:00+03:00",
+                "duration_minutes": 24.0,
+                "target_run_minutes": 24.0,
+                "target_utilization_pct": 100.0,
+            }
+            with patch("tools.stack_atlas.ROOT", source_root), patch("tools.stack_atlas.ATLAS_LIVE_ROOT", live_root), patch("tools.worker_report_history.load_history_metadata", return_value=[record]) as load_history:
+                workers = _bootstrap_worker_status()
+            load_history.assert_called_once_with(history_root)
+            self.assertTrue(workers["available"])
+            self.assertEqual(workers["latest_per_worker"][0]["automation_id"], "worker-1")
+
     def test_stale_worker_archive_is_not_current_liveness_attention(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
