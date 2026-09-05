@@ -1108,15 +1108,34 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     return result
 
 
+def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
+    findings = report.get("worker_findings") if isinstance(report, dict) else None
+    if not isinstance(findings, dict):
+        return {}
+    populations = []
+    for item in findings.get("populations", []) if isinstance(findings.get("populations"), list) else []:
+        if not isinstance(item, dict):
+            continue
+        populations.append({
+            key: item.get(key)
+            for key in ("population", "status", "generated_at", "source_age_hours", "window_hours", "reports")
+        })
+    return {
+        "contract": findings.get("contract"),
+        "top_tags": list(findings.get("top_tags") or [])[:limit],
+        "populations": populations[:2],
+    }
+
+
 def _bootstrap_memory_overview() -> dict[str, Any]:
     cached, _ = _bootstrap_cache_read("memory-overview.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
     if cached is not None and isinstance(cached.get("overview"), dict):
         return cached["overview"]
     try:
-        from tools.memory_bank import aggregate_memory, load_bank
+        from tools.memory_bank import build_overview, load_bank
     except ImportError:
-        from memory_bank import aggregate_memory, load_bank
-    report = aggregate_memory(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)
+        from memory_bank import build_overview, load_bank
+    report = build_overview(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)
     overview = {
         "contract": report.get("contract"),
         "eligible_entries": report.get("eligible_entries", 0),
@@ -1126,6 +1145,7 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
         ],
         "projects": report.get("projects", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
         "recurring_tags": report.get("recurring_tags", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
+        "worker_findings": _compact_worker_findings(report, BOOTSTRAP_MEMORY_TITLE_LIMIT),
     }
     _bootstrap_cache_write("memory-overview.json", {"overview": overview})
     return overview
