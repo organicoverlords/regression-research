@@ -33,6 +33,9 @@ REQUIRED = {"id", "timestamp", "kind", "scope", "tags", "text", "state", "eviden
 DEFAULT_BANK = Path(__file__).resolve().parents[1] / "memory" / "memory-bank.jsonl"
 DEFAULT_SOURCES = Path(__file__).resolve().parents[1] / "memory" / "sources.json"
 DEFAULT_WORKER_HISTORY = Path(__file__).resolve().parents[1] / "worker-reports" / "history"
+DEFAULT_TIMED_WORKER_METRICS = Path(__file__).resolve().parents[1] / "worker-reports" / "metrics.json"
+DEFAULT_MANUAL_WORKER_METRICS = Path(__file__).resolve().parents[1] / "worker-reports" / "manual" / "metrics.json"
+MAX_WORKER_FINDING_CHARS = 320
 DEFAULT_RECALL_LIMIT = 5
 MAX_RECALL_LIMIT = 8
 DEFAULT_HISTORY_LIMIT = 8
@@ -340,6 +343,141 @@ def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str,
         "top_tags": ranked(tags),
         "recurring_tags": [item for item in ranked(tags) if item["count"] >= 2],
     }
+
+
+def _bounded_worker_finding(value: Any, max_chars: int = MAX_WORKER_FINDING_CHARS) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= max_chars:
+        return text
+    if max_chars <= 3:
+        return text[:max_chars]
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def _metrics_generated_at(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.astimezone()
+    return parsed
+
+
+def worker_findings_overview(
+    *,
+    timed_metrics: Path = DEFAULT_TIMED_WORKER_METRICS,
+    manual_metrics: Path = DEFAULT_MANUAL_WORKER_METRICS,
+    limit: int = 3,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Summarize existing worker-report metrics projections as historical evidence."""
+    effective_limit = min(5, max(0, limit))
+    now = now or datetime.now().astimezone()
+    populations: list[dict[str, Any]] = []
+    combined_tags: Counter[str] = Counter()
+
+    for expected_population, path in (("timed", timed_metrics), ("manual", manual_metrics)):
+        base = {"population": expected_population, "path": str(path)}
+        if not path.is_file():
+            populations.append({**base, "status": "MISSING"})
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            populations.append({**base, "status": "INVALID", "error": str(exc)})
+            continue
+        if not isinstance(payload, dict):
+            populations.append({**base, "status": "INVALID", "error": "metrics projection is not an object"})
+            continue
+
+        generated = _metrics_generated_at(payload.get("generated_at"))
+        window_hours = float(payload.get("window_hours") or 0.0)
+        source_age_hours = None
+        status = "AVAILABLE"
+        if generated is not None:
+            try:
+                source_age_hours = max(0.0, (now - generated.astimezone(now.tzinfo)).total_seconds() / 3600.0)
+            except (TypeError, ValueError):
+                source_age_hours = None
+        if source_age_hours is not None and window_hours > 0 and source_age_hours > window_hours:
+            status = "STALE_PROJECTION"
+
+        raw_counts = payload.get("finding_tag_counts") or {}
+        tag_counts: Counter[str] = Counter()
+        if isinstance(raw_counts, dict):
+            for name, count in raw_counts.items():
+                try:
+                    numeric = int(count)
+                except (TypeError, ValueError):
+                    continue
+                if numeric > 0:
+                    tag_counts[str(name)] += numeric
+                    combined_tags[str(name)] += numeric
+        top_tags = [
+            {"name": name, "count": count}
+            for name, count in sorted(tag_counts.items(), key=lambda item: (-item[1], item[0].casefold()))[:effective_limit]
+        ]
+
+        recent_findings: list[dict[str, Any]] = []
+        latest_reports = payload.get("latest_reports") or []
+        if isinstance(latest_reports, list):
+            for item in latest_reports:
+                if not isinstance(item, dict):
+                    continue
+                finding = _bounded_worker_finding(item.get("findings"))
+                if not finding:
+                    continue
+                recent_findings.append({
+                    "display_label": item.get("display_label"),
+                    "archived_at": item.get("archived_at"),
+                    "repo": item.get("repo"),
+                    "finding_tags": list(item.get("finding_tags") or []),
+                    "finding": finding,
+                })
+                if len(recent_findings) >= effective_limit:
+                    break
+
+        populations.append({
+            **base,
+            "status": status,
+            "generated_at": payload.get("generated_at"),
+            "source_age_hours": round(source_age_hours, 2) if source_age_hours is not None else None,
+            "window_hours": window_hours,
+            "reports": int(payload.get("reports") or 0),
+            "top_tags": top_tags,
+            "recent_findings": recent_findings,
+        })
+
+    combined_top_tags = [
+        {"name": name, "count": count}
+        for name, count in sorted(combined_tags.items(), key=lambda item: (-item[1], item[0].casefold()))[:effective_limit]
+    ]
+    return {
+        "contract": "Archived worker self-report evidence only; never current liveness, scheduler membership, progress, or repo/runtime truth.",
+        "top_tags": combined_top_tags,
+        "populations": populations,
+    }
+
+
+def build_overview(
+    entries: list[dict[str, Any]],
+    *,
+    limit: int = 8,
+    timed_metrics: Path = DEFAULT_TIMED_WORKER_METRICS,
+    manual_metrics: Path = DEFAULT_MANUAL_WORKER_METRICS,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    overview = aggregate_memory(entries, limit=limit)
+    overview["worker_findings"] = worker_findings_overview(
+        timed_metrics=timed_metrics,
+        manual_metrics=manual_metrics,
+        limit=min(3, max(0, limit)),
+        now=now,
+    )
+    return overview
 
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
     if not path.is_file():
@@ -722,7 +860,7 @@ def _main() -> int:
             _print_json(report)
             return 0
         if args.command in ("overview", "digest"):
-            _print_json(aggregate_memory(entries, limit=args.limit))
+            _print_json(build_overview(entries, limit=args.limit))
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))
