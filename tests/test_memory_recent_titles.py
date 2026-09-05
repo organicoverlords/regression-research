@@ -1,6 +1,6 @@
 import unittest
 
-from tools.memory_bank import derive_display_title, recent_title_entries
+from tools.memory_bank import aggregate_memory, derive_display_title, recent_title_entries
 
 
 class MemoryRecentTitleTests(unittest.TestCase):
@@ -49,6 +49,27 @@ class MemoryRecentTitleTests(unittest.TestCase):
     def test_zero_limit_is_empty(self):
         entry = self.entry("mem-a", "2026-08-25T10:00:00+03:00", "one")
         self.assertEqual(recent_title_entries([entry], limit=0), [])
+
+    def test_overview_aggregates_durable_memory_without_query(self):
+        first = self.entry("mem-a", "2026-08-25T10:00:00+03:00", "first")
+        first["project"] = "p3"
+        first["tags"] = ["routing", "assistant-recorded"]
+        second = self.entry("mem-b", "2026-08-25T10:01:00+03:00", "second")
+        second["project"] = "p3"
+        second["tags"] = ["routing", "evidence"]
+        rejected = self.entry("mem-rejected", "2026-08-25T10:02:00+03:00", "rejected", state="REJECTED")
+        rejected["project"] = "noise"
+
+        overview = aggregate_memory([first, second, rejected], limit=5)
+
+        self.assertEqual(overview["schema"], "memory-bank.overview.v1")
+        self.assertEqual(overview["eligible_entries"], 2)
+        self.assertEqual(overview["projects"][0]["name"], "p3")
+        self.assertEqual(overview["projects"][0]["count"], 2)
+        self.assertEqual(overview["projects"][0]["latest"]["id"], "mem-b")
+        self.assertEqual(overview["recurring_tags"], [{"name": "routing", "count": 2}])
+        self.assertNotIn("assistant-recorded", {item["name"] for item in overview["top_tags"]})
+        self.assertEqual([item["id"] for item in overview["recent"]], ["mem-b", "mem-a"])
 
 
 if __name__ == "__main__":
