@@ -148,6 +148,10 @@ def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[dat
     now = datetime.now().astimezone()
     if observed_started > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
         raise ValueError("timed run start receipt is in the future")
+    if reported_started > observed_started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+        raise ValueError(
+            "timed run start receipt is stale for this generation: reported started_at is later than observed start"
+        )
     return observed_started, receipt_path
 
 
@@ -227,7 +231,12 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     if any(marker in reason for marker in USER_END_MARKERS):
         return observed_started
     if reason and all(marker in reason for marker in PROVEN_NO_SAFE_WORK_MARKERS):
-        return observed_started
+        if started is not None and observed_started <= started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+            return observed_started
+        raise ValueError(
+            "premature RUN_FINISHED rejected: a true no-safe-work exception requires machine start evidence "
+            "registered near run start; late begin cannot establish early-stop eligibility"
+        )
 
     evidence = " ".join((reason, str(fields.get("remaining_gate") or "").casefold()))
     if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
