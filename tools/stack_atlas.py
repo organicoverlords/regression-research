@@ -7,7 +7,7 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -508,14 +508,16 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     if not history_root.exists():
         return {"available": False, "path": str(history_root)}
     try:
-        from tools.worker_report_history import load_history_metadata
+        from tools.worker_report_history import _history_chronology_is_plausible, load_history_metadata
     except ImportError:
-        from worker_report_history import load_history_metadata
+        from worker_report_history import _history_chronology_is_plausible, load_history_metadata
     now = datetime.now(timezone.utc)
     stale_after_minutes = 90.0
     records = load_history_metadata(history_root)
     latest_by_worker: dict[str, dict[str, Any]] = {}
     for item in records:
+        if not _history_chronology_is_plausible(item):
+            continue
         worker_id = str(item.get("automation_id") or "").strip()
         if not worker_id:
             continue
@@ -524,6 +526,14 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             finished = datetime.fromisoformat(raw_finished.replace("Z", "+00:00")).astimezone(timezone.utc)
         except ValueError:
             continue
+        raw_archived = str(item.get("archived_at") or "").strip()
+        if raw_archived:
+            try:
+                archived = datetime.fromisoformat(raw_archived.replace("Z", "+00:00")).astimezone(timezone.utc)
+            except ValueError:
+                continue
+            if finished > archived + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+                continue
         prev = latest_by_worker.get(worker_id)
         if prev is not None and finished <= prev["_finished_dt"]:
             continue
