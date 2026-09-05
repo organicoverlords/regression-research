@@ -90,12 +90,15 @@ def _validate_run_finished(fields: dict[str, str]) -> None:
     evidence = " ".join((reason, str(fields.get("remaining_gate") or "").casefold()))
     if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
         raise ValueError(
-            "premature RUN_FINISHED blocked: local contention is not a task-level stop reason; "
-            "continue the same issue through another safe existing surface"
+            "premature RUN_FINISHED rejected: this run is NOT finished and this report was NOT archived. "
+            "DO NOT end/final-answer the worker turn. Local contention is not a task-level stop reason; "
+            "continue useful P3 work through another safe non-conflicting scope and retry finalization only "
+            "after >=80% utilization or user interruption/supersession"
         )
     raise ValueError(
-        "premature RUN_FINISHED blocked: under 80% utilization requires user interruption/supersession "
-        "or a proven task-level no-safe-work condition"
+        "premature RUN_FINISHED rejected: this run is NOT finished and this report was NOT archived. "
+        "DO NOT end/final-answer the worker turn. Under 80% utilization, continue useful P3 work unless "
+        "the user interrupted/superseded the run or the documented true no-safe-work condition applies"
     )
 
 
@@ -264,7 +267,24 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     raw = report.read_bytes()
     fields = _fields(raw)
     _validate_current_report(report, fields)
-    _validate_run_finished(fields)
+    try:
+        _validate_run_finished(fields)
+    except ValueError:
+        # A rejected premature finalization means the live run is still active. Keep the
+        # canonical current report truthful even if RUN_FINISHED was written first.
+        if report.parent.name.casefold() == "current" and str(fields.get("state") or "").strip().upper() == "RUN_FINISHED":
+            marker = b"state: RUN_FINISHED"
+            if marker in raw:
+                tmp = report.with_name(report.name + ".continuation.tmp")
+                try:
+                    tmp.write_bytes(raw.replace(marker, b"state: RUNNING", 1))
+                    tmp.replace(report)
+                except OSError:
+                    try:
+                        tmp.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+        raise
     state = (fields.get("state") or fields.get("outcome") or "").upper()
     if state not in {"RUN_FINISHED", "COMPLETE", "WAITING", "BLOCKED", "DONE"}:
         raise ValueError(f"report is not finalized: state={state or 'MISSING'}")
