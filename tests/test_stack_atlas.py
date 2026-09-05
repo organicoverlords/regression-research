@@ -18,6 +18,7 @@ from tools.stack_atlas import (
     _bootstrap_worker_status,
     _bootstrap_disk_trend,
     _read_jsonl_tail,
+    _read_jsonl_window,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -147,6 +148,72 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(len(rows), 400)
             self.assertTrue(all(row["event"] == "recent" for row in rows))
             self.assertEqual(loads.call_count, 400)
+
+    def test_mcp_activity_window_marks_bounded_truncation_explicitly(self):
+        from datetime import datetime, timedelta, timezone
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "transport.jsonl"
+            now = datetime.now(timezone.utc)
+            old = {"event": "process_read", "at": (now - timedelta(minutes=10)).isoformat(), "caller_id": "caller_old"}
+            recent = [
+                {"event": "process_read", "at": now.isoformat(), "caller_id": f"caller_{i}", "padding": "x" * 200}
+                for i in range(40)
+            ]
+            path.write_text("\n".join(json.dumps(x) for x in [old, *recent]) + "\n", encoding="utf-8")
+            rows, complete, sample_bytes = _read_jsonl_window(
+                path,
+                now - timedelta(minutes=5),
+                max_bytes=1024,
+                chunk_bytes=256,
+            )
+            self.assertFalse(complete)
+            self.assertLessEqual(sample_bytes, 1024)
+            self.assertTrue(rows)
+            self.assertTrue(all(row["caller_id"] != "caller_old" for row in rows))
+
+    def test_mcp_status_reports_more_than_eight_callers_across_full_activity_window(self):
+        from datetime import datetime, timedelta, timezone
+        import os
+        import subprocess
+        from tools.stack_atlas import _bootstrap_mcp_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            root = local / "ChatGPTMcpClean" / "minimal-connectors"
+            clone = root / "clone-a"
+            clone.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            transport = []
+            for i in range(12):
+                transport.append({
+                    "event": "process_started",
+                    "at": (now - timedelta(seconds=240 - i)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": f"caller_{i:02d}",
+                    "owner_caller_id": f"caller_{i:02d}",
+                    "process_id": f"process-{i:02d}",
+                    "pid": 1000 + i,
+                    "cwd": rf"C:\\work\\{i:02d}",
+                })
+            for i in range(600):
+                transport.append({
+                    "event": "process_read",
+                    "at": (now - timedelta(seconds=10) + timedelta(milliseconds=i)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": "caller_00",
+                    "owner_caller_id": "caller_00",
+                    "process_id": "process-00",
+                    "pid": 1000,
+                    "running": True,
+                })
+            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in transport) + "\n", encoding="utf-8")
+            busy = subprocess.CompletedProcess([], 0, stdout=json.dumps({"claims": []}), stderr="")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas.subprocess.run", return_value=busy):
+                status = _bootstrap_mcp_status()
+            self.assertEqual(status["active_session_count"], 12)
+            self.assertEqual(status["active_session_count_status"], "COMPLETE")
+            self.assertTrue(status["activity_summary"]["activity_window_complete"])
+            self.assertGreater(status["activity_summary"]["sample_rows"], 400)
 
     def test_mcp_status_reads_only_tail_referenced_receipts(self):
         from datetime import datetime, timezone

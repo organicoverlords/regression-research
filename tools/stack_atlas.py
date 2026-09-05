@@ -7,7 +7,7 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -622,14 +622,84 @@ def _read_jsonl_tail(path: Path, max_lines: int, *, max_bytes: int = 8 * 1024 * 
     return rows
 
 
+def _parse_event_time(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _read_jsonl_window(
+    path: Path,
+    cutoff: datetime,
+    *,
+    max_bytes: int = 8 * 1024 * 1024,
+    chunk_bytes: int = 256 * 1024,
+) -> tuple[list[Any], bool, int]:
+    """Read a bounded JSONL tail until the requested time window is covered."""
+    parts: list[bytes] = []
+    size = path.stat().st_size
+    position = size
+    bytes_read = 0
+    coverage_complete = size == 0
+    with path.open("rb") as handle:
+        while position > 0 and bytes_read < max_bytes:
+            take = min(chunk_bytes, position, max_bytes - bytes_read)
+            if take <= 0:
+                break
+            position -= take
+            handle.seek(position)
+            chunk = handle.read(take)
+            parts.append(chunk)
+            bytes_read += len(chunk)
+
+            probe_lines = chunk.splitlines()
+            if position > 0 and probe_lines:
+                probe_lines = probe_lines[1:]
+            oldest_at = None
+            for raw in probe_lines:
+                try:
+                    row = json.loads(raw.decode("utf-8-sig"))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                oldest_at = _parse_event_time(row.get("at")) if isinstance(row, dict) else None
+                if oldest_at is not None:
+                    break
+            if oldest_at is not None and oldest_at <= cutoff:
+                coverage_complete = True
+                break
+
+    if position == 0:
+        coverage_complete = True
+
+    rows: list[Any] = []
+    for raw in b"".join(reversed(parts)).splitlines():
+        try:
+            row = json.loads(raw.decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        at = _parse_event_time(row.get("at")) if isinstance(row, dict) else None
+        if at is None or at >= cutoff:
+            rows.append(row)
+    return rows, coverage_complete, bytes_read
+
+
 def _bootstrap_mcp_status() -> dict[str, Any]:
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
     if not logs:
         return {"available": False, "status": "MISSING", "active_sessions": [], "active_session_count": 0}
     source = logs[0]
+    now = datetime.now(timezone.utc)
+    activity_window_seconds = 300
+    cutoff = now - timedelta(seconds=activity_window_seconds)
     try:
-        rows = _read_jsonl_tail(source, 400)
+        rows, activity_window_complete, sample_bytes = _read_jsonl_window(source, cutoff)
     except OSError as exc:
         return {"available": False, "status": "ERROR", "active_sessions": [], "active_session_count": 0, "error": str(exc)}
 
@@ -664,8 +734,15 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         elif event == "process_read":
             item["reads"] += 1
 
-    caller_list = [x for x in sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True) if x.get("process_starts") or x.get("reads")][:8]
-    recent_ids = {item["caller_id"] for item in caller_list}
+    caller_list = [x for x in sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True) if x.get("process_starts") or x.get("reads")]
+    active_items = []
+    for item in caller_list:
+        last_dt = _parse_event_time(item.get("last_at"))
+        item["activity_age_seconds"] = round(max(0.0, (now - last_dt).total_seconds()), 1) if last_dt is not None else None
+        if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= activity_window_seconds:
+            active_items.append(item)
+
+    recent_ids = {item["caller_id"] for item in active_items}
     busy_titles: dict[str, list[str]] = {cid: [] for cid in recent_ids}
     try:
         busy = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd"))
@@ -677,10 +754,11 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         # Transport rows already carry the exact process receipt UUID. Read only those
         # receipts represented in the bounded transport tail instead of stat/sorting the
         # entire receipt directory on every bootstrap.
+        busy_receipts_per_session_limit = 8
         receipt_refs = [
             (item["caller_id"], receipts / f"{process_id}.json")
-            for item in caller_list
-            for process_id in item.get("process_ids", [])
+            for item in active_items
+            for process_id in item.get("process_ids", [])[-busy_receipts_per_session_limit:]
         ]
         for caller, rp in reversed(receipt_refs):
             if not remaining:
@@ -697,29 +775,32 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     except Exception:
         pass
 
-    now = datetime.now(timezone.utc)
     active_sessions = []
-    for item in caller_list:
+    for item in active_items:
         cwds = item.pop("cwds", [])
         item.pop("process_ids", None)
         item["cwd"] = cwds[-1] if cwds else None
         item["workspace"] = _bootstrap_session_workspace(item["cwd"])
         item["busy_titles"] = busy_titles.get(item["caller_id"], [])
-        try:
-            last_dt = datetime.fromisoformat(str(item.get("last_at") or "").replace("Z", "+00:00")).astimezone(timezone.utc)
-            item["activity_age_seconds"] = round(max(0.0, (now - last_dt).total_seconds()), 1)
-        except ValueError:
-            item["activity_age_seconds"] = None
-        if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= 300:
-            active_sessions.append(item)
+        active_sessions.append(item)
     source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
     return {
         "available": True,
         "status": "LIVE" if source_age <= 60 else "STALE",
         "source_age_seconds": round(source_age,1),
         "active_session_count": len(active_sessions),
+        "active_session_count_status": "COMPLETE" if activity_window_complete else "LOWER_BOUND",
         "active_sessions": active_sessions,
-        "activity_summary": {**counts, "sample_rows": len(rows), "last_event_at": last_event_at, "last_kill": last_kill},
+        "activity_summary": {
+            **counts,
+            "sample_rows": len(rows),
+            "sample_bytes": sample_bytes,
+            "activity_window_seconds": activity_window_seconds,
+            "activity_window_complete": activity_window_complete,
+            "busy_receipts_per_session_limit": 8,
+            "last_event_at": last_event_at,
+            "last_kill": last_kill,
+        },
     }
 
 
