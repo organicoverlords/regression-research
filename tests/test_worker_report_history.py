@@ -671,6 +671,91 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertNotIn("average_target_utilization_pct", manual_metrics)
 
 
+    def test_manual_finding_tag_aliases_normalize_to_canonical_tags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-aliases"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\nstarted_at: 2026-09-05T09:00:00+03:00\n"
+                "last_activity_at: 2026-09-05T09:01:00+03:00\nrepo: regression-research\nscope: #559\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "finding_tags: collision, resource_issue, proof_gap, convergence, product\nfindings: observed aliases\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, history)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["finding_tags"], ["contention", "improvement", "other", "proof", "resource"])
+
+    def test_unknown_finding_tag_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            current.mkdir(parents=True)
+            run_id = "manual-unknown-tag"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\nstarted_at: 2026-09-05T09:00:00+03:00\n"
+                "last_activity_at: 2026-09-05T09:01:00+03:00\nrepo: regression-research\nscope: #559\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "finding_tags: definitely_not_a_real_tag\nfindings: invalid\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "unknown finding_tags"):
+                archive_finalized_report(report, root / "manual" / "history")
+
+    def test_manual_metrics_and_events_dedupe_same_run_id_to_newest_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_root = root / "manual" / "history"
+            reports = history_root / "_reports"
+            reports.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            base = {
+                "schema": "worker-report-history.v6",
+                "population": "manual",
+                "run_id": "manual-same-logical-run",
+                "display_label": "Manual ChatGPT",
+                "state": "RUN_FINISHED",
+                "repo": "regression-research",
+                "scope": "#559",
+                "finished_at": (now - timedelta(minutes=2)).isoformat(),
+            }
+            older = {
+                **base,
+                "report_sha256": "aaa",
+                "archived_at": (now - timedelta(minutes=1)).isoformat(),
+                "duration_minutes": 3.0,
+                "outcome": "stale correction target",
+                "finding_tags": ["bug"],
+            }
+            newer = {
+                **base,
+                "report_sha256": "bbb",
+                "archived_at": now.isoformat(),
+                "duration_minutes": 7.0,
+                "outcome": "corrected logical run",
+                "finding_tags": ["improvement"],
+            }
+            (reports / "aaa.json").write_text(json.dumps(older), encoding="utf-8")
+            (reports / "bbb.json").write_text(json.dumps(newer), encoding="utf-8")
+
+            metrics = build_metrics_projection(history_root)
+            self.assertEqual(metrics["reports"], 1)
+            self.assertEqual(metrics["runs_with_duration"], 1)
+            self.assertEqual(metrics["average_duration_minutes"], 7.0)
+            self.assertEqual(metrics["finding_tag_counts"], {"improvement": 1})
+            self.assertEqual(metrics["latest_reports"][0]["report_sha256"], "bbb")
+
+            events = worker_history_events(history_root)
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["id"], "worker:bbb")
+            self.assertEqual(events[0]["outcome"], "corrected logical run")
+
+
 
 if __name__ == "__main__":
     unittest.main()
