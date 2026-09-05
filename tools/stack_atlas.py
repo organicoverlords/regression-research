@@ -39,6 +39,8 @@ COMPONENT_ALIASES = {
     "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
+    "busycoordinator": "busy_coordinator",
+    "busy coordinator": "busy_coordinator",
     "tailscale": "tailscale_ingress",
     "funnel": "tailscale_ingress",
     "vps": "vps_edge_ingress",
@@ -378,7 +380,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "coordination.ownership": {
         "owner_components": ["busy_coordinator"],
-        "triggers": ["busy", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
+        "triggers": ["busy", "busycoordinator", "busy coordinator", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
         "entrypoints": [f"{BUSY_CMD} inspect <scope>", f"{BUSY_CMD} claim", f"{BUSY_CMD} heartbeat", f"{BUSY_CMD} release", f"{BUSY_CMD} recover", f"{BUSY_CMD} snapshot"],
         "boundary": "Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress.",
     },
