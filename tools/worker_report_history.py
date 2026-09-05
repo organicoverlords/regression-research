@@ -168,6 +168,13 @@ def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[dat
     return observed_started, receipt_path
 
 
+def _proof_artifact_fields(fields: dict[str, str]) -> tuple[str | None, str | None]:
+    """Normalize report-owned proof artifact navigation without implying acceptance."""
+    artifact = fields.get("proof_artifact") or fields.get("proof_index")
+    sha256 = fields.get("proof_artifact_sha256") or fields.get("proof_index_sha256")
+    return artifact, sha256
+
+
 def _parse_finding_tags(fields: dict[str, str]) -> list[str]:
     raw = str(fields.get("finding_tags") or "").strip()
     if not raw or raw.casefold() == "none":
@@ -280,6 +287,7 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
             duration_seconds = round(seconds, 3)
     duration_minutes = round(duration_seconds / 60, 2) if duration_seconds is not None else None
     display_label = fields.get("display_label") or fields.get("worker")
+    proof_artifact, proof_artifact_sha256 = _proof_artifact_fields(fields)
     metadata: dict[str, Any] = {
         "schema": "worker-report-history.v6",
         "population": population,
@@ -304,6 +312,8 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "stop_reason": fields.get("stop_reason"),
         "finding_tags": _parse_finding_tags(fields),
         "findings": fields.get("findings"),
+        "proof_artifact": proof_artifact,
+        "proof_artifact_sha256": proof_artifact_sha256,
         "visual_proof_run": fields.get("visual_proof_run"),
         "visual_proof_claim": fields.get("visual_proof_claim"),
         "visual_proof_review": fields.get("visual_proof_review"),
@@ -331,6 +341,13 @@ def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
         except (OSError, json.JSONDecodeError):
             continue
         if str(payload.get("schema") or "").startswith("worker-report-history.v"):
+            reported_fields = payload.get("reported_fields")
+            if isinstance(reported_fields, dict):
+                proof_artifact, proof_artifact_sha256 = _proof_artifact_fields(reported_fields)
+                if proof_artifact and not payload.get("proof_artifact"):
+                    payload["proof_artifact"] = proof_artifact
+                if proof_artifact_sha256 and not payload.get("proof_artifact_sha256"):
+                    payload["proof_artifact_sha256"] = proof_artifact_sha256
             records.append(payload)
     return records
 
@@ -492,9 +509,11 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "remaining_gate": item.get("remaining_gate"),
             "finding_tags": item.get("finding_tags") or [],
             "findings": item.get("findings"),
+            "proof_artifact": item.get("proof_artifact"),
+            "proof_artifact_sha256": item.get("proof_artifact_sha256"),
             "visual_proof_run": item.get("visual_proof_run"),
             "visual_proof_review": item.get("visual_proof_review"),
-            "refs": [value for value in (scope, mutation) if value],
+            "refs": [value for value in (scope, mutation, item.get("proof_artifact")) if value],
         })
     return events
 

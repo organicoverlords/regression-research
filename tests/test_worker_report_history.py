@@ -112,6 +112,65 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertNotIn("tool_failures_total", metadata)
             self.assertNotIn("early_stop", metadata)
 
+    def test_proof_index_aliases_are_normalized_into_history_navigation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = root / "ProofRun.md"
+            report.write_text(
+                "worker: ProofRun\nstate: COMPLETE\noutcome: captures produced\n"
+                "repo: organicoverlords/p3\nscope: p3#331\n"
+                "proof_index: C:/proofs/capture-index.json\n"
+                "proof_index_sha256: 71c5e7d9d75fde7ed857c052b0a05373615be3e296ef2db96157aa716513397f\n"
+                "visual_proof_claim: PENDING_REVIEW\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["proof_artifact"], "C:/proofs/capture-index.json")
+            self.assertEqual(
+                metadata["proof_artifact_sha256"],
+                "71c5e7d9d75fde7ed857c052b0a05373615be3e296ef2db96157aa716513397f",
+            )
+            self.assertEqual(metadata["visual_proof_claim"], "PENDING_REVIEW")
+            event = worker_history_events(root / "history")[0]
+            self.assertEqual(event["proof_artifact"], "C:/proofs/capture-index.json")
+            self.assertEqual(event["proof_artifact_sha256"], metadata["proof_artifact_sha256"])
+            self.assertIn("C:/proofs/capture-index.json", event["refs"])
+            self.assertNotIn("visual_proof_pass", event)
+
+    def test_existing_v6_metadata_normalizes_proof_index_from_reported_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history" / "_reports"
+            history.mkdir(parents=True)
+            payload = {
+                "schema": "worker-report-history.v6",
+                "population": "manual",
+                "report_sha256": "legacy-proof",
+                "run_id": "manual-proof-run",
+                "display_label": "Proof run",
+                "state": "RUN_FINISHED",
+                "outcome": "12/12 captures produced; PENDING_REVIEW",
+                "repo": "organicoverlords/p3",
+                "scope": "p3#331",
+                "finished_at": "2026-09-05T10:40:00+03:00",
+                "archived_at": "2026-09-05T10:41:00+03:00",
+                "reported_fields": {
+                    "proof_index": "C:/proofs/capture-index.json",
+                    "proof_index_sha256": "71c5e7d9d75fde7ed857c052b0a05373615be3e296ef2db96157aa716513397f",
+                    "visual_proof_claim": "PENDING_REVIEW",
+                },
+            }
+            (history / "legacy-proof.json").write_text(json.dumps(payload), encoding="utf-8")
+            events = worker_history_events(root / "manual" / "history")
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["proof_artifact"], "C:/proofs/capture-index.json")
+            self.assertEqual(
+                events[0]["proof_artifact_sha256"],
+                "71c5e7d9d75fde7ed857c052b0a05373615be3e296ef2db96157aa716513397f",
+            )
+            self.assertIn("C:/proofs/capture-index.json", events[0]["refs"])
+
     def test_identical_report_deduplicates_and_preserves_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
