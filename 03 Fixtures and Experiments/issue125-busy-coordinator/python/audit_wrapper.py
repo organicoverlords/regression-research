@@ -99,12 +99,12 @@ def rotate_audit(path: pathlib.Path, backups: int) -> None:
         os.replace(src, dst)
 
 
-def append_audit(store: pathlib.Path, event: dict) -> None:
+def append_audit(store: pathlib.Path, event: dict, *, lock_timeout: float = 2.0) -> None:
     path = default_audit_log(store)
     max_bytes, backups = audit_limits()
     line = json.dumps(event, separators=(",", ":"), ensure_ascii=False) + "\n"
     encoded_size = len(line.encode("utf-8"))
-    fd = acquire_lock(path)
+    fd = acquire_lock(path, timeout=lock_timeout)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists() and path.stat().st_size + encoded_size > max_bytes:
@@ -383,7 +383,7 @@ def print_help(contract: dict) -> int:
     commands = ",".join(contract["required_commands"])
     print(f"usage: busy [--store STORE] {{{commands}}} ...")
     print("\nCoordinator state commands are delegated to the selected core implementation.")
-    print("contract/audit/log are read-only or append-only observability extensions outside the ownership store.")
+    print("contract/audit/log are non-authoritative observability extensions outside the ownership store; log is best-effort and never a durable project record.")
     return 0
 
 
@@ -448,7 +448,12 @@ def handle_log(store: pathlib.Path, args: list[str], meta: dict) -> int:
         "machine": os.environ.get("COMPUTERNAME"),
     }
     event = {key: value for key, value in event.items() if value is not None}
-    append_audit(store, event)
+    try:
+        append_audit(store, event, lock_timeout=0.25)
+    except Exception as exc:
+        print(json.dumps({"ok": True, "logged": False, "non_authoritative": True,
+                          "warning": str(exc), "event": event}, separators=(",", ":")))
+        return 0
     print(json.dumps({"ok": True, "logged": event}, separators=(",", ":")))
     return 0
 

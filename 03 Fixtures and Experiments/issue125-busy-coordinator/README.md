@@ -23,7 +23,7 @@ New or renewed ownership (`claim`, `heartbeat`) requires an actor identity with 
 
 The tool apps are separate from MCP and can be invoked through any supported process route. MCP/plugin routes are transports, not ownership systems.
 
-`coordinator-contract.json` is the machine-readable compatibility contract. Installed Python and Rust wrappers share one append-only observability sidecar and expose the same additional `contract`, `log`, and `audit` commands without adding authority to the canonical ownership store. Audit failure is non-authoritative.
+`coordinator-contract.json` is the machine-readable compatibility contract. Installed Python and Rust wrappers share one observability sidecar and expose the same additional `contract`, `log`, and `audit` commands without adding authority to the canonical ownership store. `log` is best-effort compatibility only: it uses a short lock budget, returns success with `logged:false` when the sidecar cannot be written, and must never gate or stop project work. Durable project findings belong on the project GitHub issue/PR and in the worker report. Audit failure is non-authoritative.
 
 `install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` by default, preserving both Python and Rust implementations and the canonical store. The installer also refreshes the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` compatibility entrypoint with the current Python core.
 
@@ -33,6 +33,7 @@ Verification:
 cargo fmt --manifest-path .\rust\Cargo.toml
 cargo test --manifest-path .\rust\Cargo.toml
 python .\tests\contract_guard.py
+python .\tests\audit_wrapper_best_effort.py
 python .\tests\coordinator_parity.py
 python .\tests\install_compatibility.py
 python .\tests\mixed_contention.py
