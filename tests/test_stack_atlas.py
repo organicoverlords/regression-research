@@ -692,6 +692,59 @@ class StackAtlasTests(unittest.TestCase):
             status = _bootstrap_pc_status()
         self.assertEqual(status["gpu"]["sample_status"], "FAST_PROBE_UNAVAILABLE")
 
+    def test_github_bootstrap_success_uses_one_api_call_and_shared_cache(self):
+        import subprocess
+        from tools.stack_atlas import _bootstrap_github_status
+        rate_limit = {
+            "resources": {
+                "core": {"limit": 5000, "remaining": 4900, "used": 100, "reset": 1788650000}
+            }
+        }
+        completed = subprocess.CompletedProcess([], 0, stdout=json.dumps(rate_limit), stderr="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
+            first = _bootstrap_github_status()
+            with patch("tools.stack_atlas.subprocess.run", side_effect=AssertionError("warm cache must not spawn gh")):
+                second = _bootstrap_github_status()
+
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0], [r"C:\gh.exe", "api", "rate_limit"])
+        self.assertTrue(first["authenticated"])
+        self.assertTrue(first["api_reachable"])
+        self.assertTrue(first["available"])
+        self.assertEqual(first["status"], "OK")
+        self.assertFalse(first["cache"]["used"])
+        self.assertTrue(second["cache"]["used"])
+        self.assertEqual(second["rate_limit"]["remaining"], 4900)
+
+    def test_github_bootstrap_auth_probe_is_failure_only_and_failure_cache_is_short(self):
+        import subprocess
+        from tools.stack_atlas import (
+            BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS,
+            _bootstrap_github_status,
+        )
+        api_failure = subprocess.CompletedProcess([], 1, stdout="", stderr="api down")
+        auth_ok = subprocess.CompletedProcess([], 0, stdout="github.com", stderr="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas.subprocess.run", side_effect=[api_failure, auth_ok]) as run:
+            status = _bootstrap_github_status()
+
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[0].args[0], [r"C:\gh.exe", "api", "rate_limit"])
+        self.assertEqual(
+            run.call_args_list[1].args[0],
+            [r"C:\gh.exe", "auth", "status", "--active", "--hostname", "github.com"],
+        )
+        self.assertTrue(status["authenticated"])
+        self.assertFalse(status["api_reachable"])
+        self.assertFalse(status["available"])
+        self.assertEqual(status["status"], "DEGRADED")
+        self.assertEqual(status["cache"]["max_age_seconds"], BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS)
+
     def test_live_powershell_probe_is_bounded(self):
         completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
         with patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:

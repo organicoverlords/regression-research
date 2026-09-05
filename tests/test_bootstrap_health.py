@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -14,24 +15,25 @@ from tools.stack_atlas import (
 
 class BootstrapHealthTests(unittest.TestCase):
     def test_github_health_reports_rate_limit_without_listing_repo_state(self):
-        auth = subprocess.CompletedProcess(["gh", "auth", "status"], 0, "", "")
         api = subprocess.CompletedProcess(
             ["gh", "api", "rate_limit"],
             0,
             json.dumps({"resources": {"core": {"limit": 5000, "remaining": 4200, "used": 800, "reset": 1788640000}}}),
             "",
         )
-        with patch("tools.stack_atlas.shutil.which", return_value="gh"), patch(
-            "tools.stack_atlas.subprocess.run", side_effect=[auth, api]
-        ) as run:
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"LOCALAPPDATA": tmp}), patch(
+            "tools.stack_atlas.shutil.which", return_value="gh"
+        ), patch("tools.stack_atlas.subprocess.run", return_value=api) as run:
             status = _bootstrap_github_status()
         self.assertEqual(status["status"], "OK")
         self.assertTrue(status["authenticated"])
         self.assertTrue(status["api_reachable"])
         self.assertEqual(status["rate_limit"]["remaining"], 4200)
-        self.assertEqual(run.call_count, 2)
-        self.assertNotIn("issue", " ".join(run.call_args_list[1].args[0]))
-        self.assertNotIn("pr", " ".join(run.call_args_list[1].args[0]))
+        self.assertEqual(run.call_count, 1)
+        command = run.call_args.args[0]
+        self.assertEqual(command, ["gh", "api", "rate_limit"])
+        self.assertNotIn("issue", " ".join(command))
+        self.assertNotIn("pr", " ".join(command))
 
     def test_vault_health_is_bounded_to_local_repo_and_memory_tail(self):
         with tempfile.TemporaryDirectory() as tmp:
