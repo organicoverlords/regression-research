@@ -671,6 +671,21 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("history/_reports", " ".join(component_details("worker_reports")["resources"]))
         self.assertNotIn("metrics.json", " ".join(component_details("worker_reports")["resources"]))
 
+    def test_p3_unreal_search_is_navigation_only_not_product_authority(self):
+        p3 = find_features("p3 unreal")[0]
+        self.assertEqual(p3["id"], "project.p3_unreal_navigation")
+        self.assertEqual(p3["owner_components"], ["local_git", "github"])
+        joined = " ".join(p3["entrypoints"])
+        self.assertIn(r"C:\Users\Lauri\Documents\Unreal Projects\p3", joined)
+        self.assertIn("p3_bridge_guard.py", joined)
+        self.assertIn("Test-P3WorkerEditorPreflight.ps1", joined)
+        self.assertIn("Navigation only", p3["boundary"])
+        self.assertIn("remain product authority", p3["boundary"])
+        self.assertIn("rather than trusting Saved/UE_MCP_Bridge/port.json alone", p3["boundary"])
+        with self.assertRaises(KeyError):
+            component_details("p3")
+        self.assertNotIn("p3", full_inventory()["components"])
+
     def test_busycoordinator_literal_name_resolves_to_standalone_busy_ownership(self):
         result = find_features("BusyCoordinator")[0]
         self.assertEqual(result["id"], "coordination.ownership")
