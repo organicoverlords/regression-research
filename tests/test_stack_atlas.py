@@ -546,6 +546,25 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(len(status["active_sessions"]), BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT)
         self.assertTrue(status["active_sessions_truncated"])
 
+    def test_mcp_bootstrap_backfills_semantics_on_legacy_live_cache(self):
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status, MCP_ACTIVE_SESSION_COUNT_SEMANTICS
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            cache = local / "StackAtlas" / "bootstrap-cache" / "mcp-status.json"
+            cache.parent.mkdir(parents=True)
+            cache.write_text(json.dumps({
+                "available": True, "status": "LIVE",
+                "active_session_count": 2, "active_session_count_status": "COMPLETE",
+                "active_sessions": [],
+            }), encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas._read_jsonl_window", side_effect=AssertionError("legacy cache should remain reusable")):
+                status = _bootstrap_mcp_status()
+        self.assertTrue(status["cache"]["used"])
+        self.assertEqual(status["active_session_count"], 2)
+        self.assertEqual(status["active_session_count_semantics"], MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
+
     def test_mcp_bootstrap_reuses_five_second_live_summary(self):
         from datetime import datetime, timezone
         import os
