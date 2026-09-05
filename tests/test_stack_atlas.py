@@ -46,6 +46,9 @@ class StackAtlasTests(unittest.TestCase):
             self.assertLessEqual(session["activity_age_seconds"], 300)
         self.assertIn("notable_conditions", glance)
         self.assertIn("latest_per_worker", glance["workers"])
+        self.assertNotIn("behavior", glance)
+        self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
+        self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
 

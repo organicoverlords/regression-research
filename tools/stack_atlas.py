@@ -753,18 +753,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
             "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
         },
-        "behavior": [
-            "current user instruction is first authority",
-            "use live repo/runtime/tool evidence for current truth",
-            "for any stack/infra work, consult Atlas first to resolve owner/entrypoint/dependents/resources before mutation; then leave Atlas and use the live owner; ordinary P3/Tiny3D/LowVRAM product work bypasses Atlas",
-            "Vault/memory is history/evidence; use targeted retrieval when past work matters",
-            "worker reports/schedules are evidence, not liveness; use live MCP activity for liveness sanity",
-            "BusyCoordinator is exact-scope collision control only: claim shared mutation scope immediately before risky mutation, but a claim never authorizes the change or proves it safe",
-            "read shared RULES.md and AGENTS.md before mutation",
-            "do not rebuild deleted/parallel systems before checking existing owners/history",
-            "disk cleanup is fail-closed: generated product assets/proofs/lineage, user files, browser caches, dirty/unique work and foreign warm state are protected; old/process-free/output-looking is never enough to delete",
-            "batch obvious reads; avoid repeated polling, rediscovery, and serial micro-probes",
-        ],
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
             "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
