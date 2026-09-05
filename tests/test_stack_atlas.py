@@ -38,7 +38,7 @@ class StackAtlasTests(unittest.TestCase):
     def test_live_bootstrap_displays_machine_workers_and_active_sessions(self):
         sample_workers = {
             "available": True,
-            "latest_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+            "latest_archived_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
             "attention": [{"worker": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
         }
         with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
@@ -58,7 +58,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("notable_conditions", glance)
         self.assertIn("worker_report_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
         self.assertNotIn("worker_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
-        self.assertIn("latest_per_worker", glance["workers"])
+        self.assertIn("latest_archived_per_worker", glance["workers"])
+        self.assertNotIn("fleet", glance["workers"])
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
@@ -146,7 +147,7 @@ class StackAtlasTests(unittest.TestCase):
                 workers = _bootstrap_worker_status()
             load_history.assert_called_once_with(history_root)
             self.assertTrue(workers["available"])
-            self.assertEqual(workers["latest_per_worker"][0]["automation_id"], "worker-1")
+            self.assertEqual(workers["latest_archived_per_worker"][0]["automation_id"], "worker-1")
 
     def test_stale_worker_archive_is_not_current_liveness_attention(self):
         from datetime import datetime, timedelta, timezone
@@ -174,12 +175,12 @@ class StackAtlasTests(unittest.TestCase):
             ]
             with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness")
+        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership")
         self.assertEqual(workers["stale_after_minutes"], 90.0)
         self.assertEqual([item["worker"] for item in workers["attention"]], ["Hazel"])
         self.assertEqual(workers["stale_reports"], [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}])
-        self.assertEqual(workers["fleet"]["stale_report_count"], 1)
-        fir = next(item for item in workers["latest_per_worker"] if item["display_label"] == "Fir")
+        self.assertEqual(workers["archive_sample"]["stale_report_count"], 1)
+        fir = next(item for item in workers["latest_archived_per_worker"] if item["display_label"] == "Fir")
         self.assertEqual(fir["report_freshness"], "STALE")
 
     def test_impossible_worker_archive_does_not_replace_latest_valid_run(self):
@@ -206,13 +207,49 @@ class StackAtlasTests(unittest.TestCase):
             ]
             with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["fleet"]["on_target_count"], 0)
-        self.assertEqual(workers["fleet"]["short_or_worse_count"], 1)
-        self.assertEqual(len(workers["latest_per_worker"]), 1)
-        fir = workers["latest_per_worker"][0]
+        self.assertEqual(workers["archive_sample"]["on_target_count"], 0)
+        self.assertEqual(workers["archive_sample"]["short_or_worse_count"], 1)
+        self.assertEqual(len(workers["latest_archived_per_worker"]), 1)
+        fir = workers["latest_archived_per_worker"][0]
         self.assertEqual(fir["display_label"], "Fir")
         self.assertEqual(fir["finished_at"], valid_finished.isoformat())
         self.assertEqual(fir["classification"], "SEVERELY_PREMATURE")
+
+
+    def test_worker_archive_sample_is_not_presented_as_current_scheduler_fleet(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "worker-reports" / "history").mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            labels = ["Retired Fir", "Aspen", "Maple", "Pine", "Alder", "Old Hazel"]
+            records = []
+            for index, label in enumerate(labels):
+                records.append({
+                    "automation_id": f"history-{index}",
+                    "display_label": label,
+                    "finished_at": (now - timedelta(minutes=index + 1)).isoformat(),
+                    "archived_at": (now - timedelta(minutes=index + 1) + timedelta(seconds=1)).isoformat(),
+                    "duration_minutes": 20.0,
+                    "target_run_minutes": 24.0,
+                    "target_utilization_pct": 83.3,
+                })
+            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+                workers = _bootstrap_worker_status()
+        self.assertNotIn("fleet", workers)
+        self.assertEqual(workers["current_scheduler_membership"]["available"], False)
+        self.assertEqual(workers["current_scheduler_membership"]["authority"], "ChatGPT Automations state")
+        self.assertEqual(workers["archive_sample"]["historical_worker_ids_seen"], 6)
+        self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
+        self.assertEqual(workers["archive_sample"]["sample_limit"], 5)
+        self.assertEqual(
+            workers["archive_sample"]["selection"],
+            "five_most_recent_latest_archives_per_automation_id",
+        )
+        sampled_labels = [item["display_label"] for item in workers["latest_archived_per_worker"]]
+        self.assertIn("Retired Fir", sampled_labels)
+        self.assertNotIn("Old Hazel", sampled_labels)
+        self.assertNotIn("Enabled Juniper With No Archive", json.dumps(workers))
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone

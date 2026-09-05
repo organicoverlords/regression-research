@@ -579,33 +579,42 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             "target_utilization_pct": round(util,1) if util is not None else None,
             "classification": classification,
         }
-    latest = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:5]
-    for item in latest:
+    archive_sample_limit = 5
+    latest_archived = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:archive_sample_limit]
+    for item in latest_archived:
         item.pop("_finished_dt", None)
-    util_values = [x["target_utilization_pct"] for x in latest if isinstance(x.get("target_utilization_pct"),(int,float))]
-    duration_values = [x["duration_minutes"] for x in latest if isinstance(x.get("duration_minutes"),(int,float))]
+    util_values = [x["target_utilization_pct"] for x in latest_archived if isinstance(x.get("target_utilization_pct"),(int,float))]
+    duration_values = [x["duration_minutes"] for x in latest_archived if isinstance(x.get("duration_minutes"),(int,float))]
     attention = [
         {"worker": x.get("display_label"), "duration_minutes": x.get("duration_minutes"), "target_minutes": x.get("target_minutes"), "utilization_pct": x.get("target_utilization_pct"), "classification": x.get("classification"), "age_minutes": x.get("age_minutes")}
-        for x in latest
+        for x in latest_archived
         if x.get("report_freshness") == "RECENT"
         and x.get("classification") in {"SHORT","PREMATURE","SEVERELY_PREMATURE"}
     ]
     stale_reports = [
         {"worker": x.get("display_label"), "age_minutes": x.get("age_minutes"), "last_archived_classification": x.get("classification")}
-        for x in latest if x.get("report_freshness") == "STALE"
+        for x in latest_archived if x.get("report_freshness") == "STALE"
     ]
     return {
         "available": True,
         "generated_at": now.isoformat(),
         "target_run_minutes": 24.0,
         "stale_after_minutes": stale_after_minutes,
-        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness",
-        "latest_per_worker": latest,
-        "fleet": {
-            "workers_seen": len(latest),
+        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+        "current_scheduler_membership": {
+            "available": False,
+            "authority": "ChatGPT Automations state",
+            "reason": "current enabled scheduler membership is not derivable from worker report history",
+        },
+        "latest_archived_per_worker": latest_archived,
+        "archive_sample": {
+            "selection": "five_most_recent_latest_archives_per_automation_id",
+            "sample_limit": archive_sample_limit,
+            "sampled_worker_count": len(latest_archived),
+            "historical_worker_ids_seen": len(latest_by_worker),
             "average_latest_duration_minutes": round(sum(duration_values)/len(duration_values),2) if duration_values else None,
             "average_latest_utilization_pct": round(sum(util_values)/len(util_values),1) if util_values else None,
-            "on_target_count": sum(1 for x in latest if x.get("classification") == "ON_TARGET"),
+            "on_target_count": sum(1 for x in latest_archived if x.get("classification") == "ON_TARGET"),
             "short_or_worse_count": len(attention),
             "stale_report_count": len(stale_reports),
         },
