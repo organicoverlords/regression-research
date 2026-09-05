@@ -91,9 +91,10 @@ def _validate_current_report(report: Path, fields: dict[str, str], raw: bytes) -
         raise ValueError("current report last_activity_at precedes started_at")
 
 
-def _validate_run_finished(fields: dict[str, str]) -> None:
+def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None) -> None:
     if str(fields.get("state") or "").strip().upper() != "RUN_FINISHED":
         return
+    started = _parse_time(fields.get("started_at"))
     last_activity = _parse_time(fields.get("last_activity_at"))
     now = datetime.now().astimezone()
     if last_activity is not None and last_activity > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
@@ -101,8 +102,15 @@ def _validate_run_finished(fields: dict[str, str]) -> None:
             "premature RUN_FINISHED blocked: last_activity_at is in the future; "
             "this run is NOT finished and future time cannot satisfy utilization"
         )
-    started = _parse_time(fields.get("started_at"))
-    finished = _parse_time(fields.get("last_activity_at"))
+    if report is not None and report.parent.name.casefold() == "current":
+        report_written = datetime.fromtimestamp(report.stat().st_mtime).astimezone()
+        for field_name, claimed_at in (("started_at", started), ("last_activity_at", last_activity)):
+            if claimed_at is not None and claimed_at > report_written + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+                raise ValueError(
+                    f"premature RUN_FINISHED blocked: {field_name} occurs after report file write time; "
+                    "this run is NOT finished and activity not yet evidenced by the report file cannot satisfy utilization"
+                )
+    finished = last_activity
     if started is None or finished is None:
         return
     duration_minutes = (finished - started).total_seconds() / 60.0
@@ -307,7 +315,7 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     fields = _fields(raw)
     _validate_current_report(report, fields, raw)
     try:
-        _validate_run_finished(fields)
+        _validate_run_finished(fields, report=report)
     except ValueError:
         # A rejected premature finalization means the live run is still active. Keep the
         # canonical current report truthful even if RUN_FINISHED was written first.

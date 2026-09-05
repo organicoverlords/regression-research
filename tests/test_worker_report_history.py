@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta
@@ -241,6 +242,34 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertIn("state: RUNNING", current_text)
             self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
             self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_run_finished_rejects_claimed_activity_after_report_write_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            now = datetime.now().astimezone()
+            cases = (
+                ("a" * 32, "started_at", now - timedelta(minutes=5), now - timedelta(minutes=2), now - timedelta(minutes=10)),
+                ("b" * 32, "last_activity_at", now - timedelta(minutes=25), now - timedelta(minutes=2), now - timedelta(minutes=10)),
+            )
+            for automation_id, invalid_field, started, last_activity, written_at in cases:
+                with self.subTest(invalid_field=invalid_field):
+                    report = current / f"{automation_id}.md"
+                    report.write_text(
+                        f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                        f"last_activity_at: {last_activity.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                        "outcome: useful work\nmutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n"
+                        "stop_reason: useful work window materially exhausted\n",
+                        encoding="utf-8",
+                    )
+                    os.utime(report, (written_at.timestamp(), written_at.timestamp()))
+                    with self.assertRaisesRegex(ValueError, rf"{invalid_field} occurs after report file write time.*NOT finished"):
+                        archive_finalized_report(report, root / "history")
+                    current_text = report.read_text(encoding="utf-8")
+                    self.assertIn("state: RUNNING", current_text)
+                    self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
+                    self.assertFalse((root / "history" / "_reports").exists())
 
     def test_metrics_and_events_ignore_archives_with_future_finish_time(self):
         with tempfile.TemporaryDirectory() as tmp:
