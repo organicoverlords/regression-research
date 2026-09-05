@@ -146,6 +146,41 @@ try:
         finally:
             kernel32.CloseHandle(handle)
 
+    # Explicit sweep removes only stale exact-store temps whose encoded writer PID is proven dead.
+    def exited_pid() -> int:
+        proc = subprocess.Popen([sys.executable, "-c", "pass"])
+        proc.wait(timeout=10)
+        return proc.pid
+
+    temp_sweep_results = []
+    for kind in ("py", "rs"):
+        temp_store = base / f"temp-sweep-{kind}.json"
+        temp_store.write_text(json.dumps({"claims": [], "coordinator": {"version": 1, "jobs": {}, "operations": {}}}) + "\n", encoding="utf-8")
+        stale_dead_pid = exited_pid()
+        fresh_dead_pid = exited_pid()
+        stale_dead = pathlib.Path(str(temp_store) + f".{stale_dead_pid}.tmp")
+        fresh_dead = pathlib.Path(str(temp_store) + f".{fresh_dead_pid}.tmp")
+        live_old = pathlib.Path(str(temp_store) + f".{os.getpid()}.tmp")
+        malformed = pathlib.Path(str(temp_store) + ".not-a-pid.tmp")
+        sibling = base / f"other-store.{stale_dead_pid}.tmp"
+        for path in (stale_dead, fresh_dead, live_old, malformed, sibling):
+            path.write_text(path.name, encoding="utf-8")
+        old = time.time() - 120
+        for path in (stale_dead, live_old, malformed, sibling):
+            os.utime(path, (old, old))
+
+        sweep = run(kind, temp_store, "sweep")
+        assert sweep["removed_temp_count"] == 1
+        assert sweep["removed_temp_files"] == [{"name": stale_dead.name, "pid": stale_dead_pid}]
+        assert not stale_dead.exists()
+        assert fresh_dead.exists()
+        assert live_old.exists()
+        assert malformed.exists()
+        assert sibling.exists()
+        temp_sweep_results.append({"count": sweep["removed_temp_count"], "preserved": [fresh_dead.exists(), live_old.exists(), malformed.exists(), sibling.exists()]})
+    assert temp_sweep_results[0]["count"] == temp_sweep_results[1]["count"] == 1
+    assert temp_sweep_results[0]["preserved"] == temp_sweep_results[1]["preserved"] == [True, True, True, True]
+
     # Managed lease expiry releases ownership and returns, but does not retain, live checkpoint context.
     expiry = base / "expiry.json"
     assert run("py", expiry, "claim", actor, "expiring", "--lease-seconds", "1", "--checkpoint", "resume-here")["ok"] is True
