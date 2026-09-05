@@ -9,6 +9,16 @@ from pathlib import Path
 from typing import Any
 
 TARGET_RUN_MINUTES = 24.0
+MIN_RUN_FINISH_UTILIZATION_PCT = 80.0
+LOCAL_CONTENTION_STOP_MARKERS = (
+    "occupied", "collision ownership", "ownership was unavailable", "resource-dependent",
+    "resource dependent", "heavy runtime", "runtime lane", "build lane", "unreal lane",
+    "unreal/runtime", "pending ci", "pending proof",
+)
+USER_END_MARKERS = ("user interrupt", "user supersed")
+PROVEN_NO_SAFE_WORK_MARKERS = (
+    "task-level blocker", "safe existing execution surfaces", "independent useful work", "exhausted",
+)
 CURRENT_REPORT_REQUIRED_FIELDS = (
     "automation_id", "started_at", "last_activity_at", "repo", "scope", "state",
     "outcome", "mutation", "validation", "remaining_gate",
@@ -57,6 +67,36 @@ def _validate_current_report(report: Path, fields: dict[str, str]) -> None:
         raise ValueError("current report last_activity_at is not a valid ISO-8601 timestamp")
     if last_activity < started:
         raise ValueError("current report last_activity_at precedes started_at")
+
+
+def _validate_run_finished(fields: dict[str, str]) -> None:
+    if str(fields.get("state") or "").strip().upper() != "RUN_FINISHED":
+        return
+    started = _parse_time(fields.get("started_at"))
+    finished = _parse_time(fields.get("last_activity_at"))
+    if started is None or finished is None:
+        return
+    duration_minutes = (finished - started).total_seconds() / 60.0
+    utilization_pct = duration_minutes / TARGET_RUN_MINUTES * 100.0
+    if utilization_pct >= MIN_RUN_FINISH_UTILIZATION_PCT:
+        return
+
+    reason = str(fields.get("stop_reason") or "").strip().casefold()
+    if any(marker in reason for marker in USER_END_MARKERS):
+        return
+    if reason and all(marker in reason for marker in PROVEN_NO_SAFE_WORK_MARKERS):
+        return
+
+    evidence = " ".join((reason, str(fields.get("remaining_gate") or "").casefold()))
+    if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
+        raise ValueError(
+            "premature RUN_FINISHED blocked: local contention is not a task-level stop reason; "
+            "continue the same issue through another safe existing surface"
+        )
+    raise ValueError(
+        "premature RUN_FINISHED blocked: under 80% utilization requires user interruption/supersession "
+        "or a proven task-level no-safe-work condition"
+    )
 
 
 def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path) -> dict[str, Any]:
@@ -224,8 +264,9 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     raw = report.read_bytes()
     fields = _fields(raw)
     _validate_current_report(report, fields)
+    _validate_run_finished(fields)
     state = (fields.get("state") or fields.get("outcome") or "").upper()
-    if state not in {"COMPLETE", "WAITING", "BLOCKED", "DONE"}:
+    if state not in {"RUN_FINISHED", "COMPLETE", "WAITING", "BLOCKED", "DONE"}:
         raise ValueError(f"report is not finalized: state={state or 'MISSING'}")
     fields.setdefault("worker", fields.get("display_label") or report.stem)
     fields.setdefault("state", state)
