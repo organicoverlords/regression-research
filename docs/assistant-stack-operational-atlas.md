@@ -14,8 +14,8 @@ Use `find <query>` when you know the need but not the component. Search this der
 | --- | --- | --- | --- |
 | `vault.history` | memory_bank | memory_bank.py search; memory_bank.py search --history; memory_bank.py context; memory_bank.py timeline; memory_bank.py recent-titles | History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference. |
 | `project.current_truth` | agent_rules, north_star, local_git, github | shared .agents RULES.md + AGENTS.md; repo NORTH_STAR/equivalent; git status/HEAD + relevant branch/commit history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
-| `coordination.ownership` | busy_coordinator | busy-python.cmd inspect <scope>; claim; heartbeat; release; recover; snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
-| `coordination.checkpoint_context` | busy_coordinator | busy-python.cmd inspect <scope>; claim --checkpoint; heartbeat --checkpoint | Live exact-scope ownership context only; never retained after release/recovery/expiry and never backlog, priority, handoff scheduling, liveness, or reassignment. Durable continuation belongs in the project issue/PR. |
+| `coordination.ownership` | busy_coordinator | C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd inspect <scope>; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd claim; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd heartbeat; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd release; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd recover; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
+| `coordination.checkpoint_context` | busy_coordinator | C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd inspect <scope>; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd claim --checkpoint; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd heartbeat --checkpoint | Live exact-scope ownership context only; never retained after release/recovery/expiry and never backlog, priority, handoff scheduling, liveness, or reassignment. Durable continuation belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
 | `execution.transport` | vps_edge_ingress, mcp_front_door | preferred MCPv3 binding when healthy and exposed; retired Remote Desktop Commander fallback whenever preferred MCPv3 is unavailable; retry failed routes only on changed state or new evidence | Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 
@@ -31,12 +31,12 @@ Product-stage ownership comes from the current product repo architecture contrac
 
 - Role: `coordination_authority`
 - Capabilities: coordination
-- Canonical sources: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd; %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
-- Live status: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot; inspect <scope>
-- Independent recovery: %LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover
-- Resources: %LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json
+- Canonical sources: C:\Users\Lauri\AppData\Local\BusyCoordinator\coordinator-contract.json; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy.py; C:\Users\Lauri\AppData\Local\ChatGPTMcpClean\.state\busy-claims.json
+- Live status: C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd --help; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd snapshot; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd inspect <scope>
+- Independent recovery: C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd recover
+- Resources: C:\Users\Lauri\AppData\Local\ChatGPTMcpClean\.state\busy-claims.json
 - Dependents: chatgpt_session; execution_workers
-- Runbook: AGENTS.md; %LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json
+- Runbook: C:\Users\Lauri\AppData\Local\BusyCoordinator\coordinator-contract.json; AGENTS.md
 - Supervisor: none; CLI/service contract owns durable store semantics
 - Self-heal: not_applicable
 
