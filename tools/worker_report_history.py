@@ -549,6 +549,65 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     return result
 
 
+def audit_manual_current_reports(current_root: Path, history_root: Path) -> dict[str, Any]:
+    """Classify manual current reports without treating file presence as worker liveness."""
+    if current_root.name.casefold() != "current" or current_root.parent.name.casefold() != "manual":
+        raise ValueError("manual current audit requires worker-reports/manual/current")
+    if _report_population(history_root=history_root) != "manual":
+        raise ValueError("manual current audit requires worker-reports/manual/history")
+
+    archived_run_ids = {
+        str(item.get("run_id") or "").strip().casefold()
+        for item in _dedupe_manual_run_records([
+            item for item in load_history_metadata(history_root)
+            if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item)
+        ])
+        if str(item.get("run_id") or "").strip()
+    }
+    rows: list[dict[str, Any]] = []
+    for report in sorted(current_root.glob("*.md")):
+        raw = report.read_bytes()
+        fields = _fields(raw)
+        error = None
+        try:
+            _validate_current_report(report, fields, raw)
+        except ValueError as exc:
+            error = str(exc)
+        run_id = str(fields.get("run_id") or report.stem).strip()
+        state = str(fields.get("state") or "").strip().upper()
+        archived = run_id.casefold() in archived_run_ids
+        if error:
+            lifecycle_status = "INVALID_CURRENT"
+        elif state == "RUNNING":
+            lifecycle_status = "UNFINALIZED_RUNNING"
+        elif archived:
+            lifecycle_status = "ARCHIVED_CURRENT_POINTER"
+        else:
+            lifecycle_status = "UNARCHIVED_TERMINAL"
+        rows.append({
+            "run_id": run_id,
+            "path": str(report),
+            "state": state or None,
+            "last_activity_at": fields.get("last_activity_at"),
+            "archived": archived,
+            "lifecycle_status": lifecycle_status,
+            "liveness": "NOT_ESTABLISHED_BY_REPORT",
+            "error": error,
+        })
+    counts = Counter(row["lifecycle_status"] for row in rows)
+    return {
+        "ok": True,
+        "population": "manual",
+        "current_root": str(current_root),
+        "history_root": str(history_root),
+        "reports": rows,
+        "counts": dict(sorted(counts.items())),
+        "unfinalized_count": counts.get("UNFINALIZED_RUNNING", 0),
+        "unarchived_terminal_count": counts.get("UNARCHIVED_TERMINAL", 0),
+        "liveness_semantics": "manual current reports are lifecycle evidence only; present worker liveness requires independent live activity evidence",
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Preserve finalized worker reports as immutable content-addressed history.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -557,6 +616,9 @@ def build_parser() -> argparse.ArgumentParser:
     archive = sub.add_parser("archive")
     archive.add_argument("--report", type=Path, required=True)
     archive.add_argument("--history-root", type=Path)
+    audit = sub.add_parser("audit-manual-current")
+    audit.add_argument("--current-root", type=Path, required=True)
+    audit.add_argument("--history-root", type=Path, required=True)
     return parser
 
 
@@ -572,6 +634,8 @@ def main() -> int:
     try:
         if args.command == "begin":
             result = begin_timed_run(args.report)
+        elif args.command == "audit-manual-current":
+            result = audit_manual_current_reports(args.current_root, args.history_root)
         else:
             history_root = args.history_root or _default_history_root(args.report)
             result = archive_finalized_report(args.report, history_root)

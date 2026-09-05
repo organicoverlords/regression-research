@@ -1259,7 +1259,7 @@
     },
     {
       "incident_id": null,
-      "incident_id_status": "github_issue_569_not_incident_id",
+      "incident_id_status": "unassigned",
       "report_path": "01 Reports/2026-09-05_2312_EEST_MCP_worker_liveness_policy_blindness_incident_report.md",
       "title": "MCP worker liveness policy-blindness incident",
       "date": "2026-09-05T23:12:00+03:00",
@@ -1275,27 +1275,26 @@
         "evidence_file_no_direct_match",
         "contract_snapshot_not_linked"
       ],
-      "notes": "Indexes the #569 incident report separating live MCP execution evidence from archived worker-report history. Runtime telemetry and GitHub issue/PR evidence named by the report are live/external evidence, not repository files, so no local provenance path is invented."
+      "notes": "Indexes regression-research #569's observed worker-liveness policy-blindness incident. The report's decisive evidence is live MCP transport/process telemetry and bootstrap observations on the host; those runtime paths are not tracked repository artifacts, so no local evidence link or incident id is invented."
     },
     {
       "incident_id": null,
-      "incident_id_status": "github_issue_569_not_incident_id",
+      "incident_id_status": "reconciliation_checkpoint_not_incident_id",
       "report_path": "01 Reports/2026-09-05_2318_EEST_Vault_audit_addendum_for_569.md",
       "title": "Vault audit addendum for regression-research #569",
       "date": "2026-09-05T23:18:00+03:00",
-      "evidence_type": "audit_addendum",
+      "evidence_type": "runtime_reconciliation_report",
       "raw_transcripts": [],
       "evidence_files": [],
       "contract_snapshots": [],
       "duplicate_status": "canonical",
       "superseded_by": null,
       "missing": [
-        "incident_id_not_assigned",
         "raw_transcript_not_preserved",
         "evidence_file_no_direct_match",
         "contract_snapshot_not_linked"
       ],
-      "notes": "Indexes the #569 live audit addendum documenting the serving-generation boundary, stale latest-workspace attribution, recent-active versus currently-running semantics, and the Windows manual-history dedupe crash path. External runtime paths are evidence named by the report, not fabricated repository links."
+      "notes": "Indexes the #569 Vault/MCP audit reconciliation addendum. It narrows live activity semantics, records workspace-attribution and manual-history robustness gaps, and distinguishes merged MCP evidence-owner code from the older serving generation. Named live runtime/GitHub evidence is not fabricated as a local provenance path."
     }
   ],
   "orphan_evidence": [

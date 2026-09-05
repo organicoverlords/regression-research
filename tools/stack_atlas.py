@@ -31,6 +31,10 @@ BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
+BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
+BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
+BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES = 30.0
+BOOTSTRAP_MANUAL_REPORT_READ_BYTES = 16 * 1024
 AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
@@ -584,6 +588,106 @@ def _bootstrap_pc_status() -> dict[str, Any]:
     }
 
 
+
+def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
+    """Bounded purpose/freshness hints from manual current reports; never liveness authority."""
+    current_root = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "current"
+    semantics = "manual_current_report_state_and_purpose_only_not_process_liveness_or_scheduler_membership"
+    if not current_root.exists():
+        return {"available": False, "path": str(current_root), "evidence_semantics": semantics}
+    try:
+        from tools.worker_report_history import _fields, _parse_time
+    except ImportError:
+        from worker_report_history import _fields, _parse_time
+
+    try:
+        report_paths = sorted(
+            (path for path in current_root.glob("*.md") if path.is_file()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError as exc:
+        return {"available": False, "path": str(current_root), "evidence_semantics": semantics, "error": str(exc)}
+
+    scan_paths = report_paths[:BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT]
+    running_reports: list[dict[str, Any]] = []
+    malformed_running_reports = 0
+
+    def clipped(value: Any, limit: int) -> str:
+        raw = str(value or "").strip()
+        if len(raw) <= limit:
+            return raw
+        return raw[: max(0, limit - 3)] + "..."
+
+    for report_path in scan_paths:
+        try:
+            stat = report_path.stat()
+            with report_path.open("rb") as handle:
+                raw = handle.read(BOOTSTRAP_MANUAL_REPORT_READ_BYTES)
+            fields = _fields(raw)
+            if str(fields.get("state") or "").strip().upper() != "RUNNING":
+                continue
+            run_id = str(fields.get("run_id") or "").strip()
+            if not run_id or report_path.stem.casefold() != run_id.casefold():
+                malformed_running_reports += 1
+                continue
+            last_activity = _parse_time(fields.get("last_activity_at"))
+            if last_activity is None:
+                malformed_running_reports += 1
+                continue
+            last_activity_utc = last_activity.astimezone(timezone.utc)
+            if last_activity_utc > now + timedelta(seconds=60):
+                malformed_running_reports += 1
+                continue
+            report_mtime = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+            age_minutes = max(
+                0.0,
+                max(
+                    (now - last_activity_utc).total_seconds(),
+                    (now - report_mtime).total_seconds(),
+                ) / 60.0,
+            )
+            running_reports.append({
+                "run_id": clipped(run_id, 120),
+                "display_label": clipped(fields.get("display_label"), 120),
+                "repo": clipped(fields.get("repo"), 180),
+                "scope": clipped(fields.get("scope"), 280),
+                "state": "RUNNING",
+                "last_activity_at": str(fields.get("last_activity_at") or "").strip(),
+                "_age_minutes": age_minutes,
+            })
+        except (OSError, UnicodeError, ValueError, TypeError):
+            malformed_running_reports += 1
+
+    running_reports.sort(key=lambda item: item["_age_minutes"])
+    recent_running = [
+        item for item in running_reports
+        if item["_age_minutes"] <= BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES
+    ]
+    sample: list[dict[str, Any]] = []
+    for item in recent_running[:BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT]:
+        visible = dict(item)
+        visible["age_minutes"] = round(float(visible.pop("_age_minutes")), 1)
+        sample.append(visible)
+
+    scan_truncated = len(report_paths) > len(scan_paths)
+    return {
+        "available": True,
+        "path": str(current_root),
+        "evidence_semantics": semantics,
+        "recent_window_minutes": BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES,
+        "scan_limit": BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT,
+        "current_report_file_count": len(report_paths),
+        "scanned_report_file_count": len(scan_paths),
+        "scan_truncated": scan_truncated,
+        "running_reports_in_scan": len(running_reports),
+        "recent_running_report_count": len(recent_running),
+        "recent_running_report_count_status": "LOWER_BOUND" if scan_truncated else "COMPLETE",
+        "recent_running_reports": sample,
+        "recent_running_reports_truncated": len(recent_running) > len(sample),
+        "malformed_running_reports_in_scan": malformed_running_reports,
+    }
+
 def _bootstrap_worker_status() -> dict[str, Any]:
     history_root = ATLAS_LIVE_ROOT / "worker-reports" / "history"
     if not history_root.exists():
@@ -600,6 +704,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS}
             return cached
     now = datetime.now(timezone.utc)
+    manual_current = _bootstrap_manual_current_status(now)
     stale_after_minutes = 90.0
     records = load_history_metadata(history_root)
     latest_by_worker: dict[str, dict[str, Any]] = {}
@@ -677,6 +782,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             "reason": "current enabled scheduler membership is not derivable from worker report history",
         },
         "latest_archived_per_worker": latest_archived,
+        "manual_current": manual_current,
         "archive_sample": {
             "selection": "five_most_recent_latest_archives_per_automation_id",
             "sample_limit": archive_sample_limit,
@@ -1028,10 +1134,15 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"worker_report_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
     for item in workers.get("stale_reports", []) if isinstance(workers, dict) else []:
         notable_conditions.append(f"worker_report_{item.get('worker')}_stale_{item.get('age_minutes')}m_since_archive")
+    manual_current = workers.get("manual_current", {}) if isinstance(workers, dict) else {}
+    recent_manual_running = int(manual_current.get("recent_running_report_count") or 0) if isinstance(manual_current, dict) else 0
+    if recent_manual_running > 0:
+        count_status = str(manual_current.get("recent_running_report_count_status") or "UNKNOWN").casefold()
+        notable_conditions.append(f"manual_running_reports_recent_{recent_manual_running}_{count_status}")
     worker_glance = {
         key: workers.get(key) for key in (
             "available", "generated_at", "evidence_semantics", "current_scheduler_membership",
-            "archive_sample", "attention", "stale_reports", "cache",
+            "archive_sample", "manual_current", "attention", "stale_reports", "cache",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     return {
