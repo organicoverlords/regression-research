@@ -376,6 +376,59 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertTrue((root / ".supervision" / f"{automation_id}.start.json").exists())
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
 
+    def test_timed_run_rejects_stale_receipt_from_prior_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "5" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {(now - timedelta(minutes=5)).isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            stale_observed = (now - timedelta(minutes=60)).isoformat()
+            receipt = self._write_timed_start_receipt(report, stale_observed)
+            with self.assertRaisesRegex(ValueError, "start receipt is stale for this generation"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue(receipt.exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_late_begin_cannot_self_attest_true_no_safe_work_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "6" * 32
+            now = datetime.now().astimezone()
+            reported_started = now - timedelta(minutes=18)
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                "outcome: active\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            begin = begin_timed_run(report)
+            finished = datetime.now().astimezone()
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: task-level blocker proven after safe existing execution surfaces and independent useful work were exhausted\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "late begin cannot establish early-stop eligibility"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue(Path(begin["receipt_path"]).exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
+
     def test_timed_run_archive_uses_observed_start_and_consumes_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
