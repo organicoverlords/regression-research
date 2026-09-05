@@ -20,12 +20,20 @@ from tools.stack_atlas import (
     _bootstrap_disk_trend,
     _read_jsonl_tail,
     _read_jsonl_window,
+    _cwd_uses_worktree,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+    def test_session_cwd_worktree_match_is_one_way(self):
+        worktree = r"C:\Users\Lauri\AppData\Local\Temp\p3-941-control-hints"
+        self.assertTrue(_cwd_uses_worktree(worktree, worktree))
+        self.assertTrue(_cwd_uses_worktree(worktree + r"\Source\LaneWar", worktree))
+        self.assertFalse(_cwd_uses_worktree(r"C:\Users\Lauri", worktree))
+        self.assertFalse(_cwd_uses_worktree(r"C:\Users\Lauri\AppData\Local\Temp\other-worktree", worktree))
+
     def test_live_bootstrap_displays_machine_workers_and_active_sessions(self):
         sample_workers = {
             "available": True,

@@ -417,6 +417,23 @@ def _bootstrap_disk_trend(current_free_gb: float) -> dict[str, Any]:
     return result
 
 
+def _cwd_uses_worktree(cwd: str | os.PathLike[str] | None, worktree: str | os.PathLike[str] | None) -> bool:
+    """Return True only when the session cwd is the worktree or is inside it.
+
+    Direction matters: a broad parent cwd (for example C:\\Users\\Lauri) must
+    never claim every descendant worktree.
+    """
+    if not cwd or not worktree:
+        return False
+    try:
+        cwd_path = Path(os.path.abspath(os.path.expandvars(os.fspath(cwd))))
+        worktree_path = Path(os.path.abspath(os.path.expandvars(os.fspath(worktree))))
+        cwd_path.relative_to(worktree_path)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
 def _bootstrap_session_workspace(cwd: str | None) -> str | None:
     if not cwd:
         return None
