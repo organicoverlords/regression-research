@@ -295,6 +295,14 @@ class StackAtlasTests(unittest.TestCase):
             write_report("manual-b", "P3 worker-population blindness audit", "RUNNING", now - timedelta(minutes=2), "audit worker population")
             write_report("manual-stale", "Stale audit", "RUNNING", now - timedelta(minutes=45), "old audit")
             write_report("manual-finished", "Finished audit", "RUN_FINISHED", now - timedelta(minutes=1), "finished audit")
+            malformed = write_report("manual-malformed", "Malformed audit", "RUNNING", now - timedelta(minutes=1), "bad timestamp")
+            malformed.write_text(
+                malformed.read_text(encoding="utf-8").replace(
+                    f"last_activity_at: {(now - timedelta(minutes=1)).isoformat()}",
+                    "last_activity_at: 2026-09-06T00.15.18+03:00",
+                ),
+                encoding="utf-8",
+            )
 
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
                  patch("tools.worker_report_history.load_history_metadata", return_value=[]):
@@ -310,6 +318,17 @@ class StackAtlasTests(unittest.TestCase):
             ["Head Auditor continuation", "P3 worker-population blindness audit"],
         )
         self.assertNotIn("Stale audit", json.dumps(manual))
+        self.assertEqual(manual["malformed_running_reports_in_scan"], 1)
+        self.assertEqual(
+            manual["malformed_running_reports"],
+            [{
+                "filename": "manual-malformed.md",
+                "reason": "invalid_last_activity_at",
+                "run_id": "manual-malformed",
+                "value": "2026-09-06T00.15.18+03:00",
+            }],
+        )
+        self.assertFalse(manual["malformed_running_reports_truncated"])
         self.assertIn("not_process_liveness", manual["evidence_semantics"])
 
     def test_worker_archive_sample_is_not_presented_as_current_scheduler_fleet(self):
