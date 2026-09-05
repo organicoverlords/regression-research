@@ -68,6 +68,18 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0]["sha"], newest)
 
+    def test_repo_timeline_owns_product_roots_without_importing_stack_atlas(self):
+        import tools.repo_timeline as repo_timeline
+        import tools.stack_atlas as stack_atlas
+
+        self.assertEqual(set(repo_timeline.PRODUCT_ROOTS), {"lowvram", "tiny3d", "p3"})
+        original = dict(repo_timeline.PRODUCT_ROOTS)
+        with patch.object(stack_atlas, "PRODUCT_ROOTS", {"sentinel": r"C:\definitely-not-a-product-root"}, create=True):
+            self.assertEqual(repo_timeline.PRODUCT_ROOTS, original)
+        source = (Path(__file__).resolve().parents[1] / "tools" / "repo_timeline.py").read_text(encoding="utf-8")
+        self.assertNotIn("from .stack_atlas import PRODUCT_ROOTS", source)
+        self.assertNotIn("from stack_atlas import PRODUCT_ROOTS", source)
+
     def test_repo_discovery_uses_canonical_product_roots_without_projection(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
