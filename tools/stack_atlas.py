@@ -75,7 +75,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1", "chatgpt-mcp-clean/src/front-door.ts"],
         "live_status": [
             "root front-door health plus exact tool contract/semantic call",
-            "root / may remain on 3003; current MCPv3 production ingress bypasses it through the VPS Caddy + reverse-SSH edge to clone 3011",
+            "root / may remain on 3003; current MCPv3 production ingress bypasses it through VPS Caddy -> WireGuard 10.203.0.2:3011 primary; native reverse-SSH lanes on VPS loopback 3101-3104 are intentional ordered fallbacks, not incomplete migration",
             "ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity",
         ],
         "supervisor": "ChatGPTMcpClean keepalive FrontDoor role",
@@ -105,22 +105,22 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\start-tunnel.ps1"],
+        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
         "live_status": [
             "clone health",
             "exact tool contract",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "2026-09-03 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> persistent reverse SSH -> clone 3011; final scheduled path passed 100/100 initialize/initialized/start_process and live MCPv3 calls",
+            "2026-09-05 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 primary -> clone 3011; native reverse-SSH lanes 3101-3104 are intentional bounded fallbacks, not duplicate production routes",
         ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
         "independent_recovery": [
-            "VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path",
+            "WireGuard is the primary VPS-to-PC backend path; four native OpenSSH reverse lanes are intentional independent fallbacks and their presence/health is expected",
             "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback",
             "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
         ],
-        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy/reverse-SSH route", "clone OAuth/OpenID metadata handlers"],
+        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy ordered upstreams", "WireGuard 10.203.0.2:3011 primary", "reverse-SSH 3101-3104 fallbacks", "clone OAuth/OpenID metadata handlers"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [
             MCP_ROOT + r"\AGENTS.md",
@@ -132,12 +132,23 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "vps_edge_ingress": {
         "role": "public_mcp_edge_and_observer",
         "capabilities": ["source_read", "runtime_validate", "artifact_transfer"],
-        "canonical_sources": [VPS_EDGE_ROOT + r"\start-tunnel.ps1", VPS_EDGE_ROOT + r"\vps_mcp_reverse_tunnel.py", VPS_EDGE_ROOT + r"\publish-artifact.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
-        "live_status": ["https://5-61-91-127.sslip.io/edge-status", "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp", "Windows scheduled task McpVpsEdgeTunnel", "VPS mcp-edge-health.timer"],
-        "supervisor": "Caddy/systemd on VPS plus Windows McpVpsEdgeTunnel scheduled task",
-        "self_heal": "reverse tunnel reconnect loop + systemd-managed Caddy/health timers",
-        "independent_recovery": ["local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn", "Tailscale may be used only as an explicitly revalidated non-production fallback"],
-        "resources": ["VPS 5.61.91.127", "public TCP 80/443", "SSH TCP 22", "VPS loopback 3011 reverse listener", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
+        "canonical_sources": [VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", VPS_EDGE_ROOT + r"\provision_edge_extras.py", VPS_EDGE_ROOT + r"\publish-artifact.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
+        "live_status": [
+            "https://5-61-91-127.sslip.io/edge-status (must report primary and fallback health separately)",
+            "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp",
+            "Windows WireGuardTunnel$mcp-wireguard service with 10.203.0.2/30 and a recent VPS handshake",
+            "Caddy ordered upstreams: 10.203.0.2:3011 primary, then 127.0.0.1:3101-3104 native reverse-SSH fallbacks",
+            "four native OpenSSH reverse tunnels are intentional fallback lanes; their presence is expected and is not evidence of an incomplete migration",
+            "Windows scheduled task McpVpsEdgeTunnel owns SSH fallback recovery; VPS mcp-edge-health.timer owns observation",
+        ],
+        "supervisor": "Caddy/systemd on VPS plus Windows WireGuard tunnel service primary and McpVpsEdgeTunnel task for SSH fallbacks",
+        "self_heal": "WireGuard service primary + independent native SSH fallback lanes + Caddy active health checks",
+        "independent_recovery": [
+            "local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn",
+            "if WireGuard primary fails, Caddy may use healthy 3101-3104 SSH fallback lanes; fallback activity alone is not migration-incomplete evidence",
+            "Tailscale may be used only as an explicitly revalidated non-production fallback",
+        ],
+        "resources": ["VPS 5.61.91.127", "public TCP 80/443", "WireGuard UDP 51820", "WireGuard 10.203.0.1/30 <-> 10.203.0.2/30", "SSH TCP 22 fallback transport", "VPS loopback 3101-3104 reverse listeners", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
         "dependents": ["mcp_minimal_clone", "file_transfer", "chatgpt_process_transport"],
         "runbook": ["01 Reports/2026-09-03_MCP_vps_edge_cutover.md"],
     },
@@ -897,9 +908,18 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     evidence: list[str] = []
     component: str | None = None
 
-    if "mcpvpsedge" in ancestry_text or "vps_mcp_reverse_tunnel.py" in command:
+    if (
+        "mcpvpsedge" in ancestry_text
+        or "vps_mcp_reverse_tunnel.py" in command
+        or (
+            "ssh.exe" in command
+            and "tietokettu_edge" in command
+            and "127.0.0.1:3011" in command
+            and any(f"127.0.0.1:310{lane}:" in command for lane in range(1, 5))
+        )
+    ):
         component = "vps_edge_ingress"
-        evidence.append("McpVpsEdge reverse-tunnel process ancestry")
+        evidence.append("McpVpsEdge primary/fallback transport process")
     elif "chatgptmcpclean" in ancestry_text and "front-door" in ancestry_text:
         component = "mcp_front_door"
         evidence.append("ChatGPTMcpClean front-door process ancestry")
