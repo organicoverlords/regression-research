@@ -3,65 +3,30 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RULES_ROOT = Path(r"C:\Users\Lauri\Documents\agent-rules")
-VAULT_CONTEXT = RULES_ROOT / "contexts" / "vault.md"
-DIRECTIVE = (
-    "- In this repository, before substantive stack/policy, BUSY/MCP, plugin-routing, "
-    "memory-boundary, or regression work, read the current `NORTH_STAR.md` and use it as "
-    "project direction. It does not override current user instructions, live repo/runtime "
-    "evidence, or these operating rules."
-)
-
-NAVIGATION_HEADING = "### Navigation minimap"
-ATLAS_ORDER = "Stack Atlas -> smallest relevant live authority -> targeted Vault history only when needed"
-SEARCH_BEFORE_INVENTING = "If a capability seems missing, search Atlas before designing another"
-
-
-READ_ONLY_CLAIM_RULE = "Read-only work and independent low-risk mutation need no claim."
-
-
-BIG_CHANGE_INTERRUPT = (
-    "- Before a large or hard-to-reverse mutation or landing step, such as a broad rebase/rewrite, "
-    "architecture/control-plane/startup/memory change, large multi-file change, or PR merge, re-check "
-    "the current user instruction and the exact BusyCoordinator scope, including scope-visible pending "
-    "handoffs/findings. A newer stop, superseding handoff, or scope change interrupts immediately: "
-    "preserve current work and do not continue, rebase, push, or merge from stale task state. This is "
-    "a boundary check, not per-command polling; ordinary small edits do not repeatedly poll the coordinator."
-)
+RULES_ROOT = Path(r"C:\Users\Lauri\.agents")
 
 
 class NorthStarEntryTests(unittest.TestCase):
-    def test_agents_points_to_canonical_rules_and_vault_context(self):
+    def test_agents_points_to_canonical_shared_contract(self):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\RULES.md", agents)
-        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\contexts\vault.md", agents)
+        self.assertIn(r"C:\Users\Lauri\.agents\RULES.md", agents)
+        self.assertIn(r"C:\Users\Lauri\.agents\AGENTS.md", agents)
+        self.assertIn("https://github.com/organicoverlords/agents", agents)
         self.assertIn("pointer-only", agents)
-        self.assertNotIn(DIRECTIVE, agents)
 
-    def test_agents_requires_current_north_star_before_substantive_stack_work(self):
-        context = VAULT_CONTEXT.read_text(encoding="utf-8")
-        self.assertEqual(context.count(DIRECTIVE), 1)
-
-    def test_vault_is_optional_history_not_startup(self):
+    def test_shared_rules_keep_live_authority_and_history_boundary(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
-        self.assertEqual(rules.count(NAVIGATION_HEADING), 1)
-        self.assertEqual(rules.count(ATLAS_ORDER), 1)
-        self.assertEqual(rules.count(SEARCH_BEFORE_INVENTING), 1)
-        self.assertNotIn("memory_bank.py bootstrap", rules)
-        self.assertIn("Vault is history/evidence", rules)
+        self.assertIn("Current explicit user instruction defines the objective.", rules)
+        self.assertIn("Current repo/runtime/tool evidence defines current facts.", rules)
+        self.assertIn("Vault history are evidence only", rules)
+        self.assertIn("Stack Atlas", rules)
 
-    def test_read_only_work_does_not_claim_busy(self):
+    def test_shared_contract_keeps_go_open_ended_and_stop_task_level(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
-        self.assertEqual(rules.count(READ_ONLY_CLAIM_RULE), 1)
-
-
-    def test_large_worker_changes_recheck_current_interrupt_state(self):
-        context = VAULT_CONTEXT.read_text(encoding="utf-8")
-        self.assertEqual(context.count(BIG_CHANGE_INTERRUPT), 1)
-        self.assertIn("scope-visible pending handoffs/findings", BIG_CHANGE_INTERRUPT)
-        self.assertIn("newer stop, superseding handoff, or scope change", BIG_CHANGE_INTERRUPT)
-        self.assertIn("not per-command polling", BIG_CHANGE_INTERRUPT)
-        self.assertIn("do not continue, rebase, push, or merge from stale task state", BIG_CHANGE_INTERRUPT)
+        agents = (RULES_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("a `go` turn is not a one-slice checkpoint", rules)
+        self.assertIn("Stop only for a concrete task-level blocker", rules)
+        self.assertIn("continue through nonblocking waits instead of polling or stopping early", agents)
 
     def test_north_star_exposes_current_project_direction_and_finish_line(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
@@ -83,9 +48,11 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertNotIn("Make live MCP ownership the only coordination authority", north_star)
 
     def test_orientation_keeps_north_star_distinct_from_operating_authority(self):
-        self.assertIn("project direction", DIRECTIVE)
-        self.assertIn("does not override current user instructions", DIRECTIVE)
-        self.assertIn("or these operating rules", DIRECTIVE)
+        north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
+        rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
+        self.assertIn("Status: **PRODUCT DIRECTION.**", north_star)
+        self.assertIn("Current explicit user instruction defines the objective.", rules)
+        self.assertIn("Current repo/runtime/tool evidence defines current facts.", rules)
 
 
 if __name__ == "__main__":
