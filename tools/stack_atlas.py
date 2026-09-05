@@ -30,7 +30,8 @@ MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
-BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
+BOOTSTRAP_GITHUB_CACHE_SECONDS = 300.0
+BOOTSTRAP_GITHUB_WATCH_CACHE_SECONDS = 30.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
@@ -1359,11 +1360,12 @@ def _bootstrap_github_status() -> dict[str, Any]:
     cached, cache_age = _bootstrap_cache_read("github-status.json", BOOTSTRAP_GITHUB_CACHE_SECONDS)
     if cached is not None:
         cached_status = str(cached.get("status") or "")
-        cache_max_age = (
-            BOOTSTRAP_GITHUB_CACHE_SECONDS
-            if cached_status in {"OK", "WATCH"}
-            else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
-        )
+        if cached_status == "OK":
+            cache_max_age = BOOTSTRAP_GITHUB_CACHE_SECONDS
+        elif cached_status == "WATCH":
+            cache_max_age = BOOTSTRAP_GITHUB_WATCH_CACHE_SECONDS
+        else:
+            cache_max_age = BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
         if cache_age is not None and cache_age <= cache_max_age:
             cached = dict(cached)
             cached["cache"] = {
@@ -1433,11 +1435,12 @@ def _bootstrap_github_status() -> dict[str, Any]:
             result["authenticated"] = bool(auth is not None and auth.returncode == 0)
             result["status"] = "DEGRADED" if result["authenticated"] else "UNAVAILABLE"
 
-    cache_max_age = (
-        BOOTSTRAP_GITHUB_CACHE_SECONDS
-        if result["status"] in {"OK", "WATCH"}
-        else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
-    )
+    if result["status"] == "OK":
+        cache_max_age = BOOTSTRAP_GITHUB_CACHE_SECONDS
+    elif result["status"] == "WATCH":
+        cache_max_age = BOOTSTRAP_GITHUB_WATCH_CACHE_SECONDS
+    else:
+        cache_max_age = BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
     result["cache"] = {"used": False, "age_seconds": 0.0, "max_age_seconds": cache_max_age}
     result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
     cache_payload = dict(result)
@@ -1550,6 +1553,86 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "notable_conditions": notable_conditions,
         "memory_overview": memory_overview,
         "recent_memory_titles": memory_overview.get("recent", []),
+    }
+
+
+def _bootstrap_cli_view(glance: dict[str, Any]) -> dict[str, Any]:
+    """Small task-boundary view; full bootstrap data remains available with --full."""
+    pc = glance.get("pc", {}) if isinstance(glance.get("pc"), dict) else {}
+    workers = glance.get("workers", {}) if isinstance(glance.get("workers"), dict) else {}
+    manual = workers.get("manual_current", {}) if isinstance(workers.get("manual_current"), dict) else {}
+    mcp = glance.get("mcp", {}) if isinstance(glance.get("mcp"), dict) else {}
+    github = glance.get("github", {}) if isinstance(glance.get("github"), dict) else {}
+    vault = glance.get("vault", {}) if isinstance(glance.get("vault"), dict) else {}
+    freeze = glance.get("mcp_known_good_freeze", {}) if isinstance(glance.get("mcp_known_good_freeze"), dict) else {}
+    paths = glance.get("paths", {}) if isinstance(glance.get("paths"), dict) else {}
+
+    disk = pc.get("disk", {}) if isinstance(pc.get("disk"), dict) else {}
+    memory = pc.get("memory", {}) if isinstance(pc.get("memory"), dict) else {}
+    gpu = pc.get("gpu", {}) if isinstance(pc.get("gpu"), dict) else {}
+
+    return {
+        "schema": glance.get("schema"),
+        "generated_at": glance.get("generated_at"),
+        "bootstrap": glance.get("bootstrap", {}),
+        "notable_conditions": glance.get("notable_conditions", []),
+        "pc": {
+            "disk": {key: disk.get(key) for key in ("status", "free_gb", "reserve_25gb_ok", "trend") if key in disk},
+            "memory": {key: memory.get(key) for key in ("status", "commit_headroom_gb", "commit_used_pct", "physical_free_pct") if key in memory},
+            "gpu": {key: gpu.get(key) for key in ("sample_status", "sample_age_seconds", "utilization_pct", "vram_free_mb") if key in gpu},
+        },
+        "workers": {
+            "evidence_semantics": workers.get("evidence_semantics"),
+            "manual_current": {
+                key: manual.get(key) for key in (
+                    "evidence_semantics",
+                    "recent_running_report_count",
+                    "recent_running_report_count_status",
+                    "recent_running_reports",
+                    "recent_running_reports_truncated",
+                    "malformed_running_reports",
+                    "malformed_running_reports_truncated",
+                    "scan_truncated",
+                    "recent_scan_cutoff_reached",
+                ) if key in manual
+            },
+            "attention": workers.get("attention", []),
+        },
+        "mcp": {
+            key: mcp.get(key) for key in (
+                "available",
+                "status",
+                "source_age_seconds",
+                "active_session_count",
+                "active_session_count_status",
+                "active_sessions",
+                "active_sessions_truncated",
+                "workspace_counts",
+                "activity_summary",
+                "cache",
+            ) if key in mcp
+        },
+        "github": {
+            key: github.get(key) for key in (
+                "available", "status", "authenticated", "api_reachable", "rate_limit", "cache", "latency_ms"
+            ) if key in github
+        },
+        "vault": {
+            key: vault.get(key) for key in (
+                "available", "status", "head", "latency_ms", "memory_bank_age_seconds"
+            ) if key in vault
+        },
+        "mcp_known_good_freeze": {
+            key: freeze.get(key) for key in (
+                "status", "backend_commit", "backend_generation", "frozen_at", "refreeze_not_before",
+                "multi_day_real_use", "user_confirmed_stable"
+            ) if key in freeze
+        },
+        "paths": {
+            key: paths.get(key) for key in (
+                "rules", "vault", "worker_reports", "p3", "mcp", "mcp_known_good_freeze"
+            ) if key in paths
+        },
     }
 
 
@@ -2031,7 +2114,8 @@ def render_manual() -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Derived stack capability/dependency Atlas; never a runtime authority.")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("bootstrap-glance")
+    bootstrap_parser = sub.add_parser("bootstrap-glance")
+    bootstrap_parser.add_argument("--full", action="store_true", help="emit the complete diagnostic payload instead of the compact task-boundary view")
     sub.add_parser("inventory")
     manual = sub.add_parser("manual")
     manual.add_argument("--output", type=Path)
@@ -2054,6 +2138,9 @@ def main() -> int:
 
     if args.command == "bootstrap-glance":
         value = build_live_bootstrap_glance()
+        if not args.full:
+            print(json.dumps(_bootstrap_cli_view(value), separators=(",", ":"), sort_keys=True))
+            return 0
     elif args.command == "inventory":
         value = full_inventory()
     elif args.command == "manual":
