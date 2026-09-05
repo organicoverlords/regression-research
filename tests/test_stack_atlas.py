@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -307,6 +308,20 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("worker-reports/current/<automation-id>.md", " ".join(component_details("worker_reports")["resources"]))
         self.assertIn("history/_reports", " ".join(component_details("worker_reports")["resources"]))
         self.assertNotIn("metrics.json", " ".join(component_details("worker_reports")["resources"]))
+
+    def test_busy_feature_entrypoints_are_directly_executable_paths(self):
+        expected = str(Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd")))
+        ownership = find_features("busy collision control")[0]
+        self.assertEqual(ownership["id"], "coordination.ownership")
+        self.assertTrue(ownership["entrypoints"])
+        self.assertTrue(all(entry.startswith(expected) for entry in ownership["entrypoints"]))
+        checkpoint = find_features("checkpoint resume")[0]
+        self.assertTrue(all(entry.startswith(expected) for entry in checkpoint["entrypoints"]))
+        details = component_details("busy")
+        self.assertTrue(all(command.startswith(expected) for command in details["live_status"]))
+        self.assertTrue(all(command.startswith(expected) for command in details["independent_recovery"]))
+        self.assertIn(expected, details["canonical_sources"])
+        self.assertTrue(Path(expected).exists())
 
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])

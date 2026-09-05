@@ -13,7 +13,11 @@ from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
 ROOT = Path(__file__).resolve().parents[1]
-BUSY_STORE = r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"
+BUSY_ROOT = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator"))
+BUSY_CONTRACT = str(BUSY_ROOT / "coordinator-contract.json")
+BUSY_CMD = str(BUSY_ROOT / "busy-python.cmd")
+BUSY_PY = str(BUSY_ROOT / "busy.py")
+BUSY_STORE = os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json")
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
@@ -54,14 +58,14 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "busy_coordinator": {
         "role": "coordination_authority",
         "capabilities": ["coordination"],
-        "canonical_sources": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd", BUSY_STORE],
-        "live_status": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd snapshot", "inspect <scope>"],
+        "canonical_sources": [BUSY_CONTRACT, BUSY_CMD, BUSY_PY, BUSY_STORE],
+        "live_status": [f"{BUSY_CMD} --help", f"{BUSY_CMD} snapshot", f"{BUSY_CMD} inspect <scope>"],
         "supervisor": "none; CLI/service contract owns durable store semantics",
         "self_heal": "not_applicable",
-        "independent_recovery": [r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd recover"],
+        "independent_recovery": [f"{BUSY_CMD} recover"],
         "resources": [BUSY_STORE],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": ["AGENTS.md", r"%LOCALAPPDATA%\BusyCoordinator\coordinator-contract.json"],
+        "runbook": [BUSY_CONTRACT, "AGENTS.md"],
     },
     "mcp_front_door": {
         "role": "process_transport_front_door",
@@ -358,13 +362,13 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "coordination.ownership": {
         "owner_components": ["busy_coordinator"],
         "triggers": ["busy", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
-        "entrypoints": ["busy-python.cmd inspect <scope>", "claim", "heartbeat", "release", "recover", "snapshot"],
+        "entrypoints": [f"{BUSY_CMD} inspect <scope>", f"{BUSY_CMD} claim", f"{BUSY_CMD} heartbeat", f"{BUSY_CMD} release", f"{BUSY_CMD} recover", f"{BUSY_CMD} snapshot"],
         "boundary": "Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress.",
     },
     "coordination.checkpoint_context": {
         "owner_components": ["busy_coordinator"],
         "triggers": ["checkpoint", "resume", "live scope context", "why is this scope claimed"],
-        "entrypoints": ["busy-python.cmd inspect <scope>", "claim --checkpoint", "heartbeat --checkpoint"],
+        "entrypoints": [f"{BUSY_CMD} inspect <scope>", f"{BUSY_CMD} claim --checkpoint", f"{BUSY_CMD} heartbeat --checkpoint"],
         "boundary": "Live exact-scope ownership context only; never retained after release/recovery/expiry and never backlog, priority, handoff scheduling, liveness, or reassignment. Durable continuation belongs in the project issue/PR.",
     },
     "worker.reports": {
