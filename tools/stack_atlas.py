@@ -26,6 +26,7 @@ AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
+MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes"
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
@@ -939,6 +940,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     cached, cache_age = _bootstrap_cache_read("mcp-status.json", BOOTSTRAP_MCP_CACHE_SECONDS)
     if cached is not None:
         cached = dict(cached)
+        cached.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
         cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS}
         return cached
 
@@ -1046,7 +1048,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         "source_age_seconds": round(source_age,1),
         "active_session_count": len(active_items),
         "active_session_count_status": "COMPLETE" if activity_window_complete else "LOWER_BOUND",
-        "active_session_count_semantics": "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes",
+        "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
         "active_sessions": active_sessions,
         "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
         "active_sessions_truncated": len(active_items) > len(active_sessions),
