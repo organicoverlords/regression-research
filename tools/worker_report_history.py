@@ -19,6 +19,8 @@ LOCAL_CONTENTION_STOP_MARKERS = (
 USER_END_MARKERS = ("user interrupt", "user supersed")
 CONTINUATION_STOP_REASON = "premature finalization rejected; run continuing"
 MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
+START_RECEIPT_SCHEMA = "worker-run-start.v1"
+START_RECEIPT_DIRNAME = ".supervision"
 PROVEN_NO_SAFE_WORK_MARKERS = (
     "task-level blocker", "safe existing execution surfaces", "independent useful work", "exhausted",
 )
@@ -90,6 +92,72 @@ def _metadata_population(item: dict[str, Any]) -> str:
     return population if population in {"timed", "manual"} else "timed"
 
 
+def _timed_start_receipt_path(report: Path) -> Path:
+    return report.parent.parent / START_RECEIPT_DIRNAME / f"{report.stem}.start.json"
+
+
+def begin_timed_run(report: Path) -> dict[str, Any]:
+    raw = report.read_bytes()
+    fields = _fields(raw)
+    _validate_current_report(report, fields, raw)
+    if _report_population(report=report) != "timed" or report.parent.name.casefold() != "current":
+        raise ValueError("timed run begin requires worker-reports/current/<automation-id>.md")
+    if str(fields.get("state") or "").strip().upper() != "RUNNING":
+        raise ValueError("timed run begin requires state: RUNNING")
+    now = datetime.now().astimezone()
+    reported_started = _parse_time(fields.get("started_at"))
+    if reported_started is None:
+        raise ValueError("timed run begin requires a valid started_at")
+    skew_seconds = abs((reported_started - now).total_seconds())
+    if skew_seconds > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
+        raise ValueError(
+            "timed run begin rejected: started_at must match the machine-observed begin time within 60 seconds"
+        )
+    receipt_path = _timed_start_receipt_path(report)
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema": START_RECEIPT_SCHEMA,
+        "automation_id": fields.get("automation_id"),
+        "observed_started_at": now.isoformat(),
+        "reported_started_at": fields.get("started_at"),
+        "initial_report_sha256": hashlib.sha256(raw).hexdigest(),
+    }
+    tmp = receipt_path.with_name(receipt_path.name + ".tmp")
+    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(receipt_path)
+    return {
+        "ok": True,
+        "automation_id": fields.get("automation_id"),
+        "observed_started_at": payload["observed_started_at"],
+        "receipt_path": str(receipt_path),
+    }
+
+
+def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[datetime, Path]:
+    receipt_path = _timed_start_receipt_path(report)
+    if not receipt_path.exists():
+        raise ValueError(
+            "timed RUN_FINISHED requires machine start evidence; run begin was not registered with worker_report_history.py begin"
+        )
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    if payload.get("schema") != START_RECEIPT_SCHEMA:
+        raise ValueError("timed run start receipt schema is invalid")
+    if str(payload.get("automation_id") or "").casefold() != report.stem.casefold():
+        raise ValueError("timed run start receipt automation_id does not match current report")
+    observed_started = _parse_time(str(payload.get("observed_started_at") or ""))
+    reported_started = _parse_time(fields.get("started_at"))
+    if observed_started is None or reported_started is None:
+        raise ValueError("timed run start receipt contains invalid chronology")
+    now = datetime.now().astimezone()
+    if observed_started > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+        raise ValueError("timed run start receipt is in the future")
+    if abs((reported_started - observed_started).total_seconds()) > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
+        raise ValueError(
+            "premature RUN_FINISHED blocked: reported started_at differs from the machine-observed run start by more than 60 seconds"
+        )
+    return observed_started, receipt_path
+
+
 def _parse_finding_tags(fields: dict[str, str]) -> list[str]:
     raw = str(fields.get("finding_tags") or "").strip()
     if not raw or raw.casefold() == "none":
@@ -128,9 +196,9 @@ def _validate_current_report(report: Path, fields: dict[str, str], raw: bytes) -
         raise ValueError("current report last_activity_at precedes started_at")
 
 
-def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None) -> None:
+def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None) -> datetime | None:
     if str(fields.get("state") or "").strip().upper() != "RUN_FINISHED":
-        return
+        return None
     population = _report_population(report=report)
     started = _parse_time(fields.get("started_at"))
     last_activity = _parse_time(fields.get("last_activity_at"))
@@ -149,20 +217,24 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
                     "this run is NOT finished and activity not yet evidenced by the report file cannot satisfy utilization"
                 )
     if population == "manual":
-        return
+        return None
+    if report is None or report.parent.name.casefold() != "current":
+        observed_started = started
+    else:
+        observed_started, _ = _load_timed_start_receipt(report, fields)
     finished = last_activity
-    if started is None or finished is None:
-        return
-    duration_minutes = (finished - started).total_seconds() / 60.0
+    if observed_started is None or finished is None:
+        return observed_started
+    duration_minutes = (finished - observed_started).total_seconds() / 60.0
     utilization_pct = duration_minutes / TARGET_RUN_MINUTES * 100.0
     if utilization_pct >= MIN_RUN_FINISH_UTILIZATION_PCT:
-        return
+        return observed_started
 
     reason = str(fields.get("stop_reason") or "").strip().casefold()
     if any(marker in reason for marker in USER_END_MARKERS):
-        return
+        return observed_started
     if reason and all(marker in reason for marker in PROVEN_NO_SAFE_WORK_MARKERS):
-        return
+        return observed_started
 
     evidence = " ".join((reason, str(fields.get("remaining_gate") or "").casefold()))
     if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
@@ -179,10 +251,11 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     )
 
 
-def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path, population: str) -> dict[str, Any]:
+def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path, population: str, observed_started_at: datetime | None = None) -> dict[str, Any]:
     started_at = fields.get("started_at")
     finished_at = fields.get("finished_at") or fields.get("last_activity_at")
-    started = _parse_time(started_at)
+    reported_started = _parse_time(started_at)
+    started = observed_started_at or reported_started
     finished = _parse_time(finished_at)
     duration_seconds = None
     if started is not None and finished is not None:
@@ -201,6 +274,7 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "worker": display_label or fields.get("run_id") or "unknown",
         "state": fields.get("state"),
         "started_at": started_at,
+        "observed_started_at": observed_started_at.isoformat() if observed_started_at is not None else None,
         "finished_at": finished_at,
         "duration_seconds": duration_seconds,
         "duration_minutes": duration_minutes,
@@ -392,8 +466,9 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     raw = report.read_bytes()
     fields = _fields(raw)
     _validate_current_report(report, fields, raw)
+    observed_started_at: datetime | None = None
     try:
-        _validate_run_finished(fields, report=report)
+        observed_started_at = _validate_run_finished(fields, report=report)
     except ValueError:
         # A rejected premature finalization means the live run is still active. Keep the
         # canonical current report truthful even if RUN_FINISHED was written first.
@@ -442,11 +517,15 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         target.write_bytes(raw)
     metadata_created = not metadata_path.exists()
     if metadata_created:
-        metadata = _derived_metadata(fields, digest=digest, archive_path=target, population=population)
+        metadata = _derived_metadata(
+            fields, digest=digest, archive_path=target, population=population, observed_started_at=observed_started_at
+        )
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     metrics_path, metrics = write_metrics_projection(history_root)
+    if observed_started_at is not None and report.parent.name.casefold() == "current":
+        _timed_start_receipt_path(report).unlink(missing_ok=True)
     result = {
         "ok": True,
         "population": population,
@@ -473,6 +552,8 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Preserve finalized worker reports as immutable content-addressed history.")
     sub = parser.add_subparsers(dest="command", required=True)
+    begin = sub.add_parser("begin")
+    begin.add_argument("--report", type=Path, required=True)
     archive = sub.add_parser("archive")
     archive.add_argument("--report", type=Path, required=True)
     archive.add_argument("--history-root", type=Path)
@@ -489,8 +570,11 @@ def _default_history_root(report: Path) -> Path:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        history_root = args.history_root or _default_history_root(args.report)
-        result = archive_finalized_report(args.report, history_root)
+        if args.command == "begin":
+            result = begin_timed_run(args.report)
+        else:
+            history_root = args.history_root or _default_history_root(args.report)
+            result = archive_finalized_report(args.report, history_root)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1

@@ -7,10 +7,26 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import archive_finalized_report, build_metrics_projection, worker_history_events
+from tools.worker_report_history import archive_finalized_report, begin_timed_run, build_metrics_projection, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
+    @staticmethod
+    def _write_timed_start_receipt(report: Path, observed_started_at: str) -> Path:
+        receipt = report.parent.parent / ".supervision" / f"{report.stem}.start.json"
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text(
+            json.dumps({
+                "schema": "worker-run-start.v1",
+                "automation_id": report.stem,
+                "observed_started_at": observed_started_at,
+                "reported_started_at": observed_started_at,
+                "initial_report_sha256": "fixture",
+            }) + "\n",
+            encoding="utf-8",
+        )
+        return receipt
+
     def test_archives_exact_finalized_bytes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -210,6 +226,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                         f"remaining_gate: heavy runtime acceptance\nstop_reason: {stop_reason}\n",
                         encoding="utf-8",
                     )
+                    self._write_timed_start_receipt(report, "2020-01-01T00:00:00+00:00")
                     with self.assertRaisesRegex(ValueError, "this run is NOT finished"):
                         archive_finalized_report(report, root / "history")
                     current_text = report.read_text(encoding="utf-8")
@@ -271,6 +288,103 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
                     self.assertFalse((root / "history" / "_reports").exists())
 
+    def test_timed_run_begin_rejects_backdated_reported_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "1" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {(now - timedelta(minutes=20)).isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "started_at must match the machine-observed begin time"):
+                begin_timed_run(report)
+            self.assertFalse((root / ".supervision" / f"{automation_id}.start.json").exists())
+
+    def test_timed_run_finished_requires_machine_start_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "2" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {(now - timedelta(minutes=20)).isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "requires machine start evidence"):
+                archive_finalized_report(report, root / "history")
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_timed_run_finished_rejects_backdated_start_after_begin(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "3" * 32
+            started = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {started.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            begin_timed_run(report)
+            finished = datetime.now().astimezone()
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {(started - timedelta(minutes=20)).isoformat()}\n"
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "reported started_at differs from the machine-observed run start"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue((root / ".supervision" / f"{automation_id}.start.json").exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+
+    def test_timed_run_archive_uses_observed_start_and_consumes_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "4" * 32
+            started = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {started.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            begin_result = begin_timed_run(report)
+            receipt = Path(begin_result["receipt_path"])
+            finished = datetime.now().astimezone()
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: interrupted\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: user interrupted the run\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertTrue(result["ok"])
+            self.assertEqual(metadata["observed_started_at"], begin_result["observed_started_at"])
+            self.assertLess(metadata["duration_minutes"], 0.1)
+            self.assertFalse(receipt.exists())
+
     def test_metrics_and_events_ignore_archives_with_future_finish_time(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -316,6 +430,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                         f"remaining_gate: none\nstop_reason: {stop_reason}\n",
                         encoding="utf-8",
                     )
+                    self._write_timed_start_receipt(report, "2020-01-01T00:00:00+00:00")
                     self.assertTrue(archive_finalized_report(report, root / "history")["ok"])
 
     def test_on_target_run_finished_rejects_stale_continuation_stop_reason_without_reopening_run(self):
@@ -332,6 +447,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "stop_reason: premature finalization rejected; run continuing\n",
                 encoding="utf-8",
             )
+            self._write_timed_start_receipt(report, "2020-01-01T00:00:00+00:00")
             with self.assertRaisesRegex(ValueError, "continuation stop_reason sentinel"):
                 archive_finalized_report(report, root / "history")
             current_text = report.read_text(encoding="utf-8")
@@ -374,6 +490,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "stop_reason: useful work window materially exhausted\n",
                 encoding="utf-8",
             )
+            self._write_timed_start_receipt(report, "2020-01-01T00:00:00+00:00")
             result = archive_finalized_report(report, root / "history")
             metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
             metrics = json.loads(Path(result["metrics_path"]).read_text(encoding="utf-8"))
