@@ -1157,6 +1157,49 @@
     {
       "incident_id": null,
       "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-04_0307_EEST_MCPv3_reconnect-token-burst_incident_report.md",
+      "title": "MCPv3 03:07 EEST reconnect and token-burst incident",
+      "date": "2026-09-04T03:07:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the report merged by PR #474. Its primary transport and OAuth evidence are external live-runtime paths named in the report, not tracked repository artifacts, so no local evidence path is invented."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-04_2203_EEST_MCPv3_tunnel-restart-binding-regression_incident_report.md",
+      "title": "MCPv3 tunnel-restart binding regression — 2026-09-04 22:03 EEST",
+      "date": "2026-09-04T22:03:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-09-04_mcpv3_namespace-disappeared_after-tunnel-restart.png",
+        "02 Evidence/2026-09-04_mcpv3_discovery-required_across-turns.png",
+        "03 Fixtures and Experiments/pending-mcpv3-tunnel-restart-binding-regression-20260904.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the byte-preserved #511/#512 MCPv3 tunnel-restart binding regression report, both user screenshots named by the report, and its replay fixture. The exact ChatGPT-side binding mechanism remains not locally observable; no incident ID is invented."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
       "report_path": "01 Reports/2026-09-04_2238_EEST_operational-degradation-escalation_incident_report.md",
       "title": "Operational degradation was allowed to escalate until user intervention",
       "date": "2026-09-04T22:38:00+03:00",

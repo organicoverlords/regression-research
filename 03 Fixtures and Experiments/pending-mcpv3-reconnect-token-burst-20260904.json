@@ -1,0 +1,8 @@
+{
+  "id": "pending-mcpv3-reconnect-token-burst-20260904",
+  "title": "MCPv3 03:07 reconnect and token-burst incident",
+  "source_report": "01 Reports/2026-09-04_0307_EEST_MCPv3_reconnect-token-burst_incident_report.md",
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "Connection teardown/reconnect and token burst are preserved as observations while the initiating cause remains unproven; no replay scoring contract is established."
+}
