@@ -11,8 +11,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
+use windows_sys::Win32::Foundation::CloseHandle;
 use windows_sys::Win32::Storage::FileSystem::{
     MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
+};
+use windows_sys::Win32::System::Threading::{
+    GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 
 const LOCK_TIMEOUT: Duration = Duration::from_secs(2);
@@ -20,6 +24,8 @@ const LOCK_STALE: Duration = Duration::from_secs(15);
 const LOCK_RETRY: Duration = Duration::from_millis(10);
 const REPLACE_TIMEOUT: Duration = Duration::from_millis(500);
 const REPLACE_RETRY: Duration = Duration::from_millis(10);
+const TEMP_STALE: Duration = Duration::from_secs(60);
+const MAX_SWEEP_TEMP_ITEMS: usize = 32;
 const DEFAULT_LEASE_SECONDS: i64 = 3600;
 const MAX_OPERATIONS: usize = 512;
 
@@ -481,6 +487,104 @@ fn remove_scope_metadata(state: &mut StoreFile, scope: &str) {
     state.coordinator.jobs.remove(scope);
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum WriterProcessState {
+    Live,
+    Dead,
+    Unknown,
+}
+
+fn writer_process_state(pid: u32) -> WriterProcessState {
+    if pid == 0 {
+        return WriterProcessState::Unknown;
+    }
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if handle.is_null() {
+        return if io::Error::last_os_error().raw_os_error() == Some(87) {
+            WriterProcessState::Dead
+        } else {
+            WriterProcessState::Unknown
+        };
+    }
+
+    let mut exit_code = 0u32;
+    let ok = unsafe { GetExitCodeProcess(handle, &mut exit_code) };
+    unsafe {
+        CloseHandle(handle);
+    }
+    if ok == 0 {
+        WriterProcessState::Unknown
+    } else if exit_code == 259 {
+        WriterProcessState::Live
+    } else {
+        WriterProcessState::Dead
+    }
+}
+
+fn sweep_stale_temp_files(store: &Path) -> Value {
+    let mut removed_count = 0usize;
+    let mut removed_files = Vec::new();
+    let Some(parent) = store.parent() else {
+        return json!({"removed_temp_count": 0, "removed_temp_files": []});
+    };
+    let Some(store_name) = store.file_name().and_then(OsStr::to_str) else {
+        return json!({"removed_temp_count": 0, "removed_temp_files": []});
+    };
+    let prefix = format!("{store_name}.");
+    let Ok(entries) = fs::read_dir(parent) else {
+        return json!({"removed_temp_count": 0, "removed_temp_files": []});
+    };
+    let now = SystemTime::now();
+    let mut candidates: Vec<_> = entries.filter_map(Result::ok).collect();
+    candidates.sort_by_key(|entry| entry.file_name());
+
+    for entry in candidates {
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+        let Some(raw_pid) = name
+            .strip_prefix(&prefix)
+            .and_then(|value| value.strip_suffix(".tmp"))
+        else {
+            continue;
+        };
+        let Ok(pid) = raw_pid.parse::<u32>() else {
+            continue;
+        };
+        if pid == 0 {
+            continue;
+        }
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_file() {
+            continue;
+        }
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        let Ok(modified) = metadata.modified() else {
+            continue;
+        };
+        let Ok(age) = now.duration_since(modified) else {
+            continue;
+        };
+        if age < TEMP_STALE || writer_process_state(pid) != WriterProcessState::Dead {
+            continue;
+        }
+        if fs::remove_file(entry.path()).is_err() {
+            continue;
+        }
+        removed_count += 1;
+        if removed_files.len() < MAX_SWEEP_TEMP_ITEMS {
+            removed_files.push(json!({"name": name, "pid": pid}));
+        }
+    }
+
+    json!({"removed_temp_count": removed_count, "removed_temp_files": removed_files})
+}
+
 fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
     let now = Utc::now();
     let scopes: Vec<String> = state.coordinator.jobs.keys().cloned().collect();
@@ -672,10 +776,16 @@ fn operate(
         return snapshot_state(&state, actor, raw_scope, options.limit, &swept);
     }
     if command == "sweep" {
+        let temp_sweep = sweep_stale_temp_files(store);
         if state_changed {
             persist(store, &state)?;
         }
-        return Ok(json!({"ok": true, "expired": swept}));
+        return Ok(json!({
+            "ok": true,
+            "expired": swept,
+            "removed_temp_count": temp_sweep["removed_temp_count"],
+            "removed_temp_files": temp_sweep["removed_temp_files"],
+        }));
     }
 
     let scope = canonical_scope(raw_scope.ok_or("scope required")?)?;

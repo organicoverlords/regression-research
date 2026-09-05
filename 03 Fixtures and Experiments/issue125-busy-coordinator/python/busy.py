@@ -11,6 +11,8 @@ LOCK_STALE_S = 15.0
 LOCK_RETRY_S = 0.01
 REPLACE_TIMEOUT_S = 0.5
 REPLACE_RETRY_S = 0.01
+TEMP_STALE_S = 60.0
+MAX_SWEEP_TEMP_ITEMS = 32
 DEFAULT_LEASE_S = 3600
 MAX_OPERATIONS = 512
 
@@ -278,6 +280,88 @@ def remove_scope_metadata(state: dict, scope: str) -> None:
     state["coordinator"]["jobs"].pop(scope, None)
 
 
+def writer_process_state(pid: int) -> str:
+    if pid <= 0:
+        return "unknown"
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return "dead"
+        except PermissionError:
+            return "live"
+        except OSError:
+            return "unknown"
+        return "live"
+
+    import ctypes
+    from ctypes import wintypes
+
+    process_query_limited_information = 0x1000
+    still_active = 259
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+
+    handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
+    if not handle:
+        return "dead" if ctypes.get_last_error() == 87 else "unknown"
+    try:
+        exit_code = wintypes.DWORD()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return "unknown"
+        return "live" if exit_code.value == still_active else "dead"
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def sweep_stale_temp_files(store: Path) -> dict:
+    parent = store.parent
+    if not parent.exists():
+        return {"removed_temp_count": 0, "removed_temp_files": []}
+    prefix = store.name + "."
+    suffix = ".tmp"
+    now = time.time()
+    removed_count = 0
+    removed_files: list[dict] = []
+    try:
+        candidates = sorted(parent.iterdir(), key=lambda path: path.name)
+    except OSError:
+        return {"removed_temp_count": 0, "removed_temp_files": []}
+
+    for candidate in candidates:
+        name = candidate.name
+        if not name.startswith(prefix) or not name.endswith(suffix):
+            continue
+        raw_pid = name[len(prefix):-len(suffix)]
+        if not raw_pid.isdigit():
+            continue
+        try:
+            pid = int(raw_pid)
+            info = candidate.lstat()
+        except (OSError, ValueError):
+            continue
+        if pid <= 0 or candidate.is_symlink() or not candidate.is_file():
+            continue
+        age = now - info.st_mtime
+        if age < TEMP_STALE_S:
+            continue
+        if writer_process_state(pid) != "dead":
+            continue
+        try:
+            candidate.unlink()
+        except (FileNotFoundError, OSError):
+            continue
+        removed_count += 1
+        if len(removed_files) < MAX_SWEEP_TEMP_ITEMS:
+            removed_files.append({"name": name, "pid": pid})
+
+    return {"removed_temp_count": removed_count, "removed_temp_files": removed_files}
+
 
 def sweep_expired(state: dict) -> tuple[list[dict], bool]:
     now = now_dt()
@@ -323,13 +407,14 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
         state_changed = normalized or sweep_changed
 
         if command in {"list", "sweep", "snapshot"}:
+            temp_sweep = sweep_stale_temp_files(store) if command == "sweep" else None
             if state_changed:
                 persist(store, state)
             if command == "list":
                 return {"claims": sorted(state["claims"], key=lambda claim: claim["scope"])}
             if command == "snapshot":
                 return snapshot_state(state, actor=actor, raw_scope=raw_scope, limit=limit, expired=swept)
-            return {"ok": True, "expired": swept}
+            return {"ok": True, "expired": swept, **temp_sweep}
 
         if raw_scope is None:
             raise ValueError("scope required")

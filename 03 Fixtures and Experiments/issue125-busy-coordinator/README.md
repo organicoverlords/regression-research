@@ -21,6 +21,8 @@ New or renewed ownership (`claim`, `heartbeat`) requires an actor identity with 
 
 `snapshot` is a bounded ownership projection: claim count, managed active ownership, legacy-only claims, optional actor ownership, and optional exact-scope focus. It contains no queue depth, checkpoint backlog, blocked count, completed count, or next-work selection.
 
+`sweep` also performs bounded atomic-temp hygiene under the same store lock. It removes only exact-store `busy-claims.json.<pid>.tmp` files that are at least 60 seconds old and whose encoded writer PID is positively proven dead. Fresh files, live writers, malformed or unknown writer identities, unrelated temp files, and temp deletion failures are preserved. The result reports the total removed count plus at most 32 removed filename/PID entries.
+
 The tool apps are separate from MCP and can be invoked through any supported process route. MCP/plugin routes are transports, not ownership systems.
 
 `coordinator-contract.json` is the machine-readable compatibility contract. Installed Python and Rust wrappers share one observability sidecar and expose the same additional `contract`, `log`, and `audit` commands without adding authority to the canonical ownership store. `log` is best-effort compatibility only: it uses a short lock budget, returns success with `logged:false` when the sidecar cannot be written, and must never gate or stop project work. Durable project findings belong on the project GitHub issue/PR and in the worker report. Audit failure is non-authoritative.
