@@ -449,7 +449,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(commander["id"], "execution.transport")
         commander_routes = " ".join(commander["entrypoints"])
         self.assertIn("Remote Desktop Commander", commander_routes)
+        self.assertIn("approved standby break-glass fallback", commander_routes)
+        self.assertIn("fallback-only/not primary, not forbidden", commander_routes)
+        self.assertNotIn("retired Remote Desktop Commander", commander_routes)
         self.assertIn("changed state or new evidence", commander_routes)
+        self.assertIn("does not retire, obsolete, or authorize deletion", commander["boundary"])
+        self.assertIn("preserve its recovery path", commander["boundary"])
 
         reports = find_features("worker reports")[0]
         self.assertEqual(reports["id"], "worker.reports")

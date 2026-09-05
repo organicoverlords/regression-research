@@ -377,9 +377,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "commander", "desktop commander", "fallback", "tool route"],
         "entrypoints": [
             "preferred MCPv3 binding when healthy and exposed",
-            "retired Remote Desktop Commander fallback whenever preferred MCPv3 is unavailable; retry failed routes only on changed state or new evidence",
+            "Remote Desktop Commander approved standby break-glass fallback whenever preferred MCPv3 is unavailable; fallback-only/not primary, not forbidden; retry failed routes only on changed state or new evidence",
         ],
-        "boundary": "Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority.",
+        "boundary": "Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. MCPv3 health does not retire, obsolete, or authorize deletion of the Commander fallback; preserve its recovery path unless current user/live authority explicitly changes that contract.",
     },
 }
 
