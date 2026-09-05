@@ -186,8 +186,14 @@ class WorkerReportHistoryTests(unittest.TestCase):
                         f"remaining_gate: heavy runtime acceptance\nstop_reason: {stop_reason}\n",
                         encoding="utf-8",
                     )
-                    with self.assertRaisesRegex(ValueError, "local contention is not a task-level stop reason"):
+                    with self.assertRaisesRegex(ValueError, "this run is NOT finished"):
                         archive_finalized_report(report, root / "history")
+                    current_text = report.read_text(encoding="utf-8")
+                    self.assertIn("state: RUNNING", current_text)
+                    self.assertNotIn("state: RUN_FINISHED", current_text)
+                    self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
+                    self.assertNotIn(stop_reason, current_text)
+                    self.assertFalse((root / "history" / "_reports").exists())
 
     def test_run_finished_allows_on_target_or_true_terminal_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
