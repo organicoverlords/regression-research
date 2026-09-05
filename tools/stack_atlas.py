@@ -939,6 +939,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         "source_age_seconds": round(source_age,1),
         "active_session_count": len(active_items),
         "active_session_count_status": "COMPLETE" if activity_window_complete else "LOWER_BOUND",
+        "active_session_count_semantics": "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes",
         "active_sessions": active_sessions,
         "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
         "active_sessions_truncated": len(active_items) > len(active_sessions),
@@ -1139,12 +1140,13 @@ def production_change_gate(
             "status": mcp.get("status"),
             "active_session_count": int(mcp.get("active_session_count") or 0),
             "active_session_count_status": mcp.get("active_session_count_status"),
+            "active_session_count_semantics": mcp.get("active_session_count_semantics"),
             "active_sessions": mcp.get("active_sessions", []),
         }
         if not mcp.get("available") or mcp.get("status") != "LIVE" or mcp.get("active_session_count_status") != "COMPLETE":
             reasons.append("mcp_dependency_evidence_incomplete")
         elif int(mcp.get("active_session_count") or 0) > 0:
-            warnings.append("active_mcp_dependents_present")
+            warnings.append("recent_mcp_activity_present")
 
     return {
         "schema": "production-change-gate.v1",

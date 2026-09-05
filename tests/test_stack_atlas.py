@@ -49,6 +49,7 @@ class StackAtlasTests(unittest.TestCase):
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
         self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
         self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
         self.assertIn("workspace_counts", glance["mcp"])
         for session in glance["mcp"]["active_sessions"]:
@@ -126,8 +127,10 @@ class StackAtlasTests(unittest.TestCase):
         )
         self.assertEqual(gate["verdict"], "PASS")
         self.assertEqual(gate["reasons"], [])
-        self.assertIn("active_mcp_dependents_present", gate["warnings"])
+        self.assertIn("recent_mcp_activity_present", gate["warnings"])
+        self.assertNotIn("active_mcp_dependents_present", gate["warnings"])
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
+        self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count_semantics"], None)
 
     def test_worker_status_reads_runtime_history_from_live_root_not_source_root(self):
         with tempfile.TemporaryDirectory() as d:
