@@ -7,7 +7,7 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -526,14 +526,6 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             finished = datetime.fromisoformat(raw_finished.replace("Z", "+00:00")).astimezone(timezone.utc)
         except ValueError:
             continue
-        raw_archived = str(item.get("archived_at") or "").strip()
-        if raw_archived:
-            try:
-                archived = datetime.fromisoformat(raw_archived.replace("Z", "+00:00")).astimezone(timezone.utc)
-            except ValueError:
-                continue
-            if finished > archived + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
-                continue
         prev = latest_by_worker.get(worker_id)
         if prev is not None and finished <= prev["_finished_dt"]:
             continue
