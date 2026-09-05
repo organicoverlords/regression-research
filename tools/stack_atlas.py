@@ -1486,21 +1486,14 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     memory_status = pc.get("memory", {}).get("status")
     if memory_status and memory_status != "OK":
         notable_conditions.append(f"memory_{str(memory_status).casefold()}_commit_headroom_{pc.get('memory', {}).get('commit_headroom_gb')}gb")
-    for item in workers.get("attention", []) if isinstance(workers, dict) else []:
-        notable_conditions.append(f"worker_report_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
-    for item in workers.get("stale_reports", []) if isinstance(workers, dict) else []:
-        notable_conditions.append(f"worker_report_{item.get('worker')}_stale_{item.get('age_minutes')}m_since_archive")
-    manual_current = workers.get("manual_current", {}) if isinstance(workers, dict) else {}
-    recent_manual_running = int(manual_current.get("recent_running_report_count") or 0) if isinstance(manual_current, dict) else 0
-    if recent_manual_running > 0:
-        count_status = str(manual_current.get("recent_running_report_count_status") or "UNKNOWN").casefold()
-        notable_conditions.append(f"manual_running_reports_recent_{recent_manual_running}_{count_status}")
     worker_glance = {
         key: workers.get(key) for key in (
             "available", "generated_at", "evidence_semantics", "current_scheduler_membership",
             "archive_sample", "manual_current", "attention", "stale_reports", "cache",
         ) if key in workers
     } if isinstance(workers, dict) else workers
+    if isinstance(worker_glance, dict):
+        worker_glance["current_activity"] = _bootstrap_worker_activity_from_mcp(mcp)
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
     vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
@@ -1565,11 +1558,27 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     }
 
 
+def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, Any]:
+    """Current execution activity from MCP/runtime evidence only; never from reports."""
+    if not isinstance(mcp, dict):
+        return {"authority": "live_mcp_runtime_evidence", "status": "UNAVAILABLE"}
+    activity_status = str(mcp.get("activity_evidence_status") or "")
+    if not activity_status:
+        activity_status = "FRESH" if mcp.get("active_session_count_status") == "COMPLETE" else "PARTIAL"
+    return {
+        "authority": "live_mcp_runtime_evidence",
+        "status": activity_status,
+        "observed_session_count": int(mcp.get("active_session_count") or 0),
+        "observed_session_count_status": mcp.get("active_session_count_status"),
+        "workspace_counts": mcp.get("workspace_counts", {}),
+        "sessions_truncated": bool(mcp.get("active_sessions_truncated")),
+    }
+
+
 def _bootstrap_cli_view(glance: dict[str, Any]) -> dict[str, Any]:
     """Small task-boundary view; full bootstrap data remains available with --full."""
     pc = glance.get("pc", {}) if isinstance(glance.get("pc"), dict) else {}
     workers = glance.get("workers", {}) if isinstance(glance.get("workers"), dict) else {}
-    manual = workers.get("manual_current", {}) if isinstance(workers.get("manual_current"), dict) else {}
     mcp = glance.get("mcp", {}) if isinstance(glance.get("mcp"), dict) else {}
     github = glance.get("github", {}) if isinstance(glance.get("github"), dict) else {}
     vault = glance.get("vault", {}) if isinstance(glance.get("vault"), dict) else {}
@@ -1591,26 +1600,23 @@ def _bootstrap_cli_view(glance: dict[str, Any]) -> dict[str, Any]:
             "gpu": {key: gpu.get(key) for key in ("sample_status", "sample_age_seconds", "utilization_pct", "vram_free_mb") if key in gpu},
         },
         "workers": {
-            "evidence_semantics": workers.get("evidence_semantics"),
-            "manual_current": {
-                key: manual.get(key) for key in (
-                    "evidence_semantics",
-                    "recent_running_report_count",
-                    "recent_running_report_count_status",
-                    "recent_running_reports",
-                    "recent_running_reports_truncated",
-                    "malformed_running_reports",
-                    "malformed_running_reports_truncated",
-                    "scan_truncated",
-                    "recent_scan_cutoff_reached",
-                ) if key in manual
-            },
-            "attention": workers.get("attention", []),
+            "current_activity": (
+                workers.get("current_activity")
+                if isinstance(workers.get("current_activity"), dict)
+                else _bootstrap_worker_activity_from_mcp(mcp)
+            ),
+            "current_scheduler_membership": workers.get("current_scheduler_membership", {
+                "available": False,
+                "authority": "ChatGPT Automations state",
+                "reason": "scheduler membership requires scheduler authority, not report inference",
+            }),
         },
         "mcp": {
             key: mcp.get(key) for key in (
                 "available",
                 "status",
+                "service_health",
+                "activity_evidence_status",
                 "source_age_seconds",
                 "active_session_count",
                 "active_session_count_status",
