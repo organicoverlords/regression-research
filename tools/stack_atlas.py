@@ -384,6 +384,16 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "entrypoints": ["shared .agents RULES.md + AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
+    "project.p3_unreal_navigation": {
+        "owner_components": ["local_git", "github"],
+        "triggers": ["p3", "unreal", "unreal editor", "p3 repo", "ue mcp", "ue_mcp_bridge", "unreal mcp", "editor endpoint", "bridge endpoint"],
+        "entrypoints": [
+            r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+            r"C:\Users\Lauri\Documents\Unreal Projects\p3\scripts\v2\verification\p3_bridge_guard.py",
+            r"C:\Users\Lauri\Documents\Unreal Projects\p3\scripts\Test-P3WorkerEditorPreflight.ps1",
+        ],
+        "boundary": "Navigation only. Current P3 repo/main, repo-owned contracts, and live editor/runtime evidence remain product authority; Atlas must not become P3 product state. Validate UE_MCP_Bridge endpoint identity through the repo-owned live guard/preflight rather than trusting Saved/UE_MCP_Bridge/port.json alone; a configured UnrealMCPBridge port is not liveness or ownership proof.",
+    },
     "coordination.ownership": {
         "owner_components": ["busy_coordinator"],
         "triggers": ["busy", "busycoordinator", "busy coordinator", "ownership", "claim", "collision", "mutation scope", "release", "recover"],
