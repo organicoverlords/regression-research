@@ -302,6 +302,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(atlas["find"], "find <query>")
         self.assertLess(len(json.dumps(atlas)), 12000)
 
+    def test_work_intake_search_routes_to_existing_issue_git_and_busy_contract(self):
+        result = find_features("issue first busy claim dirty handoff")[0]
+        self.assertEqual(result["id"], "work.intake")
+        self.assertEqual(result["owner_components"], ["agent_rules", "github", "local_git", "busy_coordinator"])
+        joined = " ".join(result["entrypoints"])
+        self.assertIn("matching issue/PR", joined)
+        self.assertIn("continue the matching issue or create one", joined)
+        self.assertIn("live git status/HEAD", joined)
+        expected_busy = str(Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd")))
+        self.assertIn(expected_busy, joined)
+        self.assertIn("before yielding", joined)
+        self.assertIn("not a queue", result["boundary"])
+        self.assertIn("collision control only", result["boundary"])
+
+    def test_bootstrap_points_to_canonical_issue_first_contract_without_policy_copy(self):
+        with patch("tools.stack_atlas._bootstrap_pc_status", return_value={}), \
+             patch("tools.stack_atlas._bootstrap_worker_status", return_value={}), \
+             patch("tools.stack_atlas._bootstrap_mcp_status", return_value={}), \
+             patch("tools.stack_atlas._bootstrap_memory_titles", return_value=[]):
+            glance = build_live_bootstrap_glance()
+        self.assertEqual(glance["paths"]["issue_first_work_intake"], r"C:\Users\Lauri\.agents\RULES.md")
+        self.assertNotIn("behavior", glance)
+
     def test_feature_search_surfaces_existing_owner_before_archaeology(self):
         timeline = find_features("vault timeline")[0]
         self.assertEqual(timeline["id"], "vault.history")
