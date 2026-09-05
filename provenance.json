@@ -1153,6 +1153,66 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Records centralization of live agent-rule authority plus the protected-main memory publication trap and its dedicated memory/live correction."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-04_2238_EEST_operational-degradation-escalation_incident_report.md",
+      "title": "Operational degradation was allowed to escalate until user intervention",
+      "date": "2026-09-04T22:38:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Records the verified behavioral incident where slow CI churn, stalled editors, orphaned processes, and other no-progress degradation were allowed to escalate until user intervention. No direct raw transcript, dedicated evidence file, or contract snapshot is linked here; unresolved provenance is left explicit rather than guessed."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-04_2238_EEST_regression-restoration-authority-drift_incident_report.md",
+      "title": "Regression restoration drifted from the actual working boundary to historical labels",
+      "date": "2026-09-04T22:38:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Records the correction that restoration must reconstruct the last verified working boundary from live/runtime and Git evidence rather than promote historical known-good/freeze/recovery labels. The report contains the user-provided incident excerpt, but no separate raw transcript or dedicated evidence file is asserted by this index."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-04_2324_EEST_MCPv3_half-alive-tunnel-recurrence_fix.md",
+      "title": "MCPv3 half-alive reverse-tunnel recurrence and durable owner fix",
+      "date": "2026-09-04T23:24:00+03:00",
+      "evidence_type": "operational_recovery_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Records the half-alive reverse-SSH forwarding recurrence, the health-discriminating McpVpsEdge owner fix, owner-side regression coverage, and zero-gap deployment evidence. Runtime paths named in the report are external live-owner evidence, not repository provenance files, so they are not fabricated as index links."
     }
   ],
   "orphan_evidence": [
