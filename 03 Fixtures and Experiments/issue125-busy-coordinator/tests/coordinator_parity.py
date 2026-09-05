@@ -57,7 +57,7 @@ try:
     snapshot_py = run("py", store, "snapshot", "--actor", actor, "--scope", "repo#125")
     snapshot_rs = run("rs", store, "snapshot", "--actor", actor, "--scope", "repo#125")
     assert snapshot_py == snapshot_rs
-    assert snapshot_py["counts"] == {"active": 1, "checkpoints": 0, "claims": 1, "legacy_only_claims": 0}
+    assert snapshot_py["counts"] == {"active": 1, "claims": 1, "legacy_only_claims": 0}
 
     collision = run("py", store, "claim", managed_actor("other"), "repo#125", "--lease-seconds", "60")
     assert collision["ok"] is False and collision["reason"] == "scope_already_claimed"
@@ -65,14 +65,14 @@ try:
     released = run("rs", store, "release", actor, "repo#125", "--checkpoint", "pending-finding", "--operation-id", "release-1")
     assert released["ok"] is True and released["checkpoint"] == "pending-finding"
     checkpoint_view = run("py", store, "snapshot", "--scope", "repo#125")
-    assert checkpoint_view["counts"] == {"active": 0, "checkpoints": 1, "claims": 0, "legacy_only_claims": 0}
-    assert checkpoint_view["focus"]["job"]["state"] == "checkpoint"
+    assert checkpoint_view["counts"] == {"active": 0, "claims": 0, "legacy_only_claims": 0}
+    assert checkpoint_view["focus"]["job"] is None
     assert "ready" not in checkpoint_view["counts"] and "blocked" not in checkpoint_view["counts"] and "completed" not in checkpoint_view["counts"]
 
-    # Reclaim keeps the exact-scope checkpoint; ordinary release clears it.
+    # Reclaim starts clean because released checkpoint text is not retained in BUSY.
     reclaimed = run("rs", store, "claim", actor, "repo#125", "--lease-seconds", "60")
     assert reclaimed["ok"] is True
-    assert run("py", store, "inspect", "repo#125")["job"]["checkpoint"] == "pending-finding"
+    assert run("py", store, "inspect", "repo#125")["job"]["checkpoint"] is None
     assert run("py", store, "release", actor, "repo#125")["ok"] is True
     assert run("rs", store, "inspect", "repo#125")["job"] is None
 
@@ -94,9 +94,9 @@ try:
         recovered = run(kind, recovery, "recover", "legacy-owner", "legacy-scope", "--expected-claim-timestamp", claim["timestamp"])
         assert recovered["ok"] is True
         snap = run(kind, recovery, "snapshot")
-        assert snap["counts"] == {"active": 0, "checkpoints": 0, "claims": 0, "legacy_only_claims": 0}
+        assert snap["counts"] == {"active": 0, "claims": 0, "legacy_only_claims": 0}
 
-    # Legacy queue records migrate to ownership/checkpoint metadata only.
+    # Legacy queue/checkpoint records migrate to live ownership metadata only.
     legacy = {
         "claims": [{"actor": actor, "scope": "claimed-old", "timestamp": "2026-09-03T00:00:00.000Z"}],
         "coordinator": {
@@ -116,10 +116,9 @@ try:
         path.write_text(json.dumps(legacy, indent=2)+"\n", encoding="utf-8")
         snap = run(kind, path, "snapshot")
         state = read(path)
-        assert snap["counts"] == {"active": 1, "checkpoints": 1, "claims": 1, "legacy_only_claims": 0}
-        assert set(state["coordinator"]["jobs"]) == {"claimed-old", "blocked-keep"}
+        assert snap["counts"] == {"active": 1, "claims": 1, "legacy_only_claims": 0}
+        assert set(state["coordinator"]["jobs"]) == {"claimed-old"}
         assert state["coordinator"]["jobs"]["claimed-old"]["state"] == "active"
-        assert state["coordinator"]["jobs"]["blocked-keep"]["state"] == "checkpoint"
         migrated.append(state)
     assert migrated[0] == migrated[1]
 
@@ -147,15 +146,16 @@ try:
         finally:
             kernel32.CloseHandle(handle)
 
-    # Managed lease expiry releases ownership and preserves only an explicit checkpoint.
+    # Managed lease expiry releases ownership and returns, but does not retain, live checkpoint context.
     expiry = base / "expiry.json"
     assert run("py", expiry, "claim", actor, "expiring", "--lease-seconds", "1", "--checkpoint", "resume-here")["ok"] is True
     time.sleep(1.2)
     swept = run("rs", expiry, "sweep")
     assert swept["expired"] and swept["expired"][0]["scope"] == "expiring"
     snap = run("py", expiry, "snapshot", "--scope", "expiring")
-    assert snap["counts"] == {"active": 0, "checkpoints": 1, "claims": 0, "legacy_only_claims": 0}
-    assert snap["focus"]["job"]["state"] == "checkpoint"
+    assert snap["counts"] == {"active": 0, "claims": 0, "legacy_only_claims": 0}
+    assert snap["focus"]["job"] is None
+    assert swept["expired"][0]["checkpoint"] == "resume-here"
 
     print(json.dumps({"ok": True, "python_rust_redundancy": "preserved", "queue_semantics": "retired", "ownership_parity": True}))
 finally:

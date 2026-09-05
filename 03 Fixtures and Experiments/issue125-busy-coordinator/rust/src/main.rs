@@ -231,10 +231,15 @@ fn persist(store: &Path, state: &StoreFile) -> Result<(), String> {
             let mut file = OpenOptions::new()
                 .write(true)
                 .open(store)
-                .map_err(|fallback| format!("cannot replace BUSY store: {error}; in-place fallback failed: {fallback}"))?;
+                .map_err(|fallback| {
+                    format!(
+                        "cannot replace BUSY store: {error}; in-place fallback failed: {fallback}"
+                    )
+                })?;
             file.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
             file.write_all(&bytes).map_err(|e| e.to_string())?;
-            file.set_len(bytes.len() as u64).map_err(|e| e.to_string())?;
+            file.set_len(bytes.len() as u64)
+                .map_err(|e| e.to_string())?;
             file.sync_all().map_err(|e| e.to_string())?;
             let _ = fs::remove_file(&tmp);
             return Ok(());
@@ -315,28 +320,16 @@ fn normalize_jobs(state: &mut StoreFile) -> bool {
             Ok(value) => value,
             Err(_) => continue,
         };
+        let Some(claim) = claims.get(&scope) else {
+            continue;
+        };
         job.job_id = scope.clone();
         job.scope = scope.clone();
-        if let Some(claim) = claims.get(&scope) {
-            job.state = "active".into();
-            job.owner = Some(claim.actor.clone());
-            job.claim_timestamp = Some(claim.timestamp.clone());
-            job.updated_at = claim.timestamp.clone();
-            normalized.insert(scope, job);
-        } else if job
-            .checkpoint
-            .as_deref()
-            .is_some_and(|value| !value.is_empty())
-        {
-            job.state = "checkpoint".into();
-            job.owner = None;
-            job.lease_expires_at = None;
-            job.claim_timestamp = None;
-            if job.updated_at.is_empty() {
-                job.updated_at = now_iso();
-            }
-            normalized.insert(scope, job);
-        }
+        job.state = "active".into();
+        job.owner = Some(claim.actor.clone());
+        job.claim_timestamp = Some(claim.timestamp.clone());
+        job.updated_at = claim.timestamp.clone();
+        normalized.insert(scope, job);
     }
     let changed = normalized != state.coordinator.jobs;
     state.coordinator.jobs = normalized;
@@ -360,13 +353,6 @@ fn snapshot_state(
         .filter(|job| job.state == "active")
         .collect();
     active.sort_by(|a, b| a.scope.cmp(&b.scope));
-    let mut checkpoints: Vec<&Job> = state
-        .coordinator
-        .jobs
-        .values()
-        .filter(|job| job.state == "checkpoint")
-        .collect();
-    checkpoints.sort_by(|a, b| a.scope.cmp(&b.scope));
     let managed: std::collections::BTreeSet<&str> =
         active.iter().map(|job| job.scope.as_str()).collect();
     let legacy_only: Vec<Claim> = claims
@@ -381,20 +367,9 @@ fn snapshot_state(
         "counts".into(),
         json!({
             "active": active.len(),
-            "checkpoints": checkpoints.len(),
             "claims": claims.len(),
             "legacy_only_claims": legacy_only.len(),
         }),
-    );
-    result.insert(
-        "checkpoints".into(),
-        Value::Array(
-            checkpoints
-                .iter()
-                .take(limit)
-                .map(|job| compact_job(job))
-                .collect(),
-        ),
     );
     result.insert(
         "legacy_only_claims".into(),
@@ -502,36 +477,8 @@ fn remember(
     result
 }
 
-fn preserve_checkpoint_or_remove(
-    state: &mut StoreFile,
-    scope: &str,
-    checkpoint: Option<String>,
-    updated_at: Option<String>,
-) {
-    if let Some(checkpoint) = checkpoint.filter(|value| !value.is_empty()) {
-        let extra = state
-            .coordinator
-            .jobs
-            .get(scope)
-            .map(|job| job.extra.clone())
-            .unwrap_or_default();
-        state.coordinator.jobs.insert(
-            scope.to_string(),
-            Job {
-                job_id: scope.to_string(),
-                scope: scope.to_string(),
-                state: "checkpoint".into(),
-                owner: None,
-                lease_expires_at: None,
-                claim_timestamp: None,
-                checkpoint: Some(checkpoint),
-                updated_at: updated_at.unwrap_or_else(now_iso),
-                extra,
-            },
-        );
-    } else {
-        state.coordinator.jobs.remove(scope);
-    }
+fn remove_scope_metadata(state: &mut StoreFile, scope: &str) {
+    state.coordinator.jobs.remove(scope);
 }
 
 fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
@@ -579,7 +526,7 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
             }
             state.claims.retain(|claim| claim.scope != scope);
         }
-        preserve_checkpoint_or_remove(state, &scope, checkpoint.clone(), Some(now_iso()));
+        remove_scope_metadata(state, &scope);
         expired.push(json!({"scope": scope, "previous_owner": owner, "checkpoint": checkpoint}));
         changed = true;
     }
@@ -765,7 +712,7 @@ fn operate(
                     .jobs
                     .get(&scope)
                     .and_then(|job| job.checkpoint.clone());
-                preserve_checkpoint_or_remove(&mut state, &scope, checkpoint.clone(), None);
+                remove_scope_metadata(&mut state, &scope);
                 let mut value = json!({"ok": true, "recovered": claim});
                 if let (Some(checkpoint), Some(map)) = (checkpoint, value.as_object_mut()) {
                     map.insert("checkpoint".into(), json!(checkpoint));
@@ -880,7 +827,7 @@ fn operate(
             }
             Some(claim) => {
                 state.claims.retain(|item| item.scope != scope);
-                preserve_checkpoint_or_remove(&mut state, &scope, options.checkpoint.clone(), None);
+                remove_scope_metadata(&mut state, &scope);
                 let mut value = json!({"ok": true, "released": claim});
                 if let (Some(checkpoint), Some(map)) = (
                     options.checkpoint.clone().filter(|value| !value.is_empty()),

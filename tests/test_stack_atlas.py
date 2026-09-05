@@ -154,6 +154,7 @@ class StackAtlasTests(unittest.TestCase):
         checkpoint = find_features("checkpoint resume")[0]
         self.assertEqual(checkpoint["id"], "coordination.checkpoint_context")
         self.assertIn("busy_coordinator", checkpoint["owner_components"])
+        self.assertIn("never retained after release/recovery/expiry", checkpoint["boundary"])
         self.assertIn("never backlog", checkpoint["boundary"])
 
         reports = find_features("worker reports")[0]
