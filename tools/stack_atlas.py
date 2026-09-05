@@ -306,7 +306,29 @@ COMPONENTS.update({
     },
 })
 
+SHARED_PRODUCTION_COMPONENTS = frozenset({
+    "busy_coordinator",
+    "vps_edge_ingress",
+    "mcp_front_door",
+    "mcp_minimal_clone",
+})
+MCP_SHARED_PRODUCTION_COMPONENTS = frozenset({
+    "vps_edge_ingress",
+    "mcp_front_door",
+    "mcp_minimal_clone",
+})
+
+
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "production.change_gate": {
+        "owner_components": ["agent_rules", "busy_coordinator", "vps_edge_ingress", "mcp_front_door"],
+        "triggers": ["production mutation", "control plane mutation", "serving path", "cutover", "live routing", "shared production", "rollback", "blast radius"],
+        "entrypoints": [
+            "python tools\\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "PASS additionally requires --explicit-user-authorization --independent-rollback-verified --offpath-proof-verified",
+        ],
+        "boundary": "Read-only preflight for shared production/control-plane mutation. PASS is necessary evidence, never mutation authority by itself; a broader debugging/fix/go instruction is not represented as explicit live-production authorization.",
+    },
     "work.intake": {
         "owner_components": ["agent_rules", "github", "local_git", "busy_coordinator"],
         "triggers": ["issue first", "start work", "new task", "technical work", "issue", "pr", "busy claim", "before mutation", "dirty state", "wip", "handoff", "convergence"],
@@ -853,6 +875,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
             "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
+            "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
         },
@@ -870,6 +893,101 @@ def component_details(name: str) -> dict[str, Any]:
     if name in COMPONENTS:
         return {"id": name, "requested_as": requested, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
     raise KeyError(requested)
+
+
+def _busy_scope_status(scope: str) -> dict[str, Any]:
+    try:
+        proc = subprocess.run([BUSY_CMD, "inspect", scope], text=True, capture_output=True, timeout=3)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"available": False, "scope": scope, "error": str(exc)}
+    if proc.returncode != 0:
+        return {"available": False, "scope": scope, "returncode": proc.returncode, "stderr": proc.stderr.strip()}
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return {"available": False, "scope": scope, "error": "invalid BusyCoordinator JSON"}
+    return {"available": True, "scope": scope, "job": payload.get("job"), "claim": payload.get("claim")}
+
+
+def production_change_gate(
+    target: str,
+    *,
+    actor: str,
+    busy_scope: str,
+    explicit_user_authorization: bool = False,
+    independent_rollback_verified: bool = False,
+    offpath_proof_verified: bool = False,
+    mcp_status: dict[str, Any] | None = None,
+    busy_status: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    requested = target
+    component = COMPONENT_ALIASES.get(target.casefold(), target)
+    reasons: list[str] = []
+    warnings: list[str] = []
+
+    if component not in COMPONENTS:
+        reasons.append("unknown_target_component")
+    elif component not in SHARED_PRODUCTION_COMPONENTS:
+        reasons.append("target_not_classified_shared_production")
+
+    if not explicit_user_authorization:
+        reasons.append("missing_explicit_live_production_authorization")
+    if not independent_rollback_verified:
+        reasons.append("independent_rollback_control_route_not_verified")
+    if not offpath_proof_verified:
+        reasons.append("offpath_canary_proof_not_verified")
+
+    busy = busy_status if busy_status is not None else _busy_scope_status(busy_scope)
+    if not busy.get("available"):
+        reasons.append("busy_scope_evidence_unavailable")
+    else:
+        claim = busy.get("claim") or {}
+        claimant = str(claim.get("actor") or "")
+        if not claimant:
+            reasons.append("busy_scope_not_claimed")
+        elif claimant != actor:
+            reasons.append("busy_scope_claimed_by_other_actor")
+
+    dependencies: dict[str, Any] = {}
+    if component in MCP_SHARED_PRODUCTION_COMPONENTS:
+        mcp = mcp_status if mcp_status is not None else _bootstrap_mcp_status()
+        dependencies["mcp"] = {
+            "available": bool(mcp.get("available")),
+            "status": mcp.get("status"),
+            "active_session_count": int(mcp.get("active_session_count") or 0),
+            "active_session_count_status": mcp.get("active_session_count_status"),
+            "active_sessions": mcp.get("active_sessions", []),
+        }
+        if not mcp.get("available") or mcp.get("status") != "LIVE" or mcp.get("active_session_count_status") != "COMPLETE":
+            reasons.append("mcp_dependency_evidence_incomplete")
+        elif int(mcp.get("active_session_count") or 0) > 0:
+            warnings.append("active_mcp_dependents_present")
+
+    return {
+        "schema": "production-change-gate.v1",
+        "target": {
+            "requested": requested,
+            "component": component if component in COMPONENTS else None,
+            "shared_production": component in SHARED_PRODUCTION_COMPONENTS,
+        },
+        "actor": actor,
+        "busy_scope": busy_scope,
+        "checks": {
+            "explicit_user_authorization_for_specific_live_change": bool(explicit_user_authorization),
+            "independent_rollback_control_route_verified": bool(independent_rollback_verified),
+            "offpath_canary_proof_verified": bool(offpath_proof_verified),
+            "busy_scope": busy,
+        },
+        "live_dependencies": dependencies,
+        "warnings": warnings,
+        "reasons": reasons,
+        "verdict": "PASS" if not reasons else "BLOCK",
+        "semantics": {
+            "go_continue_fix_are_not_production_authorization": True,
+            "busy_claim_is_collision_control_not_authorization": True,
+            "pass_is_necessary_not_sufficient_authority": True,
+        },
+    }
 
 
 def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
@@ -1158,6 +1276,13 @@ def main() -> int:
     blast = sub.add_parser("blast-radius")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
+    prod = sub.add_parser("production-change-gate")
+    prod.add_argument("target")
+    prod.add_argument("--actor", required=True)
+    prod.add_argument("--busy-scope", required=True)
+    prod.add_argument("--explicit-user-authorization", action="store_true")
+    prod.add_argument("--independent-rollback-verified", action="store_true")
+    prod.add_argument("--offpath-proof-verified", action="store_true")
     args = parser.parse_args()
 
     if args.command == "bootstrap-glance":
@@ -1180,6 +1305,15 @@ def main() -> int:
             value = component_details(args.component)
         except KeyError:
             parser.error(f"unknown Atlas component: {args.component}")
+    elif args.command == "production-change-gate":
+        value = production_change_gate(
+            args.target,
+            actor=args.actor,
+            busy_scope=args.busy_scope,
+            explicit_user_authorization=args.explicit_user_authorization,
+            independent_rollback_verified=args.independent_rollback_verified,
+            offpath_proof_verified=args.offpath_proof_verified,
+        )
     else:
         if args.snapshot:
             processes, ports, resources = load_snapshot(args.snapshot)

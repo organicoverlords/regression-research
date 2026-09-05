@@ -14,6 +14,7 @@ from tools.stack_atlas import (
     component_details,
     find_features,
     full_inventory,
+    production_change_gate,
     render_manual,
     _bootstrap_pc_status,
     _bootstrap_worker_status,
@@ -62,7 +63,68 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
         self.assertNotIn("mcp_hour", glance["commands"])
+        self.assertIn("production_change_gate", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
+
+    def test_production_change_gate_blocks_go_fix_style_implicit_authorization(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 20,
+            "active_session_count_status": "COMPLETE", "active_sessions": [{"caller_id": "c1"}],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        gate = production_change_gate(
+            "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
+            explicit_user_authorization=False, independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "BLOCK")
+        self.assertIn("missing_explicit_live_production_authorization", gate["reasons"])
+        self.assertTrue(gate["semantics"]["go_continue_fix_are_not_production_authorization"])
+        self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
+
+    def test_production_change_gate_blocks_without_independent_rollback(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 3,
+            "active_session_count_status": "COMPLETE", "active_sessions": [],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        gate = production_change_gate(
+            "vps_edge_ingress", actor="ChatGPT:test", busy_scope="mcp-vps:/etc/caddy/Caddyfile",
+            explicit_user_authorization=True, independent_rollback_verified=False, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "BLOCK")
+        self.assertIn("independent_rollback_control_route_not_verified", gate["reasons"])
+
+    def test_production_change_gate_blocks_foreign_busy_claim(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 1,
+            "active_session_count_status": "COMPLETE", "active_sessions": [],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:other"}, "job": None}
+        gate = production_change_gate(
+            "mcp_front_door", actor="ChatGPT:test", busy_scope="mcp-production:front-door",
+            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "BLOCK")
+        self.assertIn("busy_scope_claimed_by_other_actor", gate["reasons"])
+
+    def test_production_change_gate_passes_only_with_complete_evidence_and_reports_dependents(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 20,
+            "active_session_count_status": "COMPLETE", "active_sessions": [{"caller_id": "c1"}, {"caller_id": "c2"}],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        gate = production_change_gate(
+            "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
+            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "PASS")
+        self.assertEqual(gate["reasons"], [])
+        self.assertIn("active_mcp_dependents_present", gate["warnings"])
+        self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
 
     def test_worker_status_reads_runtime_history_from_live_root_not_source_root(self):
         with tempfile.TemporaryDirectory() as d:
