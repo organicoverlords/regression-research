@@ -414,6 +414,25 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["identity"]["component"], "vps_edge_ingress")
         self.assertEqual(result["destructive_verdict"], "BLOCK_ACTIVE_TRANSPORT")
 
+    def test_vps_edge_current_topology_is_wireguard_primary_with_ssh_fallbacks(self):
+        details = component_details("vps_edge_ingress")
+        status = " ".join(details["live_status"])
+        resources = " ".join(details["resources"])
+        self.assertIn("WireGuard", status)
+        self.assertIn("10.203.0.2:3011 primary", status)
+        self.assertIn("3101-3104", status)
+        self.assertIn("intentional fallback", status)
+        self.assertIn("WireGuard UDP 51820", resources)
+
+    def test_vps_edge_native_ssh_fallback_lane_classifies_as_transport(self):
+        process = {
+            "pid": 25428, "ppid": 1, "name": "ssh.exe",
+            "command_line": r'"C:\Program Files\Git\usr\bin\ssh.exe" -N -T -i C:\Users\Lauri\.ssh\tietokettu_edge -R 127.0.0.1:3101:127.0.0.1:3011 root@5.61.91.127',
+        }
+        result = blast_radius(25428, [process])
+        self.assertEqual(result["identity"]["component"], "vps_edge_ingress")
+        self.assertEqual(result["destructive_verdict"], "BLOCK_ACTIVE_TRANSPORT")
+
     def test_vps_origin_listener_wrapper_classifies_as_minimal_clone(self):
         listener = {
             "pid": 11328, "ppid": 5376, "name": "node.exe",
