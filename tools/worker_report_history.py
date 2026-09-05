@@ -142,9 +142,15 @@ def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[dat
     if str(payload.get("automation_id") or "").casefold() != report.stem.casefold():
         raise ValueError("timed run start receipt automation_id does not match current report")
     observed_started = _parse_time(str(payload.get("observed_started_at") or ""))
+    receipt_reported_started = _parse_time(str(payload.get("reported_started_at") or ""))
     reported_started = _parse_time(fields.get("started_at"))
-    if observed_started is None or reported_started is None:
+    if observed_started is None or receipt_reported_started is None or reported_started is None:
         raise ValueError("timed run start receipt contains invalid chronology")
+    receipt_written = datetime.fromtimestamp(receipt_path.stat().st_mtime).astimezone()
+    if abs((observed_started - receipt_written).total_seconds()) > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
+        raise ValueError("timed run start receipt observed time does not match receipt file write time")
+    if abs((reported_started - receipt_reported_started).total_seconds()) > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
+        raise ValueError("reported started_at changed after timed run begin")
     now = datetime.now().astimezone()
     if observed_started > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
         raise ValueError("timed run start receipt is in the future")
