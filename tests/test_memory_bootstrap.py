@@ -37,8 +37,8 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
 
         self.assertIn("The scheduler provides recurrence only", text)
         self.assertIn("Workers never administer workers", text)
-        self.assertIn("About 24 minutes is an observational utilization target", text)
-        self.assertIn("never a completion or admission gate", text)
+        self.assertIn("About 24 minutes remains the timed utilization target", text)
+        self.assertIn("existing >=80% completion guard", text)
         self.assertIn("Utilization never requires creating a new work identity", text)
         self.assertIn("work identity follows the canonical shared issue-first rules", text)
         self.assertIn("A blocker changes scope; it does not end unrelated work", text)
