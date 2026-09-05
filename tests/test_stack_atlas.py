@@ -665,6 +665,44 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(status["active_session_count"], 2)
         self.assertEqual(status["active_session_count_semantics"], MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
 
+    def test_mcp_status_uses_newer_rotated_archive_when_live_writer_keeps_appending_there(self):
+        from datetime import datetime, timedelta, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            archive = clone / "transport.jsonl.archive"
+            archive.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            old = now - timedelta(minutes=10)
+            active = clone / "transport.jsonl"
+            active.write_text(json.dumps({
+                "event": "process_started", "at": old.isoformat().replace("+00:00", "Z"),
+                "caller_id": "caller_old", "process_id": "p-old", "cwd": r"C:\old",
+            }) + "\n", encoding="utf-8")
+            old_ts = old.timestamp()
+            os.utime(active, (old_ts, old_ts))
+
+            recent = now - timedelta(seconds=5)
+            rotated = archive / "transport.jsonl.2026-09-06T00-00-00Z.test.jsonl"
+            rotated.write_text("\n".join(json.dumps(row) for row in [
+                {"event": "process_started", "at": (now - timedelta(minutes=6)).isoformat().replace("+00:00", "Z"), "caller_id": "caller_before", "process_id": "p-before", "cwd": r"C:\before"},
+                {"event": "process_started", "at": recent.isoformat().replace("+00:00", "Z"), "caller_id": "caller_live", "process_id": "p-live", "cwd": r"C:\live"},
+            ]) + "\n", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas._bootstrap_mcp_backend_health", side_effect=AssertionError("fresh archive should prove liveness")), \
+                 patch("tools.stack_atlas._bootstrap_busy_claims_direct", return_value=[]):
+                status = _bootstrap_mcp_status()
+
+        self.assertEqual(status["status"], "LIVE")
+        self.assertEqual(status["activity_evidence_status"], "FRESH")
+        self.assertEqual(status["active_session_count_status"], "COMPLETE")
+        self.assertEqual(status["active_session_count"], 1)
+        self.assertEqual(status["active_sessions"][0]["caller_id"], "caller_live")
+        self.assertLess(status["source_age_seconds"], 60)
+
     def test_mcp_status_healthy_backend_keeps_service_live_when_activity_source_is_stale(self):
         from datetime import datetime, timedelta, timezone
         import os
