@@ -347,6 +347,45 @@ class StackAtlasTests(unittest.TestCase):
             self.assertTrue(status["activity_summary"]["activity_window_complete"])
             self.assertGreater(status["activity_summary"]["sample_rows"], 400)
 
+    def test_mcp_status_uses_latest_started_cwd_even_when_caller_returns_to_prior_workspace(self):
+        from datetime import datetime, timedelta, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            clone.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            vault_cwd = r"C:\Users\Lauri\Desktop\vault"
+            mcp_cwd = r"C:\Users\Lauri\AppData\Local\ChatGPTMcpMinimal"
+            rows = [
+                {
+                    "event": "process_started", "at": (now - timedelta(seconds=3)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": "caller_repeat", "owner_caller_id": "caller_repeat", "process_id": "p1",
+                    "pid": 1001, "cwd": vault_cwd,
+                },
+                {
+                    "event": "process_started", "at": (now - timedelta(seconds=2)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": "caller_repeat", "owner_caller_id": "caller_repeat", "process_id": "p2",
+                    "pid": 1002, "cwd": mcp_cwd,
+                },
+                {
+                    "event": "process_started", "at": (now - timedelta(seconds=1)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": "caller_repeat", "owner_caller_id": "caller_repeat", "process_id": "p3",
+                    "pid": 1003, "cwd": vault_cwd,
+                },
+            ]
+            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas._bootstrap_busy_claims_direct", return_value=[]):
+                status = _bootstrap_mcp_status()
+
+        self.assertEqual(status["active_session_count"], 1)
+        self.assertEqual(status["active_sessions"][0]["cwd"], vault_cwd)
+        self.assertEqual(status["active_sessions"][0]["workspace"], "Vault")
+        self.assertEqual(status["workspace_counts"], {"Vault": 1})
+
     def test_mcp_status_reads_only_tail_referenced_receipts(self):
         from datetime import datetime, timezone
         import os

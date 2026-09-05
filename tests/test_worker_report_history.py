@@ -759,6 +759,47 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(events[0]["outcome"], "corrected logical run")
 
 
+    def test_manual_event_dedupe_tolerates_missing_archived_at_on_windows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_root = root / "manual" / "history"
+            reports = history_root / "_reports"
+            reports.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            base = {
+                "schema": "worker-report-history.v6",
+                "population": "manual",
+                "run_id": "manual-missing-archived-at",
+                "display_label": "Manual ChatGPT",
+                "state": "RUN_FINISHED",
+                "repo": "regression-research",
+                "scope": "#569",
+                "finished_at": (now - timedelta(minutes=2)).isoformat(),
+            }
+            malformed = {
+                **base,
+                "report_sha256": "aaa",
+                "duration_minutes": 2.0,
+                "outcome": "older malformed metadata",
+            }
+            valid = {
+                **base,
+                "report_sha256": "bbb",
+                "archived_at": now.isoformat(),
+                "duration_minutes": 3.0,
+                "outcome": "newest valid metadata",
+            }
+            (reports / "aaa.json").write_text(json.dumps(malformed), encoding="utf-8")
+            (reports / "bbb.json").write_text(json.dumps(valid), encoding="utf-8")
+
+            events = worker_history_events(history_root)
+
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["id"], "worker:bbb")
+            self.assertEqual(events[0]["outcome"], "newest valid metadata")
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

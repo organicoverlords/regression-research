@@ -873,7 +873,7 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         if event == "process_started":
             item["process_starts"] += 1
             cwd = row.get("cwd")
-            if cwd and cwd not in item["cwds"]: item["cwds"].append(cwd)
+            if cwd: item["cwds"].append(cwd)
             process_id = row.get("process_id")
             if process_id and process_id not in item["process_ids"]: item["process_ids"].append(process_id)
         elif event == "process_read":
