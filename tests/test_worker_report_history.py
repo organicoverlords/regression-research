@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import archive_finalized_report, worker_history_events
+from tools.worker_report_history import archive_finalized_report, build_metrics_projection, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -111,6 +112,28 @@ class WorkerReportHistoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "started_at.*last_activity_at.*mutation.*remaining_gate"):
                 archive_finalized_report(report, root / "history")
 
+    def test_current_report_rejects_duplicate_canonical_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "0123456789abcdef0123456789abcdef"
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\n"
+                "started_at: 2099-01-01T00:00:00+00:00\nlast_activity_at: 2099-01-01T00:20:00+00:00\n"
+                "repo: p3\nscope: p3#500\nstate: RUN_FINISHED\noutcome: useful work\n"
+                "mutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: premature finalization rejected; run continuing\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            before = report.read_bytes()
+            with self.assertRaisesRegex(ValueError, r"duplicate canonical field\(s\): stop_reason"):
+                archive_finalized_report(report, root / "history")
+            self.assertEqual(report.read_bytes(), before)
+            self.assertFalse((root / "history" / "_reports").exists())
+
     def test_current_report_requires_filename_id(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -171,16 +194,16 @@ class WorkerReportHistoryTests(unittest.TestCase):
             current = root / "current"
             current.mkdir()
             cases = (
-                ("5.55", "2099-01-01T00:05:33+00:00", "Useful bounded window exhausted; heavy runtime acceptance remains a separate resource-dependent gate."),
-                ("13.52", "2099-01-01T00:13:31+00:00", "Bounded selection found no additional safe mutation while collision ownership was unavailable and the heavy runtime lane was occupied."),
-                ("7.03", "2099-01-01T00:07:02+00:00", "Useful independent work window exhausted while heavy Unreal lane remained occupied."),
+                ("5.55", "2020-01-01T00:05:33+00:00", "Useful bounded window exhausted; heavy runtime acceptance remains a separate resource-dependent gate."),
+                ("13.52", "2020-01-01T00:13:31+00:00", "Bounded selection found no additional safe mutation while collision ownership was unavailable and the heavy runtime lane was occupied."),
+                ("7.03", "2020-01-01T00:07:02+00:00", "Useful independent work window exhausted while heavy Unreal lane remained occupied."),
             )
             for suffix, finished_at, stop_reason in cases:
                 with self.subTest(duration=suffix):
                     automation_id = (suffix.replace(".", "") + "0" * 32)[:32]
                     report = current / f"{automation_id}.md"
                     report.write_text(
-                        f"automation_id: {automation_id}\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                        f"automation_id: {automation_id}\nstarted_at: 2020-01-01T00:00:00+00:00\n"
                         f"last_activity_at: {finished_at}\nrepo: p3\nscope: p3#960\nstate: RUN_FINISHED\n"
                         "outcome: validated existing WIP\nmutation: no source mutation\nvalidation: PASS\n"
                         f"remaining_gate: heavy runtime acceptance\nstop_reason: {stop_reason}\n",
@@ -195,21 +218,70 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     self.assertNotIn(stop_reason, current_text)
                     self.assertFalse((root / "history" / "_reports").exists())
 
+    def test_run_finished_rejects_future_last_activity_and_restores_running(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "f" * 32
+            now = datetime.now().astimezone()
+            started = now - timedelta(minutes=1)
+            future = now + timedelta(minutes=20)
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {future.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "last_activity_at is in the future.*NOT finished"):
+                archive_finalized_report(report, root / "history")
+            current_text = report.read_text(encoding="utf-8")
+            self.assertIn("state: RUNNING", current_text)
+            self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
+            self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_metrics_and_events_ignore_archives_with_future_finish_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history" / "_reports"
+            history.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            good = {
+                "schema": "worker-report-history.v6", "report_sha256": "good", "automation_id": "a" * 32,
+                "display_label": "Good", "state": "RUN_FINISHED", "outcome": "useful work",
+                "finished_at": (now - timedelta(minutes=2)).isoformat(), "archived_at": (now - timedelta(minutes=1)).isoformat(),
+                "duration_minutes": 20.0, "target_utilization_pct": 83.3, "repo": "p3", "scope": "p3#500",
+                "stop_reason": "useful work window materially exhausted",
+            }
+            impossible = {
+                **good, "report_sha256": "impossible", "automation_id": "b" * 32, "display_label": "Impossible",
+                "finished_at": (now + timedelta(minutes=20)).isoformat(), "archived_at": now.isoformat(),
+            }
+            (history / "good.json").write_text(json.dumps(good), encoding="utf-8")
+            (history / "impossible.json").write_text(json.dumps(impossible), encoding="utf-8")
+            metrics = build_metrics_projection(root / "history")
+            self.assertEqual(metrics["reports"], 1)
+            self.assertEqual(metrics["latest_reports"][0]["report_sha256"], "good")
+            events = worker_history_events(root / "history")
+            self.assertEqual([event["id"] for event in events], ["worker:good"])
+
     def test_run_finished_allows_on_target_or_true_terminal_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "current"
             current.mkdir()
             cases = (
-                ("a" * 32, "2099-01-01T00:20:00+00:00", "heavy runtime lane occupied"),
-                ("b" * 32, "2099-01-01T00:05:00+00:00", "user interrupted the run"),
-                ("c" * 32, "2099-01-01T00:05:00+00:00", "task-level blocker proven after safe existing execution surfaces and independent useful work were exhausted"),
+                ("a" * 32, "2020-01-01T00:20:00+00:00", "heavy runtime lane occupied"),
+                ("b" * 32, "2020-01-01T00:05:00+00:00", "user interrupted the run"),
+                ("c" * 32, "2020-01-01T00:05:00+00:00", "task-level blocker proven after safe existing execution surfaces and independent useful work were exhausted"),
             )
             for automation_id, finished_at, stop_reason in cases:
                 with self.subTest(automation_id=automation_id):
                     report = current / f"{automation_id}.md"
                     report.write_text(
-                        f"automation_id: {automation_id}\nstarted_at: 2099-01-01T00:00:00+00:00\n"
+                        f"automation_id: {automation_id}\nstarted_at: 2020-01-01T00:00:00+00:00\n"
                         f"last_activity_at: {finished_at}\nrepo: p3\nscope: p3#960\nstate: RUN_FINISHED\n"
                         "outcome: useful work\nmutation: no source mutation\nvalidation: PASS\n"
                         f"remaining_gate: none\nstop_reason: {stop_reason}\n",
@@ -225,8 +297,8 @@ class WorkerReportHistoryTests(unittest.TestCase):
             automation_id = "d" * 32
             report = current / f"{automation_id}.md"
             report.write_text(
-                f"automation_id: {automation_id}\nstarted_at: 2099-01-01T00:00:00+00:00\n"
-                "last_activity_at: 2099-01-01T00:20:00+00:00\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                f"automation_id: {automation_id}\nstarted_at: 2020-01-01T00:00:00+00:00\n"
+                "last_activity_at: 2020-01-01T00:20:00+00:00\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
                 "outcome: useful work\nmutation: changed gameplay\nvalidation: PASS\nremaining_gate: none\n"
                 "stop_reason: premature finalization rejected; run continuing\n",
                 encoding="utf-8",
