@@ -19,11 +19,23 @@ Copy-Item (Join-Path $root 'rust\Cargo.lock') (Join-Path $rustDir 'Cargo.lock') 
 Copy-Item (Join-Path $root 'rust\src\main.rs') (Join-Path $rustSrcDir 'main.rs') -Force
 @"
 @echo off
+set "_busy_cmd=%~1"
+if /I "%_busy_cmd%"=="--store" set "_busy_cmd=%~3"
+for %%C in (list sweep snapshot recover claim heartbeat release inspect) do if /I "%_busy_cmd%"=="%%C" goto core
 python "%~dp0audit_wrapper.py" --impl python %*
+exit /b %ERRORLEVEL%
+:core
+python "%~dp0python\busy.py" %*
 "@ | Set-Content -Encoding ascii (Join-Path $Destination 'busy-python.cmd')
 @"
 @echo off
+set "_busy_cmd=%~1"
+if /I "%_busy_cmd%"=="--store" set "_busy_cmd=%~3"
+for %%C in (list sweep snapshot recover claim heartbeat release inspect) do if /I "%_busy_cmd%"=="%%C" goto core
 python "%~dp0audit_wrapper.py" --impl rust %*
+exit /b %ERRORLEVEL%
+:core
+"%~dp0rust\busy-coordinator.exe" %*
 "@ | Set-Content -Encoding ascii (Join-Path $Destination 'busy-rust.cmd')
 Write-Output "INSTALLED=$Destination"
 Write-Output "PYTHON=$(Join-Path $pythonDir 'busy.py')"

@@ -43,6 +43,24 @@ try:
     assert py == rs
     assert run_wrapper(wrappers["rust"], store, "release", actor, "scope", "--checkpoint", "pending")["ok"] is True
     assert run_wrapper(wrappers["python"], store, "snapshot")["counts"]["checkpoints"] == 1
-    print(json.dumps({"ok": True, "installed_python_and_rust": True, "contract_version": CONTRACT["contract_version"]}))
+
+    # Observability is non-authoritative: core ownership must keep working even if
+    # audit_wrapper.py is missing or broken. Only contract/log/audit depend on it.
+    audit_wrapper = destination / "audit_wrapper.py"
+    disabled_audit_wrapper = destination / "audit_wrapper.py.disabled"
+    audit_wrapper.replace(disabled_audit_wrapper)
+    try:
+        for kind, wrapper in wrappers.items():
+            isolated = base / f"state-no-audit-{kind}.json"
+            direct_actor = f"ChatGPT-install-direct-{kind}"
+            assert run_wrapper(wrapper, isolated, "list") == {"claims": []}
+            assert run_wrapper(wrapper, isolated, "claim", direct_actor, "scope")["ok"] is True
+            direct_snapshot = run_wrapper(wrapper, isolated, "snapshot", "--scope", "scope")
+            assert direct_snapshot["counts"]["active"] == 1
+            assert run_wrapper(wrapper, isolated, "release", direct_actor, "scope")["ok"] is True
+    finally:
+        disabled_audit_wrapper.replace(audit_wrapper)
+
+    print(json.dumps({"ok": True, "installed_python_and_rust": True, "contract_version": CONTRACT["contract_version"], "core_independent_of_audit_wrapper": True}))
 finally:
     shutil.rmtree(base, ignore_errors=True)
