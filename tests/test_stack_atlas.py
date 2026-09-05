@@ -39,6 +39,16 @@ class StackAtlasTests(unittest.TestCase):
         sample_workers = {
             "available": True,
             "latest_archived_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+            "manual_current": {
+                "available": True,
+                "evidence_semantics": "manual_current_report_state_and_purpose_only_not_process_liveness_or_scheduler_membership",
+                "recent_running_report_count": 2,
+                "recent_running_report_count_status": "COMPLETE",
+                "recent_running_reports": [
+                    {"run_id": "manual-a", "display_label": "Head Auditor continuation", "scope": "audit current stack", "state": "RUNNING", "age_minutes": 0.2},
+                    {"run_id": "manual-b", "display_label": "P3 worker-population blindness audit", "scope": "audit worker population", "state": "RUNNING", "age_minutes": 0.4},
+                ],
+            },
             "attention": [{"worker": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
         }
         with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
@@ -62,6 +72,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("worker_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
         self.assertNotIn("latest_archived_per_worker", glance["workers"])
         self.assertNotIn("fleet", glance["workers"])
+        self.assertEqual(glance["workers"]["manual_current"]["recent_running_report_count"], 2)
+        self.assertEqual(glance["workers"]["manual_current"]["recent_running_reports"][0]["display_label"], "Head Auditor continuation")
+        self.assertIn("not_process_liveness", glance["workers"]["manual_current"]["evidence_semantics"])
+        self.assertIn("manual_running_reports_recent_2_complete", glance["notable_conditions"])
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
@@ -217,6 +231,62 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fir["finished_at"], valid_finished.isoformat())
         self.assertEqual(fir["classification"], "SEVERELY_PREMATURE")
 
+
+    def test_worker_bootstrap_surfaces_recent_manual_running_purpose_without_claiming_liveness(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_root = root / "worker-reports" / "history"
+            manual_current = root / "worker-reports" / "manual" / "current"
+            history_root.mkdir(parents=True)
+            manual_current.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+
+            def write_report(run_id: str, label: str, state: str, activity: datetime, scope: str) -> Path:
+                report = manual_current / f"{run_id}.md"
+                report.write_text(
+                    "\n".join([
+                        f"run_id: {run_id}",
+                        f"display_label: {label}",
+                        f"started_at: {(activity - timedelta(minutes=1)).isoformat()}",
+                        f"last_activity_at: {activity.isoformat()}",
+                        r"repo: C:\repo",
+                        f"scope: {scope}",
+                        f"state: {state}",
+                        "outcome: in progress",
+                        "mutation: none",
+                        "validation: none",
+                        "remaining_gate: continue",
+                        "finding_tags: none",
+                        "findings: none",
+                        "",
+                    ]),
+                    encoding="utf-8",
+                )
+                ts = activity.timestamp()
+                os.utime(report, (ts, ts))
+                return report
+
+            write_report("manual-a", "Head Auditor continuation", "RUNNING", now - timedelta(minutes=1), "audit current stack")
+            write_report("manual-b", "P3 worker-population blindness audit", "RUNNING", now - timedelta(minutes=2), "audit worker population")
+            write_report("manual-stale", "Stale audit", "RUNNING", now - timedelta(minutes=45), "old audit")
+            write_report("manual-finished", "Finished audit", "RUN_FINISHED", now - timedelta(minutes=1), "finished audit")
+
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                 patch("tools.worker_report_history.load_history_metadata", return_value=[]):
+                workers = _bootstrap_worker_status()
+
+        manual = workers["manual_current"]
+        self.assertTrue(manual["available"])
+        self.assertEqual(manual["running_reports_in_scan"], 3)
+        self.assertEqual(manual["recent_running_report_count"], 2)
+        self.assertEqual(manual["recent_running_report_count_status"], "COMPLETE")
+        self.assertEqual(
+            [item["display_label"] for item in manual["recent_running_reports"]],
+            ["Head Auditor continuation", "P3 worker-population blindness audit"],
+        )
+        self.assertNotIn("Stale audit", json.dumps(manual))
+        self.assertIn("not_process_liveness", manual["evidence_semantics"])
 
     def test_worker_archive_sample_is_not_presented_as_current_scheduler_fleet(self):
         from datetime import datetime, timedelta, timezone
