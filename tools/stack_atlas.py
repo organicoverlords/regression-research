@@ -708,6 +708,21 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         sample.append(visible)
 
     scan_truncated = len(report_paths) > len(scan_paths)
+    # The content-read cap and the recent-count completeness boundary are not
+    # the same thing. Reports are ordered newest-mtime-first, and recent
+    # eligibility already requires report mtime to be inside the freshness
+    # window. If the bounded scan has reached an mtime older than that window,
+    # every unscanned report is necessarily too old to affect the recent count.
+    recent_scan_cutoff_reached = not scan_truncated
+    if scan_truncated and scan_paths:
+        try:
+            oldest_scanned_mtime = datetime.fromtimestamp(scan_paths[-1].stat().st_mtime, timezone.utc)
+            oldest_scanned_age_minutes = max(0.0, (now - oldest_scanned_mtime).total_seconds() / 60.0)
+            recent_scan_cutoff_reached = oldest_scanned_age_minutes > BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES
+        except OSError:
+            # A stat race means we cannot prove that unscanned reports are too
+            # old, so retain the conservative lower-bound classification.
+            recent_scan_cutoff_reached = False
     return {
         "available": True,
         "path": str(current_root),
@@ -719,7 +734,8 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         "scan_truncated": scan_truncated,
         "running_reports_in_scan": len(running_reports),
         "recent_running_report_count": len(recent_running),
-        "recent_running_report_count_status": "LOWER_BOUND" if scan_truncated else "COMPLETE",
+        "recent_running_report_count_status": "COMPLETE" if recent_scan_cutoff_reached else "LOWER_BOUND",
+        "recent_scan_cutoff_reached": recent_scan_cutoff_reached,
         "recent_running_reports": sample,
         "recent_running_reports_truncated": len(recent_running) > len(sample),
         "malformed_running_reports_in_scan": malformed_running_reports,
