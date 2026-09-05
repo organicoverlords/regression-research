@@ -7,10 +7,52 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import archive_finalized_report, begin_timed_run, build_metrics_projection, worker_history_events
+from tools.worker_report_history import archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_metrics_projection, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
+    def test_manual_current_audit_never_treats_running_file_as_liveness(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-test-running"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\nstarted_at: 2026-09-05T10:00:00+00:00\n"
+                "last_activity_at: 2026-09-05T10:10:00+00:00\nrepo: p3\nscope: test\n"
+                "state: RUNNING\noutcome: RUNNING\nmutation: none\nvalidation: none\n"
+                "remaining_gate: finish turn\nfinding_tags: proof\nfindings: current file alone is not liveness\n",
+                encoding="utf-8",
+            )
+            audit = audit_manual_current_reports(current, history)
+            self.assertEqual(audit["unfinalized_count"], 1)
+            self.assertEqual(audit["reports"][0]["lifecycle_status"], "UNFINALIZED_RUNNING")
+            self.assertEqual(audit["reports"][0]["liveness"], "NOT_ESTABLISHED_BY_REPORT")
+
+    def test_manual_current_audit_distinguishes_archived_pointer_and_unarchived_terminal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            for run_id in ("manual-archived", "manual-unarchived"):
+                report = current / f"{run_id}.md"
+                report.write_text(
+                    f"run_id: {run_id}\nstarted_at: 2026-09-05T10:00:00+00:00\n"
+                    "last_activity_at: 2026-09-05T10:10:00+00:00\nrepo: p3\nscope: test\n"
+                    "state: RUN_FINISHED\noutcome: done\nmutation: none\nvalidation: PASS\n"
+                    "remaining_gate: none\nfinding_tags: proof\nfindings: terminal manual report fixture\nstop_reason: done\n",
+                    encoding="utf-8",
+                )
+            archive_finalized_report(current / "manual-archived.md", history)
+            audit = audit_manual_current_reports(current, history)
+            by_id = {row["run_id"]: row for row in audit["reports"]}
+            self.assertEqual(by_id["manual-archived"]["lifecycle_status"], "ARCHIVED_CURRENT_POINTER")
+            self.assertEqual(by_id["manual-unarchived"]["lifecycle_status"], "UNARCHIVED_TERMINAL")
+            self.assertEqual(audit["unarchived_terminal_count"], 1)
+
     @staticmethod
     def _write_timed_start_receipt(
         report: Path, observed_started_at: str, *, reported_started_at: str | None = None
