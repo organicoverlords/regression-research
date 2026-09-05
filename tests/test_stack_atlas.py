@@ -519,6 +519,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("history/_reports", " ".join(component_details("worker_reports")["resources"]))
         self.assertNotIn("metrics.json", " ".join(component_details("worker_reports")["resources"]))
 
+    def test_busycoordinator_literal_name_resolves_to_standalone_busy_ownership(self):
+        result = find_features("BusyCoordinator")[0]
+        self.assertEqual(result["id"], "coordination.ownership")
+        self.assertEqual(result["owner_components"], ["busy_coordinator"])
+        self.assertIn("busy-python.cmd", " ".join(result["entrypoints"]))
+
     def test_busy_feature_entrypoints_are_directly_executable_paths(self):
         expected = str(Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd")))
         ownership = find_features("busy collision control")[0]
@@ -607,6 +613,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(component_details("mcp")["id"], "mcp_minimal_clone")
         self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
         self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
+        self.assertEqual(component_details("BusyCoordinator")["id"], "busy_coordinator")
+        self.assertEqual(component_details("busy coordinator")["id"], "busy_coordinator")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
         self.assertEqual(component_details("rules")["id"], "agent_rules")
 
