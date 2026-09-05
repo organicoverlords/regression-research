@@ -168,10 +168,27 @@ def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[dat
     return observed_started, receipt_path
 
 
+def _proof_navigation_scalar(value: str | None) -> str | None:
+    """Decode quoted report scalars for navigation while preserving ordinary values."""
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if raw.startswith('"') and raw.endswith('"'):
+        try:
+            decoded = json.loads(raw)
+        except json.JSONDecodeError:
+            decoded = raw[1:-1]
+        if isinstance(decoded, str) and decoded.strip():
+            return decoded.strip()
+    return raw
+
+
 def _proof_artifact_fields(fields: dict[str, str]) -> tuple[str | None, str | None]:
     """Normalize report-owned proof artifact navigation without implying acceptance."""
-    artifact = fields.get("proof_artifact") or fields.get("proof_index")
-    sha256 = fields.get("proof_artifact_sha256") or fields.get("proof_index_sha256")
+    artifact = _proof_navigation_scalar(
+        fields.get("proof_artifact") or fields.get("proof_index") or fields.get("video_manifest")
+    )
+    sha256 = _proof_navigation_scalar(fields.get("proof_artifact_sha256") or fields.get("proof_index_sha256"))
     return artifact, sha256
 
 
