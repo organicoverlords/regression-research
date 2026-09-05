@@ -13,6 +13,7 @@ from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
 ROOT = Path(__file__).resolve().parents[1]
+ATLAS_LIVE_ROOT = Path(r"C:\Users\Lauri\Desktop\vault")
 BUSY_ROOT = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator"))
 BUSY_CONTRACT = str(BUSY_ROOT / "coordinator-contract.json")
 BUSY_CMD = str(BUSY_ROOT / "busy-python.cmd")
@@ -510,7 +511,7 @@ def _bootstrap_pc_status() -> dict[str, Any]:
 
 
 def _bootstrap_worker_status() -> dict[str, Any]:
-    history_root = ROOT / "worker-reports" / "history"
+    history_root = ATLAS_LIVE_ROOT / "worker-reports" / "history"
     if not history_root.exists():
         return {"available": False, "path": str(history_root)}
     try:
