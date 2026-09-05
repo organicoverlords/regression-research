@@ -288,21 +288,42 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
                     self.assertFalse((root / "history" / "_reports").exists())
 
-    def test_timed_run_begin_rejects_backdated_reported_start(self):
+    def test_timed_run_begin_allows_earlier_reported_start_but_observes_now(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "current"
             current.mkdir()
             automation_id = "1" * 32
             now = datetime.now().astimezone()
+            reported_started = now - timedelta(minutes=20)
             report = current / f"{automation_id}.md"
             report.write_text(
-                f"automation_id: {automation_id}\nstarted_at: {(now - timedelta(minutes=20)).isoformat()}\n"
+                f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
                 f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
                 "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: none\n",
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "started_at must match the machine-observed begin time"):
+            result = begin_timed_run(report)
+            observed = datetime.fromisoformat(result["observed_started_at"])
+            self.assertGreaterEqual(observed, now)
+            self.assertGreater((observed - reported_started).total_seconds(), 19 * 60)
+            self.assertTrue(Path(result["receipt_path"]).exists())
+
+    def test_timed_run_begin_rejects_future_reported_start(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "f" * 32
+            future = datetime.now().astimezone() + timedelta(minutes=5)
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {future.isoformat()}\n"
+                f"last_activity_at: {future.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "started_at is in the future"):
                 begin_timed_run(report)
             self.assertFalse((root / ".supervision" / f"{automation_id}.start.json").exists())
 
@@ -326,13 +347,14 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
             self.assertFalse((root / "history" / "_reports").exists())
 
-    def test_timed_run_finished_rejects_backdated_start_after_begin(self):
+    def test_timed_run_backdated_start_after_begin_cannot_inflate_utilization(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "current"
             current.mkdir()
             automation_id = "3" * 32
-            started = datetime.now().astimezone()
+            observed_window = datetime.now().astimezone()
+            started = observed_window - timedelta(minutes=20)
             report = current / f"{automation_id}.md"
             report.write_text(
                 f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
@@ -349,7 +371,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "stop_reason: useful work window materially exhausted\n",
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "reported started_at differs from the machine-observed run start"):
+            with self.assertRaisesRegex(ValueError, "Under 80% utilization"):
                 archive_finalized_report(report, root / "history")
             self.assertTrue((root / ".supervision" / f"{automation_id}.start.json").exists())
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
@@ -360,7 +382,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             current = root / "current"
             current.mkdir()
             automation_id = "4" * 32
-            started = datetime.now().astimezone()
+            started = datetime.now().astimezone() - timedelta(minutes=20)
             report = current / f"{automation_id}.md"
             report.write_text(
                 f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
