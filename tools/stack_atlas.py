@@ -323,6 +323,7 @@ COMPONENTS.update({
 })
 
 SHARED_PRODUCTION_COMPONENTS = frozenset({
+    "agent_rules",
     "busy_coordinator",
     "vps_edge_ingress",
     "mcp_front_door",
