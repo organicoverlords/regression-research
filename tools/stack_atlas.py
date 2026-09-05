@@ -1084,6 +1084,15 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         _bootstrap_cache_write("mcp-status.json", cache_payload)
         return result
     source = logs[0]
+    archive_dir = source.with_name(f"{source.name}.archive")
+    if archive_dir.is_dir():
+        newest_archive = max(
+            (candidate for candidate in archive_dir.iterdir() if candidate.is_file() and candidate.suffix.lower() == ".jsonl"),
+            key=lambda candidate: candidate.stat().st_mtime,
+            default=None,
+        )
+        if newest_archive is not None and newest_archive.stat().st_mtime > source.stat().st_mtime:
+            source = newest_archive
     source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
     source_liveness_fresh = source_age <= 60
     source_activity_fresh = source_age <= activity_window_seconds
