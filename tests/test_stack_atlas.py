@@ -427,29 +427,29 @@ class StackAtlasTests(unittest.TestCase):
 
     def test_bootstrap_directory_covers_major_stack_surfaces(self):
         atlas = build_bootstrap_atlas()
-        ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS) | set(__import__("tools.stack_atlas", fromlist=["PRODUCT_ROOTS"]).PRODUCT_ROOTS)
+        ids = set(__import__("tools.stack_atlas", fromlist=["COMPONENTS"]).COMPONENTS)
         expected = {
             "busy_coordinator", "mcp_front_door", "mcp_backend", "mcp_minimal_clone",
             "agent_rules", "repo_rule_pointer", "north_star", "chatgpt_memory", "memory_bank",
             "chatgpt_session", "execution_workers", "chatgpt_automations", "local_git", "github",
             "github_actions", "github_runner", "worker_reports",
-            "lowvram", "asset_library", "tiny3d", "p3",
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
         self.assertNotIn("operator_live", ids)
 
-    def test_product_flow_and_roles_match_current_repo_architecture(self):
-        atlas = __import__("tools.stack_atlas", fromlist=["PRODUCT_FLOW"])
-        self.assertEqual(atlas.PRODUCT_FLOW, (("lowvram", "tiny3d"), ("tiny3d", "p3")))
-        lowvram = component_details("lowvram")
-        tiny3d = component_details("tiny3d")
-        library = component_details("asset_library")
-        self.assertEqual(lowvram["role"], "generator:image_to_3d")
-        self.assertEqual(tiny3d["role"], "product:post_generation_asset_compiler")
-        self.assertIn("README.md", " ".join(lowvram["canonical_sources"]))
-        self.assertIn("TINY3D_NORTH_STAR.md", " ".join(tiny3d["canonical_sources"]))
-        self.assertEqual(library["canonical_sources"][0], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")
-        self.assertEqual(full_inventory()["product_flow"], [["lowvram", "tiny3d"], ["tiny3d", "p3"]])
+    def test_atlas_is_product_agnostic_and_product_repos_are_not_lookup_authorities(self):
+        atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS"])
+        self.assertIn("STACK_INFRA_MAP_ONLY", ATLAS_CONTRACT["scope"])
+        self.assertFalse(hasattr(atlas, "PRODUCT_COMPONENTS"))
+        self.assertFalse(hasattr(atlas, "PRODUCT_ROOTS"))
+        self.assertFalse(hasattr(atlas, "PRODUCT_FLOW"))
+        for product in ("lowvram", "asset_library", "tiny3d", "p3"):
+            with self.subTest(product=product):
+                with self.assertRaises(KeyError):
+                    component_details(product)
+        inventory = full_inventory()
+        self.assertNotIn("product_flow", inventory)
+        self.assertTrue({"lowvram", "asset_library", "tiny3d", "p3"}.isdisjoint(inventory["components"]))
 
     def test_generated_operational_manual_matches_atlas(self):
         manual = ROOT / "docs" / "assistant-stack-operational-atlas.md"
@@ -478,8 +478,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("forbidden publication targets", joined)
 
     def test_every_component_declares_its_own_live_truth_and_recovery_routes(self):
-        atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS", "PRODUCT_ROOTS"])
-        for component in [*atlas.COMPONENTS, *atlas.PRODUCT_ROOTS]:
+        atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS"])
+        for component in atlas.COMPONENTS:
             with self.subTest(component=component):
                 details = component_details(component)
                 for field in ("canonical_sources", "live_status", "supervisor", "self_heal", "independent_recovery", "resources", "dependents", "runbook"):

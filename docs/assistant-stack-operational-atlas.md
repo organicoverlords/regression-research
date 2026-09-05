@@ -20,12 +20,6 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
 | `execution.transport` | vps_edge_ingress, mcp_front_door | preferred MCPv3 binding when healthy and exposed; retired Remote Desktop Commander fallback whenever preferred MCPv3 is unavailable; retry failed routes only on changed state or new evidence | Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. |
 
-## Product flow
-
-`LowVRAM -> Tiny3D -> P3`
-
-Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and derived projections may explain lineage but cannot redefine the active boundary.
-
 ## Components
 
 ### `busy_coordinator`
@@ -300,58 +294,6 @@ Product-stage ownership comes from the current product repo architecture contrac
 - Runbook: repo workflow files
 - Supervisor: GitHub Actions
 - Self-heal: external
-
-### `lowvram`
-
-- Role: `generator:image_to_3d`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\lowvram3d-repo; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md
-- Live status: read current LowVRAM repo architecture before historical migration/issues; inspect current generator filesystem/Git/runtime as applicable
-- Independent recovery: preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM
-- Resources: source recovery; image-to-3D generation; geometry; textures; provenance; producer visual QA
-- Dependents: tiny3d
-- Runbook: C:\Users\Lauri\.agents\AGENTS.md; C:\Users\Lauri\Desktop\lowvram3d-repo\README.md; C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md
-- Supervisor: project-specific
-- Self-heal: project-specific
-
-### `asset_library`
-
-- Role: `storage:tiny3d_asset_library`
-- Capabilities: source_read
-- Canonical sources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; C:\Users\Lauri\Desktop\tiny3d\README.md
-- Live status: Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters
-- Independent recovery: rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority
-- Resources: C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; .tiny3d/library/index-v1.json
-- Dependents: tiny3d
-- Runbook: C:\Users\Lauri\Desktop\tiny3d\README.md
-- Supervisor: Tiny3D
-- Self-heal: product-specific
-
-### `tiny3d`
-
-- Role: `product:post_generation_asset_compiler`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Desktop\tiny3d; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
-- Live status: read current Tiny3D repo architecture before historical migration/issues; inspect current compiler/library Git/runtime evidence as applicable
-- Independent recovery: consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM
-- Resources: compilation; rigging/skinning; animation/deformation preparation; validation/adapters; packaging/lifecycle evidence; catalogue/library
-- Dependents: p3
-- Runbook: C:\Users\Lauri\.agents\AGENTS.md; C:\Users\Lauri\Desktop\tiny3d\README.md; C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md
-- Supervisor: project-specific
-- Self-heal: project-specific
-
-### `p3`
-
-- Role: `consumer:game_runtime_acceptance`
-- Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: C:\Users\Lauri\Documents\Unreal Projects\p3
-- Live status: inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance
-- Independent recovery: Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof
-- Resources: Unreal/game materialization; runtime acceptance; gameplay/visual proof
-- Dependents: none
-- Runbook: C:\Users\Lauri\.agents\AGENTS.md
-- Supervisor: project-specific
-- Self-heal: project-specific
 
 ## Process identity and blast radius
 
