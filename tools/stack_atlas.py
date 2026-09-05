@@ -63,6 +63,9 @@ COMPONENT_ALIASES = {
     "rules": "agent_rules",
     "agent rules": "agent_rules",
     "policy": "agent_rules",
+    "orchestrator": "agent_rules",
+    "operator": "agent_rules",
+    "designated orchestrator": "agent_rules",
     "repo rules": "repo_rule_pointer",
 }
 
@@ -340,6 +343,12 @@ MCP_SHARED_PRODUCTION_COMPONENTS = frozenset({
 
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "orchestration.operator": {
+        "owner_components": ["agent_rules"],
+        "triggers": ["orchestrator", "designated orchestrator", "operator", "operator role", "orchestration policy"],
+        "entrypoints": [r"C:\Users\Lauri\.agents\RULES.md", "python tools\\stack_atlas.py lookup agent_rules"],
+        "boundary": "Navigation to the designated main-chat/operator behavior owner only. The orchestrator is a role governed by canonical agent_rules, not a daemon or separate runtime/control-plane component; live project/runtime evidence and BusyCoordinator remain their own authorities.",
+    },
     "production.change_gate": {
         "owner_components": ["agent_rules", "busy_coordinator", "vps_edge_ingress", "mcp_front_door"],
         "triggers": ["production mutation", "control plane mutation", "serving path", "cutover", "live routing", "shared production", "rollback", "blast radius"],

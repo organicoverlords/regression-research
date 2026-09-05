@@ -886,6 +886,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(component_details("busy coordinator")["id"], "busy_coordinator")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
         self.assertEqual(component_details("rules")["id"], "agent_rules")
+        self.assertEqual(component_details("orchestrator")["id"], "agent_rules")
+        self.assertEqual(component_details("operator")["id"], "agent_rules")
+        orchestrator = find_features("orchestrator")[0]
+        self.assertEqual(orchestrator["id"], "orchestration.operator")
+        self.assertEqual(orchestrator["owner_components"], ["agent_rules"])
+        self.assertIn("not a daemon", orchestrator["boundary"])
 
     def test_bootstrap_directory_covers_major_stack_surfaces(self):
         atlas = build_bootstrap_atlas()
