@@ -22,9 +22,12 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
 
     def test_vault_policy_is_centralized_and_local_agents_is_pointer_only(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(r"C:\Users\Lauri\Documents\agent-rules\RULES.md", text)
-        self.assertIn(r"contexts\vault.md", text)
+        self.assertIn(r"C:\Users\Lauri\.agents\RULES.md", text)
+        self.assertIn(r"C:\Users\Lauri\.agents\AGENTS.md", text)
+        self.assertIn("https://github.com/organicoverlords/agents", text)
         self.assertIn("pointer-only", text)
+        self.assertNotIn(r"C:\Users\Lauri\Documents\agent-rules", text)
+        self.assertNotIn(r"contexts\vault.md", text)
         self.assertNotIn("memory_bank.py bootstrap", text)
         self.assertNotIn("### Navigation minimap", text)
 
