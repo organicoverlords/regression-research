@@ -45,12 +45,80 @@ class StackAtlasTests(unittest.TestCase):
             self.assertIn("busy_titles", session)
             self.assertLessEqual(session["activity_age_seconds"], 300)
         self.assertIn("notable_conditions", glance)
+        self.assertIn("worker_report_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
+        self.assertNotIn("worker_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
         self.assertIn("latest_per_worker", glance["workers"])
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
+
+    def test_stale_worker_archive_is_not_current_liveness_attention(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "worker-reports" / "history").mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            records = [
+                {
+                    "automation_id": "fir", "display_label": "Fir",
+                    "finished_at": (now - timedelta(minutes=120)).isoformat(),
+                    "duration_minutes": 3.68, "target_run_minutes": 24.0, "target_utilization_pct": 15.3,
+                },
+                {
+                    "automation_id": "fir", "display_label": "Fir impossible future archive",
+                    "finished_at": (now + timedelta(minutes=20)).isoformat(),
+                    "archived_at": now.isoformat(),
+                    "duration_minutes": 20.42, "target_run_minutes": 24.0, "target_utilization_pct": 85.1,
+                },
+                {
+                    "automation_id": "hazel", "display_label": "Hazel",
+                    "finished_at": (now - timedelta(minutes=10)).isoformat(),
+                    "duration_minutes": 10.0, "target_run_minutes": 24.0, "target_utilization_pct": 41.7,
+                },
+            ]
+            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+                workers = _bootstrap_worker_status()
+        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness")
+        self.assertEqual(workers["stale_after_minutes"], 90.0)
+        self.assertEqual([item["worker"] for item in workers["attention"]], ["Hazel"])
+        self.assertEqual(workers["stale_reports"], [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}])
+        self.assertEqual(workers["fleet"]["stale_report_count"], 1)
+        fir = next(item for item in workers["latest_per_worker"] if item["display_label"] == "Fir")
+        self.assertEqual(fir["report_freshness"], "STALE")
+
+    def test_impossible_worker_archive_does_not_replace_latest_valid_run(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "worker-reports" / "history").mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            valid_finished = now - timedelta(minutes=30)
+            valid_archived = valid_finished + timedelta(seconds=5)
+            impossible_archived = now - timedelta(minutes=10)
+            impossible_finished = impossible_archived + timedelta(minutes=20)
+            records = [
+                {
+                    "automation_id": "fir", "display_label": "Fir",
+                    "finished_at": valid_finished.isoformat(), "archived_at": valid_archived.isoformat(),
+                    "duration_minutes": 5.0, "target_run_minutes": 24.0, "target_utilization_pct": 20.8,
+                },
+                {
+                    "automation_id": "fir", "display_label": "Fir",
+                    "finished_at": impossible_finished.isoformat(), "archived_at": impossible_archived.isoformat(),
+                    "duration_minutes": 20.0, "target_run_minutes": 24.0, "target_utilization_pct": 83.3,
+                },
+            ]
+            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+                workers = _bootstrap_worker_status()
+        self.assertEqual(workers["fleet"]["on_target_count"], 0)
+        self.assertEqual(workers["fleet"]["short_or_worse_count"], 1)
+        self.assertEqual(len(workers["latest_per_worker"]), 1)
+        fir = workers["latest_per_worker"][0]
+        self.assertEqual(fir["display_label"], "Fir")
+        self.assertEqual(fir["finished_at"], valid_finished.isoformat())
+        self.assertEqual(fir["classification"], "SEVERELY_PREMATURE")
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone
