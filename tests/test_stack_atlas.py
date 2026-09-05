@@ -48,7 +48,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
-        self.assertEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
+        self.assertIn("workspace_counts", glance["mcp"])
         for session in glance["mcp"]["active_sessions"]:
             self.assertIn("caller_id", session)
             self.assertIn("cwd", session)
@@ -58,7 +60,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("notable_conditions", glance)
         self.assertIn("worker_report_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
         self.assertNotIn("worker_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
-        self.assertIn("latest_archived_per_worker", glance["workers"])
+        self.assertNotIn("latest_archived_per_worker", glance["workers"])
         self.assertNotIn("fleet", glance["workers"])
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
@@ -358,6 +360,9 @@ class StackAtlasTests(unittest.TestCase):
             receipts = root / "shared-process-receipts"
             clone.mkdir(parents=True)
             receipts.mkdir(parents=True)
+            busy_state = local / "ChatGPTMcpClean" / ".state"
+            busy_state.mkdir(parents=True)
+            (busy_state / "busy-claims.json").write_text(json.dumps({"claims": [{"actor": "actor-x"}]}), encoding="utf-8")
             now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             process_id = "target-receipt"
             transport = {
@@ -379,13 +384,61 @@ class StackAtlasTests(unittest.TestCase):
                     receipt_reads.append(path.name)
                 return original_read_text(path, *args, **kwargs)
 
-            busy = subprocess.CompletedProcess([], 0, stdout=json.dumps({"claims": [{"actor": "actor-x"}]}), stderr="")
             with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas.subprocess.run", return_value=busy), \
                  patch.object(Path, "read_text", counted_read_text):
                 status = _bootstrap_mcp_status()
             self.assertEqual(receipt_reads, [f"{process_id}.json"])
             self.assertEqual(status["active_sessions"][0]["busy_titles"], ["actor-x"])
+
+    def test_mcp_bootstrap_samples_details_but_keeps_complete_count(self):
+        from datetime import datetime, timedelta, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status, BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            clone.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            rows = []
+            for i in range(BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT + 7):
+                rows.append({
+                    "event": "process_started",
+                    "at": (now - timedelta(seconds=i)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": f"caller_{i}", "process_id": f"p{i}", "cwd": rf"C:\work\{i}",
+                })
+            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
+                status = _bootstrap_mcp_status()
+        self.assertEqual(status["active_session_count"], BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT + 7)
+        self.assertEqual(len(status["active_sessions"]), BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT)
+        self.assertTrue(status["active_sessions_truncated"])
+
+    def test_mcp_bootstrap_reuses_five_second_live_summary(self):
+        from datetime import datetime, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            clone.mkdir(parents=True)
+            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            (clone / "transport.jsonl").write_text(json.dumps({"event":"process_started","at":now,"caller_id":"c1","process_id":"p1","cwd":r"C:\work"}) + "\n", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
+                first = _bootstrap_mcp_status()
+                with patch("tools.stack_atlas._read_jsonl_window", side_effect=AssertionError("cache miss")):
+                    second = _bootstrap_mcp_status()
+        self.assertFalse(first["cache"]["used"])
+        self.assertTrue(second["cache"]["used"])
+        self.assertEqual(second["active_session_count"], 1)
+
+    def test_gpu_fast_path_uses_nvml_not_nvidia_smi_subprocess(self):
+        import os
+        from tools.stack_atlas import _bootstrap_pc_status
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.ctypes.WinDLL", side_effect=OSError("no nvml")), \
+             patch("tools.stack_atlas.subprocess.run", side_effect=AssertionError("nvidia-smi subprocess forbidden")):
+            status = _bootstrap_pc_status()
+        self.assertEqual(status["gpu"]["sample_status"], "FAST_PROBE_UNAVAILABLE")
 
     def test_live_powershell_probe_is_bounded(self):
         completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
