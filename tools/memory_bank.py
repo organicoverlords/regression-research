@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import re
 import secrets
@@ -271,6 +272,74 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
         for entry in current[:effective_limit]
     ]
 
+
+
+def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str, Any]:
+    """Build a bounded query-free digest of durable Vault memory evidence."""
+    effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, limit))
+    superseded = {old for entry in entries for old in entry.get("supersedes", [])}
+    current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
+    current.sort(
+        key=lambda entry: (
+            datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
+            entry["id"],
+        ),
+        reverse=True,
+    )
+
+    projects: Counter[str] = Counter()
+    scopes: Counter[str] = Counter()
+    kinds: Counter[str] = Counter()
+    tags: Counter[str] = Counter()
+    latest_by_project: dict[str, dict[str, Any]] = {}
+    ignored_tags = {"assistant-recorded", "verbatim-source"}
+
+    for entry in current:
+        kind = str(entry.get("kind") or "unknown").strip()
+        if kind:
+            kinds[kind] += 1
+        scope = str(entry.get("scope") or "").strip()
+        if scope:
+            scopes[scope] += 1
+        project = str(entry.get("project") or infer_single_project(entry) or "").strip()
+        if project:
+            projects[project] += 1
+            latest_by_project.setdefault(project, entry)
+        for tag in entry.get("tags", []):
+            normalized = str(tag).strip()
+            if normalized and normalized.casefold() not in ignored_tags:
+                tags[normalized] += 1
+
+    def ranked(counter: Counter[str]) -> list[dict[str, Any]]:
+        return [
+            {"name": name, "count": count}
+            for name, count in sorted(counter.items(), key=lambda item: (-item[1], item[0].casefold()))[:effective_limit]
+        ]
+
+    project_summary: list[dict[str, Any]] = []
+    for name, count in sorted(projects.items(), key=lambda item: (-item[1], item[0].casefold()))[:effective_limit]:
+        latest = latest_by_project[name]
+        project_summary.append({
+            "name": name,
+            "count": count,
+            "latest": {
+                "id": latest["id"],
+                "timestamp": latest["timestamp"],
+                "title": derive_display_title(latest),
+            },
+        })
+
+    return {
+        "schema": "memory-bank.overview.v1",
+        "contract": "Aggregated durable/historical evidence only; never current repo, runtime, scheduler, or machine truth.",
+        "eligible_entries": len(current),
+        "recent": recent_title_entries(entries, limit=effective_limit),
+        "projects": project_summary,
+        "scopes": ranked(scopes),
+        "kinds": ranked(kinds),
+        "top_tags": ranked(tags),
+        "recurring_tags": [item for item in ranked(tags) if item["count"] >= 2],
+    }
 
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
     if not path.is_file():
@@ -595,6 +664,9 @@ def _main() -> int:
     timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="immutable worker-report history root")
     timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history")
 
+    overview = sub.add_parser("overview", aliases=["digest"], help="aggregate recent durable Vault memory into a bounded query-free digest")
+    overview.add_argument("--limit", type=int, default=8)
+
     recent_titles = sub.add_parser("recent-titles", aliases=["recent"])
     recent_titles.add_argument("--limit", type=int, default=DEFAULT_RECENT_TITLES_LIMIT)
 
@@ -648,6 +720,9 @@ def _main() -> int:
                 limit=args.limit, repo_events=repo_events, worker_events=worker_events,
             )
             _print_json(report)
+            return 0
+        if args.command in ("overview", "digest"):
+            _print_json(aggregate_memory(entries, limit=args.limit))
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))

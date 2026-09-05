@@ -373,9 +373,15 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_KNOWN_GOOD_FREEZE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
         "boundary": "A user-reported security reroute must be logged before further MCP/edge mutation with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence; never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
     },
+    "vault.overview": {
+        "owner_components": ["memory_bank"],
+        "triggers": ["vault", "overview", "digest", "summary", "aggregate", "aggregation", "automatic aggregation", "useful", "usefulness", "navigation", "discover", "search vault"],
+        "entrypoints": ["python tools\\memory_bank.py overview", "python tools\\memory_bank.py digest", "python tools\\stack_atlas.py find <natural-language-query>"],
+        "boundary": "Default bounded Vault orientation: aggregate durable/historical memory evidence into useful themes and recent items without treating Vault as current repo/runtime/scheduler truth. Use targeted context/timeline only after the overview identifies a relevant thread.",
+    },
     "vault.history": {
         "owner_components": ["memory_bank"],
-        "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
+        "triggers": ["history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
         "entrypoints": ["memory_bank.py search", "memory_bank.py search --history", "memory_bank.py context", "memory_bank.py timeline", "memory_bank.py recent-titles"],
         "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
     },
@@ -1102,17 +1108,32 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     return result
 
 
-def _bootstrap_memory_titles() -> list[dict[str, Any]]:
-    cached, _ = _bootstrap_cache_read("memory-titles.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
-    if cached is not None and isinstance(cached.get("items"), list):
-        return cached["items"]
+def _bootstrap_memory_overview() -> dict[str, Any]:
+    cached, _ = _bootstrap_cache_read("memory-overview.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
+    if cached is not None and isinstance(cached.get("overview"), dict):
+        return cached["overview"]
     try:
-        from tools.memory_bank import load_bank, recent_title_entries
+        from tools.memory_bank import aggregate_memory, load_bank
     except ImportError:
-        from memory_bank import load_bank, recent_title_entries
-    items = [{k: item.get(k) for k in ("id", "timestamp", "title")} for item in recent_title_entries(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)]
-    _bootstrap_cache_write("memory-titles.json", {"items": items})
-    return items
+        from memory_bank import aggregate_memory, load_bank
+    report = aggregate_memory(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)
+    overview = {
+        "contract": report.get("contract"),
+        "eligible_entries": report.get("eligible_entries", 0),
+        "recent": [
+            {k: item.get(k) for k in ("id", "timestamp", "title")}
+            for item in report.get("recent", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT]
+        ],
+        "projects": report.get("projects", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
+        "recurring_tags": report.get("recurring_tags", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
+    }
+    _bootstrap_cache_write("memory-overview.json", {"overview": overview})
+    return overview
+
+
+def _bootstrap_memory_titles() -> list[dict[str, Any]]:
+    """Backward-compatible accessor for callers that only need recent titles."""
+    return list(_bootstrap_memory_overview().get("recent", []))
 
 
 def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
@@ -1147,8 +1168,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_mcp = pool.submit(_bootstrap_mcp_status)
-        f_memories = pool.submit(_bootstrap_memory_titles)
-        pc, workers, mcp, memories = f_pc.result(), f_workers.result(), f_mcp.result(), f_memories.result()
+        f_memory = pool.submit(_bootstrap_memory_overview)
+        pc, workers, mcp, memory_overview = f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result()
     mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
@@ -1204,6 +1225,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
             "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
         },
@@ -1212,7 +1234,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "mcp": mcp,
         "mcp_known_good_freeze": mcp_known_good_freeze,
         "notable_conditions": notable_conditions,
-        "recent_memory_titles": memories,
+        "memory_overview": memory_overview,
+        "recent_memory_titles": memory_overview.get("recent", []),
     }
 
 
@@ -1320,20 +1343,120 @@ def production_change_gate(
     }
 
 
+FEATURE_QUERY_STOPWORDS = frozenset({
+    "a", "an", "and", "are", "ask", "asking", "better", "do", "does", "for", "how", "i", "is",
+    "it", "make", "me", "more", "my", "never", "of", "please", "should", "that", "the", "this", "to",
+    "what", "with", "work", "working", "works",
+})
+FEATURE_QUERY_SYNONYMS: dict[str, set[str]] = {
+    "automatic": {"aggregate", "aggregation", "overview", "digest"},
+    "automatically": {"aggregate", "aggregation", "overview", "digest"},
+    "aggregate": {"aggregation", "overview", "digest", "summary"},
+    "aggregation": {"aggregate", "overview", "digest", "summary"},
+    "discover": {"find", "navigation", "search", "owner"},
+    "navigate": {"navigation", "find", "search", "owner"},
+    "navigation": {"navigate", "find", "search", "owner"},
+    "useful": {"usefulness", "overview", "digest", "summary", "aggregate"},
+    "usefulness": {"useful", "overview", "digest", "summary", "aggregate"},
+    "where": {"find", "navigation", "owner"},
+}
+
+
+def _feature_query_terms(query: str) -> tuple[list[str], set[str]]:
+    base = [
+        term for term in re.findall(r"[a-z0-9]+", query.casefold())
+        if term and term not in FEATURE_QUERY_STOPWORDS
+    ]
+    expanded = set(base)
+    for term in base:
+        expanded.update(FEATURE_QUERY_SYNONYMS.get(term, set()))
+    return base, expanded
+
+
 def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
-    terms = [term for term in re.split(r"[^a-z0-9]+", query.casefold()) if term]
-    if not terms:
+    base_terms, expanded_terms = _feature_query_terms(query)
+    if not base_terms:
         return []
+    normalized_query = " ".join(base_terms)
+    exact_feature_trigger = (
+        any(
+            " ".join(re.findall(r"[a-z0-9]+", feature_id.casefold())) == normalized_query
+            for feature_id in FEATURE_INDEX
+        )
+        or any(
+            " ".join(re.findall(r"[a-z0-9]+", trigger.casefold())) == normalized_query
+            for spec in FEATURE_INDEX.values()
+            for trigger in spec["triggers"]
+        )
+    )
     ranked: list[tuple[int, str, dict[str, Any]]] = []
     for feature_id, spec in FEATURE_INDEX.items():
         semantic = " ".join([feature_id, *spec["owner_components"], *spec["triggers"]]).casefold()
-        if not any(term in semantic for term in terms):
-            continue
         detail = " ".join([*spec["entrypoints"], spec["boundary"]]).casefold()
-        score = sum(3 for term in terms if term in semantic) + sum(1 for term in terms if term in detail)
+        semantic_tokens = set(re.findall(r"[a-z0-9]+", semantic))
+        detail_tokens = set(re.findall(r"[a-z0-9]+", detail))
+        base_semantic = set(base_terms) & semantic_tokens
+        base_detail = set(base_terms) & detail_tokens
+        expanded_semantic = expanded_terms & semantic_tokens
+        trigger_bonus = sum(4 for trigger in spec["triggers"] if trigger.casefold() in normalized_query)
+        if not base_semantic and not expanded_semantic and not trigger_bonus:
+            continue
+        covered = sum(
+            1 for term in base_terms
+            if term in semantic_tokens or term in detail_tokens or any(term in trigger.casefold() for trigger in spec["triggers"])
+        )
+        score = (
+            6 * len(base_semantic)
+            + 2 * len(expanded_semantic - base_semantic)
+            + len(base_detail)
+            + trigger_bonus
+            + 3 * covered
+        )
         ranked.append((score, feature_id, {"id": feature_id, **spec, "authority": ATLAS_CONTRACT["authority"]}))
+
+    # Natural-language `find` is also a component locator. Fill remaining slots with
+    # direct component matches so callers do not need to know whether a concept was
+    # modeled as a feature or a component before asking Atlas.
+    for component_id, spec in COMPONENTS.items():
+        semantic = " ".join([
+            component_id,
+            str(spec.get("role") or ""),
+            *spec.get("capabilities", []),
+            *spec.get("resources", []),
+        ]).casefold()
+        semantic_tokens = set(re.findall(r"[a-z0-9]+", semantic))
+        base_matches = set(base_terms) & semantic_tokens
+        expanded_matches = expanded_terms & semantic_tokens
+        if not base_matches and not expanded_matches:
+            continue
+        if len(base_terms) > 1 and len(base_matches) < 2:
+            continue
+        full_component_match = len(base_matches) == len(set(base_terms))
+        score = 5 * len(base_matches) + len(expanded_matches - base_matches) + (20 if full_component_match and not exact_feature_trigger else 0)
+        ranked.append((
+            score,
+            f"component.{component_id}",
+            {
+                "id": f"component.{component_id}",
+                "owner_components": [component_id],
+                "triggers": [component_id, str(spec.get("role") or "")],
+                "entrypoints": [f"python tools\\stack_atlas.py lookup {component_id}", *spec.get("canonical_sources", [])[:3]],
+                "boundary": "Direct component match. Use Atlas lookup for bounded owner details, then leave Atlas and work at that owner.",
+                "authority": ATLAS_CONTRACT["authority"],
+            },
+        ))
+
     ranked.sort(key=lambda item: (-item[0], item[1]))
-    return [item[2] for item in ranked[: max(1, limit)]]
+    seen: set[str] = set()
+    results: list[dict[str, Any]] = []
+    for _, result_id, result in ranked:
+        if result_id in seen:
+            continue
+        seen.add(result_id)
+        results.append(result)
+        if len(results) >= max(1, limit):
+            break
+    return results
 
 
 def _ancestry(pid: int, by_pid: dict[int, dict[str, Any]], limit: int = 16) -> list[dict[str, Any]]:

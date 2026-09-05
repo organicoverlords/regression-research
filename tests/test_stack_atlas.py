@@ -82,6 +82,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertIn("production_change_gate", glance["commands"])
+        self.assertIn("memory_overview", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
 
     def test_production_change_gate_blocks_go_fix_style_implicit_authorization(self):
@@ -651,9 +652,11 @@ class StackAtlasTests(unittest.TestCase):
         with patch("tools.stack_atlas._bootstrap_pc_status", return_value={}), \
              patch("tools.stack_atlas._bootstrap_worker_status", return_value={}), \
              patch("tools.stack_atlas._bootstrap_mcp_status", return_value={}), \
-             patch("tools.stack_atlas._bootstrap_memory_titles", return_value=[]):
+             patch("tools.stack_atlas._bootstrap_memory_overview", return_value={"contract": "history only", "eligible_entries": 2, "recent": [], "projects": [{"name": "p3", "count": 2}], "recurring_tags": []}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["paths"]["issue_first_work_intake"], r"C:\Users\Lauri\.agents\RULES.md")
+        self.assertEqual(glance["memory_overview"]["eligible_entries"], 2)
+        self.assertEqual(glance["memory_overview"]["projects"][0]["name"], "p3")
         self.assertNotIn("behavior", glance)
 
     def test_feature_search_surfaces_existing_owner_before_archaeology(self):
@@ -893,3 +896,25 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         reroute = find_features("security reroute")[0]
         self.assertEqual(reroute["id"], "mcp.security_reroute_log")
         self.assertIn("must be logged", reroute["boundary"])
+
+class VaultUsefulnessRoutingTests(unittest.TestCase):
+    def test_vague_vault_usefulness_routes_to_overview_first(self):
+        results = find_features("make vault more useful")
+        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "vault.overview")
+        self.assertIn("memory_bank.py overview", " ".join(results[0]["entrypoints"]))
+
+    def test_automatic_aggregation_routes_to_vault_overview(self):
+        results = find_features("automatic vault aggregation")
+        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "vault.overview")
+
+    def test_vague_aggregation_query_does_not_pull_unrelated_single_word_component(self):
+        results = find_features("more automatic aggregation and asking atlas should work better", limit=3)
+        self.assertEqual(results[0]["id"], "vault.overview")
+        self.assertNotIn("component.mcp_minimal_clone", [item["id"] for item in results])
+
+    def test_find_can_return_direct_component_without_prior_schema_knowledge(self):
+        results = find_features("generation pinned process transport clone", limit=1)
+        self.assertEqual(results[0]["id"], "component.mcp_minimal_clone")
+        self.assertEqual(results[0]["owner_components"], ["mcp_minimal_clone"])
