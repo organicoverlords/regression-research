@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -1198,14 +1199,148 @@ def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
     }
 
 
+def _bootstrap_vault_status() -> dict[str, Any]:
+    """Bounded local Vault health; no fetches, history scans, or repo-wide status walk."""
+    started = time.perf_counter()
+    root = ROOT
+    memory_path = root / "memory" / "memory-bank.jsonl"
+    result: dict[str, Any] = {
+        "available": root.exists(),
+        "status": "OK",
+        "root_exists": root.exists(),
+        "bootstrap_file_exists": (root / "tools" / "stack_atlas.py").is_file(),
+        "memory_bank_exists": memory_path.is_file(),
+    }
+    if not root.exists():
+        result.update({"available": False, "status": "UNAVAILABLE", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
+        return result
+
+    git = shutil.which("git")
+    result["git_cli_available"] = bool(git)
+    if git:
+        try:
+            proc = subprocess.run(
+                [git, "-C", str(root), "rev-parse", "--is-inside-work-tree", "HEAD"],
+                text=True,
+                capture_output=True,
+                timeout=2,
+            )
+            lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+            result["git_worktree"] = proc.returncode == 0 and bool(lines) and lines[0].casefold() == "true"
+            if proc.returncode == 0 and len(lines) >= 2:
+                result["head"] = lines[-1]
+            if proc.returncode != 0:
+                result["status"] = "DEGRADED"
+        except (OSError, subprocess.TimeoutExpired):
+            result["git_worktree"] = False
+            result["status"] = "DEGRADED"
+    else:
+        result["git_worktree"] = False
+        result["status"] = "DEGRADED"
+
+    if memory_path.is_file():
+        try:
+            stat = memory_path.stat()
+            result["memory_bank_bytes"] = stat.st_size
+            result["memory_bank_age_seconds"] = round(max(0.0, time.time() - stat.st_mtime), 1)
+            tail = _read_jsonl_tail(memory_path, 1)
+            result["memory_bank_tail_readable"] = bool(tail)
+            if not tail and stat.st_size > 0:
+                result["status"] = "DEGRADED"
+        except OSError:
+            result["memory_bank_tail_readable"] = False
+            result["status"] = "DEGRADED"
+    else:
+        result["memory_bank_tail_readable"] = False
+        result["status"] = "DEGRADED"
+
+    if not result["bootstrap_file_exists"]:
+        result["status"] = "DEGRADED"
+    result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    return result
+
+
+def _bootstrap_github_status() -> dict[str, Any]:
+    """Bounded GitHub service/auth health; never lists issues, PRs, checks, or workflows."""
+    started = time.perf_counter()
+    gh = shutil.which("gh")
+    result: dict[str, Any] = {
+        "available": False,
+        "status": "UNAVAILABLE",
+        "cli_available": bool(gh),
+        "authenticated": False,
+        "api_reachable": False,
+    }
+    if not gh:
+        result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        return result
+
+    try:
+        auth = subprocess.run(
+            [gh, "auth", "status", "--active", "--hostname", "github.com"],
+            text=True,
+            capture_output=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        result.update({"status": "DEGRADED", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
+        return result
+    result["authenticated"] = auth.returncode == 0
+    if auth.returncode != 0:
+        result.update({"status": "UNAVAILABLE", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
+        return result
+
+    try:
+        api = subprocess.run(
+            [gh, "api", "rate_limit"],
+            text=True,
+            capture_output=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        result.update({"available": True, "status": "DEGRADED", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
+        return result
+    result["api_reachable"] = api.returncode == 0
+    result["available"] = result["authenticated"] and result["api_reachable"]
+    if api.returncode != 0:
+        result.update({"status": "DEGRADED", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
+        return result
+
+    try:
+        payload = json.loads(api.stdout)
+        core = payload.get("resources", {}).get("core", {}) if isinstance(payload, dict) else {}
+        limit = int(core.get("limit") or 0)
+        remaining = int(core.get("remaining") or 0)
+        used = int(core.get("used") or 0)
+        reset = int(core.get("reset") or 0)
+        remaining_pct = round((remaining / limit) * 100, 1) if limit > 0 else None
+        result["rate_limit"] = {
+            "limit": limit,
+            "remaining": remaining,
+            "used": used,
+            "remaining_pct": remaining_pct,
+            "reset_at": datetime.fromtimestamp(reset, timezone.utc).isoformat() if reset > 0 else None,
+        }
+        result["status"] = "WATCH" if limit > 0 and remaining_pct is not None and remaining_pct < 10 else "OK"
+    except (json.JSONDecodeError, TypeError, ValueError, OverflowError):
+        result["status"] = "DEGRADED"
+    result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    return result
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    started = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=6) as pool:
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_mcp = pool.submit(_bootstrap_mcp_status)
         f_memory = pool.submit(_bootstrap_memory_overview)
-        pc, workers, mcp, memory_overview = f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result()
+        f_vault = pool.submit(_bootstrap_vault_status)
+        f_github = pool.submit(_bootstrap_github_status)
+        pc, workers, mcp, memory_overview, vault, github = (
+            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result()
+        )
     mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
@@ -1236,6 +1371,28 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "archive_sample", "manual_current", "attention", "stale_reports", "cache",
         ) if key in workers
     } if isinstance(workers, dict) else workers
+
+    mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
+    vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
+    github_health = str(github.get("status") or "UNAVAILABLE") if isinstance(github, dict) else "UNAVAILABLE"
+    if mcp_health != "OK":
+        notable_conditions.append(f"mcp_{mcp_health.casefold()}")
+    if vault_health != "OK":
+        notable_conditions.append(f"vault_{vault_health.casefold()}")
+    if github_health != "OK":
+        notable_conditions.append(f"github_{github_health.casefold()}")
+
+    elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
+    bootstrap_status = "OK" if mcp_health == vault_health == github_health == "OK" else "DEGRADED"
+    if elapsed_ms >= 5000:
+        notable_conditions.append(f"bootstrap_slow_{round(elapsed_ms)}ms")
+    bootstrap = {
+        "status": bootstrap_status,
+        "self_check": "OK" if (ROOT / "tools" / "stack_atlas.py").is_file() else "DEGRADED",
+        "elapsed_ms": elapsed_ms,
+        "component_statuses": {"mcp": mcp_health, "vault": vault_health, "github": github_health},
+        "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
+    }
     return {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -1265,9 +1422,12 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
         },
+        "bootstrap": bootstrap,
+        "mcp": mcp,
+        "vault": vault,
+        "github": github,
         "pc": pc,
         "workers": worker_glance,
-        "mcp": mcp,
         "mcp_known_good_freeze": mcp_known_good_freeze,
         "notable_conditions": notable_conditions,
         "memory_overview": memory_overview,
