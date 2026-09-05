@@ -20,13 +20,16 @@ BUSY_CMD = str(BUSY_ROOT / "busy-python.cmd")
 BUSY_PY = str(BUSY_ROOT / "busy.py")
 BUSY_STORE = os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json")
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
+MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
+MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
+MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
     "webgpt": "chatgpt_session",
-    "mcp": "mcp_front_door",
+    "mcp": "mcp_minimal_clone",
     "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
@@ -75,7 +78,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1", "chatgpt-mcp-clean/src/front-door.ts"],
         "live_status": [
             "root front-door health plus exact tool contract/semantic call",
-            "root / may remain on 3003; current MCPv3 production ingress bypasses it through VPS Caddy -> WireGuard 10.203.0.2:3011 primary; native reverse-SSH lanes on VPS loopback 3101-3104 are intentional ordered fallbacks, not incomplete migration",
+            "root / may remain on 3003 as a separate legacy/fallback surface; current production bypasses it through VPS Caddy -> WireGuard 10.203.0.2:3011, and SSH 3101-3104 are explicit recovery only, not automatic Caddy upstreams",
             "ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity",
         ],
         "supervisor": "ChatGPTMcpClean keepalive FrontDoor role",
@@ -105,28 +108,29 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
+        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_KNOWN_GOOD_FREEZE_PATH)],
         "live_status": [
             "clone health",
             "exact tool contract",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "2026-09-05 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 primary -> clone 3011; native reverse-SSH lanes 3101-3104 are intentional bounded fallbacks, not duplicate production routes",
+            "2026-09-05 frozen candidate production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
         ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
         "independent_recovery": [
-            "WireGuard is the primary VPS-to-PC backend path; four native OpenSSH reverse lanes are intentional independent fallbacks and their presence/health is expected",
-            "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback",
+            "WireGuard is the only automatic VPS-to-PC backend path; four native OpenSSH reverse lanes are intentional independent recovery lanes and their presence/health is expected",
+            "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never restore a stale-regression generation merely because it appears in historical fallback/recovery artifacts",
             "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
         ],
-        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy ordered upstreams", "WireGuard 10.203.0.2:3011 primary", "reverse-SSH 3101-3104 fallbacks", "clone OAuth/OpenID metadata handlers"],
+        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy WireGuard-only automatic upstream", "WireGuard 10.203.0.2:3011 primary", "reverse-SSH 3101-3104 explicit recovery lanes", "clone OAuth/OpenID metadata handlers"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [
             MCP_ROOT + r"\AGENTS.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
+            str(MCP_KNOWN_GOOD_FREEZE_PATH),
         ],
     },
     "vps_edge_ingress": {
@@ -137,15 +141,15 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "https://5-61-91-127.sslip.io/edge-status (must report primary and fallback health separately)",
             "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp",
             "Windows WireGuardTunnel$mcp-wireguard service with 10.203.0.2/30 and a recent VPS handshake",
-            "Caddy ordered upstreams: 10.203.0.2:3011 primary, then 127.0.0.1:3101-3104 native reverse-SSH fallbacks",
-            "four native OpenSSH reverse tunnels are intentional fallback lanes; their presence is expected and is not evidence of an incomplete migration",
+            "Caddy automatic upstream is only 10.203.0.2:3011 over WireGuard; there are no automatic SSH fallback upstreams",
+            "four native OpenSSH reverse tunnels on VPS loopback 3101-3104 are intentional explicit-recovery lanes; their presence is expected but Caddy does not select them automatically",
             "Windows scheduled task McpVpsEdgeTunnel owns SSH fallback recovery; VPS mcp-edge-health.timer owns observation",
         ],
         "supervisor": "Caddy/systemd on VPS plus Windows WireGuard tunnel service primary and McpVpsEdgeTunnel task for SSH fallbacks",
-        "self_heal": "WireGuard service primary + independent native SSH fallback lanes + Caddy active health checks",
+        "self_heal": "WireGuard service is the automatic primary path; VPS mcp-edge-health.timer observes health; native SSH 3101-3104 remain explicit recovery only; Caddy active health polling is disabled",
         "independent_recovery": [
             "local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn",
-            "if WireGuard primary fails, Caddy may use healthy 3101-3104 SSH fallback lanes; fallback activity alone is not migration-incomplete evidence",
+            "if WireGuard primary fails, 3101-3104 may be selected only by an explicit authorized recovery action; Caddy must not automatically reroute to them",
             "Tailscale may be used only as an explicitly revalidated non-production fallback",
         ],
         "resources": ["VPS 5.61.91.127", "public TCP 80/443", "WireGuard UDP 51820", "WireGuard 10.203.0.1/30 <-> 10.203.0.2/30", "SSH TCP 22 fallback transport", "VPS loopback 3101-3104 reverse listeners", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
@@ -342,6 +346,18 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Ordered navigation to the existing .agents issue-first contract: inspect/claim occurs immediately before shared mutation. The GitHub issue is the shared convergence record, not a queue, priority, capacity, or admission system. Busy is exact mutation collision control only. No new workflow authority is created.",
     },
+    "mcp.known_good_freeze": {
+        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
+        "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
+        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "Only this canonical pointer is the maintained MCP freeze. CANDIDATE_KNOWN_GOOD is preserve-first but explicitly not multi-day proof; PROVEN_KNOWN_GOOD requires a later >=48h real-use refreeze plus explicit user confirmation. Reconcile either status with current live evidence before restoration.",
+    },
+    "mcp.security_reroute_log": {
+        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
+        "triggers": ["security reroute", "security routing", "security rerouting", "reroute happened", "routing happened"],
+        "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_KNOWN_GOOD_FREEZE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "A user-reported security reroute must be logged before further MCP/edge mutation with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence; never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
+    },
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
@@ -373,7 +389,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
     "execution.transport": {
-        "owner_components": ["vps_edge_ingress", "mcp_front_door"],
+        "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
         "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "commander", "desktop commander", "fallback", "tool route"],
         "entrypoints": [
             "preferred MCPv3 binding when healthy and exposed",
@@ -837,6 +853,32 @@ def _bootstrap_memory_titles() -> list[dict[str, Any]]:
     return [{k: item.get(k) for k in ("id", "timestamp", "title")} for item in recent_title_entries(load_bank(), limit=20)]
 
 
+def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
+    path = MCP_KNOWN_GOOD_FREEZE_PATH
+    if not path.exists():
+        return {"available": False, "status": "MISSING", "path": str(path)}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "status": "ERROR", "path": str(path), "error": str(exc)}
+    if not isinstance(raw, dict):
+        return {"available": False, "status": "ERROR", "path": str(path), "error": "freeze record is not an object"}
+    backend = raw.get("production_identity", {}).get("backend", {}) if isinstance(raw.get("production_identity"), dict) else {}
+    proof = raw.get("proof_state", {}) if isinstance(raw.get("proof_state"), dict) else {}
+    return {
+        "available": True,
+        "path": str(path),
+        "status": raw.get("status"),
+        "frozen_at": raw.get("frozen_at"),
+        "refreeze_not_before": raw.get("refreeze_not_before"),
+        "backend_commit": backend.get("commit"),
+        "backend_generation": backend.get("generation"),
+        "source_tag": backend.get("source_tag"),
+        "multi_day_real_use": proof.get("multi_day_real_use"),
+        "user_confirmed_stable": proof.get("user_confirmed_stable"),
+    }
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -845,6 +887,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_mcp = pool.submit(_bootstrap_mcp_status)
         f_memories = pool.submit(_bootstrap_memory_titles)
         pc, workers, mcp, memories = f_pc.result(), f_workers.result(), f_mcp.result(), f_memories.result()
+    mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
@@ -877,7 +920,10 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
             "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
             "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
-            "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
+            "mcp": r"%LOCALAPPDATA%\ChatGPTMcpMinimal",
+            "mcp_source_repo": r"%LOCALAPPDATA%\ChatGPTMcpClean",
+            "mcp_known_good_freeze": str(MCP_KNOWN_GOOD_FREEZE_PATH),
+            "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
         },
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
@@ -891,6 +937,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "pc": pc,
         "workers": workers,
         "mcp": mcp,
+        "mcp_known_good_freeze": mcp_known_good_freeze,
         "notable_conditions": notable_conditions,
         "recent_memory_titles": memories,
     }

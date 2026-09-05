@@ -523,9 +523,10 @@ class StackAtlasTests(unittest.TestCase):
         status = " ".join(details["live_status"])
         resources = " ".join(details["resources"])
         self.assertIn("WireGuard", status)
-        self.assertIn("10.203.0.2:3011 primary", status)
+        self.assertIn("only 10.203.0.2:3011", status)
         self.assertIn("3101-3104", status)
-        self.assertIn("intentional fallback", status)
+        self.assertIn("explicit-recovery", status)
+        self.assertIn("does not select them automatically", status)
         self.assertIn("WireGuard UDP 51820", resources)
 
     def test_vps_edge_native_ssh_fallback_lane_classifies_as_transport(self):
@@ -550,7 +551,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(classify_process(listener, mapping)["component"], "mcp_minimal_clone")
 
     def test_natural_component_aliases_resolve(self):
-        self.assertEqual(component_details("mcp")["id"], "mcp_front_door")
+        self.assertEqual(component_details("mcp")["id"], "mcp_minimal_clone")
         self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
         self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
@@ -627,3 +628,21 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("file transfer")["id"], "file_transfer")
         self.assertEqual(component_details("visual proof")["id"], "visual_proof")
         self.assertEqual(component_details("workers")["id"], "execution_workers")
+
+class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
+    def test_bootstrap_surfaces_canonical_mcp_freeze_and_reroute_log_paths(self):
+        glance = build_live_bootstrap_glance()
+        self.assertIn("mcp_known_good_freeze", glance)
+        if glance["mcp_known_good_freeze"]["available"]:
+            self.assertEqual(glance["mcp_known_good_freeze"]["status"], "CANDIDATE_KNOWN_GOOD")
+        self.assertTrue(glance["paths"]["mcp_known_good_freeze"].endswith("mcp-known-good-freeze.json"))
+        self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
+        self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))
+
+    def test_freeze_and_security_reroute_features_are_discoverable(self):
+        freeze = find_features("known good refreeze")[0]
+        self.assertEqual(freeze["id"], "mcp.known_good_freeze")
+        self.assertIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
+        reroute = find_features("security reroute")[0]
+        self.assertEqual(reroute["id"], "mcp.security_reroute_log")
+        self.assertIn("must be logged", reroute["boundary"])
