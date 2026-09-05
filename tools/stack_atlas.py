@@ -50,6 +50,7 @@ COMPONENT_ALIASES = {
 
 ATLAS_CONTRACT = {
     "authority": "DERIVED_OPERATIONAL_VIEW_NOT_AUTHORITY",
+    "scope": "STACK_INFRA_MAP_ONLY; ordinary P3/Tiny3D/LowVRAM product work goes directly to each product repo",
     "stack_work_gate": "after reading canonical agent_rules, before stack/infra reasoning, answers, redesign, repair, or mutation, consume the compact Atlas; load only the relevant deep runbook before modification",
     "pid_semantics": "PID is an ephemeral live lookup key only; stable identity comes from executable/command line/ancestry/supervisor/config/resources",
     "destructive_gate": "unknown component identity, dependency role, supervisor, self-heal, blast radius, or independent recovery means BLOCK destructive action",
@@ -293,59 +294,6 @@ COMPONENTS.update({
         "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo workflow files"],
     },
 })
-
-PRODUCT_COMPONENTS: dict[str, dict[str, Any]] = {
-    "lowvram": {
-        "role": "generator:image_to_3d",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\lowvram3d-repo", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\PIPELINE_CONTRACT.md"],
-        "live_status": ["read current LowVRAM repo architecture before historical migration/issues", "inspect current generator filesystem/Git/runtime as applicable"],
-        "supervisor": "project-specific",
-        "self_heal": "project-specific",
-        "independent_recovery": ["preserve valid generated geometry; downstream failures stay downstream rather than moving rigging/animation ownership back into LowVRAM"],
-        "resources": ["source recovery", "image-to-3D generation", "geometry", "textures", "provenance", "producer visual QA"],
-        "dependents": ["tiny3d"],
-        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\README.md", r"C:\Users\Lauri\Desktop\lowvram3d-repo\docs\NORTH_STAR.md"],
-    },
-    "asset_library": {
-        "role": "storage:tiny3d_asset_library",
-        "capabilities": ["source_read"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
-        "live_status": ["Tiny3D owns catalogue/library semantics; inspect current library contents only when asset state matters"],
-        "supervisor": "Tiny3D",
-        "self_heal": "product-specific",
-        "independent_recovery": ["rebuild derived Tiny3D index state from preserved content-addressed assets; do not invent a separate product authority"],
-        "resources": [r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", ".tiny3d/library/index-v1.json"],
-        "dependents": ["tiny3d"],
-        "runbook": [r"C:\Users\Lauri\Desktop\tiny3d\README.md"],
-    },
-    "tiny3d": {
-        "role": "product:post_generation_asset_compiler",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\Desktop\tiny3d", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
-        "live_status": ["read current Tiny3D repo architecture before historical migration/issues", "inspect current compiler/library Git/runtime evidence as applicable"],
-        "supervisor": "project-specific",
-        "self_heal": "project-specific",
-        "independent_recovery": ["consume immutable generator outputs; downstream preparation failures do not move ownership back into LowVRAM"],
-        "resources": ["compilation", "rigging/skinning", "animation/deformation preparation", "validation/adapters", "packaging/lifecycle evidence", "catalogue/library"],
-        "dependents": ["p3"],
-        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md", r"C:\Users\Lauri\Desktop\tiny3d\README.md", r"C:\Users\Lauri\Desktop\tiny3d\docs\TINY3D_NORTH_STAR.md"],
-    },
-    "p3": {
-        "role": "consumer:game_runtime_acceptance",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\Documents\Unreal Projects\p3"],
-        "live_status": ["inspect current P3 repo/runtime evidence for Unreal materialization and gameplay acceptance"],
-        "supervisor": "project-specific",
-        "self_heal": "project-specific",
-        "independent_recovery": ["Tiny3D structural/compiler evidence never substitutes for returned P3 runtime proof"],
-        "resources": ["Unreal/game materialization", "runtime acceptance", "gameplay/visual proof"],
-        "dependents": [],
-        "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md"],
-    },
-}
-PRODUCT_FLOW = (("lowvram", "tiny3d"), ("tiny3d", "p3"))
-PRODUCT_ROOTS = {name: spec["canonical_sources"][0] for name, spec in PRODUCT_COMPONENTS.items()}
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "work.intake": {
@@ -893,8 +841,6 @@ def component_details(name: str) -> dict[str, Any]:
     name = COMPONENT_ALIASES.get(name.casefold(), name)
     if name in COMPONENTS:
         return {"id": name, "requested_as": requested, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
-    if name in PRODUCT_COMPONENTS:
-        return {"id": name, "requested_as": requested, **PRODUCT_COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
     raise KeyError(requested)
 
 
@@ -1125,8 +1071,7 @@ def full_inventory() -> dict[str, Any]:
         "schema": "stack-atlas.inventory.v1",
         "contract": ATLAS_CONTRACT,
         "features": FEATURE_INDEX,
-        "components": {name: component_details(name) for name in [*COMPONENTS, *PRODUCT_ROOTS]},
-        "product_flow": [list(edge) for edge in PRODUCT_FLOW],
+        "components": {name: component_details(name) for name in COMPONENTS},
     }
 
 
@@ -1150,7 +1095,7 @@ def render_manual() -> str:
     ]
     for feature_id, spec in inventory["features"].items():
         lines.append(f"| `{feature_id}` | {', '.join(spec['owner_components'])} | {'; '.join(spec['entrypoints'])} | {spec['boundary']} |")
-    lines.extend(["", "## Product flow", "", "`LowVRAM -> Tiny3D -> P3`", "", "Product-stage ownership comes from the current product repo architecture contracts. Historical migration issues, old handoffs, and derived projections may explain lineage but cannot redefine the active boundary.", "", "## Components", ""])
+    lines.extend(["", "## Components", ""])
     for name, spec in inventory["components"].items():
         lines.extend([f"### `{name}`", "", f"- Role: `{spec['role']}`", f"- Capabilities: {', '.join(spec['capabilities']) or 'none'}"])
         for label, key in (("Canonical sources", "canonical_sources"), ("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
