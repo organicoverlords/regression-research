@@ -17,6 +17,7 @@ from tools.stack_atlas import (
     _bootstrap_pc_status,
     _bootstrap_worker_status,
     _bootstrap_disk_trend,
+    _read_jsonl_tail,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +63,61 @@ class StackAtlasTests(unittest.TestCase):
                 trend = _bootstrap_disk_trend(55.0)
             self.assertEqual(trend["previous"]["lost_gb"], 15.0)
             self.assertEqual(trend["approx_24h"]["lost_gb"], 60.0)
+
+    def test_mcp_transport_tail_does_not_parse_historical_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "transport.jsonl"
+            historical = [json.dumps({"event": "historical", "n": i}) for i in range(20000)]
+            recent = [json.dumps({"event": "recent", "n": i}) for i in range(400)]
+            path.write_text("\n".join(historical + recent) + "\n", encoding="utf-8")
+            real_loads = json.loads
+            with patch("tools.stack_atlas.json.loads", wraps=real_loads) as loads:
+                rows = _read_jsonl_tail(path, 400)
+            self.assertEqual(len(rows), 400)
+            self.assertTrue(all(row["event"] == "recent" for row in rows))
+            self.assertEqual(loads.call_count, 400)
+
+    def test_mcp_status_reads_only_tail_referenced_receipts(self):
+        from datetime import datetime, timezone
+        import os
+        import subprocess
+        from tools.stack_atlas import _bootstrap_mcp_status
+
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            root = local / "ChatGPTMcpClean" / "minimal-connectors"
+            clone = root / "clone-a"
+            receipts = root / "shared-process-receipts"
+            clone.mkdir(parents=True)
+            receipts.mkdir(parents=True)
+            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            process_id = "target-receipt"
+            transport = {
+                "event": "process_started", "at": now, "caller_id": "caller_test",
+                "owner_caller_id": "caller_test", "process_id": process_id,
+                "pid": 123, "cwd": r"C:\work",
+            }
+            (clone / "transport.jsonl").write_text(json.dumps(transport) + "\n", encoding="utf-8")
+            for i in range(50):
+                (receipts / f"historical-{i}.json").write_text(json.dumps({"caller_id": "old", "command": "noop"}), encoding="utf-8")
+            (receipts / f"{process_id}.json").write_text(
+                json.dumps({"caller_id": "caller_test", "command": "busy claim 'actor-x' scope"}), encoding="utf-8"
+            )
+            original_read_text = Path.read_text
+            receipt_reads = []
+
+            def counted_read_text(path, *args, **kwargs):
+                if path.parent == receipts:
+                    receipt_reads.append(path.name)
+                return original_read_text(path, *args, **kwargs)
+
+            busy = subprocess.CompletedProcess([], 0, stdout=json.dumps({"claims": [{"actor": "actor-x"}]}), stderr="")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                 patch("tools.stack_atlas.subprocess.run", return_value=busy), \
+                 patch.object(Path, "read_text", counted_read_text):
+                status = _bootstrap_mcp_status()
+            self.assertEqual(receipt_reads, [f"{process_id}.json"])
+            self.assertEqual(status["active_sessions"][0]["busy_titles"], ["actor-x"])
 
     def test_live_powershell_probe_is_bounded(self):
         completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
