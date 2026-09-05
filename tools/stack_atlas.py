@@ -512,6 +512,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     except ImportError:
         from worker_report_history import load_history_metadata
     now = datetime.now(timezone.utc)
+    stale_after_minutes = 90.0
     records = load_history_metadata(history_root)
     latest_by_worker: dict[str, dict[str, Any]] = {}
     for item in records:
@@ -545,12 +546,14 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         else:
             classification = "ON_TARGET"
         age_minutes = max(0.0, (now - finished).total_seconds() / 60)
+        report_freshness = "STALE" if age_minutes >= stale_after_minutes else "RECENT"
         latest_by_worker[worker_id] = {
             "_finished_dt": finished,
             "automation_id": worker_id,
             "display_label": item.get("display_label") or item.get("worker"),
             "finished_at": raw_finished,
             "age_minutes": round(age_minutes,1),
+            "report_freshness": report_freshness,
             "duration_minutes": round(float(duration),2) if isinstance(duration,(int,float)) else None,
             "target_minutes": round(float(target),2),
             "target_utilization_pct": round(util,1) if util is not None else None,
@@ -563,12 +566,20 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     duration_values = [x["duration_minutes"] for x in latest if isinstance(x.get("duration_minutes"),(int,float))]
     attention = [
         {"worker": x.get("display_label"), "duration_minutes": x.get("duration_minutes"), "target_minutes": x.get("target_minutes"), "utilization_pct": x.get("target_utilization_pct"), "classification": x.get("classification"), "age_minutes": x.get("age_minutes")}
-        for x in latest if x.get("classification") in {"SHORT","PREMATURE","SEVERELY_PREMATURE"}
+        for x in latest
+        if x.get("report_freshness") == "RECENT"
+        and x.get("classification") in {"SHORT","PREMATURE","SEVERELY_PREMATURE"}
+    ]
+    stale_reports = [
+        {"worker": x.get("display_label"), "age_minutes": x.get("age_minutes"), "last_archived_classification": x.get("classification")}
+        for x in latest if x.get("report_freshness") == "STALE"
     ]
     return {
         "available": True,
         "generated_at": now.isoformat(),
         "target_run_minutes": 24.0,
+        "stale_after_minutes": stale_after_minutes,
+        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness",
         "latest_per_worker": latest,
         "fleet": {
             "workers_seen": len(latest),
@@ -576,8 +587,10 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             "average_latest_utilization_pct": round(sum(util_values)/len(util_values),1) if util_values else None,
             "on_target_count": sum(1 for x in latest if x.get("classification") == "ON_TARGET"),
             "short_or_worse_count": len(attention),
+            "stale_report_count": len(stale_reports),
         },
         "attention": attention,
+        "stale_reports": stale_reports,
         "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
     }
 
@@ -737,7 +750,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     if memory_status and memory_status != "OK":
         notable_conditions.append(f"memory_{str(memory_status).casefold()}_commit_headroom_{pc.get('memory', {}).get('commit_headroom_gb')}gb")
     for item in workers.get("attention", []) if isinstance(workers, dict) else []:
-        notable_conditions.append(f"worker_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
+        notable_conditions.append(f"worker_report_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
+    for item in workers.get("stale_reports", []) if isinstance(workers, dict) else []:
+        notable_conditions.append(f"worker_report_{item.get('worker')}_stale_{item.get('age_minutes')}m_since_archive")
     return {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
