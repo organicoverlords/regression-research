@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import statistics
+from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,14 @@ CURRENT_REPORT_REQUIRED_FIELDS = (
     "automation_id", "started_at", "last_activity_at", "repo", "scope", "state",
     "outcome", "mutation", "validation", "remaining_gate",
 )
+MANUAL_CURRENT_REPORT_REQUIRED_FIELDS = (
+    "run_id", "started_at", "last_activity_at", "repo", "scope", "state",
+    "outcome", "mutation", "validation", "remaining_gate",
+)
+ALLOWED_FINDING_TAGS = frozenset({
+    "bug", "error", "regression", "wrapper_anomaly", "route_problem", "contention",
+    "performance", "improvement", "tooling", "ci", "build", "proof", "resource", "other",
+})
 
 
 
@@ -68,19 +77,47 @@ def _parse_time(value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.astimezone()
 
 
+def _report_population(*, report: Path | None = None, history_root: Path | None = None) -> str:
+    if report is not None and report.parent.name.casefold() == "current" and report.parent.parent.name.casefold() == "manual":
+        return "manual"
+    if history_root is not None and history_root.parent.name.casefold() == "manual":
+        return "manual"
+    return "timed"
+
+
+def _metadata_population(item: dict[str, Any]) -> str:
+    population = str(item.get("population") or "timed").strip().casefold()
+    return population if population in {"timed", "manual"} else "timed"
+
+
+def _parse_finding_tags(fields: dict[str, str]) -> list[str]:
+    raw = str(fields.get("finding_tags") or "").strip()
+    if not raw or raw.casefold() == "none":
+        return []
+    tags = sorted({part.strip().casefold().replace("-", "_").replace(" ", "_") for part in raw.split(",") if part.strip()})
+    invalid = [tag for tag in tags if tag not in ALLOWED_FINDING_TAGS]
+    if invalid:
+        raise ValueError("unknown finding_tags: " + ", ".join(invalid))
+    return tags
+
+
 def _validate_current_report(report: Path, fields: dict[str, str], raw: bytes) -> None:
-    """Fail closed on malformed stable current/<automation-id>.md reports."""
+    """Fail closed on malformed stable current reports for timed and manual populations."""
     if report.parent.name.casefold() != "current":
         return
     duplicates = _duplicate_field_names(raw)
     if duplicates:
         raise ValueError("current report contains duplicate canonical field(s): " + ", ".join(duplicates))
-    missing = [key for key in CURRENT_REPORT_REQUIRED_FIELDS if not fields.get(key, "").strip()]
+    population = _report_population(report=report)
+    required_fields = MANUAL_CURRENT_REPORT_REQUIRED_FIELDS if population == "manual" else CURRENT_REPORT_REQUIRED_FIELDS
+    missing = [key for key in required_fields if not fields.get(key, "").strip()]
     if missing:
         raise ValueError("current report missing required canonical field(s): " + ", ".join(missing))
-    automation_id = fields["automation_id"].strip()
-    if report.stem.casefold() != automation_id.casefold():
-        raise ValueError(f"current report automation_id does not match filename: {automation_id} != {report.stem}")
+    identity_field = "run_id" if population == "manual" else "automation_id"
+    report_id = fields[identity_field].strip()
+    if report.stem.casefold() != report_id.casefold():
+        raise ValueError(f"current report {identity_field} does not match filename: {report_id} != {report.stem}")
+    _parse_finding_tags(fields)
     started = _parse_time(fields["started_at"])
     last_activity = _parse_time(fields["last_activity_at"])
     if started is None:
@@ -94,6 +131,7 @@ def _validate_current_report(report: Path, fields: dict[str, str], raw: bytes) -
 def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None) -> None:
     if str(fields.get("state") or "").strip().upper() != "RUN_FINISHED":
         return
+    population = _report_population(report=report)
     started = _parse_time(fields.get("started_at"))
     last_activity = _parse_time(fields.get("last_activity_at"))
     now = datetime.now().astimezone()
@@ -110,6 +148,8 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
                     f"premature RUN_FINISHED blocked: {field_name} occurs after report file write time; "
                     "this run is NOT finished and activity not yet evidenced by the report file cannot satisfy utilization"
                 )
+    if population == "manual":
+        return
     finished = last_activity
     if started is None or finished is None:
         return
@@ -139,7 +179,7 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     )
 
 
-def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path) -> dict[str, Any]:
+def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path, population: str) -> dict[str, Any]:
     started_at = fields.get("started_at")
     finished_at = fields.get("finished_at") or fields.get("last_activity_at")
     started = _parse_time(started_at)
@@ -150,21 +190,20 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         if seconds >= 0:
             duration_seconds = round(seconds, 3)
     duration_minutes = round(duration_seconds / 60, 2) if duration_seconds is not None else None
-    utilization = round(duration_minutes / TARGET_RUN_MINUTES * 100, 1) if duration_minutes is not None else None
     display_label = fields.get("display_label") or fields.get("worker")
-    return {
+    metadata: dict[str, Any] = {
         "schema": "worker-report-history.v6",
+        "population": population,
         "report_sha256": digest,
         "automation_id": fields.get("automation_id"),
+        "run_id": fields.get("run_id"),
         "display_label": display_label,
-        "worker": display_label or "unknown",
+        "worker": display_label or fields.get("run_id") or "unknown",
         "state": fields.get("state"),
         "started_at": started_at,
         "finished_at": finished_at,
         "duration_seconds": duration_seconds,
         "duration_minutes": duration_minutes,
-        "target_run_minutes": TARGET_RUN_MINUTES,
-        "target_utilization_pct": utilization,
         "repo": fields.get("repo"),
         "scope": fields.get("scope"),
         "outcome": fields.get("outcome"),
@@ -173,6 +212,8 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "last_event": fields.get("last_event"),
         "remaining_gate": fields.get("remaining_gate") or fields.get("remaining_heavy_gate"),
         "stop_reason": fields.get("stop_reason"),
+        "finding_tags": _parse_finding_tags(fields),
+        "findings": fields.get("findings"),
         "visual_proof_run": fields.get("visual_proof_run"),
         "visual_proof_claim": fields.get("visual_proof_claim"),
         "visual_proof_review": fields.get("visual_proof_review"),
@@ -181,6 +222,12 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "archived_at": datetime.now().astimezone().isoformat(),
         "archive_path": str(archive_path),
     }
+    if population == "timed":
+        metadata["target_run_minutes"] = TARGET_RUN_MINUTES
+        metadata["target_utilization_pct"] = (
+            round(duration_minutes / TARGET_RUN_MINUTES * 100, 1) if duration_minutes is not None else None
+        )
+    return metadata
 
 
 def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
@@ -207,45 +254,65 @@ def _history_chronology_is_plausible(item: dict[str, Any]) -> bool:
 
 
 def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
+    population = _report_population(history_root=history_root)
     now = datetime.now().astimezone()
     cutoff = now - timedelta(hours=hours)
     records: list[dict[str, Any]] = []
     for item in load_history_metadata(history_root):
+        if _metadata_population(item) != population:
+            continue
         archived = _parse_time(item.get("archived_at"))
         if archived is not None and archived >= cutoff and _history_chronology_is_plausible(item):
             records.append(item)
 
     durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
-    utilizations = [float(item["target_utilization_pct"]) for item in records if isinstance(item.get("target_utilization_pct"), (int, float))]
+    tag_counts: Counter[str] = Counter()
+    for item in records:
+        for tag in item.get("finding_tags") or []:
+            tag_counts[str(tag)] += 1
     records.sort(key=lambda item: _parse_time(item.get("archived_at")) or datetime.min.astimezone())
-    latest = [
-        {
+    latest = []
+    for item in reversed(records[-20:]):
+        row = {
             "report_sha256": item.get("report_sha256"),
+            "population": population,
             "automation_id": item.get("automation_id"),
+            "run_id": item.get("run_id"),
             "display_label": item.get("display_label") or item.get("worker"),
             "archived_at": item.get("archived_at"),
             "finished_at": item.get("finished_at"),
             "duration_minutes": item.get("duration_minutes"),
-            "target_utilization_pct": item.get("target_utilization_pct"),
             "repo": item.get("repo"),
             "scope": item.get("scope"),
             "state": item.get("state"),
             "outcome": item.get("outcome"),
             "stop_reason": item.get("reported_stop_reason") or item.get("stop_reason"),
+            "finding_tags": item.get("finding_tags") or [],
+            "findings": item.get("findings"),
         }
-        for item in reversed(records[-20:])
-    ]
-    return {
-        "schema": "worker-report-metrics.v1",
+        if population == "timed":
+            row["target_utilization_pct"] = item.get("target_utilization_pct")
+        latest.append(row)
+
+    metrics: dict[str, Any] = {
+        "schema": "worker-report-metrics.v1" if population == "timed" else "manual-worker-report-metrics.v1",
+        "population": population,
         "generated_at": now.isoformat(),
         "window_hours": hours,
         "reports": len(records),
         "runs_with_duration": len(durations),
+        "total_duration_minutes": round(sum(durations), 2) if durations else 0.0,
         "average_duration_minutes": round(statistics.mean(durations), 2) if durations else None,
         "median_duration_minutes": round(statistics.median(durations), 2) if durations else None,
-        "average_target_utilization_pct": round(statistics.mean(utilizations), 1) if utilizations else None,
+        "min_duration_minutes": round(min(durations), 2) if durations else None,
+        "max_duration_minutes": round(max(durations), 2) if durations else None,
+        "finding_tag_counts": dict(sorted(tag_counts.items())),
         "latest_reports": latest,
     }
+    if population == "timed":
+        utilizations = [float(item["target_utilization_pct"]) for item in records if isinstance(item.get("target_utilization_pct"), (int, float))]
+        metrics["average_target_utilization_pct"] = round(statistics.mean(utilizations), 1) if utilizations else None
+    return metrics
 
 
 def write_metrics_projection(history_root: Path, *, hours: float = 24.0) -> tuple[Path, dict[str, Any]]:
@@ -268,8 +335,11 @@ def _project_from_repo(repo: str | None) -> str | None:
 
 
 def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
+    population = _report_population(history_root=history_root)
     events: list[dict[str, Any]] = []
     for item in load_history_metadata(history_root):
+        if _metadata_population(item) != population:
+            continue
         if not _history_chronology_is_plausible(item):
             continue
         event_at = item.get("finished_at") or item.get("archived_at")
@@ -287,7 +357,9 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "event_at": event_at,
             "recorded_at": item.get("archived_at") or event_at,
             "project": _project_from_repo(item.get("repo")),
+            "population": population,
             "automation_id": item.get("automation_id"),
+            "run_id": item.get("run_id"),
             "display_label": display_label,
             "worker": display_label,
             "title": f"{display_label}: {outcome}" + (f" - {scope}" if scope else ""),
@@ -303,6 +375,8 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
             "mutation": mutation,
             "validation": item.get("validation"),
             "remaining_gate": item.get("remaining_gate"),
+            "finding_tags": item.get("finding_tags") or [],
+            "findings": item.get("findings"),
             "visual_proof_run": item.get("visual_proof_run"),
             "visual_proof_review": item.get("visual_proof_review"),
             "refs": [value for value in (scope, mutation) if value],
@@ -311,6 +385,10 @@ def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
 
 
 def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
+    population = _report_population(report=report)
+    history_population = _report_population(history_root=history_root)
+    if report.parent.name.casefold() == "current" and population != history_population:
+        raise ValueError(f"report/history population mismatch: report={population} history={history_population}")
     raw = report.read_bytes()
     fields = _fields(raw)
     _validate_current_report(report, fields, raw)
@@ -364,13 +442,14 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         target.write_bytes(raw)
     metadata_created = not metadata_path.exists()
     if metadata_created:
-        metadata = _derived_metadata(fields, digest=digest, archive_path=target)
+        metadata = _derived_metadata(fields, digest=digest, archive_path=target, population=population)
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     metrics_path, metrics = write_metrics_projection(history_root)
-    return {
+    result = {
         "ok": True,
+        "population": population,
         "archived": archived,
         "deduplicated": not archived,
         "metadata_created": metadata_created,
@@ -378,12 +457,17 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         "path": str(target),
         "metadata_path": str(metadata_path),
         "duration_minutes": metadata.get("duration_minutes"),
-        "target_run_minutes": metadata.get("target_run_minutes"),
-        "target_utilization_pct": metadata.get("target_utilization_pct"),
+        "finding_tags": metadata.get("finding_tags") or [],
         "stop_reason": metadata.get("reported_stop_reason") or metadata.get("stop_reason"),
         "metrics_path": str(metrics_path),
-        "fleet_average_utilization_pct": metrics.get("average_target_utilization_pct"),
     }
+    if population == "timed":
+        result["target_run_minutes"] = metadata.get("target_run_minutes")
+        result["target_utilization_pct"] = metadata.get("target_utilization_pct")
+        result["fleet_average_utilization_pct"] = metrics.get("average_target_utilization_pct")
+    else:
+        result["manual_average_duration_minutes"] = metrics.get("average_duration_minutes")
+    return result
 
 
 def build_parser() -> argparse.ArgumentParser:

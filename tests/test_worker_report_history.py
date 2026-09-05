@@ -359,5 +359,85 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 archive_finalized_report(report, root / "history")
 
 
+    def test_timed_reports_preserve_findings_and_utilization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "e" * 32
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: 2020-01-01T00:00:00+00:00\n"
+                "last_activity_at: 2020-01-01T00:20:00+00:00\nrepo: p3\nscope: p3#523\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: fixed wrapper\nvalidation: PASS\nremaining_gate: none\n"
+                "finding_tags: bug, wrapper_anomaly\nfindings: wrapper launched an incompatible child path\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            metrics = json.loads(Path(result["metrics_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(result["population"], "timed")
+            self.assertEqual(metadata["finding_tags"], ["bug", "wrapper_anomaly"])
+            self.assertEqual(metadata["target_run_minutes"], 24.0)
+            self.assertEqual(metadata["target_utilization_pct"], 83.3)
+            self.assertEqual(metrics["finding_tag_counts"], {"bug": 1, "wrapper_anomaly": 1})
+            self.assertIn("average_target_utilization_pct", metrics)
+
+    def test_manual_reports_track_duration_and_findings_without_timed_utilization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-20260905-001"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\ndisplay_label: Manual ChatGPT\nstarted_at: 2020-01-01T00:00:00+00:00\n"
+                "last_activity_at: 2020-01-01T00:07:30+00:00\nrepo: regression-research\nscope: #523\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: added manual reporting\nvalidation: PASS\nremaining_gate: none\n"
+                "finding_tags: route_problem, improvement\nfindings: route fallback was noisy; reporting separation improved\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, history)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            metrics = json.loads(Path(result["metrics_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(result["population"], "manual")
+            self.assertEqual(metadata["population"], "manual")
+            self.assertEqual(metadata["run_id"], run_id)
+            self.assertEqual(metadata["duration_minutes"], 7.5)
+            self.assertNotIn("target_run_minutes", metadata)
+            self.assertNotIn("target_utilization_pct", metadata)
+            self.assertEqual(metrics["schema"], "manual-worker-report-metrics.v1")
+            self.assertEqual(metrics["population"], "manual")
+            self.assertEqual(metrics["finding_tag_counts"], {"improvement": 1, "route_problem": 1})
+            self.assertNotIn("average_target_utilization_pct", metrics)
+            self.assertNotIn("target_utilization_pct", metrics["latest_reports"][0])
+
+    def test_timed_and_manual_metrics_ignore_foreign_population_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            now = datetime.now().astimezone().isoformat()
+            timed_history = root / "history" / "_reports"
+            manual_history = root / "manual" / "history" / "_reports"
+            timed_history.mkdir(parents=True)
+            manual_history.mkdir(parents=True)
+            manual_record = {
+                "schema": "worker-report-history.v6", "population": "manual", "report_sha256": "manual-in-timed",
+                "archived_at": now, "finished_at": now, "duration_minutes": 5.0,
+            }
+            timed_record = {
+                "schema": "worker-report-history.v6", "population": "timed", "report_sha256": "timed-in-manual",
+                "archived_at": now, "finished_at": now, "duration_minutes": 20.0, "target_utilization_pct": 83.3,
+            }
+            (timed_history / "manual.json").write_text(json.dumps(manual_record), encoding="utf-8")
+            (manual_history / "timed.json").write_text(json.dumps(timed_record), encoding="utf-8")
+            self.assertEqual(build_metrics_projection(root / "history")["reports"], 0)
+            manual_metrics = build_metrics_projection(root / "manual" / "history")
+            self.assertEqual(manual_metrics["reports"], 0)
+            self.assertNotIn("average_target_utilization_pct", manual_metrics)
+
+
+
 if __name__ == "__main__":
     unittest.main()
