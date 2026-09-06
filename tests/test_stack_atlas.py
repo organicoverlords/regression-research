@@ -1239,6 +1239,18 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["destructive_verdict"], "BLOCK_UNKNOWN_TOPOLOGY")
         self.assertIn("stable_component_identity", result["unknowns"])
 
+    def test_mcp_minimal_clone_distinguishes_chatgpt_plugin_from_internal_full_profile(self):
+        details = component_details("mcp_minimal_clone")
+        surface = details["chatgpt_plugin_surface"]
+        self.assertEqual(surface["profile"], "process")
+        self.assertEqual(surface["tools"], ["start_process", "read_output", "kill_process"])
+        self.assertEqual(surface["internal_only_profiles"], ["full"])
+        self.assertIn("busy_list", surface["boundary"])
+        self.assertIn("view_image", surface["boundary"])
+        status = " ".join(details["live_status"])
+        self.assertIn("MCP_TOOL_PROFILE=process", status)
+        self.assertIn("not plugin commands", status)
+
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
         details = component_details("mcp_front_door")
         self.assertIn("inactive backend generation", " ".join(details["independent_recovery"]))
