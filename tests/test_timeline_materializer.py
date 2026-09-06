@@ -15,6 +15,7 @@ from tools.timeline_materializer import (
     DEFAULT_OVERLAP_MINUTES,
     SCHEMA,
     build_work_graph,
+    build_worker_archive_summary,
     github_events,
     install_task,
     library_artifact_events,
@@ -103,6 +104,59 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(group["workers"][0]["allocated_duration_minutes"], 20.4)
         self.assertEqual(group["efficiency"]["action_runs"], 1)
         self.assertEqual(group["efficiency"]["action_conclusions"], {"success": 1})
+
+    def test_worker_archive_summary_uses_timed_materialized_events_only(self):
+        now = datetime(2026, 9, 6, 12, 0, tzinfo=timezone.utc)
+        events = [
+            {
+                "id": "worker:fir-old", "source_type": "WORKER_REPORT", "population": "timed",
+                "automation_id": "fir", "display_label": "Fir",
+                "event_at": (now - timedelta(minutes=180)).isoformat(),
+                "duration_minutes": 24.0, "target_run_minutes": 24.0, "target_utilization_pct": 100.0,
+            },
+            {
+                "id": "worker:fir-new", "source_type": "WORKER_REPORT", "population": "timed",
+                "automation_id": "fir", "display_label": "Fir",
+                "event_at": (now - timedelta(minutes=120)).isoformat(),
+                "duration_minutes": 3.68, "target_run_minutes": 24.0, "target_utilization_pct": 15.3,
+            },
+            {
+                "id": "worker:hazel", "source_type": "WORKER_REPORT", "population": "timed",
+                "automation_id": "hazel", "display_label": "Hazel",
+                "event_at": (now - timedelta(minutes=10)).isoformat(),
+                "duration_minutes": 10.0, "target_run_minutes": 24.0, "target_utilization_pct": 41.7,
+            },
+            *[
+                {
+                    "id": f"worker:w{index}", "source_type": "WORKER_REPORT", "population": "timed",
+                    "automation_id": f"worker-{index}", "display_label": f"Worker {index}",
+                    "event_at": (now - timedelta(minutes=(200 if index == 3 else 20 + index))).isoformat(),
+                    "duration_minutes": 20.0, "target_run_minutes": 24.0, "target_utilization_pct": 83.3,
+                }
+                for index in range(4)
+            ],
+            {
+                "id": "worker:manual", "source_type": "WORKER_REPORT", "population": "manual",
+                "automation_id": "manual-should-not-count", "display_label": "Manual",
+                "event_at": (now - timedelta(minutes=1)).isoformat(), "duration_minutes": 1.0,
+            },
+        ]
+        summary = build_worker_archive_summary(events, now=now, horizon_days=30)
+        self.assertEqual(summary["read_mode"], "MATERIALIZED_ONLY")
+        self.assertEqual(summary["population_scope"], "timed_worker_reports_in_materialized_horizon")
+        self.assertEqual(summary["archive_sample"]["historical_worker_ids_seen"], 6)
+        self.assertEqual(summary["archive_sample"]["sampled_worker_count"], 5)
+        self.assertEqual(summary["archive_sample"]["sample_limit"], 5)
+        self.assertEqual(summary["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_in_materialized_horizon")
+        self.assertEqual([item["worker"] for item in summary["attention"]], ["Hazel"])
+        self.assertEqual(summary["stale_reports"], [{
+            "worker": "Fir", "age_minutes": 120.0,
+            "last_archived_classification": "SEVERELY_PREMATURE",
+        }])
+        fir = next(item for item in summary["latest_archived_per_worker"] if item["display_label"] == "Fir")
+        self.assertEqual(fir["classification"], "SEVERELY_PREMATURE")
+        self.assertNotIn("Manual", json.dumps(summary))
+        self.assertFalse(summary["current_scheduler_membership"]["available"])
 
     def test_subject_fallback_requires_nearby_branch_activity(self):
         title = "[#803] Explain defensive route control clearly"
@@ -581,7 +635,9 @@ class TimelineMaterializerTests(unittest.TestCase):
             worker = {
                 "id": "worker:test", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
                 "event_at": "2026-09-06T04:02:00+03:00", "recorded_at": "2026-09-06T04:02:00+03:00",
-                "project": "p3", "worker": "Hazel", "duration_minutes": 20.0, "target_utilization_pct": 83.3,
+                "project": "p3", "population": "timed", "automation_id": "hazel",
+                "display_label": "Hazel", "worker": "Hazel", "duration_minutes": 20.0,
+                "target_run_minutes": 24.0, "target_utilization_pct": 83.3,
                 "title": "Hazel done", "summary": sha2, "refs": [sha2], "anchors": [],
             }
             minimal_overview = {"contract": "history only", "eligible_entries": 0, "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": []}
@@ -610,7 +666,10 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(json.loads(store_path.read_text(encoding="utf-8"))["schema"], SCHEMA)
             bootstrap = json.loads(bootstrap_path.read_text(encoding="utf-8"))
             self.assertEqual(bootstrap["schema"], BOOTSTRAP_SCHEMA)
-            self.assertLess(bootstrap_path.stat().st_size, 5000)
+            self.assertLess(bootstrap_path.stat().st_size, 6000)
+            self.assertEqual(bootstrap["workers"]["read_mode"], "MATERIALIZED_ONLY")
+            self.assertEqual(bootstrap["workers"]["archive_sample"]["sampled_worker_count"], 1)
+            self.assertEqual(bootstrap["workers"]["archive_sample"]["average_latest_utilization_pct"], 83.3)
             build_overview.assert_called_once()
             self.assertEqual(build_overview.call_args.kwargs["limit"], 20)
 
