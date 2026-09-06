@@ -38,6 +38,7 @@ MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
+BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
@@ -1291,7 +1292,7 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
         from tools.memory_bank import build_overview, load_bank
     except ImportError:
         from memory_bank import build_overview, load_bank
-    report = build_overview(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)
+    report = build_overview(load_bank(), limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT)
     overview = _compact_memory_overview(report, BOOTSTRAP_MEMORY_TITLE_LIMIT)
     _bootstrap_cache_write("memory-overview.json", {"overview": overview})
     return overview
