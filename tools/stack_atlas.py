@@ -135,9 +135,16 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_KNOWN_GOOD_FREEZE_PATH)],
+        "chatgpt_plugin_surface": {
+            "profile": "process",
+            "tools": ["start_process", "read_output", "kill_process"],
+            "internal_only_profiles": ["full"],
+            "boundary": "The full profile is explicit internal/local-test surface only; busy_list, busy_claim, busy_release, and view_image are not ChatGPT plugin commands.",
+        },
         "live_status": [
             "clone health",
             "exact tool contract",
+            "ChatGPT plugin surface is MCP_TOOL_PROFILE=process with start_process, read_output, and kill_process only; full is explicit internal/local testing and busy_*/view_image are not plugin commands",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
             "2026-09-05 frozen candidate production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
