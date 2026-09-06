@@ -2,8 +2,8 @@
   "id": "2026-09-04_2203_EEST_mcpv3-tunnel-restart-binding-regression",
   "title": "MCPv3 tunnel restart must preserve next-turn direct binding",
   "source_report": "01 Reports/2026-09-04_2203_EEST_MCPv3_tunnel-restart-binding-regression_incident_report.md",
-  "capture_state": "final",
-  "replay_ready": true,
+  "capture_state": "pending",
+  "replay_ready": false,
   "source_identity": {
     "failure_point": "after off-path watchdog tests passed and before production tunnel patch/restart",
     "conversation": "current Codex MCPv3 outage investigation",
@@ -46,5 +46,6 @@
   },
   "success_candidate": {
     "action": "Keep production unchanged, retain the watchdog off-path, and require a next-turn direct MCPv3 call without discovery before accepting deployment."
-  }
+  },
+  "note": "Legacy evidence/candidate capture preserved intact; current replay contract fields are incomplete, so this record is non-scoreable pending explicit migration."
 }

@@ -177,10 +177,18 @@ def validate_fixture(raw: Any, *, root: Path = ROOT, filename: str = "fixture") 
     # fixtures.  They still need identity and source provenance so they cannot
     # disappear silently from coverage.
     if not _is_replay_ready(raw):
-        for key in ("id", "source_report", "capture_state"):
+        for key in ("id", "capture_state"):
             if key not in raw or not isinstance(raw[key], str) or not raw[key].strip():
                 raise FixtureError(f"{filename}: pending fixture missing '{key}'")
-        _validate_source(root, raw["source_report"], filename)
+        source_report = raw.get("source_report")
+        source_reports = raw.get("source_reports")
+        if isinstance(source_report, str) and source_report.strip():
+            _validate_source(root, source_report, filename)
+        elif isinstance(source_reports, list) and source_reports and all(isinstance(item, str) and item.strip() for item in source_reports):
+            for item in source_reports:
+                _validate_source(root, item, filename)
+        else:
+            raise FixtureError(f"{filename}: pending fixture requires source_report or non-empty source_reports")
         return raw
     if missing:
         raise FixtureError(f"{filename}: missing required fields: {', '.join(missing)}")

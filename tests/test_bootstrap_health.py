@@ -7,7 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.stack_atlas import (
+    _bootstrap_cache_read_any,
+    _bootstrap_cache_refresh_view,
+    _bootstrap_cache_write,
     _bootstrap_github_status,
+    _bootstrap_try_refresh_lease,
     _bootstrap_vault_status,
     build_live_bootstrap_glance,
 )
@@ -36,6 +40,42 @@ class BootstrapHealthTests(unittest.TestCase):
         self.assertNotIn("issue", " ".join(command))
         self.assertNotIn("pr", " ".join(command))
 
+    def test_expired_cache_serves_stale_to_followers_while_one_refresher_is_elected(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"LOCALAPPDATA": tmp}):
+            _bootstrap_cache_write("shared.json", {"value": 7})
+            cache_path = Path(tmp) / "StackAtlas" / "bootstrap-cache" / "shared.json"
+            old = cache_path.stat().st_mtime - 10.0
+            os.utime(cache_path, (old, old))
+            payload, age = _bootstrap_cache_read_any("shared.json")
+            first, first_stale = _bootstrap_cache_refresh_view(
+                "shared.json", payload, age, max_age_seconds=1.0, lease_seconds=4.0
+            )
+            self.assertIsNone(first)
+            self.assertFalse(first_stale)
+            second, second_stale = _bootstrap_cache_refresh_view(
+                "shared.json", payload, age, max_age_seconds=1.0, lease_seconds=4.0
+            )
+            self.assertEqual(second, {"value": 7})
+            self.assertTrue(second_stale)
+
+    def test_github_expiry_follower_reuses_stale_health_without_duplicate_probe(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"LOCALAPPDATA": tmp}):
+            _bootstrap_cache_write("github-status.json", {
+                "available": True, "status": "OK", "cli_available": True,
+                "authenticated": True, "api_reachable": True,
+                "rate_limit": {"limit": 5000, "remaining": 4000, "used": 1000},
+            })
+            cache_path = Path(tmp) / "StackAtlas" / "bootstrap-cache" / "github-status.json"
+            old = cache_path.stat().st_mtime - 61.0
+            os.utime(cache_path, (old, old))
+            self.assertTrue(_bootstrap_try_refresh_lease("github-status.json", 4.0))
+            with patch("tools.stack_atlas.subprocess.run", side_effect=AssertionError("duplicate GitHub probe")):
+                status = _bootstrap_github_status()
+            self.assertEqual(status["status"], "OK")
+            self.assertTrue(status["cache"]["used"])
+            self.assertTrue(status["cache"]["stale_while_refresh"])
+            self.assertGreater(status["cache"]["age_seconds"], 60.0)
+
     def test_vault_health_is_bounded_to_local_repo_and_memory_tail(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -61,7 +101,9 @@ class BootstrapHealthTests(unittest.TestCase):
             "tools.stack_atlas._bootstrap_memory_overview", return_value={"recent": []}
         ), patch("tools.stack_atlas._bootstrap_vault_status", return_value={"available": True, "status": "OK"}), patch(
             "tools.stack_atlas._bootstrap_github_status", return_value={"available": True, "status": "WATCH"}
-        ), patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={"available": True}):
+        ), patch("tools.stack_atlas._bootstrap_source_freshness", return_value={"available": True, "attention_required": False}), patch(
+            "tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={"available": True}
+        ):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "DEGRADED")
         self.assertEqual(glance["bootstrap"]["component_statuses"], {"mcp": "OK", "vault": "OK", "github": "WATCH"})

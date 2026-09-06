@@ -33,12 +33,14 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
 
     def test_worker_contract_stays_small_and_non_blocking(self):
         text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
-        self.assertIn("Five is a hard maximum for the recurring worker fleet", text)
+        self.assertIn("Exactly five canonical recurring workers stay enabled", text)
 
         self.assertIn("The scheduler provides recurrence only", text)
         self.assertIn("Every recurring worker is also a bounded peer-recovery orchestrator", text)
         self.assertIn("must never administer itself", text)
-        self.assertIn("may re-enable a disabled sibling", text)
+        self.assertIn("re-enable that sibling once with `is_enabled=true` only", text)
+        self.assertIn("Do not require a particular failure signature before restoring the requested 5/5 enabled fleet", text)
+        self.assertIn("An unexpected disabled canonical worker is degradation to repair", text)
         self.assertIn("does not create a sixth supervisor slot", text)
         self.assertIn("About 24 minutes remains the timed utilization target", text)
         self.assertIn("existing >=80% completion guard", text)
@@ -50,8 +52,8 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("Near the start of every timed run", text)
         self.assertIn("before any command that may consume a material part of the useful run window", text)
         self.assertIn("`state: RUNNING`", text)
-        self.assertIn("`state: TOOL_INTERVAL_OPEN`", text)
-        self.assertIn("artifact lifecycle state only and never process liveness", text)
+        self.assertIn("Reporting is evidence/observability only and never completion", text)
+        self.assertIn("A manual report is accounting/feedback evidence, not liveness", text)
         self.assertNotIn("metrics.json.latest_reports", text)
         self.assertNotIn("PENDING_REVIEW", text)
         self.assertNotIn("Remote Desktop Commander", text)
