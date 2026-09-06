@@ -82,3 +82,23 @@ When a tool/connector outage caused by our own stack work prevents writing the V
 - `02 Evidence/2026-09-03_0152_EEST_codex-thread-01a03f11_turn-chronology.md`
 - `04 Operating Contracts/mcp-known-good-freeze.json`
 - MCP process receipts and health checks from this chat, including restored generation `backend-3011-372-1788714384019`.
+
+## 20:58 EEST visibility repair
+
+The existing timeline/bootstrap visibility hole is repaired in Vault commit `9615a31` (`fix timeline incident signal visibility`). No new service, scheduler, blocker, or MCP control plane was added.
+
+The repair corrected two existing behaviors:
+
+- provenance-linked contracts/screenshots/logs keep the strong incident anchor as supporting observations but no longer inherit the canonical report's `incident_id` / `incident_report` signal semantics;
+- the bounded bootstrap case sampler prefers a canonical RED `incident:` case over scope-only RED memories when byte pressure leaves only one case example.
+
+Post-rebuild proof:
+
+- canonical case: `incident:inc-20260906-2017-eest-live-mcp-stack-disruption-recurrence`;
+- severity: `RED`;
+- traits: `incident`, `regression`;
+- observations: 10 supporting observations, only 2 incident signals;
+- latest signal title: `report: RED ALERT - recurring live MCP stack disruption during prohibited replacement`;
+- `bootstrap-glance` now surfaces both the exact incident ID and that exact RED report title.
+
+This closes the timeline/bootstrap **visibility** gap. RED ALERT remains OPEN for the separate recurrence-prevention requirement: live MCP edit/cutover work must follow the already-audited off-path/zero-downtime procedure rather than adding another control system.
