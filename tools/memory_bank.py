@@ -209,9 +209,28 @@ def _prepare_entry(values: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
+def _require_canonical_reroute_evidence(entry: dict[str, Any]) -> None:
+    try:
+        try:
+            from tools.mcp_reroute_evidence import DEFAULT_ROUTING, load_jsonl, requires_routing_link, routing_link_for_memory
+        except ImportError:
+            from mcp_reroute_evidence import DEFAULT_ROUTING, load_jsonl, requires_routing_link, routing_link_for_memory
+        if not requires_routing_link(entry, DEFAULT_ROUTING):
+            return
+        routes = load_jsonl(DEFAULT_ROUTING)
+    except (OSError, ValueError) as exc:
+        raise BankError(f"reroute routing evidence could not be verified before memory write: {exc}") from exc
+    if not routing_link_for_memory(entry, routes, DEFAULT_ROUTING):
+        raise BankError(
+            "reroute memory cites mcp-security-routing-events.jsonl but no matching routing event exists; "
+            "append the routing event first, then record the memory"
+        )
+
+
 def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
     entry = _prepare_entry(values)
     if _is_canonical_bank(path):
+        _require_canonical_reroute_evidence(entry)
         with sync_lock(path):
             _sync_canonical_locked(path, strict=False)
             saved = _append_entry_file(path, entry)

@@ -13,6 +13,9 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
         self.assertEqual(select_areas({"tools/memory_context.py"}), ["memory"])
         self.assertEqual(select_areas({"memory/README.md"}), ["memory"])
+        self.assertEqual(select_areas({"02 Evidence/mcp-security-routing-events.jsonl"}), ["memory"])
+        self.assertEqual(select_areas({"tools/mcp_reroute_evidence.py"}), ["memory"])
+        self.assertEqual(select_areas({"tests/test_mcp_reroute_evidence.py"}), ["memory"])
         self.assertEqual(select_areas({"README.md"}), [])
 
     def test_timeline_changes_select_memory_verification(self):
@@ -29,8 +32,11 @@ class VerifyTests(unittest.TestCase):
         test_paths = pytest_run.call_args.args[0]
         self.assertIn("tests/test_timeline_materializer.py", test_paths)
         self.assertIn("tests/test_timeline_query_filters.py", test_paths)
+        self.assertIn("tests/test_mcp_reroute_evidence.py", test_paths)
         compile_command = run.call_args_list[0].args[0]
         self.assertIn("tools/timeline_materializer.py", compile_command)
+        self.assertIn("tools/mcp_reroute_evidence.py", compile_command)
+        self.assertIn([sys.executable, "tools/mcp_reroute_evidence.py", "verify"], [call.args[0] for call in run.call_args_list])
 
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
