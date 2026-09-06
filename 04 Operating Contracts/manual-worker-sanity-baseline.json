@@ -26,14 +26,15 @@
     "higher_is_better": true,
     "component_formula": "weight * clamp((baseline-current)/baseline, -1, 1); all scored components are lower-is-better",
     "direction_threshold": 10.0,
-    "important": "diagnostic trend only; the worse axis is the headline so mechanically cheaper reporting cannot mask worse operational behavior; never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive",
+    "important": "diagnostic trend only; the worse scored axis is the headline and any regressed guardrail suppresses a clean IMPROVED label; never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive",
     "headline_formula": "min(friction_delta, operational_delta)"
   },
   "guardrails": [
     "Tool-interval duration is shown but is not directionally scored; longer is not automatically better.",
-    "Always show both friction and operational axes, component values, and sample count with the headline delta.",
+    "Always show both friction and operational axes, component values, sample count, and guardrail state with the headline delta.",
     "Do not claim improvement before the post-boundary sample gate is met.",
-    "The headline is the worse of the two axes; friction reduction cannot offset operational degradation.",
+    "The headline is the worse scored axis; friction reduction cannot offset operational degradation.",
+    "A REGRESSED unscored guardrail suppresses the clean IMPROVED direction and yields MIXED_GUARDRAIL_REGRESSION without changing the numeric score.",
     "The score measures manual-reporting/process behavior, not model intelligence, user wellbeing, product quality, or MCP health."
   ],
   "axes": {

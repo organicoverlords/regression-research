@@ -577,12 +577,17 @@ def build_manual_sanity_projection(
         },
     }
     threshold = float((baseline.get("score_semantics") or {}).get("direction_threshold") or 10.0)
+    guardrail_regressed = any(
+        isinstance(item, dict) and item.get("status") == "REGRESSED" for item in guardrails.values()
+    )
     if score_delta is None:
         direction = "UNKNOWN"
-    elif score_delta >= threshold:
-        direction = "IMPROVED"
     elif score_delta <= -threshold:
         direction = "WORSE"
+    elif guardrail_regressed:
+        direction = "MIXED_GUARDRAIL_REGRESSION"
+    elif score_delta >= threshold:
+        direction = "IMPROVED"
     else:
         direction = "NO_CLEAR_CHANGE"
     return {
@@ -606,7 +611,7 @@ def build_manual_sanity_projection(
         "axes": axes,
         "guardrails": guardrails,
         "components": components,
-        "semantics": "0 is the fixed pre-#658 insanity baseline. Friction and operational axes are scored separately; the headline is the worse axis so cheaper reporting cannot mask operational degradation. Diagnostic only, never a worker target or gate.",
+        "semantics": "0 is the fixed pre-#658 insanity baseline. Friction and operational axes are scored separately; the headline is the worse axis so cheaper reporting cannot mask operational degradation. A regressed guardrail suppresses a clean IMPROVED direction. Diagnostic only, never a worker target or gate.",
     }
 
 

@@ -1124,6 +1124,53 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(scored["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
 
 
+    def test_manual_sanity_regressed_guardrail_blocks_clean_improved_direction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "guardrail-veto",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0, "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0, "micro_run_lt2_pct": 20.0,
+                    "short_run_lt5_pct_guardrail": 20.0, "median_tool_interval_minutes_guardrail": 8.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 60.0, "micro_run_lt2_pct": 40.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            for index in range(5):
+                archive = reports / f"short{index}.md"
+                archive.write_text(
+                    f"run_id: short{index}\nstarted_at: 2026-09-06T21:{10+index:02d}:00+03:00\n"
+                    f"last_activity_at: 2026-09-06T21:{13+index:02d}:00+03:00\nrepo: vault\n"
+                    "state: RUN_FINISHED\noutcome: useful work\n", encoding="utf-8",
+                )
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"short{index}",
+                    "run_id": f"short{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{13+index:02d}:00+03:00", "duration_minutes": 3.0,
+                    "archived_at": f"2026-09-06T21:{14+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"short{index}", "outcome": "useful work"}, "outcome": "useful work",
+                }
+                (reports / f"short{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+            scored = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            self.assertGreater(scored["score_delta"], 10.0)
+            self.assertEqual(scored["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
+            self.assertEqual(scored["direction"], "MIXED_GUARDRAIL_REGRESSION")
+
+
 
 if __name__ == "__main__":
     unittest.main()
