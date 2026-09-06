@@ -1237,6 +1237,18 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["destructive_verdict"], "BLOCK_UNKNOWN_TOPOLOGY")
         self.assertIn("stable_component_identity", result["unknowns"])
 
+    def test_mcp_minimal_clone_distinguishes_chatgpt_plugin_from_internal_full_profile(self):
+        details = component_details("mcp_minimal_clone")
+        surface = details["chatgpt_plugin_surface"]
+        self.assertEqual(surface["profile"], "process")
+        self.assertEqual(surface["tools"], ["start_process", "read_output", "kill_process"])
+        self.assertEqual(surface["internal_only_profiles"], ["full"])
+        self.assertIn("busy_list", surface["boundary"])
+        self.assertIn("view_image", surface["boundary"])
+        status = " ".join(details["live_status"])
+        self.assertIn("MCP_TOOL_PROFILE=process", status)
+        self.assertIn("not plugin commands", status)
+
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
         details = component_details("mcp_front_door")
         self.assertIn("inactive backend generation", " ".join(details["independent_recovery"]))
@@ -1392,6 +1404,21 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         first_step = raw["recovery_policy"]["required_order"][0]
         self.assertIn("user explicitly asks", first_step)
         self.assertIn("do not persist them", first_step)
+
+    def test_chatgpt_plugin_surface_search_routes_to_process_only_contract(self):
+        for query in (
+            "ChatGPT plugin tool contract busy_list process profile",
+            "busy_list plugin command",
+            "view_image plugin",
+        ):
+            with self.subTest(query=query):
+                result = find_features(query)[0]
+                self.assertEqual(result["id"], "mcp.chatgpt_plugin_surface")
+                self.assertEqual(result["owner_components"], ["mcp_minimal_clone"])
+                self.assertIn("only start_process, read_output, and kill_process", result["boundary"])
+                self.assertIn("not ChatGPT plugin commands", result["boundary"])
+        sources = component_details("mcp_minimal_clone")["canonical_sources"]
+        self.assertTrue(any(item.endswith(r"\config\process-tool-contract.json") for item in sources))
 
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
