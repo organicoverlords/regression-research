@@ -810,6 +810,47 @@ def _print_json(value: Any, *, compact: bool = False) -> None:
     stream.flush()
 
 
+def attach_materialized_orientation(
+    report: dict[str, Any],
+    *,
+    vault_root: Path | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Attach the same materialized timeline orientation used by bootstrap."""
+    vault_root = vault_root or Path(__file__).resolve().parents[1]
+    try:
+        from tools.timeline_materializer import load_bootstrap_projection, materialized_health
+    except ImportError:
+        from timeline_materializer import load_bootstrap_projection, materialized_health
+    projection = load_bootstrap_projection(root=vault_root)
+    if isinstance(projection, dict) and isinstance(projection.get("overview"), dict):
+        projected = projection["overview"]
+        report["timeline_snapshots"] = projected.get("timeline_snapshots", {})
+        materialized = projected.get("timeline_materialized")
+        materialized = dict(materialized) if isinstance(materialized, dict) else {}
+        materialized.update(materialized_health(projection, now=now or datetime.now().astimezone()))
+        report["timeline_materialized"] = materialized
+        report["debugging_boundary"] = {
+            "timeline_role": "HISTORICAL_ORIENTATION_AND_LINEAGE",
+            "current_diagnosis": "VERIFY_THE_OWNING_LIVE_REPO_RUNTIME_SCHEDULER_OR_COORDINATOR",
+            "absence_semantics": materialized.get("absence_semantics"),
+        }
+    else:
+        report["timeline_materialized"] = {
+            "status": "MISSING",
+            "read_mode": "MATERIALIZED_ONLY",
+            "live_truth_required": True,
+            "absence_semantics": "NO_TIMELINE_ORIENTATION_AVAILABLE_DO_NOT_INFER_ABSENCE",
+            "refresh_command": "python tools\\timeline_materializer.py refresh",
+        }
+        report["debugging_boundary"] = {
+            "timeline_role": "HISTORICAL_ORIENTATION_UNAVAILABLE",
+            "current_diagnosis": "VERIFY_THE_OWNING_LIVE_REPO_RUNTIME_SCHEDULER_OR_COORDINATOR",
+            "absence_semantics": report["timeline_materialized"]["absence_semantics"],
+        }
+    return report
+
+
 def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
@@ -870,7 +911,7 @@ def _main() -> int:
         help="explicitly rescan timeline sources instead of reading the periodic Vault materialization",
     )
 
-    overview = sub.add_parser("overview", aliases=["digest"], help="aggregate recent durable Vault memory into a bounded query-free digest")
+    overview = sub.add_parser("overview", aliases=["digest"], help="aggregate durable Vault memory plus the current materialized timeline orientation into a bounded query-free digest")
     overview.add_argument("--limit", type=int, default=8)
 
     recent_titles = sub.add_parser("recent-titles", aliases=["recent"])
@@ -986,7 +1027,10 @@ def _main() -> int:
             _print_json(report)
             return 0
         if args.command in ("overview", "digest"):
-            _print_json(build_overview(entries, limit=args.limit))
+            report = build_overview(entries, limit=args.limit)
+            if args.bank.resolve() == DEFAULT_BANK.resolve():
+                attach_materialized_orientation(report)
+            _print_json(report)
             return 0
         if args.command in ("recent-titles", "recent"):
             _print_json(recent_title_entries(entries, limit=args.limit))

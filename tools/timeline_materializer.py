@@ -1209,6 +1209,14 @@ def materialize(
             else:
                 source_watermarks[name] = now.isoformat()
 
+        previous_ingestion = previous.get("ingestion") if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict) else {}
+        previous_backfill_incomplete = set(str(value) for value in previous_ingestion.get("backfill_incomplete_sources", []) if str(value).strip())
+        backfill_incomplete_sources = (
+            sorted(set(saturated_sources))
+            if refresh_mode == "BACKFILL"
+            else sorted(previous_backfill_incomplete)
+        )
+        retry_sources = sorted(set(saturated_sources)) if refresh_mode == "INCREMENTAL" else []
         source_coverage = {
             **delta_coverage,
             "materializer": {
@@ -1220,8 +1228,8 @@ def materialize(
                 "retained_previous_external_events": len(previous_events),
                 "merged_external_events": len(merged_external),
                 "saturated_sources": saturated_sources,
-                "backfill_incomplete_sources": saturated_sources if refresh_mode == "BACKFILL" else [],
-                "retry_sources": saturated_sources if refresh_mode == "INCREMENTAL" else [],
+                "backfill_incomplete_sources": backfill_incomplete_sources,
+                "retry_sources": retry_sources,
             },
         }
         timeline = build_timeline(
@@ -1249,6 +1257,8 @@ def materialize(
             "source_counts": _coverage_counts(timeline["events"]),
             "source_watermarks": source_watermarks,
             "saturated_sources": saturated_sources,
+            "backfill_incomplete_sources": backfill_incomplete_sources,
+            "retry_sources": retry_sources,
         }
 
         store_payload = {
@@ -1262,8 +1272,8 @@ def materialize(
                 "delta_events": len(all_delta),
                 "source_since": {name: value.isoformat() for name, value in source_since.items()},
                 "saturated_sources": saturated_sources,
-                "backfill_incomplete_sources": saturated_sources if refresh_mode == "BACKFILL" else [],
-                "retry_sources": saturated_sources if refresh_mode == "INCREMENTAL" else [],
+                "backfill_incomplete_sources": backfill_incomplete_sources,
+                "retry_sources": retry_sources,
             },
             "timeline": timeline,
         }
@@ -1291,6 +1301,11 @@ def materialize(
             "refresh_mode": refresh_mode,
             "delta_events": len(all_delta),
             "saturated_sources": saturated_sources,
+            "backfill_incomplete_sources": backfill_incomplete_sources,
+            "retry_sources": retry_sources,
+            "coverage_status": "HISTORICAL_INCOMPLETE" if backfill_incomplete_sources else "COMPLETE_WITHIN_MATERIALIZED_HORIZON",
+            "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if backfill_incomplete_sources else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY",
+            "live_truth_required": True,
             "work_graph": graph["summary"],
         }
         compact = _fit_memory_overview_budget(compact)
@@ -1312,6 +1327,8 @@ def materialize(
             "stored_events": len(timeline["events"]),
             "truncated": bool(timeline.get("truncated")),
             "saturated_sources": saturated_sources,
+            "backfill_incomplete_sources": backfill_incomplete_sources,
+            "retry_sources": retry_sources,
             "source_counts": _coverage_counts(timeline["events"]),
             "work_graph": graph["summary"],
             "store_path": str(store_path),
@@ -1337,6 +1354,73 @@ def load_bootstrap_projection(*, root: Path = ROOT) -> dict[str, Any] | None:
     return _read_json(root / ".state" / "timeline" / BOOTSTRAP_PATH.name)
 
 
+def materialized_health(payload: dict[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
+    """Describe freshness and evidence-completeness semantics for a materialized payload."""
+    now = now or datetime.now().astimezone()
+    timeline = payload.get("timeline") if isinstance(payload.get("timeline"), dict) else {}
+    overview = payload.get("overview") if isinstance(payload.get("overview"), dict) else {}
+    timeline_meta = timeline.get("materialized") if isinstance(timeline.get("materialized"), dict) else {}
+    overview_meta = overview.get("timeline_materialized") if isinstance(overview.get("timeline_materialized"), dict) else {}
+    meta = dict(timeline_meta or overview_meta)
+    ingestion = payload.get("ingestion") if isinstance(payload.get("ingestion"), dict) else {}
+
+    generated_at = str(payload.get("generated_at") or meta.get("as_of") or meta.get("generated_at") or "").strip()
+    generated = _dt(generated_at)
+    age_seconds = max(0.0, (now - generated.astimezone(now.tzinfo)).total_seconds()) if generated else None
+    try:
+        refresh_minutes = max(1.0, float(meta.get("refresh_minutes") or DEFAULT_REFRESH_MINUTES))
+    except (TypeError, ValueError):
+        refresh_minutes = float(DEFAULT_REFRESH_MINUTES)
+    stale_after_seconds = max(15.0 * 60.0, refresh_minutes * 60.0 * 3.0)
+    status = "FRESH" if age_seconds is not None and age_seconds <= stale_after_seconds else "STALE"
+
+    incomplete = sorted(set(str(value) for value in (
+        ingestion.get("backfill_incomplete_sources")
+        or meta.get("backfill_incomplete_sources")
+        or []
+    ) if str(value).strip()))
+    saturated = sorted(set(str(value) for value in (
+        ingestion.get("saturated_sources")
+        or meta.get("saturated_sources")
+        or []
+    ) if str(value).strip()))
+    retry = sorted(set(str(value) for value in (
+        ingestion.get("retry_sources")
+        or meta.get("retry_sources")
+        or []
+    ) if str(value).strip()))
+    coverage_status = "HISTORICAL_INCOMPLETE" if incomplete else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
+    absence_unsafe_reasons: list[str] = []
+    if status != "FRESH":
+        absence_unsafe_reasons.append("MATERIALIZATION_STALE")
+    if incomplete:
+        absence_unsafe_reasons.append("HISTORICAL_BACKFILL_INCOMPLETE")
+    if retry:
+        absence_unsafe_reasons.append("DELTA_RETRY_PENDING")
+    absence_semantics = (
+        "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE"
+        if absence_unsafe_reasons
+        else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY"
+    )
+    return {
+        "status": status,
+        "as_of": generated_at or None,
+        "age_seconds": round(age_seconds, 1) if age_seconds is not None else None,
+        "stale_after_seconds": round(stale_after_seconds, 1),
+        "refresh_minutes": refresh_minutes,
+        "refresh_mode": meta.get("refresh_mode") or ingestion.get("mode"),
+        "horizon_days": payload.get("horizon_days") or meta.get("horizon_days"),
+        "read_mode": "MATERIALIZED_ONLY",
+        "coverage_status": coverage_status,
+        "backfill_incomplete_sources": incomplete,
+        "saturated_sources": saturated,
+        "retry_sources": retry,
+        "absence_semantics": absence_semantics,
+        "absence_unsafe_reasons": absence_unsafe_reasons,
+        "live_truth_required": True,
+    }
+
+
 def _event_matches_query(event: dict[str, Any], query: str) -> bool:
     tokens = set(re.findall(r"[a-z0-9]+", query.casefold()))
     if not tokens:
@@ -1350,6 +1434,51 @@ def _event_matches_query(event: dict[str, Any], query: str) -> bool:
         " ".join(str(value) for value in event.get("anchors", []) or []),
     ]).casefold()
     return tokens <= set(re.findall(r"[a-z0-9]+", hay))
+
+
+def _clip_query_value(value: Any, limit: int) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return text if len(text) <= limit else text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
+    """Bound query output while preserving navigation, semantics, and source-specific proof fields."""
+    result: dict[str, Any] = {}
+    passthrough = (
+        "id", "source_type", "authority", "event_at", "recorded_at", "project", "projects",
+        "state", "kind", "scope", "worker", "display_label", "population", "automation_id", "run_id",
+        "duration_minutes", "target_run_minutes", "target_utilization_pct", "finding_tags",
+        "sha", "short_sha", "patch_id", "branch_refs", "decorations", "repo_path", "repo_state",
+        "artifact_type", "path", "report_path", "evidence_type", "incident_id", "change",
+        "github_kind", "github_number", "github_repo", "url", "head_ref", "base_ref", "head_sha",
+        "workflow", "status", "conclusion", "event", "tool", "process_id", "backend_generation",
+        "mcp_event", "mcp_root", "runner", "diag_path", "error_count", "warning_count", "job_marker_count",
+        "thread_id", "thread_source", "continuity", "case_anchors", "evidence_form",
+        "disposition", "durability", "semantic_category", "primary_domain", "tags", "superseded_by", "supersedes",
+        "proof_artifact", "proof_artifact_sha256", "visual_proof_run", "visual_proof_review",
+    )
+    for key in passthrough:
+        value = event.get(key)
+        if value not in (None, "", [], {}):
+            result[key] = value
+    for key, limit in (("title", 260), ("summary", 480), ("outcome", 240), ("remaining_gate", 240), ("findings", 300), ("stop_reason", 200)):
+        clipped = _clip_query_value(event.get(key), limit)
+        if clipped:
+            result[key] = clipped
+    for key in ("refs", "anchors", "evidence"):
+        values = event.get(key)
+        if not isinstance(values, list):
+            continue
+        clipped_values = []
+        for value in values[:4]:
+            clipped = _clip_query_value(value, 240)
+            if clipped:
+                clipped_values.append(clipped)
+        if clipped_values:
+            result[key] = clipped_values
+    return result
 
 
 def query_materialized(
@@ -1392,42 +1521,105 @@ def query_materialized(
         selected.append(event)
     selected.sort(key=lambda event: (str(event.get("event_at") or ""), str(event.get("id") or "")), reverse=True)
     effective_limit = min(500, max(1, int(limit)))
+    graph_limit = min(6, effective_limit)
     selected_ids = {str(event.get("id") or "") for event in selected}
     graph = timeline.get("work_graph") if isinstance(timeline.get("work_graph"), dict) else {}
-    graph_groups = []
-    for row in graph.get("commit_groups", []) if isinstance(graph.get("commit_groups"), list) else []:
+    all_graph_groups = graph.get("commit_groups", []) if isinstance(graph.get("commit_groups"), list) else []
+    attachment_counts: Counter[str] = Counter()
+    for row in all_graph_groups:
+        for event_id in row.get("attached_event_ids", []) or []:
+            attachment_counts[str(event_id)] += 1
+
+    selected_attachment_ids: set[str] = set()
+    for event in selected:
+        event_id = str(event.get("id") or "")
+        if not event_id:
+            continue
+        if attachment_counts.get(event_id, 0) <= 1:
+            selected_attachment_ids.add(event_id)
+            continue
+        # Shared worker reports can legitimately span many work nodes. Expand through
+        # them only when the query targets the worker/run identity itself, not merely
+        # because a broad report summary happened to mention the topical query.
+        if event.get("source_type") == "WORKER_REPORT" and query:
+            identity_probe = {
+                "title": event.get("display_label") or event.get("worker") or "",
+                "worker": event.get("worker") or "",
+                "refs": [event.get("automation_id") or "", event.get("run_id") or ""],
+                "anchors": [],
+            }
+            if _event_matches_query(identity_probe, query):
+                selected_attachment_ids.add(event_id)
+
+    def compact_group(row: dict[str, Any]) -> dict[str, Any]:
+        workers = []
+        for worker in row.get("workers", []) or []:
+            if not isinstance(worker, dict):
+                continue
+            item = {key: worker.get(key) for key in (
+                "worker", "duration_minutes", "allocated_duration_minutes",
+                "target_utilization_pct", "outcome",
+            ) if worker.get(key) is not None}
+            outcome = str(item.get("outcome") or "")
+            if len(outcome) > 240:
+                item["outcome"] = outcome[:237].rstrip() + "..."
+            workers.append(item)
+        return {
+            key: row.get(key) for key in (
+                "work_id", "project", "title", "subject_key", "commit_count",
+                "equivalent_commit_count", "branch_refs", "cross_branch",
+                "github_anchors", "commits", "source_counts", "evidence_forms",
+                "efficiency", "latest_at",
+            ) if row.get(key) not in (None, [], {})
+        } | ({"workers": workers} if workers else {})
+
+    matched_groups: list[dict[str, Any]] = []
+    for row in all_graph_groups:
         if project and str(row.get("project") or "").casefold() != project.casefold():
             continue
         attached = set(str(value) for value in row.get("attached_event_ids", []) or [])
-        if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("github_anchors", [])}, query) and not (attached & selected_ids):
+        if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("github_anchors", [])}, query) and not (attached & selected_attachment_ids):
             continue
-        graph_groups.append(row)
-        if len(graph_groups) >= min(50, effective_limit):
-            break
+        matched_groups.append(row)
+
+    matched_similar: list[dict[str, Any]] = []
+    for row in graph.get("similar_commit_groups", []) if isinstance(graph.get("similar_commit_groups"), list) else []:
+        if project and str(row.get("project") or "").casefold() != project.casefold():
+            continue
+        if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("branch_refs", [])}, query):
+            continue
+        matched_similar.append(row)
+
+    materialized = materialized_health(payload, now=now)
+    materialized["schema"] = payload.get("schema")
     result = {
         "schema_version": timeline.get("schema_version"),
         "authority": timeline.get("authority"),
         "contract": timeline.get("contract"),
-        "materialized": {
-            "schema": payload.get("schema"),
-            "generated_at": payload.get("generated_at"),
-            "horizon_days": payload.get("horizon_days"),
-            "read_mode": "MATERIALIZED_ONLY",
+        "debugging_boundary": {
+            "timeline_role": "HISTORICAL_ORIENTATION_AND_LINEAGE",
+            "current_diagnosis": "VERIFY_THE_OWNING_LIVE_REPO_RUNTIME_SCHEDULER_OR_COORDINATOR",
+            "absence_semantics": materialized["absence_semantics"],
         },
+        "materialized": materialized,
         "view": view,
         "project": project.casefold() if project else None,
         "query": " ".join(query.split()),
         "thread": thread,
         "matching_events": len(selected),
-        "events": selected[:effective_limit],
+        "events": [_compact_query_event(event) for event in selected[:effective_limit]],
         "snapshots": build_timeline_snapshots(selected, now=now) if selected else {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
         "work_graph": {
-            "summary": graph.get("summary", {}),
-            "commit_groups": graph_groups,
-            "similar_commit_groups": [
-                row for row in graph.get("similar_commit_groups", [])
-                if not project or str(row.get("project") or "").casefold() == project.casefold()
-            ][: min(50, effective_limit)],
+            "scope": "QUERY_MATCHED" if query or project or thread else "BOUNDED_OVERVIEW",
+            "summary": {
+                "matched_commit_groups": len(matched_groups),
+                "returned_commit_groups": min(len(matched_groups), graph_limit),
+                "matched_similar_commit_groups": len(matched_similar),
+                "returned_similar_commit_groups": min(len(matched_similar), graph_limit),
+            },
+            "store_summary": graph.get("summary", {}),
+            "commit_groups": [compact_group(row) for row in matched_groups[:graph_limit]],
+            "similar_commit_groups": matched_similar[:graph_limit],
         },
         "truncated": len(selected) > effective_limit,
     }

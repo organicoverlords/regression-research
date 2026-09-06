@@ -1624,34 +1624,18 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
             },
         }
 
-    # Copy so bootstrap freshness annotation never mutates a caller-owned object.
+    # Copy so bootstrap annotation never mutates the persisted projection. Freshness
+    # and evidence-completeness semantics are owned by the materializer so overview,
+    # timeline queries, and bootstrap cannot drift apart.
     overview = json.loads(json.dumps(raw["overview"], ensure_ascii=False))
+    try:
+        from tools.timeline_materializer import materialized_health
+    except ImportError:
+        from timeline_materializer import materialized_health
     materialized = overview.get("timeline_materialized")
     materialized = dict(materialized) if isinstance(materialized, dict) else {}
-    generated_at = str(raw.get("generated_at") or materialized.get("as_of") or "").strip()
-    age_seconds: float | None = None
-    if generated_at:
-        try:
-            generated = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
-            if generated.tzinfo is None:
-                generated = generated.astimezone()
-            age_seconds = max(0.0, (datetime.now().astimezone() - generated).total_seconds())
-        except ValueError:
-            pass
-    try:
-        refresh_minutes = max(1.0, float(materialized.get("refresh_minutes") or 5.0))
-    except (TypeError, ValueError):
-        refresh_minutes = 5.0
-    stale_after_seconds = max(15.0 * 60.0, refresh_minutes * 60.0 * 3.0)
-    status = "FRESH" if age_seconds is not None and age_seconds <= stale_after_seconds else "STALE"
-    materialized.update({
-        "status": status,
-        "as_of": generated_at or materialized.get("as_of"),
-        "age_seconds": round(age_seconds, 1) if age_seconds is not None else None,
-        "stale_after_seconds": round(stale_after_seconds, 1),
-        "projection_path": str(path),
-        "read_mode": "MATERIALIZED_ONLY",
-    })
+    materialized.update(materialized_health(raw, now=datetime.now().astimezone()))
+    materialized["projection_path"] = str(path)
     overview["timeline_materialized"] = materialized
     return _fit_memory_overview_budget(overview)
 
@@ -1893,6 +1877,17 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"vault_{vault_health.casefold()}")
     if github_health != "OK":
         notable_conditions.append(f"github_{github_health.casefold()}")
+    timeline_materialized = memory_overview.get("timeline_materialized", {}) if isinstance(memory_overview, dict) else {}
+    if isinstance(timeline_materialized, dict):
+        timeline_status = str(timeline_materialized.get("status") or "").upper()
+        if timeline_status and timeline_status != "FRESH":
+            notable_conditions.append(f"timeline_materialization_{timeline_status.casefold()}")
+        incomplete = [str(value) for value in timeline_materialized.get("backfill_incomplete_sources", []) if str(value).strip()]
+        if incomplete:
+            notable_conditions.append("timeline_history_incomplete_" + "_".join(sorted(incomplete)))
+        retry = [str(value) for value in timeline_materialized.get("retry_sources", []) if str(value).strip()]
+        if retry:
+            notable_conditions.append("timeline_delta_retry_" + "_".join(sorted(retry)))
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
     bootstrap_status = "OK" if mcp_health == vault_health == github_health == "OK" else "DEGRADED"
@@ -1933,6 +1928,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
+            "timeline_refresh": r"python C:\Users\Lauri\Desktop\vault\tools\timeline_materializer.py refresh",
+            "timeline_task_status": r"python C:\Users\Lauri\Desktop\vault\tools\timeline_materializer.py task-status",
         },
         "bootstrap": bootstrap,
         "mcp": mcp,

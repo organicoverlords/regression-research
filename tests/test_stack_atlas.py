@@ -161,7 +161,11 @@ class StackAtlasTests(unittest.TestCase):
                     "recent": [{"id": "unrelated-1", "timestamp": "2026-09-06T02:59:00+03:00", "title": "Unrelated one"}],
                     "projects": [],
                     "recurring_tags": [],
-                    "timeline_materialized": {"refresh_minutes": 5, "horizon_days": 30, "work_graph": {"cross_branch_groups": 7}},
+                    "timeline_materialized": {
+                        "refresh_minutes": 5, "horizon_days": 30,
+                        "backfill_incomplete_sources": ["github", "runner_logs"],
+                        "work_graph": {"cross_branch_groups": 7},
+                    },
                 },
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch(
@@ -171,6 +175,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(compact["timeline_materialized"]["status"], "FRESH")
         self.assertEqual(compact["timeline_materialized"]["read_mode"], "MATERIALIZED_ONLY")
         self.assertEqual(compact["timeline_materialized"]["work_graph"]["cross_branch_groups"], 7)
+        self.assertEqual(compact["timeline_materialized"]["coverage_status"], "HISTORICAL_INCOMPLETE")
+        self.assertEqual(compact["timeline_materialized"]["backfill_incomplete_sources"], ["github", "runner_logs"])
+        self.assertEqual(compact["timeline_materialized"]["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+        self.assertTrue(compact["timeline_materialized"]["live_truth_required"])
         self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated-1"])
         size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
@@ -185,6 +193,32 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(compact["timeline_materialized"]["status"], "MISSING")
         self.assertEqual(compact["timeline_snapshots"], {})
         self.assertIn("timeline_materializer.py", compact["timeline_materialized"]["refresh_command"])
+
+    def test_bootstrap_notable_conditions_surface_timeline_history_debt_without_degrading_live_health(self):
+        pc = {"disk": {"status": "OK", "free_gb": 100.0, "trend": {}}, "memory": {"status": "OK"}}
+        workers = {"available": True}
+        mcp = {"available": True, "status": "LIVE", "active_session_count": 0, "active_session_count_status": "COMPLETE", "workspace_counts": {}}
+        vault = {"status": "OK"}
+        github = {"status": "OK"}
+        memory = {
+            "timeline_materialized": {
+                "status": "FRESH",
+                "backfill_incomplete_sources": ["github", "runner_logs"],
+                "retry_sources": [],
+            },
+            "recent": [],
+        }
+        with patch("tools.stack_atlas._bootstrap_pc_status", return_value=pc), \
+             patch("tools.stack_atlas._bootstrap_worker_status", return_value=workers), \
+             patch("tools.stack_atlas._bootstrap_mcp_status", return_value=mcp), \
+             patch("tools.stack_atlas._bootstrap_memory_overview", return_value=memory), \
+             patch("tools.stack_atlas._bootstrap_vault_status", return_value=vault), \
+             patch("tools.stack_atlas._bootstrap_github_status", return_value=github), \
+             patch("tools.stack_atlas._bootstrap_mcp_known_good_freeze", return_value={}):
+            glance = build_live_bootstrap_glance()
+        self.assertEqual(glance["bootstrap"]["status"], "OK")
+        self.assertIn("timeline_history_incomplete_github_runner_logs", glance["notable_conditions"])
+        self.assertNotIn("timeline_materialization_stale", glance["notable_conditions"])
 
     def test_session_cwd_worktree_match_is_one_way(self):
         worktree = r"C:\Users\Lauri\AppData\Local\Temp\p3-941-control-hints"

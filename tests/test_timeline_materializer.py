@@ -18,6 +18,7 @@ from tools.timeline_materializer import (
     install_task,
     local_artifact_events,
     materialize,
+    materialized_health,
     mcp_events,
     query_materialized,
     runner_log_events,
@@ -250,6 +251,7 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "source_watermarks": {name: prior_at.isoformat() for name in (
                     "repos", "workers", "artifacts", "local_artifacts", "github", "mcp", "runner_logs"
                 )},
+                "ingestion": {"backfill_incomplete_sources": ["github", "repos"]},
                 "timeline": {"events": [old_event]},
             }), encoding="utf-8")
             new_event = self.commit_event(new_sha, "New delta work", "2026-09-06T05:04:00+00:00")
@@ -282,7 +284,51 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertIn(old_event["id"], ids)
             self.assertIn(new_event["id"], ids)
             self.assertEqual(payload["ingestion"]["mode"], "INCREMENTAL")
+            self.assertEqual(payload["ingestion"]["backfill_incomplete_sources"], ["github", "repos"])
+            self.assertEqual(payload["timeline"]["materialized"]["backfill_incomplete_sources"], ["github", "repos"])
             self.assertEqual(payload["source_watermarks"]["repos"], "2026-09-06T05:05:00+00:00")
+
+    def test_materialized_health_keeps_history_role_separate_from_live_truth(self):
+        now = datetime(2026, 9, 6, 6, 0, tzinfo=timezone.utc)
+        payload = {
+            "generated_at": "2026-09-06T05:58:00+00:00",
+            "horizon_days": 30,
+            "ingestion": {
+                "mode": "INCREMENTAL",
+                "backfill_incomplete_sources": ["github", "runner_logs"],
+                "saturated_sources": [],
+                "retry_sources": [],
+            },
+            "timeline": {"materialized": {"refresh_minutes": 5}},
+        }
+        health = materialized_health(payload, now=now)
+        self.assertEqual(health["status"], "FRESH")
+        self.assertEqual(health["coverage_status"], "HISTORICAL_INCOMPLETE")
+        self.assertEqual(health["backfill_incomplete_sources"], ["github", "runner_logs"])
+        self.assertEqual(health["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+        self.assertTrue(health["live_truth_required"])
+
+    def test_materialized_health_stale_or_retry_pending_never_proves_absence(self):
+        now = datetime(2026, 9, 6, 6, 30, tzinfo=timezone.utc)
+        stale = materialized_health({
+            "generated_at": "2026-09-06T06:00:00+00:00",
+            "horizon_days": 30,
+            "ingestion": {"backfill_incomplete_sources": [], "retry_sources": []},
+            "timeline": {"materialized": {"refresh_minutes": 5}},
+        }, now=now)
+        self.assertEqual(stale["status"], "STALE")
+        self.assertEqual(stale["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+        self.assertIn("MATERIALIZATION_STALE", stale["absence_unsafe_reasons"])
+
+        retry = materialized_health({
+            "generated_at": "2026-09-06T06:29:00+00:00",
+            "horizon_days": 30,
+            "ingestion": {"backfill_incomplete_sources": [], "retry_sources": ["github"]},
+            "timeline": {"materialized": {"refresh_minutes": 5}},
+        }, now=now)
+        self.assertEqual(retry["status"], "FRESH")
+        self.assertEqual(retry["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+        self.assertIn("DELTA_RETRY_PENDING", retry["absence_unsafe_reasons"])
 
     def test_install_task_schedules_only_periodic_materializer(self):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="SUCCESS", stderr="")
@@ -336,11 +382,26 @@ class TimelineMaterializerTests(unittest.TestCase):
             build_overview.assert_called_once()
             self.assertEqual(build_overview.call_args.kwargs["limit"], 20)
 
+            payload = json.loads(store_path.read_text(encoding="utf-8"))
+            payload["ingestion"]["backfill_incomplete_sources"] = ["github"]
+            payload["timeline"]["materialized"]["backfill_incomplete_sources"] = ["github"]
+            payload["timeline"]["work_graph"]["similar_commit_groups"] = [
+                {"work_id": "unrelated", "project": "p3", "title": "Completely unrelated build cleanup", "branch_refs": ["topic"]}
+            ]
+            store_path.write_text(json.dumps(payload), encoding="utf-8")
             with patch("tools.timeline_materializer.collect_repo_history", side_effect=AssertionError("reader must not collect")):
                 query = query_materialized(root=root, query="friend", limit=20)
             self.assertIsNotNone(query)
             self.assertEqual(query["materialized"]["read_mode"], "MATERIALIZED_ONLY")
+            self.assertEqual(query["materialized"]["coverage_status"], "HISTORICAL_INCOMPLETE")
+            self.assertEqual(query["materialized"]["backfill_incomplete_sources"], ["github"])
+            self.assertEqual(query["materialized"]["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+            self.assertTrue(query["materialized"]["live_truth_required"])
+            self.assertEqual(query["debugging_boundary"]["timeline_role"], "HISTORICAL_ORIENTATION_AND_LINEAGE")
             self.assertGreaterEqual(query["matching_events"], 2)
+            self.assertGreaterEqual(query["work_graph"]["summary"]["matched_commit_groups"], 1)
+            self.assertEqual(query["work_graph"]["similar_commit_groups"], [])
+            self.assertNotIn("attached_event_ids", query["work_graph"]["commit_groups"][0])
 
 
 if __name__ == "__main__":
