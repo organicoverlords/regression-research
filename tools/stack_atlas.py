@@ -41,7 +41,6 @@ BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
-BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
 BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT = 4
@@ -810,120 +809,33 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
     }
 
 def _bootstrap_worker_status() -> dict[str, Any]:
-    history_root = ATLAS_LIVE_ROOT / "worker-reports" / "history"
-    if not history_root.exists():
-        return {"available": False, "path": str(history_root)}
-    try:
-        from tools.worker_report_history import _history_chronology_is_plausible, load_history_metadata
-    except ImportError:
-        from worker_report_history import _history_chronology_is_plausible, load_history_metadata
-    use_cache = getattr(load_history_metadata, "__module__", "") in {"tools.worker_report_history", "worker_report_history"}
-    if use_cache:
-        cached, cache_age = _bootstrap_cache_read("worker-status.json", BOOTSTRAP_WORKER_CACHE_SECONDS)
-        if cached is not None:
-            cached = dict(cached)
-            cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS}
-            return cached
-    now = datetime.now(timezone.utc)
-    manual_current = _bootstrap_manual_current_status(now)
-    stale_after_minutes = 90.0
-    records = load_history_metadata(history_root)
-    latest_by_worker: dict[str, dict[str, Any]] = {}
-    for item in records:
-        if not _history_chronology_is_plausible(item):
-            continue
-        worker_id = str(item.get("automation_id") or "").strip()
-        if not worker_id:
-            continue
-        raw_finished = str(item.get("finished_at") or item.get("archived_at") or "")
-        try:
-            finished = datetime.fromisoformat(raw_finished.replace("Z", "+00:00")).astimezone(timezone.utc)
-        except ValueError:
-            continue
-        prev = latest_by_worker.get(worker_id)
-        if prev is not None and finished <= prev["_finished_dt"]:
-            continue
-        duration = item.get("duration_minutes")
-        target = item.get("target_run_minutes")
-        if not isinstance(target, (int, float)) or target <= 0:
-            target = 24.0
-        utilization = item.get("target_utilization_pct")
-        if not isinstance(utilization, (int, float)) and isinstance(duration, (int, float)):
-            utilization = round(float(duration) * 100 / float(target), 1)
-        util = float(utilization) if isinstance(utilization, (int, float)) else None
-        if util is None:
-            classification = "UNKNOWN"
-        elif util < 25:
-            classification = "SEVERELY_PREMATURE"
-        elif util < 60:
-            classification = "PREMATURE"
-        elif util < 80:
-            classification = "SHORT"
-        else:
-            classification = "ON_TARGET"
-        age_minutes = max(0.0, (now - finished).total_seconds() / 60)
-        report_freshness = "STALE" if age_minutes >= stale_after_minutes else "RECENT"
-        latest_by_worker[worker_id] = {
-            "_finished_dt": finished,
-            "automation_id": worker_id,
-            "display_label": item.get("display_label") or item.get("worker"),
-            "finished_at": raw_finished,
-            "age_minutes": round(age_minutes,1),
-            "report_freshness": report_freshness,
-            "duration_minutes": round(float(duration),2) if isinstance(duration,(int,float)) else None,
-            "target_minutes": round(float(target),2),
-            "target_utilization_pct": round(util,1) if util is not None else None,
-            "classification": classification,
-        }
-    archive_sample_limit = 5
-    latest_archived = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:archive_sample_limit]
-    for item in latest_archived:
-        item.pop("_finished_dt", None)
-    util_values = [x["target_utilization_pct"] for x in latest_archived if isinstance(x.get("target_utilization_pct"),(int,float))]
-    duration_values = [x["duration_minutes"] for x in latest_archived if isinstance(x.get("duration_minutes"),(int,float))]
-    attention = [
-        {"worker": x.get("display_label"), "duration_minutes": x.get("duration_minutes"), "target_minutes": x.get("target_minutes"), "utilization_pct": x.get("target_utilization_pct"), "classification": x.get("classification"), "age_minutes": x.get("age_minutes")}
-        for x in latest_archived
-        if x.get("report_freshness") == "RECENT"
-        and x.get("classification") in {"SHORT","PREMATURE","SEVERELY_PREMATURE"}
-    ]
-    stale_reports = [
-        {"worker": x.get("display_label"), "age_minutes": x.get("age_minutes"), "last_archived_classification": x.get("classification")}
-        for x in latest_archived if x.get("report_freshness") == "STALE"
-    ]
-    result = {
-        "available": True,
-        "generated_at": now.isoformat(),
-        "target_run_minutes": 24.0,
-        "stale_after_minutes": stale_after_minutes,
+    """Read archived worker-quality orientation from the periodic Vault projection only."""
+    path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
+    base = {
+        "available": False,
+        "read_mode": "MATERIALIZED_ONLY",
+        "projection_path": str(path),
         "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
         "current_scheduler_membership": {
             "available": False,
             "authority": "ChatGPT Automations state",
             "reason": "current enabled scheduler membership is not derivable from worker report history",
         },
-        "latest_archived_per_worker": latest_archived,
-        "manual_current": manual_current,
-        "archive_sample": {
-            "selection": "five_most_recent_latest_archives_per_automation_id",
-            "sample_limit": archive_sample_limit,
-            "sampled_worker_count": len(latest_archived),
-            "historical_worker_ids_seen": len(latest_by_worker),
-            "average_latest_duration_minutes": round(sum(duration_values)/len(duration_values),2) if duration_values else None,
-            "average_latest_utilization_pct": round(sum(util_values)/len(util_values),1) if util_values else None,
-            "on_target_count": sum(1 for x in latest_archived if x.get("classification") == "ON_TARGET"),
-            "short_or_worse_count": len(attention),
-            "stale_report_count": len(stale_reports),
-        },
-        "attention": attention,
-        "stale_reports": stale_reports,
-        "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
-        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS},
     }
-    if use_cache:
-        cache_payload = dict(result)
-        cache_payload.pop("cache", None)
-        _bootstrap_cache_write("worker-status.json", cache_payload)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {**base, "status": "MISSING", "refresh_command": f'python "{ATLAS_LIVE_ROOT / "tools" / "timeline_materializer.py"}" refresh'}
+    except (OSError, json.JSONDecodeError) as exc:
+        return {**base, "status": "ERROR", "error": str(exc)}
+    workers = raw.get("workers") if isinstance(raw, dict) else None
+    if not isinstance(workers, dict):
+        return {**base, "status": "MISSING_WORKER_PROJECTION", "refresh_command": f'python "{ATLAS_LIVE_ROOT / "tools" / "timeline_materializer.py"}" refresh'}
+    result = json.loads(json.dumps(workers, ensure_ascii=False))
+    result["available"] = bool(result.get("available", True))
+    result["read_mode"] = "MATERIALIZED_ONLY"
+    result["projection_path"] = str(path)
+    result["materialized_as_of"] = raw.get("generated_at")
     return result
 
 
@@ -1928,8 +1840,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"memory_{str(memory_status).casefold()}_commit_headroom_{pc.get('memory', {}).get('commit_headroom_gb')}gb")
     worker_glance = {
         key: workers.get(key) for key in (
-            "available", "generated_at", "evidence_semantics", "current_scheduler_membership",
-            "archive_sample", "attention", "stale_reports", "cache",
+            "available", "generated_at", "read_mode", "population_scope", "evidence_semantics", "current_scheduler_membership",
+            "archive_sample", "attention", "stale_reports",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     if isinstance(worker_glance, dict):

@@ -55,6 +55,8 @@ DEFAULT_OVERLAP_MINUTES = 10
 HISTORICAL_SOURCE_NAMES = {"library_artifacts", "mcp_history"}
 HISTORICAL_EVIDENCE_FLOOR = datetime(2000, 1, 1, tzinfo=timezone.utc)
 LOCK_STALE_MINUTES = 30
+WORKER_ARCHIVE_SAMPLE_LIMIT = 5
+WORKER_ARCHIVE_STALE_MINUTES = 90.0
 
 _GITHUB_REMOTE_RE = re.compile(r"github\.com[:/](?P<repo>[^/\s]+/[^/\s]+?)(?:\.git)?$", re.I)
 _ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
@@ -1321,6 +1323,137 @@ def _event_within_horizon(event: dict[str, Any], since: datetime) -> bool:
     return bool(stamp and stamp >= since.astimezone(stamp.tzinfo))
 
 
+def build_worker_archive_summary(
+    events: Iterable[dict[str, Any]], *, now: datetime | None = None, horizon_days: int | None = None,
+) -> dict[str, Any]:
+    """Summarize timed archived worker quality from already-materialized worker events."""
+    now = now or datetime.now(timezone.utc)
+    latest_by_worker: dict[str, dict[str, Any]] = {}
+    worker_ids_seen: set[str] = set()
+    for event in events:
+        if not isinstance(event, dict) or event.get("source_type") != "WORKER_REPORT":
+            continue
+        if str(event.get("population") or "timed").strip().casefold() != "timed":
+            continue
+        worker_id = str(event.get("automation_id") or "").strip()
+        if not worker_id:
+            continue
+        finished = _dt(event.get("event_at"))
+        if finished is None:
+            continue
+        finished = finished.astimezone(timezone.utc)
+        worker_ids_seen.add(worker_id)
+        previous = latest_by_worker.get(worker_id)
+        if previous is not None and finished <= previous["_finished_dt"]:
+            continue
+        duration = event.get("duration_minutes")
+        target = event.get("target_run_minutes")
+        if not isinstance(target, (int, float)) or target <= 0:
+            target = 24.0
+        utilization = event.get("target_utilization_pct")
+        if not isinstance(utilization, (int, float)) and isinstance(duration, (int, float)):
+            utilization = round(float(duration) * 100 / float(target), 1)
+        util = float(utilization) if isinstance(utilization, (int, float)) else None
+        if util is None:
+            classification = "UNKNOWN"
+        elif util < 25:
+            classification = "SEVERELY_PREMATURE"
+        elif util < 60:
+            classification = "PREMATURE"
+        elif util < 80:
+            classification = "SHORT"
+        else:
+            classification = "ON_TARGET"
+        age_minutes = max(0.0, (now.astimezone(timezone.utc) - finished).total_seconds() / 60.0)
+        latest_by_worker[worker_id] = {
+            "_finished_dt": finished,
+            "automation_id": worker_id,
+            "display_label": event.get("display_label") or event.get("worker"),
+            "finished_at": event.get("event_at"),
+            "age_minutes": round(age_minutes, 1),
+            "report_freshness": "STALE" if age_minutes >= WORKER_ARCHIVE_STALE_MINUTES else "RECENT",
+            "duration_minutes": round(float(duration), 2) if isinstance(duration, (int, float)) else None,
+            "target_minutes": round(float(target), 2),
+            "target_utilization_pct": round(util, 1) if util is not None else None,
+            "classification": classification,
+        }
+    latest_archived = sorted(
+        latest_by_worker.values(), key=lambda item: item["_finished_dt"], reverse=True
+    )[:WORKER_ARCHIVE_SAMPLE_LIMIT]
+    for item in latest_archived:
+        item.pop("_finished_dt", None)
+    util_values = [
+        float(item["target_utilization_pct"]) for item in latest_archived
+        if isinstance(item.get("target_utilization_pct"), (int, float))
+    ]
+    duration_values = [
+        float(item["duration_minutes"]) for item in latest_archived
+        if isinstance(item.get("duration_minutes"), (int, float))
+    ]
+    attention = [
+        {
+            "worker": item.get("display_label"),
+            "duration_minutes": item.get("duration_minutes"),
+            "target_minutes": item.get("target_minutes"),
+            "utilization_pct": item.get("target_utilization_pct"),
+            "classification": item.get("classification"),
+            "age_minutes": item.get("age_minutes"),
+        }
+        for item in latest_archived
+        if item.get("report_freshness") == "RECENT"
+        and item.get("classification") in {"SHORT", "PREMATURE", "SEVERELY_PREMATURE"}
+    ]
+    stale_reports = [
+        {
+            "worker": item.get("display_label"),
+            "age_minutes": item.get("age_minutes"),
+            "last_archived_classification": item.get("classification"),
+        }
+        for item in latest_archived if item.get("report_freshness") == "STALE"
+    ]
+    scope = "timed_worker_reports_in_materialized_horizon"
+    return {
+        "available": True,
+        "generated_at": now.isoformat(),
+        "read_mode": "MATERIALIZED_ONLY",
+        "population_scope": scope,
+        "horizon_days": horizon_days,
+        "target_run_minutes": 24.0,
+        "stale_after_minutes": WORKER_ARCHIVE_STALE_MINUTES,
+        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+        "current_scheduler_membership": {
+            "available": False,
+            "authority": "ChatGPT Automations state",
+            "reason": "current enabled scheduler membership is not derivable from worker report history",
+        },
+        "latest_archived_per_worker": latest_archived,
+        "archive_sample": {
+            "selection": "five_most_recent_latest_timed_archives_in_materialized_horizon",
+            "sample_limit": WORKER_ARCHIVE_SAMPLE_LIMIT,
+            "sampled_worker_count": len(latest_archived),
+            "historical_worker_ids_seen": len(worker_ids_seen),
+            "population_scope": scope,
+            "average_latest_duration_minutes": round(sum(duration_values) / len(duration_values), 2) if duration_values else None,
+            "average_latest_utilization_pct": round(sum(util_values) / len(util_values), 1) if util_values else None,
+            "on_target_count": sum(1 for item in latest_archived if item.get("classification") == "ON_TARGET"),
+            "short_or_worse_count": len(attention),
+            "stale_report_count": len(stale_reports),
+        },
+        "attention": attention,
+        "stale_reports": stale_reports,
+        "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
+    }
+
+
+def _bootstrap_worker_projection(summary: dict[str, Any]) -> dict[str, Any]:
+    """Keep the bootstrap worker projection tiny while preserving aggregate quality signals."""
+    keys = (
+        "available", "generated_at", "read_mode", "population_scope", "horizon_days",
+        "evidence_semantics", "current_scheduler_membership", "archive_sample", "attention", "stale_reports",
+    )
+    return {key: summary.get(key) for key in keys if key in summary}
+
+
 def _merge_materialized_events(
     previous_events: Iterable[dict[str, Any]],
     delta_events: Iterable[dict[str, Any]],
@@ -1464,6 +1597,7 @@ def materialize(
         historical_evidence_events = historical_evidence_events[:DEFAULT_HISTORICAL_EVIDENCE_EVENTS]
         repo_events = [event for event in active_external if event.get("source_type") == "GIT_COMMIT"]
         worker_events = [event for event in active_external if event.get("source_type") == "WORKER_REPORT"]
+        worker_archive = build_worker_archive_summary(worker_events, now=now, horizon_days=days)
         artifact_events = [event for event in active_external if event.get("source_type") == "TRACKED_ARTIFACT"]
         supplemental = [
             event for event in active_external
@@ -1535,6 +1669,7 @@ def materialize(
             source_coverage=source_coverage,
         )
         timeline["historical_evidence_events"] = historical_evidence_events
+        timeline["worker_archive"] = worker_archive
         continuity_graph = build_continuity_graph(timeline["events"])
         timeline["continuity_graph"] = continuity_graph
         graph = build_work_graph(timeline["events"])
@@ -1613,6 +1748,7 @@ def materialize(
             "schema": BOOTSTRAP_SCHEMA,
             "generated_at": now.isoformat(),
             "overview": compact,
+            "workers": _bootstrap_worker_projection(worker_archive),
         })
 
         elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
@@ -1631,6 +1767,7 @@ def materialize(
             "retry_sources": retry_sources,
             "source_counts": _coverage_counts(timeline["events"]),
             "continuity_graph": continuity_graph["summary"],
+            "worker_archive": worker_archive["archive_sample"],
             "work_graph": graph["summary"],
             "store_path": str(store_path),
             "bootstrap_path": str(bootstrap_path),

@@ -116,3 +116,5 @@ Every bank/candidate record can be classified through the bounded deterministic 
 Ordinary recall excludes records classified as historical, ephemeral, expired or strongly sensitive, while explicit `search --history` preserves their evidence trail. `PROVISIONAL` remains explicit review work. New writes auto-fill `project` only when exactly one descriptor project can be inferred safely; explicit `--project` wins.
 
 Classify one bank record incrementally with `python tools\memory_classification.py --bank memory\memory-bank.jsonl --id <memory-id>`. The completed #87 exhaustive normalization receipts remain preserved under `02 Evidence/` as historical acceptance evidence; current operation does not regenerate them.
+
+Archived timed-worker duration/utilization orientation is computed once by the periodic materializer from retained `WORKER_REPORT` events and stored in the bootstrap projection. Bootstrap does not scan `worker-reports/history`; manual-current report inspection remains targeted, not a startup dependency.

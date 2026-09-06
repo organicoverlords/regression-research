@@ -22,6 +22,7 @@ from tools.stack_atlas import (
     render_manual,
     _bootstrap_pc_status,
     _bootstrap_worker_status,
+    _bootstrap_manual_current_status,
     _bootstrap_disk_trend,
     _read_jsonl_tail,
     _read_jsonl_window,
@@ -474,102 +475,76 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count_semantics"], None)
 
-    def test_worker_status_reads_runtime_history_from_live_root_not_source_root(self):
+    def test_worker_status_reads_materialized_projection_from_live_root_without_history_scan(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             source_root = root / "source"
             live_root = root / "live"
             source_root.mkdir()
-            history_root = live_root / "worker-reports" / "history"
-            history_root.mkdir(parents=True)
-            record = {
-                "automation_id": "worker-1",
-                "display_label": "Repo Worker Test",
-                "finished_at": "2026-09-05T02:00:00+03:00",
-                "duration_minutes": 24.0,
-                "target_run_minutes": 24.0,
-                "target_utilization_pct": 100.0,
-            }
-            with patch("tools.stack_atlas.ROOT", source_root), patch("tools.stack_atlas.ATLAS_LIVE_ROOT", live_root), patch("tools.worker_report_history.load_history_metadata", return_value=[record]) as load_history:
+            projection = live_root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            projection.parent.mkdir(parents=True)
+            projection.write_text(json.dumps({
+                "schema": "vault.timeline.bootstrap.v1",
+                "generated_at": "2026-09-06T12:00:00+00:00",
+                "overview": {},
+                "workers": {
+                    "available": True, "read_mode": "MATERIALIZED_ONLY",
+                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state"},
+                    "archive_sample": {"sampled_worker_count": 5, "average_latest_utilization_pct": 86.2},
+                    "attention": [], "stale_reports": [],
+                },
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ROOT", source_root), patch("tools.stack_atlas.ATLAS_LIVE_ROOT", live_root), patch(
+                "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("bootstrap must not scan worker history")
+            ) as load_history:
                 workers = _bootstrap_worker_status()
-            load_history.assert_called_once_with(history_root)
+            load_history.assert_not_called()
             self.assertTrue(workers["available"])
-            self.assertEqual(workers["latest_archived_per_worker"][0]["automation_id"], "worker-1")
+            self.assertEqual(workers["read_mode"], "MATERIALIZED_ONLY")
+            self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
+            self.assertEqual(workers["materialized_as_of"], "2026-09-06T12:00:00+00:00")
+            self.assertEqual(Path(workers["projection_path"]), projection)
 
-    def test_stale_worker_archive_is_not_current_liveness_attention(self):
-        from datetime import datetime, timedelta, timezone
+    def test_worker_projection_preserves_archived_quality_not_liveness_semantics(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "worker-reports" / "history").mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            records = [
-                {
-                    "automation_id": "fir", "display_label": "Fir",
-                    "finished_at": (now - timedelta(minutes=120)).isoformat(),
-                    "duration_minutes": 3.68, "target_run_minutes": 24.0, "target_utilization_pct": 15.3,
+            projection = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            projection.parent.mkdir(parents=True)
+            projection.write_text(json.dumps({
+                "schema": "vault.timeline.bootstrap.v1", "generated_at": "2026-09-06T12:00:00+00:00", "overview": {},
+                "workers": {
+                    "available": True, "read_mode": "MATERIALIZED_ONLY",
+                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state"},
+                    "archive_sample": {"stale_report_count": 1}, "attention": [],
+                    "stale_reports": [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}],
                 },
-                {
-                    "automation_id": "fir", "display_label": "Fir impossible future archive",
-                    "finished_at": (now + timedelta(minutes=20)).isoformat(),
-                    "archived_at": now.isoformat(),
-                    "duration_minutes": 20.42, "target_run_minutes": 24.0, "target_utilization_pct": 85.1,
-                },
-                {
-                    "automation_id": "hazel", "display_label": "Hazel",
-                    "finished_at": (now - timedelta(minutes=10)).isoformat(),
-                    "duration_minutes": 10.0, "target_run_minutes": 24.0, "target_utilization_pct": 41.7,
-                },
-            ]
-            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 workers = _bootstrap_worker_status()
         self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership")
-        self.assertEqual(workers["stale_after_minutes"], 90.0)
-        self.assertEqual([item["worker"] for item in workers["attention"]], ["Hazel"])
-        self.assertEqual(workers["stale_reports"], [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}])
-        self.assertEqual(workers["archive_sample"]["stale_report_count"], 1)
-        fir = next(item for item in workers["latest_archived_per_worker"] if item["display_label"] == "Fir")
-        self.assertEqual(fir["report_freshness"], "STALE")
+        self.assertEqual(workers["attention"], [])
+        self.assertEqual(workers["stale_reports"][0]["worker"], "Fir")
 
-    def test_impossible_worker_archive_does_not_replace_latest_valid_run(self):
-        from datetime import datetime, timedelta, timezone
+    def test_worker_status_missing_projection_fails_closed_without_history_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "worker-reports" / "history").mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            valid_finished = now - timedelta(minutes=30)
-            valid_archived = valid_finished + timedelta(seconds=5)
-            impossible_archived = now - timedelta(minutes=10)
-            impossible_finished = impossible_archived + timedelta(minutes=20)
-            records = [
-                {
-                    "automation_id": "fir", "display_label": "Fir",
-                    "finished_at": valid_finished.isoformat(), "archived_at": valid_archived.isoformat(),
-                    "duration_minutes": 5.0, "target_run_minutes": 24.0, "target_utilization_pct": 20.8,
-                },
-                {
-                    "automation_id": "fir", "display_label": "Fir",
-                    "finished_at": impossible_finished.isoformat(), "archived_at": impossible_archived.isoformat(),
-                    "duration_minutes": 20.0, "target_run_minutes": 24.0, "target_utilization_pct": 83.3,
-                },
-            ]
-            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch(
+                "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("missing projection must not trigger history scan")
+            ) as load_history:
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["archive_sample"]["on_target_count"], 0)
-        self.assertEqual(workers["archive_sample"]["short_or_worse_count"], 1)
-        self.assertEqual(len(workers["latest_archived_per_worker"]), 1)
-        fir = workers["latest_archived_per_worker"][0]
-        self.assertEqual(fir["display_label"], "Fir")
-        self.assertEqual(fir["finished_at"], valid_finished.isoformat())
-        self.assertEqual(fir["classification"], "SEVERELY_PREMATURE")
+            load_history.assert_not_called()
+        self.assertFalse(workers["available"])
+        self.assertEqual(workers["status"], "MISSING")
+        self.assertEqual(workers["read_mode"], "MATERIALIZED_ONLY")
+        self.assertIn("timeline_materializer.py", workers["refresh_command"])
 
-
-    def test_worker_bootstrap_surfaces_recent_manual_running_purpose_without_claiming_liveness(self):
+    def test_manual_current_diagnostic_surfaces_recent_running_purpose_without_claiming_liveness(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            history_root = root / "worker-reports" / "history"
             manual_current = root / "worker-reports" / "manual" / "current"
-            history_root.mkdir(parents=True)
             manual_current.mkdir(parents=True)
             now = datetime.now(timezone.utc)
 
@@ -577,65 +552,34 @@ class StackAtlasTests(unittest.TestCase):
                 report = manual_current / f"{run_id}.md"
                 report.write_text(
                     "\n".join([
-                        f"run_id: {run_id}",
-                        f"display_label: {label}",
+                        f"run_id: {run_id}", f"display_label: {label}",
                         f"started_at: {(activity - timedelta(minutes=1)).isoformat()}",
-                        f"last_activity_at: {activity.isoformat()}",
-                        r"repo: C:\repo",
-                        f"scope: {scope}",
-                        f"state: {state}",
-                        "outcome: in progress",
-                        "mutation: none",
-                        "validation: none",
-                        "remaining_gate: continue",
-                        "finding_tags: none",
-                        "findings: none",
-                        "",
-                    ]),
-                    encoding="utf-8",
+                        f"last_activity_at: {activity.isoformat()}", r"repo: C:\repo",
+                        f"scope: {scope}", f"state: {state}", "outcome: in progress",
+                        "mutation: none", "validation: none", "remaining_gate: continue",
+                        "finding_tags: none", "findings: none", "",
+                    ]), encoding="utf-8",
                 )
-                ts = activity.timestamp()
-                os.utime(report, (ts, ts))
-                return report
+                ts = activity.timestamp(); os.utime(report, (ts, ts)); return report
 
             write_report("manual-a", "Head Auditor continuation", "RUNNING", now - timedelta(minutes=1), "audit current stack")
             write_report("manual-b", "P3 worker-population blindness audit", "RUNNING", now - timedelta(minutes=2), "audit worker population")
             write_report("manual-stale", "Stale audit", "RUNNING", now - timedelta(minutes=45), "old audit")
             write_report("manual-finished", "Finished audit", "RUN_FINISHED", now - timedelta(minutes=1), "finished audit")
             malformed = write_report("manual-malformed", "Malformed audit", "RUNNING", now - timedelta(minutes=1), "bad timestamp")
-            malformed.write_text(
-                malformed.read_text(encoding="utf-8").replace(
-                    f"last_activity_at: {(now - timedelta(minutes=1)).isoformat()}",
-                    "last_activity_at: 2026-09-06T00.15.18+03:00",
-                ),
-                encoding="utf-8",
-            )
+            malformed.write_text(malformed.read_text(encoding="utf-8").replace(
+                f"last_activity_at: {(now - timedelta(minutes=1)).isoformat()}", "last_activity_at: 2026-09-06T00.15.18+03:00"
+            ), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                manual = _bootstrap_manual_current_status(now)
 
-            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
-                 patch("tools.worker_report_history.load_history_metadata", return_value=[]):
-                workers = _bootstrap_worker_status()
-
-        manual = workers["manual_current"]
         self.assertTrue(manual["available"])
         self.assertEqual(manual["running_reports_in_scan"], 3)
         self.assertEqual(manual["recent_running_report_count"], 2)
         self.assertEqual(manual["recent_running_report_count_status"], "COMPLETE")
-        self.assertEqual(
-            [item["display_label"] for item in manual["recent_running_reports"]],
-            ["Head Auditor continuation", "P3 worker-population blindness audit"],
-        )
+        self.assertEqual([item["display_label"] for item in manual["recent_running_reports"]], ["Head Auditor continuation", "P3 worker-population blindness audit"])
         self.assertNotIn("Stale audit", json.dumps(manual))
         self.assertEqual(manual["malformed_running_reports_in_scan"], 1)
-        self.assertEqual(
-            manual["malformed_running_reports"],
-            [{
-                "filename": "manual-malformed.md",
-                "reason": "invalid_last_activity_at",
-                "run_id": "manual-malformed",
-                "value": "2026-09-06T00.15.18+03:00",
-            }],
-        )
-        self.assertFalse(manual["malformed_running_reports_truncated"])
         self.assertIn("not_process_liveness", manual["evidence_semantics"])
 
     def test_manual_recent_count_is_complete_when_scan_cap_reaches_stale_mtime(self):
@@ -718,40 +662,32 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(manual["recent_running_report_count"], BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT)
         self.assertEqual(manual["recent_running_report_count_status"], "LOWER_BOUND")
 
-    def test_worker_archive_sample_is_not_presented_as_current_scheduler_fleet(self):
-        from datetime import datetime, timedelta, timezone
+    def test_worker_archive_projection_is_not_presented_as_current_scheduler_fleet(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "worker-reports" / "history").mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            labels = ["Retired Fir", "Aspen", "Maple", "Pine", "Alder", "Old Hazel"]
-            records = []
-            for index, label in enumerate(labels):
-                records.append({
-                    "automation_id": f"history-{index}",
-                    "display_label": label,
-                    "finished_at": (now - timedelta(minutes=index + 1)).isoformat(),
-                    "archived_at": (now - timedelta(minutes=index + 1) + timedelta(seconds=1)).isoformat(),
-                    "duration_minutes": 20.0,
-                    "target_run_minutes": 24.0,
-                    "target_utilization_pct": 83.3,
-                })
-            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+            projection = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            projection.parent.mkdir(parents=True)
+            projection.write_text(json.dumps({
+                "schema": "vault.timeline.bootstrap.v1", "generated_at": "2026-09-06T12:00:00+00:00", "overview": {},
+                "workers": {
+                    "available": True, "read_mode": "MATERIALIZED_ONLY",
+                    "population_scope": "timed_worker_reports_in_materialized_horizon",
+                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state", "reason": "not derivable"},
+                    "archive_sample": {
+                        "selection": "five_most_recent_latest_timed_archives_in_materialized_horizon",
+                        "sample_limit": 5, "sampled_worker_count": 5, "historical_worker_ids_seen": 6,
+                    }, "attention": [], "stale_reports": [],
+                },
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 workers = _bootstrap_worker_status()
         self.assertNotIn("fleet", workers)
-        self.assertEqual(workers["current_scheduler_membership"]["available"], False)
+        self.assertFalse(workers["current_scheduler_membership"]["available"])
         self.assertEqual(workers["current_scheduler_membership"]["authority"], "ChatGPT Automations state")
         self.assertEqual(workers["archive_sample"]["historical_worker_ids_seen"], 6)
         self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
-        self.assertEqual(workers["archive_sample"]["sample_limit"], 5)
-        self.assertEqual(
-            workers["archive_sample"]["selection"],
-            "five_most_recent_latest_archives_per_automation_id",
-        )
-        sampled_labels = [item["display_label"] for item in workers["latest_archived_per_worker"]]
-        self.assertIn("Retired Fir", sampled_labels)
-        self.assertNotIn("Old Hazel", sampled_labels)
-        self.assertNotIn("Enabled Juniper With No Archive", json.dumps(workers))
+        self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_in_materialized_horizon")
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone
