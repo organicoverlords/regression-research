@@ -5,7 +5,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_bank import BankError, append_entry, load_bank, validate_entry
+from tools.memory_bank import BankError, append_entry, attach_materialized_orientation, load_bank, validate_entry
 
 
 class MemoryBankValidationTests(unittest.TestCase):
@@ -182,5 +182,43 @@ class MemoryBankValidationTests(unittest.TestCase):
         with self.assertRaises(BankError):
             validate_entry(e)
 
+
+
+class MemoryBankMaterializedOverviewTests(unittest.TestCase):
+    def test_overview_orientation_uses_same_materialized_freshness_and_coverage_contract(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            projection = {
+                "schema": "vault.timeline.bootstrap.v1",
+                "generated_at": "2026-09-06T05:58:00+00:00",
+                "overview": {
+                    "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": [{"window": "24h", "events": 3}]},
+                    "timeline_materialized": {
+                        "refresh_minutes": 5,
+                        "horizon_days": 30,
+                        "backfill_incomplete_sources": ["github"],
+                    },
+                },
+            }
+            (state / "bootstrap-memory-overview.json").write_text(json.dumps(projection), encoding="utf-8")
+            report = {"schema": "memory-bank.overview.v1", "contract": "history only"}
+            attach_materialized_orientation(
+                report, vault_root=root, now=__import__("datetime").datetime(2026, 9, 6, 6, 0, tzinfo=__import__("datetime").timezone.utc)
+            )
+        self.assertEqual(report["timeline_materialized"]["status"], "FRESH")
+        self.assertEqual(report["timeline_materialized"]["coverage_status"], "HISTORICAL_INCOMPLETE")
+        self.assertEqual(report["timeline_materialized"]["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+        self.assertEqual(report["timeline_snapshots"]["windows"][0]["window"], "24h")
+        self.assertEqual(report["debugging_boundary"]["current_diagnosis"], "VERIFY_THE_OWNING_LIVE_REPO_RUNTIME_SCHEDULER_OR_COORDINATOR")
+
+    def test_missing_materialization_never_becomes_evidence_of_absence(self):
+        with tempfile.TemporaryDirectory() as d:
+            report = {}
+            attach_materialized_orientation(report, vault_root=Path(d))
+        self.assertEqual(report["timeline_materialized"]["status"], "MISSING")
+        self.assertIn("DO_NOT_INFER_ABSENCE", report["timeline_materialized"]["absence_semantics"])
+        self.assertTrue(report["timeline_materialized"]["live_truth_required"])
 
 if __name__ == "__main__": unittest.main()
