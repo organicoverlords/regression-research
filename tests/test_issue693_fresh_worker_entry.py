@@ -30,7 +30,8 @@ def proposes_outside_ai_agent(text):
                 break
             prefix = text[max(0, index - 64):index]
             recent = prefix[-40:]
-            if any(negation in recent for negation in OUTSIDE_AI_AGENT_NEGATIONS):
+            recent_words = recent.replace(";", " ").replace(",", " ").replace(":", " ").split()
+            if any(negation in recent for negation in OUTSIDE_AI_AGENT_NEGATIONS) or "not" in recent_words:
                 start = index + len(term)
                 continue
             if any(action in recent for action in OUTSIDE_AI_AGENT_ACTIONS) or recent.rstrip().endswith("via"):
@@ -237,6 +238,8 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
             "to perform an independent rehearsal before integration."
         )
         self.assertIn("outside_ai_agent_launch_forbidden", evaluate_entry_action(self.hummingbird, action))
+        self.assertFalse(proposes_outside_ai_agent("not use Codex CLI; stay in ChatGPT"))
+        self.assertFalse(proposes_outside_ai_agent("we will not use OpenCode; use MCP/local tools instead"))
 
         bounded = (
             "Current WIP already covers the source change. Choose review/prove in this ChatGPT worker using MCP/local tools; "
