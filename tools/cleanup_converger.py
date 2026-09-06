@@ -33,6 +33,7 @@ DEFAULT_REPOS = (
     ("Vault", Path(r"C:\Users\Lauri\Desktop\vault"), "regression-research:git-worktree-metadata"),
 )
 P3_GENERATED_DIR_NAMES = frozenset({"Binaries", "Intermediate", "DerivedDataCache"})
+CLEANLINESS_PROBE_TIMEOUT_SECONDS = 15.0
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,13 @@ class Action:
     reason: str | None = None
 
 
-def _run(command: list[str], *, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    check: bool = True,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         cwd=str(cwd) if cwd else None,
@@ -64,11 +71,17 @@ def _run(command: list[str], *, cwd: Path | None = None, check: bool = True) -> 
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=check,
+        timeout=timeout,
     )
 
 
-def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return _run(["git", "-C", str(repo), *args], check=check)
+def _git(
+    repo: Path,
+    *args: str,
+    check: bool = True,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return _run(["git", "-C", str(repo), *args], check=check, timeout=timeout)
 
 
 def parse_worktrees(text: str) -> list[Worktree]:
@@ -233,28 +246,40 @@ def cwd_targets_path(path: Path, recent_cwds: Iterable[str]) -> bool:
     return any(path_is_same_or_child(cwd, path) for cwd in recent_cwds)
 
 
-def worktree_is_clean(path: Path) -> bool:
+def worktree_is_clean(
+    path: Path, timeout_seconds: float = CLEANLINESS_PROBE_TIMEOUT_SECONDS
+) -> bool | None:
+    """Return clean/dirty, or None when a bounded Git probe times out.
+
+    Timeout is deliberately fail-closed: the caller must preserve the lane rather
+    than treating an expensive or wedged cleanliness probe as evidence of clean state.
+    """
     for args in (("diff-files", "--quiet", "--"), ("diff-index", "--cached", "--quiet", "HEAD", "--")):
-        completed = _git(path, *args, check=False)
+        try:
+            completed = _git(path, *args, check=False, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            return None
         if completed.returncode == 1:
             return False
         if completed.returncode != 0:
             raise RuntimeError(f"git {' '.join(args)} failed for {path}: {completed.stderr.strip()}")
-    process = subprocess.Popen(
-        ["git", "-C", str(path), "ls-files", "--others", "--exclude-standard", "-z"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    assert process.stdout is not None
-    first = process.stdout.read(1)
-    if first:
-        process.kill()
-        process.communicate()
-        return False
-    _stdout, stderr = process.communicate()
-    if process.returncode:
-        raise RuntimeError(f"git ls-files failed for {path}: {stderr.decode(errors='replace').strip()}")
-    return True
+    try:
+        completed = _git(
+            path,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--directory",
+            "--no-empty-directory",
+            "-z",
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    if completed.returncode != 0:
+        raise RuntimeError(f"git ls-files failed for {path}: {completed.stderr.strip()}")
+    return not bool(completed.stdout)
 
 
 def _is_reparse_dir(path: Path) -> bool:
@@ -520,6 +545,20 @@ def scan_repo(
                 cache_candidates.append(worktree)
             continue
         clean = worktree_is_clean(worktree.path)
+        if clean is None:
+            observations.append(
+                Action(
+                    repo_name,
+                    str(worktree.path),
+                    "PRESERVE",
+                    worktree.branch,
+                    worktree.head,
+                    "cleanliness_probe_timeout",
+                )
+            )
+            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
+                cache_candidates.append(worktree)
+            continue
         reason = eligibility_reason(
             worktree,
             recent_cwds=recent,
