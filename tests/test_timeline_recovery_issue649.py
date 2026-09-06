@@ -121,6 +121,40 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
         self.assertEqual(group["latest_at"], later_utc)
         self.assertEqual(stream["latest_at"], later_utc)
 
+    def test_mixed_offset_work_graph_rows_are_sorted_by_instant(self):
+        earlier_local = "2026-09-06T10:00:00+03:00"  # 07:00Z
+        later_utc = "2026-09-06T08:30:00+00:00"      # 08:30Z
+        events = [
+            {
+                "id": "commit:earlier",
+                "source_type": "GIT_COMMIT",
+                "project": "p3",
+                "sha": "c" * 40,
+                "patch_id": "earlier-patch",
+                "event_at": earlier_local,
+                "recorded_at": earlier_local,
+                "title": "earlier chronology repair",
+                "anchors": ["github:organicoverlords/regression-research#649"],
+            },
+            {
+                "id": "commit:later",
+                "source_type": "GIT_COMMIT",
+                "project": "p3",
+                "sha": "d" * 40,
+                "patch_id": "later-patch",
+                "event_at": later_utc,
+                "recorded_at": later_utc,
+                "title": "later chronology repair",
+                "anchors": ["github:organicoverlords/regression-research#650"],
+            },
+        ]
+
+        graph = build_work_graph(events)
+
+        self.assertEqual(graph["commit_groups"][0]["latest_at"], later_utc)
+        self.assertEqual(graph["workstreams"][0]["latest_at"], later_utc)
+        self.assertEqual(graph["workstreams"][0]["anchor"], "github:organicoverlords/regression-research#650")
+
     def test_disabled_github_does_not_advance_past_unread_history(self):
         prior = "2026-09-06T05:00:00+00:00"
         now = datetime(2026, 9, 6, 6, 0, tzinfo=timezone.utc)
