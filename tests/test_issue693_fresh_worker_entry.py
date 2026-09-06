@@ -1,9 +1,45 @@
+import json
 import unittest
+from pathlib import Path
 
 from tools.stack_atlas import find_features
 
 
+ROOT = Path(__file__).resolve().parents[1]
+CORPUS = ROOT / "tests" / "fixtures" / "issue693_fresh_worker_entry.json"
 CHOICES = ("reuse/resume", "complement", "review/prove", "integrate", "genuinely new")
+
+
+def load_corpus():
+    return json.loads(CORPUS.read_text(encoding="utf-8-sig"))
+
+
+def case_to_evidence(case):
+    current = case.get("current_truth", {})
+    return {
+        "task": case.get("task_text"),
+        "main": (current.get("main") or {}).get("sha"),
+        "wip": [
+            {
+                "number": item.get("number"),
+                "state": item.get("state"),
+                "relevant": True,
+                "reuse_required": bool(item.get("reuse_required")),
+            }
+            for item in current.get("wip", [])
+        ],
+        "busy": [
+            {
+                "scope": item.get("scope"),
+                "owner": item.get("actor"),
+                "exact_collision": bool(item.get("exact_mutation_collision")),
+                "meaning": "mutation collision only; not worker liveness",
+            }
+            for item in current.get("busy", [])
+        ],
+        "historical_lessons": case.get("historical_prior", []),
+        "routine_small_fix": case.get("id") == "routine-small-fix-negative-control",
+    }
 
 
 def evaluate_entry_action(evidence, action):
@@ -17,7 +53,15 @@ def evaluate_entry_action(evidence, action):
 
     if relevant_open and any(phrase in text for phrase in ("no prior work", "nothing exists", "start from scratch")):
         violations.append("relevant_wip_ignored")
-    if collisions and any(phrase in text for phrase in ("materializer is free", "no busy conflict", "edit tools/timeline_materializer.py now", "modify tools/timeline_materializer.py now")):
+    if collisions and any(
+        phrase in text
+        for phrase in (
+            "materializer is free",
+            "no busy conflict",
+            "edit tools/timeline_materializer.py now",
+            "modify tools/timeline_materializer.py now",
+        )
+    ):
         violations.append("exact_busy_collision_ignored")
     if historical and any(
         phrase in text
@@ -54,53 +98,34 @@ def evaluate_entry_action(evidence, action):
     return violations
 
 
-HUMMINGBIRD_ENTRY = {
-    "task": "hummingbird wing deformation",
-    "main": "f6dfb35614f0a2104a8b67a17bb3d2812f99d1bf",
-    "wip": [
-        {"number": 689, "state": "OPEN", "relevant": True, "topic": "direct commit seed scope fixture"},
-        {"number": 692, "state": "OPEN", "relevant": True, "topic": "static proof safety"},
-        {"number": 691, "state": "MERGED", "relevant": True, "reuse_required": True, "topic": "Busy absolute-path alias normalization"},
-    ],
-    "busy": [
-        {
-            "scope": "tools/timeline_materializer.py",
-            "owner": "ChatGPT/675-ranking",
-            "exact_collision": True,
-            "meaning": "mutation collision only; not worker liveness",
-        }
-    ],
-    "historical_lessons": [
-        {
-            "id": "git:lowvram:0e7bef0fa56bea230d1830ec2757dcf7c1413496",
-            "authority": "DERIVED_HISTORICAL_PRIOR_ONLY",
-            "lesson": "opposite-side alias resolution made the verifier pose the wrong limb and call it a pass",
-        },
-        {
-            "id": "git:lowvram:97ff891a4ca48faf77c334f80678133ea263c16f",
-            "authority": "DERIVED_HISTORICAL_PRIOR_ONLY",
-            "lesson": "Euclidean nearest-bone weighting crossed left/right gaps; surface-geodesic weighting avoided it",
-        },
-    ],
-}
-
-
-ROUTINE_SMALL_FIX = {
-    "task": "fix one typo in a local README paragraph",
-    "wip": [],
-    "busy": [],
-    "historical_lessons": [],
-    "routine_small_fix": True,
-}
-
-
 class Issue693FreshWorkerEntryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.corpus = load_corpus()
+        cls.cases = {case["id"]: case for case in cls.corpus["cases"]}
+        cls.hummingbird = case_to_evidence(cls.cases["hummingbird-overlap-current-wip"])
+        cls.routine = case_to_evidence(cls.cases["routine-small-fix-negative-control"])
+
     def test_existing_work_intake_route_points_to_current_issue_git_and_busy_owners(self):
         result = find_features("issue first busy claim dirty handoff")[0]
         self.assertEqual(result["id"], "work.intake")
         self.assertEqual(result["owner_components"], ["agent_rules", "github", "local_git", "busy_coordinator"])
         self.assertIn("not a queue", result["boundary"].casefold())
         self.assertIn("collision control only", result["boundary"].casefold())
+
+    def test_corpus_uses_issue_contribution_vocabulary_and_real_snapshot(self):
+        self.assertEqual(tuple(self.corpus["contribution_modes"]), CHOICES)
+        case = self.cases["hummingbird-overlap-current-wip"]
+        self.assertEqual(case["task_text"], "hummingbird wing deformation")
+        self.assertEqual(case["current_truth"]["main"]["sha"], "f6dfb35614f0a2104a8b67a17bb3d2812f99d1bf")
+        self.assertEqual({item["number"] for item in case["current_truth"]["wip"]}, {689, 691, 692})
+
+    def test_corpus_never_promotes_busy_or_history_to_liveness(self):
+        case = self.cases["hummingbird-overlap-current-wip"]
+        self.assertEqual(case["current_truth"]["peer_activity"]["status"], "UNKNOWN")
+        self.assertTrue(all(item["liveness_inference"] == "FORBIDDEN" for item in case["current_truth"]["busy"]))
+        self.assertTrue(all(item["authority"] == "HISTORICAL_PRIOR_ONLY" for item in case["historical_prior"]))
+        self.assertTrue(case["expected"]["live_truth_still_required"])
 
     def test_hummingbird_entry_reuses_wip_and_chooses_disjoint_contribution(self):
         action = (
@@ -109,14 +134,14 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
             "Timeline lessons 0e7bef0f and 97ff891a are historical priors only, so current repo/runtime truth still wins. "
             "Choose complement: make a test-only Output A fixture and review/prove the existing materializer work; do not mutate the materializer."
         )
-        self.assertEqual(evaluate_entry_action(HUMMINGBIRD_ENTRY, action), [])
+        self.assertEqual(evaluate_entry_action(self.hummingbird, action), [])
 
     def test_hummingbird_entry_rejects_false_empty_state_duplicate_mutation_and_history_liveness(self):
         action = (
             "There is no prior work, so start from scratch. Timeline proves the worker is active. "
             "Reimplement Busy alias normalization and edit tools/timeline_materializer.py now with a genuinely new implementation."
         )
-        violations = set(evaluate_entry_action(HUMMINGBIRD_ENTRY, action))
+        violations = set(evaluate_entry_action(self.hummingbird, action))
         self.assertIn("relevant_wip_ignored", violations)
         self.assertIn("exact_busy_collision_ignored", violations)
         self.assertIn("history_promoted_to_liveness", violations)
@@ -125,13 +150,13 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
 
     def test_routine_small_fix_stays_fast_without_swarm_archaeology(self):
         action = "Choose genuinely new work: inspect the README, make the typo-only edit, and run the focused check."
-        self.assertEqual(evaluate_entry_action(ROUTINE_SMALL_FIX, action), [])
+        self.assertEqual(evaluate_entry_action(self.routine, action), [])
 
         bloated = (
             "Choose genuinely new work, but first scan all Timeline history, scan Vault history, enumerate all peers, "
             "then audit the whole swarm before touching the typo."
         )
-        self.assertIn("routine_fix_triggered_archaeology", evaluate_entry_action(ROUTINE_SMALL_FIX, bloated))
+        self.assertIn("routine_fix_triggered_archaeology", evaluate_entry_action(self.routine, bloated))
 
 
 if __name__ == "__main__":
