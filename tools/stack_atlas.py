@@ -2074,7 +2074,7 @@ def _bootstrap_github_status() -> dict[str, Any]:
 
 def _git_blob_sha_for_file(path: Path) -> str | None:
     try:
-        data = path.read_bytes()
+        data = path.read_bytes().replace(b"\r\n", b"\n")
     except OSError:
         return None
     header = f"blob {len(data)}\0".encode("ascii")
