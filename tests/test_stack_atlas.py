@@ -22,12 +22,44 @@ from tools.stack_atlas import (
     _read_jsonl_tail,
     _read_jsonl_window,
     _cwd_uses_worktree,
+    _compact_memory_overview,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+    def test_compact_memory_overview_replaces_duplicate_recent_titles_with_rollup(self):
+        report = {
+            "contract": "history only",
+            "eligible_entries": 21,
+            "incident_rollups": [{
+                "thread_id": "evidence:github:organicoverlords/regression-research#125",
+                "thread_source": "EVIDENCE_ANCHOR",
+                "scope": "mcp",
+                "observations": 20,
+                "latest_event_at": "2026-09-06T03:00:00+03:00",
+                "latest_event_id": "mem-20",
+                "latest_title": "Latest regression",
+                "latest_disposition": "CURRENT_DURABLE",
+                "summary": "Twenty observations compacted.",
+                "member_ids": [f"mem-{i}" for i in range(1, 21)],
+                "drilldown": "memory_bank timeline thread",
+            }],
+            "recent": [
+                {"id": "mem-20", "timestamp": "2026-09-06T03:00:00+03:00", "title": "Latest regression"},
+                {"id": "mem-19", "timestamp": "2026-09-06T02:59:00+03:00", "title": "Previous regression"},
+                {"id": "unrelated", "timestamp": "2026-09-06T02:58:00+03:00", "title": "Unrelated"},
+            ],
+            "projects": [],
+            "recurring_tags": [],
+        }
+        compact = _compact_memory_overview(report, 3)
+        self.assertEqual(len(compact["incident_rollups"]), 1)
+        self.assertEqual(compact["incident_rollups"][0]["observations"], 20)
+        self.assertNotIn("member_ids", compact["incident_rollups"][0])
+        self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated"])
+
     def test_session_cwd_worktree_match_is_one_way(self):
         worktree = r"C:\Users\Lauri\AppData\Local\Temp\p3-941-control-hints"
         self.assertTrue(_cwd_uses_worktree(worktree, worktree))

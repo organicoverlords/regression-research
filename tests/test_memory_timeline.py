@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from tools.memory_timeline import build_recurrence_context, build_timeline, needs_timeline_fallback
+from tools.memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline, needs_timeline_fallback
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +51,44 @@ class MemoryTimelineTests(unittest.TestCase):
         report = build_timeline([a, b], view="errors", limit=10)
         self.assertEqual(report["matching_threads"], 2)
         self.assertTrue(all(event["thread_source"] == "EVENT_ONLY" for event in report["events"]))
+
+    def test_single_stable_github_evidence_anchor_joins_broad_scopes(self):
+        a = self.e("a", "2026-08-28T20:00:00+03:00", "Root incident", scope="response-quality", title="Root", evidence=["github:organicoverlords/regression-research#125"])
+        b = self.e("b", "2026-08-29T02:00:00+03:00", "Recurrence", scope="mcp", title="Recurrence", evidence=["https://github.com/organicoverlords/regression-research/issues/125"])
+        report = build_timeline([a, b], view="errors", limit=10)
+        self.assertEqual(report["matching_threads"], 1)
+        self.assertEqual(report["threads"][0]["event_count"], 2)
+        self.assertEqual(report["events"][0]["thread_source"], "EVIDENCE_ANCHOR")
+        self.assertEqual(report["events"][0]["thread_id"], "evidence:github:organicoverlords/regression-research#125")
+
+    def test_ambiguous_evidence_anchors_do_not_merge_broad_scope_events(self):
+        a = self.e("a", "2026-08-28T20:00:00+03:00", "One incident", scope="response-quality", title="One", evidence=["github:organicoverlords/regression-research#125", "github:organicoverlords/regression-research#122"])
+        b = self.e("b", "2026-08-29T02:00:00+03:00", "Other incident", scope="response-quality", title="Other", evidence=["github:organicoverlords/regression-research#125", "github:organicoverlords/regression-research#122"])
+        report = build_timeline([a, b], view="errors", limit=10)
+        self.assertEqual(report["matching_threads"], 2)
+        self.assertTrue(all(event["thread_source"] == "EVENT_ONLY" for event in report["events"]))
+
+    def test_incident_rollup_compacts_twenty_observations_with_drilldown(self):
+        entries = [
+            self.e(
+                f"e{i:02d}",
+                f"2026-08-29T{(i // 60):02d}:{(i % 60):02d}:00+03:00",
+                f"Regression observation {i}",
+                scope="mcp",
+                title=f"Regression {i}",
+                tags=["regression"],
+                evidence=["github:organicoverlords/regression-research#125"],
+            )
+            for i in range(20)
+        ]
+        rollups = build_incident_rollups(entries, limit=3)
+        self.assertEqual(len(rollups), 1)
+        rollup = rollups[0]
+        self.assertEqual(rollup["observations"], 20)
+        self.assertEqual(rollup["latest_event_id"], "e19")
+        self.assertEqual(len(rollup["member_ids"]), 20)
+        self.assertIn("timeline --view errors --thread", rollup["drilldown"])
+        self.assertIn("evidence:github:organicoverlords/regression-research#125", rollup["drilldown"])
 
     def test_explicit_thread_can_join_events_across_scopes(self):
         a = self.e("a", "2026-08-28T20:00:00+03:00", "Root incident", scope="response-quality", title="Root")

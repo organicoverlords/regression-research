@@ -19,6 +19,10 @@ ERROR_MARKERS = {
 }
 RECURRENCE_WORDS = {"again", "same", "recurrence", "recurred", "returned", "back"}
 ERROR_WORDS = {"error", "bug", "broken", "failure", "failed", "failing", "incident", "problem", "issue", "wrong"}
+_GITHUB_EVIDENCE_RE = re.compile(r"^github:([^/\s]+/[^#\s]+)#(\d+)$", re.I)
+_GITHUB_URL_RE = re.compile(r"^https?://github\.com/([^/\s]+/[^/\s]+)/(?:issues|pull)/(\d+)(?:[/?#].*)?$", re.I)
+_INCIDENT_EVIDENCE_RE = re.compile(r"\bINC-\d{8}(?:-\d{6})?(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\b", re.I)
+
 VAGUE_WORDS = {
     "a", "an", "and", "are", "back", "did", "error", "again", "happened", "is", "it", "my", "omg",
     "same", "the", "this", "that", "what", "why", "with", "wrong", "problem", "issue", "broken", "failed",
@@ -70,10 +74,35 @@ def _disposition(entry: dict[str, Any], superseded_by: dict[str, list[str]], cla
     return "CURRENT_DURABLE"
 
 
+def _stable_evidence_thread(entry: dict[str, Any]) -> str | None:
+    """Return one unambiguous durable evidence anchor, or abstain."""
+    anchors: set[str] = set()
+    for raw in entry.get("evidence", []):
+        value = str(raw or "").strip()
+        if not value:
+            continue
+        match = _GITHUB_EVIDENCE_RE.match(value)
+        if match:
+            anchors.add(f"github:{match.group(1).casefold()}#{match.group(2)}")
+            continue
+        match = _GITHUB_URL_RE.match(value)
+        if match:
+            anchors.add(f"github:{match.group(1).casefold()}#{match.group(2)}")
+            continue
+        incidents = {item.casefold() for item in _INCIDENT_EVIDENCE_RE.findall(value)}
+        anchors.update(f"incident:{item}" for item in incidents)
+    if len(anchors) == 1:
+        return next(iter(anchors))
+    return None
+
+
 def _thread_identity(entry: dict[str, Any], classification: dict[str, Any]) -> tuple[str, str]:
     explicit = str(entry.get("thread") or "").strip()
     if explicit:
         return "thread:" + explicit.casefold(), "EXPLICIT_THREAD"
+    evidence_anchor = _stable_evidence_thread(entry)
+    if evidence_anchor:
+        return "evidence:" + evidence_anchor, "EVIDENCE_ANCHOR"
     scope = str(entry.get("scope") or "global").strip().casefold()
     # Only structurally specific scopes are safe implicit thread identities. Broad
     # scopes such as `response-quality`, `mcp`, or `p3` contain unrelated events.
@@ -270,7 +299,7 @@ def build_timeline(
         "authority": "DERIVED_HISTORY_ONLY",
         "contract": {
             "timeline": "chronology and grouping, never current truth by itself",
-            "relationships": "only explicit supersedes plus explicit-thread/specific-scope chronology; broad scopes never imply one incident and no causal edge is inferred",
+            "relationships": "only explicit supersedes plus explicit-thread/stable-evidence/specific-scope chronology; ambiguous evidence and broad scopes never imply one incident and no causal edge is inferred",
             "project_linkage": "explicit project metadata outranks secondary entity mentions",
             "repo_history": "local Git commits are observed repository history, not memory or causal interpretation",
             "worker_history": "immutable finalized worker reports are lagging self-report evidence with automatically derived duration/utilization; they are not current-state authority or liveness proof",
@@ -289,6 +318,55 @@ def build_timeline(
         "truncated": len(combined) > effective_limit,
     }
 
+
+
+def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5, member_id_limit: int = 20) -> list[dict[str, Any]]:
+    """Compress recurring durable incident threads without discarding source events."""
+    items = list(entries)
+    effective_limit = min(20, max(0, int(limit)))
+    effective_member_limit = min(20, max(1, int(member_id_limit)))
+    if effective_limit == 0 or not items:
+        return []
+    report = build_timeline(items, view="errors", limit=MAX_LIMIT)
+    visible_dispositions = {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"}
+    events_by_thread: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for event in report["events"]:
+        events_by_thread[str(event["thread_id"])].append(event)
+    out: list[dict[str, Any]] = []
+    for thread in report["threads"]:
+        if int(thread.get("event_count") or 0) < 2:
+            continue
+        if thread.get("latest_disposition") not in visible_dispositions:
+            continue
+        events = sorted(
+            events_by_thread.get(str(thread["thread_id"]), []),
+            key=lambda event: (_dt(str(event["event_at"])), str(event["id"])),
+            reverse=True,
+        )
+        if not events:
+            continue
+        latest = events[0]
+        thread_id = str(thread["thread_id"])
+        quoted_thread = thread_id.replace('"', '\"')
+        out.append({
+            "thread_id": thread_id,
+            "thread_source": latest.get("thread_source"),
+            "scope": thread.get("scope"),
+            "observations": int(thread["event_count"]),
+            "first_event_at": thread.get("first_event_at"),
+            "latest_event_at": thread.get("latest_event_at"),
+            "latest_event_id": thread.get("latest_event_id"),
+            "latest_title": thread.get("latest_title"),
+            "latest_disposition": thread.get("latest_disposition"),
+            "summary": _clip(latest.get("summary"), 240),
+            "projects": list(thread.get("projects") or []),
+            "entities": list(thread.get("entities") or []),
+            "member_ids": [str(event["id"]) for event in events[:effective_member_limit]],
+            "drilldown": f'python tools\\memory_bank.py timeline --view errors --thread "{quoted_thread}" --limit 20 --no-workers',
+        })
+        if len(out) >= effective_limit:
+            break
+    return out
 
 def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, max_threads: int = 4, events_per_thread: int = 6) -> list[dict[str, Any]]:
     if not needs_timeline_fallback(query):
