@@ -157,6 +157,57 @@ class MemoryBankValidationTests(unittest.TestCase):
             self.assertFalse(sync.call_args_list[0].kwargs["strict"])
             self.assertTrue(sync.call_args_list[1].kwargs["strict"])
 
+
+    def _reroute_memory(self):
+        entry = self.valid()
+        entry.update({
+            "id": "mem-reroute-write-guard",
+            "timestamp": "2026-09-06T19:11:14+03:00",
+            "tags": ["security_incident", "reroute", "assistant-recorded", "verbatim-source"],
+            "source_messages": ["security rerouted save in vault"],
+            "evidence": ["02 Evidence/mcp-security-routing-events.jsonl"],
+            "interpretation": "Preserve a reported reroute without inferring cause.",
+            "confidence": 98,
+            "confidence_reason": "The source message explicitly reports the visible symptom.",
+        })
+        return entry
+
+    def test_canonical_reroute_memory_cannot_cite_missing_routing_event(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            bank = root / "memory-bank.jsonl"
+            bank.write_text("", encoding="utf-8")
+            routing = root / "mcp-security-routing-events.jsonl"
+            routing.write_text("", encoding="utf-8")
+            with patch("tools.memory_bank._is_canonical_bank", return_value=True), patch(
+                "tools.mcp_reroute_evidence.DEFAULT_ROUTING", routing
+            ), patch("tools.memory_bank.sync_lock", side_effect=lambda path: nullcontext()), patch(
+                "tools.memory_bank._sync_canonical_locked"
+            ):
+                with self.assertRaisesRegex(BankError, "append the routing event first"):
+                    append_entry(bank, self._reroute_memory())
+            self.assertEqual(bank.read_text(encoding="utf-8"), "")
+
+    def test_canonical_reroute_memory_accepts_prior_exact_source_event(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            bank = root / "memory-bank.jsonl"
+            bank.write_text("", encoding="utf-8")
+            routing = root / "mcp-security-routing-events.jsonl"
+            routing.write_text(json.dumps({
+                "reported_at": "2026-09-06T19:10:00+03:00",
+                "source_message": "security rerouted save in vault",
+            }) + "\n", encoding="utf-8")
+            with patch("tools.memory_bank._is_canonical_bank", return_value=True), patch(
+                "tools.mcp_reroute_evidence.DEFAULT_ROUTING", routing
+            ), patch("tools.memory_bank.sync_lock", side_effect=lambda path: nullcontext()), patch(
+                "tools.memory_bank._sync_canonical_locked"
+            ):
+                saved = append_entry(bank, self._reroute_memory())
+            self.assertEqual(saved["id"], "mem-reroute-write-guard")
+            self.assertEqual(len(load_bank(bank)), 1)
+
+
     def test_assistant_recorded_requires_verbatim_provenance(self):
         e = self.valid()
         e["tags"] = ["assistant-recorded"]

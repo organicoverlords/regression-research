@@ -32,6 +32,7 @@ STACK_PATHS = {
 
 MEMORY_PATHS = {
     "memory/README.md",
+    "02 Evidence/mcp-security-routing-events.jsonl",
     "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     "tools/stack_atlas.py",
     "tools/memory_bank.py",
@@ -40,6 +41,7 @@ MEMORY_PATHS = {
     "tools/memory_git_sync.py",
     "tools/memory_hybrid.py",
     "tools/memory_timeline.py",
+    "tools/mcp_reroute_evidence.py",
     "tools/timeline_materializer.py",
     "tools/provenance.py",
     "tests/test_memory_bank.py",
@@ -51,6 +53,7 @@ MEMORY_PATHS = {
     "tests/test_memory_git_sync.py",
     "tests/test_memory_retrieval_quality.py",
     "tests/test_memory_timeline.py",
+    "tests/test_mcp_reroute_evidence.py",
     "tests/test_timeline_materializer.py",
     "tests/test_timeline_query_filters.py",
     "tests/test_memory_standalone.py",
@@ -156,12 +159,14 @@ def verify_memory() -> None:
             "tools/memory_git_sync.py",
             "tools/memory_hybrid.py",
             "tools/memory_timeline.py",
+            "tools/mcp_reroute_evidence.py",
             "tools/timeline_materializer.py",
                             "tools/provenance.py",
         ]
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
     run([sys.executable, "tools/provenance.py", "validate"])
+    run([sys.executable, "tools/mcp_reroute_evidence.py", "verify"])
     run_pytest(
         [
             "tests/test_memory_bank.py",
@@ -173,6 +178,7 @@ def verify_memory() -> None:
             "tests/test_memory_git_sync.py",
             "tests/test_memory_retrieval_quality.py",
             "tests/test_memory_timeline.py",
+            "tests/test_mcp_reroute_evidence.py",
             "tests/test_timeline_materializer.py",
             "tests/test_timeline_query_filters.py",
             "tests/test_memory_standalone.py",
