@@ -63,6 +63,9 @@ MEMORY_PATHS = {
     "tests/test_memory_standalone.py",
     "tests/test_provenance_index.py",
     "tests/test_taxonomy_matrix.py",
+    "tests/test_issue675_lesson_lineage_safety.py",
+    "tests/test_issue675_lesson_validation_safety.py",
+    "tests/test_issue675_static_proof_safety.py",
 }
 
 CONVERSATION_PATHS = {
@@ -206,6 +209,9 @@ def verify_memory() -> None:
             "tests/test_memory_standalone.py",
             "tests/test_provenance_index.py",
             "tests/test_taxonomy_matrix.py",
+            "tests/test_issue675_lesson_lineage_safety.py",
+            "tests/test_issue675_lesson_validation_safety.py",
+            "tests/test_issue675_static_proof_safety.py",
         ]
     )
     print("MEMORY_HISTORY_RETRIEVAL_PROVEN")
