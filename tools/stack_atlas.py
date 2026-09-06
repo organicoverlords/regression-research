@@ -25,9 +25,8 @@ MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
-MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
+MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
-LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
@@ -65,10 +64,6 @@ COMPONENT_ALIASES = {
     "mcp edge": "vps_edge_ingress",
     "transfer": "file_transfer",
     "file transfer": "file_transfer",
-    "linux omen": "linux_omen_node",
-    "omen laptop": "linux_omen_node",
-    "linux laptop": "linux_omen_node",
-    "linux node": "linux_omen_node",
     "visual proof": "visual_proof",
     "proof": "visual_proof",
     "worker": "execution_workers",
@@ -139,7 +134,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\config\process-tool-contract.json", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_KNOWN_GOOD_FREEZE_PATH)],
+        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_RECOVERY_STATE_PATH)],
         "chatgpt_plugin_surface": {
             "profile": "process",
             "tools": ["start_process", "read_output", "kill_process"],
@@ -152,7 +147,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "ChatGPT plugin surface is MCP_TOOL_PROFILE=process with start_process, read_output, and kill_process only; full is explicit internal/local testing and busy_*/view_image are not plugin commands",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "2026-09-05 frozen candidate production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
+            "selected recovery deployment: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
         ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
@@ -170,7 +165,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
-            str(MCP_KNOWN_GOOD_FREEZE_PATH),
+            str(MCP_RECOVERY_STATE_PATH),
         ],
     },
     "vps_edge_ingress": {
@@ -207,32 +202,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["Funnel config", "HTTPS listener", "stable front-door proxy"],
         "dependents": ["mcp_front_door"],
         "runbook": [MCP_ROOT + r"\keepalive.ps1"],
-    },
-    "linux_omen_node": {
-        "role": "lan_ssh_execution_node",
-        "capabilities": ["source_read", "repository_mutate", "runtime_validate", "artifact_transfer", "build_compute"],
-        "canonical_sources": [LINUX_OMEN_CONTRACT],
-        "live_status": [
-            "bounded SSH probe through the documented Windows MCP -> LAN SSH route",
-            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass",
-            "current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof",
-        ],
-        "supervisor": "user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only",
-        "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
-        "independent_recovery": [
-            "local laptop console remains independent of SSH",
-            "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this optional node",
-        ],
-        "resources": [
-            "HP OMEN by HP Laptop 15-dc0xxx",
-            "Linux user aatuska",
-            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local",
-            r"C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents)",
-            "LAN SSH TCP 22",
-            "Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile",
-        ],
-        "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": [LINUX_OMEN_CONTRACT],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
@@ -413,7 +382,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
             r"python C:\Users\Lauri\Desktop\vault\tools\cleanup_converger.py --apply --operator-ack",
             r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\operator-cleanup-convergence.md",
         ],
-        "boundary": "Operator-only bounded convergence. One invocation loops internally to a stable boundary; it may remove only clean inactive secondary P3/Vault worktrees that are either branch-attached with an exact branch ref or detached with an exact durable local/tag/remote-tracking ref at HEAD, and may reclaim only Git-ignored standard Unreal Binaries/Intermediate/DerivedDataCache from inactive preserved secondary P3 lanes. Recent MCP-CWD, external process targets, and Git-locked lanes veto cache cleanup; tracked Content/Saved/proof/evidence/source are excluded. Cleanliness probes are time-bounded and timeout preserves the lane as unknown rather than clean. No force removal, branch deletion, fetch, reset/rebase, dirty/unanchored deletion, permission change, or process kill. Recurring workers must not use it to administer themselves or sibling lanes.",
+        "boundary": "Operator-only bounded convergence. One invocation loops internally to a stable boundary; it may remove only clean branch-anchored inactive secondary P3/Vault worktrees, and may reclaim only Git-ignored standard Unreal Binaries/Intermediate/DerivedDataCache from inactive preserved secondary P3 lanes. Recent MCP-CWD, external process targets, and Git-locked lanes veto cache cleanup; tracked Content/Saved/proof/evidence/source are excluded. No force removal, branch deletion, fetch, reset/rebase, dirty/unanchored deletion, permission change, or process kill. Recurring workers must not use it to administer themselves or sibling lanes.",
     },
     "work.intake": {
         "owner_components": ["agent_rules", "github", "local_git", "busy_coordinator"],
@@ -428,42 +397,22 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Ordered navigation to the existing .agents issue-first contract: inspect/claim occurs immediately before shared mutation. The GitHub issue is the shared convergence record, not a queue, priority, capacity, or admission system. Busy is exact mutation collision control only. No new workflow authority is created.",
     },
-    "mcp.chatgpt_plugin_surface": {
-        "owner_components": ["mcp_minimal_clone"],
-        "triggers": [
-            "chatgpt plugin tools",
-            "chatgpt plugin command",
-            "mcp plugin tools",
-            "process tool profile",
-            "plugin tool contract",
-            "busy_list plugin",
-            "busy claim plugin",
-            "busy release plugin",
-            "view_image plugin",
-        ],
-        "entrypoints": [
-            "python tools\\stack_atlas.py lookup mcp_minimal_clone",
-            MCP_ROOT + r"\config\process-tool-contract.json",
-            MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1",
-        ],
-        "boundary": "The ChatGPT plugin uses MCP_TOOL_PROFILE=process and exposes only start_process, read_output, and kill_process. The full profile is explicit internal/local-test surface; busy_list, busy_claim, busy_release, and view_image are not ChatGPT plugin commands.",
-    },
-    "mcp.known_good_freeze": {
+    "mcp.recovery_state": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
         "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
-        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
-        "boundary": "Only this canonical pointer is the maintained MCP freeze. CANDIDATE_KNOWN_GOOD is preserve-first but explicitly not multi-day proof; PROVEN_KNOWN_GOOD requires a later >=48h real-use refreeze plus explicit user confirmation. Reconcile either status with current live evidence before restoration.",
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "Canonical MCP recovery state. Deployment identity, selected recovery target, and observed health/effect conditions are separate facts. Conditions use True/False/Unknown and are tied to the observed generation; never infer global health from recovery-target selection or recreate candidate/proven promotion labels.",
     },
     "mcp.regression_recovery": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "busy_coordinator"],
         "triggers": ["restore working MCP", "rollback working MCP", "MCP regression after change", "restore last working", "regression recovery"],
-        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
         "boundary": "Restore-first for severe regressions caused by our production MCP change: preserve rollback evidence and active work, then restore the canonical known-working production behavior and topology before speculative fixes. Persist platform-reroute/security event details only when the user explicitly asks for that analysis or incident tracking. A source SHA alone is insufficient when topology differs; only minimal proven replacement compatibility may be layered onto the frozen behavior. After restore, a reroute observed between successful MCP calls with no MCP request in flight is above-MCP/platform evidence and must not trigger more MCP/edge mutation without new MCP-local evidence. Shared-production authorization and the production-change gate still apply.",
     },
     "mcp.security_reroute_log": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
         "triggers": ["security reroute", "security routing", "security rerouting", "reroute happened", "routing happened"],
-        "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_KNOWN_GOOD_FREEZE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
+        "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_RECOVERY_STATE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
         "boundary": "When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
     },
     "vault.overview": {
@@ -511,15 +460,6 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
-    },
-    "execution.linux_omen_node": {
-        "owner_components": ["linux_omen_node"],
-        "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
-        "entrypoints": [
-            "python tools\\stack_atlas.py lookup linux_omen_node",
-            LINUX_OMEN_CONTRACT,
-        ],
-        "boundary": "Optional LAN compute/build node behind the existing Windows MCP transport. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route. Reverify live SSH and current machine resources before use; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
@@ -1691,37 +1631,47 @@ def _bootstrap_memory_titles() -> list[dict[str, Any]]:
     return list(_bootstrap_memory_overview().get("recent", []))
 
 
-def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
-    path = MCP_KNOWN_GOOD_FREEZE_PATH
+def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
+    path = MCP_RECOVERY_STATE_PATH
     if not path.exists():
-        return {"available": False, "status": "MISSING", "path": str(path)}
+        return {"available": False, "read_state": "MISSING", "path": str(path)}
     try:
         raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
-        return {"available": False, "status": "ERROR", "path": str(path), "error": str(exc)}
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": str(exc)}
     if not isinstance(raw, dict):
-        return {"available": False, "status": "ERROR", "path": str(path), "error": "freeze record is not an object"}
-    backend = raw.get("production_identity", {}).get("backend", {}) if isinstance(raw.get("production_identity"), dict) else {}
-    proof = raw.get("proof_state", {}) if isinstance(raw.get("proof_state"), dict) else {}
-    recovery = raw.get("recovery_policy", {}) if isinstance(raw.get("recovery_policy"), dict) else {}
-    observation = raw.get("latest_restore_observation", {}) if isinstance(raw.get("latest_restore_observation"), dict) else {}
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": "recovery state is not an object"}
+    deployment = raw.get("deployment", {}) if isinstance(raw.get("deployment"), dict) else {}
+    recovery_target = raw.get("recovery_target", {}) if isinstance(raw.get("recovery_target"), dict) else {}
+    policy = recovery_target.get("policy", {}) if isinstance(recovery_target.get("policy"), dict) else {}
+    evidence = raw.get("evidence", {}) if isinstance(raw.get("evidence"), dict) else {}
+    observation = evidence.get("latest_restore_observation", {}) if isinstance(evidence.get("latest_restore_observation"), dict) else {}
+    conditions = raw.get("conditions", []) if isinstance(raw.get("conditions"), list) else []
+    bounded_conditions = [
+        {
+            key: condition.get(key)
+            for key in ("type", "status", "observed_generation", "last_transition_at", "reason", "message")
+            if key in condition
+        }
+        for condition in conditions
+        if isinstance(condition, dict)
+    ]
     return {
         "available": True,
+        "read_state": "OK",
         "path": str(path),
-        "status": raw.get("status"),
-        "frozen_at": raw.get("frozen_at"),
-        "refreeze_not_before": raw.get("refreeze_not_before"),
-        "backend_commit": backend.get("commit"),
-        "backend_generation": backend.get("generation"),
-        "source_tag": backend.get("source_tag"),
-        "multi_day_real_use": proof.get("multi_day_real_use"),
-        "user_confirmed_stable": proof.get("user_confirmed_stable"),
-        "security_reroute_rate_after_freeze": proof.get("security_reroute_rate_after_freeze"),
-        "restore_first_on_regression": bool(recovery.get("restore_first_on_regression")),
+        "schema": raw.get("schema"),
+        "deployment_id": deployment.get("id"),
+        "deployed_at": deployment.get("deployed_at"),
+        "backend_commit": deployment.get("commit"),
+        "backend_generation": deployment.get("generation"),
+        "recovery_target_deployment_id": recovery_target.get("deployment_id"),
+        "recovery_selected_at": recovery_target.get("selected_at"),
+        "conditions": bounded_conditions,
+        "restore_first_on_regression": bool(policy.get("restore_first_on_regression")),
         "post_restore_user_event": observation.get("post_restore_user_event"),
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
-
 
 def _bootstrap_vault_status() -> dict[str, Any]:
     """Bounded local Vault health; no fetches, history scans, or repo-wide status walk."""
@@ -1890,7 +1840,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         pc, workers, mcp, memory_overview, vault, github = (
             f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result()
         )
-    mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
+    mcp_recovery_state = _bootstrap_mcp_recovery_state()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
@@ -1964,7 +1914,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
             "mcp": r"%LOCALAPPDATA%\ChatGPTMcpMinimal",
             "mcp_source_repo": r"%LOCALAPPDATA%\ChatGPTMcpClean",
-            "mcp_known_good_freeze": str(MCP_KNOWN_GOOD_FREEZE_PATH),
+            "mcp_recovery_state": str(MCP_RECOVERY_STATE_PATH),
             "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
         },
         "commands": {
@@ -1986,7 +1936,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "github": github,
         "pc": pc,
         "workers": worker_glance,
-        "mcp_known_good_freeze": mcp_known_good_freeze,
+        "mcp_recovery_state": mcp_recovery_state,
         "notable_conditions": notable_conditions,
         "memory_overview": memory_overview,
         "recent_memory_titles": memory_overview.get("recent", []),

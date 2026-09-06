@@ -43,7 +43,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("operator-only", result["boundary"].lower())
         self.assertIn("git-ignored standard unreal", result["boundary"].lower())
         self.assertIn("content/saved/proof/evidence/source", result["boundary"].lower())
-        self.assertIn("time-bounded", result["boundary"].lower())
         self.assertTrue(any("cleanup_converger.py --apply --operator-ack" in item for item in result["entrypoints"]))
 
     def test_cleanup_guard_blocks_cross_cwd_process_target_and_locked_lane(self):
@@ -330,7 +329,7 @@ class StackAtlasTests(unittest.TestCase):
              patch("tools.stack_atlas._bootstrap_memory_overview", return_value=memory), \
              patch("tools.stack_atlas._bootstrap_vault_status", return_value=vault), \
              patch("tools.stack_atlas._bootstrap_github_status", return_value=github), \
-             patch("tools.stack_atlas._bootstrap_mcp_known_good_freeze", return_value={}):
+             patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "OK")
         self.assertIn("timeline_history_incomplete_github_runner_logs", glance["notable_conditions"])
@@ -1385,48 +1384,41 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("visual proof")["id"], "visual_proof")
         self.assertEqual(component_details("workers")["id"], "execution_workers")
 
-class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
+class McpRecoveryStateVisibilityTests(unittest.TestCase):
     def test_bootstrap_surfaces_canonical_mcp_freeze_and_reroute_log_paths(self):
         glance = build_live_bootstrap_glance()
-        self.assertIn("mcp_known_good_freeze", glance)
-        if glance["mcp_known_good_freeze"]["available"]:
-            self.assertEqual(glance["mcp_known_good_freeze"]["status"], "CANDIDATE_KNOWN_GOOD")
-        self.assertTrue(glance["paths"]["mcp_known_good_freeze"].endswith("mcp-known-good-freeze.json"))
+        self.assertIn("mcp_recovery_state", glance)
+        if glance["mcp_recovery_state"]["available"]:
+            self.assertEqual(glance["mcp_recovery_state"]["read_state"], "OK")
+            summary = {item["type"]: item["status"] for item in glance["mcp_recovery_state"]["conditions"]}
+            self.assertEqual(summary["SecurityReroutesReduced"], "True")
+            self.assertEqual(summary["SecurityReroutesEliminated"], "False")
+            self.assertEqual(summary["LongRunStable"], "Unknown")
+        self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
         self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))
 
     def test_freeze_contract_exposes_restore_first_policy(self):
         import tools.stack_atlas as atlas
-        freeze_path = ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
-        with patch.object(atlas, "MCP_KNOWN_GOOD_FREEZE_PATH", freeze_path):
-            freeze = atlas._bootstrap_mcp_known_good_freeze()
-        self.assertTrue(freeze["restore_first_on_regression"])
-        self.assertTrue(freeze["post_restore_no_mcp_request_in_flight"])
-        self.assertTrue(str(freeze["security_reroute_rate_after_freeze"]).strip())
+        freeze_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
+        with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", freeze_path):
+            state = atlas._bootstrap_mcp_recovery_state()
+        self.assertTrue(state["restore_first_on_regression"])
+        self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
+        summary = {item["type"]: item["status"] for item in state["conditions"]}
+        self.assertEqual(summary["SecurityReroutesReduced"], "True")
+        self.assertEqual(summary["SecurityReroutesEliminated"], "False")
         raw = json.loads(freeze_path.read_text(encoding="utf-8"))
-        first_step = raw["recovery_policy"]["required_order"][0]
+        first_step = raw["recovery_target"]["policy"]["required_order"][0]
         self.assertIn("user explicitly asks", first_step)
         self.assertIn("do not persist them", first_step)
 
-    def test_chatgpt_plugin_surface_search_routes_to_process_only_contract(self):
-        for query in (
-            "ChatGPT plugin tool contract busy_list process profile",
-            "busy_list plugin command",
-            "view_image plugin",
-        ):
-            with self.subTest(query=query):
-                result = find_features(query)[0]
-                self.assertEqual(result["id"], "mcp.chatgpt_plugin_surface")
-                self.assertEqual(result["owner_components"], ["mcp_minimal_clone"])
-                self.assertIn("only start_process, read_output, and kill_process", result["boundary"])
-                self.assertIn("not ChatGPT plugin commands", result["boundary"])
-        sources = component_details("mcp_minimal_clone")["canonical_sources"]
-        self.assertTrue(any(item.endswith(r"\config\process-tool-contract.json") for item in sources))
-
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
-        self.assertEqual(freeze["id"], "mcp.known_good_freeze")
-        self.assertIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
+        self.assertEqual(freeze["id"], "mcp.recovery_state")
+        self.assertIn("True/False/Unknown", freeze["boundary"])
+        self.assertNotIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
+        self.assertNotIn("PROVEN_KNOWN_GOOD", freeze["boundary"])
         reroute = find_features("security reroute")[0]
         self.assertEqual(reroute["id"], "mcp.security_reroute_log")
         self.assertIn("must be logged", reroute["boundary"])
