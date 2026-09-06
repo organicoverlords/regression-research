@@ -86,7 +86,7 @@ def _refs_from_title(title: str) -> list[str]:
 
 
 def _git_log_rows(path: Path, revisions: list[str], *, limit: int, since: datetime | None = None) -> list[tuple[str, str, str, str]]:
-    args = ["log", *revisions, "--date-order", f"--max-count={min(200, max(1, int(limit)))}"]
+    args = ["log", *revisions, "--date-order", f"--max-count={min(2000, max(1, int(limit)))}"]
     if since is not None:
         args.append(f"--since={since.isoformat()}")
     args.append("--format=%H%x1f%cI%x1f%s%x1f%D")

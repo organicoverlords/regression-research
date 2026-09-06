@@ -192,7 +192,7 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
 
     # Legacy-only fallback is deliberately narrow and visible. It only supplies a
     # missing field; it never re-labels already-structured semantics as legacy-derived.
-    if severity == "NORMAL" or not traits:
+    if (severity == "NORMAL" or not traits) and source in {"VAULT_MEMORY", "WORKER_REPORT", "TRACKED_ARTIFACT"}:
         fallback_traits, fallback_severity, fallback_basis = _legacy_signal_fallback(event)
         used_fallback: list[str] = []
         if severity == "NORMAL" and fallback_severity:
@@ -238,6 +238,12 @@ def _event_source_family(event: dict[str, Any]) -> str:
         "GIT_COMMIT": "repo",
         "WORKER_REPORT": "worker",
         "TRACKED_ARTIFACT": "artifact",
+        "LOCAL_ARTIFACT": "artifact",
+        "GITHUB_ISSUE": "github",
+        "GITHUB_PR": "github",
+        "GITHUB_ACTION": "github",
+        "MCP_EVENT": "mcp",
+        "RUNNER_LOG": "runner",
     }.get(str(event.get("source_type") or ""), "other")
 
 
@@ -259,8 +265,18 @@ def _evidence_form(event: dict[str, Any]) -> str:
         return "commit"
     if source == "WORKER_REPORT":
         return "worker_report"
-    if source == "TRACKED_ARTIFACT":
+    if source in {"TRACKED_ARTIFACT", "LOCAL_ARTIFACT"}:
         return str(event.get("artifact_type") or "artifact")
+    if source == "GITHUB_ISSUE":
+        return "issue"
+    if source == "GITHUB_PR":
+        return "pull_request"
+    if source == "GITHUB_ACTION":
+        return "action_run"
+    if source == "MCP_EVENT":
+        return "mcp_event"
+    if source == "RUNNER_LOG":
+        return "runner_log"
     return "observation"
 
 
@@ -752,6 +768,8 @@ def build_timeline(
     artifact_events: Iterable[dict[str, Any]] | None = None,
     snapshot_now: datetime | None = None,
     source_coverage: dict[str, Any] | None = None,
+    supplemental_events: Iterable[dict[str, Any]] | None = None,
+    max_limit: int = MAX_LIMIT,
 ) -> dict[str, Any]:
     items = list(entries)
     superseded_by = _superseded_by(items)
@@ -819,6 +837,7 @@ def build_timeline(
     repo_selected: list[dict[str, Any]] = []
     worker_selected: list[dict[str, Any]] = []
     artifact_selected: list[dict[str, Any]] = []
+    supplemental_selected: list[dict[str, Any]] = []
     invalid_source_events: Counter[str] = Counter()
 
     def select_external(raw_events: Iterable[dict[str, Any]] | None, target: list[dict[str, Any]]) -> None:
@@ -841,9 +860,10 @@ def build_timeline(
         select_external(repo_events, repo_selected)
         select_external(worker_events, worker_selected)
         select_external(artifact_events, artifact_selected)
+        select_external(supplemental_events, supplemental_selected)
 
-    effective_limit = min(MAX_LIMIT, max(1, int(limit)))
-    combined = [*selected, *repo_selected, *worker_selected, *artifact_selected]
+    effective_limit = min(max(1, int(max_limit)), max(1, int(limit)))
+    combined = [*selected, *repo_selected, *worker_selected, *artifact_selected, *supplemental_selected]
     for event in combined:
         event["continuity"] = _continuity_semantics(event)
         event["case_anchors"] = _case_anchors(event)
@@ -891,6 +911,7 @@ def build_timeline(
         "repo_events": len(repo_selected),
         "worker_events": len(worker_selected),
         "artifact_events": len(artifact_selected),
+        "supplemental_events": len(supplemental_selected),
         "invalid_source_events": dict(sorted(invalid_source_events.items())),
         "source_coverage": dict(source_coverage or {}),
         "matching_threads": len(threads),

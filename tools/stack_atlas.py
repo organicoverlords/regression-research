@@ -1583,19 +1583,77 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
 
 
 def _bootstrap_memory_overview() -> dict[str, Any]:
-    cached, _ = _bootstrap_cache_read("memory-overview.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
-    if cached is not None and isinstance(cached.get("overview"), dict):
-        return cached["overview"]
+    """Read the periodic Vault timeline projection; never rebuild timeline sources here."""
+    path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
+    base_missing = {
+        "contract": "Periodic Vault timeline projection only; bootstrap never scans Git, GitHub, workers, reports, MCP logs, or artifact history to rebuild it.",
+        "eligible_entries": 0,
+        "timeline_snapshots": {},
+        "incident_rollups": [],
+        "recent": [],
+        "projects": [],
+        "recurring_tags": [],
+    }
     try:
-        from tools.memory_bank import build_overview, load_bank
-    except ImportError:
-        from memory_bank import build_overview, load_bank
-    report = build_overview(
-        load_bank(), limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, include_timeline_snapshots=True
-    )
-    overview = _compact_memory_overview(report, BOOTSTRAP_MEMORY_TITLE_LIMIT)
-    _bootstrap_cache_write("memory-overview.json", {"overview": overview})
-    return overview
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {
+            **base_missing,
+            "timeline_materialized": {
+                "status": "MISSING",
+                "projection_path": str(path),
+                "refresh_command": f'python "{ATLAS_LIVE_ROOT / "tools" / "timeline_materializer.py"}" refresh',
+            },
+        }
+    except (OSError, json.JSONDecodeError) as exc:
+        return {
+            **base_missing,
+            "timeline_materialized": {
+                "status": "ERROR",
+                "projection_path": str(path),
+                "error": str(exc),
+            },
+        }
+    if not isinstance(raw, dict) or not isinstance(raw.get("overview"), dict):
+        return {
+            **base_missing,
+            "timeline_materialized": {
+                "status": "ERROR",
+                "projection_path": str(path),
+                "error": "materialized bootstrap projection has invalid shape",
+            },
+        }
+
+    # Copy so bootstrap freshness annotation never mutates a caller-owned object.
+    overview = json.loads(json.dumps(raw["overview"], ensure_ascii=False))
+    materialized = overview.get("timeline_materialized")
+    materialized = dict(materialized) if isinstance(materialized, dict) else {}
+    generated_at = str(raw.get("generated_at") or materialized.get("as_of") or "").strip()
+    age_seconds: float | None = None
+    if generated_at:
+        try:
+            generated = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            if generated.tzinfo is None:
+                generated = generated.astimezone()
+            age_seconds = max(0.0, (datetime.now().astimezone() - generated).total_seconds())
+        except ValueError:
+            pass
+    try:
+        refresh_minutes = max(1.0, float(materialized.get("refresh_minutes") or 5.0))
+    except (TypeError, ValueError):
+        refresh_minutes = 5.0
+    stale_after_seconds = max(15.0 * 60.0, refresh_minutes * 60.0 * 3.0)
+    status = "FRESH" if age_seconds is not None and age_seconds <= stale_after_seconds else "STALE"
+    materialized.update({
+        "status": status,
+        "as_of": generated_at or materialized.get("as_of"),
+        "age_seconds": round(age_seconds, 1) if age_seconds is not None else None,
+        "stale_after_seconds": round(stale_after_seconds, 1),
+        "projection_path": str(path),
+        "read_mode": "MATERIALIZED_ONLY",
+    })
+    overview["timeline_materialized"] = materialized
+    return _fit_memory_overview_budget(overview)
 
 
 def _bootstrap_memory_titles() -> list[dict[str, Any]]:
