@@ -47,6 +47,8 @@ DEFAULT_REFRESH_MINUTES = 5
 DEFAULT_MAX_EVENTS = 20000
 DEFAULT_GITHUB_EVENTS_PER_KIND = 1000
 DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND = 200
+DEFAULT_QUEUE_RUNS_PER_REPO = 50
+DEFAULT_RUNNER_LOG_EVENTS = 300
 DEFAULT_DELTA_REPO_EVENTS_PER_REPO = 200
 DEFAULT_DELTA_ARTIFACT_EVENTS = 500
 DEFAULT_LIBRARY_ARTIFACT_EVENTS = 5000
@@ -235,9 +237,11 @@ def github_events(
     *,
     since: datetime,
     limit_per_kind: int = DEFAULT_GITHUB_EVENTS_PER_KIND,
+    snapshot_now: datetime | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     events: list[dict[str, Any]] = []
-    coverage: dict[str, Any] = {"available": True, "repos": {}, "errors": []}
+    snapshot_now = snapshot_now or datetime.now().astimezone()
+    coverage: dict[str, Any] = {"available": True, "repos": {}, "errors": [], "warnings": []}
     for spec in specs:
         slug = _github_slug(spec)
         if not slug:
@@ -247,6 +251,21 @@ def github_events(
             "issues": {"events": 0, "limit": limit_per_kind, "saturated": False},
             "prs": {"events": 0, "limit": limit_per_kind, "saturated": False},
             "actions": {"events": 0, "limit": limit_per_kind, "saturated": False},
+            "queue": {
+                "events": 0,
+                "limit": DEFAULT_QUEUE_RUNS_PER_REPO,
+                "queued": 0,
+                "in_progress": 0,
+                "saturated": False,
+            },
+            "builds": {
+                "runs": 0,
+                "completed": 0,
+                "success": 0,
+                "failure": 0,
+                "cancelled": 0,
+                "other": 0,
+            },
         }
         updated_filter = "updated:>=" + since.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
         issue_rows, err = _run_json([
@@ -328,12 +347,35 @@ def github_events(
             })
             repo_cov["prs"]["events"] += 1
 
+        # Use the latest bounded run sample for build totals even in
+        # incremental mode; filter by since only when emitting history events.
         action_rows, err = _run_json([
-            "gh", "run", "list", "--repo", slug, "--created", ">=" + since.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), "--limit", str(limit_per_kind),
+            "gh", "run", "list", "--repo", slug,
+            "--limit", str(limit_per_kind),
             "--json", "databaseId,workflowName,status,conclusion,createdAt,updatedAt,headSha,headBranch,event,displayTitle,url",
         ])
         if err:
-            coverage["errors"].append({"repo": slug, "source": "actions", "error": err})
+            fallback_limit = min(limit_per_kind, 200)
+            fallback_rows, fallback_err = _run_json([
+                "gh", "run", "list", "--repo", slug,
+                "--limit", str(fallback_limit),
+                "--json", "databaseId,workflowName,status,conclusion,createdAt,updatedAt,headSha,headBranch,event,displayTitle,url",
+            ])
+            if isinstance(fallback_rows, list) and not fallback_err:
+                action_rows = fallback_rows
+                coverage["warnings"].append({
+                    "repo": slug,
+                    "source": "actions",
+                    "error": err,
+                    "fallback_limit": fallback_limit,
+                })
+            else:
+                coverage["errors"].append({
+                    "repo": slug,
+                    "source": "actions",
+                    "error": err,
+                    "fallback_error": fallback_err,
+                })
         for row in action_rows if isinstance(action_rows, list) else []:
             event_at = row.get("updatedAt") or row.get("createdAt")
             if not _event_time_ok(event_at, since):
@@ -368,9 +410,105 @@ def github_events(
                 "thread_source": "GITHUB_ACTIONS",
             })
             repo_cov["actions"]["events"] += 1
+
+        queue_rows, queue_err = _run_json([
+            "gh", "run", "list", "--repo", slug,
+            "--limit", str(DEFAULT_QUEUE_RUNS_PER_REPO),
+            "--json", "databaseId,workflowName,status,conclusion,createdAt,updatedAt,headSha,headBranch,event,displayTitle,url",
+        ])
+        if queue_err:
+            coverage["errors"].append({"repo": slug, "source": "queue", "error": queue_err})
+        queue_rows = queue_rows if isinstance(queue_rows, list) else []
+        queue_items = []
+        for row in queue_rows:
+            status = str(row.get("status") or "").casefold()
+            # Keep every non-completed state so pending/waiting/requested runs
+            # are not silently dropped from the bounded queue snapshot.
+            if status in {"", "completed"}:
+                continue
+            queue_items.append({
+                "run_id": str(row.get("databaseId") or ""),
+                "workflow": row.get("workflowName"),
+                "status": row.get("status"),
+                "created_at": row.get("createdAt"),
+                "updated_at": row.get("updatedAt"),
+                "head_sha": row.get("headSha"),
+                "head_ref": row.get("headBranch"),
+                "event": row.get("event"),
+                "title": row.get("displayTitle"),
+                "url": row.get("url"),
+            })
+        queue_status_counts = {}
+        for row in queue_items:
+            status = str(row.get("status") or "").casefold()
+            queue_status_counts[status] = queue_status_counts.get(status, 0) + 1
+        repo_cov["queue"]["events"] = len(queue_items)
+        repo_cov["queue"]["status_counts"] = queue_status_counts
+        repo_cov["queue"]["queued"] = queue_status_counts.get("queued", 0)
+        repo_cov["queue"]["in_progress"] = queue_status_counts.get("in_progress", 0)
+        repo_cov["queue"]["pending"] = queue_status_counts.get("pending", 0)
+        repo_cov["queue"]["other_active"] = sum(
+            count for status, count in queue_status_counts.items()
+            if status not in {"queued", "in_progress", "pending"}
+        )
+        repo_cov["queue"]["sample_limit_hit"] = len(queue_rows) >= DEFAULT_QUEUE_RUNS_PER_REPO
+        repo_cov["queue"]["saturated"] = False
+        action_rows_for_counts = action_rows if isinstance(action_rows, list) else []
+        conclusions = [str(row.get("conclusion") or "").casefold() for row in action_rows_for_counts]
+        repo_cov["builds"] = {
+            "runs": len(action_rows_for_counts),
+            "completed": sum(1 for row in action_rows_for_counts if str(row.get("status") or "").casefold() == "completed"),
+            "success": conclusions.count("success"),
+            "failure": conclusions.count("failure"),
+            "cancelled": conclusions.count("cancelled"),
+            "other": sum(1 for value in conclusions if value not in {"success", "failure", "cancelled", ""}),
+        }
+        summary_at = snapshot_now.isoformat()
+        events.append({
+            "id": f"github-action-summary:{slug}",
+            "source_type": "GITHUB_ACTION_SUMMARY",
+            "authority": "GITHUB_ACTIONS_AND_QUEUE_SNAPSHOT",
+            "event_at": summary_at,
+            "recorded_at": summary_at,
+            "project": spec.project,
+            "projects": [spec.project],
+            "title": (
+                f"GitHub actions {slug}: {repo_cov['builds']['runs']} builds; "
+                f"queue {repo_cov['queue']['queued']} queued/"
+                f"{repo_cov['queue']['in_progress']} in progress/"
+                f"{repo_cov['queue']['pending']} pending/"
+                f"{repo_cov['queue']['other_active']} other active"
+            ),
+            "summary": (
+                f"completed={repo_cov['builds']['completed']} "
+                f"success={repo_cov['builds']['success']} "
+                f"failure={repo_cov['builds']['failure']}; "
+                "bounded current queue snapshot"
+            ),
+            "github_repo": slug,
+            "build_counts": dict(repo_cov["builds"]),
+            "queue_counts": {
+                "queued": repo_cov["queue"]["queued"],
+                "in_progress": repo_cov["queue"]["in_progress"],
+                "pending": repo_cov["queue"]["pending"],
+                "other_active": repo_cov["queue"]["other_active"],
+                "status_counts": dict(repo_cov["queue"]["status_counts"]),
+                "sampled": len(queue_items),
+                "limit": DEFAULT_QUEUE_RUNS_PER_REPO,
+                "saturated": repo_cov["queue"]["saturated"],
+                "sample_limit_hit": repo_cov["queue"]["sample_limit_hit"],
+            },
+            "queue_items": queue_items,
+            "anchors": [f"github-actions:{slug}", f"github-queue:{slug}"],
+            "refs": [str(row.get("run_id")) for row in queue_items if row.get("run_id")],
+            "thread_id": f"actions:{slug}",
+            "thread_source": "GITHUB_ACTIONS_AND_QUEUE",
+        })
         repo_cov["issues"]["saturated"] = isinstance(issue_rows, list) and len(issue_rows) >= limit_per_kind
         repo_cov["prs"]["saturated"] = isinstance(pr_rows, list) and len(pr_rows) >= limit_per_kind
-        repo_cov["actions"]["saturated"] = isinstance(action_rows, list) and len(action_rows) >= limit_per_kind
+        # Saturation applies to emitted historical delta events, not the
+        # bounded latest-run sample used to maintain build totals.
+        repo_cov["actions"]["saturated"] = repo_cov["actions"]["events"] >= limit_per_kind
         repo_cov["limit_per_kind"] = limit_per_kind
         repo_cov["saturated_kinds"] = [
             kind for kind in ("issues", "prs", "actions")
@@ -407,6 +545,12 @@ def _project_from_path(value: Any, root: Path) -> str | None:
         return "tiny3d"
     if "/lowvram3d" in text:
         return "lowvram"
+    if "/chatgptmcpclean" in text:
+        return "mcp"
+    if "/.agents" in text or text.endswith("/.agents"):
+        return "agents"
+    if "/busycoordinator" in text:
+        return "coordinator"
     if str(root).replace("\\", "/").casefold() in text:
         return "vault"
     return None
@@ -635,6 +779,72 @@ def mcp_replacement_events(*, since: datetime, limit: int = 1000) -> tuple[list[
     events.sort(key=lambda event: _dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     coverage["events"] = len(events)
     return events, coverage
+
+
+def coordinator_events(*, since: datetime, snapshot_now: datetime | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Capture a bounded current BUSY coordinator ownership/queue snapshot."""
+    del since
+    snapshot_now = snapshot_now or datetime.now().astimezone()
+    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    configured = os.environ.get("BUSY_STORE_PATH") or os.environ.get("MCP_BUSY_STORE_PATH")
+    store = Path(configured) if configured else local / "ChatGPTMcpClean" / ".state" / "busy-claims.json"
+    coverage: dict[str, Any] = {
+        "path": str(store),
+        "available": False,
+        "events": 0,
+        "claims": 0,
+        "jobs": 0,
+        "active_claims": 0,
+        "active_jobs": 0,
+        "operations": 0,
+        "errors": [],
+        "current_only": True,
+    }
+    if not store.exists():
+        coverage["errors"].append("STORE_MISSING")
+        return [], coverage
+    state = _read_json(store)
+    if not isinstance(state, dict):
+        coverage["errors"].append("STORE_UNREADABLE")
+        return [], coverage
+    raw_claims = state.get("claims") if isinstance(state.get("claims"), list) else []
+    coordinator = state.get("coordinator") if isinstance(state.get("coordinator"), dict) else {}
+    raw_jobs = coordinator.get("jobs") if isinstance(coordinator.get("jobs"), dict) else {}
+    raw_operations = coordinator.get("operations") if isinstance(coordinator.get("operations"), dict) else {}
+    claims = [row for row in raw_claims if isinstance(row, dict)]
+    jobs = [row for row in raw_jobs.values() if isinstance(row, dict)]
+    active_claims = [row for row in claims if row.get("scope")]
+    active_jobs = [row for row in jobs if str(row.get("state") or "").casefold() == "active"]
+    active_scopes = sorted({str(row.get("scope") or "") for row in active_jobs if row.get("scope")})[:32]
+    snapshot = {
+        "claims": len(claims),
+        "jobs": len(jobs),
+        "active_claims": len(active_claims),
+        "active_jobs": len(active_jobs),
+        "operations": len(raw_operations),
+        "active_scopes": active_scopes,
+    }
+    digest = hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    event_at = snapshot_now.isoformat()
+    event = {
+        "id": "coordinator-state-snapshot",
+        "source_type": "COORDINATOR_EVENT",
+        "authority": "LOCAL_COORDINATOR_STATE_SNAPSHOT",
+        "event_at": event_at,
+        "recorded_at": event_at,
+        "project": "coordinator",
+        "projects": ["coordinator"],
+        "title": f"Coordinator snapshot: {snapshot['active_jobs']} active jobs; {snapshot['active_claims']} claims",
+        "summary": "bounded current ownership/queue snapshot; not historical liveness",
+        "coordinator_state": snapshot,
+        "state_fingerprint": digest,
+        "refs": active_scopes,
+        "anchors": [f"coordinator-state:{digest}"],
+        "thread_id": "coordinator",
+        "thread_source": "COORDINATOR_STATE",
+    }
+    coverage.update({**snapshot, "available": True, "events": 1})
+    return [event], coverage
 
 
 def _runner_diag_roots() -> list[Path]:
@@ -1535,6 +1745,8 @@ def _coverage_saturated(source: str, coverage: dict[str, Any]) -> bool:
         return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
     if source == "runner_logs":
         return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
+    if source == "coordinator":
+        return bool(coverage.get("errors"))
     return False
 
 
@@ -1548,6 +1760,8 @@ def materialize(
     artifact_events_limit: int = DEFAULT_ARTIFACT_EVENTS,
     max_events: int = DEFAULT_MAX_EVENTS,
     include_github: bool = True,
+    github_events_per_kind: int = DEFAULT_GITHUB_EVENTS_PER_KIND,
+    runner_events_limit: int = DEFAULT_RUNNER_LOG_EVENTS,
     rebuild: bool = False,
 ) -> dict[str, Any]:
     started = time.perf_counter()
@@ -1577,7 +1791,7 @@ def materialize(
             if isinstance(event, dict) and event.get("source_type") != "VAULT_MEMORY"
         ]
 
-        source_names = ("repos", "workers", "artifacts", "local_artifacts", "library_artifacts", "machine", "github", "mcp", "mcp_history", "runner_logs")
+        source_names = ("repos", "workers", "artifacts", "local_artifacts", "library_artifacts", "machine", "github", "mcp", "mcp_history", "runner_logs", "coordinator")
         source_since = {
             name: _materialized_source_since(previous if incremental else None, name, horizon_since=horizon_since)
             for name in source_names
@@ -1606,23 +1820,91 @@ def materialize(
         github_delta: list[dict[str, Any]] = []
         github_coverage: dict[str, Any] = {"available": False, "skipped": True}
         if include_github:
-            github_limit = DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND if incremental else DEFAULT_GITHUB_EVENTS_PER_KIND
+            github_limit = min(github_events_per_kind, DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND) if incremental else github_events_per_kind
             github_delta, github_coverage = github_events(
-                specs, since=source_since["github"], limit_per_kind=github_limit
+                specs,
+                since=source_since["github"],
+                limit_per_kind=github_limit,
+                snapshot_now=now,
             )
 
         mcp_delta, mcp_coverage = mcp_events(
             since=source_since["mcp"], root=root, project_to_slug=project_to_slug
         )
         mcp_history_delta, mcp_history_coverage = mcp_replacement_events(since=source_since["mcp_history"])
-        runner_delta, runner_coverage = runner_log_events(since=source_since["runner_logs"])
-        supplemental_delta = [*github_delta, *mcp_delta, *mcp_history_delta, *runner_delta, *local_delta, *library_delta, *machine_delta]
+        runner_delta, runner_coverage = runner_log_events(
+            since=source_since["runner_logs"], limit=runner_events_limit
+        )
+        coordinator_delta, coordinator_coverage = coordinator_events(
+            since=source_since["coordinator"], snapshot_now=now
+        )
+        supplemental_delta = [
+            *github_delta,
+            *mcp_delta,
+            *mcp_history_delta,
+            *runner_delta,
+            *coordinator_delta,
+            *local_delta,
+            *library_delta,
+            *machine_delta,
+        ]
         all_delta = [*repo_delta, *worker_delta, *artifact_delta, *supplemental_delta]
 
         merged_external = _merge_materialized_events(
             previous_events, all_delta, since=horizon_since
         )
         active_external = [event for event in merged_external if _event_within_horizon(event, horizon_since)]
+        # Keep build totals stable across incremental refreshes by deriving them
+        # from the materialized action history, while queue counts remain the
+        # fresh bounded snapshot collected above.
+        action_history_by_repo: dict[str, list[dict[str, Any]]] = {}
+        for event in active_external:
+            if event.get("source_type") != "GITHUB_ACTION":
+                continue
+            repo = str(event.get("github_repo") or "")
+            if repo:
+                action_history_by_repo.setdefault(repo, []).append(event)
+        for event in active_external:
+            if event.get("source_type") != "GITHUB_ACTION_SUMMARY":
+                continue
+            repo = str(event.get("github_repo") or "")
+            rows = action_history_by_repo.get(repo, [])
+            conclusions = [
+                str(row.get("conclusion") or "").casefold()
+                for row in rows
+            ]
+            build_counts = {
+                "runs": len(rows),
+                "completed": sum(
+                    1 for row in rows
+                    if str(row.get("status") or "").casefold() == "completed"
+                ),
+                "success": conclusions.count("success"),
+                "failure": conclusions.count("failure"),
+                "cancelled": conclusions.count("cancelled"),
+                "other": sum(
+                    1 for value in conclusions
+                    if value not in {"success", "failure", "cancelled", ""}
+                ),
+            }
+            queue_counts = event.get("queue_counts")
+            if not isinstance(queue_counts, dict):
+                queue_counts = {}
+            event["build_counts"] = build_counts
+            event["title"] = (
+                f"GitHub actions {repo}: {build_counts['runs']} builds; "
+                f"queue {queue_counts.get('queued', 0)} queued/"
+                f"{queue_counts.get('in_progress', 0)} in progress/"
+                f"{queue_counts.get('pending', 0)} pending/"
+                f"{queue_counts.get('other_active', 0)} other active"
+            )
+            event["summary"] = (
+                f"completed={build_counts['completed']} "
+                f"success={build_counts['success']} "
+                f"failure={build_counts['failure']}; "
+                "bounded current queue snapshot; "
+                "build totals from materialized action history"
+            )
         historical_evidence_events = [event for event in merged_external if event.get("retain_history")]
         historical_evidence_events.sort(
             key=lambda event: (_dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), str(event.get("id") or "")),
@@ -1653,6 +1935,7 @@ def materialize(
             "mcp": mcp_coverage,
             "mcp_history": mcp_history_coverage,
             "runner_logs": runner_coverage,
+            "coordinator": coordinator_coverage,
         }
         saturated_sources = [
             name for name in source_names
@@ -2228,6 +2511,8 @@ def build_parser() -> argparse.ArgumentParser:
     refresh.add_argument("--repo-events", type=int, default=DEFAULT_REPO_EVENTS)
     refresh.add_argument("--artifact-events", type=int, default=DEFAULT_ARTIFACT_EVENTS)
     refresh.add_argument("--max-events", type=int, default=DEFAULT_MAX_EVENTS)
+    refresh.add_argument("--github-events", type=int, default=DEFAULT_GITHUB_EVENTS_PER_KIND)
+    refresh.add_argument("--runner-events", type=int, default=DEFAULT_RUNNER_LOG_EVENTS)
     refresh.add_argument("--no-github", action="store_true")
     refresh.add_argument("--rebuild", action="store_true", help="discard the materialized corpus and perform an explicit horizon backfill")
     refresh.add_argument("--quiet", action="store_true")
@@ -2256,6 +2541,8 @@ def main() -> int:
             artifact_events_limit=args.artifact_events,
             max_events=args.max_events,
             include_github=not args.no_github,
+            github_events_per_kind=args.github_events,
+            runner_events_limit=args.runner_events,
             rebuild=args.rebuild,
         )
         if not args.quiet:
