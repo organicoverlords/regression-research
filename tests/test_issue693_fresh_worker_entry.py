@@ -19,9 +19,10 @@ OUTSIDE_AI_AGENT_TERMS = (
     "provider-backed ai agent",
 )
 OUTSIDE_AI_AGENT_ACTIONS = ("launch", "run", "invoke", "use", "spawn", "delegate to", "route work to")
-OUTSIDE_AI_AGENT_NEGATIONS = ("do not", "don't", "never", "without", "forbid", "avoid")
+OUTSIDE_AI_AGENT_NEGATIONS = ("do not", "don't", "never", "not", "without", "forbid", "avoid")
 
 def proposes_outside_ai_agent(text):
+    text = " ".join(str(text).casefold().split())
     for term in OUTSIDE_AI_AGENT_TERMS:
         start = 0
         while True:
@@ -30,11 +31,17 @@ def proposes_outside_ai_agent(text):
                 break
             prefix = text[max(0, index - 64):index]
             recent = prefix[-40:]
-            recent_words = recent.replace(";", " ").replace(",", " ").replace(":", " ").split()
-            if any(negation in recent for negation in OUTSIDE_AI_AGENT_NEGATIONS) or "not" in recent_words:
-                start = index + len(term)
-                continue
-            if any(action in recent for action in OUTSIDE_AI_AGENT_ACTIONS) or recent.rstrip().endswith("via"):
+            latest_action = max(
+                ((recent.rfind(action), action) for action in OUTSIDE_AI_AGENT_ACTIONS),
+                default=(-1, ""),
+            )
+            if latest_action[0] >= 0:
+                before_action = recent[:latest_action[0]].rstrip()
+                if any(before_action.endswith(negation) for negation in OUTSIDE_AI_AGENT_NEGATIONS):
+                    start = index + len(term)
+                    continue
+                return True
+            if recent.rstrip().endswith("via"):
                 return True
             start = index + len(term)
     return False
@@ -240,6 +247,8 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
         self.assertIn("outside_ai_agent_launch_forbidden", evaluate_entry_action(self.hummingbird, action))
         self.assertFalse(proposes_outside_ai_agent("not use Codex CLI; stay in ChatGPT"))
         self.assertFalse(proposes_outside_ai_agent("we will not use OpenCode; use MCP/local tools instead"))
+        self.assertTrue(proposes_outside_ai_agent("not sure yet; use Codex CLI as a fresh worker"))
+        self.assertTrue(proposes_outside_ai_agent("do not wait; use Claude Code as a fresh worker"))
 
         bounded = (
             "Current WIP already covers the source change. Choose review/prove in this ChatGPT worker using MCP/local tools; "
