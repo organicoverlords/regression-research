@@ -1416,6 +1416,30 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("does not select them automatically", status)
         self.assertIn("WireGuard UDP 51820", resources)
 
+    def test_vps_edge_monitoring_is_discoverable_and_preserves_primary_recovery_semantics(self):
+        result = find_features("monitoring")[0]
+        self.assertEqual(result["id"], "mcp.edge_monitoring")
+        self.assertEqual(result["owner_components"], ["vps_edge_ingress"])
+        self.assertIn("healthy/primary_healthy", result["boundary"])
+        self.assertIn("recovery_available", result["boundary"])
+        self.assertIn("wireguard_handshake_age_seconds", result["boundary"])
+        self.assertTrue(any("edge-status" in item for item in result["entrypoints"]))
+
+    def test_vps_edge_observer_lists_freshness_fields_and_deployed_owners(self):
+        details = component_details("vps_edge_ingress")
+        status = " ".join(details["live_status"])
+        resources = " ".join(details["resources"])
+        self.assertIn("primary_backend_http=200", status)
+        self.assertIn("wireguard_handshake_age_seconds", status)
+        self.assertIn("wireguard_peer_fresh", status)
+        self.assertIn("0-180 seconds", status)
+        self.assertIn("fallback_3101_http through fallback_3104_http", status)
+        self.assertIn("McpVpsEdgeTunnel", status)
+        self.assertIn("mcp-edge-health.service", status)
+        self.assertIn("mcp-edge-health.timer", status)
+        self.assertIn("/usr/local/bin/mcp-edge-health", resources)
+        self.assertIn("/var/lib/mcp-edge/status.json", resources)
+
     def test_vps_edge_native_ssh_fallback_lane_classifies_as_transport(self):
         process = {
             "pid": 25428, "ppid": 1, "name": "ssh.exe",
