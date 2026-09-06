@@ -30,7 +30,12 @@ class VerifyTests(unittest.TestCase):
                 self.assertEqual(select_areas({path}), ["memory"])
 
     def test_issue693_entry_fixture_selects_stack_verification(self):
-        self.assertEqual(select_areas({"tests/test_issue693_fresh_worker_entry.py"}), ["stack"])
+        for path in (
+            "tests/test_issue693_fresh_worker_entry.py",
+            "tests/fixtures/issue693_fresh_worker_entry.json",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
 
     @patch("tools.verify.run")
     def test_stack_verification_executes_issue693_entry_fixture(self, run):

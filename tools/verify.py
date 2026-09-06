@@ -22,6 +22,7 @@ STACK_PATHS = {
     "tests/fixtures/stack-atlas-pid-29864.json",
     "tests/test_stack_atlas.py",
     "tests/test_issue693_fresh_worker_entry.py",
+    "tests/fixtures/issue693_fresh_worker_entry.json",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
     "tests/test_north_star_entry.py",
