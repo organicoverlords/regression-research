@@ -455,6 +455,7 @@ def github_events(
             })
             repo_cov["prs"]["events"] += 1
 
+        action_saturation_limit = limit_per_kind
         action_rows, err = _run_json([
             "gh", "run", "list", "--repo", slug, "--created", ">=" + since.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), "--limit", str(limit_per_kind),
             "--json", "databaseId,workflowName,status,conclusion,createdAt,updatedAt,headSha,headBranch,event,displayTitle,url",
@@ -469,6 +470,7 @@ def github_events(
             ])
             if isinstance(fallback_rows, list) and not fallback_err:
                 action_rows = fallback_rows
+                action_saturation_limit = fallback_limit
                 coverage["warnings"].append({
                     "repo": slug,
                     "source": "actions",
@@ -612,7 +614,7 @@ def github_events(
         })
         repo_cov["issues"]["saturated"] = isinstance(issue_rows, list) and len(issue_rows) >= limit_per_kind
         repo_cov["prs"]["saturated"] = isinstance(pr_rows, list) and len(pr_rows) >= limit_per_kind
-        repo_cov["actions"]["saturated"] = isinstance(action_rows, list) and len(action_rows) >= limit_per_kind
+        repo_cov["actions"]["saturated"] = isinstance(action_rows, list) and len(action_rows) >= action_saturation_limit
         repo_cov["limit_per_kind"] = limit_per_kind
         # Only historical delta sources control the GitHub watermark/retry state.
         # The queue is a current bounded orientation snapshot; its cap/error must

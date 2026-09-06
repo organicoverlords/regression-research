@@ -377,6 +377,33 @@ class TimelineMaterializerTests(unittest.TestCase):
         commands = [call.args[0] for call in run_json.call_args_list]
         self.assertEqual(commands[2][commands[2].index("--limit") + 1], "1000")
         self.assertEqual(commands[3][commands[3].index("--limit") + 1], "200")
+        repo = coverage["repos"]["organicoverlords/p3"]
+        self.assertFalse(repo["actions"]["saturated"])
+        self.assertNotIn("actions", repo["saturated_kinds"])
+
+
+    def test_github_actions_fallback_at_effective_cap_preserves_historical_retry(self):
+        spec = RepoSpec("p3", Path("C:/fake/p3"))
+        now = "2026-09-06T05:00:00Z"
+        fallback_limit = 200
+        runs = [{
+            "databaseId": index, "workflowName": "verify", "status": "completed", "conclusion": "success",
+            "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "main",
+            "event": "push", "displayTitle": f"fallback run {index}", "url": f"https://example/run/{index}",
+        } for index in range(fallback_limit)]
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
+            "tools.timeline_materializer._run_json",
+            side_effect=[([], None), ([], None), (None, "primary too large"), (runs, None), ([], None)],
+        ):
+            _, coverage = github_events(
+                [spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc), limit_per_kind=1000
+            )
+        repo = coverage["repos"]["organicoverlords/p3"]
+        self.assertTrue(repo["actions"]["saturated"])
+        self.assertIn("actions", repo["saturated_kinds"])
+        self.assertTrue(coverage["saturated"])
+        self.assertTrue(repo["queue"]["complete"])
+        self.assertNotIn("queue", repo["bounded_snapshot_kinds"])
 
     def test_queue_snapshot_cap_does_not_poison_historical_github_retry(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
