@@ -115,3 +115,24 @@ Vault commit `bb054f2` (`surface MCP recovery audit rules in bootstrap`) closes 
 - `Do not reuse the 2026-09-05 replacement procedure as a claimed zero-downtime production path until issue #99 is fixed and independently proven.`
 
 This means a fresh worker/session no longer has to discover those critical audit rules by manually opening the full freeze JSON. The rule already existed; the repair makes the existing bootstrap obey the existing audit hierarchy.
+
+## 21:07 EEST canonical replacement audit conclusion
+
+Read-only review of `chatgpt-mcp-clean` issue #99 and the current repo-owned replacement scripts establishes that the existing canonical WireGuard guardian already implements the expected redundant serving sequence:
+
+1. start the isolated replacement candidate on private WireGuard `10.203.0.2:3012`;
+2. verify the exact candidate from the VPS;
+3. switch the public edge to `3012`;
+4. verify public candidate health and Host behavior while `3011` is still intact;
+5. only then stop the canonical `McpV3Production3011` task and replace its runtime;
+6. start and verify the new canonical `3011` generation;
+7. switch the public edge back to canonical `3011`;
+8. drain the candidate.
+
+The candidate task itself explicitly permits only WireGuard port `3012`. During this incident that canonical path rejected the attempted reverse-SSH/pre-Sep-5 topology. That rejection was protection working as designed.
+
+The outage was caused after that rejection: the assistant created a separate reverse-SSH/backend guardian whose backend stage stopped the serving production task. In other words, the failure was not absence of 2x2 capacity, scripts, guards, or audits. It was bypassing the supported replacement architecture after it correctly refused an unsupported topology.
+
+No additional guard framework is required by this finding. The existing operational consequence is: when the canonical replacement path cannot represent the requested topology, that lane is not a live-cutover path; do not manufacture a serving-path stop procedure to force the change.
+
+Issue #99 remains OPEN because its remaining acceptance is separately authorized live zero-public-gap proof. This RED incident does not authorize that live acceptance run and does not claim #99 is closed/proven.
