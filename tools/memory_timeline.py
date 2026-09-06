@@ -26,6 +26,15 @@ _RED_SIGNAL_RE = re.compile(r"\bred[ _-]?(?:alert|critical)\b", re.I)
 _REGRESSION_SIGNAL_RE = re.compile(r"\b(?:regression|recurrence|failure|failed|broken|premature)\b", re.I)
 _SIGNAL_ORDER = ("red_alert", "slopwall", "security_incident", "incident", "regression")
 
+TIMELINE_NARRATIVE_CONTRACT = {
+    "primary_unit": "CONTINUITY_CASE",
+    "answer_order": ["CONTINUITY_CASES", "WORK_GRAPH", "EVIDENCE_DENSITY", "CONTEXT_ONLY_CORROBORATION"],
+    "observation_counts": "EVIDENCE_DENSITY_NOT_CASE_COUNT",
+    "broad_github_anchors": "CONTEXT_ONLY_NEVER_CASE_IDENTITY",
+    "context_wording": "DO_NOT_CALL_CONTEXT_ONLY_ANCHOR_THE_CASE_OR_THREAD",
+    "causality": "SEQUENCE_OR_CORROBORATION_DOES_NOT_PROVE_CAUSE",
+}
+
 VAGUE_WORDS = {
     "a", "an", "and", "are", "back", "did", "error", "again", "happened", "is", "it", "my", "omg",
     "same", "the", "this", "that", "what", "why", "with", "wrong", "problem", "issue", "broken", "failed",
@@ -562,10 +571,16 @@ def build_timeline_snapshots(
         anchor_groups: dict[str, dict[str, Any]] = {}
         for event in cumulative:
             family = _event_source_family(event)
+            strong_case_anchors = set(_case_anchors(event))
             for anchor in _event_anchors(event):
-                group = anchor_groups.setdefault(anchor, {"families": set(), "event_ids": set(), "latest_at": None})
+                group = anchor_groups.setdefault(anchor, {
+                    "families": set(), "event_ids": set(), "case_identity_events": set(), "latest_at": None,
+                })
                 group["families"].add(family)
-                group["event_ids"].add(str(event.get("id") or ""))
+                event_id = str(event.get("id") or "")
+                group["event_ids"].add(event_id)
+                if anchor in strong_case_anchors:
+                    group["case_identity_events"].add(event_id)
                 stamp = str(event.get("event_at") or "")
                 if group["latest_at"] is None or (_safe_dt(stamp) and _safe_dt(group["latest_at"]) and _dt(stamp) > _dt(group["latest_at"])):
                     group["latest_at"] = stamp
@@ -574,6 +589,8 @@ def build_timeline_snapshots(
                 "anchor": anchor,
                 "source_families": sorted(group["families"]),
                 "event_count": len(group["event_ids"]),
+                "case_identity": bool(group["case_identity_events"]),
+                "role": "CASE_LINK_SUPPORT" if group["case_identity_events"] else "CONTEXT_ONLY",
             }
             for anchor, group in anchor_groups.items()
             if len(group["families"]) >= 2
@@ -596,7 +613,8 @@ def build_timeline_snapshots(
         })
     return {
         "authority": "DERIVED_HISTORY_ONLY",
-        "contract": "multi-source chronology snapshot; source diversity is corroboration evidence, not independent witness proof, current-state authority, or causal inference",
+        "narrative_contract": dict(TIMELINE_NARRATIVE_CONTRACT),
+        "contract": "multi-source chronology snapshot; continuity cases are the primary incident unit; observation volume is evidence density; source diversity is corroboration evidence, not independent witness proof, current-state authority, case identity, or causal inference",
         "as_of": now.isoformat(),
         "windows": windows,
     }
@@ -904,7 +922,8 @@ def build_timeline(
             "artifact_history": "Git-tracked reports, evidence, logs, screenshots, proofs, fixtures, contracts, and transcripts are preserved artifact history; untracked WIP is not promoted into durable history",
             "continuity_cases": "report/log/screenshot/memory/commit describe evidence form; incident/regression/slopwall/security describe case traits; RED is severity; strong explicit anchors join observations into one case while broad GitHub issue refs remain corroboration-only",
             "classification": "structured memory tags/classification, worker finding tags, provenance incident IDs/evidence types, and explicit anchors outrank legacy text inference; legacy fallback is labeled",
-            "corroboration": "snapshot source diversity can strengthen orientation but never turns repetition into authority or proves causality",
+            "corroboration": "snapshot source diversity can strengthen orientation but never turns repetition into authority or proves causality; broad GitHub anchors are context-only and must never be narrated as the case/thread itself",
+            "narrative_order": "continuity cases first, work graph second, observation/evidence density third, context-only corroboration last",
         },
         "view": view,
         "project": project_key,

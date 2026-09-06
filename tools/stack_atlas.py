@@ -1368,16 +1368,17 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
             highlights.append(compact)
             if len(highlights) >= highlight_limit:
                 break
-        corroborated = []
+        context_only = []
         for item in window.get("corroborated_anchors", []) if isinstance(window.get("corroborated_anchors"), list) else []:
-            if not isinstance(item, dict):
+            if not isinstance(item, dict) or item.get("role") != "CONTEXT_ONLY":
                 continue
-            corroborated.append({
+            context_only.append({
                 "anchor": item.get("anchor"),
                 "sources": item.get("source_families"),
-                "events": item.get("event_count"),
+                "observations": item.get("event_count"),
+                "role": "CONTEXT_ONLY",
             })
-            if len(corroborated) >= 2:
+            if len(context_only) >= 2:
                 break
         source_counts = {
             source_names.get(str(name), str(name).casefold()): count
@@ -1406,15 +1407,15 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         windows.append({
             key: value for key, value in {
                 "window": label,
-                "events": window.get("event_count"),
-                "sources": source_counts,
-                "artifacts": window.get("artifact_counts"),
-                "signal_observations": compact_signal_summary(window.get("signal_observation_summary")),
                 "cases": compact_signal_summary(window.get("continuity_case_summary")),
                 "case_examples": cases,
+                "evidence_density": compact_signal_summary(window.get("signal_observation_summary")),
+                "context_only": context_only,
+                "observations": window.get("event_count"),
+                "sources": source_counts,
+                "artifacts": window.get("artifact_counts"),
                 "slice": window.get("slice"),
-                "slice_events": window.get("slice_event_count"),
-                "corroboration": corroborated,
+                "slice_observations": window.get("slice_event_count"),
                 "highlights": highlights,
             }.items() if value not in (None, {}, [], "")
         })
@@ -1437,10 +1438,18 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         "cases": compact_signal_summary(memory_history.get("continuity_case_summary")),
     }
     compact_memory_history = {key: value for key, value in compact_memory_history.items() if value not in (None, {}, [], "")}
+    narrative = raw.get("narrative_contract") if isinstance(raw.get("narrative_contract"), dict) else {}
+    compact_narrative = {
+        "primary": "cases",
+        "read_order": "cases>work_graph>evidence_density>context_only",
+        "observations": "density_not_cases",
+        "github_anchors": "context_only",
+    } if narrative else {}
     return {
         "authority": raw.get("authority"),
-        "coverage": compact_coverage,
+        "narrative": compact_narrative,
         "memory_history": compact_memory_history,
+        "coverage": compact_coverage,
         "windows": windows,
     }
 
@@ -1463,7 +1472,7 @@ def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int)
             highlights.pop()
     for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
         item = by_label.get(label)
-        anchors = item.get("corroboration") if isinstance(item, dict) else None
+        anchors = item.get("context_only") if isinstance(item, dict) else None
         while isinstance(anchors, list) and len(anchors) > floor and _compact_json_bytes(overview) > budget:
             anchors.pop()
     for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
@@ -1476,7 +1485,7 @@ def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int)
     for label in ("7d", "3d"):
         item = by_label.get(label)
         if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-            item.pop("signal_observations", None)
+            item.pop("evidence_density", None)
     for label in ("7d", "3d"):
         item = by_label.get(label)
         highlights = item.get("highlights") if isinstance(item, dict) else None
@@ -1583,7 +1592,7 @@ def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTS
             for window in snapshots.get("windows", []) if isinstance(snapshots.get("windows"), list) else []:
                 if isinstance(window, dict):
                     window.pop("highlights", None)
-                    window.pop("corroboration", None)
+                    window.pop("context_only", None)
                     if _compact_json_bytes(bounded) <= budget:
                         break
     return bounded

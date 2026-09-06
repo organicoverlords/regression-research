@@ -228,7 +228,12 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(windows["24h"]["event_count"], 2)
         self.assertEqual(windows["24h"]["source_counts"], {"GIT_COMMIT": 1, "VAULT_MEMORY": 1})
         self.assertEqual([item["id"] for item in windows["24h"]["highlights"]], ["git:vault:abc", "mem"])
-        self.assertIn("github:organicoverlords/regression-research#125", {item["anchor"] for item in windows["24h"]["corroborated_anchors"]})
+        gh_context = next(item for item in windows["24h"]["corroborated_anchors"] if item["anchor"] == "github:organicoverlords/regression-research#125")
+        self.assertEqual(gh_context["role"], "CONTEXT_ONLY")
+        self.assertFalse(gh_context["case_identity"])
+        self.assertEqual(report["snapshots"]["narrative_contract"]["primary_unit"], "CONTINUITY_CASE")
+        self.assertEqual(report["snapshots"]["narrative_contract"]["answer_order"][0], "CONTINUITY_CASES")
+        self.assertEqual(report["snapshots"]["narrative_contract"]["broad_github_anchors"], "CONTEXT_ONLY_NEVER_CASE_IDENTITY")
 
         self.assertEqual(windows["3d"]["event_count"], 3)
         self.assertEqual(windows["3d"]["slice"], "24h-72h")
@@ -238,8 +243,10 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(windows["7d"]["event_count"], 5)
         self.assertEqual(windows["7d"]["slice"], "72h-168h")
         self.assertEqual({item["id"] for item in windows["7d"]["highlights"]}, {"worker:proof", "artifact:proof"})
-        self.assertIn("artifact:02 evidence/proof.png", {item["anchor"] for item in windows["7d"]["corroborated_anchors"]})
-        self.assertIn("source diversity", report["snapshots"]["contract"])
+        proof_link = next(item for item in windows["7d"]["corroborated_anchors"] if item["anchor"] == "artifact:02 evidence/proof.png")
+        self.assertEqual(proof_link["role"], "CASE_LINK_SUPPORT")
+        self.assertTrue(proof_link["case_identity"])
+        self.assertIn("continuity cases are the primary incident unit", report["snapshots"]["contract"])
 
     def test_continuity_case_unifies_red_memory_report_and_screenshot_by_strong_anchors(self):
         now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
@@ -302,7 +309,10 @@ class MemoryTimelineTests(unittest.TestCase):
         window = result["snapshots"]["windows"][0]
         self.assertEqual(window["continuity_case_summary"]["red"], 2)
         self.assertEqual({case["case_id"] for case in window["continuity_cases"]}, {"thread:case-a", "thread:case-b"})
-        self.assertIn("github:organicoverlords/regression-research#125", {item["anchor"] for item in window["corroborated_anchors"]})
+        anchor = next(item for item in window["corroborated_anchors"] if item["anchor"] == "github:organicoverlords/regression-research#125")
+        self.assertEqual(anchor["role"], "CONTEXT_ONLY")
+        self.assertFalse(anchor["case_identity"])
+        self.assertEqual(result["snapshots"]["narrative_contract"]["context_wording"], "DO_NOT_CALL_CONTEXT_ONLY_ANCHOR_THE_CASE_OR_THREAD")
 
     def test_incidental_body_word_does_not_override_structured_non_incident_metadata(self):
         now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
