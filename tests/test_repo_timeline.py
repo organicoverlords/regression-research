@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -5,7 +6,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
-from tools.repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, git_commit_events, parse_repo_arg
+from tools.repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, git_commit_events, parse_repo_arg, tracked_artifact_events
 
 
 class RepoTimelineTests(unittest.TestCase):
@@ -68,6 +69,57 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0]["sha"], newest)
 
+    def test_tracked_artifact_events_project_reports_logs_screenshots_and_provenance(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = self.make_repo(Path(d))
+            report = repo / "01 Reports" / "2026-09-04_INC-20260904-TEST_incident_report.md"
+            screenshot = repo / "02 Evidence" / "2026-09-04_binding.png"
+            log = repo / "02 Evidence" / "routing-events.jsonl"
+            for path, content in ((report, "incident"), (screenshot, "png"), (log, "{}\n")):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+            (repo / "provenance.json").write_text(json.dumps({
+                "entries": [{
+                    "incident_id": "INC-20260904-TEST",
+                    "report_path": "01 Reports/2026-09-04_INC-20260904-TEST_incident_report.md",
+                    "title": "Binding incident",
+                    "evidence_type": "evidence_bounded_incident_report",
+                    "raw_transcripts": [],
+                    "evidence_files": ["02 Evidence/2026-09-04_binding.png", "02 Evidence/routing-events.jsonl"],
+                    "contract_snapshots": [],
+                }]
+            }), encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+            env = dict(os.environ, GIT_AUTHOR_DATE="2026-09-04T22:03:00+03:00", GIT_COMMITTER_DATE="2026-09-04T22:03:00+03:00")
+            subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "preserve binding evidence (#511)"], check=True, env=env)
+
+            events = tracked_artifact_events(repo, limit=20)
+            by_path = {event["path"]: event for event in events}
+            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["artifact_type"], "report")
+            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["incident_id"], "INC-20260904-TEST")
+            self.assertIn("incident", by_path[report.relative_to(repo).as_posix()]["evidence_type"])
+            self.assertEqual(by_path[screenshot.relative_to(repo).as_posix()]["artifact_type"], "screenshot")
+            self.assertEqual(by_path[log.relative_to(repo).as_posix()]["artifact_type"], "evidence_log")
+            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["title"], "report: Binding incident")
+            self.assertIn("incident:inc-20260904-test", by_path[screenshot.relative_to(repo).as_posix()]["anchors"])
+            self.assertIn("artifact:02 evidence/2026-09-04_binding.png", by_path[screenshot.relative_to(repo).as_posix()]["anchors"])
+            self.assertEqual(by_path[screenshot.relative_to(repo).as_posix()]["authority"], "PRESERVED_REPO_ARTIFACT_HISTORY")
+
+    def test_tracked_artifact_events_ignore_untracked_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = self.make_repo(Path(d))
+            tracked = repo / "01 Reports" / "tracked.md"
+            tracked.parent.mkdir(parents=True, exist_ok=True)
+            tracked.write_text("tracked", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "tracked report"], check=True)
+            untracked = repo / "02 Evidence" / "untracked.log"
+            untracked.parent.mkdir(parents=True, exist_ok=True)
+            untracked.write_text("wip", encoding="utf-8")
+            paths = {event["path"] for event in tracked_artifact_events(repo, limit=20)}
+            self.assertIn("01 Reports/tracked.md", paths)
+            self.assertNotIn("02 Evidence/untracked.log", paths)
+
     def test_repo_timeline_owns_product_roots_without_importing_stack_atlas(self):
         import tools.repo_timeline as repo_timeline
         import tools.stack_atlas as stack_atlas
@@ -97,7 +149,8 @@ class RepoTimelineTests(unittest.TestCase):
             history = collect_repo_history([RepoSpec("lowvram", repo)], limit_per_repo=5)
             self.assertEqual(history["events"][0]["sha"], sha)
             self.assertEqual(history["events"][0]["refs"], ["#42"])
-            self.assertEqual(history["contract"], "local Git history only; no network fetch and no memory authority")
+            self.assertIn("local Git history only; no network fetch and no memory authority", history["contract"])
+            self.assertFalse(history["coverage"]["lowvram"]["saturated"])
 
     def test_missing_repo_degrades_without_blocking_other_repos(self):
         with tempfile.TemporaryDirectory() as d:

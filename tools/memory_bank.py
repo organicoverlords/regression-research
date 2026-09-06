@@ -6,7 +6,7 @@ import json
 import re
 import secrets
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ try:
     from .memory_lifecycle import is_expired, parse_expiry
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
-    from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
+    from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
@@ -24,7 +24,7 @@ except ImportError:
     from memory_lifecycle import is_expired, parse_expiry
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
-    from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg
+    from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
     from worker_report_history import worker_history_events
 
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
@@ -33,6 +33,7 @@ REQUIRED = {"id", "timestamp", "kind", "scope", "tags", "text", "state", "eviden
 DEFAULT_BANK = Path(__file__).resolve().parents[1] / "memory" / "memory-bank.jsonl"
 DEFAULT_SOURCES = Path(__file__).resolve().parents[1] / "memory" / "sources.json"
 DEFAULT_WORKER_HISTORY = Path(__file__).resolve().parents[1] / "worker-reports" / "history"
+DEFAULT_MANUAL_WORKER_HISTORY = Path(__file__).resolve().parents[1] / "worker-reports" / "manual" / "history"
 DEFAULT_TIMED_WORKER_METRICS = Path(__file__).resolve().parents[1] / "worker-reports" / "metrics.json"
 DEFAULT_MANUAL_WORKER_METRICS = Path(__file__).resolve().parents[1] / "worker-reports" / "manual" / "metrics.json"
 MAX_WORKER_FINDING_CHARS = 320
@@ -463,6 +464,42 @@ def worker_findings_overview(
     }
 
 
+def _canonical_timeline_sources(
+    *,
+    now: datetime | None = None,
+    days: int = 7,
+    repo_events_per_repo: int = 100,
+    artifact_events_limit: int = 240,
+) -> dict[str, Any]:
+    """Collect bounded local evidence streams for the canonical Vault timeline."""
+    now = now or datetime.now().astimezone()
+    since = now - timedelta(days=max(1, int(days)))
+    vault_root = Path(__file__).resolve().parents[1]
+    specs = discover_repo_specs(vault_root=vault_root)
+    repo_report = collect_repo_history(specs, limit_per_repo=repo_events_per_repo, since=since)
+    repo_events = repo_report["events"]
+    worker_events: list[dict[str, Any]] = []
+    for history_root in (DEFAULT_WORKER_HISTORY, DEFAULT_MANUAL_WORKER_HISTORY):
+        worker_events.extend(worker_history_events(history_root))
+    artifact_events = tracked_artifact_events(vault_root, limit=artifact_events_limit, since=since)
+    return {
+        "now": now,
+        "since": since,
+        "repo_events": repo_events,
+        "worker_events": worker_events,
+        "artifact_events": artifact_events,
+        "source_coverage": {
+            "repos": repo_report.get("coverage", {}),
+            "artifacts": {
+                "events": len(artifact_events),
+                "limit": artifact_events_limit,
+                "saturated": len(artifact_events) >= artifact_events_limit,
+            },
+            "workers": {"bounded": False},
+        },
+    }
+
+
 def build_overview(
     entries: list[dict[str, Any]],
     *,
@@ -470,6 +507,7 @@ def build_overview(
     timed_metrics: Path = DEFAULT_TIMED_WORKER_METRICS,
     manual_metrics: Path = DEFAULT_MANUAL_WORKER_METRICS,
     now: datetime | None = None,
+    include_timeline_snapshots: bool = False,
 ) -> dict[str, Any]:
     overview = aggregate_memory(entries, limit=limit)
     overview["worker_findings"] = worker_findings_overview(
@@ -478,6 +516,27 @@ def build_overview(
         limit=min(3, max(0, limit)),
         now=now,
     )
+    if include_timeline_snapshots:
+        sources = _canonical_timeline_sources(now=now, days=7)
+        timeline = build_timeline(
+            entries,
+            limit=50,
+            since=sources["since"],
+            repo_events=sources["repo_events"],
+            worker_events=sources["worker_events"],
+            artifact_events=sources["artifact_events"],
+            snapshot_now=sources["now"],
+            source_coverage=sources["source_coverage"],
+        )
+        overview["timeline_snapshots"] = timeline["snapshots"]
+        overview["timeline_source_health"] = {
+            "matching_events": timeline["matching_events"],
+            "memory_events": timeline["memory_events"],
+            "repo_events": timeline["repo_events"],
+            "worker_events": timeline["worker_events"],
+            "artifact_events": timeline["artifact_events"],
+            "invalid_source_events": timeline["invalid_source_events"],
+        }
     return overview
 
 def load_source_registry(path: Path = DEFAULT_SOURCES) -> dict[str, Any]:
@@ -797,11 +856,15 @@ def _main() -> int:
     timeline_cmd.add_argument("--project")
     timeline_cmd.add_argument("--thread")
     timeline_cmd.add_argument("--limit", type=int, default=20)
-    timeline_cmd.add_argument("--with-repos", action="store_true", help="merge read-only local Git commit events into general/project views")
+    timeline_cmd.add_argument("--with-repos", action="store_true", help="merge read-only local all-branch Git commit/ref events")
+    timeline_cmd.add_argument("--with-artifacts", action="store_true", help="merge Git-tracked reports/evidence/logs/screenshots/proofs/fixtures/contracts/transcripts")
+    timeline_cmd.add_argument("--with-all", action="store_true", help="merge all canonical local timeline sources (repos + artifacts + timed/manual workers)")
+    timeline_cmd.add_argument("--days", type=int, help="limit source collection and timeline events to the last N days")
     timeline_cmd.add_argument("--repo-events", type=int, default=20)
+    timeline_cmd.add_argument("--artifact-events", type=int, default=120)
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
-    timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="immutable worker-report history root")
-    timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude worker-report history")
+    timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="additional immutable worker-report history root")
+    timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude timed/manual worker-report history")
 
     overview = sub.add_parser("overview", aliases=["digest"], help="aggregate recent durable Vault memory into a bounded query-free digest")
     overview.add_argument("--limit", type=int, default=8)
@@ -846,17 +909,43 @@ def _main() -> int:
             _print_json(entry)
             return 0
         if args.command == "timeline":
-            repo_events = []
-            if args.with_repos:
+            now = datetime.now().astimezone()
+            if args.days is not None and args.days < 0:
+                raise BankError("--days must be non-negative")
+            since = now - timedelta(days=args.days) if args.days is not None else None
+            vault_root = Path(__file__).resolve().parents[1]
+            repo_events: list[dict[str, Any]] = []
+            repo_coverage: dict[str, Any] = {}
+            if args.with_repos or args.with_all:
                 specs = [parse_repo_arg(value) for value in args.repo]
                 if not specs:
-                    vault_root = Path(__file__).resolve().parents[1]
                     specs = discover_repo_specs(vault_root=vault_root)
-                repo_events = collect_repo_history(specs, limit_per_repo=args.repo_events)["events"]
-            worker_events = [] if args.no_workers else worker_history_events(args.worker_history)
+                repo_report = collect_repo_history(specs, limit_per_repo=args.repo_events, since=since)
+                repo_events = repo_report["events"]
+                repo_coverage = repo_report.get("coverage", {})
+            artifact_events: list[dict[str, Any]] = []
+            if args.with_artifacts or args.with_all:
+                artifact_events = tracked_artifact_events(vault_root, limit=args.artifact_events, since=since)
+            worker_events: list[dict[str, Any]] = []
+            if not args.no_workers:
+                roots = [DEFAULT_WORKER_HISTORY, DEFAULT_MANUAL_WORKER_HISTORY]
+                if args.worker_history not in roots:
+                    roots.append(args.worker_history)
+                for history_root in roots:
+                    worker_events.extend(worker_history_events(history_root))
             report = build_timeline(
                 entries, view=args.view, project=args.project, query=args.query, thread=args.thread,
-                limit=args.limit, repo_events=repo_events, worker_events=worker_events,
+                limit=args.limit, since=since, repo_events=repo_events, worker_events=worker_events,
+                artifact_events=artifact_events, snapshot_now=now,
+                source_coverage={
+                    "repos": repo_coverage,
+                    "artifacts": {
+                        "events": len(artifact_events),
+                        "limit": args.artifact_events,
+                        "saturated": bool((args.with_artifacts or args.with_all) and len(artifact_events) >= args.artifact_events),
+                    },
+                    "workers": {"bounded": False, "included": not args.no_workers},
+                },
             )
             _print_json(report)
             return 0

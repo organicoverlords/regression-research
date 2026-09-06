@@ -39,7 +39,7 @@ BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
-BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_500
+BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
@@ -1284,6 +1284,190 @@ def _clip_bootstrap_text(value: Any, limit: int) -> Any:
     return value[: limit - 3] + "..."
 
 
+def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
+    raw = report.get("timeline_snapshots")
+    if not isinstance(raw, dict):
+        return {}
+    source_names = {
+        "VAULT_MEMORY": "memory",
+        "GIT_COMMIT": "repo",
+        "WORKER_REPORT": "worker",
+        "TRACKED_ARTIFACT": "artifact",
+    }
+
+    def short_at(value: Any) -> Any:
+        text = str(value or "")
+        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", text)
+        return f"{match.group(1)} {match.group(2)}" if match else value
+
+    def compact_signal_summary(value: Any, *, keep_total: bool = True) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        keys = ["red", "slopwall", "incident", "regression", "security_incident"]
+        if keep_total:
+            keys.insert(0, "total")
+        return {key: value.get(key) for key in keys if value.get(key) not in (None, 0)}
+
+    windows: list[dict[str, Any]] = []
+    for window in raw.get("windows", []) if isinstance(raw.get("windows"), list) else []:
+        if not isinstance(window, dict):
+            continue
+        label = str(window.get("window") or "")
+        highlight_limit = 6 if label == "24h" else 2
+        highlights: list[dict[str, Any]] = []
+        for item in window.get("highlights", []) if isinstance(window.get("highlights"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            compact = {
+                "at": short_at(item.get("event_at")),
+                "source": source_names.get(str(item.get("source_type") or ""), str(item.get("source_type") or "other").casefold()),
+                "title": _clip_bootstrap_text(item.get("title"), 96),
+            }
+            if item.get("project") not in (None, "", []):
+                compact["project"] = item.get("project")
+            if item.get("artifact_type") not in (None, "", []):
+                compact["artifact"] = item.get("artifact_type")
+            if item.get("severity") == "RED":
+                compact["severity"] = "RED"
+            if item.get("traits"):
+                compact["traits"] = item.get("traits")
+            if item.get("legacy_inferred"):
+                compact["legacy"] = True
+            if item.get("short_sha") not in (None, "", []):
+                compact["sha"] = item.get("short_sha")
+            highlights.append(compact)
+            if len(highlights) >= highlight_limit:
+                break
+        corroborated = []
+        for item in window.get("corroborated_anchors", []) if isinstance(window.get("corroborated_anchors"), list) else []:
+            if not isinstance(item, dict):
+                continue
+            corroborated.append({
+                "anchor": item.get("anchor"),
+                "sources": item.get("source_families"),
+                "events": item.get("event_count"),
+            })
+            if len(corroborated) >= 2:
+                break
+        source_counts = {
+            source_names.get(str(name), str(name).casefold()): count
+            for name, count in (window.get("source_counts") or {}).items()
+        } if isinstance(window.get("source_counts"), dict) else {}
+        cases: list[dict[str, Any]] = []
+        case_limit = 3 if label == "24h" else 1
+        for case in window.get("continuity_cases", []) if isinstance(window.get("continuity_cases"), list) else []:
+            if not isinstance(case, dict):
+                continue
+            cases.append({
+                key: value for key, value in {
+                    "id": _clip_bootstrap_text(case.get("case_id"), 120),
+                    "severity": case.get("severity") if case.get("severity") == "RED" else None,
+                    "traits": case.get("traits"),
+                    "observations": case.get("observation_count"),
+                    "sources": case.get("source_families"),
+                    "forms": case.get("evidence_forms"),
+                    "at": short_at(case.get("latest_signal_at")),
+                    "title": _clip_bootstrap_text(case.get("latest_title"), 96),
+                    "legacy": True if case.get("legacy_inferred") else None,
+                }.items() if value not in (None, {}, [], "")
+            })
+            if len(cases) >= case_limit:
+                break
+        windows.append({
+            key: value for key, value in {
+                "window": label,
+                "events": window.get("event_count"),
+                "sources": source_counts,
+                "artifacts": window.get("artifact_counts"),
+                "signal_observations": compact_signal_summary(window.get("signal_observation_summary")),
+                "cases": compact_signal_summary(window.get("continuity_case_summary")),
+                "case_examples": cases,
+                "slice": window.get("slice"),
+                "slice_events": window.get("slice_event_count"),
+                "corroboration": corroborated,
+                "highlights": highlights,
+            }.items() if value not in (None, {}, [], "")
+        })
+    coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
+    repo_coverage = coverage.get("repos") if isinstance(coverage.get("repos"), dict) else {}
+    compact_coverage = {
+        "repo_saturated": sorted(
+            name for name, item in repo_coverage.items()
+            if isinstance(item, dict) and item.get("saturated")
+        ),
+        "artifacts_saturated": bool(
+            isinstance(coverage.get("artifacts"), dict) and coverage["artifacts"].get("saturated")
+        ),
+        "workers_bounded": (coverage.get("workers") or {}).get("bounded") if isinstance(coverage.get("workers"), dict) else None,
+    }
+    compact_coverage = {key: value for key, value in compact_coverage.items() if value not in (None, [], {})}
+    memory_history = raw.get("preserved_memory_history") if isinstance(raw.get("preserved_memory_history"), dict) else {}
+    compact_memory_history = {
+        "red_observations": memory_history.get("red_observations"),
+        "cases": compact_signal_summary(memory_history.get("continuity_case_summary")),
+    }
+    compact_memory_history = {key: value for key, value in compact_memory_history.items() if value not in (None, {}, [], "")}
+    return {
+        "authority": raw.get("authority"),
+        "coverage": compact_coverage,
+        "memory_history": compact_memory_history,
+        "windows": windows,
+    }
+
+
+def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int) -> None:
+    snapshots = overview.get("timeline_snapshots")
+    if not isinstance(snapshots, dict):
+        return
+    windows = snapshots.get("windows")
+    if not isinstance(windows, list):
+        return
+    by_label = {str(item.get("window") or ""): item for item in windows if isinstance(item, dict)}
+
+    # Corroboration counts/anchors matter more than long highlight lists. Trim older
+    # window examples first; the 24h window is deliberately the richest startup view.
+    for label, floor in (("7d", 1), ("3d", 1), ("24h", 5)):
+        item = by_label.get(label)
+        highlights = item.get("highlights") if isinstance(item, dict) else None
+        while isinstance(highlights, list) and len(highlights) > floor and _compact_json_bytes(overview) > budget:
+            highlights.pop()
+    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
+        item = by_label.get(label)
+        anchors = item.get("corroboration") if isinstance(item, dict) else None
+        while isinstance(anchors, list) and len(anchors) > floor and _compact_json_bytes(overview) > budget:
+            anchors.pop()
+    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
+        item = by_label.get(label)
+        cases = item.get("case_examples") if isinstance(item, dict) else None
+        while isinstance(cases, list) and len(cases) > floor and _compact_json_bytes(overview) > budget:
+            cases.pop()
+    # Older cumulative windows already retain canonical case counts. Their raw signal
+    # observation counters yield before concrete examples do.
+    for label in ("7d", "3d"):
+        item = by_label.get(label)
+        if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
+            item.pop("signal_observations", None)
+    for label in ("7d", "3d"):
+        item = by_label.get(label)
+        highlights = item.get("highlights") if isinstance(item, dict) else None
+        while isinstance(highlights, list) and len(highlights) > 1 and _compact_json_bytes(overview) > budget:
+            highlights.pop()
+    item = by_label.get("24h")
+    highlights = item.get("highlights") if isinstance(item, dict) else None
+    while isinstance(highlights, list) and len(highlights) > 4 and _compact_json_bytes(overview) > budget:
+        highlights.pop()
+    # Pathological fallback: only after counters/case examples have yielded.
+    for label in ("7d", "3d"):
+        item = by_label.get(label)
+        highlights = item.get("highlights") if isinstance(item, dict) else None
+        while isinstance(highlights, list) and highlights and _compact_json_bytes(overview) > budget:
+            highlights.pop()
+    item = by_label.get("24h")
+    highlights = item.get("highlights") if isinstance(item, dict) else None
+    while isinstance(highlights, list) and len(highlights) > 2 and _compact_json_bytes(overview) > budget:
+        highlights.pop()
+
+
 def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES) -> dict[str, Any]:
     """Bound bootstrap memory orientation by bytes, preserving highest-value lineage context first."""
     budget = max(256, int(max_bytes))
@@ -1326,6 +1510,19 @@ def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTS
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
+    # Timeline snapshots are now the primary continuity surface. Generic project/tag
+    # summaries and duplicated recent titles yield before the emphasized 24h snapshot.
+    for key in ("projects", "recurring_tags", "recent"):
+        if _compact_json_bytes(bounded) <= budget:
+            break
+        bounded[key] = []
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    _shrink_timeline_snapshots_for_budget(bounded, budget)
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
     # Pathological long strings must not defeat the hard startup bound.
     for rollup in rollups:
         if not isinstance(rollup, dict):
@@ -1348,6 +1545,17 @@ def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTS
         if _compact_json_bytes(bounded) <= budget:
             break
         bounded[key] = []
+    if _compact_json_bytes(bounded) > budget:
+        _shrink_timeline_snapshots_for_budget(bounded, budget)
+    if _compact_json_bytes(bounded) > budget:
+        snapshots = bounded.get("timeline_snapshots")
+        if isinstance(snapshots, dict):
+            for window in snapshots.get("windows", []) if isinstance(snapshots.get("windows"), list) else []:
+                if isinstance(window, dict):
+                    window.pop("highlights", None)
+                    window.pop("corroboration", None)
+                    if _compact_json_bytes(bounded) <= budget:
+                        break
     return bounded
 
 
@@ -1364,6 +1572,7 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
     overview = {
         "contract": report.get("contract"),
         "eligible_entries": report.get("eligible_entries", 0),
+        "timeline_snapshots": _compact_timeline_snapshots(report),
         "incident_rollups": compact_rollups,
         "recent": recent,
         "projects": report.get("projects", [])[:effective_limit],
@@ -1381,7 +1590,9 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
         from tools.memory_bank import build_overview, load_bank
     except ImportError:
         from memory_bank import build_overview, load_bank
-    report = build_overview(load_bank(), limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT)
+    report = build_overview(
+        load_bank(), limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, include_timeline_snapshots=True
+    )
     overview = _compact_memory_overview(report, BOOTSTRAP_MEMORY_TITLE_LIMIT)
     _bootstrap_cache_write("memory-overview.json", {"overview": overview})
     return overview
