@@ -895,10 +895,13 @@ def _bootstrap_manual_sanity() -> dict[str, Any]:
         "boundary_at": sanity.get("boundary_at"),
         "status": sanity.get("status"),
         "score_delta": sanity.get("score_delta"),
+        "descriptive_delta": sanity.get("descriptive_delta"),
         "direction": sanity.get("direction"),
         "post_run_count": sanity.get("post_run_count"),
         "minimum_post_runs_for_provisional": sanity.get("minimum_post_runs_for_provisional"),
         "minimum_post_runs_for_comparable": sanity.get("minimum_post_runs_for_comparable"),
+        "axes": sanity.get("axes", {}),
+        "guardrails": sanity.get("guardrails", {}),
         "components": sanity.get("components", {}),
         "semantics": sanity.get("semantics"),
     }

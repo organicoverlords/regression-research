@@ -1,5 +1,5 @@
 {
-  "schema": "manual-worker-sanity-baseline.v1",
+  "schema": "manual-worker-sanity-baseline.v2",
   "baseline_id": "2026-09-06-insanity-point-pr658",
   "label": "2026-09-06 manual-worker insanity point",
   "boundary_at": "2026-09-06T21:26:41+03:00",
@@ -13,13 +13,8 @@
     "mean_transcript_fields": 3.42,
     "self_reported_lifecycle_anomaly_pct": 16.67,
     "micro_run_lt2_pct": 14.58,
-    "median_tool_interval_minutes_guardrail": 9.38
-  },
-  "weights": {
-    "median_report_bytes": 35.0,
-    "mean_transcript_fields": 35.0,
-    "self_reported_lifecycle_anomaly_pct": 20.0,
-    "micro_run_lt2_pct": 10.0
+    "median_tool_interval_minutes_guardrail": 9.38,
+    "short_run_lt5_pct_guardrail": 31.25
   },
   "sample_gates": {
     "minimum_post_runs_for_provisional": 5,
@@ -31,12 +26,30 @@
     "higher_is_better": true,
     "component_formula": "weight * clamp((baseline-current)/baseline, -1, 1); all scored components are lower-is-better",
     "direction_threshold": 10.0,
-    "important": "diagnostic trend only; never a worker target, completion gate, scheduler input, product acceptance signal, or justification to manufacture longer runs"
+    "important": "diagnostic trend only; the worse axis is the headline so mechanically cheaper reporting cannot mask worse operational behavior; never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive",
+    "headline_formula": "min(friction_delta, operational_delta)"
   },
   "guardrails": [
     "Tool-interval duration is shown but is not directionally scored; longer is not automatically better.",
-    "Always show component values and sample count with the headline delta.",
+    "Always show both friction and operational axes, component values, and sample count with the headline delta.",
     "Do not claim improvement before the post-boundary sample gate is met.",
-    "The score measures manual-reporting/process friction, not model intelligence, user wellbeing, product quality, or MCP health."
-  ]
+    "The headline is the worse of the two axes; friction reduction cannot offset operational degradation.",
+    "The score measures manual-reporting/process behavior, not model intelligence, user wellbeing, product quality, or MCP health."
+  ],
+  "axes": {
+    "friction": {
+      "metrics": {
+        "median_report_bytes": 50.0,
+        "mean_transcript_fields": 50.0
+      },
+      "semantics": "Measures reporting overhead directly changed by PR #658; useful as friction evidence but insufficient by itself to claim sanity improved."
+    },
+    "operational": {
+      "metrics": {
+        "self_reported_lifecycle_anomaly_pct": 60.0,
+        "micro_run_lt2_pct": 40.0
+      },
+      "semantics": "Measures downstream workflow pathologies not mechanically reduced merely by deleting report fields."
+    }
+  }
 }
