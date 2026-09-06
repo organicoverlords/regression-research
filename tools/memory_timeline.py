@@ -326,6 +326,13 @@ def _is_signal_semantics(semantics: dict[str, Any]) -> bool:
     )
 
 
+def _counts_as_active_signal(event: dict[str, Any]) -> bool:
+    """Keep forensic memory history without letting revoked claims inflate active cases."""
+    if event.get("source_type") != "VAULT_MEMORY":
+        return True
+    return str(event.get("disposition") or "") not in {"SUPERSEDED", "REJECTED"}
+
+
 def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Join source observations into cases using explicit strong anchors only."""
     nodes: list[dict[str, Any]] = []
@@ -345,6 +352,8 @@ def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, 
 
     for raw in events:
         event = dict(raw)
+        if not _counts_as_active_signal(event):
+            continue
         semantics = _event_continuity(event)
         anchors = _case_anchors(event)
         if (
@@ -412,6 +421,8 @@ def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, 
 def _signal_observation_summary(events: Iterable[dict[str, Any]]) -> dict[str, int]:
     summary = Counter()
     for event in events:
+        if not _counts_as_active_signal(event):
+            continue
         semantics = _event_continuity(event)
         if not _is_signal_semantics(semantics):
             continue
@@ -842,8 +853,14 @@ def build_timeline(
     snapshots = build_timeline_snapshots(combined, now=snapshot_now)
     snapshots["coverage"] = dict(source_coverage or {})
     memory_history_cases = _build_continuity_cases(events)
-    memory_red_observations = sum(1 for event in events if _continuity_semantics(event).get("severity") == "RED")
-    memory_legacy_observations = sum(1 for event in events if _continuity_semantics(event).get("legacy_inferred"))
+    memory_red_observations = sum(
+        1 for event in events
+        if _counts_as_active_signal(event) and _continuity_semantics(event).get("severity") == "RED"
+    )
+    memory_legacy_observations = sum(
+        1 for event in events
+        if _counts_as_active_signal(event) and _continuity_semantics(event).get("legacy_inferred")
+    )
     snapshots["preserved_memory_history"] = {
         "observation_count": len(events),
         "red_observations": memory_red_observations,
