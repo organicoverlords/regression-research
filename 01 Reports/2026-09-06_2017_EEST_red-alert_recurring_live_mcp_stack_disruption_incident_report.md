@@ -149,3 +149,18 @@ No production mutation was performed. Fresh validation on the current `ChatGPTMc
 Bounded post-proof cleanup verification found only the canonical production task plus the canonical replacement guardian/candidate tasks. Guardian and candidate are `Ready` with zero triggers. No listener remains on `3012`. Canonical `3011` remains the serving listener.
 
 This exhausts source/off-path validation. The remaining #99 gate is the separately authorized **live zero-public-gap acceptance** of the canonical 3012 -> 3011 transaction. A generic `go` does not authorize that live mutation under the existing canonical recovery contract, so it was not attempted here.
+
+## 21:26 EEST recovery-state refactor visibility repair
+
+A concurrent Vault refactor replaced the former `mcp-known-good-freeze.json` projection with the committed `mcp-recovery-state.json` model (`107506c`, `ops: split MCP recovery identity from observed conditions`). The new state file already preserved the required recovery policy and Sep-5 replacement warning, but its initial bootstrap projection omitted those fields, temporarily reopening the audit-visibility hole.
+
+The omission was repaired on the existing recovery-state branch in commit `4e60c25` (`surface MCP recovery audit rules in bootstrap`), with `McpRecoveryStateVisibilityTests` passing 3/3. No new service, scheduler, guardian, blocker, or production control system was added.
+
+The same bounded projection hunk was applied to the current shared `stack_atlas.py` without replacing or staging unrelated concurrent edits. Current `bootstrap-glance` now simultaneously surfaces:
+
+- `incident:inc-20260906-2017-eest-live-mcp-stack-disruption-recurrence` and the exact RED report title;
+- `Restoration must preserve unique work and active child processes; do not kill foreign work to accelerate recovery.`;
+- `Shared-production restoration still requires explicit user authorization ... a generic go does not authorize a new live-production mutation.`;
+- `Do not reuse the 2026-09-05 replacement procedure as a claimed zero-downtime production path until issue #99 is fixed and independently proven.`
+
+This closes the bootstrap/timeline/audit visibility hole on the current recovery-state representation. The RED incident remains OPEN only for the separately authorized live #99 zero-public-gap acceptance; no live production mutation was performed by this repair.
