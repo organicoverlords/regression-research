@@ -102,3 +102,16 @@ Post-rebuild proof:
 - `bootstrap-glance` now surfaces both the exact incident ID and that exact RED report title.
 
 This closes the timeline/bootstrap **visibility** gap. RED ALERT remains OPEN for the separate recurrence-prevention requirement: live MCP edit/cutover work must follow the already-audited off-path/zero-downtime procedure rather than adding another control system.
+
+## 21:05 EEST audit-projection repair
+
+Vault commit `bb054f2` (`surface MCP recovery audit rules in bootstrap`) closes the second information hole without adding a new control mechanism.
+
+`bootstrap-glance` now exposes directly from the existing canonical freeze contract:
+
+- the full existing recovery required-order list;
+- `Restoration must preserve unique work and active child processes; do not kill foreign work to accelerate recovery.`;
+- `Shared-production restoration still requires explicit user authorization ... a generic go does not authorize a new live-production mutation.`;
+- `Do not reuse the 2026-09-05 replacement procedure as a claimed zero-downtime production path until issue #99 is fixed and independently proven.`
+
+This means a fresh worker/session no longer has to discover those critical audit rules by manually opening the full freeze JSON. The rule already existed; the repair makes the existing bootstrap obey the existing audit hierarchy.
