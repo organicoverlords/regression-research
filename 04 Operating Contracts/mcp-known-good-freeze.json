@@ -65,8 +65,9 @@
     "immediate_acceptance": "PASS",
     "multi_day_real_use": "PENDING",
     "user_confirmed_stable": false,
-    "security_reroute_rate_after_freeze": "PENDING_REAL_USE; same-turn minimal read_output succeeded after this deployment, while an earlier read_output in the same turn was blocked before dispatch on the old deployment. This is discriminating evidence, not causal or long-run proof.",
-    "promotion_rule": "Do not promote to PROVEN_KNOWN_GOOD until >=48 hours of real user use have elapsed and the user explicitly confirms the security-reroute symptom remained acceptably absent/stable."
+    "security_reroute_rate_after_freeze": "MATERIALLY_REDUCED_NOT_ELIMINATED; accumulated post-deploy/post-refresh real-use reports show a clear reduction in user-visible/security-block occurrence after the process-tool annotations became live and ChatGPT refreshed the action snapshot. The reduction is strongest for read_output, which changed from pessimistic MCP defaults to explicit read-only/non-destructive/closed-world metadata. Fresh post-deploy user-visible reroute evidence still exists, so this is not an elimination, universal root-cause, or PROVEN_KNOWN_GOOD claim.",
+    "promotion_rule": "Do not promote to PROVEN_KNOWN_GOOD until >=48 hours of real user use have elapsed and the user explicitly confirms the security-reroute symptom remained acceptably absent/stable.",
+    "operational_conclusion": "Annotations materially reduced security-reroute occurrence. Treat this as the current operational conclusion from the accumulated reports; do not regress to wording that the effect is merely unknown/pending. Broader above-MCP/platform reroutes still occur."
   },
   "known_transients_not_part_of_frozen_stable_window": [
     {
@@ -90,7 +91,8 @@
     "This is the one canonical MCP freeze pointer for new agents. Historical files/branches/tags containing 'known-good', 'freeze', or 'recovery' are not substitutes.",
     "CANDIDATE_KNOWN_GOOD intentionally means frozen before proper multi-day proof. A later refreeze is mandatory for PROVEN_KNOWN_GOOD.",
     "Do not infer that security rerouting is solved from server acceptance alone; user-visible real-use behavior is required for promotion.",
-    "Current candidate recovery boundary is deployment 5c853ed4-c975-402a-9424-35f7c13fa8d7 at 59b566f; preserve it unless fresh live evidence disqualifies it. The superseded d6e2972 candidate remains recorded above for regression comparison and rollback history."
+    "Current candidate recovery boundary is deployment 5c853ed4-c975-402a-9424-35f7c13fa8d7 at 59b566f; preserve it unless fresh live evidence disqualifies it. The superseded d6e2972 candidate remains recorded above for regression comparison and rollback history.",
+    "Operational conclusion from accumulated 2026-09-06 reports and explicit user confirmation: the annotations reduced security-reroute occurrence materially; they did not eliminate the broader platform-side reroute class."
   ],
   "recovery_policy": {
     "restore_first_on_regression": true,
@@ -139,6 +141,6 @@
       "live_process_count": 0
     },
     "post_deploy_read_output_probe": "PASS",
-    "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Immediate transport/tool acceptance passed; real user-visible reroute rate remains pending."
+    "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Accumulated real-use evidence supports a material reduction in security-reroute frequency after annotation deployment and ChatGPT action refresh, especially for read_output. The symptom is reduced, not eliminated; later user-visible recurrence preserves an independent above-MCP/platform component."
   }
 }
