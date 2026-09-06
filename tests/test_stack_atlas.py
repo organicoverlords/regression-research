@@ -8,6 +8,7 @@ from pathlib import Path
 from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
+    BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     blast_radius,
     build_bootstrap_atlas,
@@ -62,6 +63,42 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(compact["incident_rollups"][0]["observations"], 20)
         self.assertNotIn("member_ids", compact["incident_rollups"][0])
         self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated"])
+
+    def test_compact_memory_overview_enforces_hard_byte_budget_without_losing_primary_context(self):
+        report = {
+            "contract": "history only",
+            "eligible_entries": 99,
+            "incident_rollups": [
+                {
+                    "thread_id": f"thread:bug-{i}",
+                    "thread_source": "EXPLICIT_THREAD",
+                    "scope": f"memory/bug-{i}",
+                    "observations": 20,
+                    "latest_event_at": f"2026-09-06T03:0{i}:00+03:00",
+                    "latest_event_id": f"bug-{i}-20",
+                    "latest_title": f"Bug {i} latest",
+                    "latest_disposition": "CURRENT_DURABLE",
+                    "summary": (f"Bug {i} reusable investigation detail. " * 30),
+                    "member_ids": [f"bug-{i}-{n}" for n in range(20)],
+                    "drilldown": f"memory_bank timeline thread:bug-{i}",
+                }
+                for i in range(3)
+            ],
+            "recent": [
+                {"id": f"unrelated-{i}", "timestamp": f"2026-09-06T02:5{i}:00+03:00", "title": f"Unrelated {i}"}
+                for i in range(3)
+            ],
+            "projects": [{"name": f"project-{i}", "count": 10} for i in range(3)],
+            "recurring_tags": [{"name": f"tag-{i}", "count": 10} for i in range(3)],
+            "worker_findings": {"contract": "archived evidence", "detail": "x" * 1200},
+        }
+        compact = _compact_memory_overview(report, 3)
+        size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+        self.assertEqual(len(compact["incident_rollups"]), 3)
+        self.assertEqual(len(compact["recent"]), 3)
+        self.assertNotIn("worker_findings", compact)
+        self.assertTrue(all(len(item.get("summary", "")) <= 160 for item in compact["incident_rollups"]))
 
     def test_bootstrap_memory_overview_backfills_after_rollup_member_suppression(self):
         report = {

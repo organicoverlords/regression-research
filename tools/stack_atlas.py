@@ -39,6 +39,7 @@ BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
+BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_500
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
@@ -1263,6 +1264,85 @@ def _compact_incident_rollups(report: dict[str, Any], limit: int = 3) -> list[di
     ]
 
 
+def _compact_json_bytes(value: Any) -> int:
+    return len(json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+
+
+def _clip_bootstrap_text(value: Any, limit: int) -> Any:
+    if not isinstance(value, str) or len(value) <= limit:
+        return value
+    if limit <= 3:
+        return value[:limit]
+    return value[: limit - 3] + "..."
+
+
+def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES) -> dict[str, Any]:
+    """Bound bootstrap memory orientation by bytes, preserving highest-value lineage context first."""
+    budget = max(256, int(max_bytes))
+    bounded = json.loads(json.dumps(overview, ensure_ascii=False))
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    # Worker findings are archived evidence and already have a dedicated worker projection;
+    # do not sacrifice memory lineage/recent context for this duplicate startup cost.
+    bounded.pop("worker_findings", None)
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    rollups = bounded.get("incident_rollups") if isinstance(bounded.get("incident_rollups"), list) else []
+    for summary_limit in (160, 120, 80):
+        for rollup in rollups:
+            if isinstance(rollup, dict) and "summary" in rollup:
+                rollup["summary"] = _clip_bootstrap_text(rollup.get("summary"), summary_limit)
+        if _compact_json_bytes(bounded) <= budget:
+            return bounded
+
+    for rollup in rollups:
+        if isinstance(rollup, dict):
+            rollup.pop("summary", None)
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    # Keep at least one item from each secondary orientation list before reducing rollups.
+    for key in ("projects", "recurring_tags", "recent"):
+        items = bounded.get(key)
+        if not isinstance(items, list):
+            continue
+        while len(items) > 1 and _compact_json_bytes(bounded) > budget:
+            items.pop()
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    while len(rollups) > 1 and _compact_json_bytes(bounded) > budget:
+        rollups.pop()
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    # Pathological long strings must not defeat the hard startup bound.
+    for rollup in rollups:
+        if not isinstance(rollup, dict):
+            continue
+        for key, limit in (("scope", 120), ("latest_title", 120), ("drilldown", 220), ("thread_id", 220)):
+            if key in rollup:
+                rollup[key] = _clip_bootstrap_text(rollup.get(key), limit)
+        rollup.pop("projects", None)
+        rollup.pop("entities", None)
+    for key in ("recent", "projects"):
+        for item in bounded.get(key, []) if isinstance(bounded.get(key), list) else []:
+            if isinstance(item, dict):
+                for field in ("title", "name"):
+                    if field in item:
+                        item[field] = _clip_bootstrap_text(item.get(field), 120)
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    for key in ("projects", "recurring_tags", "recent", "incident_rollups"):
+        if _compact_json_bytes(bounded) <= budget:
+            break
+        bounded[key] = []
+    return bounded
+
+
 def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
     effective_limit = max(0, int(limit))
     raw_rollups = [item for item in report.get("incident_rollups", []) if isinstance(item, dict)][:effective_limit]
@@ -1273,7 +1353,7 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
         for item in report.get("recent", [])
         if str(item.get("id")) not in covered_ids
     ][:effective_limit]
-    return {
+    overview = {
         "contract": report.get("contract"),
         "eligible_entries": report.get("eligible_entries", 0),
         "incident_rollups": compact_rollups,
@@ -1282,6 +1362,7 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
         "recurring_tags": report.get("recurring_tags", [])[:effective_limit],
         "worker_findings": _compact_worker_findings(report, effective_limit),
     }
+    return _fit_memory_overview_budget(overview)
 
 
 def _bootstrap_memory_overview() -> dict[str, Any]:
