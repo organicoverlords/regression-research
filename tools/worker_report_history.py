@@ -603,6 +603,8 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     metrics_path, metrics = write_metrics_projection(history_root)
     if observed_started_at is not None and report.parent.name.casefold() == "current":
         _timed_start_receipt_path(report).unlink(missing_ok=True)
+    if population == "manual" and report.parent.name.casefold() == "current":
+        report.unlink(missing_ok=True)
     result = {
         "ok": True,
         "population": population,
@@ -655,8 +657,8 @@ def audit_manual_current_reports(current_root: Path, history_root: Path) -> dict
         archived = run_id.casefold() in archived_run_ids
         if error:
             lifecycle_status = "INVALID_CURRENT"
-        elif state == "RUNNING":
-            lifecycle_status = "UNFINALIZED_RUNNING"
+        elif state in {"RUNNING", "TOOL_INTERVAL_OPEN"}:
+            lifecycle_status = "UNFINALIZED_OPEN"
         elif archived:
             lifecycle_status = "ARCHIVED_CURRENT_POINTER"
         else:
@@ -679,7 +681,7 @@ def audit_manual_current_reports(current_root: Path, history_root: Path) -> dict
         "history_root": str(history_root),
         "reports": rows,
         "counts": dict(sorted(counts.items())),
-        "unfinalized_count": counts.get("UNFINALIZED_RUNNING", 0),
+        "unfinalized_count": counts.get("UNFINALIZED_OPEN", 0),
         "unarchived_terminal_count": counts.get("UNARCHIVED_TERMINAL", 0),
         "liveness_semantics": "manual current reports are lifecycle evidence only; present worker liveness requires independent live activity evidence",
     }

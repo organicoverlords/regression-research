@@ -11,7 +11,7 @@ from tools.worker_report_history import _proof_artifact_fields, archive_finalize
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
-    def test_manual_current_audit_never_treats_running_file_as_liveness(self):
+    def test_manual_current_audit_never_treats_open_file_as_liveness(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "manual" / "current"
@@ -22,13 +22,13 @@ class WorkerReportHistoryTests(unittest.TestCase):
             report.write_text(
                 f"run_id: {run_id}\nstarted_at: 2026-09-05T10:00:00+00:00\n"
                 "last_activity_at: 2026-09-05T10:10:00+00:00\nrepo: p3\nscope: test\n"
-                "state: RUNNING\noutcome: RUNNING\nmutation: none\nvalidation: none\n"
+                "state: TOOL_INTERVAL_OPEN\noutcome: in progress\nmutation: none\nvalidation: none\n"
                 "remaining_gate: finish turn\nfinding_tags: proof\nfindings: current file alone is not liveness\n",
                 encoding="utf-8",
             )
             audit = audit_manual_current_reports(current, history)
             self.assertEqual(audit["unfinalized_count"], 1)
-            self.assertEqual(audit["reports"][0]["lifecycle_status"], "UNFINALIZED_RUNNING")
+            self.assertEqual(audit["reports"][0]["lifecycle_status"], "UNFINALIZED_OPEN")
             self.assertEqual(audit["reports"][0]["liveness"], "NOT_ESTABLISHED_BY_REPORT")
 
     def test_manual_current_audit_distinguishes_archived_pointer_and_unarchived_terminal(self):
@@ -49,9 +49,28 @@ class WorkerReportHistoryTests(unittest.TestCase):
             archive_finalized_report(current / "manual-archived.md", history)
             audit = audit_manual_current_reports(current, history)
             by_id = {row["run_id"]: row for row in audit["reports"]}
-            self.assertEqual(by_id["manual-archived"]["lifecycle_status"], "ARCHIVED_CURRENT_POINTER")
+            self.assertNotIn("manual-archived", by_id)
             self.assertEqual(by_id["manual-unarchived"]["lifecycle_status"], "UNARCHIVED_TERMINAL")
             self.assertEqual(audit["unarchived_terminal_count"], 1)
+
+
+    def test_manual_current_audit_normalizes_legacy_running_to_open_lifecycle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-legacy-running"
+            (current / f"{run_id}.md").write_text(
+                f"run_id: {run_id}\nstarted_at: 2026-09-05T10:00:00+00:00\n"
+                "last_activity_at: 2026-09-05T10:10:00+00:00\nrepo: p3\nscope: legacy\n"
+                "state: RUNNING\noutcome: legacy\nmutation: none\nvalidation: none\n"
+                "remaining_gate: none\nfinding_tags: none\nfindings: legacy artifact\n",
+                encoding="utf-8",
+            )
+            audit = audit_manual_current_reports(current, history)
+            self.assertEqual(audit["reports"][0]["lifecycle_status"], "UNFINALIZED_OPEN")
+            self.assertEqual(audit["reports"][0]["liveness"], "NOT_ESTABLISHED_BY_REPORT")
 
     @staticmethod
     def _write_timed_start_receipt(
@@ -808,6 +827,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
             metrics = json.loads(Path(result["metrics_path"]).read_text(encoding="utf-8"))
             self.assertEqual(result["population"], "manual")
+            self.assertFalse(report.exists())
             self.assertEqual(metadata["population"], "manual")
             self.assertEqual(metadata["run_id"], run_id)
             self.assertEqual(metadata["duration_minutes"], 7.5)

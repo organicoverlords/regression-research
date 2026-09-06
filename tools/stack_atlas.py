@@ -1486,7 +1486,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     worker_glance = {
         key: workers.get(key) for key in (
             "available", "generated_at", "evidence_semantics", "current_scheduler_membership",
-            "archive_sample", "manual_current", "attention", "stale_reports", "cache",
+            "archive_sample", "attention", "stale_reports", "cache",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     if isinstance(worker_glance, dict):
