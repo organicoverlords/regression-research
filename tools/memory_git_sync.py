@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 REL_BANK = Path("memory") / "memory-bank.jsonl"
 REMOTE = "origin"
 BRANCH = "memory/live"
+SEED_BRANCH = "main"
 PROTECTED_REMOTE_BRANCHES = frozenset({"main", "master", "dev", "develop"})
 MAX_SYNC_ATTEMPTS = 3
 LOCK_STALE_SECONDS = 180
@@ -150,8 +151,34 @@ def sync_lock(bank_path: Path, timeout_seconds: float = 15.0) -> Iterator[None]:
             pass
 
 
-def _remote_state() -> tuple[str, list[dict[str, Any]]]:
+def _remote_branch_exists() -> bool:
+    proc = _git(
+        "ls-remote", "--exit-code", "--heads", REMOTE, f"refs/heads/{BRANCH}",
+        check=False,
+    )
+    return proc.returncode == 0 and bool(proc.stdout.strip())
+
+
+def _ensure_remote_branch() -> bool:
+    """Recreate a deleted dedicated memory mirror without touching protected refs."""
     _validate_sync_branch()
+    if _remote_branch_exists():
+        return False
+    if SEED_BRANCH.casefold() not in PROTECTED_REMOTE_BRANCHES:
+        raise MemorySyncError(f"memory sync seed must be an integration branch: {SEED_BRANCH}")
+    _git("fetch", REMOTE, SEED_BRANCH)
+    seed = _git("rev-parse", f"{REMOTE}/{SEED_BRANCH}").stdout.strip()
+    if not seed:
+        raise MemorySyncError(f"memory sync could not resolve seed branch: {REMOTE}/{SEED_BRANCH}")
+    pushed = _git("push", REMOTE, f"{seed}:refs/heads/{BRANCH}", check=False)
+    if pushed.returncode != 0 and not _remote_branch_exists():
+        detail = (pushed.stderr or pushed.stdout).strip()[-1600:]
+        raise MemorySyncError(f"memory sync could not recreate {REMOTE}/{BRANCH}: {detail}")
+    return True
+
+
+def _remote_state() -> tuple[str, list[dict[str, Any]]]:
+    _ensure_remote_branch()
     _git("fetch", REMOTE, BRANCH)
     head = _git("rev-parse", f"{REMOTE}/{BRANCH}").stdout.strip()
     shown = _git("show", f"{REMOTE}/{BRANCH}:{REL_BANK.as_posix()}")

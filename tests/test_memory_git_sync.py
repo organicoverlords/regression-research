@@ -1,9 +1,10 @@
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _git, _memory_commit_message, _validate_sync_branch, _write_bank, merge_bank_entries
+from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _ensure_remote_branch, _git, _memory_commit_message, _validate_sync_branch, _write_bank, merge_bank_entries
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -13,6 +14,35 @@ class MemoryGitSyncTests(unittest.TestCase):
         with patch("tools.memory_git_sync.BRANCH", "main"):
             with self.assertRaisesRegex(MemorySyncError, "refuses protected branch"):
                 _validate_sync_branch()
+
+    def test_missing_sync_branch_is_recreated_from_main_without_pushing_main(self):
+        calls = []
+        branch_checks = iter([False, True])
+
+        def fake_git(*args, cwd=None, check=True):
+            calls.append(args)
+            if args[:3] == ("ls-remote", "--exit-code", "--heads"):
+                exists = next(branch_checks)
+                return subprocess.CompletedProcess(args, 0 if exists else 2, "deadbeef\trefs/heads/memory/live\n" if exists else "", "")
+            if args == ("fetch", "origin", "main"):
+                return subprocess.CompletedProcess(args, 0, "", "")
+            if args == ("rev-parse", "origin/main"):
+                return subprocess.CompletedProcess(args, 0, "abc123\n", "")
+            if args == ("push", "origin", "abc123:refs/heads/memory/live"):
+                return subprocess.CompletedProcess(args, 1, "", "remote raced")
+            raise AssertionError(args)
+
+        with patch("tools.memory_git_sync._git", side_effect=fake_git):
+            self.assertTrue(_ensure_remote_branch())
+
+        self.assertIn(("push", "origin", "abc123:refs/heads/memory/live"), calls)
+        self.assertFalse(any(args[:2] == ("push", "origin") and args[-1].endswith(":refs/heads/main") for args in calls))
+
+    def test_existing_sync_branch_needs_no_seed_push(self):
+        existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
+        with patch("tools.memory_git_sync._git", return_value=existing) as git:
+            self.assertFalse(_ensure_remote_branch())
+        git.assert_called_once_with("ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False)
 
     def test_remote_order_is_preserved_and_local_only_entries_append(self):
         remote = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}]
