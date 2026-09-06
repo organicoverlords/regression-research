@@ -1,0 +1,6 @@
+Security incident exact MCP tool-call manifest
+User-supplied incident window: 2026-09-06 20:27:00–20:39:59 EEST (+03:00)
+Caller: caller_86efff37c610
+Raw receipts copied unchanged from: C:\Users\Lauri\AppData\Local\ChatGPTMcpClean\minimal-connectors\shared-process-receipts
+Count: 0
+

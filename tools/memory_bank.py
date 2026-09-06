@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 import json
+import mmap
 import re
 import secrets
 import sys
@@ -178,17 +179,43 @@ def _sync_canonical_locked(path: Path, *, strict: bool) -> None:
 
 
 def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
-    # Reads are local and side-effect free. Canonical Git reconciliation belongs only
-    # to explicit writes, where append_entry() syncs before and after mutation.
+    # Reads are local and side-effect free. Remote publication is explicit on writes.
     return _read_bank_file(path)
 
 
+def _bank_has_id(path: Path, entry_id: str) -> bool:
+    """Check one top-level JSONL id without decoding the whole append-only bank."""
+    try:
+        if path.stat().st_size == 0:
+            return False
+        needle = json.dumps(str(entry_id), ensure_ascii=False).encode("utf-8")
+        with path.open("rb") as handle:
+            with mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_READ) as mapped:
+                position = mapped.find(needle)
+                while position >= 0:
+                    line_start = mapped.rfind(b"\n", 0, position) + 1
+                    line_end = mapped.find(b"\n", position)
+                    if line_end < 0:
+                        line_end = len(mapped)
+                    try:
+                        candidate = json.loads(mapped[line_start:line_end].decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError):
+                        candidate = None
+                    if isinstance(candidate, dict) and str(candidate.get("id") or "") == str(entry_id):
+                        return True
+                    position = mapped.find(needle, position + len(needle))
+                return False
+    except FileNotFoundError:
+        return False
+
+
 def _append_entry_file(path: Path, entry: dict[str, Any]) -> dict[str, Any]:
-    if any(existing["id"] == entry["id"] for existing in _read_bank_file(path)):
+    if _bank_has_id(path, entry["id"]):
         raise BankError(f"duplicate id {entry['id']}")
     path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n"
     with path.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n")
+        handle.write(line)
     return entry
 
 
@@ -227,14 +254,16 @@ def _require_canonical_reroute_evidence(entry: dict[str, Any]) -> None:
         )
 
 
-def append_entry(path: Path, values: dict[str, Any]) -> dict[str, Any]:
+def append_entry(path: Path, values: dict[str, Any], *, publish: bool = False) -> dict[str, Any]:
     entry = _prepare_entry(values)
     if _is_canonical_bank(path):
         _require_canonical_reroute_evidence(entry)
         with sync_lock(path):
-            _sync_canonical_locked(path, strict=False)
+            if publish:
+                _sync_canonical_locked(path, strict=False)
             saved = _append_entry_file(path, entry)
-            _sync_canonical_locked(path, strict=True)
+            if publish:
+                _sync_canonical_locked(path, strict=True)
             return saved
     return _append_entry_file(path, entry)
 
@@ -894,6 +923,7 @@ def _main() -> int:
     record.add_argument("--evidence", action="append", default=[])
     record.add_argument("--supersedes", action="append", default=[])
     record.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
+    record.add_argument("--publish", action="store_true", help="explicitly reconcile/publish the canonical bank through Git; default record is local-only")
 
     search = sub.add_parser("search")
     search.add_argument("query", nargs="?", default="")
@@ -969,7 +999,7 @@ def _main() -> int:
                 values["thread"] = args.thread
             if args.turn_task:
                 values["turn_task"] = args.turn_task
-            entry = append_entry(args.bank, values)
+            entry = append_entry(args.bank, values, publish=args.publish)
             _print_json(entry)
             return 0
         if args.command == "timeline":

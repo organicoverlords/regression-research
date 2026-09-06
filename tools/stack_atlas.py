@@ -28,6 +28,7 @@ VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
+LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
@@ -66,6 +67,10 @@ COMPONENT_ALIASES = {
     "mcp edge": "vps_edge_ingress",
     "transfer": "file_transfer",
     "file transfer": "file_transfer",
+    "linux omen": "linux_omen_node",
+    "omen laptop": "linux_omen_node",
+    "linux laptop": "linux_omen_node",
+    "linux node": "linux_omen_node",
     "visual proof": "visual_proof",
     "proof": "visual_proof",
     "worker": "execution_workers",
@@ -136,7 +141,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_RECOVERY_STATE_PATH)],
+        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\config\process-tool-contract.json", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_RECOVERY_STATE_PATH)],
         "chatgpt_plugin_surface": {
             "profile": "process",
             "tools": ["start_process", "read_output", "kill_process"],
@@ -204,6 +209,32 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["Funnel config", "HTTPS listener", "stable front-door proxy"],
         "dependents": ["mcp_front_door"],
         "runbook": [MCP_ROOT + r"\keepalive.ps1"],
+    },
+    "linux_omen_node": {
+        "role": "lan_ssh_execution_node",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate", "artifact_transfer", "build_compute"],
+        "canonical_sources": [LINUX_OMEN_CONTRACT],
+        "live_status": [
+            "bounded SSH probe through the documented Windows MCP -> LAN SSH route",
+            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass",
+            "current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof",
+        ],
+        "supervisor": "user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only",
+        "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
+        "independent_recovery": [
+            "local laptop console remains independent of SSH",
+            "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this optional node",
+        ],
+        "resources": [
+            "HP OMEN by HP Laptop 15-dc0xxx",
+            "Linux user aatuska",
+            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local",
+            r"C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents)",
+            "LAN SSH TCP 22",
+            "Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile",
+        ],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": [LINUX_OMEN_CONTRACT],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
@@ -399,6 +430,26 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Ordered navigation to the existing .agents issue-first contract: inspect/claim occurs immediately before shared mutation. The GitHub issue is the shared convergence record, not a queue, priority, capacity, or admission system. Busy is exact mutation collision control only. No new workflow authority is created.",
     },
+    "mcp.chatgpt_plugin_surface": {
+        "owner_components": ["mcp_minimal_clone"],
+        "triggers": [
+            "chatgpt plugin tools",
+            "chatgpt plugin command",
+            "mcp plugin tools",
+            "process tool profile",
+            "plugin tool contract",
+            "busy_list plugin",
+            "busy claim plugin",
+            "busy release plugin",
+            "view_image plugin",
+        ],
+        "entrypoints": [
+            "python tools\\stack_atlas.py lookup mcp_minimal_clone",
+            MCP_ROOT + r"\config\process-tool-contract.json",
+            MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1",
+        ],
+        "boundary": "The ChatGPT plugin uses MCP_TOOL_PROFILE=process and exposes only start_process, read_output, and kill_process. The full profile is explicit internal/local-test surface; busy_list, busy_claim, busy_release, and view_image are not ChatGPT plugin commands.",
+    },
     "mcp.recovery_state": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
         "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
@@ -462,6 +513,15 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+    },
+    "execution.linux_omen_node": {
+        "owner_components": ["linux_omen_node"],
+        "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
+        "entrypoints": [
+            "python tools\\stack_atlas.py lookup linux_omen_node",
+            LINUX_OMEN_CONTRACT,
+        ],
+        "boundary": "Optional LAN compute/build node behind the existing Windows MCP transport. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route. Reverify live SSH and current machine resources before use; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
@@ -876,16 +936,65 @@ def _bootstrap_cache_path(name: str) -> Path:
     return root / name
 
 
-def _bootstrap_cache_read(name: str, max_age_seconds: float) -> tuple[dict[str, Any] | None, float | None]:
+def _bootstrap_cache_read_any(name: str) -> tuple[dict[str, Any] | None, float | None]:
     path = _bootstrap_cache_path(name)
     try:
         age = max(0.0, datetime.now(timezone.utc).timestamp() - path.stat().st_mtime)
-        if age > max_age_seconds:
-            return None, age
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
         return (payload, age) if isinstance(payload, dict) else (None, age)
     except (OSError, json.JSONDecodeError):
         return None, None
+
+
+def _bootstrap_cache_read(name: str, max_age_seconds: float) -> tuple[dict[str, Any] | None, float | None]:
+    payload, age = _bootstrap_cache_read_any(name)
+    if payload is None or age is None or age > max_age_seconds:
+        return None, age
+    return payload, age
+
+
+def _bootstrap_refresh_lease_path(name: str) -> Path:
+    return _bootstrap_cache_path(name).with_name(f"{name}.refresh")
+
+
+def _bootstrap_try_refresh_lease(name: str, lease_seconds: float) -> bool:
+    """Elect one nonblocking refresher; stale readers keep serving the prior snapshot."""
+    path = _bootstrap_refresh_lease_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(2):
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                age = max(0.0, time.time() - path.stat().st_mtime)
+            except OSError:
+                continue
+            if age > lease_seconds:
+                try:
+                    path.unlink()
+                except OSError:
+                    return False
+                continue
+            return False
+        except OSError:
+            return True  # Cache acceleration must never block the normal refresh path.
+        try:
+            os.write(fd, f"{os.getpid()} {time.time():.6f}\n".encode("ascii"))
+        finally:
+            os.close(fd)
+        return True
+    return False
+
+
+def _bootstrap_cache_refresh_view(
+    name: str, payload: dict[str, Any] | None, age: float | None, *, max_age_seconds: float, lease_seconds: float,
+) -> tuple[dict[str, Any] | None, bool]:
+    if payload is not None and age is not None and age <= max_age_seconds:
+        return payload, False
+    owns_refresh = _bootstrap_try_refresh_lease(name, lease_seconds)
+    if payload is not None and not owns_refresh:
+        return payload, True
+    return None, False
 
 
 def _bootstrap_cache_write(name: str, payload: dict[str, Any]) -> None:
@@ -1011,11 +1120,19 @@ def _bootstrap_mcp_backend_health() -> dict[str, Any]:
         }
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
-    cached, cache_age = _bootstrap_cache_read("mcp-status.json", BOOTSTRAP_MCP_CACHE_SECONDS)
+    cached_raw, cache_age = _bootstrap_cache_read_any("mcp-status.json")
+    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
+        "mcp-status.json", cached_raw, cache_age, max_age_seconds=BOOTSTRAP_MCP_CACHE_SECONDS, lease_seconds=2.0
+    )
     if cached is not None:
         cached = dict(cached)
         cached.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
-        cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS}
+        cached["cache"] = {
+            "used": True,
+            "age_seconds": round(cache_age or 0.0, 3),
+            "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS,
+            **({"stale_while_refresh": True} if stale_while_refresh else {}),
+        }
         return cached
 
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
@@ -1320,9 +1437,17 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(raw_case_examples, list):
             # Compatibility with materializations created before timeline schema v3.
             raw_case_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
-        for case in raw_case_examples:
-            if not isinstance(case, dict):
-                continue
+        ordered_case_examples = sorted(
+            (case for case in raw_case_examples if isinstance(case, dict)),
+            key=lambda case: (
+                1 if case.get("severity") == "RED" else 0,
+                1 if str(case.get("case_id") or "").casefold().startswith("incident:") else 0,
+                str(case.get("latest_signal_at") or ""),
+                str(case.get("case_id") or ""),
+            ),
+            reverse=True,
+        )
+        for case in ordered_case_examples:
             cases.append({
                 key: value for key, value in {
                     "id": _clip_bootstrap_text(case.get("case_id"), 120),
@@ -1648,11 +1773,17 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     policy = recovery_target.get("policy", {}) if isinstance(recovery_target.get("policy"), dict) else {}
     evidence = raw.get("evidence", {}) if isinstance(raw.get("evidence"), dict) else {}
     observation = evidence.get("latest_restore_observation", {}) if isinstance(evidence.get("latest_restore_observation"), dict) else {}
+    known_transients = evidence.get("known_transients", []) if isinstance(evidence.get("known_transients"), list) else []
+    replacement_safety_rules = [
+        str(item.get("rule"))
+        for item in known_transients
+        if isinstance(item, dict) and str(item.get("rule") or "").strip()
+    ]
     conditions = raw.get("conditions", []) if isinstance(raw.get("conditions"), list) else []
     bounded_conditions = [
         {
             key: condition.get(key)
-            for key in ("type", "status", "observed_generation", "last_transition_at", "reason", "message")
+            for key in ("type", "status", "last_transition_at")
             if key in condition
         }
         for condition in conditions
@@ -1661,8 +1792,6 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     return {
         "available": True,
         "read_state": "OK",
-        "path": str(path),
-        "schema": raw.get("schema"),
         "deployment_id": deployment.get("id"),
         "deployed_at": deployment.get("deployed_at"),
         "backend_commit": deployment.get("commit"),
@@ -1739,23 +1868,26 @@ def _bootstrap_vault_status() -> dict[str, Any]:
 def _bootstrap_github_status() -> dict[str, Any]:
     """Bounded cached GitHub health; never lists issues, PRs, checks, or workflows."""
     started = time.perf_counter()
-    cached, cache_age = _bootstrap_cache_read("github-status.json", BOOTSTRAP_GITHUB_CACHE_SECONDS)
+    cached_raw, cache_age = _bootstrap_cache_read_any("github-status.json")
+    cached_status = str((cached_raw or {}).get("status") or "")
+    cache_max_age = (
+        BOOTSTRAP_GITHUB_CACHE_SECONDS
+        if cached_status in {"OK", "WATCH", ""}
+        else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
+    )
+    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
+        "github-status.json", cached_raw, cache_age, max_age_seconds=cache_max_age, lease_seconds=4.0
+    )
     if cached is not None:
-        cached_status = str(cached.get("status") or "")
-        cache_max_age = (
-            BOOTSTRAP_GITHUB_CACHE_SECONDS
-            if cached_status in {"OK", "WATCH"}
-            else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
-        )
-        if cache_age is not None and cache_age <= cache_max_age:
-            cached = dict(cached)
-            cached["cache"] = {
-                "used": True,
-                "age_seconds": round(cache_age, 3),
-                "max_age_seconds": cache_max_age,
-            }
-            cached["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
-            return cached
+        cached = dict(cached)
+        cached["cache"] = {
+            "used": True,
+            "age_seconds": round(cache_age or 0.0, 3),
+            "max_age_seconds": cache_max_age,
+            **({"stale_while_refresh": True} if stale_while_refresh else {}),
+        }
+        cached["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        return cached
 
     gh = shutil.which("gh")
     result: dict[str, Any] = {
@@ -1829,6 +1961,7 @@ def _bootstrap_github_status() -> dict[str, Any]:
     _bootstrap_cache_write("github-status.json", cache_payload)
     return result
 
+
 def _git_blob_sha_for_file(path: Path) -> str | None:
     try:
         data = path.read_bytes()
@@ -1868,7 +2001,11 @@ def _remote_is_newer(remote_at: Any, local_at: Any) -> bool:
 
 def _bootstrap_source_freshness() -> dict[str, Any]:
     """Compact freshness signal for behavior sources; hashes only, no body parsing."""
-    cached, cache_age = _bootstrap_cache_read("source-freshness.json", BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS)
+    cached_raw, cache_age = _bootstrap_cache_read_any("source-freshness.json")
+    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
+        "source-freshness.json", cached_raw, cache_age,
+        max_age_seconds=BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS, lease_seconds=4.0,
+    )
     remote: dict[str, Any] | None = cached
     cache_used = cached is not None
     if remote is None:
@@ -1958,12 +2095,8 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         local_last_committed_at = _git_last_committed_at(repo_root, relative_path)
         updates_pending = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
         sources[key] = {
-            "path": str(path),
             "last_updated_at": item.get("last_updated_at"),
-            "last_update_commit": item.get("last_update_commit"),
-            "local_last_committed_at": local_last_committed_at,
-            "local_matches_remote_main": matches,
-            "local_differs_from_remote_main": not matches,
+            "differs": not matches,
             "updates_pending": updates_pending,
         }
         attention = attention or not matches
@@ -1972,12 +2105,12 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         "available": True,
         "attention_required": attention,
         "updates_pending": any_updates_pending,
-        "meaning": "If attention_required is true, read the current source before relying on remembered agent/worker behavior; updates_pending means remote changed after the last local committed version.",
         "sources": sources,
         "cache": {
             "used": cache_used,
             "age_seconds": round(float(cache_age or 0.0), 3),
             "max_age_seconds": BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS,
+            **({"stale_while_refresh": True} if stale_while_refresh else {}),
         },
     }
 
@@ -2657,3 +2790,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

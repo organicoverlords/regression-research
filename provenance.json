@@ -1373,6 +1373,28 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexes the #125 serving-checkout convergence report. The report records preservation and cleanup of the stale live Vault checkout, including memory/security/report reconciliation and an external rollback copy. No direct local raw transcript or dedicated evidence-file/contract snapshot provenance link is inferred beyond what the report itself records."
+    },
+    {
+      "incident_id": "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-09-06_2017_EEST_red-alert_recurring_live_mcp_stack_disruption_incident_report.md",
+      "title": "RED ALERT - recurring live MCP stack disruption during prohibited replacement",
+      "date": "2026-09-06T20:17:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-09-03_0152_EEST_codex-thread-01a03f11_turn-chronology.md"
+      ],
+      "contract_snapshots": [
+        "04 Operating Contracts/mcp-known-good-freeze.json",
+        "04 Operating Contracts/chatgpt-library-artifact-timeline-ingestion.md"
+      ],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved"
+      ],
+      "notes": "RED ALERT recurrence report for assistant-caused live MCP stack disruption. User reports this was the eighth occurrence in 48 hours with about 20 agents stopping. Existing zero-downtime audit rules were already present and were violated. No new blocker/control system is introduced; this entry makes the existing report visible to the existing provenance/timeline/bootstrap pipeline."
     }
   ],
   "orphan_evidence": [

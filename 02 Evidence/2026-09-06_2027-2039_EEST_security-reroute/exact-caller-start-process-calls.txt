@@ -1,0 +1,836 @@
+Exact MCP start_process receipts for caller_86efff37c610
+User-supplied incident window: 2026-09-06 20:27:00–20:39:59 EEST (+03:00)
+Receipt selection: receipt LastWriteTime in that window AND caller_id exact match.
+Raw receipt JSON files copied unchanged under exact-caller-receipts/.
+Count: 47
+
+=== 5511a061-520b-44f9-a2ab-d92c9c8cc248.json ===
+process_id=5511a061-520b-44f9-a2ab-d92c9c8cc248
+pid=33260
+request_id=0400e987-4f54-4d5f-b66e-ec135999ff92
+started_at=09/06/2026 17:22:29
+finished_at=09/06/2026 17:34:26
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\p3-pine-1033-20260906
+stdout_sha256=34030d8467a909de43447a982775b093c81db6965fcd54648d2af03484efb4fb
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+& pwsh -NoLogo -NoProfile -NonInteractive -File 'C:\Users\Lauri\Desktop\p3-pine-1033-20260906\scripts\Invoke-P3Build.ps1' -ProjectRoot 'C:\Users\Lauri\Desktop\p3-pine-1033-20260906' -Target Editor -Configuration Development -MaxParallelActions 1
+
+=== 3fc3f81a-83df-411c-a80f-af1fd66d9168.json ===
+process_id=3fc3f81a-83df-411c-a80f-af1fd66d9168
+pid=13364
+request_id=9721614b-700d-4e0d-b976-5c9ec3e32e5d
+started_at=09/06/2026 17:27:08
+finished_at=09/06/2026 17:27:09
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=f61bc377a8ad94bac03a452746d4fc8c30d163314e3d5aaa0a9cb12cacfda0d6
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $log=Join-Path $w 'Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 260 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 60 | ForEach-Object {$_.Line}}
+
+=== 96f75c8b-d76a-4a96-b4da-c1e46f36e15d.json ===
+process_id=96f75c8b-d76a-4a96-b4da-c1e46f36e15d
+pid=12168
+request_id=2e1e5df0-60f2-49b6-9846-33fdd4426f21
+started_at=09/06/2026 17:27:20
+finished_at=09/06/2026 17:27:22
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=d6620dac80cea57f2cd05e26577cbaeb24d0fcfb1783af1f8fc8bd4051a81aa9
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$repo='organicoverlords/p3'; $old='16c85cfd'; $sha=(gh api "repos/$repo/commits/$old" --jq .sha).Trim(); Write-Output "OLD=$sha"; Write-Output '---CHECK RUNS---'; gh api "repos/$repo/commits/$sha/check-runs?per_page=100" --jq '.check_runs[]|[.name,.app.slug,.status,(.conclusion//""),.started_at,.completed_at,.html_url]|@tsv'; Write-Output '---STATUS CONTEXTS---'; gh api "repos/$repo/commits/$sha/status" --jq '.statuses[]|[.context,.creator.login,.state,.created_at,.updated_at,.target_url]|@tsv'
+
+=== 006ae526-5950-4e1a-8f27-f2057f13a276.json ===
+process_id=006ae526-5950-4e1a-8f27-f2057f13a276
+pid=14892
+request_id=ae70dd48-e907-487d-aa2c-be1210a7f54e
+started_at=09/06/2026 17:27:22
+finished_at=09/06/2026 17:27:24
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=eecb847f05f8d5ce81c39094db3de6b6127da3bbf7872bb56d4c87ea57dedceb
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$root=Join-Path $env:LOCALAPPDATA 'ChatGPTMcpClean\minimal-connectors'; $log=Get-ChildItem $root -Filter transport.jsonl -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1; Write-Output ('LOG='+$log.FullName); @'
+import json,sys,datetime
+from pathlib import Path
+p=Path(sys.argv[1])
+now=datetime.datetime.now(datetime.timezone.utc)
+cut=now-datetime.timedelta(seconds=120)
+rows=[]
+for line in p.read_text(encoding='utf-8', errors='replace').splitlines():
+    try:r=json.loads(line)
+    except:continue
+    t=r.get('at') or r.get('timestamp') or r.get('time') or r.get('created_at')
+    if not t: continue
+    try: dt=datetime.datetime.fromisoformat(t.replace('Z','+00:00'))
+    except: continue
+    if dt>=cut: rows.append((dt,r))
+callers={}
+for dt,r in rows:
+    cid=r.get('caller_id') or r.get('caller') or 'UNKNOWN'
+    ent=callers.setdefault(cid,{'last':dt,'events':0,'starts':0,'reads':0,'exits':0,'kills':0,'cwd':None,'last_event':None})
+    ent['events']+=1
+    if dt>ent['last']: ent['last']=dt
+    s=json.dumps(r,ensure_ascii=False).lower()
+    if 'start_process' in s or r.get('event')=='process_start': ent['starts']+=1
+    if 'read_output' in s or r.get('event')=='process_read': ent['reads']+=1
+    if 'process_state' in r and str(r.get('process_state')).upper()=='COMPLETED': ent['exits']+=1
+    if 'kill_process' in s or r.get('event')=='process_kill': ent['kills']+=1
+    ent['cwd']=r.get('cwd') or r.get('working_directory') or ent['cwd']
+    ent['last_event']=r.get('event') or r.get('op') or r.get('tool') or r.get('method') or ent['last_event']
+print('WINDOW_SECONDS=120')
+print('EVENTS=',len(rows),'CALLERS=',len(callers))
+for cid,e in sorted(callers.items(), key=lambda kv: kv[1]['last'], reverse=True):
+    age=(now-e['last']).total_seconds()
+    print(f'{cid} age={age:.1f}s events={e["events"]} starts={e["starts"]} reads={e["reads"]} exits={e["exits"]} kills={e["kills"]} cwd={e["cwd"]} last_event={e["last_event"]}')
+'@ | python - $log.FullName
+
+=== 126fec86-8d7c-48f4-8997-c8adbf211784.json ===
+process_id=126fec86-8d7c-48f4-8997-c8adbf211784
+pid=37404
+request_id=689736cd-b53f-4bbb-9fe7-a397a826ff78
+started_at=09/06/2026 17:27:35
+finished_at=09/06/2026 17:27:36
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=66e3ce9956519083888edeca98166d703c6d4883300baa0b8898420303550507
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 300 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 70 | ForEach-Object {$_.Line}}
+
+=== 18d4bb6d-e1b5-47a2-87cc-e04eb021074e.json ===
+process_id=18d4bb6d-e1b5-47a2-87cc-e04eb021074e
+pid=19392
+request_id=4f4f0300-3ddb-4397-9ece-780b367914f5
+started_at=09/06/2026 17:27:58
+finished_at=09/06/2026 17:27:58
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=5ee9953bf870b1c74bc21c0ddd24afa42f4149e2d4c6686f3c4b305dfd8f774a
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 350 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 80 | ForEach-Object {$_.Line}}
+
+=== 5e336f1f-d964-40db-a2c1-e40548b0441e.json ===
+process_id=5e336f1f-d964-40db-a2c1-e40548b0441e
+pid=936
+request_id=6d8443ea-6de1-478a-ae24-e83e80f1a623
+started_at=09/06/2026 17:28:04
+finished_at=09/06/2026 17:28:04
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=c17eaaccb7a9caa6a8761469fb35b4c51d7b8d80b304e791abee7493d0a0c1a0
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log=(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'ChatGPTMcpClean\minimal-connectors') -Filter transport.jsonl -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName; @'
+import json,sys,datetime,collections
+from pathlib import Path
+p=Path(sys.argv[1]); now=datetime.datetime.now(datetime.timezone.utc); cut=now-datetime.timedelta(minutes=10)
+rows=[]
+for line in p.read_text(encoding='utf-8',errors='replace').splitlines():
+    try:r=json.loads(line)
+    except:continue
+    t=r.get('at')
+    if not t: continue
+    try:dt=datetime.datetime.fromisoformat(t.replace('Z','+00:00'))
+    except:continue
+    if dt>=cut: rows.append((dt,r))
+# per-minute unique callers + process events
+b=collections.defaultdict(lambda:{'callers':set(),'started':0,'read':0,'exit':0,'kill':0,'post_err':0})
+proc={}
+for dt,r in rows:
+    minute=dt.replace(second=0,microsecond=0)
+    cid=r.get('caller_id')
+    if cid: b[minute]['callers'].add(cid)
+    ev=r.get('event')
+    if ev=='process_started': b[minute]['started']+=1
+    elif ev=='process_read': b[minute]['read']+=1
+    elif ev=='process_exit_observed': b[minute]['exit']+=1
+    elif ev=='process_killed': b[minute]['kill']+=1
+    if ev=='response_finish' and isinstance(r.get('status'),int) and r['status']>=400: b[minute]['post_err']+=1
+    pid=r.get('process_id')
+    if pid:
+        rec=proc.setdefault(pid,{'caller':cid,'started':None,'exit':None,'last':dt,'pid':r.get('pid'),'cwd':r.get('cwd')})
+        rec['last']=max(rec['last'],dt)
+        rec['caller']=cid or rec['caller']; rec['pid']=r.get('pid') or rec['pid']; rec['cwd']=r.get('cwd') or rec['cwd']
+        if ev=='process_started': rec['started']=dt
+        if ev in ('process_exit_observed','process_killed'): rec['exit']=dt
+print('LIVE_MCP_10MIN')
+for m in sorted(b):
+    x=b[m]; print(m.strftime('%H:%MZ'), 'callers',len(x['callers']),'started',x['started'],'reads',x['read'],'exits',x['exit'],'kills',x['kill'],'http_err',x['post_err'])
+active=[]
+for k,v in proc.items():
+    if v['started'] and not v['exit']:
+        active.append((v['last'],k,v))
+print('UNEXITED_PROCESSES_SEEN=',len(active))
+for last,k,v in sorted(active,reverse=True)[:30]:
+    print(k,'caller='+str(v['caller']),'pid='+str(v['pid']),'age_s=%.1f'%((now-last).total_seconds()),'cwd='+str(v['cwd']))
+'@ | python - $log
+
+=== d3c8b31f-7996-4d50-83c8-3d93cd85b845.json ===
+process_id=d3c8b31f-7996-4d50-83c8-3d93cd85b845
+pid=41948
+request_id=cf4df627-c823-4562-a067-fa95af4a9ee4
+started_at=09/06/2026 17:28:15
+finished_at=09/06/2026 17:28:15
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=f8cc7f4297c64fe4ec717a1194caeaa511b2b019b5392be65dc511c2d48fa100
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 380 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 90 | ForEach-Object {$_.Line}}
+
+=== 0421cfc7-af90-4bd4-ae0f-c9c092876ede.json ===
+process_id=0421cfc7-af90-4bd4-ae0f-c9c092876ede
+pid=23548
+request_id=0ae54a1d-ab16-49ac-b731-51bfd138c955
+started_at=09/06/2026 17:28:37
+finished_at=09/06/2026 17:28:37
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=419c8751c04e8bf97ef4e2a3d9aba36e989124453d3872b869e0ffb79301fb3c
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 420 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 100 | ForEach-Object {$_.Line}}
+
+=== d3e35678-1c13-43d8-b029-b67c1ed59d9a.json ===
+process_id=d3e35678-1c13-43d8-b029-b67c1ed59d9a
+pid=23716
+request_id=abb78006-f581-4d48-987d-22f654c54e87
+started_at=09/06/2026 17:29:20
+finished_at=09/06/2026 17:29:20
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=4c4dde3e62e24a3b1376773050815abf8289efb5217a6d997a9d455050a105b6
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 500 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 110 | ForEach-Object {$_.Line}}
+
+=== 74df7596-7478-4517-968e-6284f0d1e30b.json ===
+process_id=74df7596-7478-4517-968e-6284f0d1e30b
+pid=29308
+request_id=390216ee-2c64-40e0-a1cd-2db206e61660
+started_at=09/06/2026 17:29:42
+finished_at=09/06/2026 17:29:42
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=ac78dec7b5086db0b4ef210ae2199e7c5deeac8e23965bfc6045b96702e3b349
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 520 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 120 | ForEach-Object {$_.Line}}
+
+=== afb1ade4-359d-4ccf-9374-91bbe38634c0.json ===
+process_id=afb1ade4-359d-4ccf-9374-91bbe38634c0
+pid=42388
+request_id=270525fb-2fa6-46b3-9a35-c9742c151799
+started_at=09/06/2026 17:29:58
+finished_at=09/06/2026 17:29:59
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=e918e9f092702aac3aa47e71a4ea9869185693fe29863a05e65703a0e9ddb16c
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance
+
+=== 02728d83-ec04-4906-ac7e-2b1e39ebba0f.json ===
+process_id=02728d83-ec04-4906-ac7e-2b1e39ebba0f
+pid=40068
+request_id=bdb123ea-c343-47e3-bda1-e55c7f331e72
+started_at=09/06/2026 17:30:05
+finished_at=09/06/2026 17:30:06
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=ac78dec7b5086db0b4ef210ae2199e7c5deeac8e23965bfc6045b96702e3b349
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 620 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 130 | ForEach-Object {$_.Line}}
+
+=== df1b7c21-0e70-4935-8877-c8a95f0660a0.json ===
+process_id=df1b7c21-0e70-4935-8877-c8a95f0660a0
+pid=40336
+request_id=e306935b-bf23-49f1-af4d-4a106f1109c1
+started_at=09/06/2026 17:30:15
+finished_at=09/06/2026 17:30:16
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=f76a6584921eb518ba930a5915b25904640b3815617c4d790f4b810026feba2e
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance
+
+=== 8265d4a6-e483-4242-a3d9-52437c9b9449.json ===
+process_id=8265d4a6-e483-4242-a3d9-52437c9b9449
+pid=41052
+request_id=d0f3ba90-ab85-4425-b6e2-a272806cbbe3
+started_at=09/06/2026 17:30:15
+finished_at=09/06/2026 17:30:15
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=6eff99e124c75d1f9f60f4c358b3eca3ed6cf6257b2bf46a7977cca065fe32b5
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $all=Get-CimInstance Win32_Process; $rows=@(); foreach($p in @($all | Where-Object {$_.CommandLine -and $_.CommandLine -like "*$w*" -and $_.Name -in @('cl.exe','link.exe','dotnet.exe')})){$gp=Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue; $rows += [pscustomobject]@{Pid=$p.ProcessId;Name=$p.Name;Created=$p.CreationDate;CPU=if($gp){[math]::Round($gp.CPU,1)}else{$null};WS_MB=if($gp){[math]::Round($gp.WorkingSet64/1MB)}else{$null};Private_MB=if($gp){[math]::Round($gp.PrivateMemorySize64/1MB)}else{$null};Command=$p.CommandLine}}; $rows | Format-Table -Wrap -AutoSize
+
+=== a02f93b9-3f3a-49b8-9c62-51c4f1e5127e.json ===
+process_id=a02f93b9-3f3a-49b8-9c62-51c4f1e5127e
+pid=40772
+request_id=1b46eccf-384e-4930-849e-ad3629f9228a
+started_at=09/06/2026 17:30:29
+finished_at=09/06/2026 17:30:29
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=87e8429a1c8e61fe2d250fcfae237e6e01d549e8c56baa5f81fbe32af04bd7dc
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 720 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 140 | ForEach-Object {$_.Line}}
+
+=== 4a9deb2b-8c06-4d77-b216-a8351322aec4.json ===
+process_id=4a9deb2b-8c06-4d77-b216-a8351322aec4
+pid=38580
+request_id=657c49ad-f820-48cb-a35b-f6f82ae0365e
+started_at=09/06/2026 17:30:38
+finished_at=09/06/2026 17:30:39
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=5a100ed6d3c8324d7a39476b6d3e809bcfeab5c55f3737aff36dd10d32634a52
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$all=Get-CimInstance Win32_Process; $rows=@(); $front=@(7044); $seen=@{}; for($depth=0;$depth -lt 4;$depth++){ $next=@(); foreach($parent in $front){foreach($p in @($all | Where-Object {$_.ParentProcessId -eq $parent})){if(-not $seen.ContainsKey($p.ProcessId)){$seen[$p.ProcessId]=$true; $gp=Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue; $rows += [pscustomobject]@{Depth=$depth+1;Pid=$p.ProcessId;Parent=$p.ParentProcessId;Name=$p.Name;CPU=if($gp){[math]::Round($gp.CPU,1)}else{$null};WS_MB=if($gp){[math]::Round($gp.WorkingSet64/1MB)}else{$null};Private_MB=if($gp){[math]::Round($gp.PrivateMemorySize64/1MB)}else{$null};Command=$p.CommandLine}; $next += $p.ProcessId}}}; $front=$next}; $rows | Format-Table -Wrap -AutoSize
+
+=== 59c9ba79-8723-4d12-b274-f1834d202efe.json ===
+process_id=59c9ba79-8723-4d12-b274-f1834d202efe
+pid=30864
+request_id=0340d21d-3860-43d3-ad9d-dd5541add4a4
+started_at=09/06/2026 17:31:01
+finished_at=09/06/2026 17:31:01
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=38dae6561cfb60ea6434480e6bd52266aa5219375b2c68edfe75826fe6785f26
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 900 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 160 | ForEach-Object {$_.Line}}
+
+=== 0a543bee-1455-4d58-a36e-415929a8d9fc.json ===
+process_id=0a543bee-1455-4d58-a36e-415929a8d9fc
+pid=1732
+request_id=8f529212-fc42-47ca-8482-dbab19a7dc0a
+started_at=09/06/2026 17:31:23
+finished_at=09/06/2026 17:31:23
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=38dae6561cfb60ea6434480e6bd52266aa5219375b2c68edfe75826fe6785f26
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 1000 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error' | Select-Object -Last 170 | ForEach-Object {$_.Line}}
+
+=== 316f5c8d-717a-4fc3-a5dc-524facac2ea4.json ===
+process_id=316f5c8d-717a-4fc3-a5dc-524facac2ea4
+pid=5528
+request_id=d8db0c38-8d28-48a8-96f5-8526b0e5e31e
+started_at=09/06/2026 17:31:31
+finished_at=09/06/2026 17:31:32
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=0e7bdc1862e518b1ffe3d6a4c61e7d7bb1b4019d542c681f567e119ff0587143
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$all=Get-CimInstance Win32_Process; $rows=@(); foreach($p in @($all | Where-Object {$_.ParentProcessId -eq 7044})){$gp=Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue; $rows += [pscustomobject]@{Pid=$p.ProcessId;Name=$p.Name;Created=$p.CreationDate;CPU=if($gp){[math]::Round($gp.CPU,1)}else{$null};WS_MB=if($gp){[math]::Round($gp.WorkingSet64/1MB)}else{$null};Private_MB=if($gp){[math]::Round($gp.PrivateMemorySize64/1MB)}else{$null};Command=$p.CommandLine}}; $rows | Format-Table -Wrap -AutoSize
+
+=== 16f547e2-e1fb-4fb5-b0ed-6d5ac1baa470.json ===
+process_id=16f547e2-e1fb-4fb5-b0ed-6d5ac1baa470
+pid=27776
+request_id=7c2aae61-ed11-4574-89e1-f5afb1daeba5
+started_at=09/06/2026 17:31:45
+finished_at=09/06/2026 17:31:45
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=cee179d56aa96b9bcc44c602a3f3451b22360490b34d7b21140b647938a6c6a0
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; $hits=Get-Content -LiteralPath $log -Tail 1200 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error'; $hits | Select-Object -Last 35 | ForEach-Object {$_.Line}}
+
+=== ca25ff26-6849-49af-b4fd-1ebd34958b71.json ===
+process_id=ca25ff26-6849-49af-b4fd-1ebd34958b71
+pid=41936
+request_id=f074f5b8-3923-48e4-bea5-4f32e2625e40
+started_at=09/06/2026 17:32:07
+finished_at=09/06/2026 17:32:07
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=fb7252eaf0b014ba8a612eabdb488bfb3878e7f3b2bf7db7599faaef1861cc06
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$all=Get-CimInstance Win32_Process; $p=$all | Where-Object {$_.ParentProcessId -eq 7044 -and $_.Name -eq 'cl.exe'} | Select-Object -First 1; if($p){$gp=Get-Process -Id $p.ProcessId -ErrorAction SilentlyContinue; Write-Output "CL_PID=$($p.ProcessId) CREATED=$($p.CreationDate) CPU=$([math]::Round($gp.CPU,1)) WS_MB=$([math]::Round($gp.WorkingSet64/1MB)) PRIVATE_MB=$([math]::Round($gp.PrivateMemorySize64/1MB))"; Write-Output $p.CommandLine} else {Write-Output 'NO_CL_CHILD'}
+
+=== 52198c81-8802-4049-885d-43eece414894.json ===
+process_id=52198c81-8802-4049-885d-43eece414894
+pid=36568
+request_id=930f4801-b0ed-4c44-b0c0-c92508cfbe29
+started_at=09/06/2026 17:33:26
+finished_at=09/06/2026 17:33:27
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=3684085f3258af05fd90c9970da221d0da0cf87c84b4c64c25ce65894e7cd784
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; $hits=Get-Content -LiteralPath $log -Tail 1400 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error'; $hits | Select-Object -Last 45 | ForEach-Object {$_.Line}}
+
+=== 23645d81-7e7a-424c-a3e4-65f0d79c1603.json ===
+process_id=23645d81-7e7a-424c-a3e4-65f0d79c1603
+pid=15672
+request_id=f4a7f7e7-26ec-4a5e-953d-91474b039cab
+started_at=09/06/2026 17:33:41
+finished_at=09/06/2026 17:33:42
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=df4a9a954373417093a3e463514495fd89a0e7e93a2cdd5fec33efc050619689
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; $hits=Get-Content -LiteralPath $log -Tail 1800 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error'; $hits | Select-Object -Last 50 | ForEach-Object {$_.Line}}
+
+=== 8bd69fb0-0f93-4b58-98ca-0b6367e637e9.json ===
+process_id=8bd69fb0-0f93-4b58-98ca-0b6367e637e9
+pid=18756
+request_id=13fb7412-e8ba-4d3f-9afa-160ced7a7487
+started_at=09/06/2026 17:34:03
+finished_at=09/06/2026 17:34:03
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=ed59f8aaafd989dc6379202a5a926147416607d25e57ee0969ef1a5571e0ebb2
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; $hits=Get-Content -LiteralPath $log -Tail 2200 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error'; $hits | Select-Object -Last 50 | ForEach-Object {$_.Line}}
+
+=== f2e19658-a2c9-4839-a293-77e68cdc4dd5.json ===
+process_id=f2e19658-a2c9-4839-a293-77e68cdc4dd5
+pid=39568
+request_id=91fbfc01-5637-463b-a185-472d1e6d2cb0
+started_at=09/06/2026 17:34:29
+finished_at=09/06/2026 17:34:29
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=4453ddd878efc051b9e24d1c6b253b2fa79465556211e7d058a9dfb31e2ed441
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$log='C:\Users\Lauri\Desktop\p3-pine-1033-20260906\Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; $hits=Get-Content -LiteralPath $log -Tail 2600 | Select-String -Pattern '^\[[0-9]+/[0-9]+\]|Result:|Total execution time|error C[0-9]+|fatal error'; $hits | Select-Object -Last 55 | ForEach-Object {$_.Line}}
+
+=== 8c2478db-a003-4041-b5d8-48fcadbd9bbb.json ===
+process_id=8c2478db-a003-4041-b5d8-48fcadbd9bbb
+pid=24532
+request_id=f818e7fb-3298-447a-8c56-a69de5c333b9
+started_at=09/06/2026 17:34:51
+finished_at=09/06/2026 17:34:56
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=2445facb94bf17acd7177b717d77d5e0d36568c31491ec61726b3581d58273a7
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$ErrorActionPreference='Stop'; $vault='C:\Users\Lauri\Desktop\vault'; python "$vault\tools\stack_atlas.py" bootstrap-glance | Out-Null; $repo='organicoverlords/p3'; $w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $busy='C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd'; $main=(gh api repos/$repo/commits/main --jq .sha).Trim(); $head=(git -C $w rev-parse HEAD).Trim(); Write-Output "MAIN=$main HEAD=$head"; if($main -ne $head){throw 'main advanced after build; revalidation required'}; $dirty=@(git -C $w status --porcelain); Write-Output "dirty_count=$($dirty.Count)"; if($dirty.Count -ne 0){$dirty | Select-Object -First 30; throw 'authoring lane not clean'}; $editor=@(Get-CimInstance Win32_Process | Where-Object {$_.Name -like 'UnrealEditor*' -and $_.CommandLine -and $_.CommandLine -like "*$w*"}); Write-Output "editor_count=$($editor.Count)"; if($editor.Count -ne 0){throw 'editor already active in lane'}; foreach($s in @('git:organicoverlords/p3:issue:1033','git:organicoverlords/p3:branch:chatgpt/pine-1033-authored-construction-20260906',"runtime:$w",'Content/V2/Input/Construction/IA_V2ConstructionToggle.uasset','Content/V2/Input/Construction/IA_V2ConstructionPlace.uasset','Content/V2/Input/Construction/IA_V2ConstructionRotate.uasset','Content/V2/Input/Construction/IMC_V2Construction.uasset','Content/V2/Input/Construction/IC_V2Construction.uasset','Content/V2/Construction/BD_V2PlayerWall.uasset','Content/V2/FS_V2Foundation.uasset')){$x=& $busy inspect $s; Write-Output "$s => $(($x -join '') -replace '\s+',' ')"}; foreach($f in @('Binaries/Win64/UnrealEditor-p3.dll','Plugins/P3/Features/P3Construction/Binaries/Win64/UnrealEditor-P3Construction.dll','Plugins/P3/P3Earthworks/Binaries/Win64/UnrealEditor-P3Earthworks.dll','Plugins/P3/P3Testing/Binaries/Win64/UnrealEditor-P3Testing.dll')){$p=Join-Path $w ($f -replace '/','\'); Write-Output "$f=$(Test-Path $p)"}
+
+=== 0068a919-c5c1-4102-abd2-f7cf62232673.json ===
+process_id=0068a919-c5c1-4102-abd2-f7cf62232673
+pid=43548
+request_id=7e18022e-0d2d-4039-8248-aa184ee9a7a7
+started_at=09/06/2026 17:35:04
+finished_at=09/06/2026 17:35:22
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=8f64a3c7a9d0cfb6b8f62c1ca05c9827feaa4c3683323b96b05b4a0d68a37bcc
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$root='C:\Users\Lauri\AppData\Local\ChatGPTMcpClean\minimal-connectors\shared-process-receipts'; Get-ChildItem $root -Filter *.json | Where-Object {$_.LastWriteTime -gt (Get-Date).AddHours(-3)} | Select-String -Pattern 'timeline_materializer.py','CREATE_NO_WINDOW','Vault Timeline Materializer' | Select-Object -Last 80 Path,Line | Format-List
+
+=== 706c0e32-7994-48f9-a940-b7f1e10f41e6.json ===
+process_id=706c0e32-7994-48f9-a940-b7f1e10f41e6
+pid=32004
+request_id=44920a50-dcad-46ae-927f-8df11226e59c
+started_at=09/06/2026 17:35:09
+finished_at=09/06/2026 17:36:41
+execution_outcome=nonzero_exit
+exit_code=1
+signal=
+cwd=C:\Users\Lauri\Desktop\p3-pine-1033-20260906
+stdout_sha256=8442d63183119c34c90601cfdfb259d5658c710765ceac0fbe845b31e9663b7d
+stderr_sha256=57e8c943ddf191d50565e0fda57e8834f373b7cea56c4e92678fece775a2d015
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $script=Join-Path $w 'Content\Python\author_issue1033_construction_input.py'; $log=Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'; New-Item -ItemType Directory -Force -Path (Split-Path -Parent $log) | Out-Null; $extra=@('-run=pythonscript',("-script={0}" -f $script),("-abslog={0}" -f $log)); & (Join-Path $w 'scripts\Invoke-P3UnattendedEditor.ps1') -ProjectRoot $w -StartupTimeoutSeconds 900 -LifetimeTimeoutSeconds 900 -WaitForExit -NullRHI -MaxFPS 15 -ExtraArgs $extra
+
+=== bc2df43e-c145-41cc-b691-b18ef4d7710d.json ===
+process_id=bc2df43e-c145-41cc-b691-b18ef4d7710d
+pid=45024
+request_id=48e0319e-4d0e-4896-ae3f-a7a96fac7185
+started_at=09/06/2026 17:35:36
+finished_at=09/06/2026 17:35:37
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=3e259b8e5d1c0bd7150c01f144d74754ee0963a8d686e554fb8f0f09f48d5828
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$env:PYTHONIOENCODING='utf-8'; @'
+import json
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+root=Path.home()/r'AppData/Local/ChatGPTMcpClean/minimal-connectors/clone-a'
+files=[root/'transport.jsonl.archive/transport.jsonl.2026-09-06T17-01-24-776Z.5c597d28-8dd7-4a6e-949e-43e2491d76d9.jsonl',root/'transport.jsonl']
+targets=['2026-09-06T14:43:49.569791Z','2026-09-06T16:05:31Z','2026-09-06T17:15:18.160555Z','2026-09-06T17:16:55.281219Z']
+def dt(s): return datetime.fromisoformat(s.replace('Z','+00:00'))
+rows=[]
+for f in files:
+    if not f.exists(): continue
+    with f.open('r',encoding='utf-8',errors='replace') as h:
+        for line in h:
+            if '2026-09-06T' not in line: continue
+            try:r=json.loads(line)
+            except:continue
+            at=r.get('at')
+            if not at:continue
+            try:t=dt(at)
+            except:continue
+            rows.append((t,r))
+for ts in targets:
+    t0=dt(ts); lo=t0-timedelta(seconds=15); hi=t0+timedelta(seconds=90)
+    by={}
+    for t,r in rows:
+        if lo<=t<=hi:
+            c=r.get('caller_id') or r.get('owner_caller_id') or '<none>'
+            d=by.setdefault(c,{'first':t,'last':t,'req':0,'tools':{},'events':{},'processes':set()})
+            d['first']=min(d['first'],t); d['last']=max(d['last'],t)
+            ev=r.get('event'); d['events'][ev]=d['events'].get(ev,0)+1
+            if ev=='request_start': d['req']+=1
+            tool=r.get('mcp_tool')
+            if tool:d['tools'][tool]=d['tools'].get(tool,0)+1
+            if r.get('process_id'):d['processes'].add(r['process_id'])
+    print('\nTARGET',ts)
+    for c,d in sorted(by.items(), key=lambda kv:kv[1]['first']):
+        if c=='<none>' and d['req']==0: continue
+        print(c,'first',d['first'].isoformat(),'last',d['last'].isoformat(),'req',d['req'],'tools',d['tools'],'processes',len(d['processes']),'events', {k:v for k,v in d['events'].items() if k in ('request_start','response_finish','process_start','process_exit_observed','process_read','connection_open')})
+'@ | python -
+
+=== 316359ce-16a9-4b25-bc46-a8da3e61504b.json ===
+process_id=316359ce-16a9-4b25-bc46-a8da3e61504b
+pid=46000
+request_id=7c69ecd2-ae6a-46f2-948d-68dc7a17bd08
+started_at=09/06/2026 17:35:42
+finished_at=09/06/2026 17:35:43
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=96bba90ab52c4116ad35f0886d10a1b7ad4c52526b04aa5c9e659212067de68c
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; Write-Output '---EDITOR---'; Get-CimInstance Win32_Process | Where-Object {$_.Name -like 'UnrealEditor*' -and $_.CommandLine -and $_.CommandLine -like "*$w*"} | Select-Object ProcessId,Name,CreationDate,CommandLine | Format-Table -Wrap -AutoSize; Write-Output '---AUTHOR LOG---'; $log=Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 100 | Select-Object -Last 100}; Write-Output '---RECEIPT---'; $r=Join-Path $w 'Saved\Issue1033\construction_input_authoring.json'; Write-Output "receipt_exists=$(Test-Path $r)"; if(Test-Path $r){Get-Content -LiteralPath $r}
+
+=== 306138e0-3565-4896-bdfb-e56639553065.json ===
+process_id=306138e0-3565-4896-bdfb-e56639553065
+pid=39100
+request_id=2ee33963-bfe1-4632-bd93-d764e0b29beb
+started_at=09/06/2026 17:36:08
+finished_at=09/06/2026 17:36:08
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=c6353df4ef87479748339e88f95d2b91f3185d42976f883d25bfafdcea81b076
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $log=Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 160 | Select-String -Pattern 'Python|P3_ISSUE1033|Lock|LFS|Error:|Fatal|Exception|Commandlet|Issue1033|construction_input_authoring|LogInit: Display: Engine is initialized|LogPython' | ForEach-Object {$_.Line}}; $r=Join-Path $w 'Saved\Issue1033\construction_input_authoring.json'; Write-Output "receipt_exists=$(Test-Path $r)"
+
+=== a18cd2f7-45cf-4e80-83f2-d49008d51e79.json ===
+process_id=a18cd2f7-45cf-4e80-83f2-d49008d51e79
+pid=4560
+request_id=bcd13ec6-a527-4a48-b58e-810189972816
+started_at=09/06/2026 17:36:33
+finished_at=09/06/2026 17:36:33
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=519c0d4377a7a68ee3e2d84662557ebf4d48c7a917440f2101499b8ffba5054c
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $log=Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'; if(Test-Path $log){$i=Get-Item $log; Write-Output "bytes=$($i.Length) write=$($i.LastWriteTime.ToString('o'))"; Get-Content -LiteralPath $log -Tail 220 | Select-String -Pattern 'LogPython|PythonScript|P3_ISSUE1033|LockGuard|LFS|Error:|Fatal|Exception|Commandlet|Issue1033|construction_input_authoring|Engine is initialized|LogInit: Display' | ForEach-Object {$_.Line}}; $r=Join-Path $w 'Saved\Issue1033\construction_input_authoring.json'; Write-Output "receipt_exists=$(Test-Path $r)"; if(Test-Path $r){Get-Content -LiteralPath $r}
+
+=== 655883e1-42b5-4dfc-ac21-f08085ac6065.json ===
+process_id=655883e1-42b5-4dfc-ac21-f08085ac6065
+pid=17052
+request_id=46cc6352-3da8-4e3b-941c-670cd6241871
+started_at=09/06/2026 17:36:54
+finished_at=09/06/2026 17:36:55
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=9bc7b3f609afb87bdb89e8180b20c5eaea9ea1321048b4668321b855f9aa14f9
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$ErrorActionPreference='Stop'; $w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $log=Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'; Write-Output '---ERROR TAIL---'; Get-Content -LiteralPath $log -Tail 320 | Select-String -Pattern 'LogPython|Traceback|Error:|Fatal|Exception|P3_ISSUE1033|Lock|LFS|missing required asset|RuntimeError|failed to|key conflict|wrong class|not registered|PACKAGE_FILE_TAG|exiting|ExitCode' | Select-Object -Last 160 | ForEach-Object {$_.Line}; Write-Output '---GIT STATUS---'; git -C $w status --short --branch; Write-Output '---TARGET STATUS---'; git -C $w status --short -- 'Content/V2/Input/Construction' 'Content/V2/Construction/BD_V2PlayerWall.uasset' 'Content/V2/FS_V2Foundation.uasset'; Write-Output '---TARGET FILES---'; foreach($p in @('Content/V2/Input/Construction/IA_V2ConstructionToggle.uasset','Content/V2/Input/Construction/IA_V2ConstructionPlace.uasset','Content/V2/Input/Construction/IA_V2ConstructionRotate.uasset','Content/V2/Input/Construction/IMC_V2Construction.uasset','Content/V2/Input/Construction/IC_V2Construction.uasset','Content/V2/Construction/BD_V2PlayerWall.uasset','Content/V2/FS_V2Foundation.uasset')){$f=Join-Path $w ($p -replace '/','\'); Write-Output "$p exists=$(Test-Path $f) size=$(if(Test-Path $f){(Get-Item $f).Length}else{0})"}; Write-Output '---RECEIPT---'; $r=Join-Path $w 'Saved\Issue1033\construction_input_authoring.json'; Write-Output "receipt_exists=$(Test-Path $r)"
+
+=== efc382ac-97ff-415f-a932-74a1a90db00c.json ===
+process_id=efc382ac-97ff-415f-a932-74a1a90db00c
+pid=34276
+request_id=96b01d0a-9b33-414d-a410-9d4c8ffe7237
+started_at=09/06/2026 17:37:18
+finished_at=09/06/2026 17:37:19
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=4477f2e94e3cbcc1c2ae2602a53486c50867f7aed9262941c4665fefcbc544ae
+stderr_sha256=0dbbc9ae746d9ff2a2eca729f24684ad0b4709d2a3c158594d80e14f8ef86596
+command=
+$ErrorActionPreference='Stop'; $w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; Write-Output '---STATUS---'; git -C $w status --short --branch; Write-Output '---TARGET STATUS---'; git -C $w status --short -- 'Content/V2/Input/Construction' 'Content/V2/Construction/BD_V2PlayerWall.uasset' 'Content/V2/FS_V2Foundation.uasset'; Write-Output '---TARGET FILES---'; foreach($p in @('Content/V2/Input/Construction/IA_V2ConstructionToggle.uasset','Content/V2/Input/Construction/IA_V2ConstructionPlace.uasset','Content/V2/Input/Construction/IA_V2ConstructionRotate.uasset','Content/V2/Input/Construction/IMC_V2Construction.uasset','Content/V2/Input/Construction/IC_V2Construction.uasset','Content/V2/Construction/BD_V2PlayerWall.uasset','Content/V2/FS_V2Foundation.uasset')){$f=Join-Path $w ($p -replace '/','\'); $st=((git -C $w status --short -- $p)|Out-String).Trim(); Write-Output "$p exists=$(Test-Path $f) size=$(if(Test-Path $f){(Get-Item $f).Length}else{0}) status=$st"}; Write-Output '---RECEIPT---'; $r=Join-Path $w 'Saved\Issue1033\construction_input_authoring.json'; Write-Output "exists=$(Test-Path $r)"; Write-Output '---EDITOR GONE---'; @(Get-CimInstance Win32_Process | Where-Object {$_.Name -like 'UnrealEditor*' -and $_.CommandLine -and $_.CommandLine -like "*$w*"}).Count
+
+=== b0743449-fc8f-440e-80db-170c66290f47.json ===
+process_id=b0743449-fc8f-440e-80db-170c66290f47
+pid=22088
+request_id=5cf87178-c6ca-42e4-9b55-b911341ec8e0
+started_at=09/06/2026 17:37:32
+finished_at=09/06/2026 17:37:34
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=ef844029edc54c453248288ff7a7954f5600fb9a364cbdc06f6ebdaa4c7c4dc3
+stderr_sha256=2b6c7b0100ff71949c425b43ffcd3b86f584c6c6dc1f1c60438c5659dc332231
+command=
+$root='C:\Users\Lauri\Documents\Unreal Projects\p3'; $main=(gh api repos/organicoverlords/p3/commits/main --jq .sha).Trim(); Write-Output '---BINDING TYPE---'; git -C $root grep -n -I -E 'struct.*P3InputActionBinding|P3InputActionBinding|InputTag.*InputAction' $main -- 'Plugins/**' 'Source/**' 'Content/Python/**' 'scripts/**' | Select-Object -First 240; Write-Output '---INPUT CONFIG HEADER---'; $files=@(git -C $root grep -l -I -F 'FP3InputActionBinding' $main -- 'Plugins/**' 'Source/**'); $files | ForEach-Object {Write-Output "---$_---"; git -C $root show "${main}:$_" | Select-String -Pattern 'FP3InputActionBinding|InputTag|InputAction|UPROPERTY' -Context 3,5}
+
+=== 33d55d15-81ab-4d53-ae9a-01a3af1559a8.json ===
+process_id=33d55d15-81ab-4d53-ae9a-01a3af1559a8
+pid=12872
+request_id=f4992507-e215-43aa-8983-42954ad9de81
+started_at=09/06/2026 17:37:44
+finished_at=09/06/2026 17:37:45
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=ab54639830374b1c71cfcfab7fe0d2ba2d96605ef7343ffb35bc22141a7dedbe
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$root='C:\Users\Lauri\Documents\Unreal Projects\p3'; $main=(gh api repos/organicoverlords/p3/commits/main --jq .sha).Trim(); $path='Plugins/P3/P3Core/Source/P3Core/Public/P3InputConfig.h'; Write-Output '---P3InputConfig.h---'; git -C $root show "${main}:$path" | Select-String -Pattern 'USTRUCT|FP3InputActionBinding|UPROPERTY|InputTag|InputAction' -Context 3,5; Write-Output '---AUTHORING COMPARISON---'; foreach($p in @('Content/Python/author_issue1012_earthworks_input.py','Content/Python/author_issue1033_construction_input.py')){Write-Output "---$p---"; git -C $root show "${main}:$p" | Select-String -Pattern 'P3InputActionBinding|input_tag|input_action|set_editor_property\("input_actions"' -Context 3,5}
+
+=== 368394d1-cdf8-4cec-abdc-eeae6c7da32d.json ===
+process_id=368394d1-cdf8-4cec-abdc-eeae6c7da32d
+pid=39104
+request_id=2e5ee3d5-0f14-41db-a7c8-756022ccc539
+started_at=09/06/2026 17:38:11
+finished_at=09/06/2026 17:38:13
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=9e3c2fac0c7f56c460bee44abb3bf91dcbff6546eca16ff432f1e0376143750c
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; Push-Location $w; try { python -c "import sys,json,pathlib; sys.path.insert(0,str(pathlib.Path(r'$w')/'scripts'/'v2'/'assets')); import p3_lfs_lock_guard as l; locks,endpoint=l._verified_locks(pathlib.Path(r'$w'), l._default_runner); wanted=('Content/V2/Input/Construction/','Content/V2/Construction/BD_V2PlayerWall.uasset','Content/V2/FS_V2Foundation.uasset'); out={k:[x for x in locks[k] if any(str(x.get('path','')).replace('\\','/').startswith(p) if p.endswith('/') else str(x.get('path','')).replace('\\','/')==p for p in wanted)] for k in ('ours','theirs')}; print(json.dumps({'endpoint':endpoint,'locks':out},sort_keys=True))" } finally { Pop-Location }
+
+=== a9dcd0a4-f014-42f0-a582-697d6a852776.json ===
+process_id=a9dcd0a4-f014-42f0-a582-697d6a852776
+pid=35912
+request_id=b2761d56-9d72-4251-b774-2d4cf5955833
+started_at=09/06/2026 17:38:27
+finished_at=09/06/2026 17:38:28
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=63ff73e6d58c3ccde280e6c8572f34fa945257beca65eb93fc1cbc6c54191a2d
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; Write-Output '---AUTHOR TARGET/CONFIGURE---'; $a=Get-Content -LiteralPath (Join-Path $w 'Content\Python\author_issue1033_construction_input.py'); for($i=20;$i -le 225;$i++){if($a[$i-1] -match 'DEFAULT_WALL|FOUNDATION|authored_packages|ensure_package_locks|def configure|P3InputActionBinding|create_|return \['){Write-Output ("{0,4}: {1}" -f $i,$a[$i-1])}}; Write-Output '---TEST AUTHORING ASSERTIONS---'; $t=Get-Content -LiteralPath (Join-Path $w 'scripts\v2\tests\test_v2_construction_player_input.py'); for($i=1;$i -le $t.Count;$i++){if($t[$i-1] -match 'author|P3InputActionBinding|INPUT_ROOT|BD_V2PlayerWall|FS_V2Foundation|ensure_package_locks'){Write-Output ("{0,4}: {1}" -f $i,$t[$i-1])}}; Write-Output '---BUSY SCRIPT TEST---'; $busy='C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd'; foreach($s in @('Content/Python/author_issue1033_construction_input.py','scripts/v2/tests/test_v2_construction_player_input.py')){Write-Output $s; & $busy inspect $s}
+
+=== 9903c09f-c750-4444-96cd-fddb20d9e208.json ===
+process_id=9903c09f-c750-4444-96cd-fddb20d9e208
+pid=39636
+request_id=0f71e11c-583c-4243-906b-859b74f098a0
+started_at=09/06/2026 17:38:38
+finished_at=09/06/2026 17:38:39
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=c11985e2e03db36b3d7c934a251568c3d64631dde009b6ae57c6242807482848
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $a=Get-Content -LiteralPath (Join-Path $w 'Content\Python\author_issue1033_construction_input.py'); for($i=20;$i -le 36;$i++){Write-Output ("{0,4}: {1}" -f $i,$a[$i-1])}; for($i=190;$i -le 205;$i++){Write-Output ("{0,4}: {1}" -f $i,$a[$i-1])}
+
+=== 82ccf201-fc42-4043-9b83-f2d3e47eea44.json ===
+process_id=82ccf201-fc42-4043-9b83-f2d3e47eea44
+pid=23360
+request_id=d95a4ade-e26a-4fbb-bea0-6d3f06ac7343
+started_at=09/06/2026 17:38:51
+finished_at=09/06/2026 17:38:53
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=088c346e65c440a53928f2c0bb790118bcd65736952bc8f307d9bce854cbfb10
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$ErrorActionPreference='Stop'; $w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $busy='C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd'; Write-Output '---CORRECT BUSY---'; foreach($s in @('Content/V2/Construction/BuildDefinitions/BD_V2PlayerWall.uasset','Content/Python/author_issue1033_construction_input.py','scripts/v2/tests/test_v2_construction_player_input.py')){Write-Output $s; & $busy inspect $s}; Write-Output '---LFS TARGET LOCKS---'; Push-Location $w; try { python -c "import sys,json,pathlib; sys.path.insert(0,str(pathlib.Path(r'$w')/'scripts'/'v2'/'assets')); import p3_lfs_lock_guard as l; locks,endpoint=l._verified_locks(pathlib.Path(r'$w'), l._default_runner); wanted={'Content/V2/Construction/BuildDefinitions/BD_V2PlayerWall.uasset','Content/V2/FS_V2Foundation.uasset'}; out={k:[x for x in locks[k] if str(x.get('path','')).replace('\\','/') in wanted] for k in ('ours','theirs')}; print(json.dumps(out,sort_keys=True))" } finally { Pop-Location }
+
+=== 00a9fcaf-54bc-4bfd-9e37-16ec3c9096ee.json ===
+process_id=00a9fcaf-54bc-4bfd-9e37-16ec3c9096ee
+pid=22200
+request_id=b0183306-f842-4515-8efe-55f93e97f01b
+started_at=09/06/2026 17:39:06
+finished_at=09/06/2026 17:39:08
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=6266e075d055cb08b62f5bab29c496fe4e6deb59396e65b8f42271dfb6d6682c
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$ErrorActionPreference='Stop'; $vault='C:\Users\Lauri\Desktop\vault'; python "$vault\tools\stack_atlas.py" bootstrap-glance | Out-Null; $busy='C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd'; $actor='ChatGPT:sol-p3-convergence-20260906'; $new=@('Content/V2/Construction/BuildDefinitions/BD_V2PlayerWall.uasset','Content/Python/author_issue1033_construction_input.py','scripts/v2/tests/test_v2_construction_player_input.py'); $claimed=@(); try{foreach($s in $new){$o=& $busy inspect $s;if(($o -join "`n") -match '"claim":\s*\{'){throw "scope busy $s"};& $busy claim $actor $s --lease-seconds 1200 --checkpoint '1033-ue58-struct-constructor-fix';if($LASTEXITCODE -ne 0){throw "claim failed $s"};$claimed += $s}; & $busy release $actor 'Content/V2/Construction/BD_V2PlayerWall.uasset' --checkpoint '1033-correct-builddefinition-scope' | Out-Null; Write-Output "CLAIMED_NEW=$($claimed.Count) RELEASED_WRONG=1"}catch{foreach($s in $claimed){& $busy release $actor $s --checkpoint '1033-fix-claim-aborted' | Out-Null};throw}
+
+=== ab723f8a-6d4a-413d-9260-04bd54b0b4ff.json ===
+process_id=ab723f8a-6d4a-413d-9260-04bd54b0b4ff
+pid=2000
+request_id=634dc2c7-7d32-4380-ac7a-ece642e8697f
+started_at=09/06/2026 17:39:23
+finished_at=09/06/2026 17:39:23
+execution_outcome=nonzero_exit
+exit_code=1
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+stderr_sha256=528b3a0a2214435a2b70b43618f53fe91091b2feeb5d5a6ff4cc7b1d68ae2020
+command=
+$ErrorActionPreference='Stop'; $w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $author=Join-Path $w 'Content\Python\author_issue1033_construction_input.py'; $test=Join-Path $w 'scripts\v2\tests\test_v2_construction_player_input.py'; $a=[IO.File]::ReadAllText($author); $old=@'
+        binding = unreal.P3InputActionBinding()
+        binding.set_editor_property("input_tag", gameplay_tag(tag_name))
+        binding.set_editor_property("input_action", action_assets[name])
+        bindings.append(binding)
+'@; $new=@'
+        binding = unreal.P3InputActionBinding(
+            input_tag=gameplay_tag(tag_name),
+            input_action=action_assets[name],
+        )
+        bindings.append(binding)
+'@; if(-not $a.Contains($old)){throw 'author binding block anchor missing'}; $a=$a.Replace($old,$new); [IO.File]::WriteAllText($author,$a,[Text.UTF8Encoding]::new($false)); $t=[IO.File]::ReadAllText($test); $anchor='    assert ''P3InputMappingContextEntry(mapping_context=context, priority=25)'' in author' + "`n"; if(-not $t.Contains($anchor)){throw 'test anchor missing'}; $insert=$anchor + '    assert ''P3InputActionBinding('' in author' + "`n" + '    assert ''input_tag=gameplay_tag(tag_name)'' in author' + "`n" + '    assert ''input_action=action_assets[name]'' in author' + "`n" + '    assert ''binding.set_editor_property("input_tag"'' not in author' + "`n" + '    assert ''binding.set_editor_property("input_action"'' not in author' + "`n"; $t=$t.Replace($anchor,$insert); [IO.File]::WriteAllText($test,$t,[Text.UTF8Encoding]::new($false)); Write-Output '---DIFF---'; git -C $w diff -- Content/Python/author_issue1033_construction_input.py scripts/v2/tests/test_v2_construction_player_input.py; Write-Output '---VALIDATE---'; Push-Location $w; try{python -m py_compile Content/Python/author_issue1033_construction_input.py scripts/v2/tests/test_v2_construction_player_input.py; if($LASTEXITCODE -ne 0){throw 'py_compile failed'}; python -m pytest -q scripts/v2/tests/test_v2_construction_player_input.py scripts/v2/assets/tests/test_p3_binary_authoring_lock.py; if($LASTEXITCODE -ne 0){throw 'focused tests failed'} } finally {Pop-Location}; git -C $w diff --check; if($LASTEXITCODE -ne 0){throw 'diff check failed'}
+
+=== 04849d65-68b7-4a6a-b943-fac78f4c795b.json ===
+process_id=04849d65-68b7-4a6a-b943-fac78f4c795b
+pid=5396
+request_id=809677b5-2a28-4287-9a69-c1f078fa1a90
+started_at=09/06/2026 17:39:30
+finished_at=09/06/2026 17:39:31
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=508e2f92fa579046811ea48bb8d60d35636147ddb23ee593f25d83c4e41ea16d
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$ErrorActionPreference='Stop'; $vault='C:\Users\Lauri\Desktop\vault'; Write-Output '---BOOTSTRAP---'; python "$vault\tools\stack_atlas.py" bootstrap-glance | Out-Null; Write-Output '---INCIDENT PATTERNS---'; python "$vault\tools\stack_atlas.py" find 'security incident evidence log user-visible reroute' | Select-Object -First 120; Write-Output '---RECENT SECURITY FILES---'; Get-ChildItem -LiteralPath "$vault\02 Evidence" -Recurse -File -ErrorAction SilentlyContinue | Where-Object {$_.Name -match 'security|incident|reroute'} | Sort-Object LastWriteTime -Descending | Select-Object -First 30 FullName,LastWriteTime,Length | Format-Table -AutoSize -Wrap
+
+=== 968f78a5-c9f8-48ab-8b7d-762599e9ed9c.json ===
+process_id=968f78a5-c9f8-48ab-8b7d-762599e9ed9c
+pid=14528
+request_id=e468b87f-48cf-4758-9fe7-f4e3cf159deb
+started_at=09/06/2026 17:39:50
+finished_at=09/06/2026 17:39:54
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=938536a63b91c4512ff8e20733aab374795e3310599c991a096f18bd5a2f5991
+stderr_sha256=486efb878dd1a479dfe8ed18b4bc914820cae843d3b860b874a184ca3151820b
+command=
+$ErrorActionPreference='Stop'; $vault='C:\Users\Lauri\Desktop\vault'; Write-Output '---OWNER---'; python "$vault\tools\stack_atlas.py" lookup mcp.security_reroute_log; Write-Output '---EVENT LOG TAIL---'; Get-Content -LiteralPath "$vault\02 Evidence\mcp-security-routing-events.jsonl" -Tail 8; Write-Output '---MCP FILES WINDOW---'; $start=[datetime]'2026-09-06T20:27:00'; $end=[datetime]'2026-09-06T20:40:00'; foreach($base in @("$env:LOCALAPPDATA\ChatGPTMcpMinimal","$env:LOCALAPPDATA\ChatGPTMcpClean")){Write-Output "BASE=$base"; if(Test-Path $base){Get-ChildItem -LiteralPath $base -File -Recurse -ErrorAction SilentlyContinue | Where-Object {$_.LastWriteTime -ge $start -and $_.LastWriteTime -lt $end} | Sort-Object LastWriteTime | Select-Object -First 80 FullName,Length,LastWriteTime | Format-Table -AutoSize -Wrap}}
+
+=== 6085ef0a-e938-4bc4-ae8d-fd4475d0a438.json ===
+process_id=6085ef0a-e938-4bc4-ae8d-fd4475d0a438
+pid=30488
+request_id=fa32acc9-08fa-4630-95a6-ab81f8430d4f
+started_at=09/06/2026 17:39:53
+finished_at=09/06/2026 17:39:54
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=23bdb3b00b4e7705a1abb63db45b21c43da24da33dc484255de1f99fa52e50a4
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+$ErrorActionPreference='Stop'; $vault='C:\Users\Lauri\Desktop\vault'; python "$vault\tools\stack_atlas.py" bootstrap-glance | Out-Null; $w='C:\Users\Lauri\Desktop\p3-pine-1033-20260906'; $dest=Join-Path $w 'Saved\Logs\Preserved\20260906-2027-2039'; New-Item -ItemType Directory -Force -Path $dest | Out-Null; $start=Get-Date '2026-09-06 20:27:00'; $end=Get-Date '2026-09-06 20:39:59'; $candidates=Get-ChildItem -LiteralPath (Join-Path $w 'Saved\Logs') -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $start.AddMinutes(-5) -and $_.LastWriteTime -le $end.AddMinutes(5) }; $rows=@(); foreach($f in $candidates){$rel=[IO.Path]::GetRelativePath($w,$f.FullName); $rows += [pscustomobject]@{Path=$rel;Length=$f.Length;LastWriteTime=$f.LastWriteTime.ToString('o')}}; $rows | Sort-Object LastWriteTime,Path | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $dest 'candidate-log-manifest.json') -Encoding utf8; foreach($src in @((Join-Path $w 'Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'),(Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'))){if(Test-Path $src){Copy-Item -LiteralPath $src -Destination (Join-Path $dest ([IO.Path]::GetFileName($src))) -Force}}; $build=Join-Path $w 'Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt'; if(Test-Path $build){Get-Content -LiteralPath $build | Where-Object {$_ -match '\[2026\.09\.06-17\.(2[7-9]|3[0-9]):' -or $_ -match '^\[[0-9]+/98\]' -or $_ -match 'Result: Succeeded|Total execution time|P3_BUILD_|Building p3Editor'} | Set-Content -LiteralPath (Join-Path $dest 'build-window-2027-2039.txt') -Encoding utf8}; $author=Join-Path $w 'Saved\Logs\Issue1033\construction-authoring-unreal.log'; if(Test-Path $author){Get-Content -LiteralPath $author | Where-Object {$_ -match '^\[2026\.09\.06-17\.(3[5-9]):'} | Set-Content -LiteralPath (Join-Path $dest 'authoring-window-2035-2039.txt') -Encoding utf8}; $note=@("Preserved local window: 2026-09-06 20:27:00–20:39:59 Europe/Helsinki","Workspace: $w","Native build log: Saved\Logs\UBT\1ED63D969C5EF78DA2B1.txt","Authoring log: Saved\Logs\Issue1033\construction-authoring-unreal.log","Build completed 98/98 with Result: Succeeded before authoring commandlet.","Authoring failure: P3InputActionBinding.InputTag cannot be edited on instances."); $note | Set-Content -LiteralPath (Join-Path $dest 'README.txt') -Encoding utf8; $zip=Join-Path (Split-Path $dest -Parent) '20260906-2027-2039.zip'; if(Test-Path $zip){Remove-Item -LiteralPath $zip -Force}; Compress-Archive -Path (Join-Path $dest '*') -DestinationPath $zip -CompressionLevel Optimal; Write-Output "DEST=$dest"; Write-Output "ZIP=$zip"; Get-ChildItem -LiteralPath $dest -File | Select-Object Name,Length,LastWriteTime | Format-Table -AutoSize; Write-Output '---WINDOW CANDIDATES---'; $rows | Sort-Object LastWriteTime,Path | Format-Table -AutoSize -Wrap
+
+=== bc4cc635-782c-4619-8bbc-e0beabff5f54.json ===
+process_id=bc4cc635-782c-4619-8bbc-e0beabff5f54
+pid=29084
+request_id=b74d8eec-f29d-4458-856b-805126153dd3
+started_at=09/06/2026 17:39:57
+finished_at=09/06/2026 17:39:57
+execution_outcome=success
+exit_code=0
+signal=
+cwd=C:\Users\Lauri\Desktop\vault
+stdout_sha256=265664543430014ec7062fc15fa7ec4b7c997fadbffff169f8a3415546f27c96
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+command=
+python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance
+

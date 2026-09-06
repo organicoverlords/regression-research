@@ -264,8 +264,16 @@ def tracked_artifact_events(
             if not rel_path or not any(rel_path.casefold().startswith(root.casefold() + "/") for root in ARTIFACT_ROOTS):
                 continue
             meta = provenance.get(rel_path.casefold(), {})
+            provenance_report_path = _normalise_artifact_path(str(meta.get("report_path") or ""))
+            is_primary_report = bool(
+                provenance_report_path and rel_path.casefold() == provenance_report_path.casefold()
+            )
             incident_ids = {item.upper() for item in INCIDENT_ID_RE.findall(rel_path)}
             if meta.get("incident_id"):
+                # Linked evidence keeps the strong incident anchor for case membership, but
+                # only the canonical report is an incident signal. Otherwise contracts,
+                # screenshots, and logs inherit the report's incident semantics and can
+                # replace the report title in timeline/bootstrap views.
                 incident_ids.add(str(meta["incident_id"]).upper())
             refs = _refs_from_title(commit_title)
             anchors = [f"incident:{item.casefold()}" for item in sorted(incident_ids)]
@@ -293,8 +301,8 @@ def tracked_artifact_events(
                 "decorations": decorations,
                 "refs": [rel_path, *refs],
                 "anchors": sorted(set(anchors)),
-                "incident_id": meta.get("incident_id"),
-                "evidence_type": meta.get("evidence_type"),
+                "incident_id": meta.get("incident_id") if is_primary_report else None,
+                "evidence_type": meta.get("evidence_type") if is_primary_report else None,
                 "report_path": meta.get("report_path"),
                 "thread_id": "artifact:" + rel_path.casefold(),
                 "thread_source": "PRESERVED_ARTIFACT_PATH",

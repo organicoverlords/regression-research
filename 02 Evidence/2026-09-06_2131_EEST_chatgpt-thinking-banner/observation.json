@@ -1,0 +1,21 @@
+{
+  "schema": "vault.ui-routing-observation.v1",
+  "report_time_local": "2026-09-06T21:31:00+03:00",
+  "report_time_semantics": "user-visible screenshot/report time; exact underlying platform event time not independently known",
+  "source": "user_supplied_chat_screenshot",
+  "chat_attachment_file_id": "file_0000000071b081f48a486a3d68542e41",
+  "original_uploaded_name": "211ba189-6552-4a54-8eb4-2bda56d3d435.png",
+  "screenshot_sha256": "ba89ca8da6f420bafcf755d148ce5469735133399c71c4bd39ed01b4278f19e8",
+  "screenshot_bytes": 130558,
+  "screenshot_width_px": 1238,
+  "screenshot_height_px": 952,
+  "visible_banner": "Our systems are thinking a bit more about this request before responding. You can retry with a faster model for a quicker response, though it may be less capable of handling complex requests. Learn more",
+  "observed_context": "ChatGPT UI showed the thinking banner while the assistant was continuing Tiny3D #10 and polling an active Hummingbird compile.",
+  "classification": "platform_ui_thinking_or_routing_observation",
+  "security_incident": "UNPROVEN",
+  "causal_attribution": "UNKNOWN",
+  "mcp_local_causation": "UNPROVEN",
+  "notes": "Screenshot does not itself display a security reroute warning. Preserve as UI evidence without upgrading it to a security incident.",
+  "image_materialization": "metadata_only_in_windows_vault",
+  "image_materialization_note": "Exact screenshot bytes are present in the chat attachment/sandbox source but were not copied into the Windows Vault in this step; hash, dimensions, attachment ID, and visible-text evidence are preserved."
+}
