@@ -1,0 +1,58 @@
+﻿{
+  "schema": "issue693.fresh-worker-entry.v1",
+  "issue": 693,
+  "decision_vocabulary": ["reuse_resume", "complement", "review_prove", "integrate", "new"],
+  "cases": [
+    {
+      "id": "hummingbird_overlap",
+      "task_text": "Investigate hummingbird wing deformation and make the smallest current fix that avoids repeating known rigging mistakes.",
+      "history": {
+        "authority": "HISTORY_ONLY",
+        "live_truth_required": true,
+        "required_primary_anchors": [
+          "gitsha:0e7bef0fa56bea230d1830ec2757dcf7c1413496",
+          "gitsha:97ff891a4ca48faf77c334f80678133ea263c16f",
+          "gitsha:9a44ad7326bf77a385c2bfe22b547ef9c80a2c43",
+          "gitsha:8ad2a7ba8d3bbc92bca3bd09af798e17e7db99a4"
+        ],
+        "must_avoid_wrong_approaches": [
+          "trusting a verifier that exercised the wrong limb",
+          "using Euclidean nearest-bone distance across disconnected or UV-seamed surfaces",
+          "accepting solved-pose success without replay validation",
+          "accepting export exit zero without usable skin"
+        ],
+        "may_establish_current_liveness": false
+      },
+      "current_evidence": {
+        "required_classes": ["targeted_repo_wip", "exact_busy_scope", "observed_peer_activity_if_available"],
+        "example": {
+          "targeted_repo_wip": {"state": "OPEN_OR_LOCAL_WIP", "planned_scope_overlap": true},
+          "exact_busy_scope": {"state": "ACTIVE", "planned_scope_overlap": true},
+          "observed_peer_activity_if_available": {"state": "OBSERVED_OR_UNKNOWN", "historical_report_is_not_liveness": true}
+        }
+      },
+      "expected": {
+        "allowed_decisions": ["reuse_resume", "complement", "review_prove", "integrate"],
+        "forbidden_decisions": ["new"],
+        "forbidden_conclusions": ["no_prior_work", "no_peers_from_history", "history_is_current_truth"],
+        "must_select_nonduplicate_contribution": true
+      }
+    },
+    {
+      "id": "routine_small_fix_negative_control",
+      "task_text": "Fix a small isolated typo in an unrelated documentation file with no matching history or overlapping current work.",
+      "history": {"authority": "HISTORY_ONLY", "relevant_items": [], "may_establish_current_liveness": false},
+      "current_evidence": {
+        "required_classes": ["exact_busy_scope_if_mutating"],
+        "example": {"targeted_repo_wip": {"planned_scope_overlap": false}, "exact_busy_scope": {"state": "FREE"}}
+      },
+      "expected": {
+        "allowed_decisions": ["new"],
+        "forbidden_decisions": ["reuse_resume", "complement", "review_prove", "integrate"],
+        "archaeology_forbidden": true,
+        "broad_scan_forbidden": true,
+        "must_remain_fast": true
+      }
+    }
+  ]
+}
