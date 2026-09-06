@@ -817,6 +817,33 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         "malformed_running_reports_truncated": malformed_running_reports > len(malformed_running_sample),
     }
 
+def _bootstrap_manual_sanity() -> dict[str, Any]:
+    path = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "metrics.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {"available": False, "status": "MISSING", "path": str(path)}
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "status": "ERROR", "path": str(path), "error": str(exc)}
+    sanity = payload.get("sanity") if isinstance(payload, dict) else None
+    if not isinstance(sanity, dict):
+        return {"available": False, "status": "NOT_PROJECTED", "path": str(path)}
+    return {
+        "available": bool(sanity.get("available", True)),
+        "path": str(path),
+        "baseline_id": sanity.get("baseline_id"),
+        "boundary_at": sanity.get("boundary_at"),
+        "status": sanity.get("status"),
+        "score_delta": sanity.get("score_delta"),
+        "direction": sanity.get("direction"),
+        "post_run_count": sanity.get("post_run_count"),
+        "minimum_post_runs_for_provisional": sanity.get("minimum_post_runs_for_provisional"),
+        "minimum_post_runs_for_comparable": sanity.get("minimum_post_runs_for_comparable"),
+        "components": sanity.get("components", {}),
+        "semantics": sanity.get("semantics"),
+    }
+
+
 def _bootstrap_worker_status() -> dict[str, Any]:
     """Read archived worker-quality orientation from the periodic Vault projection only."""
     path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
@@ -845,6 +872,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     result["read_mode"] = "MATERIALIZED_ONLY"
     result["projection_path"] = str(path)
     result["materialized_as_of"] = raw.get("generated_at")
+    result["manual_sanity"] = _bootstrap_manual_sanity()
     return result
 
 
@@ -2014,7 +2042,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     worker_glance = {
         key: workers.get(key) for key in (
             "available", "generated_at", "read_mode", "population_scope", "evidence_semantics", "current_scheduler_membership",
-            "archive_sample", "attention", "stale_reports",
+            "archive_sample", "attention", "stale_reports", "manual_sanity",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     if isinstance(worker_glance, dict):
