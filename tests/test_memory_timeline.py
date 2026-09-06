@@ -333,6 +333,33 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["red"], 1)
         self.assertEqual(result["snapshots"]["preserved_memory_history"]["red_observations"], 2)
 
+    def test_superseded_and_rejected_memories_remain_in_chronology_but_do_not_inflate_active_signal_cases(self):
+        now = datetime.fromisoformat("2026-09-06T05:00:00+03:00")
+        bad = self.e(
+            "bad", "2026-09-06T04:00:00+03:00", "Taxonomy lesson", kind="lesson",
+            scope="vault/timeline/taxonomy", title="RED ALERT taxonomy lesson",
+            tags=["red-alert", "incident", "slopwall"], thread="timeline-taxonomy",
+        )
+        correction = self.e(
+            "correction", "2026-09-06T04:10:00+03:00", "Remove topical incident tags", kind="correction",
+            scope="vault/timeline/taxonomy", title="Taxonomy lesson is not an incident",
+            tags=["timeline", "taxonomy"], supersedes=["bad"], thread="timeline-taxonomy",
+        )
+        rejected = self.e(
+            "rejected", "2026-09-06T04:20:00+03:00", "Rejected alert hypothesis", kind="lesson",
+            scope="vault/timeline/rejected", title="RED ALERT rejected hypothesis",
+            tags=["red-alert", "incident"], state="REJECTED", thread="rejected-alert",
+        )
+        result = build_timeline([bad, correction, rejected], limit=20, snapshot_now=now)
+        by_id = {event["id"]: event for event in result["events"]}
+        self.assertEqual(by_id["bad"]["disposition"], "SUPERSEDED")
+        self.assertEqual(by_id["rejected"]["disposition"], "REJECTED")
+        self.assertEqual(set(by_id), {"bad", "correction", "rejected"})
+        window = result["snapshots"]["windows"][0]
+        self.assertNotIn("red", window["signal_observation_summary"])
+        self.assertNotIn("red", window["continuity_case_summary"])
+        self.assertEqual(result["snapshots"]["preserved_memory_history"]["red_observations"], 0)
+
     def test_invalid_external_timestamps_are_skipped_and_counted(self):
         entry = self.e("mem", "2026-09-06T03:00:00+03:00", "valid")
         broken_worker = {
