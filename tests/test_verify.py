@@ -41,6 +41,15 @@ class VerifyTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["stack"])
 
+    def test_busy_owner_changes_select_only_busy_verification(self):
+        for path in (
+            "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
+            "03 Fixtures and Experiments/issue125-busy-coordinator/rust/src/main.rs",
+            "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["busy"])
+
     def test_issue675_lesson_guards_select_memory_verification(self):
         for path in (
             "tests/test_issue675_lesson_lineage_safety.py",
