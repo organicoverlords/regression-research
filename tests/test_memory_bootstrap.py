@@ -47,6 +47,8 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("Near the start of every timed run", text)
         self.assertIn("before any command that may consume a material part of the useful run window", text)
         self.assertIn("`state: RUNNING`", text)
+        self.assertIn("`state: TOOL_INTERVAL_OPEN`", text)
+        self.assertIn("artifact lifecycle state only and never process liveness", text)
         self.assertNotIn("metrics.json.latest_reports", text)
         self.assertNotIn("PENDING_REVIEW", text)
         self.assertNotIn("Remote Desktop Commander", text)
