@@ -34,10 +34,17 @@ from tools.timeline_materializer import (
 
 class TimelineMaterializerTests(unittest.TestCase):
     def test_child_processes_use_windows_no_window_wrapper(self):
-        expected = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
         with patch("tools.timeline_materializer.subprocess.run") as run:
             _run_process(["gh", "--version"], capture_output=True, check=False)
-        self.assertEqual(run.call_args.kwargs["creationflags"], expected)
+        kwargs = run.call_args.kwargs
+        if os.name == "nt":
+            self.assertEqual(kwargs["creationflags"], getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            startupinfo = kwargs["startupinfo"]
+            self.assertTrue(startupinfo.dwFlags & getattr(subprocess, "STARTF_USESHOWWINDOW", 0))
+            self.assertEqual(startupinfo.wShowWindow, getattr(subprocess, "SW_HIDE", 0))
+        else:
+            self.assertNotIn("creationflags", kwargs)
+            self.assertNotIn("startupinfo", kwargs)
         source = (Path(__file__).resolve().parents[1] / "tools" / "timeline_materializer.py").read_text(encoding="utf-8")
         self.assertEqual(source.count("subprocess.run("), 1)
 

@@ -199,8 +199,14 @@ def _store_generation_token(root: Path) -> str | None:
 
 
 def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
-    """Run a child process without creating a visible console window on Windows."""
-    kwargs.setdefault("creationflags", getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0)
+    """Run a child process without creating or showing a console window on Windows."""
+    if os.name == "nt":
+        kwargs.setdefault("creationflags", getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if "startupinfo" not in kwargs and hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+            startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = startupinfo
     return subprocess.run(*args, **kwargs)
 
 def _run_json(command: list[str], *, timeout: int = 30) -> tuple[Any, str | None]:
