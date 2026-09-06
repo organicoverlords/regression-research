@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import unittest
 
@@ -133,6 +133,62 @@ class TimelineLessonPacketHoldoutTests(unittest.TestCase):
         self.assertEqual(packet["authority"], "DERIVED_HISTORICAL_PRIORS_ONLY")
         self.assertTrue(packet["live_truth_required"])
 
+    def test_superseded_lesson_keeps_status_link_and_correction_precedence(self):
+        query = "front axis camera diagnosis"
+        seeds = [
+            self.commit(
+                f"seed:front:{index}",
+                f"Front axis corrective seed {index}",
+                "camera facing handedness mirror correction measured projector silhouette retraction diagnosis verifier evidence physical offset margin",
+            )
+            for index in range(4)
+        ]
+        superseded = {
+            "id": "mem:superseded",
+            "source_type": "VAULT_MEMORY",
+            "project": "lowvram",
+            "event_at": "2026-08-08T00:00:00+00:00",
+            "title": "Old front axis defect conclusion",
+            "summary": "camera facing defect diagnosed from silhouette objective and verifier evidence",
+            "text": "camera facing handedness mirror correction measured projector silhouette diagnosis verifier evidence said the camera was wrong and required a 180 degree fix",
+            "state": "PROVEN",
+            "disposition": "SUPERSEDED",
+            "superseded_by": ["mem:correction"],
+            "anchors": ["gitsha:old"],
+        }
+        correction = {
+            "id": "mem:correction",
+            "source_type": "VAULT_MEMORY",
+            "project": "lowvram",
+            "event_at": "2026-08-09T00:00:00+00:00",
+            "title": "Front axis defect retracted",
+            "summary": "camera was never wrong; objective compared handedness not facing",
+            "text": "camera facing handedness mirror correction measured projector silhouette retraction evidence proved camera was never wrong and old defect was retracted",
+            "state": "PROVEN",
+            "disposition": "CURRENT_DURABLE",
+            "anchors": ["gitsha:new"],
+        }
+
+        packet = _lesson_packet(
+            query,
+            selected=seeds,
+            candidates=[*seeds, superseded, correction],
+            query_index=None,
+            limit=8,
+        )
+        items = packet.get("items", [])
+        by_id = {item.get("source_event_id"): item for item in items}
+        self.assertIn(superseded["id"], by_id)
+        self.assertIn(correction["id"], by_id)
+
+        old = by_id[superseded["id"]]
+        historical_status = old.get("historical_status") or old.get("status") or old.get("disposition")
+        self.assertEqual(historical_status, "SUPERSEDED")
+        self.assertIn(correction["id"], old.get("superseded_by", []))
+        order = [item.get("source_event_id") for item in items]
+        self.assertLess(order.index(correction["id"]), order.index(superseded["id"]))
+
 
 if __name__ == "__main__":
     unittest.main()
+
