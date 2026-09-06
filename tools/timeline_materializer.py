@@ -1958,6 +1958,7 @@ def materialize(
             else sorted(previous_backfill_incomplete)
         )
         retry_sources = sorted(set(saturated_sources)) if refresh_mode == "INCREMENTAL" else []
+        current_refresh_incomplete_sources = sorted(set(saturated_sources))
         source_coverage = {
             **delta_coverage,
             "materializer": {
@@ -1970,6 +1971,7 @@ def materialize(
                 "merged_external_events": len(merged_external),
                 "saturated_sources": saturated_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
+                "current_refresh_incomplete_sources": current_refresh_incomplete_sources,
                 "retry_sources": retry_sources,
             },
         }
@@ -2003,6 +2005,7 @@ def materialize(
             "source_watermarks": source_watermarks,
             "saturated_sources": saturated_sources,
             "backfill_incomplete_sources": backfill_incomplete_sources,
+            "current_refresh_incomplete_sources": current_refresh_incomplete_sources,
             "retry_sources": retry_sources,
             "historical_evidence_events": len(historical_evidence_events),
             "timeline_truncated": bool(timeline.get("truncated")),
@@ -2020,6 +2023,7 @@ def materialize(
                 "source_since": {name: value.isoformat() for name, value in source_since.items()},
                 "saturated_sources": saturated_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
+                "current_refresh_incomplete_sources": current_refresh_incomplete_sources,
                 "retry_sources": retry_sources,
             },
             "timeline": timeline,
@@ -2081,6 +2085,7 @@ def materialize(
             "truncated": bool(timeline.get("truncated")),
             "saturated_sources": saturated_sources,
             "backfill_incomplete_sources": backfill_incomplete_sources,
+            "current_refresh_incomplete_sources": current_refresh_incomplete_sources,
             "retry_sources": retry_sources,
             "source_counts": _coverage_counts(timeline["events"]),
             "continuity_graph": continuity_graph["summary"],
@@ -2144,13 +2149,28 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
         or meta.get("retry_sources")
         or []
     ) if str(value).strip()))
+    current_refresh_incomplete = sorted(set(str(value) for value in (
+        ingestion.get("current_refresh_incomplete_sources")
+        or meta.get("current_refresh_incomplete_sources")
+        or saturated
+        or retry
+        or []
+    ) if str(value).strip()))
     timeline_truncated = bool(timeline.get("truncated") or meta.get("timeline_truncated"))
-    coverage_status = "HISTORICAL_INCOMPLETE" if (incomplete or timeline_truncated) else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
+    coverage_status = (
+        "CURRENT_REFRESH_INCOMPLETE"
+        if (current_refresh_incomplete or timeline_truncated)
+        else "HISTORICAL_INCOMPLETE"
+        if incomplete
+        else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
+    )
     absence_unsafe_reasons: list[str] = []
     if status != "FRESH":
         absence_unsafe_reasons.append("MATERIALIZATION_STALE")
     if incomplete:
         absence_unsafe_reasons.append("HISTORICAL_BACKFILL_INCOMPLETE")
+    if current_refresh_incomplete:
+        absence_unsafe_reasons.append("CURRENT_REFRESH_INCOMPLETE")
     if timeline_truncated:
         absence_unsafe_reasons.append("MATERIALIZED_EVENT_CAP_TRUNCATED")
     if retry:
@@ -2171,6 +2191,8 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
         "read_mode": "MATERIALIZED_ONLY",
         "coverage_status": coverage_status,
         "backfill_incomplete_sources": incomplete,
+        "historical_backfill_incomplete_sources": incomplete,
+        "current_refresh_incomplete_sources": current_refresh_incomplete,
         "saturated_sources": saturated,
         "retry_sources": retry,
         "timeline_truncated": timeline_truncated,
