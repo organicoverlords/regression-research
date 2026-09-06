@@ -22,6 +22,7 @@ from tools.stack_atlas import (
     render_manual,
     _bootstrap_pc_status,
     _bootstrap_worker_status,
+    _bootstrap_manual_sanity,
     _bootstrap_manual_current_status,
     _bootstrap_disk_trend,
     _read_jsonl_tail,
@@ -1479,3 +1480,23 @@ class VaultUsefulnessRoutingTests(unittest.TestCase):
         results = find_features("generation pinned process transport clone", limit=1)
         self.assertEqual(results[0]["id"], "component.mcp_minimal_clone")
         self.assertEqual(results[0]["owner_components"], ["mcp_minimal_clone"])
+
+
+class ManualSanityBootstrapTests(unittest.TestCase):
+    def test_bootstrap_manual_sanity_reads_existing_metrics_projection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics = root / "worker-reports" / "manual" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            metrics.write_text(json.dumps({"sanity": {
+                "available": True, "baseline_id": "insanity", "boundary_at": "2026-09-06T21:26:41+03:00",
+                "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                "components": {"median_report_bytes": {"delta_points": 20.0}}, "semantics": "diagnostic only",
+            }}), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                result = _bootstrap_manual_sanity()
+            self.assertTrue(result["available"])
+            self.assertEqual(result["score_delta"], 42.0)
+            self.assertEqual(result["direction"], "IMPROVED")
+            self.assertEqual(result["post_run_count"], 7)
