@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
+from tools.cleanup_converger import Worktree, eligibility_reason, process_targets_path
 from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
@@ -34,6 +35,26 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+
+    def test_cleanup_convergence_is_discoverable_and_operator_only(self):
+        result = find_features("cleanup worktree convergence")[0]
+        self.assertEqual(result["id"], "cleanup.convergence")
+        self.assertIn("operator-only", result["boundary"].lower())
+        self.assertTrue(any("cleanup_converger.py --apply --operator-ack" in item for item in result["entrypoints"]))
+
+    def test_cleanup_guard_blocks_cross_cwd_process_target_and_locked_lane(self):
+        lane = Worktree(Path(r"C:\Temp\p3-lane"), "abcd", "topic", False)
+        processes = [{"ProcessId": 42, "CommandLine": r"dotnet.exe -Project=C:\Temp\p3-lane\p3.uproject"}]
+        self.assertTrue(process_targets_path(lane.path, processes, self_pid=999))
+        self.assertEqual(
+            eligibility_reason(lane, recent_cwds=set(), processes=processes, clean=True, ref_matches=True),
+            "external_process_targets_path",
+        )
+        locked = Worktree(Path(r"C:\Temp\locked"), "efgh", "topic2", False, "protected")
+        self.assertEqual(
+            eligibility_reason(locked, recent_cwds=set(), processes=[], clean=True, ref_matches=True),
+            "git_worktree_locked:protected",
+        )
     def test_compact_memory_overview_replaces_duplicate_recent_titles_with_rollup(self):
         report = {
             "contract": "history only",
