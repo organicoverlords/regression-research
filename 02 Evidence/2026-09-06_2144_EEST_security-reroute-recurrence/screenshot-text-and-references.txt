@@ -1,0 +1,16 @@
+2026-09-06 21:44 EEST — user-visible reroute recurrence
+
+User-provided screenshot references (do not re-encode or transfer image bytes):
+1) file_id: file_00000000a4c48210bf319877ab4421c0
+   chat_attachment_path: /mnt/data/8d24dcc6-40e0-4e3f-806a-6a5f25c31e31.png
+   visible_text_summary: ChatGPT UI displayed “Our systems are thinking a bit more about this request before responding...” during the P3 convergence tool run, with prior tool-call narration visible.
+
+2) file_id: file_0000000006cc81f4b27e6cc1732faedc
+   chat_attachment_path: /mnt/data/7faa7762-c361-415d-ba07-0224c303016b.png
+   visible_text_summary: Same conversation later in the run, showing repeated “Called tool” rows and continued long-running activity.
+
+3) file_id: file_000000007ebc82108ceb304be25e5850
+   chat_attachment_path: /mnt/data/37c60fdd-1ba8-455c-b44d-c99ffc4a6655.png
+   visible_text_summary: Another recurrence of the same UI message while the assistant was trying to preserve the prior reroute evidence.
+
+User correction: do not convert screenshots into chunked/base64 data for Vault. Preserve the relevant visible text and reference the existing screenshot attachment/file path instead.

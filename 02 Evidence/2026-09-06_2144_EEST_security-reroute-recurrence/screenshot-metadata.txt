@@ -1,0 +1,4 @@
+2026-09-06 21:44 EEST recurrence screenshot metadata only; binary transfer intentionally stopped after repeated reroute churn.
+file_00000000a4c48210bf319877ab4421c0  size=68866  sha256=2ac5ae6a14da0ca02ddee957ba97d87fb0660147b10e9db8f170be23043b9a98
+file_0000000006cc81f4b27e6cc1732faedc  size=31126  sha256=5e60c78247d7e4d4ef2a1218e03a4db728f24a6ceac78764c2be34cafe89e44f
+file_000000007ebc82108ceb304be25e5850  size=39134  sha256=5d08028dce25004cb324ba059babd2b06217d752728bd9c2360923b736cd6e18
