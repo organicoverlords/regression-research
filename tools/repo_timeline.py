@@ -13,7 +13,9 @@ from typing import Any, Iterable
 PRODUCT_ROOTS = {
     "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
     "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
+    "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
     "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+    "agents": r"C:\Users\Lauri\.agents",
 }
 
 ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
@@ -55,7 +57,7 @@ def _git_value(path: Path, *args: str) -> str | None:
 
 
 def discover_repo_specs(*, vault_root: Path | None = None) -> list[RepoSpec]:
-    """Discover the known product repos used by this historical Git index."""
+    """Discover known local repos used by this historical Git index."""
     specs: list[RepoSpec] = []
     seen: set[str] = set()
     for project, raw in PRODUCT_ROOTS.items():

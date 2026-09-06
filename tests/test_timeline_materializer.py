@@ -16,6 +16,7 @@ from tools.timeline_materializer import (
     SCHEMA,
     build_work_graph,
     build_worker_archive_summary,
+    coordinator_events,
     github_events,
     install_task,
     library_artifact_events,
@@ -292,15 +293,22 @@ class TimelineMaterializerTests(unittest.TestCase):
         pr = [{"number": 1884, "title": "Avatar wait", "state": "MERGED", "createdAt": now, "updatedAt": now, "closedAt": now, "mergedAt": now, "url": "https://example/1884", "headRefName": "topic", "baseRefName": "main", "headRefOid": "a" * 40}]
         run = [{"databaseId": 99, "workflowName": "verify", "status": "completed", "conclusion": "success", "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "topic", "event": "pull_request", "displayTitle": "Avatar wait", "url": "https://example/run/99"}]
         with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
-            "tools.timeline_materializer._run_json", side_effect=[(issue, None), (pr, None), (run, None)]
+            "tools.timeline_materializer._run_json", side_effect=[(issue, None), (pr, None), (run, None), ([], None)]
         ) as run_json:
             events, coverage = github_events([spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc))
-        self.assertEqual({event["source_type"] for event in events}, {"GITHUB_ISSUE", "GITHUB_PR", "GITHUB_ACTION"})
+        self.assertEqual({event["source_type"] for event in events}, {"GITHUB_ISSUE", "GITHUB_PR", "GITHUB_ACTION", "GITHUB_ACTION_SUMMARY"})
         repo_cov = coverage["repos"]["organicoverlords/p3"]
         self.assertEqual(repo_cov["project"], "p3")
         self.assertEqual(repo_cov["issues"]["events"], 1)
         self.assertEqual(repo_cov["prs"]["events"], 1)
         self.assertEqual(repo_cov["actions"]["events"], 1)
+        self.assertTrue(repo_cov["queue"]["available"])
+        self.assertTrue(repo_cov["queue"]["complete"])
+        summary = next(event for event in events if event["source_type"] == "GITHUB_ACTION_SUMMARY")
+        self.assertTrue(summary["current_only"])
+        self.assertTrue(summary["live_truth_required"])
+        self.assertEqual(summary["queue_counts"]["absence_semantics"], "NO_ACTIVE_RUNS_IN_COMPLETE_SNAPSHOT")
+        self.assertEqual(summary["build_counts"]["scope"], "since_source_watermark")
         self.assertEqual(repo_cov["limit_per_kind"], repo_cov["issues"]["limit"])
         self.assertEqual(repo_cov["saturated_kinds"], [])
         self.assertFalse(coverage["saturated"])
@@ -308,6 +316,7 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertTrue(all("body" not in command for command in commands))
         self.assertTrue(all("updated:>=2026-09-05T00:00:00Z" in command for command in commands[:2]))
         self.assertIn("created >=2026-09-05T00:00:00Z", commands[2])
+        self.assertNotIn("--created", commands[3])
 
     def test_github_adapter_marks_per_kind_saturation_at_query_limit(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
@@ -316,13 +325,111 @@ class TimelineMaterializerTests(unittest.TestCase):
         pr = [{"number": 2, "title": "two", "state": "OPEN", "createdAt": now, "updatedAt": now, "closedAt": None, "mergedAt": None, "url": "https://example/2", "headRefName": "topic", "baseRefName": "main", "headRefOid": "a" * 40}]
         run = [{"databaseId": 3, "workflowName": "verify", "status": "completed", "conclusion": "success", "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "topic", "event": "push", "displayTitle": "three", "url": "https://example/3"}]
         with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
-            "tools.timeline_materializer._run_json", side_effect=[(issue, None), (pr, None), (run, None)]
+            "tools.timeline_materializer._run_json", side_effect=[(issue, None), (pr, None), (run, None), ([], None)]
         ):
             _, coverage = github_events([spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc), limit_per_kind=1)
         repo = coverage["repos"]["organicoverlords/p3"]
         self.assertEqual(repo["saturated_kinds"], ["issues", "prs", "actions"])
         self.assertTrue(all(repo[kind]["saturated"] for kind in ("issues", "prs", "actions")))
         self.assertTrue(coverage["saturated"])
+
+    def test_github_actions_primary_error_can_fall_back_without_marking_history_missing(self):
+        spec = RepoSpec("p3", Path("C:/fake/p3"))
+        now = "2026-09-06T05:00:00Z"
+        run = [{
+            "databaseId": 99, "workflowName": "verify", "status": "completed", "conclusion": "success",
+            "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "main",
+            "event": "push", "displayTitle": "fallback run", "url": "https://example/run/99",
+        }]
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
+            "tools.timeline_materializer._run_json",
+            side_effect=[([], None), ([], None), (None, "primary too large"), (run, None), ([], None)],
+        ) as run_json:
+            events, coverage = github_events(
+                [spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc), limit_per_kind=1000
+            )
+        self.assertEqual(coverage["errors"], [])
+        self.assertEqual(coverage["warnings"][0]["source"], "actions")
+        self.assertEqual(coverage["warnings"][0]["fallback_limit"], 200)
+        self.assertTrue(any(event["source_type"] == "GITHUB_ACTION" for event in events))
+        commands = [call.args[0] for call in run_json.call_args_list]
+        self.assertEqual(commands[2][commands[2].index("--limit") + 1], "1000")
+        self.assertEqual(commands[3][commands[3].index("--limit") + 1], "200")
+
+    def test_queue_snapshot_cap_does_not_poison_historical_github_retry(self):
+        spec = RepoSpec("p3", Path("C:/fake/p3"))
+        now = "2026-09-06T05:00:00Z"
+        completed = [{
+            "databaseId": index, "workflowName": "verify", "status": "completed", "conclusion": "success",
+            "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "main",
+            "event": "push", "displayTitle": f"run {index}", "url": f"https://example/run/{index}",
+        } for index in range(50)]
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
+            "tools.timeline_materializer._run_json", side_effect=[([], None), ([], None), ([], None), (completed, None)]
+        ):
+            events, coverage = github_events([spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+        repo = coverage["repos"]["organicoverlords/p3"]
+        self.assertEqual(repo["saturated_kinds"], [])
+        self.assertEqual(repo["bounded_snapshot_kinds"], ["queue"])
+        self.assertFalse(coverage["saturated"])
+        self.assertTrue(repo["queue"]["bounded"])
+        self.assertFalse(repo["queue"]["complete"])
+        self.assertEqual(repo["queue"]["events"], 0)
+        summary = next(event for event in events if event["source_type"] == "GITHUB_ACTION_SUMMARY")
+        self.assertEqual(summary["queue_counts"]["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_QUEUE_IS_EMPTY")
+        self.assertIn("queue sample 0 queued/0 in progress", summary["title"])
+
+    def test_queue_snapshot_error_is_orientation_unknown_not_historical_retry(self):
+        spec = RepoSpec("p3", Path("C:/fake/p3"))
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
+            "tools.timeline_materializer._run_json", side_effect=[([], None), ([], None), ([], None), (None, "queue unavailable")]
+        ):
+            events, coverage = github_events([spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+        repo = coverage["repos"]["organicoverlords/p3"]
+        self.assertFalse(repo["queue"]["available"])
+        self.assertFalse(repo["queue"]["complete"])
+        self.assertEqual(coverage["errors"], [])
+        self.assertEqual(coverage["snapshot_errors"][0]["source"], "queue")
+        self.assertFalse(coverage["saturated"])
+        summary = next(event for event in events if event["source_type"] == "GITHUB_ACTION_SUMMARY")
+        self.assertIn("queue unknown", summary["title"])
+        self.assertFalse(summary["queue_counts"]["available"])
+        self.assertEqual(summary["queue_counts"]["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_QUEUE_IS_EMPTY")
+
+    def test_coordinator_snapshot_counts_only_unexpired_active_jobs(self):
+        now = datetime(2026, 9, 6, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            store = Path(d) / "ChatGPTMcpClean" / ".state" / "busy-claims.json"
+            store.parent.mkdir(parents=True)
+            store.write_text(json.dumps({
+                "claims": [
+                    {"actor": "old", "scope": "old-scope", "timestamp": "2026-09-06T08:00:00Z"},
+                    {"actor": "live", "scope": "live-scope", "timestamp": "2026-09-06T11:50:00Z"},
+                ],
+                "coordinator": {
+                    "jobs": {
+                        "live-scope": {"scope": "live-scope", "state": "active", "lease_expires_at": "2026-09-06T12:30:00Z"},
+                        "expired-scope": {"scope": "expired-scope", "state": "active", "lease_expires_at": "2026-09-06T11:59:00Z"},
+                        "unknown-scope": {"scope": "unknown-scope", "state": "active", "lease_expires_at": "not-a-time"},
+                        "finished-scope": {"scope": "finished-scope", "state": "finished", "lease_expires_at": "2026-09-06T12:30:00Z"},
+                    },
+                    "operations": {"op-1": {"status": "done"}},
+                },
+            }), encoding="utf-8")
+            events, coverage = coordinator_events(since=now - timedelta(days=1), snapshot_now=now)
+        self.assertEqual(coverage["stored_claim_records"], 2)
+        self.assertEqual(coverage["stored_jobs"], 4)
+        self.assertEqual(coverage["active_jobs"], 1)
+        self.assertEqual(coverage["active_claim_scopes"], 1)
+        self.assertEqual(coverage["expired_active_jobs"], 1)
+        self.assertEqual(coverage["uncertain_active_jobs"], 1)
+        event = events[0]
+        self.assertEqual(event["coordinator_state"]["active_scopes"], ["live-scope"])
+        self.assertTrue(event["current_only"])
+        self.assertTrue(event["live_truth_required"])
+        self.assertIn("COLLISION_ORIENTATION_ONLY", event["evidence_semantics"])
+        self.assertNotIn("old-scope", json.dumps(event))
+        self.assertNotIn("expired-scope", event["refs"])
 
     def test_mcp_adapter_materializes_safe_metadata_not_raw_command(self):
         with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
@@ -440,6 +547,8 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "tools.timeline_materializer.mcp_replacement_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
             ) as mcp_history, patch(
                 "tools.timeline_materializer.runner_log_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
+            ), patch(
+                "tools.timeline_materializer.coordinator_events", return_value=([], {"events": 0, "errors": [], "current_only": True})
             ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview):
                 result = materialize(
                     root=root,
@@ -527,6 +636,7 @@ class TimelineMaterializerTests(unittest.TestCase):
             build_parser.return_value.parse_args.return_value = type("Args", (), {
                 "command": "refresh", "root": Path("."), "days": 30, "repo_events": 1000,
                 "artifact_events": 2000, "max_events": 20000, "no_github": False,
+                "github_events": 1000, "runner_events": 300,
                 "rebuild": False, "quiet": True,
             })()
             self.assertEqual(main(), 0)
