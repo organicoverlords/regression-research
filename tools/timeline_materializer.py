@@ -1888,17 +1888,20 @@ def _merge_materialized_events(
     *,
     since: datetime,
 ) -> list[dict[str, Any]]:
-    """Merge immutable/revisable source observations by stable event id and prune the horizon."""
+    """Merge history by stable ID; current-only snapshots must be re-emitted each refresh."""
     by_id: dict[str, dict[str, Any]] = {}
-    for raw in [*previous_events, *delta_events]:
-        if not isinstance(raw, dict):
-            continue
-        if not raw.get("retain_history") and not _event_within_horizon(raw, since):
-            continue
-        event_id = str(raw.get("id") or "").strip()
-        if not event_id:
-            continue
-        by_id[event_id] = dict(raw)
+    for is_previous, rows in ((True, previous_events), (False, delta_events)):
+        for raw in rows:
+            if not isinstance(raw, dict):
+                continue
+            if is_previous and raw.get("current_only"):
+                continue
+            if not raw.get("retain_history") and not _event_within_horizon(raw, since):
+                continue
+            event_id = str(raw.get("id") or "").strip()
+            if not event_id:
+                continue
+            by_id[event_id] = dict(raw)
     events = list(by_id.values())
     events.sort(
         key=lambda event: (

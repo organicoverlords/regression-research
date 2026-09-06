@@ -29,6 +29,7 @@ from tools.timeline_materializer import (
     mcp_replacement_events,
     query_materialized,
     runner_log_events,
+    _merge_materialized_events,
     _run_process,
 )
 
@@ -556,6 +557,45 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertNotIn("SECRET", json.dumps(event))
             self.assertIn("raw log body not materialized", event["summary"])
             self.assertEqual(coverage["events"], 1)
+
+    def test_incremental_merge_drops_stale_current_only_snapshots_unless_reemitted(self):
+        since = datetime(2026, 9, 6, 4, 0, tzinfo=timezone.utc)
+        historical = {
+            "id": "git:vault:abc",
+            "source_type": "GIT_COMMIT",
+            "event_at": "2026-09-06T04:30:00+00:00",
+        }
+        stale_coordinator = {
+            "id": "coordinator-state-snapshot",
+            "source_type": "COORDINATOR_EVENT",
+            "event_at": "2026-09-06T04:31:00+00:00",
+            "current_only": True,
+            "refs": ["stale-scope"],
+        }
+        stale_queue = {
+            "id": "github-action-summary:organicoverlords/regression-research",
+            "source_type": "GITHUB_ACTION_SUMMARY",
+            "event_at": "2026-09-06T04:32:00+00:00",
+            "current_only": True,
+            "queue_counts": {"queued": 9},
+        }
+        fresh_queue = {
+            **stale_queue,
+            "event_at": "2026-09-06T05:00:00+00:00",
+            "queue_counts": {"queued": 1},
+        }
+
+        merged = _merge_materialized_events(
+            [historical, stale_coordinator, stale_queue],
+            [fresh_queue],
+            since=since,
+        )
+        by_id = {event["id"]: event for event in merged}
+
+        self.assertIn(historical["id"], by_id)
+        self.assertNotIn(stale_coordinator["id"], by_id)
+        self.assertEqual(by_id[stale_queue["id"]]["queue_counts"]["queued"], 1)
+        self.assertEqual(by_id[stale_queue["id"]]["event_at"], fresh_queue["event_at"])
 
     def test_second_refresh_is_incremental_and_reuses_materialized_history(self):
         with tempfile.TemporaryDirectory() as d:
