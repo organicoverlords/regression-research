@@ -93,7 +93,7 @@ class VerifyTests(unittest.TestCase):
             [sys.executable, "-m", "py_compile", f"{root}/python/busy.py", compatibility],
             commands,
         )
-        self.assertIn(["cargo", "test", "--manifest-path", f"{root}/rust/Cargo.toml"], commands)
+        self.assertIn(["cargo", "test", "--release", "--manifest-path", f"{root}/rust/Cargo.toml"], commands)
         self.assertIn([sys.executable, compatibility], commands)
 
     def test_verifier_changes_run_every_area(self):

@@ -164,7 +164,7 @@ def verify_busy() -> None:
     compatibility = f"{BUSY_ROOT}/tests/install_compatibility.py"
     manifest = f"{BUSY_ROOT}/rust/Cargo.toml"
     run([sys.executable, "-m", "py_compile", python_core, compatibility])
-    run(["cargo", "test", "--manifest-path", manifest])
+    run(["cargo", "test", "--release", "--manifest-path", manifest])
     run([sys.executable, compatibility])
     print("BUSY_COORDINATOR_COMPATIBILITY_PROVEN")
 
