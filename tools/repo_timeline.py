@@ -86,30 +86,53 @@ def _refs_from_title(title: str) -> list[str]:
     return [f"#{match.group('number')}" for match in ISSUE_REF_RE.finditer(title)]
 
 
-def _git_log_rows(path: Path, revisions: list[str], *, limit: int, since: datetime | None = None) -> list[tuple[str, str, str, str]]:
+def _git_log_rows(path: Path, revisions: list[str], *, limit: int, since: datetime | None = None) -> list[dict[str, Any]]:
+    """Read bounded commit metadata, body, and changed paths in one Git invocation."""
     args = ["log", *revisions, "--date-order", f"--max-count={min(2000, max(1, int(limit)))}"]
     if since is not None:
         args.append(f"--since={since.isoformat()}")
-    args.append("--format=%H%x1f%cI%x1f%s%x1f%D")
+    # Record/unit separators keep multiline bodies distinct from the --name-only tail.
+    args.extend(["--format=%x1e%H%x1f%cI%x1f%s%x1f%D%x1f%b%x1f", "--name-only"])
     proc = _run_git(path, *args, check=False)
     if proc.returncode != 0:
         return []
-    rows: list[tuple[str, str, str, str]] = []
-    for line in proc.stdout.splitlines():
-        parts = line.split("\x1f")
-        if len(parts) != 4:
+    rows: list[dict[str, Any]] = []
+    for record in proc.stdout.split("\x1e"):
+        if not record.strip():
             continue
-        sha, event_at, title, decorations = parts
+        parts = record.split("\x1f", 5)
+        if len(parts) != 6:
+            continue
+        sha, event_at, title, decorations, body, changed = parts
+        sha = sha.strip()
+        event_at = event_at.strip()
+        title = title.strip()
+        decorations = decorations.strip()
+        body = body.strip()
         try:
             datetime.fromisoformat(event_at.replace("Z", "+00:00"))
         except ValueError:
             continue
-        rows.append((sha, event_at, title, decorations))
+        changed_paths = [line.strip() for line in changed.splitlines() if line.strip()]
+        rows.append({
+            "sha": sha,
+            "event_at": event_at,
+            "title": title,
+            "decorations": decorations,
+            "body": body[:12000],
+            "changed_paths": changed_paths[:128],
+        })
     return rows
 
 
-def _event_from_row(spec: RepoSpec, row: tuple[str, str, str, str], *, origin: str | None) -> dict[str, Any]:
-    sha, event_at, title, decorations = row
+def _event_from_row(spec: RepoSpec, row: dict[str, Any], *, origin: str | None) -> dict[str, Any]:
+    sha = str(row.get("sha") or "")
+    event_at = str(row.get("event_at") or "")
+    title = str(row.get("title") or "")
+    decorations = str(row.get("decorations") or "")
+    body = str(row.get("body") or "")
+    changed_paths = [str(value) for value in row.get("changed_paths", []) or [] if str(value).strip()]
+    refs = _refs_from_title(f"{title}\n{body}")
     return {
         "id": f"git:{spec.project}:{sha}",
         "source_type": "GIT_COMMIT",
@@ -119,10 +142,12 @@ def _event_from_row(spec: RepoSpec, row: tuple[str, str, str, str], *, origin: s
         "projects": [spec.project],
         "title": title,
         "summary": title,
+        "body": body,
+        "changed_paths": changed_paths,
         "sha": sha,
         "short_sha": sha[:10],
-        "refs": _refs_from_title(title),
-        "anchors": _github_anchors(origin, _refs_from_title(title)),
+        "refs": refs,
+        "anchors": _github_anchors(origin, refs),
         "decorations": decorations,
         "repo_path": str(spec.path),
         "origin": origin,
