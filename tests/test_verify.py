@@ -2,7 +2,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas
+from tools.verify import changed_files, run_pytest, select_areas, verify_memory
 
 
 class VerifyTests(unittest.TestCase):
@@ -14,6 +14,23 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"tools/memory_context.py"}), ["memory"])
         self.assertEqual(select_areas({"memory/README.md"}), ["memory"])
         self.assertEqual(select_areas({"README.md"}), [])
+
+    def test_timeline_changes_select_memory_verification(self):
+        for path in ("tools/timeline_materializer.py",
+                     "tests/test_timeline_materializer.py",
+                     "tests/test_timeline_query_filters.py"):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["memory"])
+
+    @patch("tools.verify.run")
+    @patch("tools.verify.run_pytest")
+    def test_memory_verification_executes_timeline_regressions(self, pytest_run, run):
+        verify_memory()
+        test_paths = pytest_run.call_args.args[0]
+        self.assertIn("tests/test_timeline_materializer.py", test_paths)
+        self.assertIn("tests/test_timeline_query_filters.py", test_paths)
+        compile_command = run.call_args_list[0].args[0]
+        self.assertIn("tools/timeline_materializer.py", compile_command)
 
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(

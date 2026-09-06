@@ -2180,6 +2180,15 @@ def query_materialized(
             key=lambda event: (str(event.get("event_at") or ""), str(event.get("id") or "")),
             reverse=True,
         )
+    # Graphs are stored across the entire horizon. Enforce explicit event
+    # filters before topical matching so an empty filtered result cannot
+    # accidentally expand back into unrelated historical work.
+    event_filters = bool(project or thread or days is not None or view == "errors" or not include_workers)
+    eligible_ids = {str(event.get("id") or "") for event in candidates}
+    eligible_commits = {
+        (str(event.get("project") or "").casefold(), str(event.get("sha") or "").casefold())
+        for event in candidates if event.get("source_type") == "GIT_COMMIT" and event.get("sha")
+    }
     effective_limit = min(500, max(1, int(limit)))
     graph_limit = min(6, effective_limit)
     selected_ids = {str(event.get("id") or "") for event in selected}
@@ -2254,7 +2263,7 @@ def query_materialized(
             continue
         member_ids = set(str(value) for value in case.get("event_ids", []) or [])
         selected_overlap = bool(member_ids & selected_ids)
-        if (project or thread or view == "errors") and not selected_overlap:
+        if event_filters and not (member_ids & eligible_ids):
             continue
         if query and not selected_overlap and not case_matches_query(case):
             continue
@@ -2278,11 +2287,19 @@ def query_materialized(
             result["signal_event_ids_truncated"] = True
         return result
 
+    eligible_work_ids: set[str] = set()
     matched_groups: list[dict[str, Any]] = []
     for row in all_graph_groups:
         if project and str(row.get("project") or "").casefold() != project.casefold():
             continue
         attached = set(str(value) for value in row.get("attached_event_ids", []) or [])
+        commit_overlap = any(
+            (str(row.get("project") or "").casefold(), str(commit.get("sha") or "").casefold())
+            in eligible_commits for commit in row.get("commits", []) or []
+        )
+        if event_filters and not (commit_overlap or attached & eligible_ids):
+            continue
+        eligible_work_ids.add(str(row.get("work_id") or ""))
         if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("github_anchors", [])}, query) and not (attached & selected_attachment_ids):
             continue
         matched_groups.append(row)
@@ -2290,6 +2307,8 @@ def query_materialized(
     matched_similar: list[dict[str, Any]] = []
     for row in graph.get("similar_commit_groups", []) if isinstance(graph.get("similar_commit_groups"), list) else []:
         if project and str(row.get("project") or "").casefold() != project.casefold():
+            continue
+        if event_filters and str(row.get("work_id") or "") not in eligible_work_ids:
             continue
         if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("branch_refs", [])}, query):
             continue
@@ -2319,7 +2338,7 @@ def query_materialized(
         "snapshots": build_timeline_snapshots(selected, now=now) if selected else {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
         "continuity_graph": {
             "semantics": stored_continuity.get("semantics") or "STRONG_ANCHOR_CASE_IDENTITY",
-            "scope": "QUERY_MATCHED" if query or project or thread or view == "errors" else "BOUNDED_OVERVIEW",
+            "scope": "QUERY_MATCHED" if query or event_filters else "BOUNDED_OVERVIEW",
             "summary": {
                 "matched_cases": len(matched_cases),
                 "returned_cases": min(len(matched_cases), case_limit),
@@ -2330,7 +2349,7 @@ def query_materialized(
         },
         "work_graph": {
             "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
-            "scope": "QUERY_MATCHED" if query or project or thread else "BOUNDED_OVERVIEW",
+            "scope": "QUERY_MATCHED" if query or event_filters else "BOUNDED_OVERVIEW",
             "summary": {
                 "matched_commit_groups": len(matched_groups),
                 "returned_commit_groups": min(len(matched_groups), graph_limit),

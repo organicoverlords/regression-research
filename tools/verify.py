@@ -40,6 +40,7 @@ MEMORY_PATHS = {
     "tools/memory_git_sync.py",
     "tools/memory_hybrid.py",
     "tools/memory_timeline.py",
+    "tools/timeline_materializer.py",
     "tools/provenance.py",
     "tests/test_memory_bank.py",
     "tests/test_memory_bootstrap.py",
@@ -50,6 +51,8 @@ MEMORY_PATHS = {
     "tests/test_memory_git_sync.py",
     "tests/test_memory_retrieval_quality.py",
     "tests/test_memory_timeline.py",
+    "tests/test_timeline_materializer.py",
+    "tests/test_timeline_query_filters.py",
     "tests/test_memory_standalone.py",
     "tests/test_provenance_index.py",
     "tests/test_taxonomy_matrix.py",
@@ -153,6 +156,7 @@ def verify_memory() -> None:
             "tools/memory_git_sync.py",
             "tools/memory_hybrid.py",
             "tools/memory_timeline.py",
+            "tools/timeline_materializer.py",
                             "tools/provenance.py",
         ]
     )
@@ -169,6 +173,8 @@ def verify_memory() -> None:
             "tests/test_memory_git_sync.py",
             "tests/test_memory_retrieval_quality.py",
             "tests/test_memory_timeline.py",
+            "tests/test_timeline_materializer.py",
+            "tests/test_timeline_query_filters.py",
             "tests/test_memory_standalone.py",
             "tests/test_provenance_index.py",
             "tests/test_taxonomy_matrix.py",
