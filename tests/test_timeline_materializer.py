@@ -843,7 +843,18 @@ class TimelineMaterializerTests(unittest.TestCase):
                     "The workflow deletes completed receipts and dispatches rig, proof, and animation workers, but it contains no asset-quality diagnosis."
                 ), "changed_paths": ["workers/asset_supervisor.sh"],
             })
-            events = [seed]
+            bridge_seed = {
+                "id": "worker:hummingbird-avian-resolver", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+                "event_at": "2026-09-06T19:59:00+03:00", "project": "tiny3d", "projects": ["tiny3d"],
+                "title": "Hummingbird avian resolver deformation check",
+                "summary": "Hummingbird avian resolver work checked Eagle identity before deformation QA.",
+                "findings": (
+                    "Hummingbird avian resolver and Eagle identity work preceded deformation QA. "
+                    "Rig, skin, weights, export, animation, and proof still require direct technical evidence."
+                ),
+                "refs": [], "anchors": [],
+            }
+            events = [seed, bridge_seed]
             for index, raw in enumerate(lessons):
                 events.append({
                     "id": f"git:lowvram:{raw['sha']}", "source_type": "GIT_COMMIT", "authority": "REPO_HISTORY",
@@ -851,6 +862,30 @@ class TimelineMaterializerTests(unittest.TestCase):
                     "title": raw["title"], "summary": raw["title"], "body": raw["body"], "changed_paths": raw["changed_paths"],
                     "sha": raw["sha"], "short_sha": raw["sha"][:10], "refs": [], "anchors": [],
                 })
+            events.append({
+                "id": "worker:bridge-only-p3", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+                "event_at": "2026-09-06T19:37:20+03:00", "project": "p3", "projects": ["p3"],
+                "title": "Avian compiler resolver continuation",
+                "summary": "Avian identity resolver materialization remained incomplete after compiler staging.",
+                "findings": (
+                    "Materialization remains 1/37 and identity resolver coverage is incomplete. Avian candidates were accepted by a profile-aware fix. "
+                    "The compiler returned success without a staged report, so the worker failure needs off-path reproduction. "
+                    "The compiler report and resolver state require direct off-path reproduction before any canonical library mutation."
+                ),
+                "refs": [], "anchors": [],
+            })
+            events.append({
+                "id": "git:lowvram:bridge-technical", "source_type": "GIT_COMMIT", "authority": "REPO_HISTORY",
+                "event_at": "2026-08-20T12:00:00+03:00", "project": "lowvram", "projects": ["lowvram"],
+                "title": "Rig export lost skin binding",
+                "summary": "Rig export lost skin binding",
+                "body": (
+                    "Rigged export lost its skin binding at the export call while weights and animation remained present. "
+                    "The repair verifies weighted skin and armature state instead of trusting exporter success."
+                ),
+                "changed_paths": ["blender/export_rig.py"], "sha": "bridge-technical", "short_sha": "bridge-tec",
+                "refs": [], "anchors": [],
+            })
             payload = {
                 "schema": SCHEMA, "generated_at": stamp, "horizon_days": 30, "ingestion": {},
                 "timeline": {
@@ -874,7 +909,9 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("The five-pose verifier posed the wrong limb and called it a pass", titles)
         self.assertIn("fix: semantic weight repair for free-arm cape bleed", titles)
         self.assertIn("rig: separate appendages from cloth with a local shape test", titles)
+        self.assertIn("Rig export lost skin binding", titles)
         self.assertNotIn("Add asset supervisor, Unreal showroom build and matte/grade workers", titles)
+        self.assertNotIn("Avian compiler resolver continuation", titles)
         self.assertTrue(all(item.get("evidence_anchors") for item in packet["items"] if item["source_type"] == "GIT_COMMIT"))
         serialized = json.dumps(packet, ensure_ascii=False)
         self.assertLess(len(serialized), 9000)

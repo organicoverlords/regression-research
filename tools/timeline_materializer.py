@@ -2611,6 +2611,8 @@ def _lesson_packet(
         direct_lesson_hits = len(query_lesson_concepts & candidate_lesson_concepts)
         bridge_lesson_hits = len(seed_lesson_concepts & candidate_lesson_concepts)
         process_hits = len(_query_tokens(candidate_text) & _LESSON_PROCESS_TOKENS)
+        if query_hits < 1 and direct_lesson_hits < 1 and not (candidate_lesson_concepts - {"proof"}):
+            continue
         if query_hits < 1 and process_hits >= 3:
             continue
         if query_hits < 1 and direct_lesson_hits < 1 and len(overlaps) < 3 and bridge_lesson_hits < 2:
