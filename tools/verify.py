@@ -23,6 +23,9 @@ STACK_PATHS = {
     "tests/test_stack_atlas.py",
     "tests/test_issue693_fresh_worker_entry.py",
     "tests/fixtures/issue693_fresh_worker_entry.json",
+    "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
+    "03 Fixtures and Experiments/issue125-busy-coordinator/rust/src/main.rs",
+    "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
     "tests/test_north_star_entry.py",
@@ -63,6 +66,9 @@ MEMORY_PATHS = {
     "tests/test_memory_standalone.py",
     "tests/test_provenance_index.py",
     "tests/test_taxonomy_matrix.py",
+    "tests/test_issue675_lesson_lineage_safety.py",
+    "tests/test_issue675_lesson_validation_safety.py",
+    "tests/test_issue675_static_proof_safety.py",
 }
 
 CONVERSATION_PATHS = {
@@ -153,6 +159,7 @@ def verify_stack() -> None:
             "-v",
         ]
     )
+    run([sys.executable, "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py"])
     print("ASSISTANT_STACK_POLICY_PROVEN")
 
 
@@ -206,6 +213,9 @@ def verify_memory() -> None:
             "tests/test_memory_standalone.py",
             "tests/test_provenance_index.py",
             "tests/test_taxonomy_matrix.py",
+            "tests/test_issue675_lesson_lineage_safety.py",
+            "tests/test_issue675_lesson_validation_safety.py",
+            "tests/test_issue675_static_proof_safety.py",
         ]
     )
     print("MEMORY_HISTORY_RETRIEVAL_PROVEN")

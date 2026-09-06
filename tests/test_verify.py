@@ -41,11 +41,33 @@ class VerifyTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["stack"])
 
+    def test_busy_alias_owner_changes_select_stack_verification(self):
+        for path in (
+            "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
+            "03 Fixtures and Experiments/issue125-busy-coordinator/rust/src/main.rs",
+            "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
+
+    def test_issue675_lesson_guards_select_memory_verification(self):
+        for path in (
+            "tests/test_issue675_lesson_lineage_safety.py",
+            "tests/test_issue675_lesson_validation_safety.py",
+            "tests/test_issue675_static_proof_safety.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["memory"])
+
     @patch("tools.verify.run")
     def test_stack_verification_executes_issue693_entry_fixture(self, run):
         verify_stack()
         unittest_command = run.call_args_list[1].args[0]
         self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
+        self.assertIn(
+            [sys.executable, "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py"],
+            [call.args[0] for call in run.call_args_list],
+        )
 
     @patch("tools.verify.run")
     @patch("tools.verify.run_pytest")
@@ -56,6 +78,9 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("tests/test_timeline_materializer.py", test_paths)
         self.assertIn("tests/test_timeline_query_filters.py", test_paths)
         self.assertIn("tests/test_mcp_reroute_evidence.py", test_paths)
+        self.assertIn("tests/test_issue675_lesson_lineage_safety.py", test_paths)
+        self.assertIn("tests/test_issue675_lesson_validation_safety.py", test_paths)
+        self.assertIn("tests/test_issue675_static_proof_safety.py", test_paths)
         compile_command = run.call_args_list[0].args[0]
         self.assertIn("tools/repo_timeline.py", compile_command)
         self.assertIn("tools/timeline_materializer.py", compile_command)
