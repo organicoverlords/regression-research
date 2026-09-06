@@ -1506,6 +1506,16 @@ def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int)
     while isinstance(highlights, list) and len(highlights) > 2 and _compact_json_bytes(overview) > budget:
         highlights.pop()
 
+    # Materialized health/work metadata is appended after the first snapshot compaction.
+    # Under that second-stage pressure, duplicated 3d/7d source/artifact breakdowns yield
+    # before the concrete 24h case/context/highlight evidence. Cumulative case counts and
+    # observation totals remain, so older orientation is not lost.
+    for key in ("sources", "artifacts", "slice_observations"):
+        for label in ("7d", "3d"):
+            item = by_label.get(label)
+            if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
+                item.pop(key, None)
+
 
 def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES) -> dict[str, Any]:
     """Bound bootstrap memory orientation by bytes, preserving highest-value lineage context first."""
