@@ -324,6 +324,29 @@ class WorkerReportHistoryTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "started_at.*last_activity_at.*mutation.*remaining_gate"):
                 archive_finalized_report(report, root / "history")
 
+    def test_thin_manual_report_archives_without_execution_transcript_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-thin-report"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\n"
+                "started_at: 2026-09-05T10:00:00+00:00\n"
+                "last_activity_at: 2026-09-05T10:05:00+00:00\n"
+                "repo: p3\nstate: RUN_FINISHED\noutcome: useful work\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, history)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["population"], "manual")
+            self.assertEqual(metadata["duration_minutes"], 5.0)
+            self.assertIsNone(metadata["mutation"])
+            self.assertIsNone(metadata["validation"])
+            self.assertIsNone(metadata["remaining_gate"])
+
     def test_current_report_rejects_duplicate_canonical_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

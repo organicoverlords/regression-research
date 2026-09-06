@@ -271,6 +271,9 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
 
 def _case_anchors(event: dict[str, Any]) -> list[str]:
     """Return strong identity anchors; broad GitHub issue refs are corroboration-only."""
+    cached = event.get("case_anchors")
+    if isinstance(cached, list):
+        return sorted({str(value).casefold() for value in cached if str(value).strip()})
     anchors = {
         str(anchor).casefold()
         for anchor in _event_anchors(event)
@@ -304,6 +307,9 @@ def _event_source_family(event: dict[str, Any]) -> str:
 
 
 def _event_anchors(event: dict[str, Any]) -> list[str]:
+    cached = event.get("_all_anchors_cache")
+    if isinstance(cached, list):
+        return cached
     anchors = {str(item).casefold() for item in event.get("anchors", []) if str(item).strip()}
     anchors.update(_evidence_anchors(event.get("evidence", [])))
     anchors.update(_evidence_anchors(event.get("refs", [])))
@@ -991,11 +997,14 @@ def build_timeline(
     combined = [*selected, *repo_selected, *worker_selected, *artifact_selected, *supplemental_selected]
     for event in combined:
         event["continuity"] = _continuity_semantics(event)
+        event["_all_anchors_cache"] = _event_anchors(event)
         event["case_anchors"] = _case_anchors(event)
         event["evidence_form"] = _evidence_form(event)
     combined.sort(key=lambda event: (_dt(str(event["event_at"])), str(event["id"])), reverse=True)
     newest = combined[:effective_limit]
     snapshots = build_timeline_snapshots(combined, now=snapshot_now)
+    for event in combined:
+        event.pop("_all_anchors_cache", None)
     snapshots["coverage"] = dict(source_coverage or {})
     memory_history_cases = _build_continuity_cases(events)
     memory_red_observations = sum(

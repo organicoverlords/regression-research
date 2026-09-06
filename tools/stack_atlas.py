@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import re
@@ -25,12 +26,14 @@ MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
-MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
+MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
+LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
 BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
+BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS = 60.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
@@ -64,6 +67,10 @@ COMPONENT_ALIASES = {
     "mcp edge": "vps_edge_ingress",
     "transfer": "file_transfer",
     "file transfer": "file_transfer",
+    "linux omen": "linux_omen_node",
+    "omen laptop": "linux_omen_node",
+    "linux laptop": "linux_omen_node",
+    "linux node": "linux_omen_node",
     "visual proof": "visual_proof",
     "proof": "visual_proof",
     "worker": "execution_workers",
@@ -134,7 +141,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\config\process-tool-contract.json", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_KNOWN_GOOD_FREEZE_PATH)],
+        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\config\process-tool-contract.json", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_RECOVERY_STATE_PATH)],
         "chatgpt_plugin_surface": {
             "profile": "process",
             "tools": ["start_process", "read_output", "kill_process"],
@@ -147,7 +154,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "ChatGPT plugin surface is MCP_TOOL_PROFILE=process with start_process, read_output, and kill_process only; full is explicit internal/local testing and busy_*/view_image are not plugin commands",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "2026-09-05 frozen candidate production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
+            "selected recovery deployment: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
         ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
@@ -165,7 +172,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
-            str(MCP_KNOWN_GOOD_FREEZE_PATH),
+            str(MCP_RECOVERY_STATE_PATH),
         ],
     },
     "vps_edge_ingress": {
@@ -202,6 +209,32 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["Funnel config", "HTTPS listener", "stable front-door proxy"],
         "dependents": ["mcp_front_door"],
         "runbook": [MCP_ROOT + r"\keepalive.ps1"],
+    },
+    "linux_omen_node": {
+        "role": "lan_ssh_execution_node",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate", "artifact_transfer", "build_compute"],
+        "canonical_sources": [LINUX_OMEN_CONTRACT],
+        "live_status": [
+            "bounded SSH probe through the documented Windows MCP -> LAN SSH route",
+            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass",
+            "current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof",
+        ],
+        "supervisor": "user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only",
+        "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
+        "independent_recovery": [
+            "local laptop console remains independent of SSH",
+            "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this optional node",
+        ],
+        "resources": [
+            "HP OMEN by HP Laptop 15-dc0xxx",
+            "Linux user aatuska",
+            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local",
+            r"C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents)",
+            "LAN SSH TCP 22",
+            "Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile",
+        ],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": [LINUX_OMEN_CONTRACT],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
@@ -417,22 +450,22 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "The ChatGPT plugin uses MCP_TOOL_PROFILE=process and exposes only start_process, read_output, and kill_process. The full profile is explicit internal/local-test surface; busy_list, busy_claim, busy_release, and view_image are not ChatGPT plugin commands.",
     },
-    "mcp.known_good_freeze": {
+    "mcp.recovery_state": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
         "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
-        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
-        "boundary": "Only this canonical pointer is the maintained MCP freeze. CANDIDATE_KNOWN_GOOD is preserve-first but explicitly not multi-day proof; PROVEN_KNOWN_GOOD requires a later >=48h real-use refreeze plus explicit user confirmation. Reconcile either status with current live evidence before restoration.",
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "Canonical MCP recovery state. Deployment identity, selected recovery target, and observed health/effect conditions are separate facts. Conditions use True/False/Unknown and are tied to the observed generation; never infer global health from recovery-target selection or recreate candidate/proven promotion labels.",
     },
     "mcp.regression_recovery": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "busy_coordinator"],
         "triggers": ["restore working MCP", "rollback working MCP", "MCP regression after change", "restore last working", "regression recovery"],
-        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
         "boundary": "Restore-first for severe regressions caused by our production MCP change: preserve rollback evidence and active work, then restore the canonical known-working production behavior and topology before speculative fixes. Persist platform-reroute/security event details only when the user explicitly asks for that analysis or incident tracking. A source SHA alone is insufficient when topology differs; only minimal proven replacement compatibility may be layered onto the frozen behavior. After restore, a reroute observed between successful MCP calls with no MCP request in flight is above-MCP/platform evidence and must not trigger more MCP/edge mutation without new MCP-local evidence. Shared-production authorization and the production-change gate still apply.",
     },
     "mcp.security_reroute_log": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
         "triggers": ["security reroute", "security routing", "security rerouting", "reroute happened", "routing happened"],
-        "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_KNOWN_GOOD_FREEZE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
+        "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_RECOVERY_STATE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
         "boundary": "When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
     },
     "vault.overview": {
@@ -480,6 +513,15 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+    },
+    "execution.linux_omen_node": {
+        "owner_components": ["linux_omen_node"],
+        "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
+        "entrypoints": [
+            "python tools\\stack_atlas.py lookup linux_omen_node",
+            LINUX_OMEN_CONTRACT,
+        ],
+        "boundary": "Optional LAN compute/build node behind the existing Windows MCP transport. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route. Reverify live SSH and current machine resources before use; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
@@ -894,16 +936,65 @@ def _bootstrap_cache_path(name: str) -> Path:
     return root / name
 
 
-def _bootstrap_cache_read(name: str, max_age_seconds: float) -> tuple[dict[str, Any] | None, float | None]:
+def _bootstrap_cache_read_any(name: str) -> tuple[dict[str, Any] | None, float | None]:
     path = _bootstrap_cache_path(name)
     try:
         age = max(0.0, datetime.now(timezone.utc).timestamp() - path.stat().st_mtime)
-        if age > max_age_seconds:
-            return None, age
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
         return (payload, age) if isinstance(payload, dict) else (None, age)
     except (OSError, json.JSONDecodeError):
         return None, None
+
+
+def _bootstrap_cache_read(name: str, max_age_seconds: float) -> tuple[dict[str, Any] | None, float | None]:
+    payload, age = _bootstrap_cache_read_any(name)
+    if payload is None or age is None or age > max_age_seconds:
+        return None, age
+    return payload, age
+
+
+def _bootstrap_refresh_lease_path(name: str) -> Path:
+    return _bootstrap_cache_path(name).with_name(f"{name}.refresh")
+
+
+def _bootstrap_try_refresh_lease(name: str, lease_seconds: float) -> bool:
+    """Elect one nonblocking refresher; stale readers keep serving the prior snapshot."""
+    path = _bootstrap_refresh_lease_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(2):
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                age = max(0.0, time.time() - path.stat().st_mtime)
+            except OSError:
+                continue
+            if age > lease_seconds:
+                try:
+                    path.unlink()
+                except OSError:
+                    return False
+                continue
+            return False
+        except OSError:
+            return True  # Cache acceleration must never block the normal refresh path.
+        try:
+            os.write(fd, f"{os.getpid()} {time.time():.6f}\n".encode("ascii"))
+        finally:
+            os.close(fd)
+        return True
+    return False
+
+
+def _bootstrap_cache_refresh_view(
+    name: str, payload: dict[str, Any] | None, age: float | None, *, max_age_seconds: float, lease_seconds: float,
+) -> tuple[dict[str, Any] | None, bool]:
+    if payload is not None and age is not None and age <= max_age_seconds:
+        return payload, False
+    owns_refresh = _bootstrap_try_refresh_lease(name, lease_seconds)
+    if payload is not None and not owns_refresh:
+        return payload, True
+    return None, False
 
 
 def _bootstrap_cache_write(name: str, payload: dict[str, Any]) -> None:
@@ -1029,11 +1120,19 @@ def _bootstrap_mcp_backend_health() -> dict[str, Any]:
         }
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
-    cached, cache_age = _bootstrap_cache_read("mcp-status.json", BOOTSTRAP_MCP_CACHE_SECONDS)
+    cached_raw, cache_age = _bootstrap_cache_read_any("mcp-status.json")
+    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
+        "mcp-status.json", cached_raw, cache_age, max_age_seconds=BOOTSTRAP_MCP_CACHE_SECONDS, lease_seconds=2.0
+    )
     if cached is not None:
         cached = dict(cached)
         cached.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
-        cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS}
+        cached["cache"] = {
+            "used": True,
+            "age_seconds": round(cache_age or 0.0, 3),
+            "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS,
+            **({"stale_while_refresh": True} if stale_while_refresh else {}),
+        }
         return cached
 
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
@@ -1659,47 +1758,57 @@ def _bootstrap_memory_titles() -> list[dict[str, Any]]:
     return list(_bootstrap_memory_overview().get("recent", []))
 
 
-def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
-    path = MCP_KNOWN_GOOD_FREEZE_PATH
+def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
+    path = MCP_RECOVERY_STATE_PATH
     if not path.exists():
-        return {"available": False, "status": "MISSING", "path": str(path)}
+        return {"available": False, "read_state": "MISSING", "path": str(path)}
     try:
         raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
-        return {"available": False, "status": "ERROR", "path": str(path), "error": str(exc)}
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": str(exc)}
     if not isinstance(raw, dict):
-        return {"available": False, "status": "ERROR", "path": str(path), "error": "freeze record is not an object"}
-    backend = raw.get("production_identity", {}).get("backend", {}) if isinstance(raw.get("production_identity"), dict) else {}
-    proof = raw.get("proof_state", {}) if isinstance(raw.get("proof_state"), dict) else {}
-    recovery = raw.get("recovery_policy", {}) if isinstance(raw.get("recovery_policy"), dict) else {}
-    transients = raw.get("known_transients_not_part_of_frozen_stable_window", [])
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": "recovery state is not an object"}
+    deployment = raw.get("deployment", {}) if isinstance(raw.get("deployment"), dict) else {}
+    recovery_target = raw.get("recovery_target", {}) if isinstance(raw.get("recovery_target"), dict) else {}
+    policy = recovery_target.get("policy", {}) if isinstance(recovery_target.get("policy"), dict) else {}
+    evidence = raw.get("evidence", {}) if isinstance(raw.get("evidence"), dict) else {}
+    observation = evidence.get("latest_restore_observation", {}) if isinstance(evidence.get("latest_restore_observation"), dict) else {}
+    known_transients = evidence.get("known_transients", []) if isinstance(evidence.get("known_transients"), list) else []
     replacement_safety_rules = [
         str(item.get("rule"))
-        for item in transients
+        for item in known_transients
         if isinstance(item, dict) and str(item.get("rule") or "").strip()
-    ] if isinstance(transients, list) else []
-    observation = raw.get("latest_restore_observation", {}) if isinstance(raw.get("latest_restore_observation"), dict) else {}
+    ]
+    conditions = raw.get("conditions", []) if isinstance(raw.get("conditions"), list) else []
+    bounded_conditions = [
+        {
+            key: condition.get(key)
+            for key in ("type", "status", "observed_generation", "last_transition_at", "reason", "message")
+            if key in condition
+        }
+        for condition in conditions
+        if isinstance(condition, dict)
+    ]
     return {
         "available": True,
+        "read_state": "OK",
         "path": str(path),
-        "status": raw.get("status"),
-        "frozen_at": raw.get("frozen_at"),
-        "refreeze_not_before": raw.get("refreeze_not_before"),
-        "backend_commit": backend.get("commit"),
-        "backend_generation": backend.get("generation"),
-        "source_tag": backend.get("source_tag"),
-        "multi_day_real_use": proof.get("multi_day_real_use"),
-        "user_confirmed_stable": proof.get("user_confirmed_stable"),
-        "security_reroute_rate_after_freeze": proof.get("security_reroute_rate_after_freeze"),
-        "restore_first_on_regression": bool(recovery.get("restore_first_on_regression")),
-        "recovery_required_order": recovery.get("required_order") if isinstance(recovery.get("required_order"), list) else [],
-        "recovery_preservation_rule": recovery.get("preservation_rule"),
-        "recovery_authorization_rule": recovery.get("authorization_rule"),
+        "schema": raw.get("schema"),
+        "deployment_id": deployment.get("id"),
+        "deployed_at": deployment.get("deployed_at"),
+        "backend_commit": deployment.get("commit"),
+        "backend_generation": deployment.get("generation"),
+        "recovery_target_deployment_id": recovery_target.get("deployment_id"),
+        "recovery_selected_at": recovery_target.get("selected_at"),
+        "conditions": bounded_conditions,
+        "restore_first_on_regression": bool(policy.get("restore_first_on_regression")),
+        "recovery_required_order": policy.get("required_order") if isinstance(policy.get("required_order"), list) else [],
+        "recovery_preservation_rule": policy.get("preservation_rule"),
+        "recovery_authorization_rule": policy.get("authorization_rule"),
         "replacement_safety_rules": replacement_safety_rules,
         "post_restore_user_event": observation.get("post_restore_user_event"),
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
-
 
 def _bootstrap_vault_status() -> dict[str, Any]:
     """Bounded local Vault health; no fetches, history scans, or repo-wide status walk."""
@@ -1765,23 +1874,26 @@ def _bootstrap_vault_status() -> dict[str, Any]:
 def _bootstrap_github_status() -> dict[str, Any]:
     """Bounded cached GitHub health; never lists issues, PRs, checks, or workflows."""
     started = time.perf_counter()
-    cached, cache_age = _bootstrap_cache_read("github-status.json", BOOTSTRAP_GITHUB_CACHE_SECONDS)
+    cached_raw, cache_age = _bootstrap_cache_read_any("github-status.json")
+    cached_status = str((cached_raw or {}).get("status") or "")
+    cache_max_age = (
+        BOOTSTRAP_GITHUB_CACHE_SECONDS
+        if cached_status in {"OK", "WATCH", ""}
+        else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
+    )
+    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
+        "github-status.json", cached_raw, cache_age, max_age_seconds=cache_max_age, lease_seconds=4.0
+    )
     if cached is not None:
-        cached_status = str(cached.get("status") or "")
-        cache_max_age = (
-            BOOTSTRAP_GITHUB_CACHE_SECONDS
-            if cached_status in {"OK", "WATCH"}
-            else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
-        )
-        if cache_age is not None and cache_age <= cache_max_age:
-            cached = dict(cached)
-            cached["cache"] = {
-                "used": True,
-                "age_seconds": round(cache_age, 3),
-                "max_age_seconds": cache_max_age,
-            }
-            cached["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
-            return cached
+        cached = dict(cached)
+        cached["cache"] = {
+            "used": True,
+            "age_seconds": round(cache_age or 0.0, 3),
+            "max_age_seconds": cache_max_age,
+            **({"stale_while_refresh": True} if stale_while_refresh else {}),
+        }
+        cached["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        return cached
 
     gh = shutil.which("gh")
     result: dict[str, Any] = {
@@ -1855,6 +1967,165 @@ def _bootstrap_github_status() -> dict[str, Any]:
     _bootstrap_cache_write("github-status.json", cache_payload)
     return result
 
+
+def _git_blob_sha_for_file(path: Path) -> str | None:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()
+
+
+def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
+    git = shutil.which("git")
+    if not git:
+        return None
+    try:
+        proc = subprocess.run(
+            [git, "-C", str(repo_root), "log", "-1", "--format=%cI", "--", relative_path],
+            text=True,
+            capture_output=True,
+            timeout=1.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    value = proc.stdout.strip() if proc.returncode == 0 else ""
+    return value or None
+
+
+def _remote_is_newer(remote_at: Any, local_at: Any) -> bool:
+    if not isinstance(remote_at, str) or not remote_at.strip() or not isinstance(local_at, str) or not local_at.strip():
+        return False
+    try:
+        remote_dt = datetime.fromisoformat(remote_at.replace("Z", "+00:00"))
+        local_dt = datetime.fromisoformat(local_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return remote_dt > local_dt
+
+
+def _bootstrap_source_freshness() -> dict[str, Any]:
+    """Compact freshness signal for behavior sources; hashes only, no body parsing."""
+    cached_raw, cache_age = _bootstrap_cache_read_any("source-freshness.json")
+    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
+        "source-freshness.json", cached_raw, cache_age,
+        max_age_seconds=BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS, lease_seconds=4.0,
+    )
+    remote: dict[str, Any] | None = cached
+    cache_used = cached is not None
+    if remote is None:
+        gh = shutil.which("gh")
+        if not gh:
+            return {"available": False, "attention_required": True, "reason": "gh_unavailable"}
+        query = (
+            'query {'
+            ' agents: repository(owner:"organicoverlords", name:"agents") {'
+            '  ref(qualifiedName:"refs/heads/main") { target { ... on Commit {'
+            '   agentsHistory: history(first:1, path:"AGENTS.md") { nodes { oid committedDate } }'
+            '   rulesHistory: history(first:1, path:"RULES.md") { nodes { oid committedDate } }'
+            '  } } }'
+            '  agentsBlob: object(expression:"main:AGENTS.md") { ... on Blob { oid } }'
+            '  rulesBlob: object(expression:"main:RULES.md") { ... on Blob { oid } }'
+            ' }'
+            ' vault: repository(owner:"organicoverlords", name:"regression-research") {'
+            '  ref(qualifiedName:"refs/heads/main") { target { ... on Commit {'
+            '   workerHistory: history(first:1, path:"04 Operating Contracts/fresh-worker-generation-launch.md") { nodes { oid committedDate } }'
+            '  } } }'
+            '  workerBlob: object(expression:"main:04 Operating Contracts/fresh-worker-generation-launch.md") { ... on Blob { oid } }'
+            ' }'
+            '}'
+        )
+        try:
+            proc = subprocess.run(
+                [gh, "api", "graphql", "-f", f"query={query}"],
+                text=True,
+                capture_output=True,
+                timeout=BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            proc = None
+        if proc is None or proc.returncode != 0:
+            return {"available": False, "attention_required": True, "reason": "github_metadata_unavailable"}
+        try:
+            payload = json.loads(proc.stdout)
+            data = payload.get("data", {})
+            agents = data.get("agents", {})
+            vault_repo = data.get("vault", {})
+            agent_target = ((agents.get("ref") or {}).get("target") or {})
+            vault_target = ((vault_repo.get("ref") or {}).get("target") or {})
+
+            def first_history(target: dict[str, Any], key: str) -> dict[str, Any]:
+                nodes = ((target.get(key) or {}).get("nodes") or [])
+                return nodes[0] if nodes and isinstance(nodes[0], dict) else {}
+
+            remote = {
+                "AGENTS.md": {
+                    "remote_blob": (agents.get("agentsBlob") or {}).get("oid"),
+                    "last_updated_at": first_history(agent_target, "agentsHistory").get("committedDate"),
+                    "last_update_commit": first_history(agent_target, "agentsHistory").get("oid"),
+                },
+                "RULES.md": {
+                    "remote_blob": (agents.get("rulesBlob") or {}).get("oid"),
+                    "last_updated_at": first_history(agent_target, "rulesHistory").get("committedDate"),
+                    "last_update_commit": first_history(agent_target, "rulesHistory").get("oid"),
+                },
+                "worker_report_contract": {
+                    "remote_blob": (vault_repo.get("workerBlob") or {}).get("oid"),
+                    "last_updated_at": first_history(vault_target, "workerHistory").get("committedDate"),
+                    "last_update_commit": first_history(vault_target, "workerHistory").get("oid"),
+                },
+            }
+            _bootstrap_cache_write("source-freshness.json", remote)
+            cache_age = 0.0
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            return {"available": False, "attention_required": True, "reason": "github_metadata_invalid"}
+
+    local_sources = {
+        "AGENTS.md": (Path(AGENT_RULES_ROOT) / "AGENTS.md", Path(AGENT_RULES_ROOT), "AGENTS.md"),
+        "RULES.md": (Path(AGENT_RULES_ROOT) / "RULES.md", Path(AGENT_RULES_ROOT), "RULES.md"),
+        "worker_report_contract": (
+            ROOT / "04 Operating Contracts" / "fresh-worker-generation-launch.md",
+            ROOT,
+            "04 Operating Contracts/fresh-worker-generation-launch.md",
+        ),
+    }
+    sources: dict[str, Any] = {}
+    attention = False
+    any_updates_pending = False
+    for key, (path, repo_root, relative_path) in local_sources.items():
+        item = dict((remote or {}).get(key) or {})
+        local_blob = _git_blob_sha_for_file(path)
+        remote_blob = item.pop("remote_blob", None)
+        matches = bool(local_blob and remote_blob and local_blob == remote_blob)
+        local_last_committed_at = _git_last_committed_at(repo_root, relative_path)
+        updates_pending = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
+        sources[key] = {
+            "path": str(path),
+            "last_updated_at": item.get("last_updated_at"),
+            "last_update_commit": item.get("last_update_commit"),
+            "local_last_committed_at": local_last_committed_at,
+            "local_matches_remote_main": matches,
+            "local_differs_from_remote_main": not matches,
+            "updates_pending": updates_pending,
+        }
+        attention = attention or not matches
+        any_updates_pending = any_updates_pending or updates_pending
+    return {
+        "available": True,
+        "attention_required": attention,
+        "updates_pending": any_updates_pending,
+        "meaning": "If attention_required is true, read the current source before relying on remembered agent/worker behavior; updates_pending means remote changed after the last local committed version.",
+        "sources": sources,
+        "cache": {
+            "used": cache_used,
+            "age_seconds": round(float(cache_age or 0.0), 3),
+            "max_age_seconds": BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS,
+            **({"stale_while_refresh": True} if stale_while_refresh else {}),
+        },
+    }
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
@@ -1865,10 +2136,11 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
-        pc, workers, mcp, memory_overview, vault, github = (
-            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result()
+        f_source_freshness = pool.submit(_bootstrap_source_freshness)
+        pc, workers, mcp, memory_overview, vault, github, source_freshness = (
+            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
-    mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
+    mcp_recovery_state = _bootstrap_mcp_recovery_state()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
@@ -1942,7 +2214,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
             "mcp": r"%LOCALAPPDATA%\ChatGPTMcpMinimal",
             "mcp_source_repo": r"%LOCALAPPDATA%\ChatGPTMcpClean",
-            "mcp_known_good_freeze": str(MCP_KNOWN_GOOD_FREEZE_PATH),
+            "mcp_recovery_state": str(MCP_RECOVERY_STATE_PATH),
             "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
         },
         "commands": {
@@ -1962,9 +2234,10 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "mcp": mcp,
         "vault": vault,
         "github": github,
+        "source_freshness": source_freshness,
         "pc": pc,
         "workers": worker_glance,
-        "mcp_known_good_freeze": mcp_known_good_freeze,
+        "mcp_recovery_state": mcp_recovery_state,
         "notable_conditions": notable_conditions,
         "memory_overview": memory_overview,
         "recent_memory_titles": memory_overview.get("recent", []),

@@ -26,6 +26,7 @@ from tools.stack_atlas import (
     _bootstrap_disk_trend,
     _read_jsonl_tail,
     _read_jsonl_window,
+    _remote_is_newer,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
@@ -1190,6 +1191,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("before yielding", joined)
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
+
+    def test_source_freshness_pending_means_remote_is_newer(self):
+        self.assertTrue(_remote_is_newer("2026-09-06T18:16:33Z", "2026-09-05T09:50:28+03:00"))
+        self.assertFalse(_remote_is_newer("2026-09-05T12:36:29Z", "2026-09-06T09:50:28+03:00"))
+        self.assertFalse(_remote_is_newer("bad", "2026-09-06T09:50:28+03:00"))
+
+    def test_bootstrap_surfaces_behavior_source_freshness_without_reading_policy_bodies(self):
+        sample = {
+            "available": True,
+            "attention_required": True,
+            "updates_pending": True,
+            "sources": {
+                "AGENTS.md": {"last_updated_at": "2026-09-05T12:36:29Z", "updates_pending": False},
+                "RULES.md": {"last_updated_at": "2026-09-06T18:16:33Z", "updates_pending": True},
+                "worker_report_contract": {"last_updated_at": "2026-09-06T14:21:15Z", "updates_pending": False},
+            },
+        }
+        with patch("tools.stack_atlas._bootstrap_source_freshness", return_value=sample):
+            glance = build_live_bootstrap_glance()
+        self.assertEqual(glance["source_freshness"], sample)
+        self.assertTrue(glance["source_freshness"]["updates_pending"])
+        self.assertIn("RULES.md", glance["source_freshness"]["sources"])
+        self.assertIn("worker_report_contract", glance["source_freshness"]["sources"])
 
     def test_bootstrap_points_to_canonical_issue_first_contract_without_policy_copy(self):
         with patch("tools.stack_atlas._bootstrap_pc_status", return_value={}), \

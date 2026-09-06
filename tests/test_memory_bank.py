@@ -141,7 +141,7 @@ class MemoryBankValidationTests(unittest.TestCase):
                 self.assertEqual(load_bank(p), [e])
             sync.assert_not_called()
 
-    def test_canonical_append_still_syncs_before_and_after_write(self):
+    def test_canonical_append_is_local_only_by_default(self):
         values = self.valid()
         values.pop("id")
         values.pop("timestamp")
@@ -152,6 +152,20 @@ class MemoryBankValidationTests(unittest.TestCase):
                 "tools.memory_bank.sync_lock", side_effect=lambda path: nullcontext()
             ), patch("tools.memory_bank._sync_canonical_locked") as sync:
                 saved = append_entry(p, values)
+            self.assertEqual(saved["text"], values["text"])
+            sync.assert_not_called()
+
+    def test_canonical_append_publish_syncs_before_and_after_write(self):
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "bank.jsonl"
+            p.write_text("", encoding="utf-8")
+            with patch("tools.memory_bank._is_canonical_bank", return_value=True), patch(
+                "tools.memory_bank.sync_lock", side_effect=lambda path: nullcontext()
+            ), patch("tools.memory_bank._sync_canonical_locked") as sync:
+                saved = append_entry(p, values, publish=True)
             self.assertEqual(saved["text"], values["text"])
             self.assertEqual(sync.call_count, 2)
             self.assertFalse(sync.call_args_list[0].kwargs["strict"])

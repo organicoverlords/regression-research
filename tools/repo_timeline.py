@@ -43,6 +43,7 @@ def _run_git(path: Path, *args: str, check: bool = True) -> subprocess.Completed
         encoding="utf-8",
         errors="replace",
         check=check,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
     )
 
 

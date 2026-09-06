@@ -1,0 +1,85 @@
+{
+  "actor": "ChatGPT-security-reroute-rollback",
+  "busy_scope": "mcp_minimal_clone:production-backend-3011",
+  "checks": {
+    "busy_scope": {
+      "available": true,
+      "claim": {
+        "actor": "ChatGPT-security-reroute-rollback",
+        "scope": "mcp_minimal_clone:production-backend-3011",
+        "timestamp": "2026-09-06T16:24:31.311Z"
+      },
+      "job": {
+        "checkpoint": "User-authorized rollback to Sep4 runtime baseline with retained audit logging and process tool annotations; off-path proof complete.",
+        "claim_timestamp": "2026-09-06T16:24:31.311Z",
+        "job_id": "mcp_minimal_clone:production-backend-3011",
+        "lease_expires_at": "2026-09-06T16:54:31.311Z",
+        "owner": "ChatGPT-security-reroute-rollback",
+        "scope": "mcp_minimal_clone:production-backend-3011",
+        "state": "active",
+        "updated_at": "2026-09-06T16:24:31.311Z"
+      },
+      "scope": "mcp_minimal_clone:production-backend-3011"
+    },
+    "explicit_user_authorization_for_specific_live_change": true,
+    "independent_rollback_control_route_verified": true,
+    "offpath_canary_proof_verified": true
+  },
+  "live_dependencies": {
+    "mcp": {
+      "active_session_count": 11,
+      "active_session_count_semantics": "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes",
+      "active_session_count_status": "COMPLETE",
+      "active_sessions": [
+        {
+          "activity_age_seconds": 0.5,
+          "busy_titles": [
+            "ChatGPT-security-reroute-rollback"
+          ],
+          "caller_id": "caller_848bf8365b4a",
+          "cwd": "C:\\Users\\Lauri\\Desktop\\vault",
+          "workspace": "Vault"
+        },
+        {
+          "activity_age_seconds": 1.2,
+          "busy_titles": [],
+          "caller_id": "caller_fe5c215a99ad",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\vault-125-cleanup-converger-timeout-pr-20260906",
+          "workspace": "Vault"
+        },
+        {
+          "activity_age_seconds": 1.6,
+          "busy_titles": [],
+          "caller_id": "caller_6c5b4108f688",
+          "cwd": "C:\\Users\\Lauri\\Desktop\\vault",
+          "workspace": "Vault"
+        },
+        {
+          "activity_age_seconds": 2.6,
+          "busy_titles": [],
+          "caller_id": "caller_167c044d5731",
+          "cwd": "C:\\Users\\Lauri\\Documents\\Unreal Projects\\p3-alder-803-current",
+          "workspace": "P3"
+        }
+      ],
+      "available": true,
+      "status": "LIVE"
+    }
+  },
+  "reasons": [],
+  "schema": "production-change-gate.v1",
+  "semantics": {
+    "busy_claim_is_collision_control_not_authorization": true,
+    "go_continue_fix_are_not_production_authorization": true,
+    "pass_is_necessary_not_sufficient_authority": true
+  },
+  "target": {
+    "component": "mcp_minimal_clone",
+    "requested": "mcp",
+    "shared_production": true
+  },
+  "verdict": "PASS",
+  "warnings": [
+    "recent_mcp_activity_present"
+  ]
+}
