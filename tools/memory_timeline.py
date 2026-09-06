@@ -321,13 +321,20 @@ def build_timeline(
 
 
 def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5, member_id_limit: int = 20) -> list[dict[str, Any]]:
-    """Compress recurring durable incident threads without discarding source events."""
+    """Compress recurring durable incident/topic lineages without discarding source events."""
     items = list(entries)
     effective_limit = min(20, max(0, int(limit)))
     effective_member_limit = min(20, max(1, int(member_id_limit)))
     if effective_limit == 0 or not items:
         return []
-    report = build_timeline(items, view="errors", limit=MAX_LIMIT)
+
+    # General chronology is required so explicit/evidence-backed learning lineages
+    # can compact decisions/lessons as well as records classified as incidents.
+    # Specific-scope grouping stays conservative: it is admitted only when the
+    # same thread also appears in the error projection.
+    report = build_timeline(items, view="general", limit=MAX_LIMIT)
+    error_report = build_timeline(items, view="errors", limit=MAX_LIMIT)
+    error_thread_ids = {str(thread["thread_id"]) for thread in error_report["threads"]}
     visible_dispositions = {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"}
     events_by_thread: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for event in report["events"]:
@@ -347,10 +354,13 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
             continue
         latest = events[0]
         thread_id = str(thread["thread_id"])
+        thread_source = str(latest.get("thread_source") or "")
+        if thread_source not in {"EXPLICIT_THREAD", "EVIDENCE_ANCHOR"} and thread_id not in error_thread_ids:
+            continue
         quoted_thread = thread_id.replace('"', '\"')
         out.append({
             "thread_id": thread_id,
-            "thread_source": latest.get("thread_source"),
+            "thread_source": thread_source,
             "scope": thread.get("scope"),
             "observations": int(thread["event_count"]),
             "first_event_at": thread.get("first_event_at"),
@@ -362,7 +372,7 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
             "projects": list(thread.get("projects") or []),
             "entities": list(thread.get("entities") or []),
             "member_ids": [str(event["id"]) for event in events[:effective_member_limit]],
-            "drilldown": f'python tools\\memory_bank.py timeline --view errors --thread "{quoted_thread}" --limit 20 --no-workers',
+            "drilldown": f'python tools\\memory_bank.py timeline --thread "{quoted_thread}" --limit 20 --no-workers',
         })
         if len(out) >= effective_limit:
             break

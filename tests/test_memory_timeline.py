@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class MemoryTimelineTests(unittest.TestCase):
     @staticmethod
-    def e(memory_id, timestamp, text, *, kind="lesson", scope="global", state="PROVEN", title=None, tags=None, evidence=None, supersedes=None, project=None, event_at=None):
+    def e(memory_id, timestamp, text, *, kind="lesson", scope="global", state="PROVEN", title=None, tags=None, evidence=None, supersedes=None, project=None, event_at=None, thread=None):
         out = {
             "id": memory_id, "timestamp": timestamp, "kind": kind, "scope": scope,
             "tags": list(tags or []), "text": text, "state": state,
@@ -24,6 +24,8 @@ class MemoryTimelineTests(unittest.TestCase):
             out["project"] = project
         if event_at:
             out["event_at"] = event_at
+        if thread:
+            out["thread"] = thread
         return out
 
     def test_event_time_is_distinct_from_record_time_when_explicit(self):
@@ -68,6 +70,29 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(report["matching_threads"], 2)
         self.assertTrue(all(event["thread_source"] == "EVENT_ONLY" for event in report["events"]))
 
+    def test_explicit_non_error_learning_thread_rolls_up(self):
+        decision = self.e(
+            "decision", "2026-09-06T03:29:46+03:00",
+            "Automatic learning uses compact rollups", scope="memory", title="Decision",
+            kind="decision", thread="vault-memory-bootstrap-automatic-learning", tags=["memory"],
+        )
+        lesson = self.e(
+            "lesson", "2026-09-06T03:34:19+03:00",
+            "Deleted mirror blocked publication", scope="memory", title="Lesson",
+            kind="lesson", thread="vault-memory-bootstrap-automatic-learning", tags=["memory", "sync"],
+        )
+        rollups = build_incident_rollups([decision, lesson], limit=3)
+        self.assertEqual(len(rollups), 1)
+        self.assertEqual(rollups[0]["thread_id"], "thread:vault-memory-bootstrap-automatic-learning")
+        self.assertEqual(rollups[0]["thread_source"], "EXPLICIT_THREAD")
+        self.assertEqual(rollups[0]["observations"], 2)
+        self.assertEqual(rollups[0]["latest_event_id"], "lesson")
+
+    def test_non_error_specific_scope_does_not_roll_up_without_explicit_lineage(self):
+        a = self.e("a", "2026-09-06T03:00:00+03:00", "ordinary note", scope="memory/topic", title="A", kind="fact", tags=["memory"])
+        b = self.e("b", "2026-09-06T03:01:00+03:00", "another ordinary note", scope="memory/topic", title="B", kind="fact", tags=["memory"])
+        self.assertEqual(build_incident_rollups([a, b], limit=3), [])
+
     def test_incident_rollup_compacts_twenty_observations_with_drilldown(self):
         entries = [
             self.e(
@@ -87,7 +112,7 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(rollup["observations"], 20)
         self.assertEqual(rollup["latest_event_id"], "e19")
         self.assertEqual(len(rollup["member_ids"]), 20)
-        self.assertIn("timeline --view errors --thread", rollup["drilldown"])
+        self.assertIn("timeline --thread", rollup["drilldown"])
         self.assertIn("evidence:github:organicoverlords/regression-research#125", rollup["drilldown"])
 
     def test_explicit_thread_can_join_events_across_scopes(self):
