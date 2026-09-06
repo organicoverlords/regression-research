@@ -41,6 +41,8 @@ class StackAtlasTests(unittest.TestCase):
         result = find_features("cleanup worktree convergence")[0]
         self.assertEqual(result["id"], "cleanup.convergence")
         self.assertIn("operator-only", result["boundary"].lower())
+        self.assertIn("git-ignored standard unreal", result["boundary"].lower())
+        self.assertIn("content/saved/proof/evidence/source", result["boundary"].lower())
         self.assertTrue(any("cleanup_converger.py --apply --operator-ack" in item for item in result["entrypoints"]))
 
     def test_cleanup_guard_blocks_cross_cwd_process_target_and_locked_lane(self):
