@@ -23,7 +23,8 @@ _GITHUB_EVIDENCE_RE = re.compile(r"^github:([^/\s]+/[^#\s]+)#(\d+)$", re.I)
 _GITHUB_URL_RE = re.compile(r"^https?://github\.com/([^/\s]+/[^/\s]+)/(?:issues|pull)/(\d+)(?:[/?#].*)?$", re.I)
 _INCIDENT_EVIDENCE_RE = re.compile(r"\bINC-\d{8}(?:-\d{6})?(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\b", re.I)
 _RED_SIGNAL_RE = re.compile(r"\bred[ _-]?(?:alert|critical)\b", re.I)
-_REGRESSION_SIGNAL_RE = re.compile(r"\b(?:regression|recurrence|failure|failed|broken|premature)\b", re.I)
+_LEGACY_INCIDENT_SIGNAL_RE = re.compile(r"\b(?:incident\s+report|critical\s+incident|security[-_\s]+incident)\b", re.I)
+_REGRESSION_SIGNAL_RE = re.compile(r"\b(?:recurrence|failure|failed|broken|premature)\b|\bregression\b(?![-_\s]+research\b)", re.I)
 _SIGNAL_ORDER = ("red_alert", "slopwall", "security_incident", "incident", "regression")
 
 TIMELINE_NARRATIVE_CONTRACT = {
@@ -92,8 +93,38 @@ def _normalized_labels(values: Iterable[Any]) -> set[str]:
     }
 
 
+def _legacy_fallback_eligible(
+    event: dict[str, Any],
+    *,
+    tags: set[str] | None = None,
+    finding_tags: set[str] | None = None,
+) -> bool:
+    """Allow title/scope compatibility only when canonical signal metadata is absent."""
+    source = str(event.get("source_type") or "UNKNOWN")
+    tags = tags if tags is not None else _normalized_labels(event.get("tags", []))
+    finding_tags = finding_tags if finding_tags is not None else _normalized_labels(event.get("finding_tags", []))
+    if source == "VAULT_MEMORY":
+        # Canonical assistant-recorded memories already have structured category/tags.
+        # Their prose may discuss incidents/regressions without becoming one themselves.
+        return not bool({"assistant_recorded", "verbatim_source"} & tags)
+    if source == "WORKER_REPORT":
+        # finding_tags are the canonical worker signal lane; display prose is descriptive.
+        return not bool(finding_tags)
+    if source == "TRACKED_ARTIFACT":
+        evidence_type = str(event.get("evidence_type") or "").strip().casefold()
+        artifact_type = str(event.get("artifact_type") or "").strip().casefold()
+        if evidence_type:
+            # A structured research/audit/proof type must not be relabeled by its title.
+            # Incident provenance may still use legacy title text to recover missing severity.
+            return "incident" in evidence_type
+        # Old report history may predate provenance taxonomy. Generic evidence/fixture names
+        # such as regression-coverage-matrix.csv are not signal labels by themselves.
+        return artifact_type == "report"
+    return False
+
+
 def _legacy_signal_fallback(event: dict[str, Any]) -> tuple[set[str], str | None, list[str]]:
-    """Best-effort compatibility for old records that predate structured signal labels."""
+    """Best-effort compatibility for genuinely unstructured historical signal records."""
     text = " ".join(
         str(event.get(key) or "")
         for key in ("title", "scope")
@@ -114,7 +145,7 @@ def _legacy_signal_fallback(event: dict[str, Any]) -> tuple[set[str], str | None
     if _REGRESSION_SIGNAL_RE.search(text):
         traits.add("regression")
         basis.append("legacy_text:regression")
-    if "incident" in lowered or _INCIDENT_EVIDENCE_RE.search(text):
+    if _LEGACY_INCIDENT_SIGNAL_RE.search(text) or _INCIDENT_EVIDENCE_RE.search(text):
         traits.add("incident")
         basis.append("legacy_text:incident")
     return traits, severity, basis
@@ -203,7 +234,10 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
     # missing field; it never re-labels already-structured semantics as legacy-derived.
     legacy_severity_inferred = False
     legacy_traits_inferred: set[str] = set()
-    if (severity == "NORMAL" or not traits) and source in {"VAULT_MEMORY", "WORKER_REPORT", "TRACKED_ARTIFACT"}:
+    if (
+        (severity == "NORMAL" or not traits)
+        and _legacy_fallback_eligible(event, tags=tags, finding_tags=finding_tags)
+    ):
         fallback_traits, fallback_severity, fallback_basis = _legacy_signal_fallback(event)
         used_fallback: list[str] = []
         if severity == "NORMAL" and fallback_severity:

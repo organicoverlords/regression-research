@@ -280,7 +280,7 @@ class MemoryTimelineTests(unittest.TestCase):
             limit=20, snapshot_now=now,
         )
         window = result["snapshots"]["windows"][0]
-        self.assertEqual(window["signal_observation_summary"]["red"], 2)
+        self.assertEqual(window["signal_observation_summary"]["red"], 1)
         self.assertEqual(window["continuity_case_summary"]["red"], 1)
         red_case = next(case for case in window["continuity_cases"] if case["severity"] == "RED")
         self.assertEqual(red_case["case_id"], "incident:inc-20260906-case")
@@ -291,6 +291,10 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(red_case["classification_quality"], "STRUCTURED")
         self.assertFalse(red_case["legacy_support_present"])
         self.assertEqual(red_case["legacy_dependent_fields"], [])
+        worker_event = next(event for event in result["events"] if event["id"] == "worker:legacy-red")
+        self.assertEqual(worker_event["continuity"]["severity"], "NORMAL")
+        self.assertEqual(worker_event["continuity"]["traits"], ["regression"])
+        self.assertFalse(worker_event["continuity"]["legacy_inferred"])
 
     def test_mixed_case_is_not_legacy_dependent_when_structured_members_support_every_case_semantic(self):
         now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")
@@ -356,6 +360,83 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(anchor["role"], "CONTEXT_ONLY")
         self.assertFalse(anchor["case_identity"])
         self.assertEqual(result["snapshots"]["narrative_contract"]["context_wording"], "DO_NOT_CALL_CONTEXT_ONLY_ANCHOR_THE_CASE_OR_THREAD")
+
+    def test_modern_structured_memory_title_cannot_create_incident_trait_from_prose(self):
+        now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")
+        entry = self.e(
+            "modern-correction", "2026-09-06T05:00:00+03:00", "Correction about taxonomy language.",
+            kind="correction", scope="vault/timeline/taxonomy", title="Taxonomy lesson is not itself an incident",
+            tags=["timeline", "taxonomy", "assistant-recorded", "verbatim-source"],
+            thread="vault-timeline-multisource-continuity",
+        )
+        result = build_timeline([entry], limit=10, snapshot_now=now)
+        event = result["events"][0]
+        self.assertEqual(event["continuity"]["traits"], [])
+        self.assertEqual(event["continuity"]["severity"], "NORMAL")
+        self.assertFalse(event["continuity"]["legacy_inferred"])
+        self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["total"], 0)
+
+    def test_modern_structured_status_scope_cannot_create_incident_trait(self):
+        now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")
+        entry = self.e(
+            "modern-status", "2026-09-06T05:00:00+03:00", "Current historical observation.",
+            kind="status", scope="assistant-orchestration/incident-followup",
+            title="Security reroute still occurs after restore",
+            tags=["security-reroute", "platform-routing", "assistant-recorded", "verbatim-source"],
+            thread="mcp-security-reroute-causality",
+        )
+        result = build_timeline([entry], limit=10, snapshot_now=now)
+        self.assertEqual(result["events"][0]["continuity"]["traits"], [])
+        self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["total"], 0)
+
+    def test_generic_evidence_filename_cannot_create_regression_case(self):
+        event = {
+            "id": "artifact:matrix", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-06T05:00:00+03:00", "project": "regression-research",
+            "title": "evidence: regression-coverage-matrix.csv", "artifact_type": "evidence",
+            "path": "02 Evidence/regression-coverage-matrix.csv",
+            "anchors": ["artifact:02 evidence/regression-coverage-matrix.csv"],
+        }
+        result = build_timeline([], artifact_events=[event], limit=10, snapshot_now=datetime.fromisoformat("2026-09-06T06:00:00+03:00"))
+        self.assertEqual(result["events"][0]["continuity"]["traits"], [])
+        self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["total"], 0)
+
+    def test_structured_research_report_named_regression_research_is_not_regression_case(self):
+        event = {
+            "id": "artifact:research", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-06T05:00:00+03:00", "project": "regression-research",
+            "title": "report: Regression Research #125 - timeline convergence research", "artifact_type": "report",
+            "path": "01 Reports/timeline_convergence_research.md", "evidence_type": "research_report",
+            "anchors": ["artifact:01 reports/timeline_convergence_research.md"],
+        }
+        result = build_timeline([], artifact_events=[event], limit=10, snapshot_now=datetime.fromisoformat("2026-09-06T06:00:00+03:00"))
+        self.assertEqual(result["events"][0]["continuity"]["event_class"], "EVIDENCE")
+        self.assertEqual(result["events"][0]["continuity"]["traits"], [])
+        self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["total"], 0)
+
+    def test_old_unstructured_report_can_still_recover_recurrence_trait(self):
+        event = {
+            "id": "artifact:old-recurrence", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-06T05:00:00+03:00", "project": "regression-research",
+            "title": "report: MCP half-alive tunnel recurrence and fix", "artifact_type": "report",
+            "path": "01 Reports/old_recurrence.md", "anchors": ["artifact:01 reports/old_recurrence.md"],
+        }
+        result = build_timeline([], artifact_events=[event], limit=10, snapshot_now=datetime.fromisoformat("2026-09-06T06:00:00+03:00"))
+        event_out = result["events"][0]
+        self.assertEqual(event_out["continuity"]["traits"], ["regression"])
+        self.assertTrue(event_out["continuity"]["legacy_inferred"])
+
+    def test_structured_worker_findings_block_title_only_red_promotion(self):
+        event = {
+            "id": "worker:structured-regression", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+            "event_at": "2026-09-06T05:00:00+03:00", "title": "Red-alert policy revert",
+            "finding_tags": ["regression"], "summary": "A regression was corrected.",
+        }
+        result = build_timeline([], worker_events=[event], limit=10, snapshot_now=datetime.fromisoformat("2026-09-06T06:00:00+03:00"))
+        semantics = result["events"][0]["continuity"]
+        self.assertEqual(semantics["severity"], "NORMAL")
+        self.assertEqual(semantics["traits"], ["regression"])
+        self.assertFalse(semantics["legacy_inferred"])
 
     def test_incidental_body_word_does_not_override_structured_non_incident_metadata(self):
         now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
