@@ -7,6 +7,8 @@ from pathlib import Path
 
 from tools.stack_atlas import (
     ATLAS_CONTRACT,
+    BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
+    BOOTSTRAP_MEMORY_TITLE_LIMIT,
     blast_radius,
     build_bootstrap_atlas,
     build_live_bootstrap_glance,
@@ -23,6 +25,7 @@ from tools.stack_atlas import (
     _read_jsonl_window,
     _cwd_uses_worktree,
     _compact_memory_overview,
+    _bootstrap_memory_overview,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,6 +62,50 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(compact["incident_rollups"][0]["observations"], 20)
         self.assertNotIn("member_ids", compact["incident_rollups"][0])
         self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated"])
+
+    def test_bootstrap_memory_overview_backfills_after_rollup_member_suppression(self):
+        report = {
+            "contract": "history only",
+            "eligible_entries": 24,
+            "incident_rollups": [{
+                "thread_id": "thread:one-bug",
+                "thread_source": "EXPLICIT_THREAD",
+                "scope": "memory/one-bug",
+                "observations": 20,
+                "latest_event_at": "2026-09-06T03:20:00+03:00",
+                "latest_event_id": "bug-20",
+                "latest_title": "Bug observation 20",
+                "latest_disposition": "CURRENT_DURABLE",
+                "summary": "Twenty related observations.",
+                "member_ids": [f"bug-{i}" for i in range(1, 21)],
+                "drilldown": "memory_bank timeline thread",
+            }],
+            "recent": [
+                *[
+                    {"id": f"bug-{i}", "timestamp": f"2026-09-06T03:{i:02d}:00+03:00", "title": f"Bug {i}"}
+                    for i in range(20, 0, -1)
+                ],
+                {"id": "unrelated-1", "timestamp": "2026-09-06T02:59:00+03:00", "title": "Unrelated one"},
+                {"id": "unrelated-2", "timestamp": "2026-09-06T02:58:00+03:00", "title": "Unrelated two"},
+                {"id": "unrelated-3", "timestamp": "2026-09-06T02:57:00+03:00", "title": "Unrelated three"},
+            ],
+            "projects": [],
+            "recurring_tags": [],
+        }
+        with patch("tools.stack_atlas._bootstrap_cache_read", return_value=(None, None)), patch(
+            "tools.stack_atlas._bootstrap_cache_write"
+        ), patch("tools.memory_bank.load_bank", return_value=[]) as load_bank, patch(
+            "tools.memory_bank.build_overview", return_value=report
+        ) as build_overview:
+            compact = _bootstrap_memory_overview()
+        load_bank.assert_called_once_with()
+        build_overview.assert_called_once_with([], limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT)
+        self.assertGreater(BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, BOOTSTRAP_MEMORY_TITLE_LIMIT)
+        self.assertEqual(len(compact["incident_rollups"]), 1)
+        self.assertEqual(
+            [item["id"] for item in compact["recent"]],
+            ["unrelated-1", "unrelated-2", "unrelated-3"],
+        )
 
     def test_session_cwd_worktree_match_is_one_way(self):
         worktree = r"C:\Users\Lauri\AppData\Local\Temp\p3-941-control-hints"
