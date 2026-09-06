@@ -369,6 +369,15 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Read-only preflight for shared production/control-plane mutation. PASS is necessary evidence, never mutation authority by itself; a broader debugging/fix/go instruction is not represented as explicit live-production authorization.",
     },
+    "cleanup.convergence": {
+        "owner_components": ["agent_rules", "local_git", "busy_coordinator"],
+        "triggers": ["cleanup convergence", "cleanup", "worktree cleanup", "disk cleanup", "converge worktrees", "stale worktrees", "orphan residue", "reap worktrees"],
+        "entrypoints": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\cleanup_converger.py --apply --operator-ack",
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\operator-cleanup-convergence.md",
+        ],
+        "boundary": "Operator-only bounded convergence. One invocation loops internally to a stable boundary and may remove only clean branch-anchored inactive secondary P3/Vault worktrees after both recent MCP-CWD and external process-command-line guards pass. No force removal, branch deletion, fetch, reset/rebase, dirty/unanchored deletion, permission change, or process kill. Recurring workers must not use it to administer themselves or sibling lanes.",
+    },
     "work.intake": {
         "owner_components": ["agent_rules", "github", "local_git", "busy_coordinator"],
         "triggers": ["issue first", "start work", "new task", "technical work", "issue", "pr", "busy claim", "before mutation", "dirty state", "wip", "handoff", "convergence"],
@@ -1985,6 +1994,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
             "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "cleanup_converge": r"python C:\Users\Lauri\Desktop\vault\tools\cleanup_converger.py --apply --operator-ack",
             "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
