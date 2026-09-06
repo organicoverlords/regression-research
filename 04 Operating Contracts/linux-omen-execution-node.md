@@ -63,23 +63,22 @@ Do not delete, move, deduplicate, compress, or repurpose any of these large fold
 
 ## NVMe production fast-storage lane
 
-Live read-only inspection on 2026-09-06 established the Samsung NVMe layout and usable capacity before any resize:
+The Samsung NVMe fast-storage lane was provisioned on 2026-09-06 after NTFS consistency checks and pre-change GPT/partition-table backups:
 
 - `/dev/nvme0n1`: 238.5 GiB total
-- `p1`: 260 MiB FAT32 EFI, mounted at `/boot/efi`; **must be preserved**
-- `p2`: 16 MiB Microsoft reserved; preserve while Windows remains supported
-- `p3`: 237.2 GiB NTFS `Windows`; read-only mount showed about 54 GiB used and 185 GiB free
-- `p4`: 980 MiB NTFS Windows recovery; preserve
-- Windows `Users` content is only about 361 MiB; the large Linux media folders are on the HDD, not this NVMe
-- the Windows volume contains a ~16 GiB hibernation file and ~2.9 GiB pagefile, so raw NTFS used space is not mostly user data
+- `p1`: 260 MiB FAT32 EFI, preserved and mounted at `/boot/efi`
+- `p2`: 16 MiB Microsoft reserved, preserved
+- `p3`: 90 GiB NTFS `Windows`, preserving partition UUID `190d7b09-e0d0-4d2a-87a1-a9593d888a1f`
+- `p4`: 980 MiB NTFS Windows recovery, preserved
+- `p5`: 147.2 GiB ext4 `UE_FAST`, UUID `a6c05af1-0ede-4327-9fec-0411ac6628ee`, mounted at `/mnt/ue`
 
-**Requested production layout, not yet authoritative until a live post-resize probe passes:** preserve `p1`, `p2`, and `p4`; shrink Windows `p3` to about 90 GiB; allocate the freed ~147 GiB as ext4 with label `UE_FAST`; mount it persistently at `/mnt/ue`. The intended owned directories are `/mnt/ue/engine`, `/mnt/ue/projects`, `/mnt/ue/build`, `/mnt/ue/cache`, `/mnt/ue/tmp`, `/mnt/ue/toolchains`, and `/mnt/ue/bootstrap`.
+`/mnt/ue` is persisted in `/etc/fstab` by filesystem UUID with `defaults,noatime,nofail,x-systemd.device-timeout=10s`. The user-owned directories are `/mnt/ue/engine`, `/mnt/ue/projects`, `/mnt/ue/build`, `/mnt/ue/cache`, `/mnt/ue/tmp`, `/mnt/ue/toolchains`, and `/mnt/ue/bootstrap`. It is the preferred fast-storage lane for UE source, build intermediates, Derived Data Cache / other rebuildable caches, project worktrees that explicitly opt into the node, the Epic native toolchain, and temporary build material. The HDD remains the Linux root and user-media owner; do not move or delete user media merely to make UE space.
 
-`/mnt/ue` is the preferred fast-storage lane for UE source, build intermediates, Derived Data Cache / other rebuildable caches, project worktrees that explicitly opt into the node, the Epic native toolchain, and temporary build material. The HDD remains the Linux root and user-media owner. Do not move or delete user media to make UE space when the NVMe lane is available.
+Live post-provision checks passed for partition preservation, ext4 identity, UUID-backed `/mnt/ue`, user write/read/delete access, `/boot/efi`, `findmnt --verify`, and the enabled/active `omen-ue-fast-ready.service`. A root-owned fixed-action helper at `/usr/local/sbin/omen-agent-admin` exposes only `status`, `verify-storage`, `mount-ue`, and `restart-ready`; `aatuska` may invoke that exact helper through sudo without a password. This is intentionally not a general passwordless root shell.
 
-Before claiming `UE_FAST` is production-ready, prove all of the following live: `lsblk` shows the expected preserved EFI/recovery partitions and an ext4 `UE_FAST` partition; `/mnt/ue` is mounted by UUID from `/etc/fstab`; `df -hT /mnt/ue` shows the expected capacity; a user-owned write/read/delete probe succeeds; `/boot/efi` is still mounted; Windows partition identity remains NTFS; and a reboot does not lose the `/mnt/ue` mount. Until those checks pass, Atlas/runbooks may describe the plan and completion gate but must not claim the fast-storage lane exists.
+The remaining production acceptance proof is one explicitly authorized reboot showing that `/mnt/ue`, `/boot/efi`, and `omen-ue-fast-ready.service` recover correctly after boot. Until that reboot proof exists, treat persistence as configured and live-tested in-session, but not reboot-proven.
 
-The destructive partition resize is a local privileged operation. Do not bypass Secure Boot, NTFS consistency checks, partition-table safety checks, or local authorization merely to automate it. Preserve a pre-change GPT/partition-table backup before resizing.
+Future destructive partition changes remain local privileged operations. Do not bypass Secure Boot, filesystem consistency checks, partition-table safety checks, or local authorization. Preserve a pre-change GPT/partition-table backup before any future resize.
 ## Unreal Engine development state
 
 The current P3 project reports `EngineAssociation: 5.8` on the Windows repo. The laptop initially had Python 3.10, GCC 11.4 and Make, but lacked Git, Git LFS, pip, g++, CMake, Ninja, Node, Docker/Podman, CUDA and Rust.
@@ -96,9 +95,11 @@ A usable **rootless UE development baseline** now exists under the user account,
 - Epic native UE 5.8 toolchain downloaded and extracted at `~/.local/ue-toolchains/v26_clang-20.1.8-rockylinux8`
 - verified clang/clang++ 20.1.8 x86_64 compile+link probe using `--sysroot="$UE_SYSROOT"`
 
+The logical paths ~/.local/ue-toolchains and ~/.local/ue-bootstrap are now symlinks backed by /mnt/ue/toolchains and /mnt/ue/bootstrap. The migration was verified with zero-difference rsync checks and a post-migration clang 20.1.8 compile/link probe. Verified HDD rollback copies ~/.local/ue-toolchains.hdd-backup-20260906T233258 and ~/.local/ue-bootstrap.hdd-backup-20260906T233258 are retained until reboot persistence is proven.
+
 The Epic native toolchain archive is retained at `~/.local/ue-toolchains/native-linux-v26_clang-20.1.8-rockylinux8.tar.gz`. Do not redownload it unless integrity or version evidence requires replacement.
 
-Disk headroom is now materially tighter after staging the toolchain and NVIDIA bundle: the last live reading was about **50 GiB free (95% used)** on `/dev/sda2`. Do not start a full UE source hydration/build/cook on this HDD until live free-space evidence shows adequate headroom or the user explicitly selects exact disposable data/storage to use. The large Desktop/media folders remain user-owned and must not be deleted merely to make room.
+The HDD root remains tight at roughly 50 GiB free, but UE tooling/build paths now target the NVMe lane; the post-migration `/mnt/ue` reading was about **132 GiB free**. Keep heavy UE source/build/cache activity on `/mnt/ue` and continue to re-read capacity before a full engine hydration/build. The large Desktop/media folders remain user-owned and must not be deleted merely to make room.
 
 UE-specific source setup remains repo/engine-owned: once an authorized UE 5.8 source tree is available on Linux and storage headroom is adequate, use Epic's normal `Setup.sh`/`GenerateProjectFiles.sh` path and the v26 native toolchain rather than substituting an arbitrary compiler.
 
