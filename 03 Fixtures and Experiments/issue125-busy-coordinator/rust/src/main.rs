@@ -261,10 +261,23 @@ fn now_iso() -> String {
 fn canonical_scope(raw: &str) -> Result<String, String> {
     let scope = raw.trim().to_string();
     if scope.is_empty() {
-        Err("scope must not be empty".into())
-    } else {
-        Ok(scope)
+        return Err("scope must not be empty".into());
     }
+    let path = Path::new(&scope);
+    if path.is_absolute() {
+        // Match Python's Windows normcase/normpath behavior for absolute
+        // filesystem scopes while keeping non-path logical scope identifiers
+        // opaque. Components removes separator and `.` spelling aliases without
+        // requiring the claimed file to exist.
+        let normalized = path
+            .components()
+            .collect::<PathBuf>()
+            .to_string_lossy()
+            .replace('/', "\\")
+            .to_ascii_lowercase();
+        return Ok(normalized);
+    }
+    Ok(scope)
 }
 
 const CLAIM_ACTOR_HARNESSES: [&str; 6] = [
@@ -1079,6 +1092,15 @@ mod tests {
     fn canonical_scope_is_stable_and_trimmed() {
         assert_eq!(canonical_scope("  repo#125:job  ").unwrap(), "repo#125:job");
         assert!(canonical_scope("   ").is_err());
+    }
+
+    #[test]
+    fn canonical_scope_collides_absolute_windows_path_aliases() {
+        let plain = r"C:\Temp\BusyAlias\scope.txt";
+        let dotted = r"C:\Temp\BusyAlias\.\scope.txt";
+        let slash_case = r"c:/temp/busyalias/scope.txt";
+        assert_eq!(canonical_scope(plain).unwrap(), canonical_scope(dotted).unwrap());
+        assert_eq!(canonical_scope(plain).unwrap(), canonical_scope(slash_case).unwrap());
     }
 
     #[test]

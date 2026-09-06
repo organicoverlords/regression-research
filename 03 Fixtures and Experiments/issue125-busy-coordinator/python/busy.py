@@ -42,6 +42,13 @@ def canonical_scope(scope: str) -> str:
     value = scope.strip()
     if not value:
         raise ValueError("scope must not be empty")
+    # Busy scopes are often logical identifiers and must remain opaque. For an
+    # explicitly absolute filesystem scope, however, Windows spelling aliases
+    # (case, separator style, and `.` segments) name the same mutation resource
+    # and therefore must collide atomically. Keep this lexical: claims may name
+    # files that do not exist yet, so never require filesystem resolution.
+    if os.path.isabs(value):
+        return os.path.normcase(os.path.normpath(value))
     return value
 
 
