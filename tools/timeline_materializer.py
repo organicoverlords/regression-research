@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from bisect import bisect_left, bisect_right
 import hashlib
 import json
 import os
@@ -1003,6 +1004,42 @@ def _event_branch_refs(event: dict[str, Any]) -> list[str]:
     return _branch_refs(event.get("decorations"))
 
 
+def _build_sha_group_index(commit_to_group: dict[str, str]) -> tuple[list[str], list[int]]:
+    shas = sorted(commit_to_group)
+    return shas, sorted({len(sha) for sha in shas})
+
+
+def _groups_for_sha_ref(
+    ref: str,
+    commit_to_group: dict[str, str],
+    sorted_shas: list[str],
+    sha_lengths: list[int],
+) -> set[str]:
+    """Resolve exact or abbreviated SHA evidence without scanning every commit."""
+    low = str(ref or "").casefold()
+    if not low:
+        return set()
+    out: set[str] = set()
+
+    # A short evidence SHA may prefix one or more full commit SHAs. Bisect narrows
+    # the search to that lexicographic prefix range instead of walking all commits.
+    start = bisect_left(sorted_shas, low)
+    end = bisect_right(sorted_shas, low + "￿")
+    for sha in sorted_shas[start:end]:
+        if sha.startswith(low):
+            out.add(commit_to_group[sha])
+
+    # Preserve the legacy inverse-prefix behavior for any unusually short commit
+    # SHA stored in historical evidence.
+    for length in sha_lengths:
+        if length >= len(low):
+            break
+        group_id = commit_to_group.get(low[:length])
+        if group_id is not None:
+            out.add(group_id)
+    return out
+
+
 def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Build a work-equivalence graph without conflating it with incident identity."""
     all_events = [dict(event) for event in events]
@@ -1112,13 +1149,10 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "efficiency": {},
         }
 
+    sorted_commit_shas, commit_sha_lengths = _build_sha_group_index(commit_to_group)
+
     def groups_for_sha(ref: str) -> set[str]:
-        low = ref.casefold()
-        out: set[str] = set()
-        for sha, group_id in commit_to_group.items():
-            if sha.startswith(low) or low.startswith(sha):
-                out.add(group_id)
-        return out
+        return _groups_for_sha_ref(ref, commit_to_group, sorted_commit_shas, commit_sha_lengths)
 
     # GitHub object type map prevents umbrella issues from acting like PR identity.
     github_kind: dict[str, str] = {}

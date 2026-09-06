@@ -105,6 +105,26 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(group["efficiency"]["action_runs"], 1)
         self.assertEqual(group["efficiency"]["action_conclusions"], {"success": 1})
 
+    def test_work_graph_sha_index_preserves_exact_and_ambiguous_prefix_attachment(self):
+        sha_a = "1234567" + "a" * 33
+        sha_b = "1234567" + "b" * 33
+        commit_a = self.commit_event(sha_a, "Index alpha commit", "2026-09-06T04:50:00+03:00")
+        commit_b = self.commit_event(sha_b, "Index beta commit", "2026-09-06T04:51:00+03:00")
+        exact_prefix = {
+            "id": "mem:exact-prefix", "source_type": "VAULT_MEMORY", "event_at": "2026-09-06T04:52:00+03:00",
+            "project": "p3", "title": "Exact prefix evidence", "refs": [sha_a[:12]], "anchors": [],
+        }
+        ambiguous_prefix = {
+            "id": "mem:ambiguous-prefix", "source_type": "VAULT_MEMORY", "event_at": "2026-09-06T04:53:00+03:00",
+            "project": "p3", "title": "Ambiguous prefix evidence", "refs": [sha_a[:7]], "anchors": [],
+        }
+        graph = build_work_graph([commit_a, commit_b, exact_prefix, ambiguous_prefix])
+        groups = {row["commits"][0]["sha"]: row for row in graph["commit_groups"]}
+        self.assertIn("mem:exact-prefix", groups[sha_a]["attached_event_ids"])
+        self.assertNotIn("mem:exact-prefix", groups[sha_b]["attached_event_ids"])
+        self.assertIn("mem:ambiguous-prefix", groups[sha_a]["attached_event_ids"])
+        self.assertIn("mem:ambiguous-prefix", groups[sha_b]["attached_event_ids"])
+
     def test_worker_archive_summary_uses_timed_materialized_events_only(self):
         now = datetime(2026, 9, 6, 12, 0, tzinfo=timezone.utc)
         events = [
