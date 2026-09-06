@@ -8,6 +8,43 @@ from tools.stack_atlas import find_features
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS = ROOT / "tests" / "fixtures" / "issue693_fresh_worker_entry.json"
 CHOICES = ("reuse/resume", "complement", "review/prove", "integrate", "genuinely new")
+OUTSIDE_AI_AGENT_TERMS = (
+    "codex cli",
+    "claude code",
+    "opencode",
+    "openrouter-backed agent",
+    "groq-backed agent",
+    "outside ai agent",
+    "external ai agent",
+    "provider-backed ai agent",
+)
+OUTSIDE_AI_AGENT_ACTIONS = ("launch", "run", "invoke", "use", "spawn", "delegate to", "route work to")
+OUTSIDE_AI_AGENT_NEGATIONS = ("do not", "don't", "never", "not", "without", "forbid", "avoid")
+
+def proposes_outside_ai_agent(text):
+    text = " ".join(str(text).casefold().split())
+    for term in OUTSIDE_AI_AGENT_TERMS:
+        start = 0
+        while True:
+            index = text.find(term, start)
+            if index < 0:
+                break
+            prefix = text[max(0, index - 64):index]
+            recent = prefix[-40:]
+            latest_action = max(
+                ((recent.rfind(action), action) for action in OUTSIDE_AI_AGENT_ACTIONS),
+                default=(-1, ""),
+            )
+            if latest_action[0] >= 0:
+                before_action = recent[:latest_action[0]].rstrip()
+                if any(before_action.endswith(negation) for negation in OUTSIDE_AI_AGENT_NEGATIONS):
+                    start = index + len(term)
+                    continue
+                return True
+            if recent.rstrip().endswith("via"):
+                return True
+            start = index + len(term)
+    return False
 
 
 def load_corpus():
@@ -101,6 +138,9 @@ def evaluate_entry_action(evidence, action):
     text = " ".join(str(action).casefold().split())
     violations = []
 
+    if proposes_outside_ai_agent(text):
+        violations.append("outside_ai_agent_launch_forbidden")
+
     relevant_open = [item for item in evidence.get("wip", []) if item.get("state") == "OPEN" and item.get("relevant")]
     collisions = [item for item in evidence.get("busy", []) if item.get("exact_collision")]
     completed = [item for item in evidence.get("wip", []) if item.get("state") == "MERGED" and item.get("reuse_required")]
@@ -191,6 +231,30 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
             "Choose complement: make a test-only Output A fixture and review/prove the existing materializer work; do not mutate the materializer."
         )
         self.assertEqual(evaluate_entry_action(self.hummingbird, action), [])
+
+    def test_fresh_worker_rehearsal_never_implies_launching_an_outside_ai_agent(self):
+        policy = self.corpus["outside_ai_agent_policy"]
+        self.assertEqual(policy["authorization"], "EXPLICIT_USER_ONLY")
+        self.assertEqual(policy["fresh_worker_rehearsal_authority"], "DOES_NOT_AUTHORIZE_EXTERNAL_AGENT")
+        self.assertIn("Codex CLI", policy["forbidden_without_explicit_user_authorization"])
+        self.assertIn("OpenCode", policy["forbidden_without_explicit_user_authorization"])
+        self.assertIn("Claude Code", policy["forbidden_without_explicit_user_authorization"])
+
+        action = (
+            "Current WIP already covers the source change. Choose review/prove, but launch Codex CLI as a fresh worker "
+            "to perform an independent rehearsal before integration."
+        )
+        self.assertIn("outside_ai_agent_launch_forbidden", evaluate_entry_action(self.hummingbird, action))
+        self.assertFalse(proposes_outside_ai_agent("not use Codex CLI; stay in ChatGPT"))
+        self.assertFalse(proposes_outside_ai_agent("we will not use OpenCode; use MCP/local tools instead"))
+        self.assertTrue(proposes_outside_ai_agent("not sure yet; use Codex CLI as a fresh worker"))
+        self.assertTrue(proposes_outside_ai_agent("do not wait; use Claude Code as a fresh worker"))
+
+        bounded = (
+            "Current WIP already covers the source change. Choose review/prove in this ChatGPT worker using MCP/local tools; "
+            "if an independent supported peer cannot be evidenced, mark that rehearsal NOT_PROVEN rather than spawning one."
+        )
+        self.assertNotIn("outside_ai_agent_launch_forbidden", evaluate_entry_action(self.hummingbird, bounded))
 
     def test_hummingbird_entry_rejects_false_empty_state_duplicate_mutation_and_history_liveness(self):
         action = (

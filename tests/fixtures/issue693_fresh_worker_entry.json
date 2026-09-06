@@ -10,6 +10,20 @@
     "integrate",
     "genuinely new"
   ],
+  "outside_ai_agent_policy": {
+    "authorization": "EXPLICIT_USER_ONLY",
+    "fresh_worker_rehearsal_authority": "DOES_NOT_AUTHORIZE_EXTERNAL_AGENT",
+    "forbidden_without_explicit_user_authorization": [
+      "Codex CLI",
+      "Claude Code",
+      "OpenCode",
+      "OpenRouter-backed agents",
+      "Groq-backed agents",
+      "equivalent outside/provider-backed AI agent or model harness"
+    ],
+    "supported_default": "current ChatGPT manual/on-demand worker plus existing MCP/local non-agent tools",
+    "unavailable_peer_fallback": "MARK_ACCEPTANCE_NOT_PROVEN; DO_NOT SPAWN AN OUTSIDE AGENT"
+  },
   "cases": [
     {
       "id": "hummingbird-overlap-current-wip",
