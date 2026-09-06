@@ -2426,14 +2426,97 @@ _LESSON_GENERIC_TOKENS = {
 }
 
 
+_LESSON_TRAILER_RE = re.compile(
+    r"(?i)^\s*(?:co-authored-by|signed-off-by|reviewed-by|acked-by|tested-by|change-id)\s*:"
+)
+_LESSON_CONCEPT_GROUPS = {
+    "deform": {"deform", "deformed", "deforming", "deformation", "deformations"},
+    "skin": {"skin", "skins", "skinned", "skinning", "binding", "bindings", "bind", "bound"},
+    "weight": {"weight", "weights", "weighted", "weighting"},
+    "rig": {"rig", "rigs", "rigged", "rigger", "rigging", "armature", "armatures", "skeleton", "skeletons"},
+    "export": {"export", "exports", "exported", "exporter", "exporting"},
+    "animation": {"animate", "animated", "animation", "animations", "clip", "clips", "keyframe", "keyframes", "playback", "replay", "replayed"},
+    "proof": {"proof", "prove", "proved", "proven", "verify", "verified", "verifier", "verification", "validate", "validated", "validation", "gate", "gated"},
+    "surface": {"surface", "surfaces", "geodesic", "adjacency", "weld", "welded", "welding"},
+    "limb": {"limb", "limbs", "leg", "legs", "arm", "arms", "wing", "wings", "tail", "tails"},
+}
+_LESSON_CONCEPT_BY_TOKEN = {
+    token: concept for concept, tokens in _LESSON_CONCEPT_GROUPS.items() for token in tokens
+}
+_LESSON_CORRECTIVE_TOKENS = {
+    "broken", "cause", "caused", "correct", "corrected", "disproved", "failed", "failing", "failure", "false",
+    "fix", "fixed", "instead", "invalid", "lost", "missing", "prevent", "prevented", "rejected", "repair", "repaired",
+    "wrong", "zero", "unreachable", "drift", "inverted", "shear", "shears",
+}
+_LESSON_PROCESS_TOKENS = {
+    "authorship", "batch", "batches", "branch", "branches", "chain", "chains", "commit", "committed", "job", "jobs",
+    "queue", "queued", "session", "sessions", "scaffold", "supervisor", "supervisors", "survive", "survives",
+    "uncommitted", "untracked", "usage", "wait", "waiting", "workflow", "worktree", "worktrees",
+}
+
+
+def _clean_lesson_body(value: Any) -> str:
+    """Remove commit trailers/metadata that cannot be a technical lesson by themselves."""
+    lines = []
+    for raw in str(value or "").splitlines():
+        line = raw.strip()
+        if not line or _LESSON_TRAILER_RE.match(line):
+            continue
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _lesson_concepts(value: Any) -> set[str]:
+    return {
+        concept
+        for token in _query_tokens(value)
+        if (concept := _LESSON_CONCEPT_BY_TOKEN.get(token)) is not None
+    }
+
+
+def _lesson_candidate_text(event: dict[str, Any]) -> str:
+    source = str(event.get("source_type") or "")
+    body = _clean_lesson_body(event.get("body"))
+    if source == "GIT_COMMIT":
+        return body
+    if source == "WORKER_REPORT":
+        return " ".join(str(event.get(field) or "") for field in ("findings", "validation", "summary", "outcome")).strip()
+    if source == "VAULT_MEMORY":
+        return " ".join(str(event.get(field) or "") for field in ("text", "conclusion", "summary", "body")).strip()
+    return " ".join([
+        str(event.get("findings") or ""),
+        str(event.get("validation") or ""),
+        body,
+        str(event.get("summary") or ""),
+    ]).strip()
+
+
+def _lesson_candidate_quality(event: dict[str, Any], text: str) -> float:
+    """Reject metadata-only candidates and favor corrective technical evidence over process narration."""
+    tokens = _query_tokens(text)
+    content = {
+        token for token in tokens
+        if len(token) >= 3 and token not in _QUERY_STOP_WORDS and token not in _LESSON_GENERIC_TOKENS
+    }
+    if len(content) < 6:
+        return 0.0
+    corrective = len(tokens & _LESSON_CORRECTIVE_TOKENS)
+    process = len(tokens & _LESSON_PROCESS_TOKENS)
+    quality = 1.0 + min(0.55, len(content) / 80.0) + min(1.0, corrective * 0.16) - min(1.15, process * 0.20)
+    if str(event.get("source_type") or "") == "GIT_COMMIT" and corrective >= 2:
+        quality += 0.20
+    if process >= 3 and process > corrective:
+        quality *= 0.35
+    return max(0.2, quality)
+
+
 def _lesson_text(event: dict[str, Any]) -> str:
     """Prefer technical evidence fields over identity-heavy report titles when expanding a task query."""
     technical = " ".join([
         str(event.get("findings") or ""),
         str(event.get("validation") or ""),
-        str(event.get("body") or ""),
+        _clean_lesson_body(event.get("body")),
         str(event.get("scope") or ""),
-        " ".join(str(value) for value in event.get("changed_paths", []) or []),
     ]).strip()
     if technical:
         return technical
@@ -2503,6 +2586,10 @@ def _lesson_packet(
         }
 
     concepts = _query_concepts(query)
+    query_lesson_concepts = _lesson_concepts(query)
+    seed_lesson_concepts: set[str] = set()
+    for event in seeds:
+        seed_lesson_concepts.update(_lesson_concepts(_lesson_text(event)))
     seed_ids = {str(event.get("id") or "") for event in seeds}
     ranked: list[tuple[float, dict[str, Any], list[str]]] = []
     lesson_sources = {"GIT_COMMIT", "WORKER_REPORT", "VAULT_MEMORY", "TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT"}
@@ -2513,21 +2600,40 @@ def _lesson_packet(
         event_id = str(event.get("id") or "")
         if event_id in seed_ids:
             continue
+        candidate_text = _lesson_candidate_text(event)
+        quality = _lesson_candidate_quality(event, candidate_text)
+        if quality <= 0.0:
+            continue
         merged = set().union(*(tokens for _, tokens in _event_query_fields(event)))
         overlaps = [token for token in expansion if token in merged]
         query_hits = sum(1 for concept in concepts if merged & concept)
-        if query_hits < 1 and len(overlaps) < 3:
+        candidate_lesson_concepts = _lesson_concepts(candidate_text)
+        direct_lesson_hits = len(query_lesson_concepts & candidate_lesson_concepts)
+        bridge_lesson_hits = len(seed_lesson_concepts & candidate_lesson_concepts)
+        process_hits = len(_query_tokens(candidate_text) & _LESSON_PROCESS_TOKENS)
+        if query_hits < 1 and process_hits >= 3:
             continue
-        score = sum(expansion_weights.get(token, 0.0) for token in overlaps) + (2.0 * query_hits)
+        if query_hits < 1 and direct_lesson_hits < 1 and len(overlaps) < 3 and bridge_lesson_hits < 2:
+            continue
+        corrective_hits = len(_query_tokens(candidate_text) & _LESSON_CORRECTIVE_TOKENS)
+        corrective_weight = 3.0 if source == "GIT_COMMIT" else 0.75
+        score = (
+            sum(expansion_weights.get(token, 0.0) for token in overlaps)
+            + (2.0 * query_hits)
+            + (2.5 * direct_lesson_hits)
+            + (1.25 * bridge_lesson_hits)
+            + (corrective_weight * min(4, corrective_hits))
+        )
         score *= {
             "GIT_COMMIT": 1.35,
-            "TRACKED_ARTIFACT": 1.1,
+            "TRACKED_ARTIFACT": 1.12,
             "LOCAL_ARTIFACT": 1.0,
-            "WORKER_REPORT": 0.82,
+            "WORKER_REPORT": 0.78,
             "VAULT_MEMORY": 0.72,
         }.get(source, 0.9)
         if event.get("body"):
             score *= 1.12
+        score *= quality
         ranked.append((score, event, overlaps))
     ranked.sort(
         key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
@@ -2536,7 +2642,7 @@ def _lesson_packet(
 
     # Prefer cross-project transfer when it exists, but never discard same-project history:
     # a soft first pass defers only the fifth+ item from one project, then fills any remaining slots.
-    per_project_soft_cap = max(2, (packet_limit + 1) // 2)
+    per_project_soft_cap = max(2, packet_limit - 3)
     primary: list[tuple[float, dict[str, Any], list[str]]] = []
     deferred: list[tuple[float, dict[str, Any], list[str]]] = []
     project_counts: Counter[str] = Counter()
@@ -2564,7 +2670,7 @@ def _lesson_packet(
         if sha:
             anchors.insert(0, f"gitsha:{sha}")
         conclusion = (
-            _clip_query_value(event.get("body"), 440)
+            _clip_query_value(_clean_lesson_body(event.get("body")), 440)
             or _clip_query_value(event.get("findings"), 440)
             or _clip_query_value(event.get("summary"), 440)
             or _clip_query_value(event.get("outcome"), 440)

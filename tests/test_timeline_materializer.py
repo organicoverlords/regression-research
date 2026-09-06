@@ -793,7 +793,8 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "findings": (
                     "Hummingbird is already source-rigged and skinned with compatible body wing and tail chains. "
                     "Tiny3D geometric rebind produced extreme deformation; preserve no hypothesis without measured QA. "
-                    "Weights, welded regions, rig validation, proof, and exported animation all need direct evidence."
+                    "Weights, welded regions, rig validation, proof, and exported animation all need direct evidence. "
+                    "Incidental process notes also mention asset chains and queue cleanup while collecting proof."
                 ),
                 "refs": [], "anchors": [],
             }
@@ -835,6 +836,13 @@ class TimelineMaterializerTests(unittest.TestCase):
                     ), "changed_paths": ["blender/rig_animate.py", "blender/rig_appendage_proof.py"],
                 },
             ]
+            lessons.append({
+                "sha": "c01c166da2c951bb75cb23abefe0e1017058530b", "title": "Add asset supervisor, Unreal showroom build and matte/grade workers",
+                "body": (
+                    "The asset supervisor replaces chained one-shot jobs. One wait path was wrong, the tail of the queue stopped, and the GPU was idle. "
+                    "The workflow deletes completed receipts and dispatches rig, proof, and animation workers, but it contains no asset-quality diagnosis."
+                ), "changed_paths": ["workers/asset_supervisor.sh"],
+            })
             events = [seed]
             for index, raw in enumerate(lessons):
                 events.append({
@@ -866,6 +874,7 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("The five-pose verifier posed the wrong limb and called it a pass", titles)
         self.assertIn("fix: semantic weight repair for free-arm cape bleed", titles)
         self.assertIn("rig: separate appendages from cloth with a local shape test", titles)
+        self.assertNotIn("Add asset supervisor, Unreal showroom build and matte/grade workers", titles)
         self.assertTrue(all(item.get("evidence_anchors") for item in packet["items"] if item["source_type"] == "GIT_COMMIT"))
         serialized = json.dumps(packet, ensure_ascii=False)
         self.assertLess(len(serialized), 9000)
