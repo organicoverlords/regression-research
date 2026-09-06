@@ -53,3 +53,15 @@ If the VPS edge fails, first distinguish edge failure from local MCP failure usi
 The edge is transport, not ownership or scheduling authority. BusyCoordinator remains separate collision/ownership control.
 
 The public `sslip.io` hostname is an operational DNS convenience bound to the VPS IPv4. A dedicated domain can replace it later without changing the loopback/tunnel architecture; update `MCP_PUBLIC_ORIGIN`, Caddy, and the ChatGPT app identity together and re-run the full OAuth/process proof.
+
+## 2026-09-05 monitoring migration checkpoint
+
+The deployed edge observer now distinguishes automatic-primary health from recovery availability. `/usr/local/bin/mcp-edge-health`, run by `mcp-edge-health.service` from `mcp-edge-health.timer` once per minute, writes `/var/lib/mcp-edge/status.json`. Windows `WireGuardTunnel$mcp-wireguard` owns the automatic primary transport; scheduled task `McpVpsEdgeTunnel` owns the independent SSH recovery lanes.
+
+Observer semantics from the deployed health script:
+- `primary_healthy` is true only when the WireGuard primary backend returns HTTP 200 and `wireguard_peer_fresh=true`.
+- `healthy` additionally requires OAuth metadata HTTP 200 and `caddy=active`; SSH fallback status cannot make `healthy` or `primary_healthy` true.
+- WireGuard freshness is exposed as `wireguard_interface`, `wireguard_handshake_age_seconds`, and `wireguard_peer_fresh`; the deployed freshness threshold is 0-180 seconds.
+- `recovery_available`, `fallback_healthy_count`, and `fallback_3101_http` through `fallback_3104_http` describe explicit recovery capacity only. Caddy does not automatically select those SSH listeners.
+
+This checkpoint updates the topology semantics documented above: the automatic VPS-to-PC path is WireGuard `10.203.0.2:3011`; reverse-SSH listeners `3101-3104` remain independent explicit recovery lanes. The observer is visibility only and does not authorize or perform failover.
