@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 
 try:
@@ -38,6 +38,192 @@ def _clip(value: Any, limit: int = MAX_SUMMARY_CHARS) -> str:
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def _safe_dt(value: Any) -> datetime | None:
+    try:
+        return _dt(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _evidence_anchors(values: Iterable[Any]) -> list[str]:
+    anchors: set[str] = set()
+    for raw in values:
+        value = str(raw or "").strip()
+        if not value:
+            continue
+        match = _GITHUB_EVIDENCE_RE.match(value)
+        if match:
+            anchors.add(f"github:{match.group(1).casefold()}#{match.group(2)}")
+            continue
+        match = _GITHUB_URL_RE.match(value)
+        if match:
+            anchors.add(f"github:{match.group(1).casefold()}#{match.group(2)}")
+            continue
+        if value.casefold().startswith("incident:"):
+            anchors.add(value.casefold())
+            continue
+        for incident in _INCIDENT_EVIDENCE_RE.findall(value):
+            anchors.add(f"incident:{incident.casefold()}")
+    return sorted(anchors)
+
+
+def _event_source_family(event: dict[str, Any]) -> str:
+    return {
+        "VAULT_MEMORY": "memory",
+        "GIT_COMMIT": "repo",
+        "WORKER_REPORT": "worker",
+        "TRACKED_ARTIFACT": "artifact",
+    }.get(str(event.get("source_type") or ""), "other")
+
+
+def _highlight_bucket(event: dict[str, Any]) -> str:
+    family = _event_source_family(event)
+    if family == "artifact":
+        return "artifact:" + str(event.get("artifact_type") or "artifact")
+    return family
+
+
+def _event_anchors(event: dict[str, Any]) -> list[str]:
+    anchors = {str(item).casefold() for item in event.get("anchors", []) if str(item).strip()}
+    anchors.update(_evidence_anchors(event.get("evidence", [])))
+    anchors.update(_evidence_anchors(event.get("refs", [])))
+    proof = str(event.get("proof_artifact") or "").replace("\\", "/").strip()
+    if proof:
+        anchors.add("artifact:" + proof.casefold())
+    return sorted(anchors)
+
+
+def _compact_snapshot_event(event: dict[str, Any]) -> dict[str, Any]:
+    out = {
+        "id": event.get("id"),
+        "event_at": event.get("event_at"),
+        "source_type": event.get("source_type"),
+        "title": _clip(event.get("title"), 120),
+    }
+    for key in ("project", "artifact_type", "disposition", "short_sha", "population"):
+        if event.get(key) not in (None, "", []):
+            out[key] = event.get(key)
+    return out
+
+
+def _diverse_highlights(events: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    if limit <= 0:
+        return []
+    ordered = sorted(events, key=lambda event: (_dt(str(event["event_at"])), str(event.get("id") or "")), reverse=True)
+    priority = [
+        "repo", "worker", "memory",
+        "artifact:incident_report", "artifact:proof", "artifact:screenshot", "artifact:evidence_log",
+        "artifact:report", "artifact:evidence", "artifact:transcript", "artifact:contract", "artifact:fixture", "artifact:artifact",
+        "other",
+    ]
+    latest_by_bucket: dict[str, dict[str, Any]] = {}
+    for event in ordered:
+        latest_by_bucket.setdefault(_highlight_bucket(event), event)
+    chosen: list[dict[str, Any]] = []
+    used_ids: set[str] = set()
+    for bucket in priority:
+        event = latest_by_bucket.get(bucket)
+        if event is None:
+            continue
+        ident = str(event.get("id") or "")
+        chosen.append(event)
+        used_ids.add(ident)
+        if len(chosen) >= limit:
+            return [_compact_snapshot_event(item) for item in chosen]
+    for event in ordered:
+        ident = str(event.get("id") or "")
+        if ident in used_ids:
+            continue
+        chosen.append(event)
+        if len(chosen) >= limit:
+            break
+    return [_compact_snapshot_event(event) for event in chosen]
+
+
+def build_timeline_snapshots(
+    events: Iterable[dict[str, Any]],
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Build cumulative 24h/3d/7d snapshots from the canonical multi-source timeline.
+
+    24h gets the richest highlights. 3d and 7d counts are cumulative, while their
+    highlights come only from the older incremental slice to avoid repeating the same
+    newest events three times.
+    """
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.astimezone()
+    valid: list[tuple[dict[str, Any], datetime]] = []
+    for raw in events:
+        event = dict(raw)
+        stamp = _safe_dt(event.get("event_at"))
+        if stamp is None:
+            continue
+        valid.append((event, stamp.astimezone(now.tzinfo)))
+
+    windows: list[dict[str, Any]] = []
+    for label, upper_hours, lower_hours, highlight_limit in (
+        ("24h", 24, 0, 8),
+        ("3d", 72, 24, 5),
+        ("7d", 168, 72, 5),
+    ):
+        cumulative: list[dict[str, Any]] = []
+        incremental: list[dict[str, Any]] = []
+        for event, stamp in valid:
+            age_hours = (now - stamp).total_seconds() / 3600.0
+            if age_hours < 0 or age_hours > upper_hours:
+                continue
+            cumulative.append(event)
+            if age_hours >= lower_hours:
+                incremental.append(event)
+
+        source_counts = Counter(str(event.get("source_type") or "UNKNOWN") for event in cumulative)
+        slice_source_counts = Counter(str(event.get("source_type") or "UNKNOWN") for event in incremental)
+        artifact_counts = Counter(
+            str(event.get("artifact_type") or "artifact")
+            for event in cumulative if event.get("source_type") == "TRACKED_ARTIFACT"
+        )
+        anchor_groups: dict[str, dict[str, Any]] = {}
+        for event in cumulative:
+            family = _event_source_family(event)
+            for anchor in _event_anchors(event):
+                group = anchor_groups.setdefault(anchor, {"families": set(), "event_ids": set(), "latest_at": None})
+                group["families"].add(family)
+                group["event_ids"].add(str(event.get("id") or ""))
+                stamp = str(event.get("event_at") or "")
+                if group["latest_at"] is None or (_safe_dt(stamp) and _safe_dt(group["latest_at"]) and _dt(stamp) > _dt(group["latest_at"])):
+                    group["latest_at"] = stamp
+        corroborated = [
+            {
+                "anchor": anchor,
+                "source_families": sorted(group["families"]),
+                "event_count": len(group["event_ids"]),
+            }
+            for anchor, group in anchor_groups.items()
+            if len(group["families"]) >= 2
+        ]
+        corroborated.sort(key=lambda item: (-len(item["source_families"]), -item["event_count"], item["anchor"]))
+        windows.append({
+            "window": label,
+            "hours": upper_hours,
+            "event_count": len(cumulative),
+            "source_counts": dict(sorted(source_counts.items())),
+            "artifact_counts": dict(sorted(artifact_counts.items())),
+            "corroborated_anchors": corroborated[:6],
+            "slice": "0-24h" if lower_hours == 0 else f"{lower_hours}h-{upper_hours}h",
+            "slice_event_count": len(incremental),
+            "slice_source_counts": dict(sorted(slice_source_counts.items())),
+            "highlights": _diverse_highlights(incremental, highlight_limit),
+        })
+    return {
+        "authority": "DERIVED_HISTORY_ONLY",
+        "contract": "multi-source chronology snapshot; source diversity is corroboration evidence, not independent witness proof, current-state authority, or causal inference",
+        "as_of": now.isoformat(),
+        "windows": windows,
+    }
 
 
 def _title(entry: dict[str, Any]) -> str:
@@ -172,6 +358,7 @@ def build_event(entry: dict[str, Any], superseded_by: dict[str, list[str]]) -> d
         "entities": list(classification.get("entities") or []),
         "durability": classification.get("durability"),
         "evidence": list(entry.get("evidence") or [])[:4],
+        "anchors": _evidence_anchors(entry.get("evidence") or []),
         "supersedes": list(entry.get("supersedes") or []),
         "superseded_by": list(superseded_by.get(str(entry["id"]), [])),
     }
@@ -194,7 +381,8 @@ def _matches_repo_query(event: dict[str, Any], query_tokens: set[str]) -> bool:
         return True
     text = " ".join([
         str(event.get("title") or ""), str(event.get("project") or ""), str(event.get("worker") or ""),
-        *[str(ref) for ref in event.get("refs", [])],
+        str(event.get("artifact_type") or ""), str(event.get("path") or ""),
+        *[str(ref) for ref in event.get("refs", [])], *[str(anchor) for anchor in event.get("anchors", [])],
     ])
     return bool(query_tokens & token_words(text))
 
@@ -204,6 +392,9 @@ def build_timeline(
     query: str = "", thread: str | None = None, limit: int = DEFAULT_LIMIT,
     since: datetime | None = None, repo_events: Iterable[dict[str, Any]] | None = None,
     worker_events: Iterable[dict[str, Any]] | None = None,
+    artifact_events: Iterable[dict[str, Any]] | None = None,
+    snapshot_now: datetime | None = None,
+    source_coverage: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     items = list(entries)
     superseded_by = _superseded_by(items)
@@ -270,39 +461,47 @@ def build_timeline(
 
     repo_selected: list[dict[str, Any]] = []
     worker_selected: list[dict[str, Any]] = []
+    artifact_selected: list[dict[str, Any]] = []
+    invalid_source_events: Counter[str] = Counter()
+
+    def select_external(raw_events: Iterable[dict[str, Any]] | None, target: list[dict[str, Any]]) -> None:
+        for raw in raw_events or []:
+            event = dict(raw)
+            source_type = str(event.get("source_type") or "UNKNOWN")
+            stamp = _safe_dt(event.get("event_at"))
+            if stamp is None:
+                invalid_source_events[source_type] += 1
+                continue
+            if project_key and str(event.get("project") or "").casefold() != project_key:
+                continue
+            if since is not None and stamp < since:
+                continue
+            if not _matches_repo_query(event, qtokens):
+                continue
+            target.append(event)
+
     if view != "errors" and thread is None:
-        for raw in repo_events or []:
-            event = dict(raw)
-            if project_key and str(event.get("project") or "").casefold() != project_key:
-                continue
-            if since is not None and _dt(str(event.get("event_at"))) < since:
-                continue
-            if not _matches_repo_query(event, qtokens):
-                continue
-            repo_selected.append(event)
-        for raw in worker_events or []:
-            event = dict(raw)
-            if project_key and str(event.get("project") or "").casefold() != project_key:
-                continue
-            if since is not None and _dt(str(event.get("event_at"))) < since:
-                continue
-            if not _matches_repo_query(event, qtokens):
-                continue
-            worker_selected.append(event)
+        select_external(repo_events, repo_selected)
+        select_external(worker_events, worker_selected)
+        select_external(artifact_events, artifact_selected)
 
     effective_limit = min(MAX_LIMIT, max(1, int(limit)))
-    combined = [*selected, *repo_selected, *worker_selected]
+    combined = [*selected, *repo_selected, *worker_selected, *artifact_selected]
     combined.sort(key=lambda event: (_dt(str(event["event_at"])), str(event["id"])), reverse=True)
     newest = combined[:effective_limit]
+    snapshots = build_timeline_snapshots(combined, now=snapshot_now)
+    snapshots["coverage"] = dict(source_coverage or {})
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "authority": "DERIVED_HISTORY_ONLY",
         "contract": {
             "timeline": "chronology and grouping, never current truth by itself",
             "relationships": "only explicit supersedes plus explicit-thread/stable-evidence/specific-scope chronology; ambiguous evidence and broad scopes never imply one incident and no causal edge is inferred",
             "project_linkage": "explicit project metadata outranks secondary entity mentions",
-            "repo_history": "local Git commits are observed repository history, not memory or causal interpretation",
+            "repo_history": "local all-branch Git commits/refs are observed repository history, not memory or causal interpretation",
             "worker_history": "immutable finalized worker reports are lagging self-report evidence with automatically derived duration/utilization; they are not current-state authority or liveness proof",
+            "artifact_history": "Git-tracked reports, incident reports, evidence, logs, screenshots, proofs, fixtures, contracts, and transcripts are preserved artifact history; untracked WIP is not promoted into durable history",
+            "corroboration": "snapshot source diversity can strengthen orientation but never turns repetition into authority or proves causality",
         },
         "view": view,
         "project": project_key,
@@ -312,11 +511,16 @@ def build_timeline(
         "memory_events": len(selected),
         "repo_events": len(repo_selected),
         "worker_events": len(worker_selected),
+        "artifact_events": len(artifact_selected),
+        "invalid_source_events": dict(sorted(invalid_source_events.items())),
+        "source_coverage": dict(source_coverage or {}),
         "matching_threads": len(threads),
         "events": newest,
         "threads": threads[: min(20, effective_limit)],
+        "snapshots": snapshots,
         "truncated": len(combined) > effective_limit,
     }
+
 
 
 

@@ -100,6 +100,47 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("worker_findings", compact)
         self.assertTrue(all(len(item.get("summary", "")) <= 160 for item in compact["incident_rollups"]))
 
+    def test_compact_memory_overview_keeps_24h_timeline_richer_than_older_windows_under_budget(self):
+        def window(label, count, highlights):
+            return {
+                "window": label,
+                "event_count": count,
+                "source_counts": {"VAULT_MEMORY": count // 4, "GIT_COMMIT": count // 4, "WORKER_REPORT": count // 4, "TRACKED_ARTIFACT": count // 4},
+                "artifact_counts": {"incident_report": 3, "screenshot": 2, "evidence_log": 2},
+                "slice": label,
+                "slice_event_count": len(highlights),
+                "corroborated_anchors": [
+                    {"anchor": f"github:example/repo#{i}", "source_families": ["memory", "repo"], "event_count": 3}
+                    for i in range(6)
+                ],
+                "highlights": [
+                    {
+                        "id": f"{label}-{i}", "event_at": f"2026-09-06T0{i}:00:00+03:00",
+                        "source_type": ["VAULT_MEMORY", "GIT_COMMIT", "WORKER_REPORT", "TRACKED_ARTIFACT"][i % 4],
+                        "title": (f"{label} event {i} " + "x" * 180), "project": "regression-research",
+                        "artifact_type": "screenshot" if i % 4 == 3 else None,
+                    }
+                    for i in range(8)
+                ],
+            }
+        report = {
+            "contract": "history only",
+            "eligible_entries": 200,
+            "timeline_snapshots": {
+                "authority": "DERIVED_HISTORY_ONLY",
+                "windows": [window("24h", 40, list(range(8))), window("3d", 90, list(range(8))), window("7d", 160, list(range(8)))],
+            },
+            "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
+        }
+        compact = _compact_memory_overview(report, 3)
+        size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+        windows = {item["window"]: item for item in compact["timeline_snapshots"]["windows"]}
+        self.assertEqual(set(windows), {"24h", "3d", "7d"})
+        self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["3d"].get("highlights", [])))
+        self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["7d"].get("highlights", [])))
+        self.assertIn("sources", windows["24h"])
+
     def test_bootstrap_memory_overview_backfills_after_rollup_member_suppression(self):
         report = {
             "contract": "history only",
@@ -136,7 +177,7 @@ class StackAtlasTests(unittest.TestCase):
         ) as build_overview:
             compact = _bootstrap_memory_overview()
         load_bank.assert_called_once_with()
-        build_overview.assert_called_once_with([], limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT)
+        build_overview.assert_called_once_with([], limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, include_timeline_snapshots=True)
         self.assertGreater(BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, BOOTSTRAP_MEMORY_TITLE_LIMIT)
         self.assertEqual(len(compact["incident_rollups"]), 1)
         self.assertEqual(

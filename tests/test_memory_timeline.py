@@ -3,6 +3,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from tools.memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline, needs_timeline_fallback
 
@@ -189,6 +190,67 @@ class MemoryTimelineTests(unittest.TestCase):
         threads = build_recurrence_context([root, recurrence, unrelated], "omg this error again", max_threads=2)
         self.assertEqual(threads[0]["event_count"], 2)
         self.assertEqual([event["id"] for event in threads[0]["events"]], ["root", "again"])
+
+    def test_multi_source_snapshots_emphasize_24h_and_use_incremental_older_slices(self):
+        now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
+        memory = self.e(
+            "mem", "2026-09-06T03:00:00+03:00", "Latest durable lesson",
+            evidence=["github:organicoverlords/regression-research#125"],
+        )
+        repo_event = {
+            "id": "git:vault:abc", "source_type": "GIT_COMMIT", "authority": "REPO_HISTORY",
+            "event_at": "2026-09-06T02:00:00+03:00", "project": "vault", "projects": ["vault"],
+            "title": "timeline work (#125)", "summary": "timeline work", "refs": ["#125"],
+            "anchors": ["github:organicoverlords/regression-research#125"],
+        }
+        screenshot = {
+            "id": "artifact:screenshot", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-04T12:00:00+03:00", "project": "regression-research",
+            "title": "screenshot: binding.png", "artifact_type": "screenshot", "path": "02 Evidence/binding.png",
+            "anchors": ["artifact:02 evidence/binding.png"],
+        }
+        proof_artifact = {
+            "id": "artifact:proof", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-01T11:00:00+03:00", "project": "regression-research",
+            "title": "proof: proof.png", "artifact_type": "proof", "path": "02 Evidence/proof.png",
+            "anchors": ["artifact:02 evidence/proof.png"],
+        }
+        worker = {
+            "id": "worker:proof", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+            "event_at": "2026-09-01T12:00:00+03:00", "project": "regression-research",
+            "title": "worker proof", "summary": "proof archived", "proof_artifact": "02 Evidence/proof.png",
+        }
+        report = build_timeline(
+            [memory], repo_events=[repo_event], worker_events=[worker],
+            artifact_events=[screenshot, proof_artifact], limit=20, snapshot_now=now,
+        )
+        windows = {item["window"]: item for item in report["snapshots"]["windows"]}
+        self.assertEqual(windows["24h"]["event_count"], 2)
+        self.assertEqual(windows["24h"]["source_counts"], {"GIT_COMMIT": 1, "VAULT_MEMORY": 1})
+        self.assertEqual([item["id"] for item in windows["24h"]["highlights"]], ["git:vault:abc", "mem"])
+        self.assertIn("github:organicoverlords/regression-research#125", {item["anchor"] for item in windows["24h"]["corroborated_anchors"]})
+
+        self.assertEqual(windows["3d"]["event_count"], 3)
+        self.assertEqual(windows["3d"]["slice"], "24h-72h")
+        self.assertEqual([item["id"] for item in windows["3d"]["highlights"]], ["artifact:screenshot"])
+        self.assertEqual(windows["3d"]["artifact_counts"], {"screenshot": 1})
+
+        self.assertEqual(windows["7d"]["event_count"], 5)
+        self.assertEqual(windows["7d"]["slice"], "72h-168h")
+        self.assertEqual({item["id"] for item in windows["7d"]["highlights"]}, {"worker:proof", "artifact:proof"})
+        self.assertIn("artifact:02 evidence/proof.png", {item["anchor"] for item in windows["7d"]["corroborated_anchors"]})
+        self.assertIn("source diversity", report["snapshots"]["contract"])
+
+    def test_invalid_external_timestamps_are_skipped_and_counted(self):
+        entry = self.e("mem", "2026-09-06T03:00:00+03:00", "valid")
+        broken_worker = {
+            "id": "worker:broken", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+            "event_at": "2026-09-03T12.32.58.6884719+03:00", "title": "bad timestamp",
+        }
+        report = build_timeline([entry], worker_events=[broken_worker], limit=10)
+        self.assertEqual(report["worker_events"], 0)
+        self.assertEqual(report["invalid_source_events"], {"WORKER_REPORT": 1})
+        self.assertEqual([event["id"] for event in report["events"]], ["mem"])
 
     def test_cli_is_bounded_and_derived(self):
         with tempfile.TemporaryDirectory() as d:
