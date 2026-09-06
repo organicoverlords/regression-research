@@ -1407,6 +1407,21 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         self.assertIn("user explicitly asks", first_step)
         self.assertIn("do not persist them", first_step)
 
+    def test_chatgpt_plugin_surface_search_routes_to_process_only_contract(self):
+        for query in (
+            "ChatGPT plugin tool contract busy_list process profile",
+            "busy_list plugin command",
+            "view_image plugin",
+        ):
+            with self.subTest(query=query):
+                result = find_features(query)[0]
+                self.assertEqual(result["id"], "mcp.chatgpt_plugin_surface")
+                self.assertEqual(result["owner_components"], ["mcp_minimal_clone"])
+                self.assertIn("only start_process, read_output, and kill_process", result["boundary"])
+                self.assertIn("not ChatGPT plugin commands", result["boundary"])
+        sources = component_details("mcp_minimal_clone")["canonical_sources"]
+        self.assertTrue(any(item.endswith(r"\config\process-tool-contract.json") for item in sources))
+
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
         self.assertEqual(freeze["id"], "mcp.known_good_freeze")
