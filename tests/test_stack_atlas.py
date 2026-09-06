@@ -1564,6 +1564,9 @@ class ManualSanityBootstrapTests(unittest.TestCase):
                 "available": True, "baseline_id": "insanity", "boundary_at": "2026-09-06T21:26:41+03:00",
                 "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
                 "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                "descriptive_delta": 43.0,
+                "axes": {"friction": {"score_delta": 50.0}, "operational": {"score_delta": 42.0}},
+                "guardrails": {"short_run_lt5_pct": {"status": "REGRESSED", "scored": False}},
                 "components": {"median_report_bytes": {"delta_points": 20.0}}, "semantics": "diagnostic only",
             }}), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
@@ -1571,4 +1574,7 @@ class ManualSanityBootstrapTests(unittest.TestCase):
             self.assertTrue(result["available"])
             self.assertEqual(result["score_delta"], 42.0)
             self.assertEqual(result["direction"], "IMPROVED")
+            self.assertEqual(result["descriptive_delta"], 43.0)
+            self.assertEqual(result["axes"]["operational"]["score_delta"], 42.0)
+            self.assertEqual(result["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
             self.assertEqual(result["post_run_count"], 7)

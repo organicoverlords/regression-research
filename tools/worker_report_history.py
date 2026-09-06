@@ -465,6 +465,7 @@ def _manual_sanity_observation(records: list[dict[str, Any]]) -> dict[str, Any]:
             100.0 * sum(bool(item["self_reported_lifecycle_anomaly"]) for item in shapes) / len(shapes), 2
         ) if shapes else None,
         "micro_run_lt2_pct": round(100.0 * sum(value < 2.0 for value in durations) / len(durations), 2) if durations else None,
+        "short_run_lt5_pct_guardrail": round(100.0 * sum(value < 5.0 for value in durations) / len(durations), 2) if durations else None,
         "median_tool_interval_minutes_guardrail": round(statistics.median(durations), 2) if durations else None,
     }
 
@@ -519,22 +520,62 @@ def build_manual_sanity_projection(
     else:
         status = "COMPARABLE"
     base_metrics = baseline.get("metrics") if isinstance(baseline.get("metrics"), dict) else {}
-    weights = baseline.get("weights") if isinstance(baseline.get("weights"), dict) else {}
+    axis_specs = baseline.get("axes") if isinstance(baseline.get("axes"), dict) else {}
+    if not axis_specs:
+        # Backward-compatible fallback for v1 baselines. Treat the former weighted sum as one axis.
+        legacy_weights = baseline.get("weights") if isinstance(baseline.get("weights"), dict) else {}
+        axis_specs = {"legacy": {"metrics": legacy_weights, "semantics": "legacy single-axis baseline"}}
+    axes: dict[str, Any] = {}
     components: dict[str, Any] = {}
-    score = 0.0
+    axis_descriptive_scores: list[float] = []
     score_complete = True
-    for key in ("median_report_bytes", "mean_transcript_fields", "self_reported_lifecycle_anomaly_pct", "micro_run_lt2_pct"):
-        b = base_metrics.get(key)
-        c = observed.get(key)
-        w = weights.get(key)
-        if not isinstance(b, (int, float)) or not isinstance(c, (int, float)) or not isinstance(w, (int, float)):
+    for axis_name, raw_axis in axis_specs.items():
+        axis = raw_axis if isinstance(raw_axis, dict) else {}
+        metric_weights = axis.get("metrics") if isinstance(axis.get("metrics"), dict) else {}
+        axis_score = 0.0
+        axis_complete = bool(metric_weights)
+        axis_components: dict[str, Any] = {}
+        for key, weight in metric_weights.items():
+            b = base_metrics.get(key)
+            c = observed.get(key)
+            if not isinstance(b, (int, float)) or not isinstance(c, (int, float)) or not isinstance(weight, (int, float)):
+                axis_complete = False
+                axis_components[key] = {"baseline": b, "current": c, "weight": weight, "delta_points": None}
+                components[key] = {**axis_components[key], "axis": axis_name}
+                continue
+            points = _manual_sanity_component(baseline=float(b), current=float(c), weight=float(weight))
+            axis_score += points
+            axis_components[key] = {"baseline": b, "current": c, "weight": weight, "delta_points": points}
+            components[key] = {**axis_components[key], "axis": axis_name}
+        descriptive = round(axis_score, 1) if axis_complete else None
+        axes[axis_name] = {
+            "descriptive_delta": descriptive,
+            "score_delta": descriptive if status != "INSUFFICIENT_DATA" and axis_complete else None,
+            "components": axis_components,
+            "semantics": axis.get("semantics"),
+        }
+        if descriptive is not None:
+            axis_descriptive_scores.append(descriptive)
+        else:
             score_complete = False
-            components[key] = {"baseline": b, "current": c, "weight": w, "delta_points": None}
-            continue
-        points = _manual_sanity_component(baseline=float(b), current=float(c), weight=float(w))
-        score += points
-        components[key] = {"baseline": b, "current": c, "weight": w, "delta_points": points}
-    score_delta = round(score, 1) if status != "INSUFFICIENT_DATA" and score_complete else None
+    descriptive_headline = round(min(axis_descriptive_scores), 1) if axis_descriptive_scores and score_complete else None
+    score_delta = descriptive_headline if status != "INSUFFICIENT_DATA" else None
+    short_base = base_metrics.get("short_run_lt5_pct_guardrail")
+    short_current = observed.get("short_run_lt5_pct_guardrail")
+    short_delta = (round(float(short_current) - float(short_base), 2)
+                   if isinstance(short_base, (int, float)) and isinstance(short_current, (int, float)) else None)
+    guardrails = {
+        "short_run_lt5_pct": {
+            "baseline": short_base, "current": short_current, "delta_percentage_points": short_delta,
+            "status": ("REGRESSED" if short_delta is not None and short_delta > 0 else "NOT_REGRESSED") if short_delta is not None else "UNKNOWN",
+            "scored": False,
+        },
+        "median_tool_interval_minutes": {
+            "baseline": base_metrics.get("median_tool_interval_minutes_guardrail"),
+            "current": observed.get("median_tool_interval_minutes_guardrail"),
+            "status": "OBSERVE_ONLY", "scored": False,
+        },
+    }
     threshold = float((baseline.get("score_semantics") or {}).get("direction_threshold") or 10.0)
     if score_delta is None:
         direction = "UNKNOWN"
@@ -556,13 +597,16 @@ def build_manual_sanity_projection(
         "generated_at": current_now.isoformat(),
         "status": status,
         "score_delta": score_delta,
+        "descriptive_delta": descriptive_headline,
         "direction": direction,
         "post_run_count": run_count,
         "minimum_post_runs_for_provisional": provisional_min,
         "minimum_post_runs_for_comparable": comparable_min,
         "observation": observed,
+        "axes": axes,
+        "guardrails": guardrails,
         "components": components,
-        "semantics": "0 is the fixed pre-#658 insanity baseline; positive means less manual-report/process friction. Diagnostic only, never a worker target or gate.",
+        "semantics": "0 is the fixed pre-#658 insanity baseline. Friction and operational axes are scored separately; the headline is the worse axis so cheaper reporting cannot mask operational degradation. Diagnostic only, never a worker target or gate.",
     }
 
 
