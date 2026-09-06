@@ -2,7 +2,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas, verify_memory
+from tools.verify import changed_files, run_pytest, select_areas, verify_memory, verify_stack
 
 
 class VerifyTests(unittest.TestCase):
@@ -28,6 +28,15 @@ class VerifyTests(unittest.TestCase):
         ):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["memory"])
+
+    def test_issue693_entry_fixture_selects_stack_verification(self):
+        self.assertEqual(select_areas({"tests/test_issue693_fresh_worker_entry.py"}), ["stack"])
+
+    @patch("tools.verify.run")
+    def test_stack_verification_executes_issue693_entry_fixture(self, run):
+        verify_stack()
+        unittest_command = run.call_args_list[1].args[0]
+        self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
 
     @patch("tools.verify.run")
     @patch("tools.verify.run_pytest")
