@@ -81,6 +81,66 @@ class ConversationSearchTests(unittest.TestCase):
         self.assertNotIn("--downloads", index_help.stdout)
         self.assertIn("--root", index_help.stdout)
 
+    def test_current_node_ancestry_excludes_mutually_exclusive_retry_branch(self):
+        conv = {
+            "id": "branched",
+            "title": "Branched export",
+            "current_node": "u2",
+            "mapping": {
+                "root": {"parent": None, "children": ["u1"]},
+                "u1": {
+                    "parent": "root",
+                    "children": ["a-old", "a-current"],
+                    "message": {
+                        "id": "u1",
+                        "author": {"role": "user"},
+                        "create_time": 100,
+                        "content": {"parts": ["shared question"]},
+                    },
+                },
+                "a-old": {
+                    "parent": "u1",
+                    "children": [],
+                    "message": {
+                        "id": "a-old",
+                        "author": {"role": "assistant"},
+                        "create_time": 400,
+                        "content": {"parts": ["discarded retry branch"]},
+                    },
+                },
+                "a-current": {
+                    "parent": "u1",
+                    "children": ["u2"],
+                    "message": {
+                        "id": "a-current",
+                        "author": {"role": "assistant"},
+                        "create_time": 200,
+                        "content": {"parts": ["selected branch answer"]},
+                    },
+                },
+                "u2": {
+                    "parent": "a-current",
+                    "children": [],
+                    "message": {
+                        "id": "u2",
+                        "author": {"role": "user"},
+                        "create_time": 300,
+                        "content": {"parts": ["selected continuation"]},
+                    },
+                },
+            },
+        }
+        (self.new / "branched.json").write_text(json.dumps(conv), encoding="utf-8")
+
+        report = index_roots(self.db, [self.new])
+
+        self.assertEqual(report["coverage"]["messages"], 3)
+        self.assertEqual(search_db(self.db, "discarded retry branch", literal=True), [])
+        selected = search_db(self.db, "selected branch answer", literal=True)
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]["context_before"], "user: shared question")
+        self.assertEqual(selected[0]["context_after"], "user: selected continuation")
+
     def test_full_text_search_dedupes_repeated_captures_and_keeps_provenance(self):
         old = conversation("c1", "Old convo", "needle old phrase", "old answer", 100)
         (self.old / "capture1.json").write_text(json.dumps(old), encoding="utf-8")
