@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
-from tools.memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline, needs_timeline_fallback
+from tools.memory_timeline import build_continuity_graph, build_incident_rollups, build_recurrence_context, build_timeline, needs_timeline_fallback
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -282,7 +282,7 @@ class MemoryTimelineTests(unittest.TestCase):
         window = result["snapshots"]["windows"][0]
         self.assertEqual(window["signal_observation_summary"]["red"], 1)
         self.assertEqual(window["continuity_case_summary"]["red"], 1)
-        red_case = next(case for case in window["continuity_cases"] if case["severity"] == "RED")
+        red_case = next(case for case in window["continuity_case_examples"] if case["severity"] == "RED")
         self.assertEqual(red_case["case_id"], "incident:inc-20260906-case")
         self.assertEqual(red_case["source_families"], ["artifact", "memory"])
         self.assertEqual(red_case["evidence_forms"], ["memory", "report", "screenshot"])
@@ -311,7 +311,7 @@ class MemoryTimelineTests(unittest.TestCase):
             "evidence_type": "incident_report", "anchors": ["artifact:" + report_path.casefold()],
         }
         result = build_timeline([memory], artifact_events=[report_event], limit=20, snapshot_now=now)
-        case = next(case for case in result["snapshots"]["windows"][0]["continuity_cases"] if case["severity"] == "RED")
+        case = next(case for case in result["snapshots"]["windows"][0]["continuity_case_examples"] if case["severity"] == "RED")
         self.assertEqual(case["classification_quality"], "MIXED")
         self.assertTrue(case["legacy_support_present"])
         self.assertEqual(case["legacy_dependent_fields"], [])
@@ -330,7 +330,7 @@ class MemoryTimelineTests(unittest.TestCase):
             "evidence_type": "incident_report", "anchors": ["artifact:" + report_path.casefold()],
         }
         result = build_timeline([], artifact_events=[report_event], limit=20, snapshot_now=now)
-        case = result["snapshots"]["windows"][0]["continuity_cases"][0]
+        case = result["snapshots"]["windows"][0]["continuity_case_examples"][0]
         self.assertEqual(case["classification_quality"], "LEGACY_DEPENDENT")
         self.assertTrue(case["legacy_support_present"])
         self.assertEqual(case["legacy_dependent_fields"], ["severity:red"])
@@ -355,7 +355,7 @@ class MemoryTimelineTests(unittest.TestCase):
         result = build_timeline([a, b], repo_events=[repo_event], limit=20, snapshot_now=now)
         window = result["snapshots"]["windows"][0]
         self.assertEqual(window["continuity_case_summary"]["red"], 2)
-        self.assertEqual({case["case_id"] for case in window["continuity_cases"]}, {"thread:case-a", "thread:case-b"})
+        self.assertEqual({case["case_id"] for case in window["continuity_case_examples"]}, {"thread:case-a", "thread:case-b"})
         anchor = next(item for item in window["corroborated_anchors"] if item["anchor"] == "github:organicoverlords/regression-research#125")
         self.assertEqual(anchor["role"], "CONTEXT_ONLY")
         self.assertFalse(anchor["case_identity"])
@@ -423,6 +423,45 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(errors["matching_events"], 1)
         self.assertIn("slopwall", errors["events"][0]["continuity"]["traits"])
         self.assertTrue(errors["events"][0]["continuity"]["legacy_inferred"])
+
+    def test_snapshot_case_array_is_explicitly_bounded_examples_not_complete_graph(self):
+        now = datetime.fromisoformat("2026-09-06T08:10:00+03:00")
+        entries = [
+            self.e(
+                f"case-{i}", f"2026-09-06T07:{i:02d}:00+03:00", f"Signal {i}",
+                title=f"Incident {i}", tags=["incident", "assistant-recorded", "verbatim-source"],
+                thread=f"case-{i}",
+            )
+            for i in range(10)
+        ]
+        window = build_timeline(entries, limit=20, snapshot_now=now)["snapshots"]["windows"][0]
+        self.assertEqual(window["continuity_case_summary"]["total"], 10)
+        self.assertEqual(len(window["continuity_case_examples"]), 8)
+        self.assertEqual(window["continuity_case_examples_returned"], 8)
+        self.assertEqual(window["continuity_case_examples_total"], 10)
+        self.assertTrue(window["continuity_case_examples_truncated"])
+        self.assertNotIn("continuity_cases", window)
+
+    def test_full_continuity_graph_retains_case_member_navigation(self):
+        now = datetime.fromisoformat("2026-09-06T08:10:00+03:00")
+        signal = self.e(
+            "signal", "2026-09-06T08:00:00+03:00", "Verified signal", title="Verified incident",
+            tags=["incident", "assistant-recorded", "verbatim-source"], thread="shared-case",
+        )
+        context = self.e(
+            "context", "2026-09-06T08:01:00+03:00", "Follow-up context", title="Follow-up context",
+            tags=["timeline", "assistant-recorded", "verbatim-source"], thread="shared-case",
+        )
+        timeline = build_timeline([signal, context], limit=10, snapshot_now=now)
+        graph = build_continuity_graph(timeline["events"])
+        self.assertEqual(graph["case_count"], 1)
+        self.assertEqual(graph["summary"]["total"], 1)
+        case = graph["cases"][0]
+        self.assertEqual(case["case_id"], "thread:shared-case")
+        self.assertEqual(set(case["event_ids"]), {"signal", "context"})
+        self.assertEqual(case["signal_event_ids"], ["signal"])
+        self.assertEqual(case["observation_count"], 2)
+        self.assertEqual(case["signal_observation_count"], 1)
 
     def test_modern_structured_status_scope_cannot_create_incident_trait(self):
         now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")

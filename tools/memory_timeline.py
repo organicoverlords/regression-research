@@ -407,7 +407,9 @@ def _counts_as_active_signal(event: dict[str, Any]) -> bool:
     return str(event.get("disposition") or "") not in {"SUPERSEDED", "REJECTED"}
 
 
-def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_continuity_cases(
+    events: Iterable[dict[str, Any]], *, include_members: bool = False,
+) -> list[dict[str, Any]]:
     """Join source observations into cases using explicit strong anchors only."""
     nodes: list[dict[str, Any]] = []
     parent: list[int] = []
@@ -486,7 +488,7 @@ def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, 
         )
         latest_node = max(group, key=lambda node: (_dt(str(node["event"]["event_at"])), str(node["event"].get("id") or "")))
         latest_signal = max(signal_nodes, key=lambda node: (_dt(str(node["event"]["event_at"])), str(node["event"].get("id") or "")))
-        cases.append({
+        case = {
             "case_id": anchors[0] if anchors else "event:" + str(latest_signal["event"].get("id") or "unknown"),
             "anchors": anchors,
             "severity": severity,
@@ -504,7 +506,11 @@ def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, 
             "latest_signal_at": latest_signal["event"].get("event_at"),
             "latest_title": _clip(latest_signal["event"].get("title"), 140),
             "latest_source_type": latest_signal["event"].get("source_type"),
-        })
+        }
+        if include_members:
+            case["event_ids"] = sorted(str(node["event"].get("id") or "") for node in group if node["event"].get("id"))
+            case["signal_event_ids"] = sorted(str(node["event"].get("id") or "") for node in signal_nodes if node["event"].get("id"))
+        cases.append(case)
     cases.sort(
         key=lambda case: (
             1 if case.get("severity") == "RED" else 0,
@@ -514,6 +520,22 @@ def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, 
         reverse=True,
     )
     return cases
+
+
+def build_continuity_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Build the full materialized continuity-case graph with member event navigation."""
+    cases = _build_continuity_cases(events, include_members=True)
+    return {
+        "semantics": "STRONG_ANCHOR_CASE_IDENTITY; BROAD_GITHUB_ANCHORS_CONTEXT_ONLY",
+        "case_count": len(cases),
+        "summary": _continuity_case_summary(cases),
+        "cases": cases,
+    }
+
+
+def is_forensic_error_event(event: dict[str, Any]) -> bool:
+    """Public shared selector for the canonical error-recall lane."""
+    return _is_error_event(event)
 
 
 def _signal_observation_summary(events: Iterable[dict[str, Any]]) -> dict[str, int]:
@@ -665,6 +687,8 @@ def build_timeline_snapshots(
             if len(group["families"]) >= 2
         ]
         corroborated.sort(key=lambda item: (-len(item["source_families"]), -item["event_count"], item["anchor"]))
+        case_example_limit = 8 if label == "24h" else 4
+        case_examples = continuity_cases[:case_example_limit]
         windows.append({
             "window": label,
             "hours": upper_hours,
@@ -673,7 +697,10 @@ def build_timeline_snapshots(
             "artifact_counts": artifact_counts,
             "signal_observation_summary": signal_observation_summary,
             "continuity_case_summary": case_summary,
-            "continuity_cases": continuity_cases[:8 if label == "24h" else 4],
+            "continuity_case_examples": case_examples,
+            "continuity_case_examples_returned": len(case_examples),
+            "continuity_case_examples_total": len(continuity_cases),
+            "continuity_case_examples_truncated": len(case_examples) < len(continuity_cases),
             "corroborated_anchors": corroborated[:6],
             "slice": "0-24h" if lower_hours == 0 else f"{lower_hours}h-{upper_hours}h",
             "slice_event_count": len(incremental),
@@ -987,7 +1014,7 @@ def build_timeline(
         "continuity_case_summary": _continuity_case_summary(memory_history_cases),
     }
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "authority": "DERIVED_HISTORY_ONLY",
         "contract": {
             "timeline": "chronology and grouping, never current truth by itself",
@@ -997,6 +1024,7 @@ def build_timeline(
             "worker_history": "immutable finalized worker reports are lagging self-report evidence with automatically derived duration/utilization; they are not current-state authority or liveness proof",
             "artifact_history": "Git-tracked reports, evidence, logs, screenshots, proofs, fixtures, contracts, and transcripts are preserved artifact history; untracked WIP is not promoted into durable history",
             "continuity_cases": "report/log/screenshot/memory/commit describe evidence form; incident/regression/slopwall/security describe case traits; RED is severity; strong explicit anchors join observations into one case while broad GitHub issue refs remain corroboration-only",
+            "snapshot_case_examples": "snapshot continuity_case_examples are explicitly bounded examples; complete materialized case navigation lives in continuity_graph",
             "classification": "structured memory tags/classification, worker finding tags, provenance incident IDs/evidence types, and explicit anchors outrank legacy text inference; legacy fallback is labeled",
             "corroboration": "snapshot source diversity can strengthen orientation but never turns repetition into authority or proves causality; broad GitHub anchors are context-only and must never be narrated as the case/thread itself",
             "narrative_order": "continuity cases first, work graph second, observation/evidence density third, context-only corroboration last",

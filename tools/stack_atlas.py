@@ -1386,7 +1386,11 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         } if isinstance(window.get("source_counts"), dict) else {}
         cases: list[dict[str, Any]] = []
         case_limit = 3 if label == "24h" else 1
-        for case in window.get("continuity_cases", []) if isinstance(window.get("continuity_cases"), list) else []:
+        raw_case_examples = window.get("continuity_case_examples")
+        if not isinstance(raw_case_examples, list):
+            # Compatibility with materializations created before timeline schema v3.
+            raw_case_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
+        for case in raw_case_examples:
             if not isinstance(case, dict):
                 continue
             cases.append({
@@ -1942,6 +1946,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         retry = [str(value) for value in timeline_materialized.get("retry_sources", []) if str(value).strip()]
         if retry:
             notable_conditions.append("timeline_delta_retry_" + "_".join(sorted(retry)))
+        if timeline_materialized.get("timeline_truncated"):
+            notable_conditions.append("timeline_materialized_event_cap_truncated")
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
     bootstrap_status = "OK" if mcp_health == vault_health == github_health == "OK" else "DEGRADED"
