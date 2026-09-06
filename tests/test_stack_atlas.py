@@ -1458,6 +1458,10 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         self.assertTrue(freeze["restore_first_on_regression"])
         self.assertTrue(freeze["post_restore_no_mcp_request_in_flight"])
         self.assertTrue(str(freeze["security_reroute_rate_after_freeze"]).strip())
+        self.assertTrue(freeze["recovery_required_order"])
+        self.assertIn("do not kill foreign work", freeze["recovery_preservation_rule"].casefold())
+        self.assertIn("generic go does not authorize", freeze["recovery_authorization_rule"].casefold())
+        self.assertTrue(any("do not reuse the 2026-09-05 replacement procedure" in rule.casefold() for rule in freeze["replacement_safety_rules"]))
         raw = json.loads(freeze_path.read_text(encoding="utf-8"))
         first_step = raw["recovery_policy"]["required_order"][0]
         self.assertIn("user explicitly asks", first_step)

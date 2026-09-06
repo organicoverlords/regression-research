@@ -1672,6 +1672,12 @@ def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
     backend = raw.get("production_identity", {}).get("backend", {}) if isinstance(raw.get("production_identity"), dict) else {}
     proof = raw.get("proof_state", {}) if isinstance(raw.get("proof_state"), dict) else {}
     recovery = raw.get("recovery_policy", {}) if isinstance(raw.get("recovery_policy"), dict) else {}
+    transients = raw.get("known_transients_not_part_of_frozen_stable_window", [])
+    replacement_safety_rules = [
+        str(item.get("rule"))
+        for item in transients
+        if isinstance(item, dict) and str(item.get("rule") or "").strip()
+    ] if isinstance(transients, list) else []
     observation = raw.get("latest_restore_observation", {}) if isinstance(raw.get("latest_restore_observation"), dict) else {}
     return {
         "available": True,
@@ -1686,6 +1692,10 @@ def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
         "user_confirmed_stable": proof.get("user_confirmed_stable"),
         "security_reroute_rate_after_freeze": proof.get("security_reroute_rate_after_freeze"),
         "restore_first_on_regression": bool(recovery.get("restore_first_on_regression")),
+        "recovery_required_order": recovery.get("required_order") if isinstance(recovery.get("required_order"), list) else [],
+        "recovery_preservation_rule": recovery.get("preservation_rule"),
+        "recovery_authorization_rule": recovery.get("authorization_rule"),
+        "replacement_safety_rules": replacement_safety_rules,
         "post_restore_user_event": observation.get("post_restore_user_event"),
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
