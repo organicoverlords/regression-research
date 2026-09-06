@@ -1,0 +1,111 @@
+.....................F............................................... [ 36%]
+.............................................F. [ 60%]
+.F..................................FF.......................... [ 94%]
+...........                                                              [100%]
+================================== FAILURES ===================================
+_ MemoryBootstrapRetirementTests.test_worker_contract_stays_small_and_non_blocking _
+
+self = <tests.test_memory_bootstrap.MemoryBootstrapRetirementTests testMethod=test_worker_contract_stays_small_and_non_blocking>
+
+    def test_worker_contract_stays_small_and_non_blocking(self):
+        text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
+        self.assertIn("Five is a hard maximum for the recurring worker fleet", text)
+    
+        self.assertIn("The scheduler provides recurrence only", text)
+        self.assertIn("Workers never administer workers", text)
+        self.assertIn("About 24 minutes is a utilization target", text)
+        self.assertIn("A blocker changes scope; it does not end unrelated work", text)
+>       self.assertIn("ownership collision is a scope-redirection event, not a stopping condition", text)
+E       AssertionError: 'ownership collision is a scope-redirection event, not a stopping condition' not found in '# Recurring Worker Contract\n\nThis file owns only the scheduler/worker boundary. Cross-project safety, routing, repository, evidence, and coordination rules belong to the shared policy or the narrow live owner that actually enforces them.\n\n## Invariants\n\n1. **Five is a hard maximum for the recurring worker fleet.** Never enable more than five recurring repo workers.\n2. **The scheduler provides recurrence only.** Enabled state, schedules, timestamps, claims, leases, heartbeats, and reports do not prove that work is happening.\n3. **Workers never administer workers.** A scheduled worker must not pause, disable, enable, reschedule, rename, replace, create, or delete itself or a sibling. Fleet administration belongs to the supervising chat.\n4. **Use current direction and live state.** A worker follows its current run prompt and the live target repo/runtime. Read the applicable repo `AGENTS.md` immediately before the first mutation. Do not make Atlas, Vault, reports, history, or scheduler metadata a generic startup gate.\n5. **Do product work for the useful run window.** Prefer concrete player-visible implementation and acceptance. About 24 minutes is a utilization target, not a reason to idle or pad. Finishing one bounded slice early should lead to another safe useful slice while meaningful time remains.\n6. **A blocker changes scope; it does not end unrelated work.** Pending CI, an occupied Unreal/build lane, resource pressure, a route failure, or another actor owning an exact mutation scope blocks only that dependency. Preserve its gate and continue safe non-conflicting work when available. **If a required tool or binding is missing, unavailable, stale, disconnected, or unexpectedly rejected, refresh/re-discover the available tool bindings and retry through the supported route before using a supported fallback. Treat missing tool exposure as route state, not proof that the capability is absent. A tool/route failure is never authority to pause, disable, reschedule, or otherwise administer this worker or any sibling.**\n7. **BusyCoordinator is collision control only.** Claim only the exact shared mutation scope when collision risk exists. It is not backlog, scheduling, liveness, priority, capacity, or worker supervision.\n8. **Keep reporting durable and population-separated.** Immediately before writing or finalizing a worker report, after a machine route is established, read this contract once; do not rely on copied or remembered reporting instructions. Reporting is evidence/observability only and never completion, scheduling, supervision, admission, or a queue. Both timed and manual/on-demand workers record the same structured finding fields: `finding_tags` and `findings`. Canonical tags are `bug`, `error`, `regression`, `wrapper_anomaly`, `route_problem`, `contention`, `performance`, `improvement`, `tooling`, `ci`, `build`, `proof`, `resource`, and `other`; use `finding_tags: none` and `findings: none` when nothing material was observed.\n\n   **Timed recurring runs** keep the existing `worker-reports/current/<automation-id>.md` -> `worker-reports/history` lifecycle and `worker-reports/metrics.json`. Use the canonical keys `automation_id`, optional `display_label`, `started_at`, `last_activity_at`, `repo`, `scope`, `state`, `outcome`, `mutation`, `validation`, `remaining_gate`, `finding_tags`, and `findings`; add landed/published proof fields when applicable. Near the start of every timed run, after the first bounded scope selection and before any command that may consume a material part of the useful run window, create or refresh that current report with `state: RUNNING` and `started_at` set to the current machine time, then immediately register the start with `python C:\\Users\\Lauri\\Desktop\\vault\\tools\\worker_report_history.py begin --report <path>`. The begin command writes the machine-observed start receipt used for timed duration/utilization; self-reported backdating does not count. Update the current report at natural checkpoints when scope/evidence/findings materially change. Finalize and archive it with `python C:\\Users\\Lauri\\Desktop\\vault\\tools\\worker_report_history.py archive --report <path>`. A current timed `RUN_FINISHED` without matching machine start evidence is rejected; successful archive consumes the receipt, while rejected finalization retains it for the continuing run. If the archiver rejects a premature timed `RUN_FINISHED`, the run is not finished: keep the current report `RUNNING`, continue useful work, and retry finalization only when valid.\n\n   **Manual/on-demand runs** are separate. Each substantive user-driven worker execution turn gets a fresh filesystem-safe `run_id` and writes `worker-reports/manual/current/<run-id>.md` with `run_id`, optional `display_label`, `started_at`, `last_activity_at`, `repo`, `scope`, `state`, `outcome`, `mutation`, `validation`, `remaining_gate`, `finding_tags`, and `findings`; add proof fields when applicable. A manual run is exactly one contiguous tool-running interval. Create the report with `state: TOOL_INTERVAL_OPEN` immediately before the first tool call, update it at natural material checkpoints while tools are running, and finalize/archive it immediately after the last tool call before returning control to the user. `TOOL_INTERVAL_OPEN` is artifact lifecycle state only and never process liveness. Never leave a manual report `TOOL_INTERVAL_OPEN` between chat turns or while waiting for the user; if the overall task is unfinished, put that state in `remaining_gate` and still end the report at the tool-run boundary. Successful manual archive consumes the unique `manual/current/<run-id>.md` copy after preserving its immutable history record. `started_at` and `last_activity_at` describe the actual tool-running interval, not the surrounding conversation. The default archive path is `worker-reports/manual/history` and metrics are `worker-reports/manual/metrics.json`. Manual reports still derive start/finish/elapsed duration and aggregate finding tags, but they never receive or contribute to the timed 24-minute target/utilization/fleet statistics. Timed consumers must ignore manual records and manual consumers must ignore timed records. A report is evidence of that run, not proof of present liveness.\n\n9. **Repair minimally.** The supervisor replaces only a currently proven-bad slot and never exceeds the five-worker cap. Do not create verifier, spare, overlap, or temporary sixth workers.\n\n\nAnything more specific belongs in the current automation prompt, shared policy, repo contract, or actual subsystem owner?not here.\n'
+
+tests\test_memory_bootstrap.py:42: AssertionError
+_______ StackAtlasTests.test_generated_operational_manual_matches_atlas _______
+
+self = <tests.test_stack_atlas.StackAtlasTests testMethod=test_generated_operational_manual_matches_atlas>
+
+    def test_generated_operational_manual_matches_atlas(self):
+        manual = ROOT / "docs" / "assistant-stack-operational-atlas.md"
+>       self.assertEqual(manual.read_text(encoding="utf-8"), render_manual() + "\n")
+E       AssertionError: '# As[736 chars]\n| `production.change_gate` | agent_rules, bu[24089 chars]e.\n' != '# As[736 chars]\n| `orchestration.operator` | agent_rules | C[24776 chars]e.\n'
+E       Diff is 29646 characters long. Set self.maxDiff to None to see it.
+
+tests\test_stack_atlas.py:639: AssertionError
+_ StackAtlasTests.test_live_bootstrap_displays_machine_workers_and_active_sessions _
+
+self = <tests.test_stack_atlas.StackAtlasTests testMethod=test_live_bootstrap_displays_machine_workers_and_active_sessions>
+
+    def test_live_bootstrap_displays_machine_workers_and_active_sessions(self):
+        sample_workers = {
+            "available": True,
+            "latest_archived_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+            "attention": [{"worker": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+        }
+        with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
+            glance = build_live_bootstrap_glance()
+        payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
+        self.assertLess(len(payload), 12000)
+        self.assertIn("trend", glance["pc"]["disk"])
+        memory = glance["pc"]["memory"]
+        self.assertIn("commit_headroom_gb", memory)
+        self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
+        self.assertIn("workspace_counts", glance["mcp"])
+        for session in glance["mcp"]["active_sessions"]:
+            self.assertIn("caller_id", session)
+            self.assertIn("cwd", session)
+            self.assertIn("workspace", session)
+            self.assertIn("busy_titles", session)
+            self.assertLessEqual(session["activity_age_seconds"], 300)
+        self.assertIn("notable_conditions", glance)
+>       self.assertIn("worker_report_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
+E       AssertionError: 'worker_report_Aspen_severely_premature_5.0m_of_24.0m' not found in ['disk_watch_free_66.7gb']
+
+tests\test_stack_atlas.py:61: AssertionError
+_ BootstrapHealthTests.test_bootstrap_surfaces_component_health_and_notable_conditions _
+
+self = <tests.test_bootstrap_health.BootstrapHealthTests testMethod=test_bootstrap_surfaces_component_health_and_notable_conditions>
+
+    def test_bootstrap_surfaces_component_health_and_notable_conditions(self):
+        with patch("tools.stack_atlas._bootstrap_pc_status", return_value={"disk": {"status": "OK", "trend": {}}, "memory": {"status": "OK"}}), patch(
+            "tools.stack_atlas._bootstrap_worker_status", return_value={"available": True, "attention": [], "stale_reports": [], "manual_current": {}}
+        ), patch("tools.stack_atlas._bootstrap_mcp_status", return_value={"available": True, "status": "LIVE"}), patch(
+            "tools.stack_atlas._bootstrap_memory_overview", return_value={"recent": []}
+        ), patch("tools.stack_atlas._bootstrap_vault_status", return_value={"available": True, "status": "OK"}), patch(
+            "tools.stack_atlas._bootstrap_github_status", return_value={"available": True, "status": "WATCH"}
+        ), patch("tools.stack_atlas._bootstrap_mcp_known_good_freeze", return_value={"available": True}):
+            glance = build_live_bootstrap_glance()
+>       self.assertEqual(glance["bootstrap"]["status"], "DEGRADED")
+E       AssertionError: 'OK' != 'DEGRADED'
+E       - OK
+E       + DEGRADED
+
+tests\test_bootstrap_health.py:63: AssertionError
+_ BootstrapHealthTests.test_github_health_reports_rate_limit_without_listing_repo_state _
+
+self = <tests.test_bootstrap_health.BootstrapHealthTests testMethod=test_github_health_reports_rate_limit_without_listing_repo_state>
+
+    def test_github_health_reports_rate_limit_without_listing_repo_state(self):
+        auth = subprocess.CompletedProcess(["gh", "auth", "status"], 0, "", "")
+        api = subprocess.CompletedProcess(
+            ["gh", "api", "rate_limit"],
+            0,
+            json.dumps({"resources": {"core": {"limit": 5000, "remaining": 4200, "used": 800, "reset": 1788640000}}}),
+            "",
+        )
+        with patch("tools.stack_atlas.shutil.which", return_value="gh"), patch(
+            "tools.stack_atlas.subprocess.run", side_effect=[auth, api]
+        ) as run:
+            status = _bootstrap_github_status()
+>       self.assertEqual(status["status"], "OK")
+E       AssertionError: 'DEGRADED' != 'OK'
+E       - DEGRADED
+E       + OK
+
+tests\test_bootstrap_health.py:28: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_memory_bootstrap.py::MemoryBootstrapRetirementTests::test_worker_contract_stays_small_and_non_blocking
+FAILED tests/test_stack_atlas.py::StackAtlasTests::test_generated_operational_manual_matches_atlas
+FAILED tests/test_stack_atlas.py::StackAtlasTests::test_live_bootstrap_displays_machine_workers_and_active_sessions
+FAILED tests/test_bootstrap_health.py::BootstrapHealthTests::test_bootstrap_surfaces_component_health_and_notable_conditions
+FAILED tests/test_bootstrap_health.py::BootstrapHealthTests::test_github_health_reports_rate_limit_without_listing_repo_state
+5 failed, 186 passed, 36 subtests passed in 14.05s

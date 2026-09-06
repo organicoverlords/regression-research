@@ -36,6 +36,13 @@ ALLOWED_FINDING_TAGS = frozenset({
     "bug", "error", "regression", "wrapper_anomaly", "route_problem", "contention",
     "performance", "improvement", "tooling", "ci", "build", "proof", "resource", "other",
 })
+FINDING_TAG_ALIASES = {
+    "collision": "contention",
+    "resource_issue": "resource",
+    "proof_gap": "proof",
+    "convergence": "improvement",
+    "product": "other",
+}
 
 
 
@@ -142,12 +149,22 @@ def _load_timed_start_receipt(report: Path, fields: dict[str, str]) -> tuple[dat
     if str(payload.get("automation_id") or "").casefold() != report.stem.casefold():
         raise ValueError("timed run start receipt automation_id does not match current report")
     observed_started = _parse_time(str(payload.get("observed_started_at") or ""))
+    receipt_reported_started = _parse_time(str(payload.get("reported_started_at") or ""))
     reported_started = _parse_time(fields.get("started_at"))
-    if observed_started is None or reported_started is None:
+    if observed_started is None or receipt_reported_started is None or reported_started is None:
         raise ValueError("timed run start receipt contains invalid chronology")
+    receipt_written = datetime.fromtimestamp(receipt_path.stat().st_mtime).astimezone()
+    if abs((observed_started - receipt_written).total_seconds()) > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
+        raise ValueError("timed run start receipt observed time does not match receipt file write time")
+    if abs((reported_started - receipt_reported_started).total_seconds()) > MAX_FUTURE_ACTIVITY_SKEW_SECONDS:
+        raise ValueError("reported started_at changed after timed run begin")
     now = datetime.now().astimezone()
     if observed_started > now + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
         raise ValueError("timed run start receipt is in the future")
+    if reported_started > observed_started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+        raise ValueError(
+            "timed run start receipt is stale for this generation: reported started_at is later than observed start"
+        )
     return observed_started, receipt_path
 
 
@@ -155,7 +172,8 @@ def _parse_finding_tags(fields: dict[str, str]) -> list[str]:
     raw = str(fields.get("finding_tags") or "").strip()
     if not raw or raw.casefold() == "none":
         return []
-    tags = sorted({part.strip().casefold().replace("-", "_").replace(" ", "_") for part in raw.split(",") if part.strip()})
+    normalized = {part.strip().casefold().replace("-", "_").replace(" ", "_") for part in raw.split(",") if part.strip()}
+    tags = sorted({FINDING_TAG_ALIASES.get(tag, tag) for tag in normalized})
     invalid = [tag for tag in tags if tag not in ALLOWED_FINDING_TAGS]
     if invalid:
         raise ValueError("unknown finding_tags: " + ", ".join(invalid))
@@ -227,7 +245,12 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     if any(marker in reason for marker in USER_END_MARKERS):
         return observed_started
     if reason and all(marker in reason for marker in PROVEN_NO_SAFE_WORK_MARKERS):
-        return observed_started
+        if started is not None and observed_started <= started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+            return observed_started
+        raise ValueError(
+            "premature RUN_FINISHED rejected: a true no-safe-work exception requires machine start evidence "
+            "registered near run start; late begin cannot establish early-stop eligibility"
+        )
 
     evidence = " ".join((reason, str(fields.get("remaining_gate") or "").casefold()))
     if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
@@ -320,6 +343,26 @@ def _history_chronology_is_plausible(item: dict[str, Any]) -> bool:
     return finished <= archived + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS)
 
 
+def _dedupe_manual_run_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep one deterministic newest valid archive per logical manual run_id."""
+    selected: dict[str, dict[str, Any]] = {}
+    anonymous: list[dict[str, Any]] = []
+    for item in records:
+        run_id = str(item.get("run_id") or "").strip().casefold()
+        if not run_id:
+            anonymous.append(item)
+            continue
+        previous = selected.get(run_id)
+        if previous is None:
+            selected[run_id] = item
+            continue
+        item_key = (_parse_time(item.get("archived_at")) or datetime.min.astimezone(), str(item.get("report_sha256") or ""))
+        previous_key = (_parse_time(previous.get("archived_at")) or datetime.min.astimezone(), str(previous.get("report_sha256") or ""))
+        if item_key > previous_key:
+            selected[run_id] = item
+    return anonymous + list(selected.values())
+
+
 def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
     population = _report_population(history_root=history_root)
     now = datetime.now().astimezone()
@@ -331,6 +374,9 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
         archived = _parse_time(item.get("archived_at"))
         if archived is not None and archived >= cutoff and _history_chronology_is_plausible(item):
             records.append(item)
+
+    if population == "manual":
+        records = _dedupe_manual_run_records(records)
 
     durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
     tag_counts: Counter[str] = Counter()
@@ -403,12 +449,14 @@ def _project_from_repo(repo: str | None) -> str | None:
 
 def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
     population = _report_population(history_root=history_root)
+    records = [
+        item for item in load_history_metadata(history_root)
+        if _metadata_population(item) == population and _history_chronology_is_plausible(item)
+    ]
+    if population == "manual":
+        records = _dedupe_manual_run_records(records)
     events: list[dict[str, Any]] = []
-    for item in load_history_metadata(history_root):
-        if _metadata_population(item) != population:
-            continue
-        if not _history_chronology_is_plausible(item):
-            continue
+    for item in records:
         event_at = item.get("finished_at") or item.get("archived_at")
         if not event_at:
             continue
@@ -519,6 +567,8 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
     metrics_path, metrics = write_metrics_projection(history_root)
     if observed_started_at is not None and report.parent.name.casefold() == "current":
         _timed_start_receipt_path(report).unlink(missing_ok=True)
+    if population == "manual" and report.parent.name.casefold() == "current":
+        report.unlink(missing_ok=True)
     result = {
         "ok": True,
         "population": population,

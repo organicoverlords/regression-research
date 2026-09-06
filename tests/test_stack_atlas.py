@@ -14,6 +14,7 @@ from tools.stack_atlas import (
     component_details,
     find_features,
     full_inventory,
+    production_change_gate,
     render_manual,
     _bootstrap_pc_status,
     _bootstrap_worker_status,
@@ -37,7 +38,7 @@ class StackAtlasTests(unittest.TestCase):
     def test_live_bootstrap_displays_machine_workers_and_active_sessions(self):
         sample_workers = {
             "available": True,
-            "latest_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
+            "latest_archived_per_worker": [{"display_label": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "target_utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
             "attention": [{"worker": "Aspen", "duration_minutes": 5.0, "target_minutes": 24.0, "utilization_pct": 20.8, "classification": "SEVERELY_PREMATURE", "age_minutes": 10.0}],
         }
         with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
@@ -47,7 +48,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
-        self.assertEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
+        self.assertIn("workspace_counts", glance["mcp"])
         for session in glance["mcp"]["active_sessions"]:
             self.assertIn("caller_id", session)
             self.assertIn("cwd", session)
@@ -57,12 +60,75 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("notable_conditions", glance)
         self.assertIn("worker_report_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
         self.assertNotIn("worker_Aspen_severely_premature_5.0m_of_24.0m", glance["notable_conditions"])
-        self.assertIn("latest_per_worker", glance["workers"])
+        self.assertNotIn("latest_archived_per_worker", glance["workers"])
+        self.assertNotIn("fleet", glance["workers"])
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
         self.assertNotIn("mcp_hour", glance["commands"])
+        self.assertIn("production_change_gate", glance["commands"])
+        self.assertIn("memory_overview", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
+
+    def test_production_change_gate_blocks_go_fix_style_implicit_authorization(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 20,
+            "active_session_count_status": "COMPLETE", "active_sessions": [{"caller_id": "c1"}],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        gate = production_change_gate(
+            "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
+            explicit_user_authorization=False, independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "BLOCK")
+        self.assertIn("missing_explicit_live_production_authorization", gate["reasons"])
+        self.assertTrue(gate["semantics"]["go_continue_fix_are_not_production_authorization"])
+        self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
+
+    def test_production_change_gate_blocks_without_independent_rollback(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 3,
+            "active_session_count_status": "COMPLETE", "active_sessions": [],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        gate = production_change_gate(
+            "vps_edge_ingress", actor="ChatGPT:test", busy_scope="mcp-vps:/etc/caddy/Caddyfile",
+            explicit_user_authorization=True, independent_rollback_verified=False, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "BLOCK")
+        self.assertIn("independent_rollback_control_route_not_verified", gate["reasons"])
+
+    def test_production_change_gate_blocks_foreign_busy_claim(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 1,
+            "active_session_count_status": "COMPLETE", "active_sessions": [],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:other"}, "job": None}
+        gate = production_change_gate(
+            "mcp_front_door", actor="ChatGPT:test", busy_scope="mcp-production:front-door",
+            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "BLOCK")
+        self.assertIn("busy_scope_claimed_by_other_actor", gate["reasons"])
+
+    def test_production_change_gate_passes_only_with_complete_evidence_and_reports_dependents(self):
+        mcp = {
+            "available": True, "status": "LIVE", "active_session_count": 20,
+            "active_session_count_status": "COMPLETE", "active_sessions": [{"caller_id": "c1"}, {"caller_id": "c2"}],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        gate = production_change_gate(
+            "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
+            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(gate["verdict"], "PASS")
+        self.assertEqual(gate["reasons"], [])
+        self.assertIn("active_mcp_dependents_present", gate["warnings"])
+        self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
 
     def test_worker_status_reads_runtime_history_from_live_root_not_source_root(self):
         with tempfile.TemporaryDirectory() as d:
@@ -84,7 +150,7 @@ class StackAtlasTests(unittest.TestCase):
                 workers = _bootstrap_worker_status()
             load_history.assert_called_once_with(history_root)
             self.assertTrue(workers["available"])
-            self.assertEqual(workers["latest_per_worker"][0]["automation_id"], "worker-1")
+            self.assertEqual(workers["latest_archived_per_worker"][0]["automation_id"], "worker-1")
 
     def test_stale_worker_archive_is_not_current_liveness_attention(self):
         from datetime import datetime, timedelta, timezone
@@ -112,12 +178,12 @@ class StackAtlasTests(unittest.TestCase):
             ]
             with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness")
+        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership")
         self.assertEqual(workers["stale_after_minutes"], 90.0)
         self.assertEqual([item["worker"] for item in workers["attention"]], ["Hazel"])
         self.assertEqual(workers["stale_reports"], [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}])
-        self.assertEqual(workers["fleet"]["stale_report_count"], 1)
-        fir = next(item for item in workers["latest_per_worker"] if item["display_label"] == "Fir")
+        self.assertEqual(workers["archive_sample"]["stale_report_count"], 1)
+        fir = next(item for item in workers["latest_archived_per_worker"] if item["display_label"] == "Fir")
         self.assertEqual(fir["report_freshness"], "STALE")
 
     def test_impossible_worker_archive_does_not_replace_latest_valid_run(self):
@@ -144,13 +210,49 @@ class StackAtlasTests(unittest.TestCase):
             ]
             with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["fleet"]["on_target_count"], 0)
-        self.assertEqual(workers["fleet"]["short_or_worse_count"], 1)
-        self.assertEqual(len(workers["latest_per_worker"]), 1)
-        fir = workers["latest_per_worker"][0]
+        self.assertEqual(workers["archive_sample"]["on_target_count"], 0)
+        self.assertEqual(workers["archive_sample"]["short_or_worse_count"], 1)
+        self.assertEqual(len(workers["latest_archived_per_worker"]), 1)
+        fir = workers["latest_archived_per_worker"][0]
         self.assertEqual(fir["display_label"], "Fir")
         self.assertEqual(fir["finished_at"], valid_finished.isoformat())
         self.assertEqual(fir["classification"], "SEVERELY_PREMATURE")
+
+
+    def test_worker_archive_sample_is_not_presented_as_current_scheduler_fleet(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "worker-reports" / "history").mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            labels = ["Retired Fir", "Aspen", "Maple", "Pine", "Alder", "Old Hazel"]
+            records = []
+            for index, label in enumerate(labels):
+                records.append({
+                    "automation_id": f"history-{index}",
+                    "display_label": label,
+                    "finished_at": (now - timedelta(minutes=index + 1)).isoformat(),
+                    "archived_at": (now - timedelta(minutes=index + 1) + timedelta(seconds=1)).isoformat(),
+                    "duration_minutes": 20.0,
+                    "target_run_minutes": 24.0,
+                    "target_utilization_pct": 83.3,
+                })
+            with patch("tools.stack_atlas.ROOT", root), patch("tools.worker_report_history.load_history_metadata", return_value=records):
+                workers = _bootstrap_worker_status()
+        self.assertNotIn("fleet", workers)
+        self.assertEqual(workers["current_scheduler_membership"]["available"], False)
+        self.assertEqual(workers["current_scheduler_membership"]["authority"], "ChatGPT Automations state")
+        self.assertEqual(workers["archive_sample"]["historical_worker_ids_seen"], 6)
+        self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
+        self.assertEqual(workers["archive_sample"]["sample_limit"], 5)
+        self.assertEqual(
+            workers["archive_sample"]["selection"],
+            "five_most_recent_latest_archives_per_automation_id",
+        )
+        sampled_labels = [item["display_label"] for item in workers["latest_archived_per_worker"]]
+        self.assertIn("Retired Fir", sampled_labels)
+        self.assertNotIn("Old Hazel", sampled_labels)
+        self.assertNotIn("Enabled Juniper With No Archive", json.dumps(workers))
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone
@@ -259,6 +361,9 @@ class StackAtlasTests(unittest.TestCase):
             receipts = root / "shared-process-receipts"
             clone.mkdir(parents=True)
             receipts.mkdir(parents=True)
+            busy_state = local / "ChatGPTMcpClean" / ".state"
+            busy_state.mkdir(parents=True)
+            (busy_state / "busy-claims.json").write_text(json.dumps({"claims": [{"actor": "actor-x"}]}), encoding="utf-8")
             now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             process_id = "target-receipt"
             transport = {
@@ -280,13 +385,61 @@ class StackAtlasTests(unittest.TestCase):
                     receipt_reads.append(path.name)
                 return original_read_text(path, *args, **kwargs)
 
-            busy = subprocess.CompletedProcess([], 0, stdout=json.dumps({"claims": [{"actor": "actor-x"}]}), stderr="")
             with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas.subprocess.run", return_value=busy), \
                  patch.object(Path, "read_text", counted_read_text):
                 status = _bootstrap_mcp_status()
             self.assertEqual(receipt_reads, [f"{process_id}.json"])
             self.assertEqual(status["active_sessions"][0]["busy_titles"], ["actor-x"])
+
+    def test_mcp_bootstrap_samples_details_but_keeps_complete_count(self):
+        from datetime import datetime, timedelta, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status, BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            clone.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            rows = []
+            for i in range(BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT + 7):
+                rows.append({
+                    "event": "process_started",
+                    "at": (now - timedelta(seconds=i)).isoformat().replace("+00:00", "Z"),
+                    "caller_id": f"caller_{i}", "process_id": f"p{i}", "cwd": rf"C:\work\{i}",
+                })
+            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
+                status = _bootstrap_mcp_status()
+        self.assertEqual(status["active_session_count"], BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT + 7)
+        self.assertEqual(len(status["active_sessions"]), BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT)
+        self.assertTrue(status["active_sessions_truncated"])
+
+    def test_mcp_bootstrap_reuses_five_second_live_summary(self):
+        from datetime import datetime, timezone
+        import os
+        from tools.stack_atlas import _bootstrap_mcp_status
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp)
+            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
+            clone.mkdir(parents=True)
+            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            (clone / "transport.jsonl").write_text(json.dumps({"event":"process_started","at":now,"caller_id":"c1","process_id":"p1","cwd":r"C:\work"}) + "\n", encoding="utf-8")
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
+                first = _bootstrap_mcp_status()
+                with patch("tools.stack_atlas._read_jsonl_window", side_effect=AssertionError("cache miss")):
+                    second = _bootstrap_mcp_status()
+        self.assertFalse(first["cache"]["used"])
+        self.assertTrue(second["cache"]["used"])
+        self.assertEqual(second["active_session_count"], 1)
+
+    def test_gpu_fast_path_uses_nvml_not_nvidia_smi_subprocess(self):
+        import os
+        from tools.stack_atlas import _bootstrap_pc_status
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.ctypes.WinDLL", side_effect=OSError("no nvml")), \
+             patch("tools.stack_atlas.subprocess.run", side_effect=AssertionError("nvidia-smi subprocess forbidden")):
+            status = _bootstrap_pc_status()
+        self.assertEqual(status["gpu"]["sample_status"], "FAST_PROBE_UNAVAILABLE")
 
     def test_live_powershell_probe_is_bounded(self):
         completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
@@ -328,9 +481,11 @@ class StackAtlasTests(unittest.TestCase):
         with patch("tools.stack_atlas._bootstrap_pc_status", return_value={}), \
              patch("tools.stack_atlas._bootstrap_worker_status", return_value={}), \
              patch("tools.stack_atlas._bootstrap_mcp_status", return_value={}), \
-             patch("tools.stack_atlas._bootstrap_memory_titles", return_value=[]):
+             patch("tools.stack_atlas._bootstrap_memory_overview", return_value={"contract": "history only", "eligible_entries": 2, "recent": [], "projects": [{"name": "p3", "count": 2}], "recurring_tags": []}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["paths"]["issue_first_work_intake"], r"C:\Users\Lauri\.agents\RULES.md")
+        self.assertEqual(glance["memory_overview"]["eligible_entries"], 2)
+        self.assertEqual(glance["memory_overview"]["projects"][0]["name"], "p3")
         self.assertNotIn("behavior", glance)
 
     def test_feature_search_surfaces_existing_owner_before_archaeology(self):
@@ -414,6 +569,26 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["identity"]["component"], "vps_edge_ingress")
         self.assertEqual(result["destructive_verdict"], "BLOCK_ACTIVE_TRANSPORT")
 
+    def test_vps_edge_current_topology_is_wireguard_primary_with_ssh_fallbacks(self):
+        details = component_details("vps_edge_ingress")
+        status = " ".join(details["live_status"])
+        resources = " ".join(details["resources"])
+        self.assertIn("WireGuard", status)
+        self.assertIn("only 10.203.0.2:3011", status)
+        self.assertIn("3101-3104", status)
+        self.assertIn("explicit-recovery", status)
+        self.assertIn("does not select them automatically", status)
+        self.assertIn("WireGuard UDP 51820", resources)
+
+    def test_vps_edge_native_ssh_fallback_lane_classifies_as_transport(self):
+        process = {
+            "pid": 25428, "ppid": 1, "name": "ssh.exe",
+            "command_line": r'"C:\Program Files\Git\usr\bin\ssh.exe" -N -T -i C:\Users\Lauri\.ssh\tietokettu_edge -R 127.0.0.1:3101:127.0.0.1:3011 root@5.61.91.127',
+        }
+        result = blast_radius(25428, [process])
+        self.assertEqual(result["identity"]["component"], "vps_edge_ingress")
+        self.assertEqual(result["destructive_verdict"], "BLOCK_ACTIVE_TRANSPORT")
+
     def test_vps_origin_listener_wrapper_classifies_as_minimal_clone(self):
         listener = {
             "pid": 11328, "ppid": 5376, "name": "node.exe",
@@ -427,7 +602,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(classify_process(listener, mapping)["component"], "mcp_minimal_clone")
 
     def test_natural_component_aliases_resolve(self):
-        self.assertEqual(component_details("mcp")["id"], "mcp_front_door")
+        self.assertEqual(component_details("mcp")["id"], "mcp_minimal_clone")
         self.assertEqual(component_details("webgpt")["id"], "chatgpt_session")
         self.assertEqual(component_details("coordinator")["id"], "busy_coordinator")
         self.assertEqual(component_details("webgpt")["role"], "session:user-facing")
@@ -504,3 +679,42 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("file transfer")["id"], "file_transfer")
         self.assertEqual(component_details("visual proof")["id"], "visual_proof")
         self.assertEqual(component_details("workers")["id"], "execution_workers")
+
+class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
+    def test_bootstrap_surfaces_canonical_mcp_freeze_and_reroute_log_paths(self):
+        glance = build_live_bootstrap_glance()
+        self.assertIn("mcp_known_good_freeze", glance)
+        self.assertTrue(glance["paths"]["mcp_known_good_freeze"].endswith("mcp-known-good-freeze.json"))
+        self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
+        self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))
+
+    def test_freeze_and_security_reroute_features_are_discoverable(self):
+        freeze = find_features("known good refreeze")[0]
+        self.assertEqual(freeze["id"], "mcp.known_good_freeze")
+        self.assertIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
+        reroute = find_features("security reroute")[0]
+        self.assertEqual(reroute["id"], "mcp.security_reroute_log")
+        self.assertIn("must be logged", reroute["boundary"])
+
+
+class VaultUsefulnessRoutingTests(unittest.TestCase):
+    def test_vague_vault_usefulness_routes_to_overview_first(self):
+        results = find_features("make vault more useful")
+        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "vault.overview")
+        self.assertIn("memory_bank.py overview", " ".join(results[0]["entrypoints"]))
+
+    def test_automatic_aggregation_routes_to_vault_overview(self):
+        results = find_features("automatic vault aggregation")
+        self.assertGreaterEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], "vault.overview")
+
+    def test_vague_aggregation_query_does_not_pull_unrelated_single_word_component(self):
+        results = find_features("more automatic aggregation and asking atlas should work better", limit=3)
+        self.assertEqual(results[0]["id"], "vault.overview")
+        self.assertNotIn("component.mcp_minimal_clone", [item["id"] for item in results])
+
+    def test_find_can_return_direct_component_without_prior_schema_knowledge(self):
+        results = find_features("generation pinned process transport clone", limit=1)
+        self.assertEqual(results[0]["id"], "component.mcp_minimal_clone")
+        self.assertEqual(results[0]["owner_components"], ["mcp_minimal_clone"])

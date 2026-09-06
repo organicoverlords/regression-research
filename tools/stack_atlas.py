@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -20,13 +21,31 @@ BUSY_CMD = str(BUSY_ROOT / "busy-python.cmd")
 BUSY_PY = str(BUSY_ROOT / "busy.py")
 BUSY_STORE = os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json")
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
+MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
+MCP_KNOWN_GOOD_FREEZE_PATH = ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
+MCP_SECURITY_ROUTING_LOG_PATH = ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
+BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
+BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
+BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
+BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
+BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
+BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
+BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
+BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
+BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
+BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
+BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
+BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
+BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT = 4
+BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES = 30.0
+BOOTSTRAP_MANUAL_REPORT_READ_BYTES = 16 * 1024
 AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
     "webgpt": "chatgpt_session",
-    "mcp": "mcp_front_door",
+    "mcp": "mcp_minimal_clone",
     "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
@@ -45,6 +64,9 @@ COMPONENT_ALIASES = {
     "rules": "agent_rules",
     "agent rules": "agent_rules",
     "policy": "agent_rules",
+    "orchestrator": "agent_rules",
+    "operator": "agent_rules",
+    "designated orchestrator": "agent_rules",
     "repo rules": "repo_rule_pointer",
 }
 
@@ -75,7 +97,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1", "chatgpt-mcp-clean/src/front-door.ts"],
         "live_status": [
             "root front-door health plus exact tool contract/semantic call",
-            "root / may remain on 3003; current MCPv3 production ingress bypasses it through the VPS Caddy + reverse-SSH edge to clone 3011",
+            "root / may remain on 3003 as a separate legacy/fallback surface; current production bypasses it through VPS Caddy -> WireGuard 10.203.0.2:3011, and SSH 3101-3104 are explicit recovery only, not automatic Caddy upstreams",
             "ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity",
         ],
         "supervisor": "ChatGPTMcpClean keepalive FrontDoor role",
@@ -105,39 +127,51 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_ROOT + r"\scripts\start-minimal-clone.ps1", VPS_EDGE_ROOT + r"\start-tunnel.ps1"],
+        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\src\index.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_KNOWN_GOOD_FREEZE_PATH)],
         "live_status": [
             "clone health",
             "exact tool contract",
             "process receipt/control route",
             "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "2026-09-03 production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> persistent reverse SSH -> clone 3011; final scheduled path passed 100/100 initialize/initialized/start_process and live MCPv3 calls",
+            "2026-09-05 frozen candidate production: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
         ],
         "supervisor": "instance launcher / owning generation",
         "self_heal": "generation_specific",
         "independent_recovery": [
-            "VPS scheduled reverse tunnel reconnect is the current public-ingress recovery path",
+            "WireGuard is the primary VPS-to-PC backend path; four native OpenSSH reverse lanes are intentional independent fallbacks and their presence/health is expected",
             "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never leave a stale-regression generation in ordered fallback",
             "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
         ],
-        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy/reverse-SSH route", "clone OAuth/OpenID metadata handlers"],
+        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy WireGuard-only automatic upstream", "WireGuard 10.203.0.2:3011 primary", "reverse-SSH 3101-3104 explicit recovery lanes", "clone OAuth/OpenID metadata handlers"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [
             MCP_ROOT + r"\AGENTS.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
             "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
+            str(MCP_KNOWN_GOOD_FREEZE_PATH),
         ],
     },
     "vps_edge_ingress": {
         "role": "public_mcp_edge_and_observer",
         "capabilities": ["source_read", "runtime_validate", "artifact_transfer"],
-        "canonical_sources": [VPS_EDGE_ROOT + r"\start-tunnel.ps1", VPS_EDGE_ROOT + r"\vps_mcp_reverse_tunnel.py", VPS_EDGE_ROOT + r"\publish-artifact.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
-        "live_status": ["https://5-61-91-127.sslip.io/edge-status", "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp", "Windows scheduled task McpVpsEdgeTunnel", "VPS mcp-edge-health.timer"],
-        "supervisor": "Caddy/systemd on VPS plus Windows McpVpsEdgeTunnel scheduled task",
-        "self_heal": "reverse tunnel reconnect loop + systemd-managed Caddy/health timers",
-        "independent_recovery": ["local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn", "Tailscale may be used only as an explicitly revalidated non-production fallback"],
-        "resources": ["VPS 5.61.91.127", "public TCP 80/443", "SSH TCP 22", "VPS loopback 3011 reverse listener", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
+        "canonical_sources": [VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", VPS_EDGE_ROOT + r"\provision_edge_extras.py", VPS_EDGE_ROOT + r"\publish-artifact.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
+        "live_status": [
+            "https://5-61-91-127.sslip.io/edge-status (must report primary and fallback health separately)",
+            "https://5-61-91-127.sslip.io/.well-known/oauth-protected-resource/mcp",
+            "Windows WireGuardTunnel$mcp-wireguard service with 10.203.0.2/30 and a recent VPS handshake",
+            "Caddy automatic upstream is only 10.203.0.2:3011 over WireGuard; there are no automatic SSH fallback upstreams",
+            "four native OpenSSH reverse tunnels on VPS loopback 3101-3104 are intentional explicit-recovery lanes; their presence is expected but Caddy does not select them automatically",
+            "Windows scheduled task McpVpsEdgeTunnel owns SSH fallback recovery; VPS mcp-edge-health.timer owns observation",
+        ],
+        "supervisor": "Caddy/systemd on VPS plus Windows WireGuard tunnel service primary and McpVpsEdgeTunnel task for SSH fallbacks",
+        "self_heal": "WireGuard service is the automatic primary path; VPS mcp-edge-health.timer observes health; native SSH 3101-3104 remain explicit recovery only; Caddy active health polling is disabled",
+        "independent_recovery": [
+            "local clone can be tested directly without edge; edge failure must not authorize backend/OAuth/receipt churn",
+            "if WireGuard primary fails, 3101-3104 may be selected only by an explicit authorized recovery action; Caddy must not automatically reroute to them",
+            "Tailscale may be used only as an explicitly revalidated non-production fallback",
+        ],
+        "resources": ["VPS 5.61.91.127", "public TCP 80/443", "WireGuard UDP 51820", "WireGuard 10.203.0.1/30 <-> 10.203.0.2/30", "SSH TCP 22 fallback transport", "VPS loopback 3101-3104 reverse listeners", "/srv/mcp-artifacts", "/var/lib/mcp-edge/status.json"],
         "dependents": ["mcp_minimal_clone", "file_transfer", "chatgpt_process_transport"],
         "runbook": ["01 Reports/2026-09-03_MCP_vps_edge_cutover.md"],
     },
@@ -295,7 +329,35 @@ COMPONENTS.update({
     },
 })
 
+SHARED_PRODUCTION_COMPONENTS = frozenset({
+    "busy_coordinator",
+    "vps_edge_ingress",
+    "mcp_front_door",
+    "mcp_minimal_clone",
+})
+MCP_SHARED_PRODUCTION_COMPONENTS = frozenset({
+    "vps_edge_ingress",
+    "mcp_front_door",
+    "mcp_minimal_clone",
+})
+
+
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "orchestration.operator": {
+        "owner_components": ["agent_rules"],
+        "triggers": ["orchestrator", "designated orchestrator", "operator", "operator role", "orchestration policy"],
+        "entrypoints": [r"C:\Users\Lauri\.agents\RULES.md", "python tools\\stack_atlas.py lookup agent_rules"],
+        "boundary": "Navigation to the designated main-chat/operator behavior owner only. The orchestrator is a role governed by canonical agent_rules, not a daemon or separate runtime/control-plane component; live project/runtime evidence and BusyCoordinator remain their own authorities.",
+    },
+    "production.change_gate": {
+        "owner_components": ["agent_rules", "busy_coordinator", "vps_edge_ingress", "mcp_front_door"],
+        "triggers": ["production mutation", "control plane mutation", "serving path", "cutover", "live routing", "shared production", "rollback", "blast radius"],
+        "entrypoints": [
+            "python tools\\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "PASS additionally requires --explicit-user-authorization --independent-rollback-verified --offpath-proof-verified",
+        ],
+        "boundary": "Read-only preflight for shared production/control-plane mutation. PASS is necessary evidence, never mutation authority by itself; a broader debugging/fix/go instruction is not represented as explicit live-production authorization.",
+    },
     "work.intake": {
         "owner_components": ["agent_rules", "github", "local_git", "busy_coordinator"],
         "triggers": ["issue first", "start work", "new task", "technical work", "issue", "pr", "busy claim", "before mutation", "dirty state", "wip", "handoff", "convergence"],
@@ -309,9 +371,27 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Ordered navigation to the existing .agents issue-first contract: inspect/claim occurs immediately before shared mutation. The GitHub issue is the shared convergence record, not a queue, priority, capacity, or admission system. Busy is exact mutation collision control only. No new workflow authority is created.",
     },
+    "mcp.known_good_freeze": {
+        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
+        "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
+        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "Only this canonical pointer is the maintained MCP freeze. CANDIDATE_KNOWN_GOOD is preserve-first but explicitly not multi-day proof; PROVEN_KNOWN_GOOD requires a later >=48h real-use refreeze plus explicit user confirmation. Reconcile either status with current live evidence before restoration.",
+    },
+    "mcp.security_reroute_log": {
+        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
+        "triggers": ["security reroute", "security routing", "security rerouting", "reroute happened", "routing happened"],
+        "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_KNOWN_GOOD_FREEZE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "A user-reported security reroute must be logged before further MCP/edge mutation with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence; never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
+    },
+    "vault.overview": {
+        "owner_components": ["memory_bank"],
+        "triggers": ["vault", "overview", "digest", "summary", "aggregate", "aggregation", "automatic aggregation", "useful", "usefulness", "navigation", "discover", "search vault"],
+        "entrypoints": ["python tools\\memory_bank.py overview", "python tools\\memory_bank.py digest", "python tools\\stack_atlas.py find <natural-language-query>"],
+        "boundary": "Default bounded Vault orientation: aggregate durable/historical memory evidence into useful themes and recent items without treating Vault as current repo/runtime/scheduler truth. Use targeted context/timeline only after the overview identifies a relevant thread.",
+    },
     "vault.history": {
         "owner_components": ["memory_bank"],
-        "triggers": ["vault", "history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
+        "triggers": ["history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
         "entrypoints": ["memory_bank.py search", "memory_bank.py search --history", "memory_bank.py context", "memory_bank.py timeline", "memory_bank.py recent-titles"],
         "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
     },
@@ -320,6 +400,16 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
         "entrypoints": ["shared .agents RULES.md + AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
+    },
+    "project.p3_unreal_navigation": {
+        "owner_components": ["local_git", "github"],
+        "triggers": ["p3", "unreal", "unreal editor", "p3 repo", "ue mcp", "ue_mcp_bridge", "unreal mcp", "editor endpoint", "bridge endpoint"],
+        "entrypoints": [
+            r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+            r"C:\Users\Lauri\Documents\Unreal Projects\p3\scripts\v2\verification\p3_bridge_guard.py",
+            r"C:\Users\Lauri\Documents\Unreal Projects\p3\scripts\Test-P3WorkerEditorPreflight.ps1",
+        ],
+        "boundary": "Navigation only. Current P3 repo/main, repo-owned contracts, and live editor/runtime evidence remain product authority; Atlas must not become P3 product state. Validate UE_MCP_Bridge endpoint identity through the repo-owned live guard/preflight rather than trusting Saved/UE_MCP_Bridge/port.json alone; a configured UnrealMCPBridge port is not liveness or ownership proof.",
     },
     "coordination.ownership": {
         "owner_components": ["busy_coordinator"],
@@ -468,14 +558,53 @@ def _bootstrap_pc_status() -> dict[str, Any]:
     disk = shutil.disk_usage("C:\\")
     disk_free_gb = disk.free / 2**30
     disk_status = "LOW" if disk_free_gb < 25 else ("WATCH" if disk_free_gb < 100 else "OK")
+    gpu_cache, gpu_cache_age = _bootstrap_cache_read("gpu.json", BOOTSTRAP_GPU_CACHE_SECONDS)
     gpu = None
+    nvml_initialized = False
     try:
-        proc = subprocess.run(["nvidia-smi", "--query-gpu=memory.used,memory.total,utilization.gpu", "--format=csv,noheader,nounits"], text=True, capture_output=True, timeout=3)
-        if proc.returncode == 0 and proc.stdout.strip():
-            used, total, util = [float(x.strip()) for x in proc.stdout.splitlines()[0].split(",")]
-            gpu = {"vram_used_mb": round(used), "vram_total_mb": round(total), "vram_free_mb": round(total-used), "utilization_pct": round(util)}
+        nvml = ctypes.WinDLL("nvml.dll")
+        class NvmlMemory(ctypes.Structure):
+            _fields_ = [("total", ctypes.c_ulonglong), ("free", ctypes.c_ulonglong), ("used", ctypes.c_ulonglong)]
+        class NvmlUtilization(ctypes.Structure):
+            _fields_ = [("gpu", ctypes.c_uint), ("memory", ctypes.c_uint)]
+        nvml.nvmlInit_v2.restype = ctypes.c_int
+        nvml.nvmlDeviceGetHandleByIndex_v2.argtypes = [ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p)]
+        nvml.nvmlDeviceGetHandleByIndex_v2.restype = ctypes.c_int
+        nvml.nvmlDeviceGetMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(NvmlMemory)]
+        nvml.nvmlDeviceGetMemoryInfo.restype = ctypes.c_int
+        nvml.nvmlDeviceGetUtilizationRates.argtypes = [ctypes.c_void_p, ctypes.POINTER(NvmlUtilization)]
+        nvml.nvmlDeviceGetUtilizationRates.restype = ctypes.c_int
+        if nvml.nvmlInit_v2() != 0:
+            raise OSError("nvml init failed")
+        nvml_initialized = True
+        handle = ctypes.c_void_p()
+        memory = NvmlMemory()
+        utilization = NvmlUtilization()
+        if nvml.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(handle)) != 0:
+            raise OSError("nvml device lookup failed")
+        if nvml.nvmlDeviceGetMemoryInfo(handle, ctypes.byref(memory)) != 0:
+            raise OSError("nvml memory query failed")
+        if nvml.nvmlDeviceGetUtilizationRates(handle, ctypes.byref(utilization)) != 0:
+            raise OSError("nvml utilization query failed")
+        fresh_gpu = {
+            "vram_used_mb": round(memory.used / 2**20),
+            "vram_total_mb": round(memory.total / 2**20),
+            "vram_free_mb": round(memory.free / 2**20),
+            "utilization_pct": round(utilization.gpu),
+        }
+        _bootstrap_cache_write("gpu.json", fresh_gpu)
+        gpu = {**fresh_gpu, "sample_status": "LIVE", "sample_age_seconds": 0.0}
     except Exception:
-        pass
+        if gpu_cache is not None:
+            gpu = {**gpu_cache, "sample_status": "CACHED_RECENT", "sample_age_seconds": round(gpu_cache_age or 0.0, 1)}
+        else:
+            gpu = {"available": False, "sample_status": "FAST_PROBE_UNAVAILABLE"}
+    finally:
+        if nvml_initialized:
+            try:
+                nvml.nvmlShutdown()
+            except Exception:
+                pass
     return {
         "memory": {
             "physical_total_gb": round(physical_total,1), "physical_free_gb": round(physical_free,1), "physical_free_pct": round(physical_free_pct,1),
@@ -488,6 +617,142 @@ def _bootstrap_pc_status() -> dict[str, Any]:
     }
 
 
+
+def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
+    """Bounded purpose/freshness hints from manual current reports; never liveness authority."""
+    current_root = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "current"
+    semantics = "manual_current_report_state_and_purpose_only_not_process_liveness_or_scheduler_membership"
+    if not current_root.exists():
+        return {"available": False, "path": str(current_root), "evidence_semantics": semantics}
+    try:
+        from tools.worker_report_history import _fields, _parse_time
+    except ImportError:
+        from worker_report_history import _fields, _parse_time
+
+    try:
+        report_paths = sorted(
+            (path for path in current_root.glob("*.md") if path.is_file()),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError as exc:
+        return {"available": False, "path": str(current_root), "evidence_semantics": semantics, "error": str(exc)}
+
+    scan_paths = report_paths[:BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT]
+    running_reports: list[dict[str, Any]] = []
+    malformed_running_reports = 0
+    malformed_running_sample: list[dict[str, Any]] = []
+
+    def clipped(value: Any, limit: int) -> str:
+        raw = str(value or "").strip()
+        if len(raw) <= limit:
+            return raw
+        return raw[: max(0, limit - 3)] + "..."
+
+    def record_malformed(report_path: Path, reason: str, fields: dict[str, str] | None = None, value: Any = None) -> None:
+        nonlocal malformed_running_reports
+        malformed_running_reports += 1
+        if len(malformed_running_sample) >= BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT:
+            return
+        item = {"filename": report_path.name, "reason": reason}
+        run_id = str((fields or {}).get("run_id") or "").strip()
+        if run_id:
+            item["run_id"] = clipped(run_id, 120)
+        if value is not None:
+            item["value"] = clipped(value, 120)
+        malformed_running_sample.append(item)
+
+    for report_path in scan_paths:
+        try:
+            stat = report_path.stat()
+            with report_path.open("rb") as handle:
+                raw = handle.read(BOOTSTRAP_MANUAL_REPORT_READ_BYTES)
+            fields = _fields(raw)
+            if str(fields.get("state") or "").strip().upper() != "RUNNING":
+                continue
+            run_id = str(fields.get("run_id") or "").strip()
+            if not run_id:
+                record_malformed(report_path, "missing_run_id", fields)
+                continue
+            if report_path.stem.casefold() != run_id.casefold():
+                record_malformed(report_path, "run_id_filename_mismatch", fields)
+                continue
+            raw_last_activity = fields.get("last_activity_at")
+            last_activity = _parse_time(raw_last_activity)
+            if last_activity is None:
+                record_malformed(report_path, "invalid_last_activity_at", fields, raw_last_activity)
+                continue
+            last_activity_utc = last_activity.astimezone(timezone.utc)
+            if last_activity_utc > now + timedelta(seconds=60):
+                record_malformed(report_path, "future_last_activity_at", fields, raw_last_activity)
+                continue
+            report_mtime = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+            age_minutes = max(
+                0.0,
+                max(
+                    (now - last_activity_utc).total_seconds(),
+                    (now - report_mtime).total_seconds(),
+                ) / 60.0,
+            )
+            running_reports.append({
+                "run_id": clipped(run_id, 120),
+                "display_label": clipped(fields.get("display_label"), 120),
+                "repo": clipped(fields.get("repo"), 180),
+                "scope": clipped(fields.get("scope"), 280),
+                "state": "RUNNING",
+                "last_activity_at": str(fields.get("last_activity_at") or "").strip(),
+                "_age_minutes": age_minutes,
+            })
+        except (OSError, UnicodeError, ValueError, TypeError) as exc:
+            record_malformed(report_path, f"read_or_parse_error:{type(exc).__name__}")
+
+    running_reports.sort(key=lambda item: item["_age_minutes"])
+    recent_running = [
+        item for item in running_reports
+        if item["_age_minutes"] <= BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES
+    ]
+    sample: list[dict[str, Any]] = []
+    for item in recent_running[:BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT]:
+        visible = dict(item)
+        visible["age_minutes"] = round(float(visible.pop("_age_minutes")), 1)
+        sample.append(visible)
+
+    scan_truncated = len(report_paths) > len(scan_paths)
+    # The content-read cap and the recent-count completeness boundary are not
+    # the same thing. Reports are ordered newest-mtime-first, and recent
+    # eligibility already requires report mtime to be inside the freshness
+    # window. If the bounded scan has reached an mtime older than that window,
+    # every unscanned report is necessarily too old to affect the recent count.
+    recent_scan_cutoff_reached = not scan_truncated
+    if scan_truncated and scan_paths:
+        try:
+            oldest_scanned_mtime = datetime.fromtimestamp(scan_paths[-1].stat().st_mtime, timezone.utc)
+            oldest_scanned_age_minutes = max(0.0, (now - oldest_scanned_mtime).total_seconds() / 60.0)
+            recent_scan_cutoff_reached = oldest_scanned_age_minutes > BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES
+        except OSError:
+            # A stat race means we cannot prove that unscanned reports are too
+            # old, so retain the conservative lower-bound classification.
+            recent_scan_cutoff_reached = False
+    return {
+        "available": True,
+        "path": str(current_root),
+        "evidence_semantics": semantics,
+        "recent_window_minutes": BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES,
+        "scan_limit": BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT,
+        "current_report_file_count": len(report_paths),
+        "scanned_report_file_count": len(scan_paths),
+        "scan_truncated": scan_truncated,
+        "running_reports_in_scan": len(running_reports),
+        "recent_running_report_count": len(recent_running),
+        "recent_running_report_count_status": "COMPLETE" if recent_scan_cutoff_reached else "LOWER_BOUND",
+        "recent_scan_cutoff_reached": recent_scan_cutoff_reached,
+        "recent_running_reports": sample,
+        "recent_running_reports_truncated": len(recent_running) > len(sample),
+        "malformed_running_reports_in_scan": malformed_running_reports,
+        "malformed_running_reports": malformed_running_sample,
+        "malformed_running_reports_truncated": malformed_running_reports > len(malformed_running_sample),
+    }
+
 def _bootstrap_worker_status() -> dict[str, Any]:
     history_root = ATLAS_LIVE_ROOT / "worker-reports" / "history"
     if not history_root.exists():
@@ -496,7 +761,15 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         from tools.worker_report_history import _history_chronology_is_plausible, load_history_metadata
     except ImportError:
         from worker_report_history import _history_chronology_is_plausible, load_history_metadata
+    use_cache = getattr(load_history_metadata, "__module__", "") in {"tools.worker_report_history", "worker_report_history"}
+    if use_cache:
+        cached, cache_age = _bootstrap_cache_read("worker-status.json", BOOTSTRAP_WORKER_CACHE_SECONDS)
+        if cached is not None:
+            cached = dict(cached)
+            cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS}
+            return cached
     now = datetime.now(timezone.utc)
+    manual_current = _bootstrap_manual_current_status(now)
     stale_after_minutes = 90.0
     records = load_history_metadata(history_root)
     latest_by_worker: dict[str, dict[str, Any]] = {}
@@ -546,40 +819,56 @@ def _bootstrap_worker_status() -> dict[str, Any]:
             "target_utilization_pct": round(util,1) if util is not None else None,
             "classification": classification,
         }
-    latest = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:5]
-    for item in latest:
+    archive_sample_limit = 5
+    latest_archived = sorted(latest_by_worker.values(), key=lambda x: x["_finished_dt"], reverse=True)[:archive_sample_limit]
+    for item in latest_archived:
         item.pop("_finished_dt", None)
-    util_values = [x["target_utilization_pct"] for x in latest if isinstance(x.get("target_utilization_pct"),(int,float))]
-    duration_values = [x["duration_minutes"] for x in latest if isinstance(x.get("duration_minutes"),(int,float))]
+    util_values = [x["target_utilization_pct"] for x in latest_archived if isinstance(x.get("target_utilization_pct"),(int,float))]
+    duration_values = [x["duration_minutes"] for x in latest_archived if isinstance(x.get("duration_minutes"),(int,float))]
     attention = [
         {"worker": x.get("display_label"), "duration_minutes": x.get("duration_minutes"), "target_minutes": x.get("target_minutes"), "utilization_pct": x.get("target_utilization_pct"), "classification": x.get("classification"), "age_minutes": x.get("age_minutes")}
-        for x in latest
+        for x in latest_archived
         if x.get("report_freshness") == "RECENT"
         and x.get("classification") in {"SHORT","PREMATURE","SEVERELY_PREMATURE"}
     ]
     stale_reports = [
         {"worker": x.get("display_label"), "age_minutes": x.get("age_minutes"), "last_archived_classification": x.get("classification")}
-        for x in latest if x.get("report_freshness") == "STALE"
+        for x in latest_archived if x.get("report_freshness") == "STALE"
     ]
-    return {
+    result = {
         "available": True,
         "generated_at": now.isoformat(),
         "target_run_minutes": 24.0,
         "stale_after_minutes": stale_after_minutes,
-        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness",
-        "latest_per_worker": latest,
-        "fleet": {
-            "workers_seen": len(latest),
+        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+        "current_scheduler_membership": {
+            "available": False,
+            "authority": "ChatGPT Automations state",
+            "reason": "current enabled scheduler membership is not derivable from worker report history",
+        },
+        "latest_archived_per_worker": latest_archived,
+        "manual_current": manual_current,
+        "archive_sample": {
+            "selection": "five_most_recent_latest_archives_per_automation_id",
+            "sample_limit": archive_sample_limit,
+            "sampled_worker_count": len(latest_archived),
+            "historical_worker_ids_seen": len(latest_by_worker),
             "average_latest_duration_minutes": round(sum(duration_values)/len(duration_values),2) if duration_values else None,
             "average_latest_utilization_pct": round(sum(util_values)/len(util_values),1) if util_values else None,
-            "on_target_count": sum(1 for x in latest if x.get("classification") == "ON_TARGET"),
+            "on_target_count": sum(1 for x in latest_archived if x.get("classification") == "ON_TARGET"),
             "short_or_worse_count": len(attention),
             "stale_report_count": len(stale_reports),
         },
         "attention": attention,
         "stale_reports": stale_reports,
         "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
+        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_WORKER_CACHE_SECONDS},
     }
+    if use_cache:
+        cache_payload = dict(result)
+        cache_payload.pop("cache", None)
+        _bootstrap_cache_write("worker-status.json", cache_payload)
+    return result
 
 
 def _read_jsonl_tail(path: Path, max_lines: int, *, max_bytes: int = 8 * 1024 * 1024, chunk_bytes: int = 256 * 1024) -> list[Any]:
@@ -603,6 +892,44 @@ def _read_jsonl_tail(path: Path, max_lines: int, *, max_bytes: int = 8 * 1024 * 
         except (UnicodeDecodeError, json.JSONDecodeError):
             pass
     return rows
+
+
+def _bootstrap_cache_path(name: str) -> Path:
+    root = Path(os.path.expandvars(r"%LOCALAPPDATA%\StackAtlas\bootstrap-cache"))
+    return root / name
+
+
+def _bootstrap_cache_read(name: str, max_age_seconds: float) -> tuple[dict[str, Any] | None, float | None]:
+    path = _bootstrap_cache_path(name)
+    try:
+        age = max(0.0, datetime.now(timezone.utc).timestamp() - path.stat().st_mtime)
+        if age > max_age_seconds:
+            return None, age
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        return (payload, age) if isinstance(payload, dict) else (None, age)
+    except (OSError, json.JSONDecodeError):
+        return None, None
+
+
+def _bootstrap_cache_write(name: str, payload: dict[str, Any]) -> None:
+    path = _bootstrap_cache_path(name)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def _bootstrap_busy_claims_direct() -> list[dict[str, Any]]:
+    path = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    claims = payload.get("claims", []) if isinstance(payload, dict) else []
+    return [item for item in claims if isinstance(item, dict)]
 
 
 def _parse_event_time(value: Any) -> datetime | None:
@@ -673,6 +1000,12 @@ def _read_jsonl_window(
 
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
+    cached, cache_age = _bootstrap_cache_read("mcp-status.json", BOOTSTRAP_MCP_CACHE_SECONDS)
+    if cached is not None:
+        cached = dict(cached)
+        cached["cache"] = {"used": True, "age_seconds": round(cache_age or 0.0, 3), "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS}
+        return cached
+
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
     logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
     if not logs:
@@ -725,22 +1058,24 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= activity_window_seconds:
             active_items.append(item)
 
-    recent_ids = {item["caller_id"] for item in active_items}
+    workspace_counts: dict[str, int] = {}
+    for item in active_items:
+        cwds = item.get("cwds", [])
+        workspace = _bootstrap_session_workspace(cwds[-1] if cwds else None)
+        workspace_counts[workspace or "Unknown"] = workspace_counts.get(workspace or "Unknown", 0) + 1
+
+    sampled_items = active_items[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT]
+    recent_ids = {item["caller_id"] for item in sampled_items}
     busy_titles: dict[str, list[str]] = {cid: [] for cid in recent_ids}
     try:
-        busy = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator\busy-python.cmd"))
-        proc = subprocess.run([str(busy), "list"], text=True, capture_output=True, timeout=2)
-        claims = json.loads(proc.stdout).get("claims", []) if proc.returncode == 0 and proc.stdout.strip() else []
+        claims = _bootstrap_busy_claims_direct()
         active = {str(c.get("actor") or ""): c for c in claims if c.get("actor")}
         remaining = set(active)
         receipts = root / "shared-process-receipts"
-        # Transport rows already carry the exact process receipt UUID. Read only those
-        # receipts represented in the bounded transport tail instead of stat/sorting the
-        # entire receipt directory on every bootstrap.
-        busy_receipts_per_session_limit = 8
+        busy_receipts_per_session_limit = 4
         receipt_refs = [
             (item["caller_id"], receipts / f"{process_id}.json")
-            for item in active_items
+            for item in sampled_items
             for process_id in item.get("process_ids", [])[-busy_receipts_per_session_limit:]
         ]
         for caller, rp in reversed(receipt_refs):
@@ -759,50 +1094,284 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
         pass
 
     active_sessions = []
-    for item in active_items:
+    for original in sampled_items:
+        item = dict(original)
         cwds = item.pop("cwds", [])
         item.pop("process_ids", None)
         item["cwd"] = cwds[-1] if cwds else None
         item["workspace"] = _bootstrap_session_workspace(item["cwd"])
         item["busy_titles"] = busy_titles.get(item["caller_id"], [])
+        item = {k: item.get(k) for k in ("caller_id", "activity_age_seconds", "cwd", "workspace", "busy_titles")}
         active_sessions.append(item)
     source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
-    return {
+    result = {
         "available": True,
         "status": "LIVE" if source_age <= 60 else "STALE",
         "source_age_seconds": round(source_age,1),
-        "active_session_count": len(active_sessions),
+        "active_session_count": len(active_items),
         "active_session_count_status": "COMPLETE" if activity_window_complete else "LOWER_BOUND",
         "active_sessions": active_sessions,
+        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+        "active_sessions_truncated": len(active_items) > len(active_sessions),
+        "workspace_counts": workspace_counts,
         "activity_summary": {
             **counts,
             "sample_rows": len(rows),
             "sample_bytes": sample_bytes,
             "activity_window_seconds": activity_window_seconds,
             "activity_window_complete": activity_window_complete,
-            "busy_receipts_per_session_limit": 8,
+            "busy_receipts_per_sampled_session_limit": 4,
             "last_event_at": last_event_at,
             "last_kill": last_kill,
         },
+        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
+    }
+    cache_payload = dict(result)
+    cache_payload.pop("cache", None)
+    _bootstrap_cache_write("mcp-status.json", cache_payload)
+    return result
+
+
+def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
+    findings = report.get("worker_findings") if isinstance(report, dict) else None
+    if not isinstance(findings, dict):
+        return {}
+    populations = []
+    for item in findings.get("populations", []) if isinstance(findings.get("populations"), list) else []:
+        if not isinstance(item, dict):
+            continue
+        populations.append({
+            key: item.get(key)
+            for key in ("population", "status", "generated_at", "source_age_hours", "window_hours", "reports")
+        })
+    return {
+        "contract": findings.get("contract"),
+        "top_tags": list(findings.get("top_tags") or [])[:limit],
+        "populations": populations[:2],
     }
 
 
-def _bootstrap_memory_titles() -> list[dict[str, Any]]:
+def _bootstrap_memory_overview() -> dict[str, Any]:
+    cached, _ = _bootstrap_cache_read("memory-overview.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
+    if cached is not None and isinstance(cached.get("overview"), dict):
+        return cached["overview"]
     try:
-        from tools.memory_bank import load_bank, recent_title_entries
+        from tools.memory_bank import build_overview, load_bank
     except ImportError:
-        from memory_bank import load_bank, recent_title_entries
-    return [{k: item.get(k) for k in ("id", "timestamp", "title")} for item in recent_title_entries(load_bank(), limit=20)]
+        from memory_bank import build_overview, load_bank
+    report = build_overview(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)
+    overview = {
+        "contract": report.get("contract"),
+        "eligible_entries": report.get("eligible_entries", 0),
+        "recent": [
+            {k: item.get(k) for k in ("id", "timestamp", "title")}
+            for item in report.get("recent", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT]
+        ],
+        "projects": report.get("projects", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
+        "recurring_tags": report.get("recurring_tags", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
+        "worker_findings": _compact_worker_findings(report, BOOTSTRAP_MEMORY_TITLE_LIMIT),
+    }
+    _bootstrap_cache_write("memory-overview.json", {"overview": overview})
+    return overview
 
+
+def _bootstrap_memory_titles() -> list[dict[str, Any]]:
+    """Backward-compatible accessor for callers that only need recent titles."""
+    return list(_bootstrap_memory_overview().get("recent", []))
+
+
+def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
+    path = MCP_KNOWN_GOOD_FREEZE_PATH
+    if not path.exists():
+        return {"available": False, "status": "MISSING", "path": str(path)}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "status": "ERROR", "path": str(path), "error": str(exc)}
+    if not isinstance(raw, dict):
+        return {"available": False, "status": "ERROR", "path": str(path), "error": "freeze record is not an object"}
+    backend = raw.get("production_identity", {}).get("backend", {}) if isinstance(raw.get("production_identity"), dict) else {}
+    proof = raw.get("proof_state", {}) if isinstance(raw.get("proof_state"), dict) else {}
+    return {
+        "available": True,
+        "path": str(path),
+        "status": raw.get("status"),
+        "frozen_at": raw.get("frozen_at"),
+        "refreeze_not_before": raw.get("refreeze_not_before"),
+        "backend_commit": backend.get("commit"),
+        "backend_generation": backend.get("generation"),
+        "multi_day_real_use": proof.get("multi_day_real_use"),
+        "user_confirmed_stable": proof.get("user_confirmed_stable"),
+    }
+
+
+def _bootstrap_vault_status() -> dict[str, Any]:
+    """Bounded local Vault health; no fetches, history scans, or repo-wide status walk."""
+    started = time.perf_counter()
+    root = ROOT
+    memory_path = root / "memory" / "memory-bank.jsonl"
+    result: dict[str, Any] = {
+        "available": root.exists(),
+        "status": "OK",
+        "root_exists": root.exists(),
+        "bootstrap_file_exists": (root / "tools" / "stack_atlas.py").is_file(),
+        "memory_bank_exists": memory_path.is_file(),
+    }
+    if not root.exists():
+        result.update({"available": False, "status": "UNAVAILABLE", "latency_ms": round((time.perf_counter() - started) * 1000, 1)})
+        return result
+
+    git = shutil.which("git")
+    result["git_cli_available"] = bool(git)
+    if git:
+        try:
+            proc = subprocess.run(
+                [git, "-C", str(root), "rev-parse", "--is-inside-work-tree", "HEAD"],
+                text=True,
+                capture_output=True,
+                timeout=2,
+            )
+            lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+            result["git_worktree"] = proc.returncode == 0 and bool(lines) and lines[0].casefold() == "true"
+            if proc.returncode == 0 and len(lines) >= 2:
+                result["head"] = lines[-1]
+            if proc.returncode != 0:
+                result["status"] = "DEGRADED"
+        except (OSError, subprocess.TimeoutExpired):
+            result["git_worktree"] = False
+            result["status"] = "DEGRADED"
+    else:
+        result["git_worktree"] = False
+        result["status"] = "DEGRADED"
+
+    if memory_path.is_file():
+        try:
+            stat = memory_path.stat()
+            result["memory_bank_bytes"] = stat.st_size
+            result["memory_bank_age_seconds"] = round(max(0.0, time.time() - stat.st_mtime), 1)
+            tail = _read_jsonl_tail(memory_path, 1)
+            result["memory_bank_tail_readable"] = bool(tail)
+            if not tail and stat.st_size > 0:
+                result["status"] = "DEGRADED"
+        except OSError:
+            result["memory_bank_tail_readable"] = False
+            result["status"] = "DEGRADED"
+    else:
+        result["memory_bank_tail_readable"] = False
+        result["status"] = "DEGRADED"
+
+    if not result["bootstrap_file_exists"]:
+        result["status"] = "DEGRADED"
+    result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    return result
+
+
+def _bootstrap_github_status() -> dict[str, Any]:
+    """Bounded cached GitHub health; never lists issues, PRs, checks, or workflows."""
+    started = time.perf_counter()
+    cached, cache_age = _bootstrap_cache_read("github-status.json", BOOTSTRAP_GITHUB_CACHE_SECONDS)
+    if cached is not None:
+        cached_status = str(cached.get("status") or "")
+        cache_max_age = (
+            BOOTSTRAP_GITHUB_CACHE_SECONDS
+            if cached_status in {"OK", "WATCH"}
+            else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
+        )
+        if cache_age is not None and cache_age <= cache_max_age:
+            cached = dict(cached)
+            cached["cache"] = {
+                "used": True,
+                "age_seconds": round(cache_age, 3),
+                "max_age_seconds": cache_max_age,
+            }
+            cached["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+            return cached
+
+    gh = shutil.which("gh")
+    result: dict[str, Any] = {
+        "available": False,
+        "status": "UNAVAILABLE",
+        "cli_available": bool(gh),
+        "authenticated": False,
+        "api_reachable": False,
+    }
+
+    if gh:
+        api: subprocess.CompletedProcess[str] | None = None
+        try:
+            api = subprocess.run(
+                [gh, "api", "rate_limit"],
+                text=True,
+                capture_output=True,
+                timeout=BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+        if api is not None and api.returncode == 0:
+            # A successful authenticated API call proves both auth and reachability;
+            # avoid the redundant `gh auth status` subprocess on the normal path.
+            result.update({"available": True, "authenticated": True, "api_reachable": True})
+            try:
+                payload = json.loads(api.stdout)
+                core = payload.get("resources", {}).get("core", {}) if isinstance(payload, dict) else {}
+                limit = int(core.get("limit") or 0)
+                remaining = int(core.get("remaining") or 0)
+                used = int(core.get("used") or 0)
+                reset = int(core.get("reset") or 0)
+                remaining_pct = round((remaining / limit) * 100, 1) if limit > 0 else None
+                result["rate_limit"] = {
+                    "limit": limit,
+                    "remaining": remaining,
+                    "used": used,
+                    "remaining_pct": remaining_pct,
+                    "reset_at": datetime.fromtimestamp(reset, timezone.utc).isoformat() if reset > 0 else None,
+                }
+                result["status"] = "WATCH" if limit > 0 and remaining_pct is not None and remaining_pct < 10 else "OK"
+            except (json.JSONDecodeError, TypeError, ValueError, OverflowError):
+                result["status"] = "DEGRADED"
+        else:
+            # Only pay for the secondary auth probe when the API probe fails. This
+            # distinguishes missing/invalid auth from transient API reachability loss.
+            auth: subprocess.CompletedProcess[str] | None = None
+            try:
+                auth = subprocess.run(
+                    [gh, "auth", "status", "--active", "--hostname", "github.com"],
+                    text=True,
+                    capture_output=True,
+                    timeout=BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            result["authenticated"] = bool(auth is not None and auth.returncode == 0)
+            result["status"] = "DEGRADED" if result["authenticated"] else "UNAVAILABLE"
+
+    cache_max_age = (
+        BOOTSTRAP_GITHUB_CACHE_SECONDS
+        if result["status"] in {"OK", "WATCH"}
+        else BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS
+    )
+    result["cache"] = {"used": False, "age_seconds": 0.0, "max_age_seconds": cache_max_age}
+    result["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    cache_payload = dict(result)
+    cache_payload.pop("cache", None)
+    cache_payload.pop("latency_ms", None)
+    _bootstrap_cache_write("github-status.json", cache_payload)
+    return result
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    started = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=5) as pool:
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_mcp = pool.submit(_bootstrap_mcp_status)
-        f_memories = pool.submit(_bootstrap_memory_titles)
-        pc, workers, mcp, memories = f_pc.result(), f_workers.result(), f_mcp.result(), f_memories.result()
+        f_memory = pool.submit(_bootstrap_memory_overview)
+        f_vault = pool.submit(_bootstrap_vault_status)
+        pc, workers, mcp, memory_overview, vault = (
+            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result()
+        )
+    mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
@@ -817,10 +1386,33 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     memory_status = pc.get("memory", {}).get("status")
     if memory_status and memory_status != "OK":
         notable_conditions.append(f"memory_{str(memory_status).casefold()}_commit_headroom_{pc.get('memory', {}).get('commit_headroom_gb')}gb")
-    for item in workers.get("attention", []) if isinstance(workers, dict) else []:
-        notable_conditions.append(f"worker_report_{item.get('worker')}_{str(item.get('classification')).casefold()}_{item.get('duration_minutes')}m_of_{item.get('target_minutes')}m")
-    for item in workers.get("stale_reports", []) if isinstance(workers, dict) else []:
-        notable_conditions.append(f"worker_report_{item.get('worker')}_stale_{item.get('age_minutes')}m_since_archive")
+    worker_glance = {
+        key: workers.get(key) for key in (
+            "available", "generated_at", "evidence_semantics", "current_scheduler_membership",
+            "archive_sample", "attention", "stale_reports", "cache",
+        ) if key in workers
+    } if isinstance(workers, dict) else workers
+    if isinstance(worker_glance, dict):
+        worker_glance["current_activity"] = _bootstrap_worker_activity_from_mcp(mcp)
+
+    mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
+    vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
+    if mcp_health != "OK":
+        notable_conditions.append(f"mcp_{mcp_health.casefold()}")
+    if vault_health != "OK":
+        notable_conditions.append(f"vault_{vault_health.casefold()}")
+
+    elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
+    bootstrap_status = "OK" if mcp_health == vault_health == "OK" else "DEGRADED"
+    if elapsed_ms >= 5000:
+        notable_conditions.append(f"bootstrap_slow_{round(elapsed_ms)}ms")
+    bootstrap = {
+        "status": bootstrap_status,
+        "self_check": "OK" if (ROOT / "tools" / "stack_atlas.py").is_file() else "DEGRADED",
+        "elapsed_ms": elapsed_ms,
+        "component_statuses": {"mcp": mcp_health, "vault": vault_health},
+        "bounded_contract": "no_git_fetch_or_issue_pr_listing_or_busy_enumeration",
+    }
     return {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -835,21 +1427,46 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
             "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
             "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
-            "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
+            "mcp": r"%LOCALAPPDATA%\ChatGPTMcpMinimal",
+            "mcp_known_good_freeze": str(MCP_KNOWN_GOOD_FREEZE_PATH),
+            "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
         },
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
             "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
             "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
+            "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
             "memory_context": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <query>",
             "memory_timeline": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py timeline <query>",
         },
-        "pc": pc,
-        "workers": workers,
+        "bootstrap": bootstrap,
         "mcp": mcp,
+        "vault": vault,
+        "pc": pc,
+        "workers": worker_glance,
+        "mcp_known_good_freeze": mcp_known_good_freeze,
         "notable_conditions": notable_conditions,
-        "recent_memory_titles": memories,
+        "memory_overview": memory_overview,
+        "recent_memory_titles": memory_overview.get("recent", []),
+    }
+
+
+def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, Any]:
+    """Current execution activity from MCP/runtime evidence only; never from reports."""
+    if not isinstance(mcp, dict):
+        return {"authority": "live_mcp_runtime_evidence", "status": "UNAVAILABLE"}
+    activity_status = str(mcp.get("activity_evidence_status") or "")
+    if not activity_status:
+        activity_status = "FRESH" if mcp.get("active_session_count_status") == "COMPLETE" else "PARTIAL"
+    return {
+        "authority": "live_mcp_runtime_evidence",
+        "status": activity_status,
+        "observed_session_count": int(mcp.get("active_session_count") or 0),
+        "observed_session_count_status": mcp.get("active_session_count_status"),
+        "workspace_counts": mcp.get("workspace_counts", {}),
+        "sessions_truncated": bool(mcp.get("active_sessions_truncated")),
     }
 
 
@@ -861,20 +1478,215 @@ def component_details(name: str) -> dict[str, Any]:
     raise KeyError(requested)
 
 
+def _busy_scope_status(scope: str) -> dict[str, Any]:
+    try:
+        proc = subprocess.run([BUSY_CMD, "inspect", scope], text=True, capture_output=True, timeout=3)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"available": False, "scope": scope, "error": str(exc)}
+    if proc.returncode != 0:
+        return {"available": False, "scope": scope, "returncode": proc.returncode, "stderr": proc.stderr.strip()}
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return {"available": False, "scope": scope, "error": "invalid BusyCoordinator JSON"}
+    return {"available": True, "scope": scope, "job": payload.get("job"), "claim": payload.get("claim")}
+
+
+def production_change_gate(
+    target: str,
+    *,
+    actor: str,
+    busy_scope: str,
+    explicit_user_authorization: bool = False,
+    independent_rollback_verified: bool = False,
+    offpath_proof_verified: bool = False,
+    mcp_status: dict[str, Any] | None = None,
+    busy_status: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    requested = target
+    component = COMPONENT_ALIASES.get(target.casefold(), target)
+    reasons: list[str] = []
+    warnings: list[str] = []
+
+    if component not in COMPONENTS:
+        reasons.append("unknown_target_component")
+    elif component not in SHARED_PRODUCTION_COMPONENTS:
+        reasons.append("target_not_classified_shared_production")
+
+    if not explicit_user_authorization:
+        reasons.append("missing_explicit_live_production_authorization")
+    if not independent_rollback_verified:
+        reasons.append("independent_rollback_control_route_not_verified")
+    if not offpath_proof_verified:
+        reasons.append("offpath_canary_proof_not_verified")
+
+    busy = busy_status if busy_status is not None else _busy_scope_status(busy_scope)
+    if not busy.get("available"):
+        reasons.append("busy_scope_evidence_unavailable")
+    else:
+        claim = busy.get("claim") or {}
+        claimant = str(claim.get("actor") or "")
+        if not claimant:
+            reasons.append("busy_scope_not_claimed")
+        elif claimant != actor:
+            reasons.append("busy_scope_claimed_by_other_actor")
+
+    dependencies: dict[str, Any] = {}
+    if component in MCP_SHARED_PRODUCTION_COMPONENTS:
+        mcp = mcp_status if mcp_status is not None else _bootstrap_mcp_status()
+        dependencies["mcp"] = {
+            "available": bool(mcp.get("available")),
+            "status": mcp.get("status"),
+            "active_session_count": int(mcp.get("active_session_count") or 0),
+            "active_session_count_status": mcp.get("active_session_count_status"),
+            "active_sessions": mcp.get("active_sessions", []),
+        }
+        if not mcp.get("available") or mcp.get("status") != "LIVE" or mcp.get("active_session_count_status") != "COMPLETE":
+            reasons.append("mcp_dependency_evidence_incomplete")
+        elif int(mcp.get("active_session_count") or 0) > 0:
+            warnings.append("active_mcp_dependents_present")
+
+    return {
+        "schema": "production-change-gate.v1",
+        "target": {
+            "requested": requested,
+            "component": component if component in COMPONENTS else None,
+            "shared_production": component in SHARED_PRODUCTION_COMPONENTS,
+        },
+        "actor": actor,
+        "busy_scope": busy_scope,
+        "checks": {
+            "explicit_user_authorization_for_specific_live_change": bool(explicit_user_authorization),
+            "independent_rollback_control_route_verified": bool(independent_rollback_verified),
+            "offpath_canary_proof_verified": bool(offpath_proof_verified),
+            "busy_scope": busy,
+        },
+        "live_dependencies": dependencies,
+        "warnings": warnings,
+        "reasons": reasons,
+        "verdict": "PASS" if not reasons else "BLOCK",
+        "semantics": {
+            "go_continue_fix_are_not_production_authorization": True,
+            "busy_claim_is_collision_control_not_authorization": True,
+            "pass_is_necessary_not_sufficient_authority": True,
+        },
+    }
+
+
+FEATURE_QUERY_STOPWORDS = frozenset({
+    "a", "an", "and", "are", "ask", "asking", "better", "do", "does", "for", "how", "i", "is",
+    "it", "make", "me", "more", "my", "never", "of", "please", "should", "that", "the", "this", "to",
+    "what", "with", "work", "working", "works",
+})
+FEATURE_QUERY_SYNONYMS: dict[str, set[str]] = {
+    "automatic": {"aggregate", "aggregation", "overview", "digest"},
+    "automatically": {"aggregate", "aggregation", "overview", "digest"},
+    "aggregate": {"aggregation", "overview", "digest", "summary"},
+    "aggregation": {"aggregate", "overview", "digest", "summary"},
+    "discover": {"find", "navigation", "search", "owner"},
+    "navigate": {"navigation", "find", "search", "owner"},
+    "navigation": {"navigate", "find", "search", "owner"},
+    "useful": {"usefulness", "overview", "digest", "summary", "aggregate"},
+    "usefulness": {"useful", "overview", "digest", "summary", "aggregate"},
+    "where": {"find", "navigation", "owner"},
+}
+
+
+def _feature_query_terms(query: str) -> tuple[list[str], set[str]]:
+    base = [
+        term for term in re.findall(r"[a-z0-9]+", query.casefold())
+        if term and term not in FEATURE_QUERY_STOPWORDS
+    ]
+    expanded = set(base)
+    for term in base:
+        expanded.update(FEATURE_QUERY_SYNONYMS.get(term, set()))
+    return base, expanded
+
+
 def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
-    terms = [term for term in re.split(r"[^a-z0-9]+", query.casefold()) if term]
-    if not terms:
+    base_terms, expanded_terms = _feature_query_terms(query)
+    if not base_terms:
         return []
+    normalized_query = " ".join(base_terms)
+    exact_feature_trigger = (
+        any(
+            " ".join(re.findall(r"[a-z0-9]+", feature_id.casefold())) == normalized_query
+            for feature_id in FEATURE_INDEX
+        )
+        or any(
+            " ".join(re.findall(r"[a-z0-9]+", trigger.casefold())) == normalized_query
+            for spec in FEATURE_INDEX.values()
+            for trigger in spec["triggers"]
+        )
+    )
     ranked: list[tuple[int, str, dict[str, Any]]] = []
     for feature_id, spec in FEATURE_INDEX.items():
         semantic = " ".join([feature_id, *spec["owner_components"], *spec["triggers"]]).casefold()
-        if not any(term in semantic for term in terms):
-            continue
         detail = " ".join([*spec["entrypoints"], spec["boundary"]]).casefold()
-        score = sum(3 for term in terms if term in semantic) + sum(1 for term in terms if term in detail)
+        semantic_tokens = set(re.findall(r"[a-z0-9]+", semantic))
+        detail_tokens = set(re.findall(r"[a-z0-9]+", detail))
+        base_semantic = set(base_terms) & semantic_tokens
+        base_detail = set(base_terms) & detail_tokens
+        expanded_semantic = expanded_terms & semantic_tokens
+        trigger_bonus = sum(4 for trigger in spec["triggers"] if trigger.casefold() in normalized_query)
+        if not base_semantic and not expanded_semantic and not trigger_bonus:
+            continue
+        covered = sum(
+            1 for term in base_terms
+            if term in semantic_tokens or term in detail_tokens or any(term in trigger.casefold() for trigger in spec["triggers"])
+        )
+        score = (
+            6 * len(base_semantic)
+            + 2 * len(expanded_semantic - base_semantic)
+            + len(base_detail)
+            + trigger_bonus
+            + 3 * covered
+        )
         ranked.append((score, feature_id, {"id": feature_id, **spec, "authority": ATLAS_CONTRACT["authority"]}))
+
+    # Natural-language `find` is also a component locator. Fill remaining slots with
+    # direct component matches so callers do not need to know whether a concept was
+    # modeled as a feature or a component before asking Atlas.
+    for component_id, spec in COMPONENTS.items():
+        semantic = " ".join([
+            component_id,
+            str(spec.get("role") or ""),
+            *spec.get("capabilities", []),
+            *spec.get("resources", []),
+        ]).casefold()
+        semantic_tokens = set(re.findall(r"[a-z0-9]+", semantic))
+        base_matches = set(base_terms) & semantic_tokens
+        expanded_matches = expanded_terms & semantic_tokens
+        if not base_matches and not expanded_matches:
+            continue
+        if len(base_terms) > 1 and len(base_matches) < 2:
+            continue
+        full_component_match = len(base_matches) == len(set(base_terms))
+        score = 5 * len(base_matches) + len(expanded_matches - base_matches) + (20 if full_component_match and not exact_feature_trigger else 0)
+        ranked.append((
+            score,
+            f"component.{component_id}",
+            {
+                "id": f"component.{component_id}",
+                "owner_components": [component_id],
+                "triggers": [component_id, str(spec.get("role") or "")],
+                "entrypoints": [f"python tools\\stack_atlas.py lookup {component_id}", *spec.get("canonical_sources", [])[:3]],
+                "boundary": "Direct component match. Use Atlas lookup for bounded owner details, then leave Atlas and work at that owner.",
+                "authority": ATLAS_CONTRACT["authority"],
+            },
+        ))
+
     ranked.sort(key=lambda item: (-item[0], item[1]))
-    return [item[2] for item in ranked[: max(1, limit)]]
+    seen: set[str] = set()
+    results: list[dict[str, Any]] = []
+    for _, result_id, result in ranked:
+        if result_id in seen:
+            continue
+        seen.add(result_id)
+        results.append(result)
+        if len(results) >= max(1, limit):
+            break
+    return results
 
 
 def _ancestry(pid: int, by_pid: dict[int, dict[str, Any]], limit: int = 16) -> list[dict[str, Any]]:
@@ -897,9 +1709,18 @@ def classify_process(process: dict[str, Any], by_pid: dict[int, dict[str, Any]])
     evidence: list[str] = []
     component: str | None = None
 
-    if "mcpvpsedge" in ancestry_text or "vps_mcp_reverse_tunnel.py" in command:
+    if (
+        "mcpvpsedge" in ancestry_text
+        or "vps_mcp_reverse_tunnel.py" in command
+        or (
+            "ssh.exe" in command
+            and "tietokettu_edge" in command
+            and "127.0.0.1:3011" in command
+            and any(f"127.0.0.1:310{lane}:" in command for lane in range(1, 5))
+        )
+    ):
         component = "vps_edge_ingress"
-        evidence.append("McpVpsEdge reverse-tunnel process ancestry")
+        evidence.append("McpVpsEdge primary/fallback transport process")
     elif "chatgptmcpclean" in ancestry_text and "front-door" in ancestry_text:
         component = "mcp_front_door"
         evidence.append("ChatGPTMcpClean front-door process ancestry")
@@ -1138,6 +1959,13 @@ def main() -> int:
     blast = sub.add_parser("blast-radius")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
+    prod = sub.add_parser("production-change-gate")
+    prod.add_argument("target")
+    prod.add_argument("--actor", required=True)
+    prod.add_argument("--busy-scope", required=True)
+    prod.add_argument("--explicit-user-authorization", action="store_true")
+    prod.add_argument("--independent-rollback-verified", action="store_true")
+    prod.add_argument("--offpath-proof-verified", action="store_true")
     args = parser.parse_args()
 
     if args.command == "bootstrap-glance":
@@ -1160,6 +1988,15 @@ def main() -> int:
             value = component_details(args.component)
         except KeyError:
             parser.error(f"unknown Atlas component: {args.component}")
+    elif args.command == "production-change-gate":
+        value = production_change_gate(
+            args.target,
+            actor=args.actor,
+            busy_scope=args.busy_scope,
+            explicit_user_authorization=args.explicit_user_authorization,
+            independent_rollback_verified=args.independent_rollback_verified,
+            offpath_proof_verified=args.offpath_proof_verified,
+        )
     else:
         if args.snapshot:
             processes, ports, resources = load_snapshot(args.snapshot)

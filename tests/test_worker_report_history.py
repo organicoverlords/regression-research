@@ -12,7 +12,9 @@ from tools.worker_report_history import archive_finalized_report, begin_timed_ru
 
 class WorkerReportHistoryTests(unittest.TestCase):
     @staticmethod
-    def _write_timed_start_receipt(report: Path, observed_started_at: str) -> Path:
+    def _write_timed_start_receipt(
+        report: Path, observed_started_at: str, *, reported_started_at: str | None = None
+    ) -> Path:
         receipt = report.parent.parent / ".supervision" / f"{report.stem}.start.json"
         receipt.parent.mkdir(parents=True, exist_ok=True)
         receipt.write_text(
@@ -20,11 +22,13 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "schema": "worker-run-start.v1",
                 "automation_id": report.stem,
                 "observed_started_at": observed_started_at,
-                "reported_started_at": observed_started_at,
+                "reported_started_at": reported_started_at or observed_started_at,
                 "initial_report_sha256": "fixture",
             }) + "\n",
             encoding="utf-8",
         )
+        observed = datetime.fromisoformat(observed_started_at.replace("Z", "+00:00"))
+        os.utime(receipt, (observed.timestamp(), observed.timestamp()))
         return receipt
 
     def test_archives_exact_finalized_bytes(self):
@@ -371,10 +375,100 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 "stop_reason: useful work window materially exhausted\n",
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "Under 80% utilization"):
+            with self.assertRaisesRegex(ValueError, "reported started_at changed after timed run begin"):
                 archive_finalized_report(report, root / "history")
             self.assertTrue((root / ".supervision" / f"{automation_id}.start.json").exists())
             self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+
+    def test_timed_run_rejects_stale_receipt_from_prior_generation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "5" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {(now - timedelta(minutes=5)).isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            stale_observed = (now - timedelta(minutes=60)).isoformat()
+            current_started = (now - timedelta(minutes=5)).isoformat()
+            receipt = self._write_timed_start_receipt(
+                report, stale_observed, reported_started_at=current_started
+            )
+            with self.assertRaisesRegex(ValueError, "start receipt is stale for this generation"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue(receipt.exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_timed_run_rejects_receipt_payload_backdated_before_file_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "8" * 32
+            now = datetime.now().astimezone()
+            started = now - timedelta(minutes=20)
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: useful work window materially exhausted\n",
+                encoding="utf-8",
+            )
+            receipt = current.parent / ".supervision" / f"{automation_id}.start.json"
+            receipt.parent.mkdir(parents=True)
+            receipt.write_text(
+                json.dumps({
+                    "schema": "worker-run-start.v1",
+                    "automation_id": automation_id,
+                    "observed_started_at": started.isoformat(),
+                    "reported_started_at": started.isoformat(),
+                    "initial_report_sha256": "forged",
+                }) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "does not match receipt file write time"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue(receipt.exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_late_begin_cannot_self_attest_true_no_safe_work_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "6" * 32
+            now = datetime.now().astimezone()
+            reported_started = now - timedelta(minutes=18)
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUNNING\n"
+                "outcome: active\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n",
+                encoding="utf-8",
+            )
+            begin = begin_timed_run(report)
+            finished = datetime.now().astimezone()
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {reported_started.isoformat()}\n"
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500\nstate: RUN_FINISHED\n"
+                "outcome: claimed work\nmutation: product work\nvalidation: PASS\nremaining_gate: none\n"
+                "stop_reason: task-level blocker proven after safe existing execution surfaces and independent useful work were exhausted\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "late begin cannot establish early-stop eligibility"):
+                archive_finalized_report(report, root / "history")
+            self.assertTrue(Path(begin["receipt_path"]).exists())
+            self.assertIn("state: RUNNING", report.read_text(encoding="utf-8"))
+            self.assertFalse((root / "history" / "_reports").exists())
 
     def test_timed_run_archive_uses_observed_start_and_consumes_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -575,6 +669,91 @@ class WorkerReportHistoryTests(unittest.TestCase):
             manual_metrics = build_metrics_projection(root / "manual" / "history")
             self.assertEqual(manual_metrics["reports"], 0)
             self.assertNotIn("average_target_utilization_pct", manual_metrics)
+
+
+    def test_manual_finding_tag_aliases_normalize_to_canonical_tags(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-aliases"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\nstarted_at: 2026-09-05T09:00:00+03:00\n"
+                "last_activity_at: 2026-09-05T09:01:00+03:00\nrepo: regression-research\nscope: #559\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "finding_tags: collision, resource_issue, proof_gap, convergence, product\nfindings: observed aliases\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, history)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["finding_tags"], ["contention", "improvement", "other", "proof", "resource"])
+
+    def test_unknown_finding_tag_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            current.mkdir(parents=True)
+            run_id = "manual-unknown-tag"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\nstarted_at: 2026-09-05T09:00:00+03:00\n"
+                "last_activity_at: 2026-09-05T09:01:00+03:00\nrepo: regression-research\nscope: #559\nstate: RUN_FINISHED\n"
+                "outcome: useful work\nmutation: none\nvalidation: PASS\nremaining_gate: none\n"
+                "finding_tags: definitely_not_a_real_tag\nfindings: invalid\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "unknown finding_tags"):
+                archive_finalized_report(report, root / "manual" / "history")
+
+    def test_manual_metrics_and_events_dedupe_same_run_id_to_newest_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_root = root / "manual" / "history"
+            reports = history_root / "_reports"
+            reports.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            base = {
+                "schema": "worker-report-history.v6",
+                "population": "manual",
+                "run_id": "manual-same-logical-run",
+                "display_label": "Manual ChatGPT",
+                "state": "RUN_FINISHED",
+                "repo": "regression-research",
+                "scope": "#559",
+                "finished_at": (now - timedelta(minutes=2)).isoformat(),
+            }
+            older = {
+                **base,
+                "report_sha256": "aaa",
+                "archived_at": (now - timedelta(minutes=1)).isoformat(),
+                "duration_minutes": 3.0,
+                "outcome": "stale correction target",
+                "finding_tags": ["bug"],
+            }
+            newer = {
+                **base,
+                "report_sha256": "bbb",
+                "archived_at": now.isoformat(),
+                "duration_minutes": 7.0,
+                "outcome": "corrected logical run",
+                "finding_tags": ["improvement"],
+            }
+            (reports / "aaa.json").write_text(json.dumps(older), encoding="utf-8")
+            (reports / "bbb.json").write_text(json.dumps(newer), encoding="utf-8")
+
+            metrics = build_metrics_projection(history_root)
+            self.assertEqual(metrics["reports"], 1)
+            self.assertEqual(metrics["runs_with_duration"], 1)
+            self.assertEqual(metrics["average_duration_minutes"], 7.0)
+            self.assertEqual(metrics["finding_tag_counts"], {"improvement": 1})
+            self.assertEqual(metrics["latest_reports"][0]["report_sha256"], "bbb")
+
+            events = worker_history_events(history_root)
+            self.assertEqual(len(events), 1)
+            self.assertEqual(events[0]["id"], "worker:bbb")
+            self.assertEqual(events[0]["outcome"], "corrected logical run")
 
 
 

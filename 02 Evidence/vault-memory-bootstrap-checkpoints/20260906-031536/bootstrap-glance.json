@@ -1,0 +1,339 @@
+{
+  "bootstrap": {
+    "bounded_contract": "no_git_fetch_or_issue_pr_listing_or_busy_enumeration",
+    "component_statuses": {
+      "mcp": "OK",
+      "vault": "OK"
+    },
+    "elapsed_ms": 292.0,
+    "self_check": "OK",
+    "status": "OK"
+  },
+  "commands": {
+    "bootstrap": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py bootstrap-glance",
+    "memory_context": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\memory_bank.py context <query>",
+    "memory_overview": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\memory_bank.py overview",
+    "memory_timeline": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\memory_bank.py timeline <query>",
+    "process_blast_radius": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py blast-radius --pid <pid>",
+    "production_change_gate": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+    "stack_find": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py find <query>",
+    "stack_owner": "python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py lookup <id-or-alias>"
+  },
+  "generated_at": "2026-09-06T00:15:39.425799+00:00",
+  "mcp": {
+    "active_session_count": 7,
+    "active_session_count_status": "COMPLETE",
+    "active_session_detail_limit": 4,
+    "active_sessions": [
+      {
+        "activity_age_seconds": 0.4,
+        "busy_titles": [
+          "ChatGPT:caller_a018b0cbc049"
+        ],
+        "caller_id": "caller_a018b0cbc049",
+        "cwd": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpMinimal",
+        "workspace": "ChatGPTMcpMinimal"
+      },
+      {
+        "activity_age_seconds": 2.7,
+        "busy_titles": [],
+        "caller_id": "caller_5f176c45677d",
+        "cwd": "C:\\Users\\Lauri\\Desktop\\vault",
+        "workspace": "Vault"
+      },
+      {
+        "activity_age_seconds": 3.3,
+        "busy_titles": [
+          "ChatGPT:caller_4d37b0ec7f5d"
+        ],
+        "caller_id": "caller_4d37b0ec7f5d",
+        "cwd": "C:\\Users\\Lauri\\Desktop\\vault",
+        "workspace": "Vault"
+      },
+      {
+        "activity_age_seconds": 5.0,
+        "busy_titles": [],
+        "caller_id": "caller_07e1e06a5530",
+        "cwd": "C:\\Users\\Lauri\\Desktop\\vault",
+        "workspace": "Vault"
+      }
+    ],
+    "active_sessions_truncated": true,
+    "activity_summary": {
+      "activity_window_complete": true,
+      "activity_window_seconds": 300,
+      "busy_receipts_per_sampled_session_limit": 4,
+      "exits": 115,
+      "kills": 1,
+      "last_event_at": "2026-09-06T00:15:38.711Z",
+      "last_kill": {
+        "at": "2026-09-06T00:14:38.248Z",
+        "caller_id": "caller_de56c158c136",
+        "owner_caller_id": "caller_de56c158c136",
+        "pid": 41900
+      },
+      "nonzero_exits": 6,
+      "reads": 120,
+      "sample_bytes": 524288,
+      "sample_rows": 1115,
+      "starts": 116
+    },
+    "available": true,
+    "cache": {
+      "age_seconds": 0.0,
+      "max_age_seconds": 5.0,
+      "used": false
+    },
+    "source_age_seconds": 0.4,
+    "status": "LIVE",
+    "workspace_counts": {
+      "ChatGPTMcpMinimal": 1,
+      "Vault": 5,
+      "issue-1800-construction-unity": 1
+    }
+  },
+  "mcp_known_good_freeze": {
+    "available": true,
+    "backend_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+    "backend_generation": "backend-3011-28128-1788590585408",
+    "frozen_at": "2026-09-05T09:47:03.975512+03:00",
+    "multi_day_real_use": "PENDING",
+    "path": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-known-good-freeze.json",
+    "refreeze_not_before": "2026-09-07T09:47:03.975512+03:00",
+    "status": "CANDIDATE_KNOWN_GOOD",
+    "user_confirmed_stable": false
+  },
+  "memory_overview": {
+    "contract": "Aggregated durable/historical evidence only; never current repo, runtime, scheduler, or machine truth.",
+    "eligible_entries": 204,
+    "projects": [
+      {
+        "count": 11,
+        "latest": {
+          "id": "mem-20260904-cd594b2e",
+          "timestamp": "2026-09-04T03:16:36+03:00",
+          "title": "Remove changelog serialization from ordinary P3 PRs"
+        },
+        "name": "p3"
+      },
+      {
+        "count": 7,
+        "latest": {
+          "id": "mem-20260901-0c9128a6",
+          "timestamp": "2026-09-01T08:11:24+03:00",
+          "title": "3003 restart exposed omitted array-aware static routing"
+        },
+        "name": "ChatGPTMcpClean"
+      },
+      {
+        "count": 2,
+        "latest": {
+          "id": "mem-20260906-38aa180c",
+          "timestamp": "2026-09-06T02:03:57+03:00",
+          "title": "Major regression: MCP log bounding must never delete historical telemetry"
+        },
+        "name": "chatgpt-mcp-clean"
+      }
+    ],
+    "recent": [
+      {
+        "id": "mem-20260906-38aa180c",
+        "timestamp": "2026-09-06T02:03:57+03:00",
+        "title": "Major regression: MCP log bounding must never delete historical telemetry"
+      },
+      {
+        "id": "mem-20260906-04b5e668",
+        "timestamp": "2026-09-06T01:58:15+03:00",
+        "title": "SLOPWALL: proposed MCP-owned BUSY lifecycle despite orchestrator boundary"
+      },
+      {
+        "id": "mem-20260904-33a24173",
+        "timestamp": "2026-09-04T04:25:01+03:00",
+        "title": "Verified work converges automatically; branch cleanup preserves warm state"
+      }
+    ],
+    "recurring_tags": [
+      {
+        "count": 35,
+        "name": "slopwall"
+      },
+      {
+        "count": 22,
+        "name": "mcp"
+      },
+      {
+        "count": 22,
+        "name": "quick-note"
+      }
+    ],
+    "worker_findings": {
+      "contract": "Archived worker self-report evidence only; never current liveness, scheduler membership, progress, or repo/runtime truth.",
+      "populations": [
+        {
+          "generated_at": "2026-09-06T03:10:38.690241+03:00",
+          "population": "timed",
+          "reports": 85,
+          "source_age_hours": 0.08,
+          "status": "AVAILABLE",
+          "window_hours": 24.0
+        },
+        {
+          "generated_at": "2026-09-06T03:11:11.019764+03:00",
+          "population": "manual",
+          "reports": 127,
+          "source_age_hours": 0.07,
+          "status": "AVAILABLE",
+          "window_hours": 24.0
+        }
+      ],
+      "top_tags": [
+        {
+          "count": 171,
+          "name": "proof"
+        },
+        {
+          "count": 152,
+          "name": "improvement"
+        },
+        {
+          "count": 116,
+          "name": "tooling"
+        }
+      ]
+    }
+  },
+  "notable_conditions": [
+    "disk_watch_free_66.7gb"
+  ],
+  "paths": {
+    "agents": "C:\\Users\\Lauri\\.agents\\AGENTS.md",
+    "bootstrap": "C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py",
+    "issue_first_work_intake": "C:\\Users\\Lauri\\.agents\\RULES.md",
+    "lowvram": "C:\\Users\\Lauri\\Desktop\\lowvram3d-repo",
+    "mcp": "%LOCALAPPDATA%\\ChatGPTMcpMinimal",
+    "mcp_known_good_freeze": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-known-good-freeze.json",
+    "mcp_security_routing_log": "C:\\Users\\Lauri\\Desktop\\vault\\02 Evidence\\mcp-security-routing-events.jsonl",
+    "p3": "C:\\Users\\Lauri\\Documents\\Unreal Projects\\p3",
+    "rules": "C:\\Users\\Lauri\\.agents\\RULES.md",
+    "tiny3d": "C:\\Users\\Lauri\\Desktop\\tiny3d",
+    "tiny3d_library": "C:\\Users\\Lauri\\Desktop\\Tiny3D_LIBRARY",
+    "vault": "C:\\Users\\Lauri\\Desktop\\vault",
+    "worker_reports": "C:\\Users\\Lauri\\Desktop\\vault\\worker-reports"
+  },
+  "pc": {
+    "disk": {
+      "drive": "C:",
+      "free_gb": 66.7,
+      "reserve_25gb_ok": true,
+      "status": "WATCH",
+      "total_gb": 475.8,
+      "trend": {
+        "approx_24h": {
+          "age_hours": 23.96,
+          "delta_free_gb": 1.9,
+          "lost_gb": 0.0,
+          "previous_free_gb": 64.8
+        },
+        "previous": {
+          "age_hours": 0.02,
+          "delta_free_gb": -0.1,
+          "lost_gb": 0.1,
+          "previous_free_gb": 66.8
+        }
+      },
+      "used_gb": 409.1,
+      "used_pct": 86.0
+    },
+    "gpu": {
+      "sample_age_seconds": 0.0,
+      "sample_status": "LIVE",
+      "utilization_pct": 4,
+      "vram_free_mb": 4759,
+      "vram_total_mb": 6144,
+      "vram_used_mb": 1385
+    },
+    "memory": {
+      "commit_headroom_gb": 43.4,
+      "commit_limit_gb": 63.3,
+      "commit_used_gb": 20.0,
+      "commit_used_pct": 31.6,
+      "interpretation": "physical free RAM alone is not commit exhaustion; judge memory pressure from commit used/limit/headroom together",
+      "physical_free_gb": 3.4,
+      "physical_free_pct": 21.9,
+      "physical_total_gb": 15.3,
+      "status": "OK"
+    }
+  },
+  "recent_memory_titles": [
+    {
+      "id": "mem-20260906-38aa180c",
+      "timestamp": "2026-09-06T02:03:57+03:00",
+      "title": "Major regression: MCP log bounding must never delete historical telemetry"
+    },
+    {
+      "id": "mem-20260906-04b5e668",
+      "timestamp": "2026-09-06T01:58:15+03:00",
+      "title": "SLOPWALL: proposed MCP-owned BUSY lifecycle despite orchestrator boundary"
+    },
+    {
+      "id": "mem-20260904-33a24173",
+      "timestamp": "2026-09-04T04:25:01+03:00",
+      "title": "Verified work converges automatically; branch cleanup preserves warm state"
+    }
+  ],
+  "schema": "bootstrap.v1",
+  "vault": {
+    "available": true,
+    "bootstrap_file_exists": true,
+    "git_cli_available": true,
+    "git_worktree": true,
+    "head": "ffb68e1ecf929116f7300b13baf5ba0e5827761d",
+    "latency_ms": 189.6,
+    "memory_bank_age_seconds": 4300.5,
+    "memory_bank_bytes": 469877,
+    "memory_bank_exists": true,
+    "memory_bank_tail_readable": true,
+    "root_exists": true,
+    "status": "OK"
+  },
+  "workers": {
+    "archive_sample": {
+      "average_latest_duration_minutes": 20.5,
+      "average_latest_utilization_pct": 85.4,
+      "historical_worker_ids_seen": 16,
+      "on_target_count": 5,
+      "sample_limit": 5,
+      "sampled_worker_count": 5,
+      "selection": "five_most_recent_latest_archives_per_automation_id",
+      "short_or_worse_count": 0,
+      "stale_report_count": 0
+    },
+    "attention": [],
+    "available": true,
+    "cache": {
+      "age_seconds": 0.0,
+      "max_age_seconds": 10.0,
+      "used": false
+    },
+    "current_activity": {
+      "authority": "live_mcp_runtime_evidence",
+      "observed_session_count": 7,
+      "observed_session_count_status": "COMPLETE",
+      "sessions_truncated": true,
+      "status": "FRESH",
+      "workspace_counts": {
+        "ChatGPTMcpMinimal": 1,
+        "Vault": 5,
+        "issue-1800-construction-unity": 1
+      }
+    },
+    "current_scheduler_membership": {
+      "authority": "ChatGPT Automations state",
+      "available": false,
+      "reason": "current enabled scheduler membership is not derivable from worker report history"
+    },
+    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+    "generated_at": "2026-09-06T00:15:39.151004+00:00",
+    "stale_reports": []
+  }
+}

@@ -1,0 +1,15 @@
+ M "04 Operating Contracts/fresh-worker-generation-launch.md"
+ M docs/assistant-stack-operational-atlas.md
+ M memory/memory-bank.jsonl
+ M tests/test_memory_bootstrap.py
+ M tests/test_memory_recent_titles.py
+ M tests/test_stack_atlas.py
+ M tests/test_worker_report_history.py
+ M tools/memory_bank.py
+ M tools/stack_atlas.py
+ M tools/worker_report_history.py
+?? "01 Reports/2026-09-06_0204_EEST_MCP_log_retention_regression.md"
+?? "02 Evidence/mcp-security-routing-events.jsonl"
+?? "04 Operating Contracts/mcp-known-good-freeze.json"
+?? tests/test_bootstrap_health.py
+?? tests/test_memory_worker_findings.py

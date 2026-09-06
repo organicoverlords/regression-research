@@ -1,0 +1,110 @@
+{
+  "schema": "vault-memory-bootstrap-checkpoint.v1",
+  "status": "USER_EXPLICIT_KNOWN_PRETTY_GOOD",
+  "frozen_at": "2026-09-06T03:15:40.0045387+03:00",
+  "base_git_commit": "ffb68e1ecf929116f7300b13baf5ba0e5827761d",
+  "source_branch": "main",
+  "checkpoint_branch": "chatgpt/vault-memory-bootstrap-checkpoint-20260906-031536",
+  "checkpoint_tag": "vault-memory-bootstrap-user-known-pretty-good-20260906-031536",
+  "scope": "Vault memory + bootstrap only; MCP runtime freeze is explicitly out of scope",
+  "user_explicit_messages": [
+    "learn from your past mistakes and this time don't fuck this up. freeze the current situation as known pretty good user explicit checkpoint to roll back to if you become shit at everything again after this",
+    "im talking about the vault memory and bootstrap situation"
+  ],
+  "semantics": {
+    "authority": "User-explicit rollback/bisect checkpoint for Vault memory/bootstrap quality; not live repo/runtime truth and not automatic behavior authority",
+    "rollback_rule": "If later memory/bootstrap changes materially regress continuity, retrieval, compact bootstrap quality, or assistant usefulness, preserve unique later work first, compare against this checkpoint, and restore/reapply only the proven-good memory/bootstrap paths needed.",
+    "disqualification": "Fresh evidence may prove this checkpoint bad or incomplete; record that evidence rather than silently relabeling history.",
+    "preserve": "Do not overwrite unique later work merely because this checkpoint exists."
+  },
+  "source_worktree_status": " M \"04 Operating Contracts/fresh-worker-generation-launch.md\"\r\n M docs/assistant-stack-operational-atlas.md\r\n M memory/memory-bank.jsonl\r\n M tests/test_memory_bootstrap.py\r\n M tests/test_memory_recent_titles.py\r\n M tests/test_stack_atlas.py\r\n M tests/test_worker_report_history.py\r\n M tools/memory_bank.py\r\n M tools/stack_atlas.py\r\n M tools/worker_report_history.py\r\n?? \"01 Reports/2026-09-06_0204_EEST_MCP_log_retention_regression.md\"\r\n?? \"02 Evidence/mcp-security-routing-events.jsonl\"\r\n?? \"04 Operating Contracts/mcp-known-good-freeze.json\"\r\n?? tests/test_bootstrap_health.py\r\n?? tests/test_memory_worker_findings.py",
+  "files": [
+    {
+      "path": "04 Operating Contracts/fresh-worker-generation-launch.md",
+      "sha256": "D7A71664521074A045011E1913D535A78D69CDD1EBA9A3E66036348D4E8E58C4",
+      "bytes": 6609,
+      "tracked": true
+    },
+    {
+      "path": "docs/assistant-stack-operational-atlas.md",
+      "sha256": "1D058008321448E58F7D087CCC667E2405B3096CC6DD992B65AC96006A2DC5BF",
+      "bytes": 24567,
+      "tracked": true
+    },
+    {
+      "path": "memory/memory-bank.jsonl",
+      "sha256": "59C9A3087F90D7D8D5E8B17885ACD3F7934FDF4CD76BE8A29A25D625787D8615",
+      "bytes": 469877,
+      "tracked": true
+    },
+    {
+      "path": "tests/test_memory_bootstrap.py",
+      "sha256": "1F10D6A5E7A80DA6F9EC84EBFDD560F201A871B18636E12D037678542B1E0DEA",
+      "bytes": 3038,
+      "tracked": true
+    },
+    {
+      "path": "tests/test_memory_recent_titles.py",
+      "sha256": "ED8A10617DA1A32EBD9A51F82225A3C4B766A90CD3D599FFB62C23992BBDA256",
+      "bytes": 3634,
+      "tracked": true
+    },
+    {
+      "path": "tests/test_memory_worker_findings.py",
+      "sha256": "FE51548FD3025359A9DB55F1EC03F720B46DDF30F5D4E52208828619C4DE39C4",
+      "bytes": 4760,
+      "tracked": false
+    },
+    {
+      "path": "tests/test_stack_atlas.py",
+      "sha256": "4CEC04DD8AECACE94B688E17B48E1ABAD7C336BA3ED1BAE786583F708E2CCC0F",
+      "bytes": 41203,
+      "tracked": true
+    },
+    {
+      "path": "tests/test_bootstrap_health.py",
+      "sha256": "F3B679989974589421E1441535B7D064A052556587134357D1C690B079271B83",
+      "bytes": 3768,
+      "tracked": false
+    },
+    {
+      "path": "tests/test_worker_report_history.py",
+      "sha256": "AF6410D2C1A4EF35132CF9D35471E34BE67961414232161263A4DCD12CA47273",
+      "bytes": 44272,
+      "tracked": true
+    },
+    {
+      "path": "tools/memory_bank.py",
+      "sha256": "147192969A985767C6B89B45FE7AD1E1179938C600EA136DD0F036B19EE35411",
+      "bytes": 42437,
+      "tracked": true
+    },
+    {
+      "path": "tools/stack_atlas.py",
+      "sha256": "4899B196FF1802ABBD04AAE44CA2FB711497283D79F209FB3288B8DAF459ECEE",
+      "bytes": 108389,
+      "tracked": true
+    },
+    {
+      "path": "tools/worker_report_history.py",
+      "sha256": "B05F792A009CCC6DA928F12D0997D9C61182513C07CEA2A09AC454B0C4D47E9B",
+      "bytes": 30710,
+      "tracked": true
+    }
+  ],
+  "acceptance": {
+    "suite": "bounded Vault memory/bootstrap/Stack Atlas/worker-report tests",
+    "result": "KNOWN_TEST_FAILURES_RECORDED",
+    "passed": 186,
+    "failed": 5,
+    "subtests_passed": 36,
+    "failure_tests": [
+      "tests/test_memory_bootstrap.py::MemoryBootstrapRetirementTests::test_worker_contract_stays_small_and_non_blocking",
+      "tests/test_stack_atlas.py::StackAtlasTests::test_generated_operational_manual_matches_atlas",
+      "tests/test_stack_atlas.py::StackAtlasTests::test_live_bootstrap_displays_machine_workers_and_active_sessions",
+      "tests/test_bootstrap_health.py::BootstrapHealthTests::test_bootstrap_surfaces_component_health_and_notable_conditions",
+      "tests/test_bootstrap_health.py::BootstrapHealthTests::test_github_health_reports_rate_limit_without_listing_repo_state"
+    ],
+    "note": "User explicitly designated the observed state known-pretty-good; automated failures are preserved as known evidence and are not hidden or repaired inside the checkpoint."
+  }
+}
