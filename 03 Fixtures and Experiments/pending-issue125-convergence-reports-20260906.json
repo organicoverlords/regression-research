@@ -1,0 +1,13 @@
+{
+  "id": "pending-issue125-convergence-reports-20260906",
+  "title": "Regression Research #125 convergence report family",
+  "source_reports": [
+    "01 Reports/2026-09-06_0204_EEST_MCP_log_retention_regression.md",
+    "01 Reports/2026-09-06_0346_EEST_RED_ALERT_unproven_MCP_batching_ban_regression.md",
+    "01 Reports/2026-09-06_0531_EEST_RR125_timeline_convergence_research.md",
+    "01 Reports/2026-09-06_0552_EEST_Vault_serving_checkout_convergence.md"
+  ],
+  "capture_state": "pending",
+  "replay_ready": false,
+  "note": "The reports are preserved, provenance-indexed, and taxonomy-mapped, but no failure/success replay pair or scoring contract is established for these convergence/evidence records."
+}
