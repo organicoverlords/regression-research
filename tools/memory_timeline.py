@@ -239,6 +239,8 @@ def _event_source_family(event: dict[str, Any]) -> str:
         "WORKER_REPORT": "worker",
         "TRACKED_ARTIFACT": "artifact",
         "LOCAL_ARTIFACT": "artifact",
+        "LIBRARY_ARTIFACT": "artifact",
+        "MACHINE_OBSERVATION": "machine",
         "GITHUB_ISSUE": "github",
         "GITHUB_PR": "github",
         "GITHUB_ACTION": "github",
@@ -265,7 +267,7 @@ def _evidence_form(event: dict[str, Any]) -> str:
         return "commit"
     if source == "WORKER_REPORT":
         return "worker_report"
-    if source in {"TRACKED_ARTIFACT", "LOCAL_ARTIFACT"}:
+    if source in {"TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT"}:
         return str(event.get("artifact_type") or "artifact")
     if source == "GITHUB_ISSUE":
         return "issue"
@@ -277,6 +279,8 @@ def _evidence_form(event: dict[str, Any]) -> str:
         return "mcp_event"
     if source == "RUNNER_LOG":
         return "runner_log"
+    if source == "MACHINE_OBSERVATION":
+        return "machine_snapshot"
     return "observation"
 
 
@@ -547,7 +551,7 @@ def build_timeline_snapshots(
         slice_source_counts = Counter(str(event.get("source_type") or "UNKNOWN") for event in incremental)
         artifact_objects: dict[str, set[str]] = defaultdict(set)
         for event in cumulative:
-            if event.get("source_type") == "TRACKED_ARTIFACT":
+            if event.get("source_type") in {"TRACKED_ARTIFACT", "LIBRARY_ARTIFACT"}:
                 artifact_objects[str(event.get("artifact_type") or "artifact")].add(
                     str(event.get("path") or event.get("id") or "").replace(chr(92), "/").casefold()
                 )
