@@ -19,18 +19,24 @@ class RepoTimelineTests(unittest.TestCase):
         subprocess.run(["git", "-C", str(repo), "remote", "add", "origin", "https://github.com/example/project.git"], check=True)
         return repo
 
-    def commit(self, repo: Path, name: str, title: str, stamp: str) -> str:
+    def commit(self, repo: Path, name: str, title: str, stamp: str, *, body: str | None = None) -> str:
         (repo / name).write_text(title, encoding="utf-8")
         subprocess.run(["git", "-C", str(repo), "add", name], check=True)
         env = dict(os.environ, GIT_AUTHOR_DATE=stamp, GIT_COMMITTER_DATE=stamp)
-        subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", title], check=True, env=env)
+        command = ["git", "-C", str(repo), "commit", "-q", "-m", title]
+        if body:
+            command.extend(["-m", body])
+        subprocess.run(command, check=True, env=env)
         return subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True, encoding="utf-8").strip()
 
     def test_git_commit_events_are_read_only_bounded_and_keep_issue_refs(self):
         with tempfile.TemporaryDirectory() as d:
             repo = self.make_repo(Path(d))
             old = self.commit(repo, "a.txt", "initial", "2026-08-28T10:00:00+03:00")
-            new = self.commit(repo, "b.txt", "fix HUD acceptance (#617)", "2026-08-29T01:00:00+03:00")
+            new = self.commit(
+                repo, "b.txt", "fix HUD acceptance (#617)", "2026-08-29T01:00:00+03:00",
+                body="Measured deformation proof failed on the exported skin; follow-up #618 owns replay validation.",
+            )
             before = subprocess.check_output(["git", "-C", str(repo), "status", "--porcelain"], text=True)
             events = git_commit_events(RepoSpec("p3", repo), limit=1)
             after = subprocess.check_output(["git", "-C", str(repo), "status", "--porcelain"], text=True)
@@ -38,9 +44,11 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0]["sha"], new)
             self.assertEqual(events[0]["project"], "p3")
-            self.assertEqual(events[0]["refs"], ["#617"])
             self.assertEqual(events[0]["source_type"], "GIT_COMMIT")
             self.assertEqual(events[0]["authority"], "REPO_HISTORY")
+            self.assertIn("exported skin", events[0]["body"])
+            self.assertEqual(events[0]["changed_paths"], ["b.txt"])
+            self.assertEqual(events[0]["refs"], ["#617", "#618"])
             self.assertEqual(events[0]["repo_state"], "ALL_BRANCHES")
             self.assertNotEqual(events[0]["sha"], old)
 

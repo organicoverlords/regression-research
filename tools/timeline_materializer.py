@@ -1315,6 +1315,9 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
                     "allocated_duration_minutes": round(float(duration) / share, 3) if isinstance(duration, (int, float)) else None,
                     "target_utilization_pct": utilization,
                     "outcome": event.get("outcome"),
+                    "finding_tags": event.get("finding_tags") or [],
+                    "findings": event.get("findings"),
+                    "validation": event.get("validation"),
                 })
 
     # Derive efficiency and CI summaries after attachments are complete.
@@ -2090,10 +2093,18 @@ def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
         " ".join(str(value) for value in event.get("anchors", []) or []),
         " ".join(str(value) for value in event.get("evidence", []) or []),
     ])
+    rich_search = " ".join([
+        str(event.get("_search_text") or ""),
+        str(event.get("body") or ""),
+        " ".join(str(value) for value in event.get("changed_paths", []) or []),
+        str(event.get("findings") or ""),
+        str(event.get("validation") or ""),
+        str(event.get("outcome") or ""),
+    ])
     return [
         (4.0, _query_tokens(event.get("title"))),
         (2.0, _query_tokens(event.get("summary"))),
-        (1.2, _query_tokens(event.get("_search_text"))),
+        (1.2, _query_tokens(rich_search)),
         (2.2, _query_tokens(metadata)),
         (0.7, _query_tokens(links)),
     ]
@@ -2407,6 +2418,184 @@ def _refresh_cached_query_result(result: dict[str, Any], cache_age: float | None
     return refreshed
 
 
+
+_LESSON_GENERIC_TOKENS = {
+    "after", "again", "already", "before", "branch", "commit", "current", "exact", "failed", "failure",
+    "file", "files", "fixed", "issue", "later", "main", "only", "path", "paths", "project", "report",
+    "accepted", "correctly", "coverage", "result", "same", "source", "still", "test", "tests", "through", "tool", "using", "verified", "worker",
+}
+
+
+def _lesson_text(event: dict[str, Any]) -> str:
+    """Prefer technical evidence fields over identity-heavy report titles when expanding a task query."""
+    technical = " ".join([
+        str(event.get("findings") or ""),
+        str(event.get("validation") or ""),
+        str(event.get("body") or ""),
+        str(event.get("scope") or ""),
+        " ".join(str(value) for value in event.get("changed_paths", []) or []),
+    ]).strip()
+    if technical:
+        return technical
+    return " ".join([
+        str(event.get("summary") or ""),
+        str(event.get("outcome") or ""),
+        str(event.get("title") or ""),
+    ])
+
+
+def _lesson_packet(
+    query: str,
+    *,
+    selected: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    query_index: dict[str, Any] | None,
+    limit: int = 6,
+) -> dict[str, Any]:
+    """Build a bounded historical-prior packet from the existing query corpus only."""
+    packet_limit = min(8, max(3, int(limit)))
+    base = {
+        "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+        "validation": "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED",
+        "live_truth_required": True,
+        "nonblocking": True,
+        "query": " ".join(query.split()),
+        "items": [],
+    }
+    if not query:
+        return {**base, "status": "NOT_REQUESTED"}
+    seeds = [event for event in selected[:4] if isinstance(event, dict)]
+    if not seeds:
+        return {**base, "status": "NO_SEED_MATCH"}
+
+    query_tokens = _query_tokens(query)
+    seed_counts: Counter[str] = Counter()
+    for event in seeds:
+        seed_counts.update(_query_tokens(_lesson_text(event)))
+
+    postings = query_index.get("postings") if isinstance(query_index, dict) and isinstance(query_index.get("postings"), dict) else {}
+    corpus_size = max(1, len(candidates))
+    expansion_ranked: list[tuple[float, str, int]] = []
+    for token, count in seed_counts.items():
+        if (
+            len(token) < 4 or token.isdigit() or token in query_tokens or token in _QUERY_STOP_WORDS
+            or token in _LESSON_GENERIC_TOKENS
+        ):
+            continue
+        rows = postings.get(token)
+        if isinstance(rows, list):
+            df = len(rows)
+        else:
+            df = sum(1 for event in candidates if token in set().union(*(tokens for _, tokens in _event_query_fields(event))))
+        # A bridge term must reach beyond the seed and must not be generic across the corpus.
+        if df < 2 or df > max(40, int(corpus_size * 0.18)):
+            continue
+        score = float(count) * math.log(1.0 + (corpus_size + 1.0) / (df + 1.0))
+        expansion_ranked.append((score, token, df))
+    expansion_ranked.sort(key=lambda item: (item[0], -item[2], item[1]), reverse=True)
+    expansion = [token for _, token, _ in expansion_ranked[:16]]
+    expansion_weights = {token: score for score, token, _ in expansion_ranked[:16]}
+    if not expansion:
+        return {
+            **base,
+            "status": "NO_BRIDGE_TERMS",
+            "seed_event_ids": [str(event.get("id") or "") for event in seeds if event.get("id")],
+        }
+
+    concepts = _query_concepts(query)
+    seed_ids = {str(event.get("id") or "") for event in seeds}
+    ranked: list[tuple[float, dict[str, Any], list[str]]] = []
+    lesson_sources = {"GIT_COMMIT", "WORKER_REPORT", "VAULT_MEMORY", "TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT"}
+    for event in candidates:
+        source = str(event.get("source_type") or "")
+        if source not in lesson_sources:
+            continue
+        event_id = str(event.get("id") or "")
+        if event_id in seed_ids:
+            continue
+        merged = set().union(*(tokens for _, tokens in _event_query_fields(event)))
+        overlaps = [token for token in expansion if token in merged]
+        query_hits = sum(1 for concept in concepts if merged & concept)
+        if query_hits < 1 and len(overlaps) < 3:
+            continue
+        score = sum(expansion_weights.get(token, 0.0) for token in overlaps) + (2.0 * query_hits)
+        score *= {
+            "GIT_COMMIT": 1.35,
+            "TRACKED_ARTIFACT": 1.1,
+            "LOCAL_ARTIFACT": 1.0,
+            "WORKER_REPORT": 0.82,
+            "VAULT_MEMORY": 0.72,
+        }.get(source, 0.9)
+        if event.get("body"):
+            score *= 1.12
+        ranked.append((score, event, overlaps))
+    ranked.sort(
+        key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
+        reverse=True,
+    )
+
+    # Prefer cross-project transfer when it exists, but never discard same-project history:
+    # a soft first pass defers only the fifth+ item from one project, then fills any remaining slots.
+    per_project_soft_cap = max(2, (packet_limit + 1) // 2)
+    primary: list[tuple[float, dict[str, Any], list[str]]] = []
+    deferred: list[tuple[float, dict[str, Any], list[str]]] = []
+    project_counts: Counter[str] = Counter()
+    for row in ranked:
+        project_key = str(row[1].get("project") or "").casefold()
+        if project_key and project_counts[project_key] >= per_project_soft_cap:
+            deferred.append(row)
+            continue
+        primary.append(row)
+        if project_key:
+            project_counts[project_key] += 1
+
+    items: list[dict[str, Any]] = []
+    seen_subjects: set[tuple[str, str]] = set()
+    for score, event, overlaps in [*primary, *deferred]:
+        project = str(event.get("project") or "")
+        subject = _subject_key(event.get("title")) or str(event.get("title") or "").casefold()
+        subject_key = (project.casefold(), subject)
+        if subject and subject_key in seen_subjects:
+            continue
+        if subject:
+            seen_subjects.add(subject_key)
+        anchors = list(event.get("anchors", []) or [])
+        sha = str(event.get("sha") or "").strip()
+        if sha:
+            anchors.insert(0, f"gitsha:{sha}")
+        conclusion = (
+            _clip_query_value(event.get("body"), 440)
+            or _clip_query_value(event.get("findings"), 440)
+            or _clip_query_value(event.get("summary"), 440)
+            or _clip_query_value(event.get("outcome"), 440)
+            or _clip_query_value(event.get("title"), 440)
+        )
+        item = {
+            "source_event_id": event.get("id"),
+            "source_type": event.get("source_type"),
+            "project": event.get("project"),
+            "event_at": event.get("event_at"),
+            "title": _clip_query_value(event.get("title"), 220),
+            "conclusion": conclusion,
+            "relevance_terms": overlaps[:6],
+            "evidence_anchors": anchors[:6],
+        }
+        changed_paths = [str(value) for value in event.get("changed_paths", []) or [] if str(value).strip()]
+        if changed_paths:
+            item["changed_paths"] = changed_paths[:6]
+        items.append({key: value for key, value in item.items() if value not in (None, "", [], {})})
+        if len(items) >= packet_limit:
+            break
+
+    return {
+        **base,
+        "status": "READY" if items else "NO_RELATED_PRIORS",
+        "seed_event_ids": [str(event.get("id") or "") for event in seeds if event.get("id")],
+        "expansion_terms": expansion[:12],
+        "items": items,
+    }
+
+
 def query_materialized(
     *,
     root: Path = ROOT,
@@ -2535,11 +2724,12 @@ def query_materialized(
                 continue
             item = {key: worker.get(key) for key in (
                 "worker", "duration_minutes", "allocated_duration_minutes",
-                "target_utilization_pct", "outcome",
-            ) if worker.get(key) is not None}
-            outcome = str(item.get("outcome") or "")
-            if len(outcome) > 240:
-                item["outcome"] = outcome[:237].rstrip() + "..."
+                "target_utilization_pct", "outcome", "finding_tags", "findings", "validation",
+            ) if worker.get(key) not in (None, [], "")}
+            for field, clip in (("outcome", 240), ("findings", 360), ("validation", 240)):
+                value = str(item.get(field) or "")
+                if len(value) > clip:
+                    item[field] = value[: clip - 3].rstrip() + "..."
             workers.append(item)
         return {
             key: row.get(key) for key in (
@@ -2624,6 +2814,14 @@ def query_materialized(
 
     materialized = materialized_health(payload, now=now)
     materialized["schema"] = payload.get("schema")
+    lesson_packet = _lesson_packet(
+        query,
+        selected=selected,
+        candidates=candidates,
+        query_index=query_index,
+        limit=min(8, max(3, effective_limit)),
+    )
+
     result = {
         "schema_version": timeline.get("schema_version"),
         "authority": timeline.get("authority"),
@@ -2655,6 +2853,7 @@ def query_materialized(
             "store_summary": stored_continuity.get("summary", {}),
             "cases": [compact_case(case) for case in matched_cases[:case_limit]],
         },
+        "lesson_packet": lesson_packet,
         "work_graph": {
             "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
             "scope": "QUERY_MATCHED" if query or event_filters else "BOUNDED_OVERVIEW",

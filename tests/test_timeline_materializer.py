@@ -95,6 +95,9 @@ class TimelineMaterializerTests(unittest.TestCase):
             "duration_minutes": 20.4,
             "target_utilization_pct": 85.0,
             "outcome": "merged #1884",
+            "finding_tags": ["proof", "bug"],
+            "findings": "runtime proof showed the fallback avoided the stale avatar path",
+            "validation": "focused avatar regression 7/7 PASS",
             "mutation": f"#1884 -> {main_sha}",
             "refs": [f"#1884 -> {main_sha}"],
             "anchors": [],
@@ -118,6 +121,9 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual({item["sha"] for item in group["commits"]}, {branch_sha, main_sha})
         self.assertEqual(group["workers"][0]["worker"], "Repo Worker Hazel")
         self.assertEqual(group["workers"][0]["allocated_duration_minutes"], 20.4)
+        self.assertEqual(group["workers"][0]["finding_tags"], ["proof", "bug"])
+        self.assertIn("stale avatar path", group["workers"][0]["findings"])
+        self.assertEqual(group["workers"][0]["validation"], "focused avatar regression 7/7 PASS")
         self.assertEqual(group["efficiency"]["action_runs"], 1)
         self.assertEqual(group["efficiency"]["action_conclusions"], {"success": 1})
 
@@ -771,6 +777,99 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertGreaterEqual(query["work_graph"]["summary"]["matched_commit_groups"], 1)
             self.assertEqual(query["work_graph"]["similar_commit_groups"], [])
             self.assertNotIn("attached_event_ids", query["work_graph"]["commit_groups"][0])
+
+
+    def test_hummingbird_query_surfaces_real_lowvram_rigging_lessons_without_old_keywords(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            stamp = "2026-09-06T20:00:00+03:00"
+            seed = {
+                "id": "worker:hummingbird", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+                "event_at": stamp, "project": "tiny3d", "projects": ["tiny3d"],
+                "title": "Hummingbird qualification failed unchanged deformation QA",
+                "summary": "Welded avian region counts were checked before another rigging attempt.",
+                "findings": (
+                    "Hummingbird is already source-rigged and skinned with compatible body wing and tail chains. "
+                    "Tiny3D geometric rebind produced extreme deformation; preserve no hypothesis without measured QA. "
+                    "Weights, welded regions, rig validation, proof, and exported animation all need direct evidence."
+                ),
+                "refs": [], "anchors": [],
+            }
+            lessons = [
+                {
+                    "sha": "97ff891a4ca48faf77c334f80678133ea263c16f", "title": "Bone placement from the mesh, and weights over the surface",
+                    "body": (
+                        "Euclidean nearest-bone reaches across gaps and claims the wrong leg vertices. bind_geodesic measures distance over the surface "
+                        "using adjacency from welded vertex positions. GLB duplicates vertices at every UV seam, so raw index connectivity lies about the surface. "
+                        "Better weights alone were insufficient; measured leg axes were also required for deformation."
+                    ), "changed_paths": ["blender/rig_animate.py"],
+                },
+                {
+                    "sha": "8ad2a7ba8d3bbc92bca3bd09af798e17e7db99a4", "title": "Rigged exports lost their skin at the export call",
+                    "body": (
+                        "export_apply consumed the Armature modifier, leaving weights and animation but no skin binding, so a broken rig exited zero and could not deform. "
+                        "The repair verifies actually weighted vertices and exported rig state instead of trusting the operator."
+                    ), "changed_paths": ["blender/common.py", "blender/rig_animate.py"],
+                },
+                {
+                    "sha": "0e7bef0fa56bea230d1830ec2757dcf7c1413496", "title": "The five-pose verifier posed the wrong limb and called it a pass",
+                    "body": (
+                        "Opposite-side aliases resolved real bones, so proof rendered a rig flexing the wrong limb and returned pass. "
+                        "The verifier must validate its own same-side bindings and report the exact posed bone before judging deformation."
+                    ), "changed_paths": ["blender/five_pose_proof.py"],
+                },
+                {
+                    "sha": "6b6d1e3495a760839e0d53e998d86fce3dc4225d", "title": "fix: semantic weight repair for free-arm cape bleed",
+                    "body": (
+                        "The deformation cause was compute_weights, not animation curves. Semantic regions are defined first and arm reach is excluded from torso and cape, "
+                        "preventing tiny weight overlap from normalising into full wrong-region influence."
+                    ), "changed_paths": ["blender/shaman_proxy_rig.py", "proof/shaman-rig/latest/semantic_weight_report.json"],
+                },
+                {
+                    "sha": "b26c3cba9e10589eab87884b866cfe251d29d9b7", "title": "rig: separate appendages from cloth with a local shape test",
+                    "body": (
+                        "Surface distance alone selected a cloak hem instead of the tail. Local shape separates sheet-like cloth from tube-like appendages. "
+                        "A deformation proof render is required because 100 percent weighted vertices do not prove the tail bound to the tail."
+                    ), "changed_paths": ["blender/rig_animate.py", "blender/rig_appendage_proof.py"],
+                },
+            ]
+            events = [seed]
+            for index, raw in enumerate(lessons):
+                events.append({
+                    "id": f"git:lowvram:{raw['sha']}", "source_type": "GIT_COMMIT", "authority": "REPO_HISTORY",
+                    "event_at": f"2026-08-{8 + index:02d}T12:00:00+03:00", "project": "lowvram", "projects": ["lowvram"],
+                    "title": raw["title"], "summary": raw["title"], "body": raw["body"], "changed_paths": raw["changed_paths"],
+                    "sha": raw["sha"], "short_sha": raw["sha"][:10], "refs": [], "anchors": [],
+                })
+            payload = {
+                "schema": SCHEMA, "generated_at": stamp, "horizon_days": 30, "ingestion": {},
+                "timeline": {
+                    "schema_version": "1", "authority": "HISTORICAL_EVIDENCE_ONLY", "contract": "history only",
+                    "events": events, "historical_evidence_events": [], "work_graph": build_work_graph(events),
+                    "continuity_graph": {"cases": [], "summary": {}}, "materialized": {},
+                },
+            }
+            (state / "timeline-store.json").write_text(json.dumps(payload), encoding="utf-8")
+            result = query_materialized(root=root, query="hummingbird wing deformation", limit=8)
+        self.assertIsNotNone(result)
+        packet = result["lesson_packet"]
+        self.assertEqual(packet["status"], "READY")
+        self.assertEqual(packet["authority"], "DERIVED_HISTORICAL_PRIORS_ONLY")
+        self.assertEqual(packet["validation"], "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED")
+        self.assertTrue(packet["live_truth_required"])
+        self.assertLessEqual(len(packet["items"]), 8)
+        titles = {item["title"] for item in packet["items"]}
+        self.assertIn("Bone placement from the mesh, and weights over the surface", titles)
+        self.assertIn("Rigged exports lost their skin at the export call", titles)
+        self.assertIn("The five-pose verifier posed the wrong limb and called it a pass", titles)
+        self.assertIn("fix: semantic weight repair for free-arm cape bleed", titles)
+        self.assertIn("rig: separate appendages from cloth with a local shape test", titles)
+        self.assertTrue(all(item.get("evidence_anchors") for item in packet["items"] if item["source_type"] == "GIT_COMMIT"))
+        serialized = json.dumps(packet, ensure_ascii=False)
+        self.assertLess(len(serialized), 9000)
+
 
 
 if __name__ == "__main__":
