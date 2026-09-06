@@ -136,3 +136,16 @@ The outage was caused after that rejection: the assistant created a separate rev
 No additional guard framework is required by this finding. The existing operational consequence is: when the canonical replacement path cannot represent the requested topology, that lane is not a live-cutover path; do not manufacture a serving-path stop procedure to force the change.
 
 Issue #99 remains OPEN because its remaining acceptance is separately authorized live zero-public-gap proof. This RED incident does not authorize that live acceptance run and does not claim #99 is closed/proven.
+
+## 21:18 EEST full off-path validation
+
+No production mutation was performed. Fresh validation on the current `ChatGPTMcpClean` exact source head completed successfully:
+
+- `test-wireguard-production-replacement.mjs`: PASS — independent candidate task, candidate-first ordering, drain-before-stop, canonical supervisor reuse, rollback/candidate-serving recovery;
+- `prove-offpath-backend-replacement.mjs`: PASS — zero health failures, tool surface unchanged, OAuth preserved, BUSY preserved, process ID preserved;
+- `prove-wireguard-production-replacement.mjs`: PASS — private `10.203.0.2:3012` candidate reached from the VPS, bare Host=401, explicit `:443`=401, non-default `:444`=403, canonical `3011` untouched;
+- full `npm test`: PASS, including production-mutation preflight (`direct_serving_mutations_blocked=true`, `offpath_reference_allowed=true`), front-door continuity, supervisor continuity, clone/process continuity, local smoke with `production_untouched=true`, and `vps-wireguard-primary-contract: PASS`.
+
+Bounded post-proof cleanup verification found only the canonical production task plus the canonical replacement guardian/candidate tasks. Guardian and candidate are `Ready` with zero triggers. No listener remains on `3012`. Canonical `3011` remains the serving listener.
+
+This exhausts source/off-path validation. The remaining #99 gate is the separately authorized **live zero-public-gap acceptance** of the canonical 3012 -> 3011 transaction. A generic `go` does not authorize that live mutation under the existing canonical recovery contract, so it was not attempted here.
