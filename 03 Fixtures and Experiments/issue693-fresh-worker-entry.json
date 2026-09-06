@@ -1,0 +1,100 @@
+{
+  "id": "issue693-fresh-worker-entry-v1",
+  "title": "Fresh worker distinguishes existing WIP/history from genuinely new work",
+  "allowed_decisions": [
+    "reuse/resume",
+    "complement",
+    "review/prove",
+    "integrate",
+    "new"
+  ],
+  "cases": {
+    "hummingbird_overlap": {
+      "task_text": "The hummingbird wing collapses and deforms incorrectly during pose playback. Diagnose and make the smallest correct fix.",
+      "intended_source_scope": "tiny3d:src/tiny3d/workers/avian_rigging.py",
+      "observations": {
+        "relevant_wip": [
+          {
+            "kind": "open_pr",
+            "id": "PR-existing-wing-fix",
+            "scope": "tiny3d:src/tiny3d/workers/avian_rigging.py"
+          }
+        ],
+        "active_busy_claim": {
+          "scope": "tiny3d:src/tiny3d/workers/avian_rigging.py",
+          "actor": "ChatGPT:peer"
+        },
+        "history": {
+          "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+          "live_truth_required": true,
+          "lessons": [
+            "Export/replay can lose or alter skin binding, so verify the exported artifact rather than assuming source weights survived.",
+            "A rig can false-pass when vertices bind across mirrored limbs; verify side-specific assignments and deformation under pose."
+          ]
+        }
+      },
+      "candidates": {
+        "false_empty_duplicate": {
+          "decision": "new",
+          "mutation_scope": "tiny3d:src/tiny3d/workers/avian_rigging.py",
+          "claims_no_prior_work_or_peers": true,
+          "uses_current_issue_pr_evidence": false,
+          "uses_live_busy_evidence": false,
+          "history_treatment": "ignored",
+          "broad_archaeology": false
+        },
+        "review_existing": {
+          "decision": "review/prove",
+          "mutation_scope": null,
+          "claims_no_prior_work_or_peers": false,
+          "uses_current_issue_pr_evidence": true,
+          "uses_live_busy_evidence": true,
+          "history_treatment": "history_only",
+          "broad_archaeology": false
+        },
+        "complement_disjoint": {
+          "decision": "complement",
+          "mutation_scope": "regression-research:tests/test_issue693_fresh_worker_entry.py",
+          "claims_no_prior_work_or_peers": false,
+          "uses_current_issue_pr_evidence": true,
+          "uses_live_busy_evidence": true,
+          "history_treatment": "history_only",
+          "broad_archaeology": false
+        }
+      }
+    },
+    "routine_negative_control": {
+      "task_text": "Correct the misspelling in docs/example-note.md and run the focused check.",
+      "intended_source_scope": "repo:docs/example-note.md",
+      "observations": {
+        "relevant_wip": [],
+        "active_busy_claim": null,
+        "history": {
+          "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+          "live_truth_required": true,
+          "lessons": []
+        }
+      },
+      "candidates": {
+        "targeted_new": {
+          "decision": "new",
+          "mutation_scope": "repo:docs/example-note.md",
+          "claims_no_prior_work_or_peers": false,
+          "uses_current_issue_pr_evidence": true,
+          "uses_live_busy_evidence": true,
+          "history_treatment": "history_only",
+          "broad_archaeology": false
+        },
+        "ceremony_instead_of_fix": {
+          "decision": "review/prove",
+          "mutation_scope": null,
+          "claims_no_prior_work_or_peers": false,
+          "uses_current_issue_pr_evidence": true,
+          "uses_live_busy_evidence": true,
+          "history_treatment": "history_only",
+          "broad_archaeology": true
+        }
+      }
+    }
+  }
+}
