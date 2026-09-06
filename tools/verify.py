@@ -42,6 +42,7 @@ MEMORY_PATHS = {
     "tools/memory_hybrid.py",
     "tools/memory_timeline.py",
     "tools/mcp_reroute_evidence.py",
+    "tools/repo_timeline.py",
     "tools/timeline_materializer.py",
     "tools/provenance.py",
     "tests/test_memory_bank.py",
@@ -54,6 +55,7 @@ MEMORY_PATHS = {
     "tests/test_memory_retrieval_quality.py",
     "tests/test_memory_timeline.py",
     "tests/test_mcp_reroute_evidence.py",
+    "tests/test_repo_timeline.py",
     "tests/test_timeline_materializer.py",
     "tests/test_timeline_query_filters.py",
     "tests/test_memory_standalone.py",
@@ -160,8 +162,9 @@ def verify_memory() -> None:
             "tools/memory_hybrid.py",
             "tools/memory_timeline.py",
             "tools/mcp_reroute_evidence.py",
+            "tools/repo_timeline.py",
             "tools/timeline_materializer.py",
-                            "tools/provenance.py",
+            "tools/provenance.py",
         ]
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
@@ -179,6 +182,7 @@ def verify_memory() -> None:
             "tests/test_memory_retrieval_quality.py",
             "tests/test_memory_timeline.py",
             "tests/test_mcp_reroute_evidence.py",
+            "tests/test_repo_timeline.py",
             "tests/test_timeline_materializer.py",
             "tests/test_timeline_query_filters.py",
             "tests/test_memory_standalone.py",
