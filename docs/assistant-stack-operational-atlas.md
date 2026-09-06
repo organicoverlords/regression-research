@@ -115,9 +115,9 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Role: `lan_ssh_execution_node`
 - Capabilities: source_read, repository_mutate, runtime_validate, artifact_transfer, build_compute
 - Canonical sources: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md
-- Live status: bounded SSH probe through the documented Windows MCP -> LAN SSH route; mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass; current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof
+- Live status: bounded SSH probe through the documented Windows MCP -> LAN SSH route; mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass; current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof; sudo -n /usr/local/sbin/omen-agent-admin verify-storage validates /mnt/ue and /boot/efi without exposing a general root shell
 - Independent recovery: local laptop console remains independent of SSH; existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this optional node
-- Resources: HP OMEN by HP Laptop 15-dc0xxx; Linux user aatuska; mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local; C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents); LAN SSH TCP 22; Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile
+- Resources: HP OMEN by HP Laptop 15-dc0xxx; Linux user aatuska; mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local; C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents); LAN SSH TCP 22; Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile; NVMe UE_FAST /dev/nvme0n1p5 ext4 UUID a6c05af1-0ede-4327-9fec-0411ac6628ee mounted at /mnt/ue; /usr/local/sbin/omen-agent-admin fixed-action storage helper (status, verify-storage, mount-ue, restart-ready)
 - Dependents: chatgpt_session; execution_workers
 - Runbook: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md
 - Supervisor: user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only
