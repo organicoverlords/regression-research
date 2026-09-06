@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_metrics_projection, worker_history_events
+from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_manual_sanity_projection, build_metrics_projection, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -1010,6 +1010,63 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(events[0]["id"], "worker:bbb")
             self.assertEqual(events[0]["outcome"], "newest valid metadata")
 
+
+
+    def test_manual_sanity_requires_post_boundary_sample_and_then_scores_improvement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v1",
+                "baseline_id": "test-baseline",
+                "label": "test",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0,
+                    "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0,
+                    "micro_run_lt2_pct": 20.0,
+                },
+                "weights": {
+                    "median_report_bytes": 35.0,
+                    "mean_transcript_fields": 35.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0,
+                    "micro_run_lt2_pct": 10.0,
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            now = datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            empty = build_manual_sanity_projection(history, baseline_path=baseline_path, now=now)
+            self.assertEqual(empty["status"], "INSUFFICIENT_DATA")
+            self.assertIsNone(empty["score_delta"])
+            for index in range(5):
+                archive = reports / f"r{index}.md"
+                archive.write_text(
+                    f"run_id: r{index}\nstarted_at: 2026-09-06T21:{10+index:02d}:00+03:00\n"
+                    f"last_activity_at: 2026-09-06T21:{15+index:02d}:00+03:00\nrepo: vault\n"
+                    "state: RUN_FINISHED\noutcome: useful work\n",
+                    encoding="utf-8",
+                )
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"r{index}",
+                    "run_id": f"r{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{15+index:02d}:00+03:00", "duration_minutes": 5.0,
+                    "archived_at": f"2026-09-06T21:{16+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"r{index}", "outcome": "useful work"},
+                    "outcome": "useful work",
+                }
+                (reports / f"r{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+            scored = build_manual_sanity_projection(history, baseline_path=baseline_path, now=now)
+            self.assertEqual(scored["status"], "PROVISIONAL")
+            self.assertEqual(scored["post_run_count"], 5)
+            self.assertGreater(scored["score_delta"], 10.0)
+            self.assertEqual(scored["direction"], "IMPROVED")
+            self.assertEqual(scored["observation"]["mean_transcript_fields"], 0.0)
 
 
 
