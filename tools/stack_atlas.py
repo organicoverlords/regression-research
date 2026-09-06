@@ -910,13 +910,14 @@ def _bootstrap_manual_sanity() -> dict[str, Any]:
 
 
 def _bootstrap_worker_status() -> dict[str, Any]:
-    """Read archived worker-quality orientation from the periodic Vault projection only."""
-    path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
+    """Read current archived timed-worker quality directly from the metrics owner."""
+    path = ATLAS_LIVE_ROOT / "worker-reports" / "metrics.json"
     base = {
         "available": False,
-        "read_mode": "MATERIALIZED_ONLY",
+        "read_mode": "DIRECT_METRICS",
         "projection_path": str(path),
-        "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
+        "population_scope": "timed_worker_reports_in_live_metrics_window",
+        "evidence_semantics": "current_archived_timed_run_quality_not_process_liveness_or_scheduler_membership",
         "current_scheduler_membership": {
             "available": False,
             "authority": "ChatGPT Automations state",
@@ -924,19 +925,95 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         },
     }
     try:
-        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+        metrics = json.loads(path.read_text(encoding="utf-8-sig"))
     except FileNotFoundError:
-        return {**base, "status": "MISSING", "refresh_command": f'python "{ATLAS_LIVE_ROOT / "tools" / "timeline_materializer.py"}" refresh'}
+        return {**base, "status": "MISSING"}
     except (OSError, json.JSONDecodeError) as exc:
         return {**base, "status": "ERROR", "error": str(exc)}
-    workers = raw.get("workers") if isinstance(raw, dict) else None
-    if not isinstance(workers, dict):
-        return {**base, "status": "MISSING_WORKER_PROJECTION", "refresh_command": f'python "{ATLAS_LIVE_ROOT / "tools" / "timeline_materializer.py"}" refresh'}
-    result = json.loads(json.dumps(workers, ensure_ascii=False))
-    result["available"] = bool(result.get("available", True))
-    result["read_mode"] = "MATERIALIZED_ONLY"
-    result["projection_path"] = str(path)
-    result["materialized_as_of"] = raw.get("generated_at")
+    if not isinstance(metrics, dict) or str(metrics.get("population") or "").casefold() != "timed":
+        return {**base, "status": "INVALID_METRICS"}
+
+    now = datetime.now(timezone.utc)
+    latest_by_worker: dict[str, dict[str, Any]] = {}
+    for raw in metrics.get("latest_reports", []) if isinstance(metrics.get("latest_reports"), list) else []:
+        if not isinstance(raw, dict):
+            continue
+        worker_id = str(raw.get("automation_id") or "").strip()
+        if not worker_id or worker_id in latest_by_worker:
+            continue
+        finished = _parse_event_time(raw.get("finished_at") or raw.get("archived_at"))
+        if finished is None:
+            continue
+        duration = raw.get("duration_minutes")
+        utilization = raw.get("target_utilization_pct")
+        if not isinstance(utilization, (int, float)) and isinstance(duration, (int, float)):
+            utilization = round(float(duration) * 100.0 / 24.0, 1)
+        util = float(utilization) if isinstance(utilization, (int, float)) else None
+        if util is None:
+            classification = "UNKNOWN"
+        elif util < 25:
+            classification = "SEVERELY_PREMATURE"
+        elif util < 60:
+            classification = "PREMATURE"
+        elif util < 80:
+            classification = "SHORT"
+        else:
+            classification = "ON_TARGET"
+        age_minutes = max(0.0, (now - finished).total_seconds() / 60.0)
+        latest_by_worker[worker_id] = {
+            "automation_id": worker_id,
+            "display_label": raw.get("display_label"),
+            "finished_at": raw.get("finished_at") or raw.get("archived_at"),
+            "age_minutes": round(age_minutes, 1),
+            "report_freshness": "STALE" if age_minutes >= 90.0 else "RECENT",
+            "duration_minutes": round(float(duration), 2) if isinstance(duration, (int, float)) else None,
+            "target_minutes": 24.0,
+            "target_utilization_pct": round(util, 1) if util is not None else None,
+            "classification": classification,
+        }
+
+    latest_archived = list(latest_by_worker.values())[:5]
+    utilization_values = [float(item["target_utilization_pct"]) for item in latest_archived if isinstance(item.get("target_utilization_pct"), (int, float))]
+    duration_values = [float(item["duration_minutes"]) for item in latest_archived if isinstance(item.get("duration_minutes"), (int, float))]
+    attention = [
+        {
+            "worker": item.get("display_label"),
+            "duration_minutes": item.get("duration_minutes"),
+            "target_minutes": item.get("target_minutes"),
+            "utilization_pct": item.get("target_utilization_pct"),
+            "classification": item.get("classification"),
+            "age_minutes": item.get("age_minutes"),
+        }
+        for item in latest_archived
+        if item.get("report_freshness") == "RECENT" and item.get("classification") in {"SHORT", "PREMATURE", "SEVERELY_PREMATURE"}
+    ]
+    stale_reports = [
+        {"worker": item.get("display_label"), "age_minutes": item.get("age_minutes"), "last_archived_classification": item.get("classification")}
+        for item in latest_archived if item.get("report_freshness") == "STALE"
+    ]
+    result = {
+        **base,
+        "available": True,
+        "status": "CURRENT",
+        "generated_at": metrics.get("generated_at"),
+        "window_hours": metrics.get("window_hours"),
+        "archive_sample": {
+            "selection": "five_most_recent_latest_timed_archives_from_live_metrics",
+            "sample_limit": 5,
+            "sampled_worker_count": len(latest_archived),
+            "worker_ids_in_metrics_sample": len(latest_by_worker),
+            "population_scope": base["population_scope"],
+            "average_latest_duration_minutes": round(sum(duration_values) / len(duration_values), 2) if duration_values else None,
+            "average_latest_utilization_pct": round(sum(utilization_values) / len(utilization_values), 1) if utilization_values else None,
+            "on_target_count": sum(1 for item in latest_archived if item.get("classification") == "ON_TARGET"),
+            "short_or_worse_count": len(attention),
+            "stale_report_count": len(stale_reports),
+        },
+        "attention": attention,
+        "stale_reports": stale_reports,
+        "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
+        "historical_timeline_semantics": "timeline worker reports are historical context only and are not used for this current worker-quality block",
+    }
     result["manual_sanity"] = _bootstrap_manual_sanity()
     return result
 

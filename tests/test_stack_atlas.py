@@ -574,25 +574,33 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count_semantics"], None)
 
-    def test_worker_status_reads_materialized_projection_from_live_root_without_history_scan(self):
+    def test_worker_status_reads_live_timed_metrics_without_history_or_timeline_scan(self):
+        from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             source_root = root / "source"
             live_root = root / "live"
             source_root.mkdir()
-            projection = live_root / ".state" / "timeline" / "bootstrap-memory-overview.json"
-            projection.parent.mkdir(parents=True)
-            projection.write_text(json.dumps({
-                "schema": "vault.timeline.bootstrap.v1",
+            metrics = live_root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            latest = [
+                {
+                    "automation_id": f"worker-{index}", "display_label": f"Worker {index}",
+                    "finished_at": now.isoformat(), "duration_minutes": 20.0 + index,
+                    "target_utilization_pct": 83.3 + index,
+                }
+                for index in range(5)
+            ]
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": now.isoformat(), "window_hours": 24.0, "latest_reports": latest,
+            }), encoding="utf-8")
+            stale_timeline = live_root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            stale_timeline.parent.mkdir(parents=True)
+            stale_timeline.write_text(json.dumps({
                 "generated_at": "2026-09-06T12:00:00+00:00",
-                "overview": {},
-                "workers": {
-                    "available": True, "read_mode": "MATERIALIZED_ONLY",
-                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
-                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state"},
-                    "archive_sample": {"sampled_worker_count": 5, "average_latest_utilization_pct": 86.2},
-                    "attention": [], "stale_reports": [],
-                },
+                "workers": {"archive_sample": {"sampled_worker_count": 1}},
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ROOT", source_root), patch("tools.stack_atlas.ATLAS_LIVE_ROOT", live_root), patch(
                 "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("bootstrap must not scan worker history")
@@ -600,44 +608,47 @@ class StackAtlasTests(unittest.TestCase):
                 workers = _bootstrap_worker_status()
             load_history.assert_not_called()
             self.assertTrue(workers["available"])
-            self.assertEqual(workers["read_mode"], "MATERIALIZED_ONLY")
+            self.assertEqual(workers["status"], "CURRENT")
+            self.assertEqual(workers["read_mode"], "DIRECT_METRICS")
             self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
-            self.assertEqual(workers["materialized_as_of"], "2026-09-06T12:00:00+00:00")
-            self.assertEqual(Path(workers["projection_path"]), projection)
+            self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_from_live_metrics")
+            self.assertEqual(workers["generated_at"], now.isoformat())
+            self.assertEqual(Path(workers["projection_path"]), metrics)
+            self.assertIn("historical context only", workers["historical_timeline_semantics"])
 
-    def test_worker_projection_preserves_archived_quality_not_liveness_semantics(self):
+    def test_worker_direct_metrics_preserve_archived_quality_not_liveness_semantics(self):
+        from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            projection = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
-            projection.parent.mkdir(parents=True)
-            projection.write_text(json.dumps({
-                "schema": "vault.timeline.bootstrap.v1", "generated_at": "2026-09-06T12:00:00+00:00", "overview": {},
-                "workers": {
-                    "available": True, "read_mode": "MATERIALIZED_ONLY",
-                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
-                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state"},
-                    "archive_sample": {"stale_report_count": 1}, "attention": [],
-                    "stale_reports": [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}],
-                },
+            metrics = root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": now.isoformat(), "window_hours": 24.0,
+                "latest_reports": [
+                    {"automation_id": "recent", "display_label": "Recent", "finished_at": (now - timedelta(minutes=30)).isoformat(), "duration_minutes": 12.0, "target_utilization_pct": 50.0},
+                    {"automation_id": "stale", "display_label": "Stale", "finished_at": (now - timedelta(minutes=120)).isoformat(), "duration_minutes": 4.0, "target_utilization_pct": 16.7},
+                ],
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership")
-        self.assertEqual(workers["attention"], [])
-        self.assertEqual(workers["stale_reports"][0]["worker"], "Fir")
+        self.assertEqual(workers["evidence_semantics"], "current_archived_timed_run_quality_not_process_liveness_or_scheduler_membership")
+        self.assertEqual(workers["attention"][0]["worker"], "Recent")
+        self.assertEqual(workers["stale_reports"][0]["worker"], "Stale")
 
-    def test_worker_status_missing_projection_fails_closed_without_history_scan(self):
+    def test_worker_status_missing_live_metrics_fails_closed_without_history_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch(
-                "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("missing projection must not trigger history scan")
+                "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("missing metrics must not trigger history scan")
             ) as load_history:
                 workers = _bootstrap_worker_status()
             load_history.assert_not_called()
         self.assertFalse(workers["available"])
         self.assertEqual(workers["status"], "MISSING")
-        self.assertEqual(workers["read_mode"], "MATERIALIZED_ONLY")
-        self.assertIn("timeline_materializer.py", workers["refresh_command"])
+        self.assertEqual(workers["read_mode"], "DIRECT_METRICS")
+        self.assertNotIn("refresh_command", workers)
 
     def test_manual_current_diagnostic_surfaces_recent_running_purpose_without_claiming_liveness(self):
         from datetime import datetime, timedelta, timezone
@@ -761,32 +772,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(manual["recent_running_report_count"], BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT)
         self.assertEqual(manual["recent_running_report_count_status"], "LOWER_BOUND")
 
-    def test_worker_archive_projection_is_not_presented_as_current_scheduler_fleet(self):
+    def test_direct_worker_metrics_are_not_presented_as_current_scheduler_fleet(self):
+        from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            projection = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
-            projection.parent.mkdir(parents=True)
-            projection.write_text(json.dumps({
-                "schema": "vault.timeline.bootstrap.v1", "generated_at": "2026-09-06T12:00:00+00:00", "overview": {},
-                "workers": {
-                    "available": True, "read_mode": "MATERIALIZED_ONLY",
-                    "population_scope": "timed_worker_reports_in_materialized_horizon",
-                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
-                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state", "reason": "not derivable"},
-                    "archive_sample": {
-                        "selection": "five_most_recent_latest_timed_archives_in_materialized_horizon",
-                        "sample_limit": 5, "sampled_worker_count": 5, "historical_worker_ids_seen": 6,
-                    }, "attention": [], "stale_reports": [],
-                },
+            metrics = root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": now.isoformat(), "window_hours": 24.0,
+                "latest_reports": [
+                    {"automation_id": f"worker-{index}", "display_label": f"Worker {index}", "finished_at": now.isoformat(), "duration_minutes": 20.0, "target_utilization_pct": 83.3}
+                    for index in range(5)
+                ],
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 workers = _bootstrap_worker_status()
         self.assertNotIn("fleet", workers)
         self.assertFalse(workers["current_scheduler_membership"]["available"])
         self.assertEqual(workers["current_scheduler_membership"]["authority"], "ChatGPT Automations state")
-        self.assertEqual(workers["archive_sample"]["historical_worker_ids_seen"], 6)
+        self.assertEqual(workers["archive_sample"]["worker_ids_in_metrics_sample"], 5)
         self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
-        self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_in_materialized_horizon")
+        self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_from_live_metrics")
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone
