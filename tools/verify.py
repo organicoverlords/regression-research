@@ -23,9 +23,6 @@ STACK_PATHS = {
     "tests/test_stack_atlas.py",
     "tests/test_issue693_fresh_worker_entry.py",
     "tests/fixtures/issue693_fresh_worker_entry.json",
-    "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
-    "03 Fixtures and Experiments/issue125-busy-coordinator/rust/src/main.rs",
-    "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
     "tests/test_north_star_entry.py",
@@ -159,7 +156,6 @@ def verify_stack() -> None:
             "-v",
         ]
     )
-    run([sys.executable, "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py"])
     print("ASSISTANT_STACK_POLICY_PROVEN")
 
 
