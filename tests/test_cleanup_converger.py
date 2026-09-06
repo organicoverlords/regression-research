@@ -12,6 +12,7 @@ from tools.cleanup_converger import (
     Worktree,
     cwd_targets_path,
     eligibility_reason,
+    exact_anchor_refs,
     generated_cache_dirs,
     _clean_generated_cache_one,
     _fresh_cache_guard,
@@ -97,6 +98,9 @@ class CleanupConvergerTests(unittest.TestCase):
             eligibility_reason(detached, recent_cwds=set(), processes=[], clean=True, ref_matches=False),
             "detached_or_unanchored",
         )
+        self.assertIsNone(
+            eligibility_reason(detached, recent_cwds=set(), processes=[], clean=True, ref_matches=True)
+        )
         self.assertEqual(
             eligibility_reason(lane, recent_cwds={r"C:\Temp\lane"}, processes=[], clean=True, ref_matches=True),
             "recent_mcp_cwd_activity",
@@ -120,6 +124,28 @@ class CleanupConvergerTests(unittest.TestCase):
             "branch_ref_mismatch",
         )
 
+
+
+    @patch("tools.cleanup_converger._git")
+    def test_exact_anchor_refs_requires_direct_non_symbolic_ref(self, git):
+        git.return_value = subprocess.CompletedProcess(
+            ["git"],
+            0,
+            stdout=(
+                "refs/heads/topic\n"
+                "refs/remotes/origin/HEAD\n"
+                "refs/remotes/origin/main\n"
+            ),
+            stderr="",
+        )
+        lane = Worktree(Path(r"C:\Temp\lane"), "abcd", None, True)
+        self.assertEqual(
+            exact_anchor_refs(Path(r"C:\repo"), lane),
+            ["refs/heads/topic", "refs/remotes/origin/main"],
+        )
+        args = git.call_args.args
+        self.assertIn("--points-at", args)
+        self.assertIn("abcd", args)
 
     def test_locked_worktree_is_never_eligible(self):
         lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False, "protected worker lane")
