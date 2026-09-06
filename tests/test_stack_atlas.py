@@ -1466,13 +1466,16 @@ class Issue394StackVisibilityTests(unittest.TestCase):
 
 class McpRecoveryStateVisibilityTests(unittest.TestCase):
     def test_bootstrap_surfaces_canonical_mcp_freeze_and_reroute_log_paths(self):
-        glance = build_live_bootstrap_glance()
+        import tools.stack_atlas as atlas
+        recovery_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
+        with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", recovery_path):
+            glance = build_live_bootstrap_glance()
         self.assertIn("mcp_recovery_state", glance)
         if glance["mcp_recovery_state"]["available"]:
             self.assertEqual(glance["mcp_recovery_state"]["read_state"], "OK")
             summary = {item["type"]: item["status"] for item in glance["mcp_recovery_state"]["conditions"]}
-            self.assertIn(summary["SecurityReroutesReduced"], {"True", "False", "Unknown"})
-            self.assertIn(summary["SecurityReroutesEliminated"], {"True", "False", "Unknown"})
+            self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
+            self.assertEqual(summary["SecurityReroutesEliminated"], "False")
             self.assertEqual(summary["LongRunStable"], "Unknown")
         self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
@@ -1486,7 +1489,7 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertTrue(state["restore_first_on_regression"])
         self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
         summary = {item["type"]: item["status"] for item in state["conditions"]}
-        self.assertEqual(summary["SecurityReroutesReduced"], "True")
+        self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
         self.assertEqual(summary["SecurityReroutesEliminated"], "False")
         raw = json.loads(freeze_path.read_text(encoding="utf-8"))
         first_step = raw["recovery_target"]["policy"]["required_order"][0]

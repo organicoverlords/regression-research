@@ -1,7 +1,7 @@
 # Linux OMEN execution node
 
 Status: connected LAN execution node; user-owned; not a public MCP endpoint or scheduler.
-Work identity: organicoverlords/regression-research#651.
+Work identity: organicoverlords/regression-research#651. NVMe production-storage work: #661.
 
 ## Purpose
 
@@ -61,6 +61,25 @@ A bounded `du` attribution established that the main consumption is user data, n
 
 Do not delete, move, deduplicate, compress, or repurpose any of these large folders merely because they are large. They are user-owned data unless the user explicitly identifies exact disposable content.
 
+## NVMe production fast-storage lane
+
+Live read-only inspection on 2026-09-06 established the Samsung NVMe layout and usable capacity before any resize:
+
+- `/dev/nvme0n1`: 238.5 GiB total
+- `p1`: 260 MiB FAT32 EFI, mounted at `/boot/efi`; **must be preserved**
+- `p2`: 16 MiB Microsoft reserved; preserve while Windows remains supported
+- `p3`: 237.2 GiB NTFS `Windows`; read-only mount showed about 54 GiB used and 185 GiB free
+- `p4`: 980 MiB NTFS Windows recovery; preserve
+- Windows `Users` content is only about 361 MiB; the large Linux media folders are on the HDD, not this NVMe
+- the Windows volume contains a ~16 GiB hibernation file and ~2.9 GiB pagefile, so raw NTFS used space is not mostly user data
+
+**Requested production layout, not yet authoritative until a live post-resize probe passes:** preserve `p1`, `p2`, and `p4`; shrink Windows `p3` to about 90 GiB; allocate the freed ~147 GiB as ext4 with label `UE_FAST`; mount it persistently at `/mnt/ue`. The intended owned directories are `/mnt/ue/engine`, `/mnt/ue/projects`, `/mnt/ue/build`, `/mnt/ue/cache`, `/mnt/ue/tmp`, `/mnt/ue/toolchains`, and `/mnt/ue/bootstrap`.
+
+`/mnt/ue` is the preferred fast-storage lane for UE source, build intermediates, Derived Data Cache / other rebuildable caches, project worktrees that explicitly opt into the node, the Epic native toolchain, and temporary build material. The HDD remains the Linux root and user-media owner. Do not move or delete user media to make UE space when the NVMe lane is available.
+
+Before claiming `UE_FAST` is production-ready, prove all of the following live: `lsblk` shows the expected preserved EFI/recovery partitions and an ext4 `UE_FAST` partition; `/mnt/ue` is mounted by UUID from `/etc/fstab`; `df -hT /mnt/ue` shows the expected capacity; a user-owned write/read/delete probe succeeds; `/boot/efi` is still mounted; Windows partition identity remains NTFS; and a reboot does not lose the `/mnt/ue` mount. Until those checks pass, Atlas/runbooks may describe the plan and completion gate but must not claim the fast-storage lane exists.
+
+The destructive partition resize is a local privileged operation. Do not bypass Secure Boot, NTFS consistency checks, partition-table safety checks, or local authorization merely to automate it. Preserve a pre-change GPT/partition-table backup before resizing.
 ## Unreal Engine development state
 
 The current P3 project reports `EngineAssociation: 5.8` on the Windows repo. The laptop initially had Python 3.10, GCC 11.4 and Make, but lacked Git, Git LFS, pip, g++, CMake, Ninja, Node, Docker/Podman, CUDA and Rust.

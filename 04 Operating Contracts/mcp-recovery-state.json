@@ -1,6 +1,6 @@
 {
   "schema": "mcp-recovery-state.v1",
-  "updated_at": "2026-09-06T18:12:54.118147Z",
+  "updated_at": "2026-09-06T18:35:10Z",
   "deployment": {
     "id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
     "deployed_at": "2026-09-06T14:42:47.4099008Z",
@@ -81,11 +81,11 @@
     },
     {
       "type": "SecurityReroutesReduced",
-      "status": "True",
+      "status": "Unknown",
       "observed_generation": "backend-3011-21688-1788705761749",
-      "last_transition_at": "2026-09-06T19:43:24+03:00",
-      "reason": "AccumulatedPrePostEvidence",
-      "message": "Accumulated reports and explicit user assessment show materially fewer security reroutes after annotation deployment and ChatGPT action refresh, especially for read_output."
+      "last_transition_at": "2026-09-06T18:35:10Z",
+      "reason": "RateReductionNotStatisticallyEstablished",
+      "message": "Observed direct-tool-block evidence fell from 3 known occurrences across 17,141 pre-refresh process calls (0.175019 per 1,000) to 0 across 7,105 post-refresh calls, but the post zero-event one-sided 95% Poisson upper bound is about 0.422 per 1,000 and the equal-exposure control is also sparse. The underlying reduction is therefore not statistically established; broader user-visible/above-MCP reroutes persist."
     },
     {
       "type": "SecurityReroutesEliminated",
@@ -173,7 +173,7 @@
         "live_process_count": 0
       },
       "post_deploy_read_output_probe": "PASS",
-      "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Accumulated real-use evidence supports a material reduction in security-reroute frequency after annotation deployment and ChatGPT action refresh, especially for read_output. The symptom is reduced, not eliminated; later user-visible recurrence preserves an independent above-MCP/platform component."
+      "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Post-refresh direct-tool-block observations are lower than the pre-refresh record, but normalized sparse-event analysis does not statistically establish a reduced underlying rate: 3 known direct blocks / 17,141 pre-refresh calls (0.175019 per 1,000) versus 0 / 7,105 post-refresh calls, whose one-sided 95% Poisson upper bound is about 0.422 per 1,000. Broader user-visible/above-MCP reroutes persist, so no causal or elimination claim is supported."
     }
   },
   "history": {
@@ -189,6 +189,6 @@
     "Recovery-target selection and observed conditions are independent facts. Never infer whole-system health from the selected recovery target.",
     "Conditions use True/False/Unknown and are tied to the observed deployment generation; update only the condition supported by new evidence.",
     "Do not recreate any promotion label that combines recovery-target selection with health. LongRunStable can be Unknown while the same deployment remains the preferred recovery target.",
-    "Current operational truth is SecurityReroutesReduced=True and SecurityReroutesEliminated=False."
+    "Current operational truth is SecurityReroutesReduced=Unknown and SecurityReroutesEliminated=False: a lower observed direct-block count is real, but sparse normalized evidence does not yet establish a reduced underlying rate."
   ]
 }
