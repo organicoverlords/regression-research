@@ -288,6 +288,49 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(red_case["evidence_forms"], ["memory", "report", "screenshot"])
         self.assertEqual(red_case["observation_count"], 3)
         self.assertFalse(red_case["legacy_inferred"])
+        self.assertEqual(red_case["classification_quality"], "STRUCTURED")
+        self.assertFalse(red_case["legacy_support_present"])
+        self.assertEqual(red_case["legacy_dependent_fields"], [])
+
+    def test_mixed_case_is_not_legacy_dependent_when_structured_members_support_every_case_semantic(self):
+        now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")
+        report_path = "01 Reports/2026-09-06_red_case.md"
+        memory = self.e(
+            "red-memory", "2026-09-06T04:00:00+03:00", "Structured correction",
+            kind="correction", scope="mcp/reroute", title="Policy correction",
+            tags=["red-alert", "regression"], evidence=[report_path], thread="mcp-reroute-case",
+        )
+        report_event = {
+            "id": "artifact:red-report", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-06T05:00:00+03:00", "project": "regression-research",
+            "title": "report: RED ALERT preserved incident report", "artifact_type": "report", "path": report_path,
+            "evidence_type": "incident_report", "anchors": ["artifact:" + report_path.casefold()],
+        }
+        result = build_timeline([memory], artifact_events=[report_event], limit=20, snapshot_now=now)
+        case = next(case for case in result["snapshots"]["windows"][0]["continuity_cases"] if case["severity"] == "RED")
+        self.assertEqual(case["classification_quality"], "MIXED")
+        self.assertTrue(case["legacy_support_present"])
+        self.assertEqual(case["legacy_dependent_fields"], [])
+        self.assertFalse(case["legacy_inferred"])
+        report = next(event for event in result["events"] if event["id"] == "artifact:red-report")
+        self.assertTrue(report["continuity"]["legacy_severity_inferred"])
+        self.assertNotIn("legacy_traits_inferred", report["continuity"])
+
+    def test_case_remains_legacy_dependent_when_no_structured_member_supports_red_severity(self):
+        now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")
+        report_path = "01 Reports/2026-09-06_legacy_red_case.md"
+        report_event = {
+            "id": "artifact:legacy-red", "source_type": "TRACKED_ARTIFACT", "authority": "PRESERVED_REPO_ARTIFACT_HISTORY",
+            "event_at": "2026-09-06T05:00:00+03:00", "project": "regression-research",
+            "title": "report: RED ALERT old incident report", "artifact_type": "report", "path": report_path,
+            "evidence_type": "incident_report", "anchors": ["artifact:" + report_path.casefold()],
+        }
+        result = build_timeline([], artifact_events=[report_event], limit=20, snapshot_now=now)
+        case = result["snapshots"]["windows"][0]["continuity_cases"][0]
+        self.assertEqual(case["classification_quality"], "LEGACY_DEPENDENT")
+        self.assertTrue(case["legacy_support_present"])
+        self.assertEqual(case["legacy_dependent_fields"], ["severity:red"])
+        self.assertTrue(case["legacy_inferred"])
 
     def test_broad_github_anchor_is_corroboration_not_case_identity(self):
         now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
