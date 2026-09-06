@@ -1247,6 +1247,10 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         self.assertTrue(freeze["restore_first_on_regression"])
         self.assertTrue(freeze["post_restore_no_mcp_request_in_flight"])
         self.assertIn("USER_REPORTED_POST_RESTORE_REROUTE", freeze["security_reroute_rate_after_freeze"])
+        raw = json.loads(freeze_path.read_text(encoding="utf-8"))
+        first_step = raw["recovery_policy"]["required_order"][0]
+        self.assertIn("user explicitly asks", first_step)
+        self.assertIn("do not persist them", first_step)
 
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
@@ -1255,9 +1259,12 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         reroute = find_features("security reroute")[0]
         self.assertEqual(reroute["id"], "mcp.security_reroute_log")
         self.assertIn("must be logged", reroute["boundary"])
+        self.assertIn("user explicitly asks", reroute["boundary"])
+        self.assertIn("do not persist them", reroute["boundary"])
         recovery = find_features("restore working MCP")[0]
         self.assertEqual(recovery["id"], "mcp.regression_recovery")
         self.assertIn("Restore-first", recovery["boundary"])
+        self.assertIn("user explicitly asks", recovery["boundary"])
         self.assertIn("source SHA alone is insufficient", recovery["boundary"])
         self.assertIn("no MCP request in flight", recovery["boundary"])
 
