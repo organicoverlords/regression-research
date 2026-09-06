@@ -13,6 +13,8 @@ from typing import Any, Iterable
 PRODUCT_ROOTS = {
     "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
     "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
+    "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
+    "agents": r"C:\Users\Lauri\.agents",
     "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
 }
 

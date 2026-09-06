@@ -136,7 +136,7 @@ class RepoTimelineTests(unittest.TestCase):
         import tools.repo_timeline as repo_timeline
         import tools.stack_atlas as stack_atlas
 
-        self.assertEqual(set(repo_timeline.PRODUCT_ROOTS), {"lowvram", "tiny3d", "p3"})
+        self.assertEqual(set(repo_timeline.PRODUCT_ROOTS), {"lowvram", "tiny3d", "p3", "mcp", "agents"})
         original = dict(repo_timeline.PRODUCT_ROOTS)
         with patch.object(stack_atlas, "PRODUCT_ROOTS", {"sentinel": r"C:\definitely-not-a-product-root"}, create=True):
             self.assertEqual(repo_timeline.PRODUCT_ROOTS, original)
