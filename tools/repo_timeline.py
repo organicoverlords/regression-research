@@ -13,7 +13,9 @@ from typing import Any, Iterable
 PRODUCT_ROOTS = {
     "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
     "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
+    "mcp": r"%LOCALAPPDATA%\ChatGPTMcpClean",
     "p3": r"C:\Users\Lauri\Documents\Unreal Projects\p3",
+    "agents": r"C:\Users\Lauri\.agents",
 }
 
 ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
