@@ -185,6 +185,7 @@ class StackAtlasTests(unittest.TestCase):
                     "source_families": ["artifact", "memory"], "evidence_forms": ["memory", "report"],
                     "latest_signal_at": "2026-09-06T05:52:00+03:00",
                     "latest_title": "RED ALERT: unproven MCP batching-ban policy regression",
+                    "classification_quality": "MIXED",
                 }],
                 "corroborated_anchors": [{
                     "anchor": "github:organicoverlords/regression-research#125",
@@ -230,6 +231,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(windows["24h"]["context_only"][0]["role"], "CONTEXT_ONLY")
         self.assertEqual(windows["24h"]["cases"]["red"], 1)
         self.assertIn("case_examples", windows["24h"])
+        self.assertEqual(windows["24h"]["case_examples"][0]["support"], "mixed")
+        self.assertNotIn("legacy", windows["24h"]["case_examples"][0])
         self.assertEqual(fitted["timeline_snapshots"]["narrative"]["primary"], "cases")
 
     def test_bootstrap_memory_overview_reads_periodic_projection_without_rebuilding_sources(self):

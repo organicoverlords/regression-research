@@ -201,27 +201,36 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
 
     # Legacy-only fallback is deliberately narrow and visible. It only supplies a
     # missing field; it never re-labels already-structured semantics as legacy-derived.
+    legacy_severity_inferred = False
+    legacy_traits_inferred: set[str] = set()
     if (severity == "NORMAL" or not traits) and source in {"VAULT_MEMORY", "WORKER_REPORT", "TRACKED_ARTIFACT"}:
         fallback_traits, fallback_severity, fallback_basis = _legacy_signal_fallback(event)
         used_fallback: list[str] = []
         if severity == "NORMAL" and fallback_severity:
             severity = fallback_severity
+            legacy_severity_inferred = True
             used_fallback.extend(item for item in fallback_basis if item == "legacy_text:red_alert")
         if not traits and fallback_traits:
             traits.update(fallback_traits)
+            legacy_traits_inferred.update(fallback_traits)
             used_fallback.extend(item for item in fallback_basis if item != "legacy_text:red_alert")
         basis.extend(used_fallback)
 
     if severity == "RED" or traits & {"incident", "regression", "slopwall", "security_incident"}:
         event_class = "INCIDENT"
 
-    return {
+    result = {
         "event_class": event_class,
         "severity": severity,
         "traits": sorted(traits),
         "classification_basis": sorted(set(basis)),
         "legacy_inferred": any(item.startswith("legacy_text:") for item in basis),
     }
+    if legacy_severity_inferred:
+        result["legacy_severity_inferred"] = True
+    if legacy_traits_inferred:
+        result["legacy_traits_inferred"] = sorted(legacy_traits_inferred)
+    return result
 
 
 def _case_anchors(event: dict[str, Any]) -> list[str]:
@@ -418,19 +427,43 @@ def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, 
         bases = sorted({basis for node in group for basis in node["semantics"].get("classification_basis", [])})
         families = sorted({_event_source_family(node["event"]) for node in group})
         forms = sorted({_evidence_form(node["event"]) for node in group})
+        severity = "RED" if any(node["semantics"].get("severity") == "RED" for node in group) else "NORMAL"
+        legacy_support_present = any(node["semantics"].get("legacy_inferred") for node in group)
+        legacy_dependent_fields: list[str] = []
+        if severity == "RED" and not any(
+            node["semantics"].get("severity") == "RED"
+            and not node["semantics"].get("legacy_severity_inferred")
+            for node in signal_nodes
+        ):
+            legacy_dependent_fields.append("severity:red")
+        for trait in traits:
+            if not any(
+                trait in (node["semantics"].get("traits") or [])
+                and trait not in (node["semantics"].get("legacy_traits_inferred") or [])
+                for node in signal_nodes
+            ):
+                legacy_dependent_fields.append("trait:" + trait)
+        classification_quality = (
+            "LEGACY_DEPENDENT" if legacy_dependent_fields
+            else "MIXED" if legacy_support_present
+            else "STRUCTURED"
+        )
         latest_node = max(group, key=lambda node: (_dt(str(node["event"]["event_at"])), str(node["event"].get("id") or "")))
         latest_signal = max(signal_nodes, key=lambda node: (_dt(str(node["event"]["event_at"])), str(node["event"].get("id") or "")))
         cases.append({
             "case_id": anchors[0] if anchors else "event:" + str(latest_signal["event"].get("id") or "unknown"),
             "anchors": anchors,
-            "severity": "RED" if any(node["semantics"].get("severity") == "RED" for node in group) else "NORMAL",
+            "severity": severity,
             "traits": traits,
             "observation_count": len(group),
             "signal_observation_count": len(signal_nodes),
             "source_families": families,
             "evidence_forms": forms,
             "classification_basis": bases,
-            "legacy_inferred": any(node["semantics"].get("legacy_inferred") for node in group),
+            "classification_quality": classification_quality,
+            "legacy_support_present": legacy_support_present,
+            "legacy_dependent_fields": legacy_dependent_fields,
+            "legacy_inferred": bool(legacy_dependent_fields),
             "latest_event_at": latest_node["event"].get("event_at"),
             "latest_signal_at": latest_signal["event"].get("event_at"),
             "latest_title": _clip(latest_signal["event"].get("title"), 140),

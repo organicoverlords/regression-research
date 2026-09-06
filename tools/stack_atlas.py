@@ -1399,6 +1399,11 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
                     "forms": case.get("evidence_forms"),
                     "at": short_at(case.get("latest_signal_at")),
                     "title": _clip_bootstrap_text(case.get("latest_title"), 96),
+                    "support": {
+                        "STRUCTURED": "structured",
+                        "MIXED": "mixed",
+                        "LEGACY_DEPENDENT": "legacy-dependent",
+                    }.get(str(case.get("classification_quality") or "")),
                     "legacy": True if case.get("legacy_inferred") else None,
                 }.items() if value not in (None, {}, [], "")
             })
