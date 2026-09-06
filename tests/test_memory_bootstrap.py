@@ -36,7 +36,10 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("Five is a hard maximum for the recurring worker fleet", text)
 
         self.assertIn("The scheduler provides recurrence only", text)
-        self.assertIn("Workers never administer workers", text)
+        self.assertIn("Every recurring worker is also a bounded peer-recovery orchestrator", text)
+        self.assertIn("must never administer itself", text)
+        self.assertIn("may re-enable a disabled sibling", text)
+        self.assertIn("does not create a sixth supervisor slot", text)
         self.assertIn("About 24 minutes remains the timed utilization target", text)
         self.assertIn("existing >=80% completion guard", text)
         self.assertIn("Utilization never requires creating a new work identity", text)
