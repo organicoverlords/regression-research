@@ -16,11 +16,14 @@ from tools.timeline_materializer import (
     build_work_graph,
     github_events,
     install_task,
+    library_artifact_events,
     local_artifact_events,
     main,
+    machine_observation_events,
     materialize,
     materialized_health,
     mcp_events,
+    mcp_replacement_events,
     query_materialized,
     runner_log_events,
 )
@@ -145,6 +148,68 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(events[0]["artifact_type"], "evidence_log")
             self.assertEqual(coverage["events"], 1)
 
+    def test_library_artifact_adapter_expands_screenshot_corpus_and_generated_artifacts(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            evidence = root / "02 Evidence"
+            evidence.mkdir(parents=True)
+            screenshot_id = "file_00000000abc"
+            first = {
+                "file_id": screenshot_id, "filename": "screen.png",
+                "created_at_utc": "2026-09-06T03:00:00Z",
+                "subject": "first observation", "classification": "CONVERSATION_SCREENSHOT_NEW",
+                "review_status": "VISUALLY_REVIEWED", "tags": ["ui"],
+            }
+            duplicate = dict(first, subject="same Library file in later corpus shard")
+            generated = {
+                "file_id": "file_00000000def", "filename": "generated-note.md",
+                "created_at_utc": "2026-09-06T03:01:00Z", "source_kind": "generated",
+                "model_generated": True, "size_bytes": 1234,
+            }
+            (evidence / "2026-08-26_library_screenshot_shard_000.jsonl").write_text(
+                json.dumps(first) + "\n", encoding="utf-8"
+            )
+            (evidence / "2026-08-27_library_screenshot_text_occurrences_003.jsonl").write_text(
+                json.dumps(duplicate) + "\n" + json.dumps(generated) + "\n", encoding="utf-8"
+            )
+            events, coverage = library_artifact_events(root, since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+            self.assertEqual(len(events), 2)
+            self.assertEqual(coverage["files"], 2)
+            self.assertEqual(coverage["rows"], 3)
+            screenshot = next(event for event in events if event["library_file_id"] == screenshot_id)
+            self.assertEqual(screenshot["source_type"], "LIBRARY_ARTIFACT")
+            self.assertEqual(screenshot["artifact_type"], "screenshot")
+            self.assertIn(f"library-file:{screenshot_id}", screenshot["anchors"])
+            generated_event = next(event for event in events if event["library_file_id"] == "file_00000000def")
+            self.assertEqual(generated_event["artifact_type"], "library_artifact")
+            self.assertTrue(generated_event["model_generated"])
+            self.assertEqual(generated_event["source_kind"], "generated")
+
+    def test_machine_observation_adapter_accepts_legacy_and_rich_rows(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            path = Path(d) / "ChatGPTMcpClean" / ".state" / "bootstrap-observations.jsonl"
+            path.parent.mkdir(parents=True)
+            rows = [
+                {"at": "2026-09-06T03:00:00Z", "free_gb": 61.5},
+                {
+                    "at": "2026-09-06T03:05:00Z", "free_gb": 60.9, "disk_used_gb": 414.9,
+                    "physical_free_gb": 1.4, "commit_headroom_gb": 39.1, "commit_used_pct": 38.3,
+                    "vram_free_mb": 5086, "gpu_utilization_pct": 3,
+                },
+            ]
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            events, coverage = machine_observation_events(since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+            self.assertEqual(len(events), 2)
+            self.assertEqual(coverage["rows"], 2)
+            rich = events[0]
+            self.assertEqual(rich["source_type"], "MACHINE_OBSERVATION")
+            self.assertEqual(rich["artifact_type"], "machine_snapshot")
+            self.assertEqual(rich["commit_headroom_gb"], 39.1)
+            self.assertEqual(rich["vram_free_mb"], 5086)
+            legacy = events[1]
+            self.assertEqual(legacy["free_gb"], 61.5)
+            self.assertIsNone(legacy["commit_headroom_gb"])
+
     def test_github_adapter_projects_issues_prs_and_actions_without_body_fetches(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
         now = "2026-09-06T05:00:00Z"
@@ -216,6 +281,32 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(coverage["request_logs"], 1)
             self.assertEqual(coverage["receipts"], 1)
 
+    def test_mcp_adapter_projects_historical_production_version_replacements(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            root = Path(d) / "ChatGPTMcpClean" / ".state" / "production-replacement"
+            root.mkdir(parents=True)
+            old_head, new_head = "d6e2972" + "0" * 33, "4b95aa4" + "1" * 33
+            receipt = {
+                "request_id": "replacement-1", "recorded_at": "2026-09-06T03:00:00Z",
+                "status": "SUCCEEDED", "runtime_changed": True,
+                "old_head": old_head, "new_head": new_head,
+                "old_generation": "backend-3011-old", "new_generation": "backend-3011-new",
+                "old_dist_sha256": "a" * 64, "new_dist_sha256": "b" * 64,
+                "candidate_port": 3012, "secret": "DO_NOT_COPY",
+            }
+            (root / "receipt-replacement-1.json").write_text(json.dumps(receipt), encoding="utf-8")
+            events, coverage = mcp_replacement_events(
+                since=datetime(2026, 9, 5, tzinfo=timezone.utc)
+            )
+            replacement = next(event for event in events if event.get("mcp_event") == "production_replacement")
+            self.assertEqual(replacement["old_head"], old_head)
+            self.assertEqual(replacement["new_head"], new_head)
+            self.assertEqual(replacement["old_generation"], "backend-3011-old")
+            self.assertEqual(replacement["new_generation"], "backend-3011-new")
+            self.assertIn(new_head[:7], replacement["refs"])
+            self.assertNotIn("DO_NOT_COPY", json.dumps(replacement))
+            self.assertEqual(coverage["events"], 1)
+
     def test_runner_adapter_summarizes_and_does_not_copy_secret_lines(self):
         with tempfile.TemporaryDirectory() as d:
             diag = Path(d) / "runner" / "_diag"
@@ -266,7 +357,13 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "tools.timeline_materializer.worker_history_events", side_effect=[[], []]
             ) as worker_history, patch("tools.timeline_materializer.tracked_artifact_events", return_value=[]), patch(
                 "tools.timeline_materializer.local_artifact_events", return_value=([], {"events": 0, "candidates": 0, "limit": 1000, "saturated": False})
-            ), patch("tools.timeline_materializer.mcp_events", return_value=([], {"events": 0, "receipts_saturated": False, "errors": []})), patch(
+            ), patch(
+                "tools.timeline_materializer.library_artifact_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
+            ) as library_artifacts, patch(
+                "tools.timeline_materializer.machine_observation_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
+            ) as machine_observations, patch("tools.timeline_materializer.mcp_events", return_value=([], {"events": 0, "receipts_saturated": False, "errors": []})), patch(
+                "tools.timeline_materializer.mcp_replacement_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
+            ) as mcp_history, patch(
                 "tools.timeline_materializer.runner_log_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
             ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview):
                 result = materialize(
@@ -280,6 +377,11 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(collect_repo.call_args.kwargs["since"], expected_since)
             self.assertEqual(collect_repo.call_args.kwargs["limit_per_repo"], DEFAULT_DELTA_REPO_EVENTS_PER_REPO)
             self.assertTrue(all(call.kwargs["since"] == expected_since for call in worker_history.call_args_list))
+            expected_active_new_source_since = datetime(2026, 8, 7, 5, 5, tzinfo=timezone.utc)
+            expected_historical_source_since = datetime(2000, 1, 1, tzinfo=timezone.utc)
+            self.assertEqual(library_artifacts.call_args.kwargs["since"], expected_historical_source_since)
+            self.assertEqual(machine_observations.call_args.kwargs["since"], expected_active_new_source_since)
+            self.assertEqual(mcp_history.call_args.kwargs["since"], expected_historical_source_since)
             payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
             ids = {event["id"] for event in payload["timeline"]["events"]}
             self.assertIn(old_event["id"], ids)
@@ -342,6 +444,32 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "rebuild": False, "quiet": True,
             })()
             self.assertEqual(main(), 0)
+    def test_query_materialized_searches_bounded_historical_evidence(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            recent = {
+                "id": "recent:1", "source_type": "MCP_EVENT", "event_at": "2026-09-06T03:00:00+00:00",
+                "recorded_at": "2026-09-06T03:00:00+00:00", "title": "recent transport", "summary": "recent",
+                "project": None, "refs": [], "anchors": [],
+            }
+            old = {
+                "id": "library-artifact:file_old", "source_type": "LIBRARY_ARTIFACT",
+                "event_at": "2026-05-18T15:17:35+00:00", "recorded_at": "2026-08-26T10:00:00+00:00",
+                "title": "screenshot: old-proof.png", "summary": "Claude Code notification permission screenshot",
+                "artifact_type": "screenshot", "library_file_id": "file_old", "project": None,
+                "refs": ["file_old"], "anchors": ["library-file:file_old"], "retain_history": True,
+            }
+            (state / "timeline-store.json").write_text(json.dumps({
+                "schema": SCHEMA, "generated_at": "2026-09-06T03:05:00+00:00", "horizon_days": 30,
+                "timeline": {"schema_version": 2, "authority": "DERIVED_HISTORY_ONLY", "contract": {},
+                    "events": [recent], "historical_evidence_events": [old], "work_graph": {}},
+            }), encoding="utf-8")
+            result = query_materialized(root=root, query="notification permission", limit=20)
+            self.assertEqual(result["matching_events"], 1)
+            self.assertEqual(result["events"][0]["id"], old["id"])
+            self.assertEqual(result["events"][0]["event_at"], "2026-05-18T15:17:35+00:00")
 
     def test_install_task_schedules_only_periodic_materializer(self):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="SUCCESS", stderr="")
@@ -380,7 +508,13 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "tools.timeline_materializer.worker_history_events", side_effect=[[worker], []]
             ), patch("tools.timeline_materializer.tracked_artifact_events", return_value=[]), patch(
                 "tools.timeline_materializer.local_artifact_events", return_value=([], {"events": 0, "candidates": 0, "limit": 1000, "saturated": False})
+            ), patch(
+                "tools.timeline_materializer.library_artifact_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
+            ), patch(
+                "tools.timeline_materializer.machine_observation_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
             ), patch("tools.timeline_materializer.mcp_events", return_value=([], {"events": 0})), patch(
+                "tools.timeline_materializer.mcp_replacement_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
+            ), patch(
                 "tools.timeline_materializer.runner_log_events", return_value=([], {"events": 0})
             ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview) as build_overview:
                 result = materialize(root=root, include_github=False, now=datetime(2026, 9, 6, 5, 0, tzinfo=timezone.utc))

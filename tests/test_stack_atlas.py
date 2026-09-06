@@ -656,6 +656,23 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(trend["previous"]["lost_gb"], 15.0)
             self.assertEqual(trend["approx_24h"]["lost_gb"], 60.0)
 
+    def test_disk_trend_persists_rich_scalar_machine_observation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.jsonl"
+            with patch("tools.stack_atlas.BOOTSTRAP_OBSERVATION_PATH", path):
+                _bootstrap_disk_trend(60.25, observation={
+                    "disk_used_gb": 415.1, "commit_headroom_gb": 39.1,
+                    "physical_free_gb": 1.4, "vram_free_mb": 5086,
+                    "gpu_sample_status": "LIVE", "nested": {"must": "not persist"},
+                })
+            row = json.loads(path.read_text(encoding="utf-8").splitlines()[-1])
+            self.assertEqual(row["free_gb"], 60.25)
+            self.assertEqual(row["commit_headroom_gb"], 39.1)
+            self.assertEqual(row["physical_free_gb"], 1.4)
+            self.assertEqual(row["vram_free_mb"], 5086)
+            self.assertEqual(row["gpu_sample_status"], "LIVE")
+            self.assertNotIn("nested", row)
+
     def test_mcp_transport_tail_does_not_parse_historical_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "transport.jsonl"

@@ -48,7 +48,12 @@ DEFAULT_GITHUB_EVENTS_PER_KIND = 1000
 DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND = 200
 DEFAULT_DELTA_REPO_EVENTS_PER_REPO = 200
 DEFAULT_DELTA_ARTIFACT_EVENTS = 500
+DEFAULT_LIBRARY_ARTIFACT_EVENTS = 5000
+DEFAULT_MACHINE_OBSERVATION_EVENTS = 5000
+DEFAULT_HISTORICAL_EVIDENCE_EVENTS = 5000
 DEFAULT_OVERLAP_MINUTES = 10
+HISTORICAL_SOURCE_NAMES = {"library_artifacts", "mcp_history"}
+HISTORICAL_EVIDENCE_FLOOR = datetime(2000, 1, 1, tzinfo=timezone.utc)
 LOCK_STALE_MINUTES = 30
 
 _GITHUB_REMOTE_RE = re.compile(r"github\.com[:/](?P<repo>[^/\s]+/[^/\s]+?)(?:\.git)?$", re.I)
@@ -71,6 +76,7 @@ ARTIFACT_ROOTS = (
     "90 Raw Transcripts",
 )
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+LIBRARY_ARTIFACT_GLOBS = ("*library_screenshot*.jsonl", "*chatgpt_artifact_occurrences*.jsonl", "*library_artifact_occurrences*.jsonl")
 
 
 def _dt(value: Any) -> datetime | None:
@@ -545,6 +551,85 @@ def mcp_events(
                 "thread_source": "MCP_PROCESS_RECEIPT",
             })
             coverage["receipts"] += 1
+
+    coverage["events"] = len(events)
+    return events, coverage
+
+
+def mcp_replacement_events(*, since: datetime, limit: int = 1000) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Project immutable MCP production replacement receipts as long-lived version history."""
+    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    mcp_roots = [local / "ChatGPTMcpClean", local / "ChatGPTMcpMinimal"]
+    events: list[dict[str, Any]] = []
+    coverage: dict[str, Any] = {"roots": [], "candidates": 0, "events": 0, "limit": limit, "saturated": False, "errors": []}
+    for mcp_root in mcp_roots:
+        replacement_root = mcp_root / ".state" / "production-replacement"
+        if not replacement_root.exists():
+            continue
+        coverage["roots"].append(str(replacement_root))
+        try:
+            paths = sorted(replacement_root.glob("receipt-*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+        except OSError as exc:
+            coverage["errors"].append(f"{replacement_root}:{type(exc).__name__}")
+            continue
+        coverage["candidates"] += len(paths)
+        if len(paths) > limit:
+            coverage["saturated"] = True
+        for path in paths[:limit]:
+            row = _read_json(path)
+            if not row:
+                continue
+            event_at = row.get("recorded_at")
+            if not _event_time_ok(event_at, since):
+                continue
+            request_id = str(row.get("request_id") or path.stem.removeprefix("receipt-")).strip()
+            old_head = str(row.get("old_head") or "").strip().casefold()
+            new_head = str(row.get("new_head") or "").strip().casefold()
+            expected_head = str(row.get("expected_candidate_commit") or "").strip().casefold()
+            old_generation = str(row.get("old_generation") or row.get("expected_current_generation") or "").strip()
+            new_generation = str(row.get("new_generation") or "").strip()
+            candidate_generation = str(row.get("candidate_generation") or "").strip()
+            refs = [value for value in (old_head, new_head, expected_head, old_generation, new_generation, candidate_generation) if value]
+            for value in (old_head, new_head, expected_head):
+                if _SHA_RE.fullmatch(value):
+                    refs.extend([value[:10], value[:7]])
+            refs = sorted(set(refs))
+            anchors = [f"mcp-replacement:{request_id.casefold()}"]
+            anchors.extend(f"gitsha:{value}" for value in (old_head, new_head, expected_head) if _SHA_RE.fullmatch(value))
+            anchors.extend(f"mcp-generation:{value.casefold()}" for value in (old_generation, new_generation, candidate_generation) if value)
+            status = row.get("status")
+            transition = f"{old_head[:10] or '?'} -> {new_head[:10] or expected_head[:10] or '?'}"
+            events.append({
+                "id": f"mcp-replacement:{mcp_root.name}:{request_id.casefold()}",
+                "source_type": "MCP_EVENT",
+                "authority": "LOCAL_MCP_PRODUCTION_REPLACEMENT_RECEIPT_HISTORY",
+                "event_at": event_at,
+                "recorded_at": event_at,
+                "project": "chatgpt-mcp-clean",
+                "projects": ["chatgpt-mcp-clean"],
+                "title": f"MCP production replacement {transition}: {status}",
+                "summary": "historical production replacement receipt; version/generation evidence only",
+                "mcp_root": str(mcp_root),
+                "mcp_event": "production_replacement",
+                "request_id": request_id,
+                "status": status,
+                "runtime_changed": row.get("runtime_changed"),
+                "old_head": old_head or None,
+                "new_head": new_head or None,
+                "expected_candidate_commit": expected_head or None,
+                "old_generation": old_generation or None,
+                "new_generation": new_generation or None,
+                "candidate_generation": candidate_generation or None,
+                "old_dist_sha256": row.get("old_dist_sha256"),
+                "new_dist_sha256": row.get("new_dist_sha256"),
+                "candidate_port": row.get("candidate_port"),
+                "refs": refs,
+                "anchors": sorted(set(anchors)),
+                "thread_id": "mcp-production-replacement",
+                "thread_source": "MCP_PRODUCTION_REPLACEMENT_RECEIPT",
+                "retain_history": True,
+            })
+    events.sort(key=lambda event: _dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     coverage["events"] = len(events)
     return events, coverage
 
@@ -689,6 +774,183 @@ def local_artifact_events(root: Path, *, since: datetime, limit: int = 1000) -> 
             "thread_source": "LOCAL_ARTIFACT_PATH",
         })
     return events, {"events": len(events), "candidates": len(rows), "limit": limit, "saturated": len(rows) > limit}
+
+
+def library_artifact_events(
+    root: Path, *, since: datetime, limit: int = DEFAULT_LIBRARY_ARTIFACT_EVENTS
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Expand durable ChatGPT/Library provenance manifests into per-artifact history events."""
+    evidence_root = root / "02 Evidence"
+    paths: set[Path] = set()
+    for pattern in LIBRARY_ARTIFACT_GLOBS:
+        try:
+            paths.update(path for path in evidence_root.glob(pattern) if path.is_file())
+        except OSError:
+            continue
+    by_id: dict[str, dict[str, Any]] = {}
+    coverage: dict[str, Any] = {"files": 0, "rows": 0, "events": 0, "limit": limit, "saturated": False, "errors": []}
+    for path in sorted(paths):
+        try:
+            rows = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+        except OSError as exc:
+            coverage["errors"].append(f"{path.name}:{type(exc).__name__}")
+            continue
+        coverage["files"] += 1
+        for line_number, raw in enumerate(rows, 1):
+            if not raw.strip():
+                continue
+            try:
+                row = json.loads(raw)
+            except json.JSONDecodeError:
+                coverage["errors"].append(f"{path.name}:{line_number}:invalid_json")
+                continue
+            if not isinstance(row, dict):
+                continue
+            coverage["rows"] += 1
+            event_at = (
+                row.get("capture_time_local")
+                or row.get("created_at_utc")
+                or row.get("uploaded_at_utc")
+                or row.get("observed_at")
+                or row.get("modified_at_utc")
+            )
+            stamp = _dt(event_at)
+            observed_at = row.get("observed_at") or row.get("indexed_at") or row.get("created_at_utc") or row.get("uploaded_at_utc") or event_at
+            observed_stamp = _dt(observed_at)
+            if stamp is None or observed_stamp is None or observed_stamp < since.astimezone(observed_stamp.tzinfo):
+                continue
+            file_id = str(row.get("library_file_id") or row.get("file_id") or "").strip()
+            occurrence_id = str(row.get("occurrence_id") or "").strip()
+            filename = str(row.get("filename") or row.get("name") or file_id or occurrence_id or "library artifact").strip()
+            stable = file_id or occurrence_id
+            if not stable:
+                stable = hashlib.sha256(f"{path.name}:{line_number}:{filename}:{event_at}".encode("utf-8", "replace")).hexdigest()[:24]
+            declared_type = str(row.get("artifact_type") or "").strip()
+            artifact_type = declared_type or ("screenshot" if Path(filename).suffix.casefold() in IMAGE_SUFFIXES else "library_artifact")
+            subject = str(row.get("subject") or row.get("description") or "").strip()
+            summary = subject[:500] if subject else "ChatGPT Library/conversation artifact provenance observation"
+            anchors = [f"library-file:{file_id.casefold()}" if file_id else f"library-artifact:{stable.casefold()}"]
+            if occurrence_id:
+                anchors.append(f"library-occurrence:{occurrence_id.casefold()}")
+            text_path = str(row.get("text_path") or "").strip()
+            refs = [value for value in (file_id, occurrence_id, text_path) if value]
+            project = str(row.get("project") or "").strip() or None
+            event = {
+                "id": f"library-artifact:{stable.casefold()}",
+                "source_type": "LIBRARY_ARTIFACT",
+                "authority": "CHATGPT_LIBRARY_HISTORICAL_OBSERVATION",
+                "event_at": stamp.isoformat(),
+                "recorded_at": observed_stamp.isoformat(),
+                "project": project,
+                "projects": [project] if project else [],
+                "title": f"{artifact_type}: {filename}",
+                "summary": summary,
+                "artifact_type": artifact_type,
+                "filename": filename,
+                "library_file_id": file_id or None,
+                "occurrence_id": occurrence_id or None,
+                "source_kind": row.get("source_kind"),
+                "model_generated": row.get("model_generated"),
+                "user_turn_index": row.get("user_turn_index"),
+                "classification": row.get("classification"),
+                "review_status": row.get("review_status"),
+                "timestamp_source": row.get("timestamp_source") or ("LIBRARY_CREATED_AT" if row.get("created_at_utc") else None),
+                "size_bytes": row.get("size_bytes"),
+                "text_path": text_path or None,
+                "text_sha256": row.get("text_sha256"),
+                "tags": list(row.get("tags") or []),
+                "manifest_path": path.relative_to(root).as_posix(),
+                "refs": refs,
+                "anchors": sorted(set(anchors)),
+                "thread_id": f"library-file:{(file_id or stable).casefold()}",
+                "thread_source": "CHATGPT_LIBRARY_FILE_ID",
+                "retain_history": True,
+            }
+            by_id[event["id"]] = event
+    events = sorted(
+        by_id.values(),
+        key=lambda event: (_dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), str(event.get("id") or "")),
+        reverse=True,
+    )
+    coverage["saturated"] = len(events) > limit
+    events = events[:limit]
+    coverage["events"] = len(events)
+    return events, coverage
+
+
+def machine_observation_events(
+    *, since: datetime, limit: int = DEFAULT_MACHINE_OBSERVATION_EVENTS
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Project persisted bootstrap PC observations as historical evidence, never live authority."""
+    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    path = local / "ChatGPTMcpClean" / ".state" / "bootstrap-observations.jsonl"
+    max_bytes = 4 * 1024 * 1024
+    coverage: dict[str, Any] = {
+        "path": str(path), "rows": 0, "events": 0, "limit": limit, "tail_bytes": max_bytes,
+        "tail_truncated": False, "saturated": False, "errors": [],
+    }
+    try:
+        coverage["tail_truncated"] = path.stat().st_size > max_bytes
+    except OSError:
+        pass
+    events: list[dict[str, Any]] = []
+    for line_number, raw in enumerate(_read_tail(path, max_bytes).decode("utf-8", "replace").splitlines(), 1):
+        try:
+            row = json.loads(raw)
+        except json.JSONDecodeError:
+            coverage["errors"].append(f"line:{line_number}:invalid_json")
+            continue
+        if not isinstance(row, dict):
+            continue
+        coverage["rows"] += 1
+        stamp = _dt(row.get("at"))
+        if stamp is None or stamp < since.astimezone(stamp.tzinfo):
+            continue
+        free_gb = row.get("free_gb")
+        title = f"machine snapshot: C free {free_gb} GB" if free_gb is not None else "machine snapshot"
+        summary_fields = []
+        for key in ("free_gb", "disk_used_gb", "physical_free_gb", "commit_headroom_gb", "commit_used_pct", "vram_free_mb", "gpu_utilization_pct"):
+            if row.get(key) is not None:
+                summary_fields.append(f"{key}={row.get(key)}")
+        at_key = stamp.astimezone(timezone.utc).isoformat()
+        event = {
+            "id": f"machine-observation:{at_key}",
+            "source_type": "MACHINE_OBSERVATION",
+            "authority": "LOCAL_BOOTSTRAP_MACHINE_OBSERVATION_HISTORY",
+            "event_at": stamp.isoformat(),
+            "recorded_at": stamp.isoformat(),
+            "title": title,
+            "summary": "; ".join(summary_fields) or "persisted bootstrap machine observation",
+            "artifact_type": "machine_snapshot",
+            "drive": row.get("drive") or "C:",
+            "free_gb": free_gb,
+            "disk_used_gb": row.get("disk_used_gb"),
+            "disk_total_gb": row.get("disk_total_gb"),
+            "disk_used_pct": row.get("disk_used_pct"),
+            "disk_status": row.get("disk_status"),
+            "physical_free_gb": row.get("physical_free_gb"),
+            "physical_free_pct": row.get("physical_free_pct"),
+            "commit_used_gb": row.get("commit_used_gb"),
+            "commit_limit_gb": row.get("commit_limit_gb"),
+            "commit_headroom_gb": row.get("commit_headroom_gb"),
+            "commit_used_pct": row.get("commit_used_pct"),
+            "memory_status": row.get("memory_status"),
+            "vram_used_mb": row.get("vram_used_mb"),
+            "vram_free_mb": row.get("vram_free_mb"),
+            "vram_total_mb": row.get("vram_total_mb"),
+            "gpu_utilization_pct": row.get("gpu_utilization_pct"),
+            "gpu_sample_status": row.get("gpu_sample_status"),
+            "refs": [str(path)],
+            "anchors": ["machine:pc-resource-history"],
+            "thread_id": "machine:pc-resource-history",
+            "thread_source": "BOOTSTRAP_OBSERVATION_LOG",
+        }
+        events.append(event)
+    events.sort(key=lambda event: _dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    coverage["saturated"] = bool(coverage["tail_truncated"] or len(events) > limit)
+    events = events[:limit]
+    coverage["events"] = len(events)
+    return events, coverage
 
 
 def _subject_key(title: Any) -> str | None:
@@ -1040,13 +1302,17 @@ def _materialized_source_since(
     overlap_minutes: int = DEFAULT_OVERLAP_MINUTES,
 ) -> datetime:
     if not previous:
-        return horizon_since
+        return HISTORICAL_EVIDENCE_FLOOR if source in HISTORICAL_SOURCE_NAMES else horizon_since
     watermarks = previous.get("source_watermarks") if isinstance(previous.get("source_watermarks"), dict) else {}
+    if source not in watermarks:
+        return HISTORICAL_EVIDENCE_FLOOR if source in HISTORICAL_SOURCE_NAMES else horizon_since
     raw = watermarks.get(source) or previous.get("generated_at")
     stamp = _dt(raw)
     if stamp is None:
         return horizon_since
     candidate = stamp - timedelta(minutes=max(0, int(overlap_minutes)))
+    if source in HISTORICAL_SOURCE_NAMES:
+        return candidate
     return max(horizon_since.astimezone(candidate.tzinfo), candidate)
 
 
@@ -1064,7 +1330,9 @@ def _merge_materialized_events(
     """Merge immutable/revisable source observations by stable event id and prune the horizon."""
     by_id: dict[str, dict[str, Any]] = {}
     for raw in [*previous_events, *delta_events]:
-        if not isinstance(raw, dict) or not _event_within_horizon(raw, since):
+        if not isinstance(raw, dict):
+            continue
+        if not raw.get("retain_history") and not _event_within_horizon(raw, since):
             continue
         event_id = str(raw.get("id") or "").strip()
         if not event_id:
@@ -1088,10 +1356,16 @@ def _coverage_saturated(source: str, coverage: dict[str, Any]) -> bool:
         return bool(coverage.get("saturated"))
     if source == "local_artifacts":
         return bool(coverage.get("saturated"))
+    if source == "library_artifacts":
+        return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
+    if source == "machine":
+        return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
     if source == "github":
         return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
     if source == "mcp":
         return bool(coverage.get("receipts_saturated")) or bool(coverage.get("errors"))
+    if source == "mcp_history":
+        return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
     if source == "runner_logs":
         return bool(coverage.get("saturated")) or bool(coverage.get("errors"))
     return False
@@ -1127,15 +1401,18 @@ def materialize(
         previous_timeline = previous.get("timeline") if isinstance(previous, dict) and isinstance(previous.get("timeline"), dict) else None
         incremental = bool(previous_timeline and isinstance(previous_timeline.get("events"), list))
         refresh_mode = "INCREMENTAL" if incremental else "BACKFILL"
+        previous_event_rows = []
+        if previous_timeline:
+            previous_event_rows.extend(previous_timeline.get("events", []) or [])
+            previous_event_rows.extend(previous_timeline.get("historical_evidence_events", []) or [])
         previous_events = [
-            dict(event) for event in (previous_timeline.get("events", []) if previous_timeline else [])
+            dict(event) for event in previous_event_rows
             if isinstance(event, dict) and event.get("source_type") != "VAULT_MEMORY"
         ]
 
-        source_names = ("repos", "workers", "artifacts", "local_artifacts", "github", "mcp", "runner_logs")
+        source_names = ("repos", "workers", "artifacts", "local_artifacts", "library_artifacts", "machine", "github", "mcp", "mcp_history", "runner_logs")
         source_since = {
-            name: _materialized_source_since(previous, name, horizon_since=horizon_since)
-            if incremental else horizon_since
+            name: _materialized_source_since(previous if incremental else None, name, horizon_since=horizon_since)
             for name in source_names
         }
 
@@ -1156,6 +1433,8 @@ def materialize(
         artifact_limit = min(artifact_events_limit, DEFAULT_DELTA_ARTIFACT_EVENTS) if incremental else artifact_events_limit
         artifact_delta = tracked_artifact_events(root, limit=artifact_limit, since=source_since["artifacts"])
         local_delta, local_coverage = local_artifact_events(root, since=source_since["local_artifacts"])
+        library_delta, library_coverage = library_artifact_events(root, since=source_since["library_artifacts"])
+        machine_delta, machine_coverage = machine_observation_events(since=source_since["machine"])
 
         github_delta: list[dict[str, Any]] = []
         github_coverage: dict[str, Any] = {"available": False, "skipped": True}
@@ -1168,18 +1447,26 @@ def materialize(
         mcp_delta, mcp_coverage = mcp_events(
             since=source_since["mcp"], root=root, project_to_slug=project_to_slug
         )
+        mcp_history_delta, mcp_history_coverage = mcp_replacement_events(since=source_since["mcp_history"])
         runner_delta, runner_coverage = runner_log_events(since=source_since["runner_logs"])
-        supplemental_delta = [*github_delta, *mcp_delta, *runner_delta, *local_delta]
+        supplemental_delta = [*github_delta, *mcp_delta, *mcp_history_delta, *runner_delta, *local_delta, *library_delta, *machine_delta]
         all_delta = [*repo_delta, *worker_delta, *artifact_delta, *supplemental_delta]
 
         merged_external = _merge_materialized_events(
             previous_events, all_delta, since=horizon_since
         )
-        repo_events = [event for event in merged_external if event.get("source_type") == "GIT_COMMIT"]
-        worker_events = [event for event in merged_external if event.get("source_type") == "WORKER_REPORT"]
-        artifact_events = [event for event in merged_external if event.get("source_type") == "TRACKED_ARTIFACT"]
+        active_external = [event for event in merged_external if _event_within_horizon(event, horizon_since)]
+        historical_evidence_events = [event for event in merged_external if event.get("retain_history")]
+        historical_evidence_events.sort(
+            key=lambda event: (_dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), str(event.get("id") or "")),
+            reverse=True,
+        )
+        historical_evidence_events = historical_evidence_events[:DEFAULT_HISTORICAL_EVIDENCE_EVENTS]
+        repo_events = [event for event in active_external if event.get("source_type") == "GIT_COMMIT"]
+        worker_events = [event for event in active_external if event.get("source_type") == "WORKER_REPORT"]
+        artifact_events = [event for event in active_external if event.get("source_type") == "TRACKED_ARTIFACT"]
         supplemental = [
-            event for event in merged_external
+            event for event in active_external
             if event.get("source_type") not in {"GIT_COMMIT", "WORKER_REPORT", "TRACKED_ARTIFACT"}
         ]
 
@@ -1192,8 +1479,11 @@ def materialize(
                 "saturated": len(artifact_delta) >= artifact_limit,
             },
             "local_artifacts": local_coverage,
+            "library_artifacts": library_coverage,
+            "machine": machine_coverage,
             "github": github_coverage,
             "mcp": mcp_coverage,
+            "mcp_history": mcp_history_coverage,
             "runner_logs": runner_coverage,
         }
         saturated_sources = [
@@ -1244,6 +1534,7 @@ def materialize(
             snapshot_now=now,
             source_coverage=source_coverage,
         )
+        timeline["historical_evidence_events"] = historical_evidence_events
         graph = build_work_graph(timeline["events"])
         timeline["work_graph"] = graph
         timeline["materialized"] = {
@@ -1259,6 +1550,7 @@ def materialize(
             "saturated_sources": saturated_sources,
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
+            "historical_evidence_events": len(historical_evidence_events),
         }
 
         store_payload = {
@@ -1306,6 +1598,7 @@ def materialize(
             "coverage_status": "HISTORICAL_INCOMPLETE" if backfill_incomplete_sources else "COMPLETE_WITHIN_MATERIALIZED_HORIZON",
             "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if backfill_incomplete_sources else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY",
             "live_truth_required": True,
+            "historical_evidence_events": len(historical_evidence_events),
             "work_graph": graph["summary"],
         }
         compact = _fit_memory_overview_budget(compact)
@@ -1498,7 +1791,15 @@ def query_materialized(
     timeline = payload.get("timeline")
     if not isinstance(timeline, dict):
         return None
-    events = [dict(event) for event in timeline.get("events", []) if isinstance(event, dict)]
+    event_rows = [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])]
+    by_id: dict[str, dict[str, Any]] = {}
+    for raw in event_rows:
+        if not isinstance(raw, dict):
+            continue
+        event_id = str(raw.get("id") or "").strip()
+        if event_id:
+            by_id[event_id] = dict(raw)
+    events = list(by_id.values())
     now = datetime.now().astimezone()
     since = now - timedelta(days=days) if days is not None else None
     selected: list[dict[str, Any]] = []

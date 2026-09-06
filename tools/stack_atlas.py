@@ -476,7 +476,7 @@ def build_bootstrap_atlas() -> dict[str, Any]:
 BOOTSTRAP_OBSERVATION_PATH = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\bootstrap-observations.jsonl"))
 
 
-def _bootstrap_disk_trend(current_free_gb: float) -> dict[str, Any]:
+def _bootstrap_disk_trend(current_free_gb: float, observation: dict[str, Any] | None = None) -> dict[str, Any]:
     """Observed disk deltas for display only; never scheduling or authority state."""
     now = datetime.now(timezone.utc)
     observations: list[dict[str, Any]] = []
@@ -518,7 +518,12 @@ def _bootstrap_disk_trend(current_free_gb: float) -> dict[str, Any]:
         if not observations or (now - observations[-1]["at"]).total_seconds() >= 300:
             BOOTSTRAP_OBSERVATION_PATH.parent.mkdir(parents=True, exist_ok=True)
             with BOOTSTRAP_OBSERVATION_PATH.open("a", encoding="utf-8", newline="\n") as handle:
-                handle.write(json.dumps({"at": now.isoformat(), "free_gb": round(current_free_gb, 2)}, separators=(",", ":")) + "\n")
+                row: dict[str, Any] = {"at": now.isoformat(), "free_gb": round(current_free_gb, 2)}
+                for key, value in (observation or {}).items():
+                    if key in {"at", "free_gb"} or value is None or isinstance(value, (dict, list, tuple, set)):
+                        continue
+                    row[str(key)] = value
+                handle.write(json.dumps(row, separators=(",", ":")) + "\n")
     except OSError:
         pass
     return result
@@ -622,16 +627,41 @@ def _bootstrap_pc_status() -> dict[str, Any]:
                 nvml.nvmlShutdown()
             except Exception:
                 pass
-    return {
-        "memory": {
-            "physical_total_gb": round(physical_total,1), "physical_free_gb": round(physical_free,1), "physical_free_pct": round(physical_free_pct,1),
-            "commit_used_gb": round(commit_used,1), "commit_limit_gb": round(commit_limit,1), "commit_headroom_gb": round(commit_headroom,1), "commit_used_pct": round(commit_used_pct,1),
-            "status": memory_status,
-            "interpretation": "physical free RAM alone is not commit exhaustion; judge memory pressure from commit used/limit/headroom together",
-        },
-        "disk": {"drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1), "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1), "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25, "trend": _bootstrap_disk_trend(disk_free_gb)},
-        "gpu": gpu,
+    memory_view = {
+        "physical_total_gb": round(physical_total,1), "physical_free_gb": round(physical_free,1), "physical_free_pct": round(physical_free_pct,1),
+        "commit_used_gb": round(commit_used,1), "commit_limit_gb": round(commit_limit,1), "commit_headroom_gb": round(commit_headroom,1), "commit_used_pct": round(commit_used_pct,1),
+        "status": memory_status,
+        "interpretation": "physical free RAM alone is not commit exhaustion; judge memory pressure from commit used/limit/headroom together",
     }
+    disk_view = {
+        "drive": "C:", "total_gb": round(disk.total/2**30,1), "used_gb": round(disk.used/2**30,1),
+        "free_gb": round(disk_free_gb,1), "used_pct": round(disk.used*100/disk.total,1),
+        "status": disk_status, "reserve_25gb_ok": disk_free_gb >= 25,
+    }
+    observation = {
+        "drive": disk_view["drive"],
+        "disk_total_gb": disk_view["total_gb"],
+        "disk_used_gb": disk_view["used_gb"],
+        "disk_used_pct": disk_view["used_pct"],
+        "disk_status": disk_view["status"],
+        "physical_free_gb": memory_view["physical_free_gb"],
+        "physical_free_pct": memory_view["physical_free_pct"],
+        "commit_used_gb": memory_view["commit_used_gb"],
+        "commit_limit_gb": memory_view["commit_limit_gb"],
+        "commit_headroom_gb": memory_view["commit_headroom_gb"],
+        "commit_used_pct": memory_view["commit_used_pct"],
+        "memory_status": memory_view["status"],
+    }
+    if isinstance(gpu, dict):
+        for source_key, target_key in (
+            ("vram_used_mb", "vram_used_mb"), ("vram_free_mb", "vram_free_mb"),
+            ("vram_total_mb", "vram_total_mb"), ("utilization_pct", "gpu_utilization_pct"),
+            ("sample_status", "gpu_sample_status"),
+        ):
+            if gpu.get(source_key) is not None:
+                observation[target_key] = gpu.get(source_key)
+    disk_view["trend"] = _bootstrap_disk_trend(disk_free_gb, observation=observation)
+    return {"memory": memory_view, "disk": disk_view, "gpu": gpu}
 
 
 
