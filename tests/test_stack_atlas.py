@@ -29,6 +29,7 @@ from tools.stack_atlas import (
     _read_jsonl_tail,
     _read_jsonl_window,
     _remote_is_newer,
+    _git_blob_sha_for_file,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
@@ -1235,6 +1236,15 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(_remote_is_newer("2026-09-06T18:16:33Z", "2026-09-05T09:50:28+03:00"))
         self.assertFalse(_remote_is_newer("2026-09-05T12:36:29Z", "2026-09-06T09:50:28+03:00"))
         self.assertFalse(_remote_is_newer("bad", "2026-09-06T09:50:28+03:00"))
+
+    def test_source_freshness_hash_normalizes_windows_crlf_like_git(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+            path.write_bytes(b"one\r\ntwo\r\n")
+            normalized = b"one\ntwo\n"
+            import hashlib
+            expected = hashlib.sha1(f"blob {len(normalized)}\0".encode("ascii") + normalized).hexdigest()
+            self.assertEqual(_git_blob_sha_for_file(path), expected)
 
     def test_bootstrap_surfaces_behavior_source_freshness_without_reading_policy_bodies(self):
         sample = {
