@@ -179,7 +179,7 @@ class StackAtlasTests(unittest.TestCase):
                 "slice_event_count": count // 2,
                 "continuity_case_summary": {"total": 19, "red": 1, "incident": 12, "regression": 10},
                 "signal_observation_summary": {"total": 181, "red": 3, "incident": 17, "regression": 165},
-                "continuity_cases": [{
+                "continuity_case_examples": [{
                     "case_id": "thread:mcp-security-reroute-causality", "severity": "RED",
                     "traits": ["incident", "regression"], "observation_count": 2,
                     "source_families": ["artifact", "memory"], "evidence_forms": ["memory", "report"],

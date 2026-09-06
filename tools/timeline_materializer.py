@@ -20,12 +20,12 @@ try:
         build_overview,
         load_bank,
     )
-    from .memory_timeline import build_timeline, build_timeline_snapshots
+    from .memory_timeline import build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from .repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_bank import DEFAULT_MANUAL_WORKER_HISTORY, DEFAULT_WORKER_HISTORY, build_overview, load_bank
-    from memory_timeline import build_timeline, build_timeline_snapshots
+    from memory_timeline import build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from worker_report_history import worker_history_events
 
@@ -1535,6 +1535,8 @@ def materialize(
             source_coverage=source_coverage,
         )
         timeline["historical_evidence_events"] = historical_evidence_events
+        continuity_graph = build_continuity_graph(timeline["events"])
+        timeline["continuity_graph"] = continuity_graph
         graph = build_work_graph(timeline["events"])
         timeline["work_graph"] = graph
         timeline["materialized"] = {
@@ -1551,6 +1553,7 @@ def materialize(
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
             "historical_evidence_events": len(historical_evidence_events),
+            "timeline_truncated": bool(timeline.get("truncated")),
         }
 
         store_payload = {
@@ -1595,8 +1598,9 @@ def materialize(
             "saturated_sources": saturated_sources,
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
-            "coverage_status": "HISTORICAL_INCOMPLETE" if backfill_incomplete_sources else "COMPLETE_WITHIN_MATERIALIZED_HORIZON",
-            "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if backfill_incomplete_sources else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY",
+            "timeline_truncated": bool(timeline.get("truncated")),
+            "coverage_status": "HISTORICAL_INCOMPLETE" if (backfill_incomplete_sources or timeline.get("truncated")) else "COMPLETE_WITHIN_MATERIALIZED_HORIZON",
+            "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if (backfill_incomplete_sources or timeline.get("truncated")) else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY",
             "live_truth_required": True,
             "historical_evidence_events": len(historical_evidence_events),
             "work_graph": {
@@ -1626,6 +1630,7 @@ def materialize(
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
             "source_counts": _coverage_counts(timeline["events"]),
+            "continuity_graph": continuity_graph["summary"],
             "work_graph": graph["summary"],
             "store_path": str(store_path),
             "bootstrap_path": str(bootstrap_path),
@@ -1685,12 +1690,15 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
         or meta.get("retry_sources")
         or []
     ) if str(value).strip()))
-    coverage_status = "HISTORICAL_INCOMPLETE" if incomplete else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
+    timeline_truncated = bool(timeline.get("truncated") or meta.get("timeline_truncated"))
+    coverage_status = "HISTORICAL_INCOMPLETE" if (incomplete or timeline_truncated) else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
     absence_unsafe_reasons: list[str] = []
     if status != "FRESH":
         absence_unsafe_reasons.append("MATERIALIZATION_STALE")
     if incomplete:
         absence_unsafe_reasons.append("HISTORICAL_BACKFILL_INCOMPLETE")
+    if timeline_truncated:
+        absence_unsafe_reasons.append("MATERIALIZED_EVENT_CAP_TRUNCATED")
     if retry:
         absence_unsafe_reasons.append("DELTA_RETRY_PENDING")
     absence_semantics = (
@@ -1711,6 +1719,7 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
         "backfill_incomplete_sources": incomplete,
         "saturated_sources": saturated,
         "retry_sources": retry,
+        "timeline_truncated": timeline_truncated,
         "absence_semantics": absence_semantics,
         "absence_unsafe_reasons": absence_unsafe_reasons,
         "live_truth_required": True,
@@ -1728,6 +1737,8 @@ def _event_matches_query(event: dict[str, Any], query: str) -> bool:
         str(event.get("worker") or ""),
         " ".join(str(value) for value in event.get("refs", []) or []),
         " ".join(str(value) for value in event.get("anchors", []) or []),
+        str(event.get("thread_id") or ""),
+        " ".join(str(value) for value in event.get("case_anchors", []) or []),
     ]).casefold()
     return tokens <= set(re.findall(r"[a-z0-9]+", hay))
 
@@ -1809,17 +1820,20 @@ def query_materialized(
     for event in events:
         if not include_workers and event.get("source_type") == "WORKER_REPORT":
             continue
-        if project and str(event.get("project") or "").casefold() != project.casefold():
-            continue
+        if project:
+            project_key = project.casefold()
+            event_projects = {str(event.get("project") or "").casefold()}
+            event_projects.update(str(value).casefold() for value in event.get("projects", []) or [])
+            event_projects.discard("")
+            if project_key not in event_projects:
+                continue
         if thread and str(event.get("thread_id") or "") != thread:
             continue
         stamp = _dt(event.get("event_at"))
         if since is not None and (stamp is None or stamp < since.astimezone(stamp.tzinfo)):
             continue
-        if view == "errors":
-            semantics = event.get("continuity") if isinstance(event.get("continuity"), dict) else {}
-            if semantics.get("severity") != "RED" and not set(semantics.get("traits") or []) & {"incident", "regression", "slopwall", "security_incident"}:
-                continue
+        if view == "errors" and not is_forensic_error_event(event):
+            continue
         if not _event_matches_query(event, query):
             continue
         selected.append(event)
@@ -1877,6 +1891,51 @@ def query_materialized(
             ) if row.get(key) not in (None, [], {})
         } | ({"workers": workers} if workers else {})
 
+    stored_continuity = timeline.get("continuity_graph") if isinstance(timeline.get("continuity_graph"), dict) else {}
+    all_cases = stored_continuity.get("cases", []) if isinstance(stored_continuity.get("cases"), list) else []
+
+    def case_matches_query(case: dict[str, Any]) -> bool:
+        if not query:
+            return True
+        return _event_matches_query({
+            "title": case.get("latest_title") or "",
+            "summary": " ".join(str(value) for value in case.get("traits", []) or []),
+            "refs": case.get("anchors", []) or [],
+            "anchors": [case.get("case_id") or ""],
+            "thread_id": case.get("case_id") or "",
+            "case_anchors": case.get("anchors", []) or [],
+        }, query)
+
+    matched_cases: list[dict[str, Any]] = []
+    for case in all_cases:
+        if not isinstance(case, dict):
+            continue
+        member_ids = set(str(value) for value in case.get("event_ids", []) or [])
+        selected_overlap = bool(member_ids & selected_ids)
+        if (project or thread or view == "errors") and not selected_overlap:
+            continue
+        if query and not selected_overlap and not case_matches_query(case):
+            continue
+        matched_cases.append(case)
+
+    case_limit = min(8, effective_limit)
+
+    def compact_case(case: dict[str, Any]) -> dict[str, Any]:
+        member_ids = [str(value) for value in case.get("event_ids", []) or []]
+        signal_ids = [str(value) for value in case.get("signal_event_ids", []) or []]
+        result = {key: case.get(key) for key in (
+            "case_id", "anchors", "severity", "traits", "observation_count", "signal_observation_count",
+            "source_families", "evidence_forms", "classification_quality", "legacy_dependent_fields",
+            "latest_event_at", "latest_signal_at", "latest_title", "latest_source_type",
+        ) if case.get(key) not in (None, [], {})}
+        result["event_ids"] = member_ids[:16]
+        result["signal_event_ids"] = signal_ids[:16]
+        if len(member_ids) > 16:
+            result["event_ids_truncated"] = True
+        if len(signal_ids) > 16:
+            result["signal_event_ids_truncated"] = True
+        return result
+
     matched_groups: list[dict[str, Any]] = []
     for row in all_graph_groups:
         if project and str(row.get("project") or "").casefold() != project.casefold():
@@ -1907,6 +1966,8 @@ def query_materialized(
             "narrative_order": "CONTINUITY_CASES>WORK_GRAPH>EVIDENCE_DENSITY>CONTEXT_ONLY_CORROBORATION",
             "observation_semantics": "EVIDENCE_DENSITY_NOT_CASE_COUNT",
             "broad_github_anchor_semantics": "CONTEXT_ONLY_NEVER_CASE_IDENTITY",
+            "snapshot_case_arrays": "BOUNDED_EXAMPLES_NOT_COMPLETE_GRAPH",
+            "continuity_graph": "FULL_MATERIALIZED_HORIZON_QUERYABLE",
         },
         "materialized": materialized,
         "view": view,
@@ -1914,6 +1975,17 @@ def query_materialized(
         "query": " ".join(query.split()),
         "thread": thread,
         "snapshots": build_timeline_snapshots(selected, now=now) if selected else {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
+        "continuity_graph": {
+            "semantics": stored_continuity.get("semantics") or "STRONG_ANCHOR_CASE_IDENTITY",
+            "scope": "QUERY_MATCHED" if query or project or thread or view == "errors" else "BOUNDED_OVERVIEW",
+            "summary": {
+                "matched_cases": len(matched_cases),
+                "returned_cases": min(len(matched_cases), case_limit),
+                "store_cases": len(all_cases),
+            },
+            "store_summary": stored_continuity.get("summary", {}),
+            "cases": [compact_case(case) for case in matched_cases[:case_limit]],
+        },
         "work_graph": {
             "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
             "scope": "QUERY_MATCHED" if query or project or thread else "BOUNDED_OVERVIEW",

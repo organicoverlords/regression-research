@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from tools.memory_timeline import build_continuity_graph
 from tools.repo_timeline import RepoSpec
 from tools.timeline_materializer import (
     BOOTSTRAP_SCHEMA,
@@ -423,6 +424,17 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(stale["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
         self.assertIn("MATERIALIZATION_STALE", stale["absence_unsafe_reasons"])
 
+        truncated = materialized_health({
+            "generated_at": "2026-09-06T06:29:00+00:00",
+            "horizon_days": 30,
+            "ingestion": {"backfill_incomplete_sources": [], "retry_sources": []},
+            "timeline": {"truncated": True, "materialized": {"refresh_minutes": 5}},
+        }, now=now)
+        self.assertTrue(truncated["timeline_truncated"])
+        self.assertEqual(truncated["coverage_status"], "HISTORICAL_INCOMPLETE")
+        self.assertEqual(truncated["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+        self.assertIn("MATERIALIZED_EVENT_CAP_TRUNCATED", truncated["absence_unsafe_reasons"])
+
         retry = materialized_health({
             "generated_at": "2026-09-06T06:29:00+00:00",
             "horizon_days": 30,
@@ -470,6 +482,79 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(result["matching_events"], 1)
             self.assertEqual(result["events"][0]["id"], old["id"])
             self.assertEqual(result["events"][0]["event_at"], "2026-05-18T15:17:35+00:00")
+
+    def test_query_materialized_uses_full_case_graph_and_canonical_forensic_error_selector(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            tagged = {
+                "id": "mem:signal", "source_type": "VAULT_MEMORY", "authority": "DERIVED_MEMORY_HISTORY",
+                "event_at": "2026-09-06T08:00:00+03:00", "recorded_at": "2026-09-06T08:00:00+03:00",
+                "title": "Verified incident", "summary": "Verified incident", "scope": "vault/case",
+                "tags": ["incident", "assistant-recorded", "verbatim-source"], "semantic_category": "INCIDENT",
+                "thread_id": "thread:case-x", "thread_source": "EXPLICIT_THREAD", "anchors": [], "refs": [],
+            }
+            context = {
+                "id": "mem:context", "source_type": "VAULT_MEMORY", "authority": "DERIVED_MEMORY_HISTORY",
+                "event_at": "2026-09-06T08:01:00+03:00", "recorded_at": "2026-09-06T08:01:00+03:00",
+                "title": "Case x follow-up", "summary": "Context only", "scope": "vault/case",
+                "tags": ["timeline", "assistant-recorded", "verbatim-source"], "semantic_category": "INCIDENT",
+                "thread_id": "thread:case-x", "thread_source": "EXPLICIT_THREAD", "anchors": [], "refs": [],
+            }
+            taxonomy_only = {
+                "id": "mem:taxonomy", "source_type": "VAULT_MEMORY", "authority": "DERIVED_MEMORY_HISTORY",
+                "event_at": "2026-09-06T08:02:00+03:00", "recorded_at": "2026-09-06T08:02:00+03:00",
+                "title": "Taxonomy incident lesson", "summary": "Lesson about incident classification", "scope": "vault/taxonomy",
+                "tags": ["timeline", "assistant-recorded", "verbatim-source"], "semantic_category": "INCIDENT",
+                "thread_id": "thread:taxonomy", "thread_source": "EXPLICIT_THREAD", "anchors": [], "refs": [],
+            }
+            old_forensic = {
+                "id": "mem:old", "source_type": "VAULT_MEMORY", "authority": "DERIVED_MEMORY_HISTORY",
+                "event_at": "2026-08-28T20:00:00+03:00", "recorded_at": "2026-08-28T20:00:00+03:00",
+                "title": "One incident", "summary": "Old unstructured note", "scope": "response-quality",
+                "tags": ["quick-note"], "semantic_category": "INCIDENT",
+                "thread_id": "event:mem:old", "thread_source": "EVENT_ONLY", "anchors": [], "refs": [],
+            }
+            tagged["project"] = "p3"
+            context["project"] = "p3"
+            tagged["projects"] = ["p3"]
+            context["projects"] = ["p3"]
+            other_project = {
+                "id": "mem:tiny", "source_type": "VAULT_MEMORY", "authority": "DERIVED_MEMORY_HISTORY",
+                "event_at": "2026-09-06T08:03:00+03:00", "recorded_at": "2026-09-06T08:03:00+03:00",
+                "title": "Tiny incident", "summary": "Separate project signal", "scope": "tiny3d/case",
+                "project": "tiny3d", "projects": ["tiny3d"],
+                "tags": ["incident", "assistant-recorded", "verbatim-source"], "semantic_category": "INCIDENT",
+                "thread_id": "thread:tiny-case", "thread_source": "EXPLICIT_THREAD", "anchors": [], "refs": [],
+            }
+            events = [tagged, context, taxonomy_only, old_forensic, other_project]
+            graph = build_continuity_graph(events)
+            (state / "timeline-store.json").write_text(json.dumps({
+                "schema": SCHEMA, "generated_at": datetime.now(timezone.utc).isoformat(), "horizon_days": 30,
+                "timeline": {"schema_version": 3, "authority": "DERIVED_HISTORY_ONLY", "contract": {},
+                    "events": events, "historical_evidence_events": [], "continuity_graph": graph, "work_graph": {}},
+            }), encoding="utf-8")
+
+            query = query_materialized(root=root, query="case x", limit=20)
+            self.assertEqual(query["continuity_graph"]["summary"]["matched_cases"], 1)
+            self.assertEqual(query["continuity_graph"]["summary"]["store_cases"], 2)
+            case = query["continuity_graph"]["cases"][0]
+            self.assertEqual(case["case_id"], "thread:case-x")
+            self.assertEqual(set(case["event_ids"]), {"mem:signal", "mem:context"})
+            self.assertEqual(case["signal_event_ids"], ["mem:signal"])
+            self.assertEqual(query["debugging_boundary"]["snapshot_case_arrays"], "BOUNDED_EXAMPLES_NOT_COMPLETE_GRAPH")
+            self.assertEqual(query["debugging_boundary"]["continuity_graph"], "FULL_MATERIALIZED_HORIZON_QUERYABLE")
+
+            project_query = query_materialized(root=root, project="p3", limit=20)
+            self.assertEqual(project_query["continuity_graph"]["summary"]["matched_cases"], 1)
+            self.assertEqual(project_query["continuity_graph"]["cases"][0]["case_id"], "thread:case-x")
+
+            modern_errors = query_materialized(root=root, view="errors", query="taxonomy incident", limit=20)
+            self.assertEqual(modern_errors["matching_events"], 0)
+            old_errors = query_materialized(root=root, view="errors", query="one incident", limit=20)
+            self.assertEqual(old_errors["matching_events"], 1)
+            self.assertEqual(old_errors["events"][0]["id"], "mem:old")
 
     def test_install_task_schedules_only_periodic_materializer(self):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="SUCCESS", stderr="")
