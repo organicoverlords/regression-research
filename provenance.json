@@ -1354,6 +1354,25 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexes the #125 timeline-convergence research synthesis. It is a read-only research report rather than a single incident. The report cites measured repository/runtime evidence and issue history but does not name a direct local raw transcript, evidence file, or contract snapshot for provenance indexing."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "reconciliation_checkpoint_not_incident_id",
+      "report_path": "01 Reports/2026-09-06_0552_EEST_Vault_serving_checkout_convergence.md",
+      "title": "Vault serving checkout convergence",
+      "date": "2026-09-06T05:52:00+03:00",
+      "evidence_type": "runtime_reconciliation_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the #125 serving-checkout convergence report. The report records preservation and cleanup of the stale live Vault checkout, including memory/security/report reconciliation and an external rollback copy. No direct local raw transcript or dedicated evidence-file/contract snapshot provenance link is inferred beyond what the report itself records."
     }
   ],
   "orphan_evidence": [
