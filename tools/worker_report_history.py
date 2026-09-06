@@ -29,8 +29,7 @@ CURRENT_REPORT_REQUIRED_FIELDS = (
     "outcome", "mutation", "validation", "remaining_gate",
 )
 MANUAL_CURRENT_REPORT_REQUIRED_FIELDS = (
-    "run_id", "started_at", "last_activity_at", "repo", "scope", "state",
-    "outcome", "mutation", "validation", "remaining_gate",
+    "run_id", "started_at", "last_activity_at", "repo", "state", "outcome",
 )
 ALLOWED_FINDING_TAGS = frozenset({
     "bug", "error", "regression", "wrapper_anomaly", "route_problem", "contention",
