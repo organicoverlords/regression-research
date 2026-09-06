@@ -140,6 +140,13 @@ def _dt(value: Any) -> datetime | None:
     return parsed
 
 
+def _instant_key(value: Any) -> datetime:
+    parsed = _dt(value)
+    if parsed is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def _iso_now() -> str:
     return datetime.now().astimezone().isoformat()
 
@@ -1340,10 +1347,13 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "action_conclusions": dict(sorted(conclusions.items())),
         }
         row["attached_event_ids"] = sorted(set(row["attached_event_ids"]))
-        row["latest_at"] = max(
+        latest_candidates = (
             [str(commit.get("at") or "") for commit in row["commits"]]
             + [str(events_by_id[event_id].get("event_at") or "") for event_id in row["attached_event_ids"] if event_id in events_by_id]
         )
+        row["latest_at"] = max(
+            latest_candidates, key=lambda value: (_instant_key(value), value)
+        ) if latest_candidates else None
 
     workstreams: dict[str, dict[str, Any]] = {}
     for event in all_events:
@@ -1364,7 +1374,7 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
                 item["event_ids"].add(event_id)
                 item["work_ids"].update(attachments_by_event.get(event_id, set()))
             stamp = str(event.get("event_at") or "")
-            if not item["latest_at"] or stamp > item["latest_at"]:
+            if not item["latest_at"] or _instant_key(stamp) > _instant_key(item["latest_at"]):
                 item["latest_at"] = stamp
 
     workstream_rows = [
@@ -1378,10 +1388,10 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
         }
         for anchor, item in workstreams.items()
     ]
-    workstream_rows.sort(key=lambda item: (item.get("latest_at") or "", item["anchor"]), reverse=True)
+    workstream_rows.sort(key=lambda item: (_instant_key(item.get("latest_at")), item["anchor"]), reverse=True)
 
     group_list = list(group_rows.values())
-    group_list.sort(key=lambda item: (item.get("latest_at") or "", item["work_id"]), reverse=True)
+    group_list.sort(key=lambda item: (_instant_key(item.get("latest_at")), item["work_id"]), reverse=True)
     similar = [
         {
             "work_id": row["work_id"],
@@ -1416,6 +1426,53 @@ def _coverage_counts(events: Iterable[dict[str, Any]]) -> dict[str, int]:
     return dict(sorted(Counter(str(event.get("source_type") or "UNKNOWN") for event in events).items()))
 
 
+def _pid_liveness(pid: int) -> bool | None:
+    if pid <= 0:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            open_process = kernel32.OpenProcess
+            open_process.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+            open_process.restype = ctypes.c_void_p
+            close_handle = kernel32.CloseHandle
+            close_handle.argtypes = [ctypes.c_void_p]
+            close_handle.restype = ctypes.c_int
+            handle = open_process(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+            if handle:
+                close_handle(handle)
+                return True
+            error = ctypes.get_last_error()
+            if error == 87:  # ERROR_INVALID_PARAMETER: no such process
+                return False
+            if error == 5:  # ERROR_ACCESS_DENIED still proves a process owns the PID
+                return True
+            return None
+        except Exception:
+            return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return None
+    return True
+
+
+def _lock_owner_liveness(path: Path) -> bool | None:
+    try:
+        first_line = path.read_text(encoding="ascii").splitlines()[0].strip()
+        return _pid_liveness(int(first_line))
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def _acquire_lock(path: Path) -> int | None:
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -1423,7 +1480,7 @@ def _acquire_lock(path: Path) -> int | None:
     except FileExistsError:
         try:
             age = time.time() - path.stat().st_mtime
-            if age > LOCK_STALE_MINUTES * 60:
+            if age > LOCK_STALE_MINUTES * 60 and _lock_owner_liveness(path) is False:
                 path.unlink(missing_ok=True)
                 return os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except OSError:
@@ -1773,21 +1830,25 @@ def materialize(
             name for name in source_names
             if _coverage_saturated(name, delta_coverage.get(name, {}))
         ]
+        skipped_sources = [
+            name for name in source_names
+            if isinstance(delta_coverage.get(name), dict) and delta_coverage[name].get("skipped") is True
+        ]
 
         previous_watermarks = previous.get("source_watermarks") if isinstance(previous, dict) and isinstance(previous.get("source_watermarks"), dict) else {}
         source_watermarks: dict[str, str] = {}
         for name in source_names:
-            if refresh_mode == "INCREMENTAL" and name in saturated_sources:
-                source_watermarks[name] = str(previous_watermarks.get(name) or previous.get("generated_at") or source_since[name].isoformat())
+            if name in skipped_sources or (refresh_mode == "INCREMENTAL" and name in saturated_sources):
+                source_watermarks[name] = str(previous_watermarks.get(name) or (previous or {}).get("generated_at") or source_since[name].isoformat())
             else:
                 source_watermarks[name] = now.isoformat()
 
         previous_ingestion = previous.get("ingestion") if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict) else {}
         previous_backfill_incomplete = set(str(value) for value in previous_ingestion.get("backfill_incomplete_sources", []) if str(value).strip())
         backfill_incomplete_sources = (
-            sorted(set(saturated_sources))
+            sorted(set(saturated_sources) | set(skipped_sources))
             if refresh_mode == "BACKFILL"
-            else sorted(previous_backfill_incomplete)
+            else sorted(previous_backfill_incomplete | set(skipped_sources))
         )
         retry_sources = sorted(set(saturated_sources)) if refresh_mode == "INCREMENTAL" else []
         source_coverage = {
@@ -1801,6 +1862,7 @@ def materialize(
                 "retained_previous_external_events": len(previous_events),
                 "merged_external_events": len(merged_external),
                 "saturated_sources": saturated_sources,
+                "skipped_sources": skipped_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
                 "retry_sources": retry_sources,
             },
@@ -1835,6 +1897,7 @@ def materialize(
             "source_counts": _coverage_counts(timeline["events"]),
             "source_watermarks": source_watermarks,
             "saturated_sources": saturated_sources,
+            "skipped_sources": skipped_sources,
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
             "historical_evidence_events": len(historical_evidence_events),
@@ -1852,6 +1915,7 @@ def materialize(
                 "delta_events": len(all_delta),
                 "source_since": {name: value.isoformat() for name, value in source_since.items()},
                 "saturated_sources": saturated_sources,
+                "skipped_sources": skipped_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
                 "retry_sources": retry_sources,
             },
