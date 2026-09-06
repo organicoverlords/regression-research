@@ -28,10 +28,19 @@ from tools.timeline_materializer import (
     mcp_replacement_events,
     query_materialized,
     runner_log_events,
+    _run_process,
 )
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_child_processes_use_windows_no_window_wrapper(self):
+        expected = getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+        with patch("tools.timeline_materializer.subprocess.run") as run:
+            _run_process(["gh", "--version"], capture_output=True, check=False)
+        self.assertEqual(run.call_args.kwargs["creationflags"], expected)
+        source = (Path(__file__).resolve().parents[1] / "tools" / "timeline_materializer.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("subprocess.run("), 1)
+
     def commit_event(self, sha, title, at, *, patch_id=None, branches=None, anchors=None):
         row = {
             "id": f"git:p3:{sha}",

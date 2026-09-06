@@ -149,9 +149,14 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
+    """Run a child process without creating a visible console window on Windows."""
+    kwargs.setdefault("creationflags", getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0)
+    return subprocess.run(*args, **kwargs)
+
 def _run_json(command: list[str], *, timeout: int = 30) -> tuple[Any, str | None]:
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             command,
             capture_output=True,
             text=True,
@@ -172,7 +177,7 @@ def _run_json(command: list[str], *, timeout: int = 30) -> tuple[Any, str | None
 
 def _git_value(path: Path, *args: str) -> str | None:
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             ["git", "-C", str(path), *args],
             capture_output=True,
             text=True,
@@ -220,7 +225,7 @@ def _branch_refs(decorations: Any) -> list[str]:
 def _batch_patch_ids(spec: RepoSpec, *, since: datetime) -> dict[str, str]:
     """Compute stable patch ids for all non-merge commits in one Git pipeline."""
     try:
-        log = subprocess.run(
+        log = _run_process(
             [
                 "git", "-C", str(spec.path), "log", "--all", "--no-merges",
                 f"--since={since.isoformat()}", "--max-count=2000",
@@ -232,7 +237,7 @@ def _batch_patch_ids(spec: RepoSpec, *, since: datetime) -> dict[str, str]:
         )
         if log.returncode != 0:
             return {}
-        patch = subprocess.run(
+        patch = _run_process(
             ["git", "patch-id", "--stable"],
             input=log.stdout,
             capture_output=True,
@@ -2388,7 +2393,7 @@ def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
         "/SC", "MINUTE", "/MO", str(minutes), "/TR", action,
     ]
     try:
-        proc = subprocess.run(command, capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=30)
+        proc = _run_process(command, capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=30)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "status": "TASK_INSTALL_ERROR", "error": str(exc)}
     return {
@@ -2403,7 +2408,7 @@ def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
 
 def task_status() -> dict[str, Any]:
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             ["schtasks.exe", "/Query", "/TN", TASK_NAME, "/FO", "LIST", "/V"],
             capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=15,
         )
