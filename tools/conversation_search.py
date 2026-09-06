@@ -121,21 +121,61 @@ def iter_conversations(obj: Any) -> Iterator[dict[str, Any]]:
                 yield value
 
 
+def _active_mapping_path(conv: dict[str, Any], mapping: dict[str, Any]) -> list[tuple[str, dict[str, Any]]] | None:
+    """Return the active ``current_node`` ancestry when the export exposes it.
+
+    ChatGPT mappings may retain retried/branched nodes that are mutually exclusive.
+    Chronology must therefore follow the selected branch instead of timestamp-sorting
+    every mapping node together. Older/partial exports without a usable
+    ``current_node`` keep the legacy all-node fallback for discoverability.
+    """
+    current = conv.get("current_node")
+    if not isinstance(current, str) or current not in mapping:
+        return None
+
+    path: list[tuple[str, dict[str, Any]]] = []
+    seen: set[str] = set()
+    node_key: str | None = current
+    while node_key:
+        if node_key in seen:
+            raise ValueError(f"conversation mapping contains a parent cycle at {node_key}")
+        seen.add(node_key)
+        node = mapping.get(node_key)
+        if not isinstance(node, dict):
+            raise ValueError(f"conversation current_node ancestry references missing node {node_key}")
+        path.append((node_key, node))
+        parent = node.get("parent")
+        node_key = parent if isinstance(parent, str) and parent else None
+    path.reverse()
+    return path
+
+
 def iter_messages(conv: dict[str, Any], locator: str) -> Iterator[dict[str, Any]]:
     mapping = conv.get("mapping")
     if isinstance(mapping, dict):
-        rows: list[tuple[float, str, dict[str, Any]]] = []
-        for node_key, node in mapping.items():
-            if not isinstance(node, dict) or not isinstance(node.get("message"), dict):
-                continue
-            message = node["message"]
-            try:
-                when = float(message.get("create_time")) if message.get("create_time") is not None else float("inf")
-            except (TypeError, ValueError):
-                when = float("inf")
-            rows.append((when, str(node_key), message))
-        rows.sort(key=lambda item: (item[0], item[1]))
-        for order_index, (_, node_key, message) in enumerate(rows):
+        active_path = _active_mapping_path(conv, mapping)
+        if active_path is not None:
+            message_rows = [
+                (node_key, node["message"])
+                for node_key, node in active_path
+                if isinstance(node.get("message"), dict)
+            ]
+        else:
+            rows: list[tuple[float, str, dict[str, Any]]] = []
+            for node_key, node in mapping.items():
+                if not isinstance(node, dict) or not isinstance(node.get("message"), dict):
+                    continue
+                message = node["message"]
+                try:
+                    when = float(message.get("create_time")) if message.get("create_time") is not None else float("inf")
+                except (TypeError, ValueError):
+                    when = float("inf")
+                rows.append((when, str(node_key), message))
+            rows.sort(key=lambda item: (item[0], item[1]))
+            message_rows = [(node_key, message) for _, node_key, message in rows]
+
+        order_index = 0
+        for node_key, message in message_rows:
             text = message_text(message).strip()
             if text:
                 yield {
@@ -145,6 +185,7 @@ def iter_messages(conv: dict[str, Any], locator: str) -> Iterator[dict[str, Any]
                     "order_index": order_index,
                     "text": text,
                 }
+                order_index += 1
         return
     messages = conv.get("messages")
     if isinstance(messages, list):
