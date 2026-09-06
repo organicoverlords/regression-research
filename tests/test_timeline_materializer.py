@@ -851,6 +851,14 @@ class TimelineMaterializerTests(unittest.TestCase):
                     "title": raw["title"], "summary": raw["title"], "body": raw["body"], "changed_paths": raw["changed_paths"],
                     "sha": raw["sha"], "short_sha": raw["sha"][:10], "refs": [], "anchors": [],
                 })
+            weak_bridge_title = "Weights animation proof resolver record"
+            events.append({
+                "id": "worker:p3-bridge-only-proof", "source_type": "WORKER_REPORT", "authority": "DERIVED_WORKER_HISTORY",
+                "event_at": "2026-08-20T12:00:00+03:00", "project": "p3", "projects": ["p3"],
+                "title": weak_bridge_title, "summary": "Identity resolver receipt recorded.",
+                "findings": "Resolver candidate validation proof recorded exact identity compiler receipt and artifact lineage.",
+                "refs": [], "anchors": [],
+            })
             payload = {
                 "schema": SCHEMA, "generated_at": stamp, "horizon_days": 30, "ingestion": {},
                 "timeline": {
@@ -875,6 +883,7 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("fix: semantic weight repair for free-arm cape bleed", titles)
         self.assertIn("rig: separate appendages from cloth with a local shape test", titles)
         self.assertNotIn("Add asset supervisor, Unreal showroom build and matte/grade workers", titles)
+        self.assertNotIn(weak_bridge_title, titles)
         self.assertTrue(all(item.get("evidence_anchors") for item in packet["items"] if item["source_type"] == "GIT_COMMIT"))
         serialized = json.dumps(packet, ensure_ascii=False)
         self.assertLess(len(serialized), 9000)
