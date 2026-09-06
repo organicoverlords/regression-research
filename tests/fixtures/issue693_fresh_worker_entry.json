@@ -1,5 +1,5 @@
-﻿{
-  "schema": "issue693.fresh_worker_entry_fixture.v1",
+{
+  "schema": "issue693.fresh_worker_entry_fixture.v2",
   "issue": 693,
   "observed_at": "2026-09-07T01:25:03+03:00",
   "purpose": "Bounded fresh-worker entry corpus. Current repo/GitHub/Busy evidence is current truth for this snapshot; Timeline-style lessons are historical priors only.",
@@ -119,6 +119,55 @@
           "scheduler or worker administration"
         ],
         "live_truth_still_required": true
+      }
+    },
+    {
+      "id": "heterogeneous-period-reconstruction-regression",
+      "task_text": "reconstruct the historical period when MCP/workers were actually working from existing telemetry, worker evidence, runtime logs, commit history, and preserved reports",
+      "reconstruction": {
+        "requested_output_shape": "one or more historical operating intervals",
+        "required_evidence_classes": [
+          "runtime/listener continuity",
+          "MCP transport/error shape",
+          "supervisor/restart boundaries",
+          "worker completion/handoff output",
+          "repo PR/commit/merge throughput",
+          "configuration/deployment boundaries"
+        ],
+        "source_completeness": {
+          "transport_telemetry": {
+            "status": "INCOMPLETE",
+            "reason": "known ENOSPC telemetry-stream failure in the reconstructed period",
+            "absence_semantics": "UNKNOWN_NOT_NEGATIVE_EVIDENCE"
+          }
+        },
+        "authority_boundaries": {
+          "direct_user_wording_required": false,
+          "backend_health_equals_working_period": false,
+          "git_head_equals_serving_runtime_identity": false
+        },
+        "classification_buckets": [
+          "working/productive",
+          "degraded but usable",
+          "broken/unusable"
+        ]
+      },
+      "expected": {
+        "must_inventory_evidence_classes_before_conclusion": true,
+        "must_construct_candidate_intervals_from_hard_transitions": true,
+        "must_check_source_completeness_before_using_absence": true,
+        "must_separate_runtime_identity_from_repo_head": true,
+        "must_compare_sustained_behavior_across_sources": true,
+        "must_classify_working_degraded_broken_separately": true,
+        "narrow_archaeology_after_interval_model": true,
+        "forbidden_primary_bases": [
+          "single direct-user wording match",
+          "backend health alone",
+          "one successful tool call",
+          "repository HEAD alone",
+          "missing transport rows from an incomplete telemetry source"
+        ],
+        "must_not_require_exact_interval_answer_in_fixture": true
       }
     }
   ]

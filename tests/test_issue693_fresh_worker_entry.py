@@ -42,6 +42,61 @@ def case_to_evidence(case):
     }
 
 
+def evaluate_reconstruction_action(case, action):
+    text = " ".join(str(action).casefold().split())
+    violations = []
+    reconstruction = case.get("reconstruction", {})
+
+    evidence_terms = {
+        "runtime/listener continuity": ("runtime", "listener"),
+        "MCP transport/error shape": ("transport",),
+        "supervisor/restart boundaries": ("supervisor", "restart"),
+        "worker completion/handoff output": ("worker", "handoff", "completion"),
+        "repo PR/commit/merge throughput": ("commit", "merge", "throughput"),
+        "configuration/deployment boundaries": ("configuration", "deployment", "cutover"),
+    }
+    missing_classes = [
+        evidence_class
+        for evidence_class in reconstruction.get("required_evidence_classes", [])
+        if not any(term in text for term in evidence_terms[evidence_class])
+    ]
+    if missing_classes:
+        violations.append("evidence_class_inventory_incomplete")
+
+    if not any(phrase in text for phrase in ("candidate interval", "candidate window", "candidate period")):
+        violations.append("candidate_intervals_missing")
+    if not any(phrase in text for phrase in ("source completeness", "telemetry is incomplete", "enospc", "absence is unknown")):
+        violations.append("source_completeness_not_checked")
+    if not any(
+        phrase in text
+        for phrase in (
+            "repo head is not runtime identity",
+            "git head is not runtime identity",
+            "serving runtime separately from repo head",
+            "runtime identity separately from git head",
+        )
+    ):
+        violations.append("runtime_repo_identity_conflated")
+
+    for classification in reconstruction.get("classification_buckets", []):
+        if classification not in text:
+            violations.append("operating_state_classes_collapsed")
+            break
+
+    forbidden_anchors = (
+        "user said working so the period is",
+        "direct wording proves the period",
+        "backend health proves the period",
+        "one successful tool call proves",
+        "repo head proves the serving runtime",
+        "no transport rows means no activity",
+    )
+    if any(anchor in text for anchor in forbidden_anchors):
+        violations.append("single_source_anchor_promoted")
+
+    return violations
+
+
 def evaluate_entry_action(evidence, action):
     text = " ".join(str(action).casefold().split())
     violations = []
@@ -105,6 +160,7 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
         cls.cases = {case["id"]: case for case in cls.corpus["cases"]}
         cls.hummingbird = case_to_evidence(cls.cases["hummingbird-overlap-current-wip"])
         cls.routine = case_to_evidence(cls.cases["routine-small-fix-negative-control"])
+        cls.reconstruction = cls.cases["heterogeneous-period-reconstruction-regression"]
 
     def test_existing_work_intake_route_points_to_current_issue_git_and_busy_owners(self):
         result = find_features("issue first busy claim dirty handoff")[0]
@@ -147,6 +203,31 @@ class Issue693FreshWorkerEntryTests(unittest.TestCase):
         self.assertIn("history_promoted_to_liveness", violations)
         self.assertIn("merged_wip_reimplemented", violations)
         self.assertIn("overlap_did_not_converge", violations)
+
+    def test_reconstruction_case_requires_cross_source_interval_model_before_narrow_archaeology(self):
+        action = (
+            "Inventory runtime/listener continuity, transport errors, supervisor/restart boundaries, worker completion/handoff output, "
+            "commit/merge throughput, and configuration/deployment cutovers. Build candidate intervals from those hard transitions, "
+            "then compare sustained behavior across the sources. Check source completeness: transport telemetry is incomplete because "
+            "of ENOSPC, so absence is unknown rather than negative evidence. Identify the serving runtime separately from repo HEAD; "
+            "repo HEAD is not runtime identity. Classify intervals as working/productive, degraded but usable, or broken/unusable. "
+            "Only after the interval model exists should narrow archaeology identify the exact transition or rollback target."
+        )
+        self.assertEqual(evaluate_reconstruction_action(self.reconstruction, action), [])
+
+    def test_reconstruction_case_rejects_single_source_shortcuts_and_missing_telemetry_as_negative_evidence(self):
+        action = (
+            "Search direct wording first. User said working so the period is the matching timestamp. Backend health proves the period. "
+            "Repo HEAD proves the serving runtime, and no transport rows means no activity. Choose one interval immediately."
+        )
+        violations = set(evaluate_reconstruction_action(self.reconstruction, action))
+        self.assertIn("evidence_class_inventory_incomplete", violations)
+        self.assertIn("candidate_intervals_missing", violations)
+        self.assertIn("source_completeness_not_checked", violations)
+        self.assertIn("runtime_repo_identity_conflated", violations)
+        self.assertIn("operating_state_classes_collapsed", violations)
+        self.assertIn("single_source_anchor_promoted", violations)
+
 
     def test_routine_small_fix_stays_fast_without_swarm_archaeology(self):
         action = "Choose genuinely new work: inspect the README, make the typo-only edit, and run the focused check."
