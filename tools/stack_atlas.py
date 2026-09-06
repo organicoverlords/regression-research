@@ -1838,6 +1838,34 @@ def _git_blob_sha_for_file(path: Path) -> str | None:
     return hashlib.sha1(header + data).hexdigest()
 
 
+def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
+    git = shutil.which("git")
+    if not git:
+        return None
+    try:
+        proc = subprocess.run(
+            [git, "-C", str(repo_root), "log", "-1", "--format=%cI", "--", relative_path],
+            text=True,
+            capture_output=True,
+            timeout=1.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    value = proc.stdout.strip() if proc.returncode == 0 else ""
+    return value or None
+
+
+def _remote_is_newer(remote_at: Any, local_at: Any) -> bool:
+    if not isinstance(remote_at, str) or not remote_at.strip() or not isinstance(local_at, str) or not local_at.strip():
+        return False
+    try:
+        remote_dt = datetime.fromisoformat(remote_at.replace("Z", "+00:00"))
+        local_dt = datetime.fromisoformat(local_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return remote_dt > local_dt
+
+
 def _bootstrap_source_freshness() -> dict[str, Any]:
     """Compact freshness signal for behavior sources; hashes only, no body parsing."""
     cached, cache_age = _bootstrap_cache_read("source-freshness.json", BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS)
@@ -1910,32 +1938,41 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         except (json.JSONDecodeError, AttributeError, TypeError):
             return {"available": False, "attention_required": True, "reason": "github_metadata_invalid"}
 
-    local_paths = {
-        "AGENTS.md": Path(AGENT_RULES_ROOT) / "AGENTS.md",
-        "RULES.md": Path(AGENT_RULES_ROOT) / "RULES.md",
-        "worker_report_contract": ROOT / "04 Operating Contracts" / "fresh-worker-generation-launch.md",
+    local_sources = {
+        "AGENTS.md": (Path(AGENT_RULES_ROOT) / "AGENTS.md", Path(AGENT_RULES_ROOT), "AGENTS.md"),
+        "RULES.md": (Path(AGENT_RULES_ROOT) / "RULES.md", Path(AGENT_RULES_ROOT), "RULES.md"),
+        "worker_report_contract": (
+            ROOT / "04 Operating Contracts" / "fresh-worker-generation-launch.md",
+            ROOT,
+            "04 Operating Contracts/fresh-worker-generation-launch.md",
+        ),
     }
     sources: dict[str, Any] = {}
     attention = False
-    for key, path in local_paths.items():
+    any_updates_pending = False
+    for key, (path, repo_root, relative_path) in local_sources.items():
         item = dict((remote or {}).get(key) or {})
         local_blob = _git_blob_sha_for_file(path)
         remote_blob = item.pop("remote_blob", None)
         matches = bool(local_blob and remote_blob and local_blob == remote_blob)
+        local_last_committed_at = _git_last_committed_at(repo_root, relative_path)
+        updates_pending = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
         sources[key] = {
             "path": str(path),
             "last_updated_at": item.get("last_updated_at"),
             "last_update_commit": item.get("last_update_commit"),
+            "local_last_committed_at": local_last_committed_at,
             "local_matches_remote_main": matches,
-            "updates_pending": not matches,
+            "local_differs_from_remote_main": not matches,
+            "updates_pending": updates_pending,
         }
-        if not matches:
-            attention = True
+        attention = attention or not matches
+        any_updates_pending = any_updates_pending or updates_pending
     return {
         "available": True,
         "attention_required": attention,
-        "updates_pending": attention,
-        "meaning": "If attention_required is true, read the current source before relying on remembered agent/worker behavior.",
+        "updates_pending": any_updates_pending,
+        "meaning": "If attention_required is true, read the current source before relying on remembered agent/worker behavior; updates_pending means remote changed after the last local committed version.",
         "sources": sources,
         "cache": {
             "used": cache_used,
