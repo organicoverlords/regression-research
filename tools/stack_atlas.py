@@ -39,7 +39,7 @@ BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
 MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes"
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
-BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
+BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
@@ -877,6 +877,33 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         "malformed_running_reports_truncated": malformed_running_reports > len(malformed_running_sample),
     }
 
+def _bootstrap_manual_sanity() -> dict[str, Any]:
+    path = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "metrics.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {"available": False, "status": "MISSING", "path": str(path)}
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "status": "ERROR", "path": str(path), "error": str(exc)}
+    sanity = payload.get("sanity") if isinstance(payload, dict) else None
+    if not isinstance(sanity, dict):
+        return {"available": False, "status": "NOT_PROJECTED", "path": str(path)}
+    return {
+        "available": bool(sanity.get("available", True)),
+        "path": str(path),
+        "baseline_id": sanity.get("baseline_id"),
+        "boundary_at": sanity.get("boundary_at"),
+        "status": sanity.get("status"),
+        "score_delta": sanity.get("score_delta"),
+        "direction": sanity.get("direction"),
+        "post_run_count": sanity.get("post_run_count"),
+        "minimum_post_runs_for_provisional": sanity.get("minimum_post_runs_for_provisional"),
+        "minimum_post_runs_for_comparable": sanity.get("minimum_post_runs_for_comparable"),
+        "components": sanity.get("components", {}),
+        "semantics": sanity.get("semantics"),
+    }
+
+
 def _bootstrap_worker_status() -> dict[str, Any]:
     """Read archived worker-quality orientation from the periodic Vault projection only."""
     path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
@@ -905,6 +932,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     result["read_mode"] = "MATERIALIZED_ONLY"
     result["projection_path"] = str(path)
     result["materialized_as_of"] = raw.get("generated_at")
+    result["manual_sanity"] = _bootstrap_manual_sanity()
     return result
 
 
@@ -1793,14 +1821,10 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
         "available": True,
         "read_state": "OK",
         "deployment_id": deployment.get("id"),
-        "deployed_at": deployment.get("deployed_at"),
-        "backend_commit": deployment.get("commit"),
         "backend_generation": deployment.get("generation"),
-        "recovery_target_deployment_id": recovery_target.get("deployment_id"),
         "recovery_selected_at": recovery_target.get("selected_at"),
         "conditions": bounded_conditions,
         "restore_first_on_regression": bool(policy.get("restore_first_on_regression")),
-        "post_restore_user_event": observation.get("post_restore_user_event"),
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
 
@@ -2096,7 +2120,6 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         updates_pending = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
         sources[key] = {
             "last_updated_at": item.get("last_updated_at"),
-            "differs": not matches,
             "updates_pending": updates_pending,
         }
         attention = attention or not matches
@@ -2146,11 +2169,18 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"memory_{str(memory_status).casefold()}_commit_headroom_{pc.get('memory', {}).get('commit_headroom_gb')}gb")
     worker_glance = {
         key: workers.get(key) for key in (
-            "available", "generated_at", "read_mode", "population_scope", "evidence_semantics", "current_scheduler_membership",
-            "archive_sample", "attention", "stale_reports",
+            "available", "generated_at", "read_mode", "population_scope", "evidence_semantics",
+            "archive_sample", "attention", "stale_reports", "manual_sanity",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     if isinstance(worker_glance, dict):
+        sanity = worker_glance.get("manual_sanity")
+        if isinstance(sanity, dict):
+            worker_glance["manual_sanity"] = {
+                key: sanity.get(key)
+                for key in ("available", "status", "score_delta", "direction", "post_run_count")
+                if key in sanity
+            }
         worker_glance["current_activity"] = _bootstrap_worker_activity_from_mcp(mcp)
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
