@@ -62,7 +62,7 @@ Do not automatically promote or load Vault records into live behavior. Use targe
 
 ## Shared continuity and timeline views
 
-The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. `recent`, `search`, and `context` remain direct local reads. The canonical multi-source `timeline` normally reads a periodically materialized local projection under `.state/timeline/`; the expensive aggregation runs once in a Vault-owned scheduled task, not once per bootstrap/worker. The materializer is a batch job with an atomic lock, not a daemon, scheduler, ownership service, or control plane. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
+The Vault is a shared knowledge surface, not a second coordinator. Orchestrators and workers read the same canonical memory and derived views concurrently. `recent`, `search`, and `context` remain direct local reads. The canonical multi-source `timeline` normally reads a periodically materialized local projection under `.state/timeline/`; the expensive aggregation runs once in a Vault-owned scheduled task, not once per bootstrap/worker. The materializer is a batch job with an atomic lock, not a daemon, scheduler, ownership service, or control plane. If a scheduled refresh overlaps an already-running manual/scheduled refresh, lock contention is an intentional successful no-op rather than a scheduler failure; the owning refresh remains the only writer. The existing external coordinator remains the ownership/control plane for work; timeline/context tools never replace it.
 
 Inspect chronology directly:
 

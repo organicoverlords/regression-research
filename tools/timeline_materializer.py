@@ -1704,6 +1704,12 @@ def main() -> int:
         )
         if not args.quiet:
             print(json.dumps(result, ensure_ascii=False))
+        # A concurrent materializer already holding the atomic refresh lock is an
+        # intentional successful no-op for periodic scheduling. Reporting it as a
+        # process failure makes Task Scheduler look unhealthy even though duplicate
+        # aggregation was correctly prevented.
+        if result.get("status") == "ALREADY_RUNNING":
+            return 0
         return 0 if result.get("ok") else 1
     if args.command == "install-task":
         result = install_task(minutes=args.minutes)
