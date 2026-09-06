@@ -1646,6 +1646,12 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     policy = recovery_target.get("policy", {}) if isinstance(recovery_target.get("policy"), dict) else {}
     evidence = raw.get("evidence", {}) if isinstance(raw.get("evidence"), dict) else {}
     observation = evidence.get("latest_restore_observation", {}) if isinstance(evidence.get("latest_restore_observation"), dict) else {}
+    known_transients = evidence.get("known_transients", []) if isinstance(evidence.get("known_transients"), list) else []
+    replacement_safety_rules = [
+        str(item.get("rule"))
+        for item in known_transients
+        if isinstance(item, dict) and str(item.get("rule") or "").strip()
+    ]
     conditions = raw.get("conditions", []) if isinstance(raw.get("conditions"), list) else []
     bounded_conditions = [
         {
@@ -1669,6 +1675,10 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
         "recovery_selected_at": recovery_target.get("selected_at"),
         "conditions": bounded_conditions,
         "restore_first_on_regression": bool(policy.get("restore_first_on_regression")),
+        "recovery_required_order": policy.get("required_order") if isinstance(policy.get("required_order"), list) else [],
+        "recovery_preservation_rule": policy.get("preservation_rule"),
+        "recovery_authorization_rule": policy.get("authorization_rule"),
+        "replacement_safety_rules": replacement_safety_rules,
         "post_restore_user_event": observation.get("post_restore_user_event"),
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }

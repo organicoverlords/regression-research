@@ -1405,6 +1405,10 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
             state = atlas._bootstrap_mcp_recovery_state()
         self.assertTrue(state["restore_first_on_regression"])
         self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
+        self.assertTrue(state["recovery_required_order"])
+        self.assertIn("do not kill foreign work", state["recovery_preservation_rule"].casefold())
+        self.assertIn("generic go does not authorize", state["recovery_authorization_rule"].casefold())
+        self.assertTrue(any("do not reuse the 2026-09-05 replacement procedure" in rule.casefold() for rule in state["replacement_safety_rules"]))
         summary = {item["type"]: item["status"] for item in state["conditions"]}
         self.assertEqual(summary["SecurityReroutesReduced"], "True")
         self.assertEqual(summary["SecurityReroutesEliminated"], "False")
