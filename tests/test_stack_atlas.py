@@ -144,49 +144,47 @@ class StackAtlasTests(unittest.TestCase):
         self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["7d"].get("highlights", [])))
         self.assertIn("sources", windows["24h"])
 
-    def test_bootstrap_memory_overview_backfills_after_rollup_member_suppression(self):
-        report = {
-            "contract": "history only",
-            "eligible_entries": 24,
-            "incident_rollups": [{
-                "thread_id": "thread:one-bug",
-                "thread_source": "EXPLICIT_THREAD",
-                "scope": "memory/one-bug",
-                "observations": 20,
-                "latest_event_at": "2026-09-06T03:20:00+03:00",
-                "latest_event_id": "bug-20",
-                "latest_title": "Bug observation 20",
-                "latest_disposition": "CURRENT_DURABLE",
-                "summary": "Twenty related observations.",
-                "member_ids": [f"bug-{i}" for i in range(1, 21)],
-                "drilldown": "memory_bank timeline thread",
-            }],
-            "recent": [
-                *[
-                    {"id": f"bug-{i}", "timestamp": f"2026-09-06T03:{i:02d}:00+03:00", "title": f"Bug {i}"}
-                    for i in range(20, 0, -1)
-                ],
-                {"id": "unrelated-1", "timestamp": "2026-09-06T02:59:00+03:00", "title": "Unrelated one"},
-                {"id": "unrelated-2", "timestamp": "2026-09-06T02:58:00+03:00", "title": "Unrelated two"},
-                {"id": "unrelated-3", "timestamp": "2026-09-06T02:57:00+03:00", "title": "Unrelated three"},
-            ],
-            "projects": [],
-            "recurring_tags": [],
-        }
-        with patch("tools.stack_atlas._bootstrap_cache_read", return_value=(None, None)), patch(
-            "tools.stack_atlas._bootstrap_cache_write"
-        ), patch("tools.memory_bank.load_bank", return_value=[]) as load_bank, patch(
-            "tools.memory_bank.build_overview", return_value=report
-        ) as build_overview:
-            compact = _bootstrap_memory_overview()
-        load_bank.assert_called_once_with()
-        build_overview.assert_called_once_with([], limit=BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, include_timeline_snapshots=True)
-        self.assertGreater(BOOTSTRAP_MEMORY_CANDIDATE_LIMIT, BOOTSTRAP_MEMORY_TITLE_LIMIT)
-        self.assertEqual(len(compact["incident_rollups"]), 1)
-        self.assertEqual(
-            [item["id"] for item in compact["recent"]],
-            ["unrelated-1", "unrelated-2", "unrelated-3"],
-        )
+    def test_bootstrap_memory_overview_reads_periodic_projection_without_rebuilding_sources(self):
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            path = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({
+                "schema": "vault.timeline.bootstrap.v1",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "overview": {
+                    "contract": "history only",
+                    "eligible_entries": 24,
+                    "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
+                    "incident_rollups": [],
+                    "recent": [{"id": "unrelated-1", "timestamp": "2026-09-06T02:59:00+03:00", "title": "Unrelated one"}],
+                    "projects": [],
+                    "recurring_tags": [],
+                    "timeline_materialized": {"refresh_minutes": 5, "horizon_days": 30, "work_graph": {"cross_branch_groups": 7}},
+                },
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch(
+                "tools.memory_bank.build_overview", side_effect=AssertionError("bootstrap must not rebuild timeline")
+            ):
+                compact = _bootstrap_memory_overview()
+        self.assertEqual(compact["timeline_materialized"]["status"], "FRESH")
+        self.assertEqual(compact["timeline_materialized"]["read_mode"], "MATERIALIZED_ONLY")
+        self.assertEqual(compact["timeline_materialized"]["work_graph"]["cross_branch_groups"], 7)
+        self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated-1"])
+        size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+
+    def test_bootstrap_memory_overview_reports_missing_projection_without_source_scan(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch(
+                "tools.memory_bank.build_overview", side_effect=AssertionError("bootstrap must not rebuild timeline")
+            ):
+                compact = _bootstrap_memory_overview()
+        self.assertEqual(compact["timeline_materialized"]["status"], "MISSING")
+        self.assertEqual(compact["timeline_snapshots"], {})
+        self.assertIn("timeline_materializer.py", compact["timeline_materialized"]["refresh_command"])
 
     def test_session_cwd_worktree_match_is_one_way(self):
         worktree = r"C:\Users\Lauri\AppData\Local\Temp\p3-941-control-hints"

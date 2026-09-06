@@ -865,6 +865,10 @@ def _main() -> int:
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
     timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="additional immutable worker-report history root")
     timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude timed/manual worker-report history")
+    timeline_cmd.add_argument(
+        "--live-rebuild", action="store_true",
+        help="explicitly rescan timeline sources instead of reading the periodic Vault materialization",
+    )
 
     overview = sub.add_parser("overview", aliases=["digest"], help="aggregate recent durable Vault memory into a bounded query-free digest")
     overview.add_argument("--limit", type=int, default=8)
@@ -914,6 +918,38 @@ def _main() -> int:
                 raise BankError("--days must be non-negative")
             since = now - timedelta(days=args.days) if args.days is not None else None
             vault_root = Path(__file__).resolve().parents[1]
+
+            # Canonical reads use the periodically materialized multi-source timeline.
+            # Explicit --live-rebuild (or custom --repo inputs) is the escape hatch for
+            # an intentional expensive rescan; bootstrap/workers should not do this by default.
+            if not args.live_rebuild and not args.repo and args.bank.resolve() == DEFAULT_BANK.resolve():
+                try:
+                    from tools.timeline_materializer import query_materialized
+                except ImportError:
+                    from timeline_materializer import query_materialized
+                materialized = query_materialized(
+                    root=vault_root,
+                    query=args.query,
+                    view=args.view,
+                    project=args.project,
+                    thread=args.thread,
+                    days=args.days,
+                    limit=args.limit,
+                    include_workers=not args.no_workers,
+                )
+                if materialized is not None:
+                    _print_json(materialized)
+                    return 0
+                _print_json({
+                    "status": "MISSING",
+                    "authority": "DERIVED_HISTORY_ONLY",
+                    "read_mode": "MATERIALIZED_ONLY",
+                    "error": "periodic Vault timeline materialization is unavailable",
+                    "refresh_command": "python tools\\timeline_materializer.py refresh",
+                    "live_rebuild_command": "python tools\\memory_bank.py timeline --live-rebuild --with-all",
+                })
+                return 2
+
             repo_events: list[dict[str, Any]] = []
             repo_coverage: dict[str, Any] = {}
             if args.with_repos or args.with_all:

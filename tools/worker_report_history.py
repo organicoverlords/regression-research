@@ -347,12 +347,19 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     return metadata
 
 
-def load_history_metadata(history_root: Path) -> list[dict[str, Any]]:
+def load_history_metadata(history_root: Path, *, since: datetime | None = None) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     canonical_root = history_root / "_reports"
     if not canonical_root.exists():
         return records
+    cutoff = since.timestamp() if since is not None else None
     for path in sorted(canonical_root.glob("*.json")):
+        if cutoff is not None:
+            try:
+                if path.stat().st_mtime < cutoff:
+                    continue
+            except OSError:
+                continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -481,10 +488,10 @@ def _project_from_repo(repo: str | None) -> str | None:
     }.get(name, name or None)
 
 
-def worker_history_events(history_root: Path) -> list[dict[str, Any]]:
+def worker_history_events(history_root: Path, *, since: datetime | None = None) -> list[dict[str, Any]]:
     population = _report_population(history_root=history_root)
     records = [
-        item for item in load_history_metadata(history_root)
+        item for item in load_history_metadata(history_root, since=since)
         if _metadata_population(item) == population and _history_chronology_is_plausible(item)
     ]
     if population == "manual":

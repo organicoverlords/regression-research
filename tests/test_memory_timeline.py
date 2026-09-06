@@ -371,6 +371,42 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(report["invalid_source_events"], {"WORKER_REPORT": 1})
         self.assertEqual([event["id"] for event in report["events"]], ["mem"])
 
+    def test_supplemental_sources_join_canonical_timeline_without_keyword_incident_inference(self):
+        event = {
+            "id": "github-pr:p3#10",
+            "source_type": "GITHUB_PR",
+            "authority": "GITHUB_HISTORY_SNAPSHOT",
+            "event_at": "2026-09-06T04:00:00+03:00",
+            "recorded_at": "2026-09-06T04:00:00+03:00",
+            "project": "p3",
+            "projects": ["p3"],
+            "title": "PR #10: incident wording in ordinary change title",
+            "summary": "state=MERGED",
+            "github_kind": "pr",
+            "refs": ["#10"],
+            "anchors": ["github:organicoverlords/p3#10", "pr:github:organicoverlords/p3#10"],
+        }
+        result = build_timeline([], supplemental_events=[event], limit=10)
+        self.assertEqual(result["supplemental_events"], 1)
+        self.assertEqual(result["events"][0]["evidence_form"], "pull_request")
+        self.assertEqual(result["events"][0]["continuity"]["traits"], [])
+        self.assertFalse(result["events"][0]["continuity"]["legacy_inferred"])
+        self.assertEqual(result["snapshots"]["windows"][0]["source_counts"], {"GITHUB_PR": 1})
+
+    def test_default_timeline_read_fails_closed_when_materialization_is_missing(self):
+        state = ROOT / ".state" / "timeline" / "timeline-store.json"
+        if state.exists():
+            self.skipTest("test requires a clean worktree without local materialized state")
+        proc = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "memory_bank.py"), "timeline", "--limit", "2", "--no-workers"],
+            capture_output=True, text=True, encoding="utf-8", check=False,
+        )
+        self.assertEqual(proc.returncode, 2)
+        payload = json.loads(proc.stdout)
+        self.assertEqual(payload["status"], "MISSING")
+        self.assertEqual(payload["read_mode"], "MATERIALIZED_ONLY")
+        self.assertIn("timeline_materializer.py refresh", payload["refresh_command"])
+
     def test_cli_is_bounded_and_derived(self):
         with tempfile.TemporaryDirectory() as d:
             bank = Path(d) / "bank.jsonl"
