@@ -18,6 +18,7 @@ LOCAL_CONTENTION_STOP_MARKERS = (
     "unreal/runtime", "pending ci", "pending proof",
 )
 USER_END_MARKERS = ("user interrupt", "user supersed")
+IN_SCOPE_FINISH_MARKERS = ("selected acceptance complete", "no in-scope work remains")
 CONTINUATION_STOP_REASON = "premature finalization rejected; run continuing"
 MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
 START_RECEIPT_SCHEMA = "worker-run-start.v1"
@@ -276,6 +277,13 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     reason = str(fields.get("stop_reason") or "").strip().casefold()
     if any(marker in reason for marker in USER_END_MARKERS):
         return observed_started
+    if reason and any(marker in reason for marker in IN_SCOPE_FINISH_MARKERS):
+        if started is not None and observed_started <= started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+            return observed_started
+        raise ValueError(
+            "premature RUN_FINISHED rejected: early in-scope completion requires machine start evidence "
+            "registered near run start; late begin cannot establish early-stop eligibility"
+        )
     if reason and all(marker in reason for marker in PROVEN_NO_SAFE_WORK_MARKERS):
         if started is not None and observed_started <= started + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
             return observed_started
@@ -288,14 +296,15 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     if any(marker in evidence for marker in LOCAL_CONTENTION_STOP_MARKERS):
         raise ValueError(
             "premature RUN_FINISHED rejected: this run is NOT finished and this report was NOT archived. "
-            "DO NOT end/final-answer the worker turn. Local contention is not a task-level stop reason; "
-            "continue useful work through another safe non-conflicting action within existing WIP/current work identity and retry finalization only "
-            "after >=80% utilization or user interruption/supersession"
+            "Local contention alone is not an early-finish reason. Continue only work already required by the selected acceptance, "
+            "or use a truthful terminal stop_reason containing 'no in-scope work remains' when that acceptance has no remaining in-scope action. "
+            "Do not switch to adjacent work merely to reach the utilization target."
         )
     raise ValueError(
         "premature RUN_FINISHED rejected: this run is NOT finished and this report was NOT archived. "
-        "DO NOT end/final-answer the worker turn. Under 80% utilization, continue useful work within existing WIP/current work identity unless "
-        "the user interrupted/superseded the run or the documented true no-safe-work condition applies"
+        "Under 80% utilization, continue only the already-selected in-scope acceptance. If that acceptance is complete or has no remaining "
+        "in-scope work, use a truthful terminal stop_reason containing 'selected acceptance complete' or 'no in-scope work remains'. "
+        "Do not select adjacent work merely to satisfy utilization."
     )
 
 

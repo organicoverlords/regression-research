@@ -454,6 +454,65 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     self.assertNotIn(stop_reason, current_text)
                     self.assertFalse((root / "history" / "_reports").exists())
 
+    def test_timed_run_can_finish_early_when_selected_acceptance_complete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "7" * 32
+            started = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {started.isoformat()}\nrepo: p3\nscope: p3#500 acceptance A\nstate: RUNNING\n"
+                "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: issue has later acceptance B\n",
+                encoding="utf-8",
+            )
+            begin_timed_run(report)
+            finished = datetime.now().astimezone()
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500 acceptance A\nstate: RUN_FINISHED\n"
+                "outcome: acceptance A complete\nmutation: changed gameplay\nvalidation: PASS\n"
+                "remaining_gate: issue has later acceptance B\nstop_reason: selected acceptance complete\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertTrue(result["ok"])
+            self.assertLess(metadata["target_utilization_pct"], 80.0)
+            self.assertEqual(metadata["stop_reason"], "selected acceptance complete")
+
+    def test_timed_run_can_finish_early_when_no_in_scope_work_remains_under_contention(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "8" * 32
+            started = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {started.isoformat()}\nrepo: p3\nscope: p3#500 acceptance A\nstate: RUNNING\n"
+                "outcome: starting\nmutation: none\nvalidation: pending\nremaining_gate: heavy runtime acceptance\n",
+                encoding="utf-8",
+            )
+            begin_timed_run(report)
+            finished = datetime.now().astimezone()
+            report.write_text(
+                f"automation_id: {automation_id}\nstarted_at: {started.isoformat()}\n"
+                f"last_activity_at: {finished.isoformat()}\nrepo: p3\nscope: p3#500 acceptance A\nstate: RUN_FINISHED\n"
+                "outcome: source/proof work complete\nmutation: no source mutation\nvalidation: PASS\n"
+                "remaining_gate: heavy runtime acceptance\n"
+                "stop_reason: no in-scope work remains; selected acceptance blocked by occupied build lane\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, root / "history")
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertTrue(result["ok"])
+            self.assertLess(metadata["target_utilization_pct"], 80.0)
+            self.assertIn("no in-scope work remains", metadata["stop_reason"])
+
     def test_run_finished_rejects_future_last_activity_and_restores_running(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
