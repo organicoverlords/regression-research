@@ -27,6 +27,7 @@ VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 MCP_KNOWN_GOOD_FREEZE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
+LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
@@ -64,6 +65,10 @@ COMPONENT_ALIASES = {
     "mcp edge": "vps_edge_ingress",
     "transfer": "file_transfer",
     "file transfer": "file_transfer",
+    "linux omen": "linux_omen_node",
+    "omen laptop": "linux_omen_node",
+    "linux laptop": "linux_omen_node",
+    "linux node": "linux_omen_node",
     "visual proof": "visual_proof",
     "proof": "visual_proof",
     "worker": "execution_workers",
@@ -202,6 +207,32 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["Funnel config", "HTTPS listener", "stable front-door proxy"],
         "dependents": ["mcp_front_door"],
         "runbook": [MCP_ROOT + r"\keepalive.ps1"],
+    },
+    "linux_omen_node": {
+        "role": "lan_ssh_execution_node",
+        "capabilities": ["source_read", "repository_mutate", "runtime_validate", "artifact_transfer", "build_compute"],
+        "canonical_sources": [LINUX_OMEN_CONTRACT],
+        "live_status": [
+            "bounded SSH probe through the documented Windows MCP -> LAN SSH route",
+            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass",
+            "current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof",
+        ],
+        "supervisor": "user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only",
+        "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
+        "independent_recovery": [
+            "local laptop console remains independent of SSH",
+            "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this optional node",
+        ],
+        "resources": [
+            "HP OMEN by HP Laptop 15-dc0xxx",
+            "Linux user aatuska",
+            "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local",
+            r"C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents)",
+            "LAN SSH TCP 22",
+            "Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile",
+        ],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": [LINUX_OMEN_CONTRACT],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
@@ -480,6 +511,15 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+    },
+    "execution.linux_omen_node": {
+        "owner_components": ["linux_omen_node"],
+        "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
+        "entrypoints": [
+            "python tools\\stack_atlas.py lookup linux_omen_node",
+            LINUX_OMEN_CONTRACT,
+        ],
+        "boundary": "Optional LAN compute/build node behind the existing Windows MCP transport. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route. Reverify live SSH and current machine resources before use; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
