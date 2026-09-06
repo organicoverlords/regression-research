@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import re
@@ -31,6 +32,7 @@ BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
 BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
+BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS = 60.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
@@ -1827,6 +1829,122 @@ def _bootstrap_github_status() -> dict[str, Any]:
     _bootstrap_cache_write("github-status.json", cache_payload)
     return result
 
+def _git_blob_sha_for_file(path: Path) -> str | None:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    header = f"blob {len(data)}\0".encode("ascii")
+    return hashlib.sha1(header + data).hexdigest()
+
+
+def _bootstrap_source_freshness() -> dict[str, Any]:
+    """Compact freshness signal for behavior sources; hashes only, no body parsing."""
+    cached, cache_age = _bootstrap_cache_read("source-freshness.json", BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS)
+    remote: dict[str, Any] | None = cached
+    cache_used = cached is not None
+    if remote is None:
+        gh = shutil.which("gh")
+        if not gh:
+            return {"available": False, "attention_required": True, "reason": "gh_unavailable"}
+        query = (
+            'query {'
+            ' agents: repository(owner:"organicoverlords", name:"agents") {'
+            '  ref(qualifiedName:"refs/heads/main") { target { ... on Commit {'
+            '   agentsHistory: history(first:1, path:"AGENTS.md") { nodes { oid committedDate } }'
+            '   rulesHistory: history(first:1, path:"RULES.md") { nodes { oid committedDate } }'
+            '  } } }'
+            '  agentsBlob: object(expression:"main:AGENTS.md") { ... on Blob { oid } }'
+            '  rulesBlob: object(expression:"main:RULES.md") { ... on Blob { oid } }'
+            ' }'
+            ' vault: repository(owner:"organicoverlords", name:"regression-research") {'
+            '  ref(qualifiedName:"refs/heads/main") { target { ... on Commit {'
+            '   workerHistory: history(first:1, path:"04 Operating Contracts/fresh-worker-generation-launch.md") { nodes { oid committedDate } }'
+            '  } } }'
+            '  workerBlob: object(expression:"main:04 Operating Contracts/fresh-worker-generation-launch.md") { ... on Blob { oid } }'
+            ' }'
+            '}'
+        )
+        try:
+            proc = subprocess.run(
+                [gh, "api", "graphql", "-f", f"query={query}"],
+                text=True,
+                capture_output=True,
+                timeout=BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            proc = None
+        if proc is None or proc.returncode != 0:
+            return {"available": False, "attention_required": True, "reason": "github_metadata_unavailable"}
+        try:
+            payload = json.loads(proc.stdout)
+            data = payload.get("data", {})
+            agents = data.get("agents", {})
+            vault_repo = data.get("vault", {})
+            agent_target = ((agents.get("ref") or {}).get("target") or {})
+            vault_target = ((vault_repo.get("ref") or {}).get("target") or {})
+
+            def first_history(target: dict[str, Any], key: str) -> dict[str, Any]:
+                nodes = ((target.get(key) or {}).get("nodes") or [])
+                return nodes[0] if nodes and isinstance(nodes[0], dict) else {}
+
+            remote = {
+                "AGENTS.md": {
+                    "remote_blob": (agents.get("agentsBlob") or {}).get("oid"),
+                    "last_updated_at": first_history(agent_target, "agentsHistory").get("committedDate"),
+                    "last_update_commit": first_history(agent_target, "agentsHistory").get("oid"),
+                },
+                "RULES.md": {
+                    "remote_blob": (agents.get("rulesBlob") or {}).get("oid"),
+                    "last_updated_at": first_history(agent_target, "rulesHistory").get("committedDate"),
+                    "last_update_commit": first_history(agent_target, "rulesHistory").get("oid"),
+                },
+                "worker_report_contract": {
+                    "remote_blob": (vault_repo.get("workerBlob") or {}).get("oid"),
+                    "last_updated_at": first_history(vault_target, "workerHistory").get("committedDate"),
+                    "last_update_commit": first_history(vault_target, "workerHistory").get("oid"),
+                },
+            }
+            _bootstrap_cache_write("source-freshness.json", remote)
+            cache_age = 0.0
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            return {"available": False, "attention_required": True, "reason": "github_metadata_invalid"}
+
+    local_paths = {
+        "AGENTS.md": Path(AGENT_RULES_ROOT) / "AGENTS.md",
+        "RULES.md": Path(AGENT_RULES_ROOT) / "RULES.md",
+        "worker_report_contract": ROOT / "04 Operating Contracts" / "fresh-worker-generation-launch.md",
+    }
+    sources: dict[str, Any] = {}
+    attention = False
+    for key, path in local_paths.items():
+        item = dict((remote or {}).get(key) or {})
+        local_blob = _git_blob_sha_for_file(path)
+        remote_blob = item.pop("remote_blob", None)
+        matches = bool(local_blob and remote_blob and local_blob == remote_blob)
+        sources[key] = {
+            "path": str(path),
+            "last_updated_at": item.get("last_updated_at"),
+            "last_update_commit": item.get("last_update_commit"),
+            "local_matches_remote_main": matches,
+            "updates_pending": not matches,
+        }
+        if not matches:
+            attention = True
+    return {
+        "available": True,
+        "attention_required": attention,
+        "updates_pending": attention,
+        "meaning": "If attention_required is true, read the current source before relying on remembered agent/worker behavior.",
+        "sources": sources,
+        "cache": {
+            "used": cache_used,
+            "age_seconds": round(float(cache_age or 0.0), 3),
+            "max_age_seconds": BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS,
+        },
+    }
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
@@ -1837,8 +1955,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
-        pc, workers, mcp, memory_overview, vault, github = (
-            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result()
+        f_source_freshness = pool.submit(_bootstrap_source_freshness)
+        pc, workers, mcp, memory_overview, vault, github, source_freshness = (
+            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
     notable_conditions: list[str] = []
@@ -1934,6 +2053,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "mcp": mcp,
         "vault": vault,
         "github": github,
+        "source_freshness": source_freshness,
         "pc": pc,
         "workers": worker_glance,
         "mcp_recovery_state": mcp_recovery_state,
