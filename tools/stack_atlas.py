@@ -1850,15 +1850,14 @@ def _bootstrap_github_status() -> dict[str, Any]:
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=5) as pool:
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_mcp = pool.submit(_bootstrap_mcp_status)
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
-        f_github = pool.submit(_bootstrap_github_status)
-        pc, workers, mcp, memory_overview, vault, github = (
-            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result()
+        pc, workers, mcp, memory_overview, vault = (
+            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result()
         )
     mcp_known_good_freeze = _bootstrap_mcp_known_good_freeze()
     notable_conditions: list[str] = []
@@ -1886,24 +1885,21 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
     vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
-    github_health = str(github.get("status") or "UNAVAILABLE") if isinstance(github, dict) else "UNAVAILABLE"
     if mcp_health != "OK":
         notable_conditions.append(f"mcp_{mcp_health.casefold()}")
     if vault_health != "OK":
         notable_conditions.append(f"vault_{vault_health.casefold()}")
-    if github_health != "OK":
-        notable_conditions.append(f"github_{github_health.casefold()}")
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-    bootstrap_status = "OK" if mcp_health == vault_health == github_health == "OK" else "DEGRADED"
+    bootstrap_status = "OK" if mcp_health == vault_health == "OK" else "DEGRADED"
     if elapsed_ms >= 5000:
         notable_conditions.append(f"bootstrap_slow_{round(elapsed_ms)}ms")
     bootstrap = {
         "status": bootstrap_status,
         "self_check": "OK" if (ROOT / "tools" / "stack_atlas.py").is_file() else "DEGRADED",
         "elapsed_ms": elapsed_ms,
-        "component_statuses": {"mcp": mcp_health, "vault": vault_health, "github": github_health},
-        "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
+        "component_statuses": {"mcp": mcp_health, "vault": vault_health},
+        "bounded_contract": "no_git_fetch_or_issue_pr_listing_or_busy_enumeration",
     }
     return {
         "schema": "bootstrap.v1",
@@ -1937,7 +1933,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "bootstrap": bootstrap,
         "mcp": mcp,
         "vault": vault,
-        "github": github,
         "pc": pc,
         "workers": worker_glance,
         "mcp_known_good_freeze": mcp_known_good_freeze,

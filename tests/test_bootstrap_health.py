@@ -54,21 +54,22 @@ class BootstrapHealthTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[-3:], ["rev-parse", "--is-inside-work-tree", "HEAD"])
 
-    def test_bootstrap_surfaces_component_health_and_notable_conditions(self):
+    def test_bootstrap_surfaces_local_component_health_without_github(self):
         with patch("tools.stack_atlas._bootstrap_pc_status", return_value={"disk": {"status": "OK", "trend": {}}, "memory": {"status": "OK"}}), patch(
             "tools.stack_atlas._bootstrap_worker_status", return_value={"available": True, "attention": [], "stale_reports": [], "manual_current": {}}
         ), patch("tools.stack_atlas._bootstrap_mcp_status", return_value={"available": True, "status": "LIVE"}), patch(
             "tools.stack_atlas._bootstrap_memory_overview", return_value={"recent": []}
         ), patch("tools.stack_atlas._bootstrap_vault_status", return_value={"available": True, "status": "OK"}), patch(
-            "tools.stack_atlas._bootstrap_github_status", return_value={"available": True, "status": "WATCH"}
+            "tools.stack_atlas._bootstrap_github_status", side_effect=AssertionError("mandatory bootstrap must not probe GitHub")
         ), patch("tools.stack_atlas._bootstrap_mcp_known_good_freeze", return_value={"available": True}):
             glance = build_live_bootstrap_glance()
-        self.assertEqual(glance["bootstrap"]["status"], "DEGRADED")
-        self.assertEqual(glance["bootstrap"]["component_statuses"], {"mcp": "OK", "vault": "OK", "github": "WATCH"})
-        self.assertIn("github_watch", glance["notable_conditions"])
+        self.assertEqual(glance["bootstrap"]["status"], "OK")
+        self.assertEqual(glance["bootstrap"]["component_statuses"], {"mcp": "OK", "vault": "OK"})
+        self.assertFalse(any(str(item).startswith("github_") for item in glance["notable_conditions"]))
         self.assertIn("mcp", glance)
         self.assertIn("vault", glance)
-        self.assertIn("github", glance)
+        self.assertNotIn("github", glance)
+        self.assertEqual(glance["bootstrap"]["bounded_contract"], "no_git_fetch_or_issue_pr_listing_or_busy_enumeration")
 
 
 if __name__ == "__main__":
