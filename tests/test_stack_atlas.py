@@ -1589,6 +1589,10 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertIn("mcp_recovery_state", glance)
         if glance["mcp_recovery_state"]["available"]:
             self.assertEqual(glance["mcp_recovery_state"]["read_state"], "OK")
+            self.assertEqual(len(glance["mcp_recovery_state"]["recovery_invariants"]), 6)
+            self.assertEqual(glance["mcp_recovery_state"]["latest_topology_restore"]["after_transport"], "wireguard")
+            payload = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
             summary = {item["type"]: item["status"] for item in glance["mcp_recovery_state"]["conditions"]}
             self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
             self.assertEqual(summary["SecurityReroutesEliminated"], "False")
@@ -1604,6 +1608,21 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
             state = atlas._bootstrap_mcp_recovery_state()
         self.assertTrue(state["restore_first_on_regression"])
         self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
+        self.assertEqual(state["automatic_routing"], "WireGuard only")
+        self.assertIn("explicit recovery only", state["ssh_role"])
+        self.assertTrue(any("keep the selected recovery target fixed" in item for item in state["recovery_invariants"]))
+        self.assertTrue(any("502" in item and "Node/backend" in item for item in state["recovery_invariants"]))
+        self.assertIn("preserve unique work", state["preservation_rule"])
+        self.assertIn("explicit user authorization", state["authorization_rule"])
+        self.assertTrue(any("2026-09-05 replacement procedure" in item for item in state["replacement_safety_rules"]))
+        latest = state["latest_topology_restore"]
+        self.assertEqual(latest["incident_id"], "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence")
+        self.assertEqual(latest["before_transport"], "reverse_ssh")
+        self.assertEqual(latest["after_transport"], "wireguard")
+        self.assertTrue(latest["backend_artifact_matches_selected_recovery"])
+        self.assertEqual(latest["failed_replacement_status"], "ROLLED_BACK_CANDIDATE_DRAIN_PENDING")
+        self.assertEqual(latest["public_health_statuses"], [200, 200, 200, 200, 200])
+        self.assertEqual(latest["fresh_mcp_process_call"], "PASS")
         summary = {item["type"]: item["status"] for item in state["conditions"]}
         self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
         self.assertEqual(summary["SecurityReroutesEliminated"], "False")

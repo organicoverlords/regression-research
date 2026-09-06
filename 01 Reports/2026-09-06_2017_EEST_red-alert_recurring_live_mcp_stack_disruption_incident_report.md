@@ -164,3 +164,76 @@ The same bounded projection hunk was applied to the current shared `stack_atlas.
 - `Do not reuse the 2026-09-05 replacement procedure as a claimed zero-downtime production path until issue #99 is fixed and independently proven.`
 
 This closes the bootstrap/timeline/audit visibility hole on the current recovery-state representation. The RED incident remains OPEN only for the separately authorized live #99 zero-public-gap acceptance; no live production mutation was performed by this repair.
+
+## 2026-09-07 00:44 EEST recurrence ? failed activation, target churn, and topology-only restoration
+
+This section supersedes the earlier assumption that the remaining RED gate was only a future #99 zero-gap acceptance run. The same outage class recurred during an explicitly authorized attempt to activate MCP source hardening (#141-#143).
+
+User reports preserved from the recurrence include:
+
+> MCP keeps giving 502 this is not normal
+
+> whole mcp down and you say it is nothing to do with out backend asshole
+
+> 9th time in 48 hour you kill whole stack just by mcp
+
+> you know i dont know this shit and its your responsibility and mcp is again broken because you keep saying you find better rollback targets
+
+### What actually happened
+
+1. Production started the interval healthy on backend generation `backend-3011-45164-1788726029621`, but live Caddy was already using the **reverse-SSH** renderer (`d92fd192b13c9026349e05956b2f41d617139e8640a3f5bf554074b7cbd16754`) instead of the selected recovery topology, WireGuard (`2a41b9e2ec46ff4ccb2f3d760f64de073e31b61577cb21bd27cad7bc726b4284`).
+2. Repeated MCP calls returned user-visible 502s while ordinary public `/health` probes could still return 200. Some failed calls left no Node/backend request row. The assistant initially over-interpreted that as evidence that the failure was external to the local stack. That inference was wrong: absence from the Node log excludes only the Node app, not Caddy/VPS/tunnel/listener failure.
+3. A source candidate was assembled from the currently serving lineage plus merged #141-#143. During that work another stale replacement assumption was found: `replace-wireguard-production.ps1` still hardcoded `ChatGPTMcpMinimal` even though the scheduled production action was running from `ChatGPTMcpClean`.
+4. Off-path candidates were proved over both WireGuard and reverse-SSH. The first replacement request correctly failed before cutover because the supplied recovery-state Caddy hash described WireGuard while live Caddy was reverse-SSH.
+5. A reverse-SSH guardian request (`670e48e0-0649-4a31-983a-9846903ed3e9`) was then accepted. It terminated as `ROLLED_BACK_CANDIDATE_DRAIN_PENDING` with `runtime_changed=false`, `production_task_stopped=false`, and `edge_on_candidate=false`; its error was `canonical backend changed unexpectedly while drain was in progress`. The candidate did not drain cleanly (`active_requests=0`, `live_process_count=1`). Production itself remained on the original backend.
+6. After the user rejected further rollback-target churn, the selected recovery target was treated as fixed and the live state was reconciled against it. This produced the discriminating finding that should have been established before any replacement attempt: **the live `dist/index.js` hash was already exactly the selected recovery artifact hash `6207503606a7b682624d09472883af698a3d37378104a45120ba91843f15c253`. The backend binary was not the divergent component. Caddy topology was.**
+7. The VPS could reach the existing backend successfully through WireGuard `10.203.0.2:3011`. With explicit authorization, only Caddy routing was restored from reverse-SSH to WireGuard. The backend process was not restarted or replaced.
+8. Post-restore acceptance: Caddy/edge health reported the WireGuard primary healthy with a fresh peer handshake; public `/health` returned `200` five consecutive times; a fresh MCP `start_process` call succeeded; backend generation stayed `backend-3011-45164-1788726029621`.
+
+### Historical recurrence analysis
+
+The relevant evidence now shows one recurring engineering failure family across multiple superficially different incidents:
+
+| Time | Evidence | Failure mode | Durable lesson |
+|---|---|---|---|
+| 2026-08-27 | Vault memory `mem-20260827-b4e14064` | User-visible MCP 502/tool-drop could occur without a matching backend request; a backend restart also existed nearby. | No-backend-row is a boundary fact, not a root-cause verdict. Separate Node app, local edge/tunnel, and platform layers. |
+| 2026-09-05 | `chatgpt-mcp-clean#99` | Temporary direct-3011 replacement produced 16 public MCP 502s during a serving gap. | Never reuse a stop-then-start replacement as a zero-downtime path. Candidate-first/independent rollback is mandatory. |
+| 2026-09-05/06 | `#99` guardian follow-ups | Busy-claim freshness and detached-HEAD assumptions broke the guarded replacement path before/around live rollback work. | The recovery mechanism itself must be exercised against the actual production identity, not only synthetic source tests. |
+| 2026-09-06 20:17 EEST | This RED report; user reported ?8th time in 48 hours? | Canonical replacement correctly rejected an unsupported topology; a separate reverse-SSH/backend stop path was invented and disrupted the whole stack. | A guard refusal is not permission to invent a second serving mutation path. Preserve the supported architecture. |
+| 2026-09-07 00:xx EEST | This continuation; user reported ?9th time in 48 hour? | An activation attempt began before selected recovery artifact, live backend artifact, live Caddy transport, and independent control route were reconciled. The response then churned among possible rollback targets/topologies. | Freeze target selection during incident recovery, identify the exact divergent component, and restore only that component. |
+
+The repeated root pattern is **identity/topology/control-route divergence combined with context loss**:
+
+- a source commit, a built artifact, a running backend generation, a Caddy transport, and a recovery target are different identities and must not be collapsed into ?the MCP version?;
+- public health 200 is necessary but does not prove the MCP request route is healthy;
+- a missing Node request row does not exclude our own edge/tunnel path;
+- recovery through the same degraded MCP request path couples service failure to control failure;
+- once a canonical recovery target exists, searching for a ?better? target mid-outage expands the state space instead of reducing it;
+- if only topology diverged, replacing a matching backend is unnecessary risk.
+
+### Bootstrap/Timeline regression discovered during this analysis
+
+This report itself records three prior visibility repairs (20:58, 21:05, 21:26 EEST) intended to put the RED case and recovery rules into `bootstrap-glance`. Current `origin/main` nevertheless regressed `_bootstrap_mcp_recovery_state()` back to a minimal projection containing only deployment ID/generation, selected-at, conditions, `restore_first_on_regression`, and one old restore-correlation boolean. The prior preservation/authorization/replacement warnings were no longer surfaced.
+
+That is a direct recurrence vector: **the durable rule existed in Vault, but a fresh worker no longer received it at bootstrap.** This issue therefore is not closed by writing another report alone. The recovery invariants and latest topology-restore outcome must be part of the bounded bootstrap contract and covered by regression tests.
+
+### Canonical recurrence-prevention invariants
+
+The existing recovery-state owner now records these rules explicitly and bootstrap must surface them:
+
+1. Keep the selected recovery target fixed during an active incident unless positive evidence disqualifies it. Do not use rollback-target search as a debugging loop.
+2. Before any serving mutation, reconcile: selected deployment artifact; live backend artifact/generation; live Caddy transport/topology; independent rollback/control route.
+3. If backend artifact already matches the selected recovery artifact and only topology differs, restore topology only. Do not restart/replace the backend.
+4. Do not repair MCP serving solely through the same MCP request path being repaired. Verify an independent control/rollback route first.
+5. Automatic routing is WireGuard `10.203.0.2:3011`; SSH `3101-3104` lanes are explicit recovery only. Reverse-SSH primary routing is topology drift, not a new preferred recovery target.
+6. A 502 with no Node/backend request row is not proof of platform causation. Exclude Caddy/VPS/tunnel/listener failure first.
+7. After any outage or restoration, update this incident history and materialize Timeline so future workers see both the failure and its disposition, not an open-ended ?tool unavailable? gap.
+
+### Current disposition
+
+- **Serving route restored:** WireGuard primary.
+- **Backend unchanged:** generation `backend-3011-45164-1788726029621`.
+- **Artifact relationship:** running backend `dist/index.js` matched the selected recovery artifact hash before topology restoration.
+- **Failed replacement:** rolled back before production runtime mutation; candidate drain remained pending.
+- **Timeline/bootstrap:** this recurrence must remain attached to canonical incident `INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence` and issue `regression-research#675`.
+- **Open engineering boundary:** prevent another context-loss recurrence by regression-guarding the bootstrap recovery projection. This report does not claim `chatgpt-mcp-clean#81` or `#99` is closed.
