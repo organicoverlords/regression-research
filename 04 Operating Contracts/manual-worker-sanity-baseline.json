@@ -26,15 +26,13 @@
     "higher_is_better": true,
     "component_formula": "weight * clamp((baseline-current)/baseline, -1, 1); all scored components are lower-is-better",
     "direction_threshold": 10.0,
-    "important": "diagnostic trend only; the worse scored axis is the headline and any regressed guardrail suppresses a clean IMPROVED label; never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive",
-    "headline_formula": "min(friction_delta, operational_delta)"
+    "important": "diagnostic trend only; mixed manual-task duration is not part of the headline. Go/continue duration is a separate continuation projection. Never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive.",
+    "headline_formula": "min(friction_delta, operational_lifecycle_delta); continuation run duration is separate and never folded into this score"
   },
   "guardrails": [
-    "Tool-interval duration is shown but is not directionally scored; longer is not automatically better.",
-    "Always show both friction and operational axes, component values, sample count, and guardrail state with the headline delta.",
-    "Do not claim improvement before the post-boundary sample gate is met.",
-    "The headline is the worse scored axis; friction reduction cannot offset operational degradation.",
-    "A REGRESSED unscored guardrail suppresses the clean IMPROVED direction and yields MIXED_GUARDRAIL_REGRESSION without changing the numeric score.",
+    "General manual sanity scores reporting friction and lifecycle mistakes only; mixed task duration is not scored or used as a verdict guardrail.",
+    "Continuation/go duration and fragmentation are reported separately from bounded manual task durations; never use the mixed manual population to answer whether `go` runs are too short.",
+    "Do not claim continuation improvement before the continuation sample gate is met.",
     "The score measures manual-reporting/process behavior, not model intelligence, user wellbeing, product quality, or MCP health."
   ],
   "axes": {
@@ -47,10 +45,21 @@
     },
     "operational": {
       "metrics": {
-        "self_reported_lifecycle_anomaly_pct": 60.0,
-        "micro_run_lt2_pct": 40.0
+        "self_reported_lifecycle_anomaly_pct": 100.0
       },
-      "semantics": "Measures downstream workflow pathologies not mechanically reduced merely by deleting report fields."
+      "semantics": "Measures report/execution lifecycle mistakes across actual manual execution runs. Run duration/fragmentation is intentionally excluded and tracked only for continuation go/continue runs."
     }
+  },
+  "continuation_baseline": {
+    "source_semantics": "Six hours before PR #658, using only historical manual reports explicitly identifiable as go/continue from run_id or scope; bounded historical subset, not all manual work.",
+    "baseline_run_count": 7,
+    "median_duration_minutes": 18.78,
+    "short_run_lt5_pct": 0.0,
+    "micro_run_lt2_pct": 0.0,
+    "sample_gates": {
+      "minimum_post_runs_for_provisional": 5,
+      "minimum_post_runs_for_comparable": 20
+    },
+    "important": "Separate from the general manual sanity score. Do not infer go/continue quality from bounded one-shot task or correction durations; user-interrupted continuation runs should be identified by stop_reason when available."
   }
 }

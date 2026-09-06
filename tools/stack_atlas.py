@@ -903,6 +903,7 @@ def _bootstrap_manual_sanity() -> dict[str, Any]:
         "minimum_post_runs_for_comparable": sanity.get("minimum_post_runs_for_comparable"),
         "axes": sanity.get("axes", {}),
         "guardrails": sanity.get("guardrails", {}),
+        "continuation": sanity.get("continuation", {}),
         "components": sanity.get("components", {}),
         "semantics": sanity.get("semantics"),
     }
