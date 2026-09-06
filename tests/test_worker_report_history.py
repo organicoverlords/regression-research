@@ -1035,7 +1035,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 },
                 "axes": {
                     "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
-                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 60.0, "micro_run_lt2_pct": 40.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 100.0}},
                 },
                 "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
                 "score_semantics": {"direction_threshold": 10.0},
@@ -1170,6 +1170,69 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(scored["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
             self.assertEqual(scored["direction"], "MIXED_GUARDRAIL_REGRESSION")
 
+
+
+    def test_continuation_projection_excludes_bounded_task_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "continuation-separation",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0, "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0, "micro_run_lt2_pct": 20.0,
+                    "short_run_lt5_pct_guardrail": 20.0, "median_tool_interval_minutes_guardrail": 8.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 60.0, "micro_run_lt2_pct": 40.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "continuation_baseline": {
+                    "baseline_run_count": 7, "median_duration_minutes": 18.78,
+                    "short_run_lt5_pct": 0.0, "micro_run_lt2_pct": 0.0,
+                    "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                },
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+
+            fixtures = [
+                ("go-explicit", 12.0, {"run_mode": "continuation"}, "normal run"),
+                ("bounded-task", 1.0, {}, "quick verification"),
+                ("manual-go2-legacy", 20.0, {}, "legacy continuation"),
+                ("go-interrupted", 2.0, {"run_mode": "continuation", "stop_reason": "user_interrupted"}, "interrupted"),
+            ]
+            for index, (run_id, duration, extra, outcome) in enumerate(fixtures):
+                archive = reports / f"c{index}.md"
+                archive.write_text(f"run_id: {run_id}\nstate: RUN_FINISHED\noutcome: {outcome}\n", encoding="utf-8")
+                fields = {"run_id": run_id, "outcome": outcome, **extra}
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"c{index}",
+                    "run_id": run_id, "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{20+index:02d}:00+03:00", "duration_minutes": duration,
+                    "archived_at": f"2026-09-06T21:{25+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": fields, "outcome": outcome, "stop_reason": extra.get("stop_reason"),
+                }
+                (reports / f"c{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+
+            projected = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            continuation = projected["continuation"]
+            self.assertEqual(continuation["status"], "INSUFFICIENT_DATA")
+            self.assertEqual(continuation["observation"]["identified_run_count"], 3)
+            self.assertEqual(continuation["observation"]["eligible_run_count"], 2)
+            self.assertEqual(continuation["observation"]["excluded_user_interrupted_count"], 1)
+            self.assertEqual(continuation["observation"]["median_duration_minutes"], 16.0)
+            self.assertEqual(continuation["observation"]["short_run_lt5_pct"], 0.0)
+            self.assertEqual(continuation["observation"]["micro_run_lt2_pct"], 0.0)
+            self.assertEqual(projected["guardrails"], {})
 
 
 if __name__ == "__main__":

@@ -1674,6 +1674,7 @@ class ManualSanityBootstrapTests(unittest.TestCase):
                 "descriptive_delta": 43.0,
                 "axes": {"friction": {"score_delta": 50.0}, "operational": {"score_delta": 42.0}},
                 "guardrails": {"short_run_lt5_pct": {"status": "REGRESSED", "scored": False}},
+                "continuation": {"status": "INSUFFICIENT_DATA", "post_run_count": 2, "baseline_run_count": 7},
                 "components": {"median_report_bytes": {"delta_points": 20.0}}, "semantics": "diagnostic only",
             }}), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
@@ -1684,4 +1685,6 @@ class ManualSanityBootstrapTests(unittest.TestCase):
             self.assertEqual(result["descriptive_delta"], 43.0)
             self.assertEqual(result["axes"]["operational"]["score_delta"], 42.0)
             self.assertEqual(result["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
+            self.assertEqual(result["continuation"]["post_run_count"], 2)
+            self.assertEqual(result["continuation"]["status"], "INSUFFICIENT_DATA")
             self.assertEqual(result["post_run_count"], 7)
