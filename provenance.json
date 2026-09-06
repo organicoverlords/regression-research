@@ -1386,7 +1386,7 @@
         "02 Evidence/2026-09-03_0152_EEST_codex-thread-01a03f11_turn-chronology.md"
       ],
       "contract_snapshots": [
-        "04 Operating Contracts/mcp-known-good-freeze.json",
+        "04 Operating Contracts/mcp-recovery-state.json",
         "04 Operating Contracts/chatgpt-library-artifact-timeline-ingestion.md"
       ],
       "duplicate_status": "canonical",
@@ -1395,6 +1395,68 @@
         "raw_transcript_not_preserved"
       ],
       "notes": "RED ALERT recurrence report for assistant-caused live MCP stack disruption. User reports this was the eighth occurrence in 48 hours with about 20 agents stopping. Existing zero-downtime audit rules were already present and were violated. No new blocker/control system is introduced; this entry makes the existing report visible to the existing provenance/timeline/bootstrap pipeline."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-06-console-popup-response-failure.md",
+      "title": "Incident Report - Console Popup Help Request Failure",
+      "date": "2026-09-06T00:00:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the console-popup response-failure incident report added by the convergence snapshot. The report documents a failure to contain the visible five-minute console symptom before broadening diagnosis; it names live Task Scheduler/process observations and external issue/PR work but no direct tracked raw transcript, evidence file, or contract snapshot is linked here."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-06_2021_EEST_worker-fleet-disable-and-assistant-cancellation-regression.md",
+      "title": "Incident - worker-fleet disable recurrence and assistant cancellation regression",
+      "date": "2026-09-06T20:21:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/recurring-worker-peer-recovery-2026-09-06.md"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the worker-fleet cancellation/disable recurrence incident. The report explicitly cites the tracked recurring-worker peer-recovery evidence; other named worker-report/runtime state is live or outside the provenance evidence root and is not fabricated as an indexed local evidence link."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-06_2040_EEST_direct-help-stall-retrospective.md",
+      "title": "Incident report - direct-help request turned into 25 minutes of non-helpful orchestration",
+      "date": "2026-09-06T20:40:00+03:00",
+      "evidence_type": "incident_retrospective",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/recurring-worker-peer-recovery-2026-09-06.md"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the direct-help stall retrospective. It explicitly cites the tracked recurring-worker peer-recovery evidence and the worker-fleet incident report; the latter is indexed separately as a report rather than duplicated as an evidence-file path."
     }
   ],
   "orphan_evidence": [

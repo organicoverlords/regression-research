@@ -1,0 +1,174 @@
+{
+  "schema": "issue693.fresh_worker_entry_fixture.v2",
+  "issue": 693,
+  "observed_at": "2026-09-07T01:25:03+03:00",
+  "purpose": "Bounded fresh-worker entry corpus. Current repo/GitHub/Busy evidence is current truth for this snapshot; Timeline-style lessons are historical priors only.",
+  "contribution_modes": [
+    "reuse/resume",
+    "complement",
+    "review/prove",
+    "integrate",
+    "genuinely new"
+  ],
+  "cases": [
+    {
+      "id": "hummingbird-overlap-current-wip",
+      "task_text": "hummingbird wing deformation",
+      "issue_url": "https://github.com/organicoverlords/regression-research/issues/693",
+      "current_truth": {
+        "main": {
+          "sha": "f6dfb35614f0a2104a8b67a17bb3d2812f99d1bf",
+          "source": "git ls-remote origin refs/heads/main"
+        },
+        "wip": [
+          {
+            "kind": "pull_request",
+            "number": 689,
+            "state": "OPEN",
+            "draft": true,
+            "head_sha": "cc39fc6d058a8c17dc38d3db362e29f7d6aaf5db",
+            "relevance": "direct commit seed scope fixture"
+          },
+          {
+            "kind": "pull_request",
+            "number": 692,
+            "state": "OPEN",
+            "draft": false,
+            "head_sha": "caafa1384b95583352b8fd4944f6e14a79a879d1",
+            "relevance": "static proof safety"
+          },
+          {
+            "kind": "pull_request",
+            "number": 691,
+            "state": "MERGED",
+            "merge_sha": "f6dfb35614f0a2104a8b67a17bb3d2812f99d1bf",
+            "reuse_required": true,
+            "relevance": "Busy absolute-path alias normalization"
+          }
+        ],
+        "busy": [
+          {
+            "scope": "tools/timeline_materializer.py",
+            "claimed": true,
+            "actor": "ChatGPT/675-ranking",
+            "exact_mutation_collision": true,
+            "liveness_inference": "FORBIDDEN"
+          }
+        ],
+        "peer_activity": {
+          "status": "UNKNOWN",
+          "reason": "Busy and branches are mutation/WIP evidence, not proof of live worker activity. No actor-to-live-MCP mapping is asserted in this fixture."
+        }
+      },
+      "historical_prior": [
+        {
+          "anchor": "gitsha:0e7bef0fa56bea230d1830ec2757dcf7c1413496",
+          "authority": "HISTORICAL_PRIOR_ONLY",
+          "lesson": "Opposite-side alias resolution can pose the wrong limb and still create a plausible false pass. Verify direct same-side deformation evidence."
+        },
+        {
+          "anchor": "gitsha:97ff891a4ca48faf77c334f80678133ea263c16f",
+          "authority": "HISTORICAL_PRIOR_ONLY",
+          "lesson": "Raw Euclidean nearest-bone weighting can cross appendage gaps; use surface/geodesic connectivity and welded topology when current evidence supports that model."
+        }
+      ],
+      "expected": {
+        "must_detect_relevant_existing_work": true,
+        "must_detect_exact_busy_collision": true,
+        "must_keep_history_separate_from_liveness": true,
+        "must_reuse_merged_691": true,
+        "allowed_next_modes": [
+          "reuse/resume",
+          "complement",
+          "review/prove",
+          "integrate"
+        ],
+        "forbidden_next_mode": "genuinely new overlapping materializer implementation",
+        "forbidden_conclusions": [
+          "no prior work exists",
+          "no peers or conflicts exist",
+          "Busy proves the claimant is live",
+          "Timeline proves current ownership",
+          "reimplement PR #691"
+        ],
+        "example_nonduplicate_choice": "complement: produce an independent fixture/review/proof while the exact materializer mutation remains with its claimant",
+        "live_truth_still_required": true
+      }
+    },
+    {
+      "id": "routine-small-fix-negative-control",
+      "task_text": "fix one typo in a local README paragraph",
+      "current_truth": {
+        "wip": [],
+        "busy": [],
+        "peer_activity": {
+          "status": "NO_RELEVANT_ACTIVITY_EVIDENCE"
+        }
+      },
+      "historical_prior": [],
+      "expected": {
+        "allowed_next_modes": [
+          "genuinely new"
+        ],
+        "example_nonduplicate_choice": "genuinely new: inspect the target paragraph, make the typo-only edit, and run the focused check",
+        "must_not_trigger": [
+          "broad Timeline scan",
+          "broad Vault archaeology",
+          "peer enumeration",
+          "swarm audit",
+          "scheduler or worker administration"
+        ],
+        "live_truth_still_required": true
+      }
+    },
+    {
+      "id": "heterogeneous-period-reconstruction-regression",
+      "task_text": "reconstruct the historical period when MCP/workers were actually working from existing telemetry, worker evidence, runtime logs, commit history, and preserved reports",
+      "reconstruction": {
+        "requested_output_shape": "one or more historical operating intervals",
+        "required_evidence_classes": [
+          "runtime/listener continuity",
+          "MCP transport/error shape",
+          "supervisor/restart boundaries",
+          "worker completion/handoff output",
+          "repo PR/commit/merge throughput",
+          "configuration/deployment boundaries"
+        ],
+        "source_completeness": {
+          "transport_telemetry": {
+            "status": "INCOMPLETE",
+            "reason": "known ENOSPC telemetry-stream failure in the reconstructed period",
+            "absence_semantics": "UNKNOWN_NOT_NEGATIVE_EVIDENCE"
+          }
+        },
+        "authority_boundaries": {
+          "direct_user_wording_required": false,
+          "backend_health_equals_working_period": false,
+          "git_head_equals_serving_runtime_identity": false
+        },
+        "classification_buckets": [
+          "working/productive",
+          "degraded but usable",
+          "broken/unusable"
+        ]
+      },
+      "expected": {
+        "must_inventory_evidence_classes_before_conclusion": true,
+        "must_construct_candidate_intervals_from_hard_transitions": true,
+        "must_check_source_completeness_before_using_absence": true,
+        "must_separate_runtime_identity_from_repo_head": true,
+        "must_compare_sustained_behavior_across_sources": true,
+        "must_classify_working_degraded_broken_separately": true,
+        "narrow_archaeology_after_interval_model": true,
+        "forbidden_primary_bases": [
+          "single direct-user wording match",
+          "backend health alone",
+          "one successful tool call",
+          "repository HEAD alone",
+          "missing transport rows from an incomplete telemetry source"
+        ],
+        "must_not_require_exact_interval_answer_in_fixture": true
+      }
+    }
+  ]
+}

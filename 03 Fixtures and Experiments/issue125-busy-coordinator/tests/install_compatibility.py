@@ -45,6 +45,28 @@ try:
     assert run_wrapper(wrappers["python"], store, "snapshot")["counts"]["active"] == 0
     assert run_wrapper(wrappers["python"], store, "inspect", "scope")["job"] is None
 
+    # T22: equivalent absolute filesystem spellings are one collision boundary
+    # across the installed Python/Rust implementations. Logical scope strings
+    # remain opaque; only absolute path aliases are normalized.
+    alias_dir = base / "BusyAliasFixture"
+    alias_dir.mkdir()
+    alias_file = alias_dir / "scope.txt"
+    alias_file.write_text("fixture", encoding="utf-8")
+    alias_plain = str(alias_file)
+    alias_dotted = str(alias_file.parent) + "\\.\\" + alias_file.name
+    alias_slash_case = alias_plain.replace("\\", "/").lower()
+    alias_store = base / "alias-state.json"
+    alias_owner = "ChatGPT-install-alias-owner"
+    alias_other = "ChatGPT-install-alias-other"
+    assert run_wrapper(wrappers["python"], alias_store, "claim", alias_owner, alias_plain)["ok"] is True
+    conflict = run_wrapper(wrappers["rust"], alias_store, "claim", alias_other, alias_dotted)
+    assert conflict["ok"] is False
+    assert conflict["reason"] == "scope_already_claimed"
+    assert conflict["claim"]["actor"] == alias_owner
+    assert run_wrapper(wrappers["python"], alias_store, "inspect", alias_slash_case)["claim"]["actor"] == alias_owner
+    assert run_wrapper(wrappers["rust"], alias_store, "release", alias_owner, alias_slash_case)["ok"] is True
+    assert run_wrapper(wrappers["python"], alias_store, "snapshot")["counts"]["active"] == 0
+
     # Observability is non-authoritative: core ownership must keep working even if
     # audit_wrapper.py is missing or broken. Only contract/log/audit depend on it.
     audit_wrapper = destination / "audit_wrapper.py"

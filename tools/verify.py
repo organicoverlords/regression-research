@@ -21,6 +21,11 @@ STACK_PATHS = {
     "docs/assistant-stack-operational-atlas.md",
     "tests/fixtures/stack-atlas-pid-29864.json",
     "tests/test_stack_atlas.py",
+    "tests/test_issue693_fresh_worker_entry.py",
+    "tests/fixtures/issue693_fresh_worker_entry.json",
+    "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
+    "03 Fixtures and Experiments/issue125-busy-coordinator/rust/src/main.rs",
+    "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
     "tests/test_north_star_entry.py",
@@ -42,6 +47,7 @@ MEMORY_PATHS = {
     "tools/memory_hybrid.py",
     "tools/memory_timeline.py",
     "tools/mcp_reroute_evidence.py",
+    "tools/repo_timeline.py",
     "tools/timeline_materializer.py",
     "tools/provenance.py",
     "tests/test_memory_bank.py",
@@ -54,11 +60,15 @@ MEMORY_PATHS = {
     "tests/test_memory_retrieval_quality.py",
     "tests/test_memory_timeline.py",
     "tests/test_mcp_reroute_evidence.py",
+    "tests/test_repo_timeline.py",
     "tests/test_timeline_materializer.py",
     "tests/test_timeline_query_filters.py",
     "tests/test_memory_standalone.py",
     "tests/test_provenance_index.py",
     "tests/test_taxonomy_matrix.py",
+    "tests/test_issue675_lesson_lineage_safety.py",
+    "tests/test_issue675_lesson_validation_safety.py",
+    "tests/test_issue675_static_proof_safety.py",
 }
 
 CONVERSATION_PATHS = {
@@ -67,6 +77,9 @@ CONVERSATION_PATHS = {
     "tests/fixtures/conversation-corpus/ChatPortEvidence/old.json",
     "tests/fixtures/conversation-corpus/ChatGPTLocalExporter/new.json",
 }
+
+BUSY_ROOT = "03 Fixtures and Experiments/issue125-busy-coordinator"
+BUSY_PATH_PREFIX = BUSY_ROOT + "/"
 
 VERIFIER_PATHS = {
     "tools/verify.py",
@@ -94,7 +107,7 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "memory", "conversation"]
+        return ["stack", "memory", "conversation", "busy"]
     selected = []
     if changed & STACK_PATHS:
         selected.append("stack")
@@ -102,6 +115,8 @@ def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
         selected.append("memory")
     if changed & CONVERSATION_PATHS:
         selected.append("conversation")
+    if any(path.startswith(BUSY_PATH_PREFIX) for path in changed):
+        selected.append("busy")
     return selected
 
 
@@ -137,13 +152,25 @@ def verify_stack() -> None:
             "-m",
             "unittest",
             "tests.test_stack_atlas",
+            "tests.test_issue693_fresh_worker_entry",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue123_current_vault_history_boundary",
             "tests.test_north_star_entry",
             "-v",
         ]
     )
+    run([sys.executable, "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py"])
     print("ASSISTANT_STACK_POLICY_PROVEN")
+
+
+def verify_busy() -> None:
+    python_core = f"{BUSY_ROOT}/python/busy.py"
+    compatibility = f"{BUSY_ROOT}/tests/install_compatibility.py"
+    manifest = f"{BUSY_ROOT}/rust/Cargo.toml"
+    run([sys.executable, "-m", "py_compile", python_core, compatibility])
+    run(["cargo", "test", "--manifest-path", manifest])
+    run([sys.executable, compatibility])
+    print("BUSY_COORDINATOR_COMPATIBILITY_PROVEN")
 
 
 def verify_memory() -> None:
@@ -160,8 +187,9 @@ def verify_memory() -> None:
             "tools/memory_hybrid.py",
             "tools/memory_timeline.py",
             "tools/mcp_reroute_evidence.py",
+            "tools/repo_timeline.py",
             "tools/timeline_materializer.py",
-                            "tools/provenance.py",
+            "tools/provenance.py",
         ]
     )
     run([sys.executable, "tools/memory_bank.py", "validate"])
@@ -179,11 +207,15 @@ def verify_memory() -> None:
             "tests/test_memory_retrieval_quality.py",
             "tests/test_memory_timeline.py",
             "tests/test_mcp_reroute_evidence.py",
+            "tests/test_repo_timeline.py",
             "tests/test_timeline_materializer.py",
             "tests/test_timeline_query_filters.py",
             "tests/test_memory_standalone.py",
             "tests/test_provenance_index.py",
             "tests/test_taxonomy_matrix.py",
+            "tests/test_issue675_lesson_lineage_safety.py",
+            "tests/test_issue675_lesson_validation_safety.py",
+            "tests/test_issue675_static_proof_safety.py",
         ]
     )
     print("MEMORY_HISTORY_RETRIEVAL_PROVEN")
@@ -251,6 +283,8 @@ def main() -> int:
             verify_memory()
         elif area == "conversation":
             verify_conversation()
+        elif area == "busy":
+            verify_busy()
 
     if not areas:
         print("CHANGED_AREA_CHECKS_SKIPPED")

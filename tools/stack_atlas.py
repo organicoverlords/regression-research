@@ -1486,6 +1486,22 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
                 for item in conditions
                 if isinstance(item, dict)
             ]
+        invariants = recovery.get("recovery_invariants")
+        if isinstance(invariants, list):
+            recovery["recovery_invariants"] = [_clip_bootstrap_text(item, 96) for item in invariants]
+        for key in ("preservation_rule", "authorization_rule"):
+            if isinstance(recovery.get(key), str):
+                recovery[key] = _clip_bootstrap_text(recovery[key], 96)
+        safety_rules = recovery.get("replacement_safety_rules")
+        if isinstance(safety_rules, list):
+            recovery["replacement_safety_rules"] = [_clip_bootstrap_text(item, 96) for item in safety_rules]
+        latest_restore = recovery.get("latest_topology_restore")
+        if isinstance(latest_restore, dict):
+            recovery["latest_topology_restore"] = {
+                key: latest_restore.get(key)
+                for key in ("incident_id", "before_transport", "after_transport", "backend_artifact_matches_selected_recovery", "failed_replacement_status", "fresh_mcp_process_call")
+                if key in latest_restore
+            }
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
         bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 2_400)
@@ -1968,12 +1984,21 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     policy = recovery_target.get("policy", {}) if isinstance(recovery_target.get("policy"), dict) else {}
     evidence = raw.get("evidence", {}) if isinstance(raw.get("evidence"), dict) else {}
     observation = evidence.get("latest_restore_observation", {}) if isinstance(evidence.get("latest_restore_observation"), dict) else {}
+    topology_restore = evidence.get("latest_topology_restore_observation", {}) if isinstance(evidence.get("latest_topology_restore_observation"), dict) else {}
     known_transients = evidence.get("known_transients", []) if isinstance(evidence.get("known_transients"), list) else []
     replacement_safety_rules = [
         str(item.get("rule"))
         for item in known_transients
         if isinstance(item, dict) and str(item.get("rule") or "").strip()
     ]
+    recovery_lanes = recovery_target.get("recovery_lanes", {}) if isinstance(recovery_target.get("recovery_lanes"), dict) else {}
+    recovery_invariants = [
+        str(item) for item in policy.get("recovery_invariants", [])
+        if str(item or "").strip()
+    ] if isinstance(policy.get("recovery_invariants"), list) else []
+    before_restore = topology_restore.get("before_restore", {}) if isinstance(topology_restore.get("before_restore"), dict) else {}
+    failed_replacement = topology_restore.get("failed_replacement_attempt", {}) if isinstance(topology_restore.get("failed_replacement_attempt"), dict) else {}
+    restore = topology_restore.get("restore", {}) if isinstance(topology_restore.get("restore"), dict) else {}
     conditions = raw.get("conditions", []) if isinstance(raw.get("conditions"), list) else []
     bounded_conditions = [
         {
@@ -1990,8 +2015,25 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
         "deployment_id": deployment.get("id"),
         "backend_generation": deployment.get("generation"),
         "recovery_selected_at": recovery_target.get("selected_at"),
+        "automatic_routing": recovery_lanes.get("automatic_routing"),
+        "ssh_role": recovery_lanes.get("ssh_role"),
         "conditions": bounded_conditions,
         "restore_first_on_regression": bool(policy.get("restore_first_on_regression")),
+        "recovery_invariants": recovery_invariants,
+        "preservation_rule": policy.get("preservation_rule"),
+        "authorization_rule": policy.get("authorization_rule"),
+        "replacement_safety_rules": replacement_safety_rules,
+        "latest_topology_restore": {
+            "observed_at": topology_restore.get("observed_at"),
+            "incident_id": topology_restore.get("incident_id"),
+            "before_transport": before_restore.get("caddy_transport"),
+            "after_transport": "wireguard" if restore else None,
+            "backend_generation": restore.get("backend_generation") or before_restore.get("backend_generation"),
+            "backend_artifact_matches_selected_recovery": before_restore.get("backend_artifact_matches_selected_recovery"),
+            "failed_replacement_status": failed_replacement.get("status"),
+            "public_health_statuses": restore.get("public_health_statuses"),
+            "fresh_mcp_process_call": restore.get("fresh_mcp_process_call"),
+        } if topology_restore else None,
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
 
