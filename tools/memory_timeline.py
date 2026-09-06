@@ -22,6 +22,9 @@ ERROR_WORDS = {"error", "bug", "broken", "failure", "failed", "failing", "incide
 _GITHUB_EVIDENCE_RE = re.compile(r"^github:([^/\s]+/[^#\s]+)#(\d+)$", re.I)
 _GITHUB_URL_RE = re.compile(r"^https?://github\.com/([^/\s]+/[^/\s]+)/(?:issues|pull)/(\d+)(?:[/?#].*)?$", re.I)
 _INCIDENT_EVIDENCE_RE = re.compile(r"\bINC-\d{8}(?:-\d{6})?(?:-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)?\b", re.I)
+_RED_SIGNAL_RE = re.compile(r"\bred[ _-]?(?:alert|critical)\b", re.I)
+_REGRESSION_SIGNAL_RE = re.compile(r"\b(?:regression|recurrence|failure|failed|broken|premature)\b", re.I)
+_SIGNAL_ORDER = ("red_alert", "slopwall", "security_incident", "incident", "regression")
 
 VAGUE_WORDS = {
     "a", "an", "and", "are", "back", "did", "error", "again", "happened", "is", "it", "my", "omg",
@@ -61,11 +64,171 @@ def _evidence_anchors(values: Iterable[Any]) -> list[str]:
         if match:
             anchors.add(f"github:{match.group(1).casefold()}#{match.group(2)}")
             continue
-        if value.casefold().startswith("incident:"):
-            anchors.add(value.casefold())
+        normalized = value.replace(chr(92), "/").strip()
+        if normalized.casefold().startswith("incident:"):
+            anchors.add(normalized.casefold())
             continue
+        if normalized.casefold().startswith(("01 reports/", "02 evidence/", "03 fixtures and experiments/", "04 operating contracts/", "90 raw transcripts/")):
+            anchors.add("artifact:" + normalized.casefold())
         for incident in _INCIDENT_EVIDENCE_RE.findall(value):
             anchors.add(f"incident:{incident.casefold()}")
+    return sorted(anchors)
+
+
+def _normalized_labels(values: Iterable[Any]) -> set[str]:
+    return {
+        str(value).strip().casefold().replace("-", "_")
+        for value in values
+        if str(value or "").strip()
+    }
+
+
+def _legacy_signal_fallback(event: dict[str, Any]) -> tuple[set[str], str | None, list[str]]:
+    """Best-effort compatibility for old records that predate structured signal labels."""
+    text = " ".join(
+        str(event.get(key) or "")
+        for key in ("title", "scope")
+    )
+    lowered = text.casefold()
+    traits: set[str] = set()
+    severity: str | None = None
+    basis: list[str] = []
+    if _RED_SIGNAL_RE.search(text):
+        severity = "RED"
+        basis.append("legacy_text:red_alert")
+    if "slopwall" in lowered:
+        traits.add("slopwall")
+        basis.append("legacy_text:slopwall")
+    if "security incident" in lowered or "security_incident" in lowered or "security-incident" in lowered:
+        traits.add("security_incident")
+        basis.append("legacy_text:security_incident")
+    if _REGRESSION_SIGNAL_RE.search(text):
+        traits.add("regression")
+        basis.append("legacy_text:regression")
+    if "incident" in lowered or _INCIDENT_EVIDENCE_RE.search(text):
+        traits.add("incident")
+        basis.append("legacy_text:incident")
+    return traits, severity, basis
+
+
+def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
+    """Normalize event semantics independently from evidence form.
+
+    Structured source metadata wins. Text matching exists only to retain old records that
+    predate structured tags/provenance and is surfaced explicitly in classification_basis.
+    """
+    source = str(event.get("source_type") or "UNKNOWN")
+    tags = _normalized_labels(event.get("tags", []))
+    finding_tags = _normalized_labels(event.get("finding_tags", []))
+    traits: set[str] = set()
+    basis: list[str] = []
+    severity = "NORMAL"
+    event_class = "OBSERVATION"
+
+    if source == "GIT_COMMIT":
+        event_class = "CHANGE"
+        basis.append("structured:source_type=GIT_COMMIT")
+    elif source == "WORKER_REPORT":
+        event_class = "WORK_RUN"
+        basis.append("structured:source_type=WORKER_REPORT")
+    elif source == "TRACKED_ARTIFACT":
+        event_class = "EVIDENCE"
+        basis.append("structured:source_type=TRACKED_ARTIFACT")
+        if event.get("incident_id"):
+            event_class = "INCIDENT"
+            traits.add("incident")
+            basis.append("structured:provenance.incident_id")
+        elif "incident" in str(event.get("evidence_type") or "").casefold():
+            event_class = "INCIDENT"
+            traits.add("incident")
+            basis.append("structured:provenance.evidence_type")
+    elif source == "VAULT_MEMORY":
+        semantic = str(event.get("semantic_category") or "").upper()
+        event_class = semantic or "MEMORY"
+        basis.append("structured:memory.semantic_category")
+        if semantic == "INCIDENT":
+            traits.add("incident")
+
+    if {"red_alert", "red_critical", "red_level"} & tags:
+        severity = "RED"
+        basis.append("structured:memory.tags:red")
+    if "critical_incident" in tags:
+        severity = "RED"
+        traits.add("incident")
+        basis.append("structured:memory.tags:critical_incident")
+    if "slopwall" in tags:
+        traits.add("slopwall")
+        basis.append("structured:memory.tags:slopwall")
+    if {"incident", "security_incident"} & tags:
+        traits.update({value for value in ("incident", "security_incident") if value in tags})
+        basis.append("structured:memory.tags:incident")
+    if {"regression", "recurrence", "bug", "error", "failure"} & tags:
+        traits.add("regression")
+        basis.append("structured:memory.tags:regression")
+
+    if {"regression", "bug", "error"} & finding_tags:
+        traits.add("regression")
+        basis.append("structured:worker.finding_tags:regression")
+    if "incident" in finding_tags:
+        traits.add("incident")
+        basis.append("structured:worker.finding_tags:incident")
+    if "slopwall" in finding_tags:
+        traits.add("slopwall")
+        basis.append("structured:worker.finding_tags:slopwall")
+    if {"red_alert", "red_critical"} & finding_tags:
+        severity = "RED"
+        basis.append("structured:worker.finding_tags:red")
+
+    # Structured signal markers from source adapters are accepted, but adapters should
+    # use them only when they came from schema/provenance, not title-word guessing.
+    explicit_signals = _normalized_labels(event.get("signals", []))
+    for signal in explicit_signals:
+        if signal in {"red_alert", "red_critical"}:
+            severity = "RED"
+        elif signal in {"incident", "regression", "slopwall", "security_incident"}:
+            traits.add(signal)
+    if explicit_signals:
+        basis.append("structured:source.signals")
+
+    # Legacy-only fallback is deliberately narrow and visible. It only supplies a
+    # missing field; it never re-labels already-structured semantics as legacy-derived.
+    if severity == "NORMAL" or not traits:
+        fallback_traits, fallback_severity, fallback_basis = _legacy_signal_fallback(event)
+        used_fallback: list[str] = []
+        if severity == "NORMAL" and fallback_severity:
+            severity = fallback_severity
+            used_fallback.extend(item for item in fallback_basis if item == "legacy_text:red_alert")
+        if not traits and fallback_traits:
+            traits.update(fallback_traits)
+            used_fallback.extend(item for item in fallback_basis if item != "legacy_text:red_alert")
+        basis.extend(used_fallback)
+
+    if severity == "RED" or traits & {"incident", "regression", "slopwall", "security_incident"}:
+        event_class = "INCIDENT"
+
+    return {
+        "event_class": event_class,
+        "severity": severity,
+        "traits": sorted(traits),
+        "classification_basis": sorted(set(basis)),
+        "legacy_inferred": any(item.startswith("legacy_text:") for item in basis),
+    }
+
+
+def _case_anchors(event: dict[str, Any]) -> list[str]:
+    """Return strong identity anchors; broad GitHub issue refs are corroboration-only."""
+    anchors = {
+        str(anchor).casefold()
+        for anchor in _event_anchors(event)
+        if str(anchor).casefold().startswith(("incident:", "artifact:"))
+    }
+    if str(event.get("thread_source") or "") == "EXPLICIT_THREAD" and event.get("thread_id"):
+        anchors.add(str(event["thread_id"]).casefold())
+    proof = str(event.get("proof_artifact") or "").replace(chr(92), "/").strip()
+    if proof:
+        anchors.add("artifact:" + proof.casefold())
+    if not anchors and str(event.get("thread_source") or "") == "SPECIFIC_SCOPE" and event.get("thread_id"):
+        anchors.add(str(event["thread_id"]).casefold())
     return sorted(anchors)
 
 
@@ -78,34 +241,206 @@ def _event_source_family(event: dict[str, Any]) -> str:
     }.get(str(event.get("source_type") or ""), "other")
 
 
+def _event_anchors(event: dict[str, Any]) -> list[str]:
+    anchors = {str(item).casefold() for item in event.get("anchors", []) if str(item).strip()}
+    anchors.update(_evidence_anchors(event.get("evidence", [])))
+    anchors.update(_evidence_anchors(event.get("refs", [])))
+    proof = str(event.get("proof_artifact") or "").replace(chr(92), "/").strip()
+    if proof:
+        anchors.add("artifact:" + proof.casefold())
+    return sorted(anchors)
+
+
+def _evidence_form(event: dict[str, Any]) -> str:
+    source = str(event.get("source_type") or "")
+    if source == "VAULT_MEMORY":
+        return "memory"
+    if source == "GIT_COMMIT":
+        return "commit"
+    if source == "WORKER_REPORT":
+        return "worker_report"
+    if source == "TRACKED_ARTIFACT":
+        return str(event.get("artifact_type") or "artifact")
+    return "observation"
+
+
+def _event_continuity(event: dict[str, Any]) -> dict[str, Any]:
+    existing = event.get("continuity")
+    return dict(existing) if isinstance(existing, dict) else _continuity_semantics(event)
+
+
 def _highlight_bucket(event: dict[str, Any]) -> str:
+    semantics = _event_continuity(event)
+    if semantics.get("severity") == "RED":
+        return "signal:red_alert"
+    traits = set(semantics.get("traits") or [])
+    for trait in ("slopwall", "security_incident", "incident", "regression"):
+        if trait in traits:
+            return "signal:" + trait
     family = _event_source_family(event)
     if family == "artifact":
         return "artifact:" + str(event.get("artifact_type") or "artifact")
     return family
 
 
-def _event_anchors(event: dict[str, Any]) -> list[str]:
-    anchors = {str(item).casefold() for item in event.get("anchors", []) if str(item).strip()}
-    anchors.update(_evidence_anchors(event.get("evidence", [])))
-    anchors.update(_evidence_anchors(event.get("refs", [])))
-    proof = str(event.get("proof_artifact") or "").replace("\\", "/").strip()
-    if proof:
-        anchors.add("artifact:" + proof.casefold())
-    return sorted(anchors)
-
-
 def _compact_snapshot_event(event: dict[str, Any]) -> dict[str, Any]:
+    semantics = _event_continuity(event)
     out = {
         "id": event.get("id"),
         "event_at": event.get("event_at"),
         "source_type": event.get("source_type"),
         "title": _clip(event.get("title"), 120),
     }
+    if semantics.get("severity") == "RED":
+        out["severity"] = "RED"
+    if semantics.get("traits"):
+        out["traits"] = list(semantics["traits"])
+    if semantics.get("legacy_inferred"):
+        out["legacy_inferred"] = True
     for key in ("project", "artifact_type", "disposition", "short_sha", "population"):
         if event.get(key) not in (None, "", []):
             out[key] = event.get(key)
     return out
+
+
+def _case_anchor_sort_key(anchor: str) -> tuple[int, str]:
+    low = str(anchor).casefold()
+    if low.startswith("incident:"):
+        rank = 0
+    elif low.startswith("thread:"):
+        rank = 1
+    elif low.startswith("artifact:"):
+        rank = 2
+    elif low.startswith("scope:"):
+        rank = 3
+    else:
+        rank = 4
+    return rank, low
+
+
+def _is_signal_semantics(semantics: dict[str, Any]) -> bool:
+    return (
+        semantics.get("severity") == "RED"
+        or semantics.get("event_class") == "INCIDENT"
+        or bool(set(semantics.get("traits") or []) & {"incident", "regression", "slopwall", "security_incident"})
+    )
+
+
+def _build_continuity_cases(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Join source observations into cases using explicit strong anchors only."""
+    nodes: list[dict[str, Any]] = []
+    parent: list[int] = []
+    anchor_owner: dict[str, int] = {}
+
+    def find(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        lroot, rroot = find(left), find(right)
+        if lroot != rroot:
+            parent[rroot] = lroot
+
+    for raw in events:
+        event = dict(raw)
+        semantics = _event_continuity(event)
+        anchors = _case_anchors(event)
+        if (
+            not anchors
+            and _is_signal_semantics(semantics)
+            and not semantics.get("legacy_inferred")
+            and event.get("source_type") == "VAULT_MEMORY"
+        ):
+            anchors = ["event:" + str(event.get("id") or "unknown").casefold()]
+        if not anchors:
+            continue
+        index = len(nodes)
+        nodes.append({"event": event, "semantics": semantics, "anchors": anchors})
+        parent.append(index)
+        for anchor in anchors:
+            prior = anchor_owner.get(anchor)
+            if prior is None:
+                anchor_owner[anchor] = index
+            else:
+                union(index, prior)
+
+    groups: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for index, node in enumerate(nodes):
+        groups[find(index)].append(node)
+
+    cases: list[dict[str, Any]] = []
+    for group in groups.values():
+        signal_nodes = [node for node in group if _is_signal_semantics(node["semantics"])]
+        if not signal_nodes:
+            continue
+        anchors = sorted({anchor for node in group for anchor in node["anchors"]}, key=_case_anchor_sort_key)
+        traits = sorted({trait for node in group for trait in node["semantics"].get("traits", [])})
+        bases = sorted({basis for node in group for basis in node["semantics"].get("classification_basis", [])})
+        families = sorted({_event_source_family(node["event"]) for node in group})
+        forms = sorted({_evidence_form(node["event"]) for node in group})
+        latest_node = max(group, key=lambda node: (_dt(str(node["event"]["event_at"])), str(node["event"].get("id") or "")))
+        latest_signal = max(signal_nodes, key=lambda node: (_dt(str(node["event"]["event_at"])), str(node["event"].get("id") or "")))
+        cases.append({
+            "case_id": anchors[0] if anchors else "event:" + str(latest_signal["event"].get("id") or "unknown"),
+            "anchors": anchors,
+            "severity": "RED" if any(node["semantics"].get("severity") == "RED" for node in group) else "NORMAL",
+            "traits": traits,
+            "observation_count": len(group),
+            "signal_observation_count": len(signal_nodes),
+            "source_families": families,
+            "evidence_forms": forms,
+            "classification_basis": bases,
+            "legacy_inferred": any(node["semantics"].get("legacy_inferred") for node in group),
+            "latest_event_at": latest_node["event"].get("event_at"),
+            "latest_signal_at": latest_signal["event"].get("event_at"),
+            "latest_title": _clip(latest_signal["event"].get("title"), 140),
+            "latest_source_type": latest_signal["event"].get("source_type"),
+        })
+    cases.sort(
+        key=lambda case: (
+            1 if case.get("severity") == "RED" else 0,
+            _dt(str(case.get("latest_signal_at"))),
+            str(case.get("case_id")),
+        ),
+        reverse=True,
+    )
+    return cases
+
+
+def _signal_observation_summary(events: Iterable[dict[str, Any]]) -> dict[str, int]:
+    summary = Counter()
+    for event in events:
+        semantics = _event_continuity(event)
+        if not _is_signal_semantics(semantics):
+            continue
+        summary["total"] += 1
+        if semantics.get("severity") == "RED":
+            summary["red"] += 1
+        if semantics.get("legacy_inferred"):
+            summary["legacy_inferred"] += 1
+        if not _case_anchors(event):
+            summary["unanchored"] += 1
+        for trait in semantics.get("traits", []):
+            if trait in {"incident", "regression", "slopwall", "security_incident"}:
+                summary[trait] += 1
+    return dict(summary)
+
+
+def _continuity_case_summary(cases: Iterable[dict[str, Any]]) -> dict[str, int]:
+    items = list(cases)
+    summary = Counter()
+    summary["total"] = len(items)
+    for case in items:
+        if case.get("severity") == "RED":
+            summary["red"] += 1
+        if case.get("legacy_inferred"):
+            summary["legacy_inferred"] += 1
+        for trait in case.get("traits", []):
+            if trait in {"incident", "regression", "slopwall", "security_incident"}:
+                summary[trait] += 1
+    return dict(summary)
 
 
 def _diverse_highlights(events: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
@@ -113,9 +448,10 @@ def _diverse_highlights(events: list[dict[str, Any]], limit: int) -> list[dict[s
         return []
     ordered = sorted(events, key=lambda event: (_dt(str(event["event_at"])), str(event.get("id") or "")), reverse=True)
     priority = [
+        "signal:red_alert", "signal:slopwall", "signal:security_incident", "signal:incident", "signal:regression",
         "repo", "worker", "memory",
-        "artifact:incident_report", "artifact:proof", "artifact:screenshot", "artifact:evidence_log",
-        "artifact:report", "artifact:evidence", "artifact:transcript", "artifact:contract", "artifact:fixture", "artifact:artifact",
+        "artifact:report", "artifact:proof", "artifact:screenshot", "artifact:evidence_log",
+        "artifact:evidence", "artifact:transcript", "artifact:contract", "artifact:fixture", "artifact:artifact",
         "other",
     ]
     latest_by_bucket: dict[str, dict[str, Any]] = {}
@@ -182,10 +518,16 @@ def build_timeline_snapshots(
 
         source_counts = Counter(str(event.get("source_type") or "UNKNOWN") for event in cumulative)
         slice_source_counts = Counter(str(event.get("source_type") or "UNKNOWN") for event in incremental)
-        artifact_counts = Counter(
-            str(event.get("artifact_type") or "artifact")
-            for event in cumulative if event.get("source_type") == "TRACKED_ARTIFACT"
-        )
+        artifact_objects: dict[str, set[str]] = defaultdict(set)
+        for event in cumulative:
+            if event.get("source_type") == "TRACKED_ARTIFACT":
+                artifact_objects[str(event.get("artifact_type") or "artifact")].add(
+                    str(event.get("path") or event.get("id") or "").replace(chr(92), "/").casefold()
+                )
+        artifact_counts = {key: len(values) for key, values in sorted(artifact_objects.items())}
+        continuity_cases = _build_continuity_cases(cumulative)
+        case_summary = _continuity_case_summary(continuity_cases)
+        signal_observation_summary = _signal_observation_summary(cumulative)
         anchor_groups: dict[str, dict[str, Any]] = {}
         for event in cumulative:
             family = _event_source_family(event)
@@ -211,7 +553,10 @@ def build_timeline_snapshots(
             "hours": upper_hours,
             "event_count": len(cumulative),
             "source_counts": dict(sorted(source_counts.items())),
-            "artifact_counts": dict(sorted(artifact_counts.items())),
+            "artifact_counts": artifact_counts,
+            "signal_observation_summary": signal_observation_summary,
+            "continuity_case_summary": case_summary,
+            "continuity_cases": continuity_cases[:8 if label == "24h" else 4],
             "corroborated_anchors": corroborated[:6],
             "slice": "0-24h" if lower_hours == 0 else f"{lower_hours}h-{upper_hours}h",
             "slice_event_count": len(incremental),
@@ -346,6 +691,7 @@ def build_event(entry: dict[str, Any], superseded_by: dict[str, list[str]]) -> d
         "title": _title(entry),
         "summary": _clip(entry.get("text")),
         "kind": entry["kind"],
+        "tags": list(entry.get("tags") or []),
         "scope": entry["scope"],
         "thread_id": thread_id,
         "thread_source": thread_source,
@@ -487,10 +833,24 @@ def build_timeline(
 
     effective_limit = min(MAX_LIMIT, max(1, int(limit)))
     combined = [*selected, *repo_selected, *worker_selected, *artifact_selected]
+    for event in combined:
+        event["continuity"] = _continuity_semantics(event)
+        event["case_anchors"] = _case_anchors(event)
+        event["evidence_form"] = _evidence_form(event)
     combined.sort(key=lambda event: (_dt(str(event["event_at"])), str(event["id"])), reverse=True)
     newest = combined[:effective_limit]
     snapshots = build_timeline_snapshots(combined, now=snapshot_now)
     snapshots["coverage"] = dict(source_coverage or {})
+    memory_history_cases = _build_continuity_cases(events)
+    memory_red_observations = sum(1 for event in events if _continuity_semantics(event).get("severity") == "RED")
+    memory_legacy_observations = sum(1 for event in events if _continuity_semantics(event).get("legacy_inferred"))
+    snapshots["preserved_memory_history"] = {
+        "observation_count": len(events),
+        "red_observations": memory_red_observations,
+        "legacy_inferred_observations": memory_legacy_observations,
+        "signal_observation_summary": _signal_observation_summary(events),
+        "continuity_case_summary": _continuity_case_summary(memory_history_cases),
+    }
     return {
         "schema_version": 2,
         "authority": "DERIVED_HISTORY_ONLY",
@@ -500,7 +860,9 @@ def build_timeline(
             "project_linkage": "explicit project metadata outranks secondary entity mentions",
             "repo_history": "local all-branch Git commits/refs are observed repository history, not memory or causal interpretation",
             "worker_history": "immutable finalized worker reports are lagging self-report evidence with automatically derived duration/utilization; they are not current-state authority or liveness proof",
-            "artifact_history": "Git-tracked reports, incident reports, evidence, logs, screenshots, proofs, fixtures, contracts, and transcripts are preserved artifact history; untracked WIP is not promoted into durable history",
+            "artifact_history": "Git-tracked reports, evidence, logs, screenshots, proofs, fixtures, contracts, and transcripts are preserved artifact history; untracked WIP is not promoted into durable history",
+            "continuity_cases": "report/log/screenshot/memory/commit describe evidence form; incident/regression/slopwall/security describe case traits; RED is severity; strong explicit anchors join observations into one case while broad GitHub issue refs remain corroboration-only",
+            "classification": "structured memory tags/classification, worker finding tags, provenance incident IDs/evidence types, and explicit anchors outrank legacy text inference; legacy fallback is labeled",
             "corroboration": "snapshot source diversity can strengthen orientation but never turns repetition into authority or proves causality",
         },
         "view": view,

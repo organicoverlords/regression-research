@@ -95,10 +95,12 @@ class RepoTimelineTests(unittest.TestCase):
 
             events = tracked_artifact_events(repo, limit=20)
             by_path = {event["path"]: event for event in events}
-            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["artifact_type"], "incident_report")
+            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["artifact_type"], "report")
+            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["incident_id"], "INC-20260904-TEST")
+            self.assertIn("incident", by_path[report.relative_to(repo).as_posix()]["evidence_type"])
             self.assertEqual(by_path[screenshot.relative_to(repo).as_posix()]["artifact_type"], "screenshot")
             self.assertEqual(by_path[log.relative_to(repo).as_posix()]["artifact_type"], "evidence_log")
-            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["title"], "incident_report: Binding incident")
+            self.assertEqual(by_path[report.relative_to(repo).as_posix()]["title"], "report: Binding incident")
             self.assertIn("incident:inc-20260904-test", by_path[screenshot.relative_to(repo).as_posix()]["anchors"])
             self.assertIn("artifact:02 evidence/2026-09-04_binding.png", by_path[screenshot.relative_to(repo).as_posix()]["anchors"])
             self.assertEqual(by_path[screenshot.relative_to(repo).as_posix()]["authority"], "PRESERVED_REPO_ARTIFACT_HISTORY")

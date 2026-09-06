@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
@@ -160,8 +161,6 @@ def _artifact_type(path: str, *, evidence_type: str | None = None) -> str:
     if suffix in IMAGE_SUFFIXES or "screenshot" in lower:
         return "screenshot"
     if lower.startswith("01 reports/"):
-        if "incident" in lower or "incident" in str(evidence_type or "").casefold():
-            return "incident_report"
         return "report"
     if lower.startswith("02 evidence/"):
         if suffix in {".jsonl", ".log"} or "log" in lower or "telemetry" in lower or "chronology" in lower:
@@ -221,7 +220,7 @@ def tracked_artifact_events(
     Events are derived from local Git history only. Untracked files are intentionally not
     promoted into durable history merely because they exist in a worktree.
     """
-    effective_limit = min(500, max(0, int(limit)))
+    effective_limit = min(1000, max(0, int(limit)))
     if effective_limit == 0 or not vault_root.is_dir():
         return []
     if _run_git(vault_root, "rev-parse", "--git-dir", check=False).returncode != 0:
@@ -239,6 +238,7 @@ def tracked_artifact_events(
     if proc.returncode != 0:
         return []
     provenance = _provenance_path_map(vault_root, provenance_path)
+    origin = _git_value(vault_root, "remote", "get-url", "origin")
     events: list[dict[str, Any]] = []
     for chunk in proc.stdout.split("\x1e"):
         chunk = chunk.strip("\r\n")
@@ -266,7 +266,9 @@ def tracked_artifact_events(
             incident_ids = {item.upper() for item in INCIDENT_ID_RE.findall(rel_path)}
             if meta.get("incident_id"):
                 incident_ids.add(str(meta["incident_id"]).upper())
+            refs = _refs_from_title(commit_title)
             anchors = [f"incident:{item.casefold()}" for item in sorted(incident_ids)]
+            anchors.extend(_github_anchors(origin, refs))
             anchors.append("artifact:" + rel_path.casefold())
             artifact_type = _artifact_type(rel_path, evidence_type=meta.get("evidence_type"))
             report_title = str(meta.get("report_title") or "").strip()
@@ -288,7 +290,7 @@ def tracked_artifact_events(
                 "sha": sha,
                 "short_sha": sha[:10],
                 "decorations": decorations,
-                "refs": [rel_path],
+                "refs": [rel_path, *refs],
                 "anchors": sorted(set(anchors)),
                 "incident_id": meta.get("incident_id"),
                 "evidence_type": meta.get("evidence_type"),
@@ -296,12 +298,48 @@ def tracked_artifact_events(
                 "thread_id": "artifact:" + rel_path.casefold(),
                 "thread_source": "PRESERVED_ARTIFACT_PATH",
             })
-            if len(events) >= effective_limit:
-                break
-        if len(events) >= effective_limit:
-            break
     events.sort(key=lambda event: (datetime.fromisoformat(event["event_at"].replace("Z", "+00:00")), event["id"]), reverse=True)
-    return events[:effective_limit]
+    if len(events) <= effective_limit:
+        return events
+
+    # Preserve high-signal evidence lanes before generic contract/fixture churn can
+    # consume the bounded timeline source window.
+    priority = (
+        "report", "proof", "screenshot", "evidence_log",
+        "evidence", "transcript", "contract", "fixture", "artifact",
+    )
+    chosen: list[dict[str, Any]] = []
+    chosen_ids: set[str] = set()
+    by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for event in events:
+        by_type[str(event.get("artifact_type") or "artifact")].append(event)
+    # Reserve every available high-signal report/proof/log/screenshot first.
+    # event first; remaining capacity is filled in newest-first order.
+    reserve_types = {"report", "proof", "screenshot", "evidence_log"}
+    for artifact_type in priority:
+        if artifact_type not in reserve_types:
+            continue
+        for event in by_type.get(artifact_type, []):
+            ident = str(event["id"])
+            if ident in chosen_ids:
+                continue
+            chosen.append(event)
+            chosen_ids.add(ident)
+            if len(chosen) >= effective_limit:
+                break
+        if len(chosen) >= effective_limit:
+            break
+    if len(chosen) < effective_limit:
+        for event in events:
+            ident = str(event["id"])
+            if ident in chosen_ids:
+                continue
+            chosen.append(event)
+            chosen_ids.add(ident)
+            if len(chosen) >= effective_limit:
+                break
+    chosen.sort(key=lambda event: (datetime.fromisoformat(event["event_at"].replace("Z", "+00:00")), event["id"]), reverse=True)
+    return chosen
 
 
 def git_commit_events(spec: RepoSpec, *, limit: int = 20, since: datetime | None = None) -> list[dict[str, Any]]:

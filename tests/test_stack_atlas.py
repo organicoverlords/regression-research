@@ -64,6 +64,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("member_ids", compact["incident_rollups"][0])
         self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated"])
 
+    def test_bootstrap_memory_budget_allows_richer_canonical_timeline(self):
+        self.assertGreaterEqual(BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES, 3_800)
+
     def test_compact_memory_overview_enforces_hard_byte_budget_without_losing_primary_context(self):
         report = {
             "contract": "history only",
@@ -106,7 +109,7 @@ class StackAtlasTests(unittest.TestCase):
                 "window": label,
                 "event_count": count,
                 "source_counts": {"VAULT_MEMORY": count // 4, "GIT_COMMIT": count // 4, "WORKER_REPORT": count // 4, "TRACKED_ARTIFACT": count // 4},
-                "artifact_counts": {"incident_report": 3, "screenshot": 2, "evidence_log": 2},
+                "artifact_counts": {"report": 3, "screenshot": 2, "evidence_log": 2},
                 "slice": label,
                 "slice_event_count": len(highlights),
                 "corroborated_anchors": [

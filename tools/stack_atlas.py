@@ -39,7 +39,7 @@ BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 4
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
-BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_500
+BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_WORKER_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
@@ -1300,6 +1300,14 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", text)
         return f"{match.group(1)} {match.group(2)}" if match else value
 
+    def compact_signal_summary(value: Any, *, keep_total: bool = True) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        keys = ["red", "slopwall", "incident", "regression", "security_incident"]
+        if keep_total:
+            keys.insert(0, "total")
+        return {key: value.get(key) for key in keys if value.get(key) not in (None, 0)}
+
     windows: list[dict[str, Any]] = []
     for window in raw.get("windows", []) if isinstance(raw.get("windows"), list) else []:
         if not isinstance(window, dict):
@@ -1319,6 +1327,12 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
                 compact["project"] = item.get("project")
             if item.get("artifact_type") not in (None, "", []):
                 compact["artifact"] = item.get("artifact_type")
+            if item.get("severity") == "RED":
+                compact["severity"] = "RED"
+            if item.get("traits"):
+                compact["traits"] = item.get("traits")
+            if item.get("legacy_inferred"):
+                compact["legacy"] = True
             if item.get("short_sha") not in (None, "", []):
                 compact["sha"] = item.get("short_sha")
             highlights.append(compact)
@@ -1339,12 +1353,35 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
             source_names.get(str(name), str(name).casefold()): count
             for name, count in (window.get("source_counts") or {}).items()
         } if isinstance(window.get("source_counts"), dict) else {}
+        cases: list[dict[str, Any]] = []
+        case_limit = 3 if label == "24h" else 1
+        for case in window.get("continuity_cases", []) if isinstance(window.get("continuity_cases"), list) else []:
+            if not isinstance(case, dict):
+                continue
+            cases.append({
+                key: value for key, value in {
+                    "id": _clip_bootstrap_text(case.get("case_id"), 120),
+                    "severity": case.get("severity") if case.get("severity") == "RED" else None,
+                    "traits": case.get("traits"),
+                    "observations": case.get("observation_count"),
+                    "sources": case.get("source_families"),
+                    "forms": case.get("evidence_forms"),
+                    "at": short_at(case.get("latest_signal_at")),
+                    "title": _clip_bootstrap_text(case.get("latest_title"), 96),
+                    "legacy": True if case.get("legacy_inferred") else None,
+                }.items() if value not in (None, {}, [], "")
+            })
+            if len(cases) >= case_limit:
+                break
         windows.append({
             key: value for key, value in {
                 "window": label,
                 "events": window.get("event_count"),
                 "sources": source_counts,
                 "artifacts": window.get("artifact_counts"),
+                "signal_observations": compact_signal_summary(window.get("signal_observation_summary")),
+                "cases": compact_signal_summary(window.get("continuity_case_summary")),
+                "case_examples": cases,
                 "slice": window.get("slice"),
                 "slice_events": window.get("slice_event_count"),
                 "corroboration": corroborated,
@@ -1364,9 +1401,16 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         "workers_bounded": (coverage.get("workers") or {}).get("bounded") if isinstance(coverage.get("workers"), dict) else None,
     }
     compact_coverage = {key: value for key, value in compact_coverage.items() if value not in (None, [], {})}
+    memory_history = raw.get("preserved_memory_history") if isinstance(raw.get("preserved_memory_history"), dict) else {}
+    compact_memory_history = {
+        "red_observations": memory_history.get("red_observations"),
+        "cases": compact_signal_summary(memory_history.get("continuity_case_summary")),
+    }
+    compact_memory_history = {key: value for key, value in compact_memory_history.items() if value not in (None, {}, [], "")}
     return {
         "authority": raw.get("authority"),
         "coverage": compact_coverage,
+        "memory_history": compact_memory_history,
         "windows": windows,
     }
 
@@ -1387,11 +1431,32 @@ def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int)
         highlights = item.get("highlights") if isinstance(item, dict) else None
         while isinstance(highlights, list) and len(highlights) > floor and _compact_json_bytes(overview) > budget:
             highlights.pop()
-    for label in ("7d", "3d", "24h"):
+    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
         item = by_label.get(label)
         anchors = item.get("corroboration") if isinstance(item, dict) else None
-        while isinstance(anchors, list) and len(anchors) > 1 and _compact_json_bytes(overview) > budget:
+        while isinstance(anchors, list) and len(anchors) > floor and _compact_json_bytes(overview) > budget:
             anchors.pop()
+    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
+        item = by_label.get(label)
+        cases = item.get("case_examples") if isinstance(item, dict) else None
+        while isinstance(cases, list) and len(cases) > floor and _compact_json_bytes(overview) > budget:
+            cases.pop()
+    # Older cumulative windows already retain canonical case counts. Their raw signal
+    # observation counters yield before concrete examples do.
+    for label in ("7d", "3d"):
+        item = by_label.get(label)
+        if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
+            item.pop("signal_observations", None)
+    for label in ("7d", "3d"):
+        item = by_label.get(label)
+        highlights = item.get("highlights") if isinstance(item, dict) else None
+        while isinstance(highlights, list) and len(highlights) > 1 and _compact_json_bytes(overview) > budget:
+            highlights.pop()
+    item = by_label.get("24h")
+    highlights = item.get("highlights") if isinstance(item, dict) else None
+    while isinstance(highlights, list) and len(highlights) > 4 and _compact_json_bytes(overview) > budget:
+        highlights.pop()
+    # Pathological fallback: only after counters/case examples have yielded.
     for label in ("7d", "3d"):
         item = by_label.get(label)
         highlights = item.get("highlights") if isinstance(item, dict) else None
