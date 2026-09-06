@@ -1246,6 +1246,43 @@ def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str
     }
 
 
+def _compact_incident_rollups(report: dict[str, Any], limit: int = 3) -> list[dict[str, Any]]:
+    rollups = report.get("incident_rollups") if isinstance(report, dict) else None
+    if not isinstance(rollups, list):
+        return []
+    fields = (
+        "thread_id", "thread_source", "scope", "observations", "latest_event_at",
+        "latest_event_id", "latest_title", "latest_disposition", "summary", "projects",
+        "entities", "drilldown",
+    )
+    return [
+        {key: item.get(key) for key in fields if item.get(key) not in (None, [], "")}
+        for item in rollups[: max(0, limit)]
+        if isinstance(item, dict)
+    ]
+
+
+def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
+    effective_limit = max(0, int(limit))
+    raw_rollups = [item for item in report.get("incident_rollups", []) if isinstance(item, dict)][:effective_limit]
+    covered_ids = {str(memory_id) for item in raw_rollups for memory_id in item.get("member_ids", [])}
+    compact_rollups = _compact_incident_rollups({"incident_rollups": raw_rollups}, effective_limit)
+    recent = [
+        {k: item.get(k) for k in ("id", "timestamp", "title")}
+        for item in report.get("recent", [])
+        if str(item.get("id")) not in covered_ids
+    ][:effective_limit]
+    return {
+        "contract": report.get("contract"),
+        "eligible_entries": report.get("eligible_entries", 0),
+        "incident_rollups": compact_rollups,
+        "recent": recent,
+        "projects": report.get("projects", [])[:effective_limit],
+        "recurring_tags": report.get("recurring_tags", [])[:effective_limit],
+        "worker_findings": _compact_worker_findings(report, effective_limit),
+    }
+
+
 def _bootstrap_memory_overview() -> dict[str, Any]:
     cached, _ = _bootstrap_cache_read("memory-overview.json", BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS)
     if cached is not None and isinstance(cached.get("overview"), dict):
@@ -1255,17 +1292,7 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
     except ImportError:
         from memory_bank import build_overview, load_bank
     report = build_overview(load_bank(), limit=BOOTSTRAP_MEMORY_TITLE_LIMIT)
-    overview = {
-        "contract": report.get("contract"),
-        "eligible_entries": report.get("eligible_entries", 0),
-        "recent": [
-            {k: item.get(k) for k in ("id", "timestamp", "title")}
-            for item in report.get("recent", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT]
-        ],
-        "projects": report.get("projects", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
-        "recurring_tags": report.get("recurring_tags", [])[:BOOTSTRAP_MEMORY_TITLE_LIMIT],
-        "worker_findings": _compact_worker_findings(report, BOOTSTRAP_MEMORY_TITLE_LIMIT),
-    }
+    overview = _compact_memory_overview(report, BOOTSTRAP_MEMORY_TITLE_LIMIT)
     _bootstrap_cache_write("memory-overview.json", {"overview": overview})
     return overview
 

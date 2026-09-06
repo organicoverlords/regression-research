@@ -70,6 +70,22 @@ class MemoryRecentTitleTests(unittest.TestCase):
         self.assertEqual(overview["recurring_tags"], [{"name": "routing", "count": 2}])
         self.assertNotIn("assistant-recorded", {item["name"] for item in overview["top_tags"]})
         self.assertEqual([item["id"] for item in overview["recent"]], ["mem-b", "mem-a"])
+        self.assertEqual(overview["incident_rollups"], [])
+
+    def test_overview_rolls_repeated_incident_memories_into_one_lineage(self):
+        entries = []
+        for i in range(6):
+            entry = self.entry(f"mem-{i}", f"2026-08-25T10:0{i}:00+03:00", f"MCP regression observation {i}", title=f"Regression {i}")
+            entry["scope"] = "mcp"
+            entry["tags"] = ["regression"]
+            entry["evidence"] = ["github:organicoverlords/regression-research#125"]
+            entries.append(entry)
+        overview = aggregate_memory(entries, limit=5)
+        self.assertEqual(len(overview["incident_rollups"]), 1)
+        rollup = overview["incident_rollups"][0]
+        self.assertEqual(rollup["observations"], 6)
+        self.assertEqual(rollup["latest_event_id"], "mem-5")
+        self.assertEqual(rollup["thread_source"], "EVIDENCE_ANCHOR")
 
 
 if __name__ == "__main__":
