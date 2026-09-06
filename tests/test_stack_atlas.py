@@ -1239,6 +1239,15 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
         self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))
 
+    def test_freeze_contract_exposes_restore_first_policy(self):
+        import tools.stack_atlas as atlas
+        freeze_path = ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
+        with patch.object(atlas, "MCP_KNOWN_GOOD_FREEZE_PATH", freeze_path):
+            freeze = atlas._bootstrap_mcp_known_good_freeze()
+        self.assertTrue(freeze["restore_first_on_regression"])
+        self.assertTrue(freeze["post_restore_no_mcp_request_in_flight"])
+        self.assertIn("USER_REPORTED_POST_RESTORE_REROUTE", freeze["security_reroute_rate_after_freeze"])
+
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
         self.assertEqual(freeze["id"], "mcp.known_good_freeze")
@@ -1246,6 +1255,11 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         reroute = find_features("security reroute")[0]
         self.assertEqual(reroute["id"], "mcp.security_reroute_log")
         self.assertIn("must be logged", reroute["boundary"])
+        recovery = find_features("restore working MCP")[0]
+        self.assertEqual(recovery["id"], "mcp.regression_recovery")
+        self.assertIn("Restore-first", recovery["boundary"])
+        self.assertIn("source SHA alone is insufficient", recovery["boundary"])
+        self.assertIn("no MCP request in flight", recovery["boundary"])
 
 class VaultUsefulnessRoutingTests(unittest.TestCase):
     def test_vague_vault_usefulness_routes_to_overview_first(self):

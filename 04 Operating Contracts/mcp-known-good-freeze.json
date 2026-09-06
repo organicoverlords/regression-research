@@ -66,7 +66,7 @@
     "immediate_acceptance": "PASS",
     "multi_day_real_use": "PENDING",
     "user_confirmed_stable": false,
-    "security_reroute_rate_after_freeze": "UNKNOWN_UNTIL_USER_REPORTS_REAL_USE",
+    "security_reroute_rate_after_freeze": "USER_REPORTED_POST_RESTORE_REROUTE_2026-09-06T03:54:26+03:00; restored MCP baseline did not eliminate the client-visible symptom",
     "promotion_rule": "Do not promote to PROVEN_KNOWN_GOOD until >=48 hours of real user use have elapsed and the user explicitly confirms the security-reroute symptom remained acceptably absent/stable."
   },
   "known_transients_not_part_of_frozen_stable_window": [
@@ -86,5 +86,32 @@
     "Preserve this candidate as the current recovery/bisect boundary unless fresh live evidence disqualifies it. Record that disqualifying evidence before moving away from it.",
     "CANDIDATE_KNOWN_GOOD intentionally means frozen before proper multi-day proof. A later refreeze is mandatory for PROVEN_KNOWN_GOOD.",
     "Do not infer that security rerouting is solved from server acceptance alone; user-visible real-use behavior is required for promotion."
-  ]
+  ],
+  "recovery_policy": {
+    "restore_first_on_regression": true,
+    "trigger": "When an assistant/operator-authored production MCP change causes a severe recurring regression, or the user explicitly reports the previously working MCP regressed after our change and requests restoration, restore the last known-working production behavior/topology before speculative fixes.",
+    "required_order": [
+      "Log any user-observed reroute with report/event-time semantics before further MCP/edge mutation.",
+      "Preserve the current runtime, dist, serving identity, and rollback evidence.",
+      "Use the production change gate, exact Busy scope, independent rollback, off-path proof, and drain active child processes before cutover.",
+      "Restore the frozen production behavior and topology; a source SHA alone is not sufficient when topology differs. Use only the minimal compatibility required by the proven replacement mechanism.",
+      "Do not stack unrelated logging, diagnostics, guards, or speculative fixes onto the regressed serving runtime before restoration.",
+      "After restoration, verify public route, Host handling, OAuth/tool contract, canonical port, and candidate drain.",
+      "If the client-visible symptom persists after restoration while bounded transport evidence shows no MCP request in flight at the symptom time, classify that event as above-MCP/platform evidence and stop MCP/edge mutation unless new MCP-local evidence appears."
+    ],
+    "preservation_rule": "Restoration must preserve unique work and active child processes; do not kill foreign work to accelerate recovery.",
+    "authorization_rule": "Shared-production restoration still requires explicit user authorization and the production-change gate; a generic go does not authorize a new live-production mutation."
+  },
+  "latest_restore_observation": {
+    "restored_at": "2026-09-06T03:50:10.7736548+03:00",
+    "production_head": "e1839c817665600fb56cdf81bbdc0599e61539af",
+    "frozen_behavior_base": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+    "compatibility_delta": "26 insertions / 7 deletions across 5 files, limited to guarded replacement and live-process health compatibility",
+    "replacement_request_id": "331adfbd-e8b6-4469-81fd-895d6fc9fcac",
+    "replacement_status": "SUCCEEDED",
+    "post_restore_user_event": "2026-09-06T03:54:26+03:00",
+    "post_restore_correlation": "preceding MCP start_process finished HTTP 200 at 03:54:23.310 EEST; next MCP request began at 03:54:35.454 EEST; no MCP request was in flight at the screenshot moment",
+    "interpretation": "The restored MCP baseline remains the recovery/bisect boundary for MCP regressions, but the observed reroute is not explained by MCP request execution at that moment.",
+    "post_restore_no_mcp_request_in_flight": true
+  }
 }

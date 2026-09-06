@@ -149,6 +149,8 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "WireGuard is the only automatic VPS-to-PC backend path; four native OpenSSH reverse lanes are intentional independent recovery lanes and their presence/health is expected",
             "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never restore a stale-regression generation merely because it appears in historical fallback/recovery artifacts",
             "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
+            "severe regression after our production MCP change is restore-first: preserve evidence, then return to the canonical known-working production behavior/topology before speculative fixes; do not stack unrelated diagnostics or logging onto the regressed serving runtime",
+            "if a post-restore user-visible reroute occurs between successful MCP calls with no MCP request in flight, treat that event as above-MCP/platform evidence and stop MCP/edge mutation unless new MCP-local evidence appears",
         ],
         "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy WireGuard-only automatic upstream", "WireGuard 10.203.0.2:3011 primary", "reverse-SSH 3101-3104 explicit recovery lanes", "clone OAuth/OpenID metadata handlers"],
         "dependents": ["chatgpt_process_transport"],
@@ -385,6 +387,12 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
         "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
         "boundary": "Only this canonical pointer is the maintained MCP freeze. CANDIDATE_KNOWN_GOOD is preserve-first but explicitly not multi-day proof; PROVEN_KNOWN_GOOD requires a later >=48h real-use refreeze plus explicit user confirmation. Reconcile either status with current live evidence before restoration.",
+    },
+    "mcp.regression_recovery": {
+        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "busy_coordinator"],
+        "triggers": ["restore working MCP", "rollback working MCP", "MCP regression after change", "restore last working", "regression recovery"],
+        "entrypoints": [str(MCP_KNOWN_GOOD_FREEZE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
+        "boundary": "Restore-first for severe regressions caused by our production MCP change: log the user event, preserve rollback evidence and active work, then restore the canonical known-working production behavior and topology before speculative fixes. A source SHA alone is insufficient when topology differs; only minimal proven replacement compatibility may be layered onto the frozen behavior. After restore, a reroute observed between successful MCP calls with no MCP request in flight is above-MCP/platform evidence and must not trigger more MCP/edge mutation without new MCP-local evidence. Shared-production authorization and the production-change gate still apply.",
     },
     "mcp.security_reroute_log": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
@@ -1396,6 +1404,8 @@ def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
         return {"available": False, "status": "ERROR", "path": str(path), "error": "freeze record is not an object"}
     backend = raw.get("production_identity", {}).get("backend", {}) if isinstance(raw.get("production_identity"), dict) else {}
     proof = raw.get("proof_state", {}) if isinstance(raw.get("proof_state"), dict) else {}
+    recovery = raw.get("recovery_policy", {}) if isinstance(raw.get("recovery_policy"), dict) else {}
+    observation = raw.get("latest_restore_observation", {}) if isinstance(raw.get("latest_restore_observation"), dict) else {}
     return {
         "available": True,
         "path": str(path),
@@ -1407,6 +1417,10 @@ def _bootstrap_mcp_known_good_freeze() -> dict[str, Any]:
         "source_tag": backend.get("source_tag"),
         "multi_day_real_use": proof.get("multi_day_real_use"),
         "user_confirmed_stable": proof.get("user_confirmed_stable"),
+        "security_reroute_rate_after_freeze": proof.get("security_reroute_rate_after_freeze"),
+        "restore_first_on_regression": bool(recovery.get("restore_first_on_regression")),
+        "post_restore_user_event": observation.get("post_restore_user_event"),
+        "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
 
 
