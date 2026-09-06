@@ -183,11 +183,13 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
             traits.add("incident")
             basis.append("structured:provenance.evidence_type")
     elif source == "VAULT_MEMORY":
+        # Memory semantic_category is retrieval/content taxonomy, not continuity authority.
+        # Explicit signal tags below (or the bounded legacy compatibility path) decide whether
+        # a memory observation belongs to an incident/regression/slopwall continuity case.
         semantic = str(event.get("semantic_category") or "").upper()
-        event_class = semantic or "MEMORY"
-        basis.append("structured:memory.semantic_category")
-        if semantic == "INCIDENT":
-            traits.add("incident")
+        event_class = "MEMORY"
+        if semantic:
+            basis.append("context:memory.semantic_category=" + semantic)
 
     if {"red_alert", "red_critical", "red_level"} & tags:
         severity = "RED"
@@ -769,15 +771,22 @@ def _project_linkage(classification: dict[str, Any], project: str | None) -> str
     return None
 
 
-def _is_error_event(entry: dict[str, Any], classification: dict[str, Any]) -> bool:
-    if classification.get("semantic_category") == "INCIDENT":
+def _is_error_event(event: dict[str, Any]) -> bool:
+    """Select the forensic error-recall lane without promoting retrieval matches into cases."""
+    semantics = _continuity_semantics(event)
+    if _is_signal_semantics(semantics):
         return True
-    descriptors = " ".join([
-        str(entry.get("scope") or ""), str(entry.get("title") or ""),
-        *[str(tag) for tag in entry.get("tags", [])],
-    ]).casefold()
-    words = token_words(descriptors)
-    return bool(words & ERROR_MARKERS) or any(marker in descriptors for marker in ERROR_MARKERS)
+    tags = _normalized_labels(event.get("tags", []))
+    # Old unstructured memory notes predate canonical signal tags. Keep them retrievable by
+    # descriptive text, but this broader recall rule does not alter continuity semantics/cases.
+    if event.get("source_type") == "VAULT_MEMORY" and _legacy_fallback_eligible(event, tags=tags, finding_tags=set()):
+        descriptors = " ".join([
+            str(event.get("scope") or ""), str(event.get("title") or ""), str(event.get("summary") or ""),
+            *[str(tag) for tag in event.get("tags", [])],
+        ]).casefold()
+        words = token_words(descriptors)
+        return bool(words & ERROR_MARKERS) or any(marker in descriptors for marker in ERROR_MARKERS)
+    return False
 
 
 def _query_tokens(query: str, *, error_view: bool = False) -> set[str]:
@@ -875,7 +884,7 @@ def build_timeline(
     for event in events:
         entry = by_id[event["id"]]
         classification = classify_entry(entry)
-        if view == "errors" and not _is_error_event(entry, classification):
+        if view == "errors" and not _is_error_event(event):
             continue
         linkage = _project_linkage(classification, project_key)
         if project_key and linkage is None:

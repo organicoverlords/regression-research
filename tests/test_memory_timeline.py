@@ -376,6 +376,54 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertFalse(event["continuity"]["legacy_inferred"])
         self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["total"], 0)
 
+    def test_memory_semantic_category_is_content_taxonomy_not_continuity_or_error_authority(self):
+        now = datetime.fromisoformat("2026-09-06T08:10:00+03:00")
+        entry = self.e(
+            "classification-lesson", "2026-09-06T08:02:39+03:00",
+            "Structured modern records must never be relabeled as incidents/regressions from incidental vocabulary.",
+            kind="lesson", scope="vault/timeline/materialized-ingestion",
+            title="Legacy fallback applies only to genuinely unstructured history",
+            tags=["timeline", "debugging", "classification", "legacy-compatibility", "assistant-recorded", "verbatim-source"],
+            thread="vault-timeline-materialized-ingestion",
+        )
+        general = build_timeline([entry], limit=10, snapshot_now=now)
+        event = general["events"][0]
+        self.assertEqual(event["semantic_category"], "INCIDENT")  # retrieval/content classifier may still say this
+        self.assertEqual(event["continuity"]["event_class"], "MEMORY")
+        self.assertEqual(event["continuity"]["traits"], [])
+        self.assertEqual(event["continuity"]["severity"], "NORMAL")
+        self.assertEqual(general["snapshots"]["windows"][0]["continuity_case_summary"]["total"], 0)
+        errors = build_timeline([entry], view="errors", limit=10, snapshot_now=now)
+        self.assertEqual(errors["matching_events"], 0)
+        self.assertEqual(errors["matching_threads"], 0)
+
+    def test_explicit_memory_incident_tag_remains_continuity_and_error_authority(self):
+        now = datetime.fromisoformat("2026-09-06T08:10:00+03:00")
+        entry = self.e(
+            "tagged-incident", "2026-09-06T08:04:00+03:00", "Verified incident evidence.",
+            kind="lesson", scope="vault/timeline/tagged-incident", title="Verified routing incident",
+            tags=["incident", "assistant-recorded", "verbatim-source"], thread="tagged-incident",
+        )
+        general = build_timeline([entry], limit=10, snapshot_now=now)
+        event = general["events"][0]
+        self.assertEqual(event["continuity"]["event_class"], "INCIDENT")
+        self.assertEqual(event["continuity"]["traits"], ["incident"])
+        self.assertEqual(general["snapshots"]["windows"][0]["continuity_case_summary"]["incident"], 1)
+        errors = build_timeline([entry], view="errors", limit=10, snapshot_now=now)
+        self.assertEqual(errors["matching_events"], 1)
+
+    def test_unstructured_legacy_signal_still_enters_error_timeline(self):
+        now = datetime.fromisoformat("2026-09-06T08:10:00+03:00")
+        entry = self.e(
+            "legacy-slopwall", "2026-08-28T20:00:00+03:00", "Old quick note.",
+            kind="lesson", scope="assistant-orchestration/old", title="SLOPWALL: premature fixed status",
+            tags=["quick-note"], thread="legacy-slopwall",
+        )
+        errors = build_timeline([entry], view="errors", limit=10, snapshot_now=now)
+        self.assertEqual(errors["matching_events"], 1)
+        self.assertIn("slopwall", errors["events"][0]["continuity"]["traits"])
+        self.assertTrue(errors["events"][0]["continuity"]["legacy_inferred"])
+
     def test_modern_structured_status_scope_cannot_create_incident_trait(self):
         now = datetime.fromisoformat("2026-09-06T06:00:00+03:00")
         entry = self.e(
