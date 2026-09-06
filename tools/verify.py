@@ -72,6 +72,9 @@ CONVERSATION_PATHS = {
     "tests/fixtures/conversation-corpus/ChatGPTLocalExporter/new.json",
 }
 
+BUSY_ROOT = "03 Fixtures and Experiments/issue125-busy-coordinator"
+BUSY_PATH_PREFIX = BUSY_ROOT + "/"
+
 VERIFIER_PATHS = {
     "tools/verify.py",
     "tests/test_verify.py",
@@ -98,7 +101,7 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "memory", "conversation"]
+        return ["stack", "memory", "conversation", "busy"]
     selected = []
     if changed & STACK_PATHS:
         selected.append("stack")
@@ -106,6 +109,8 @@ def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
         selected.append("memory")
     if changed & CONVERSATION_PATHS:
         selected.append("conversation")
+    if any(path.startswith(BUSY_PATH_PREFIX) for path in changed):
+        selected.append("busy")
     return selected
 
 
@@ -149,6 +154,16 @@ def verify_stack() -> None:
         ]
     )
     print("ASSISTANT_STACK_POLICY_PROVEN")
+
+
+def verify_busy() -> None:
+    python_core = f"{BUSY_ROOT}/python/busy.py"
+    compatibility = f"{BUSY_ROOT}/tests/install_compatibility.py"
+    manifest = f"{BUSY_ROOT}/rust/Cargo.toml"
+    run([sys.executable, "-m", "py_compile", python_core, compatibility])
+    run(["cargo", "test", "--manifest-path", manifest])
+    run([sys.executable, compatibility])
+    print("BUSY_COORDINATOR_COMPATIBILITY_PROVEN")
 
 
 def verify_memory() -> None:
@@ -258,6 +273,8 @@ def main() -> int:
             verify_memory()
         elif area == "conversation":
             verify_conversation()
+        elif area == "busy":
+            verify_busy()
 
     if not areas:
         print("CHANGED_AREA_CHECKS_SKIPPED")

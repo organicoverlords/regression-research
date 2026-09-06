@@ -2,7 +2,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas, verify_memory, verify_stack
+from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_stack
 
 
 class VerifyTests(unittest.TestCase):
@@ -12,6 +12,10 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"AGENTS.md"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
         self.assertEqual(select_areas({"tools/memory_context.py"}), ["memory"])
+        self.assertEqual(
+            select_areas({"03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py"}),
+            ["busy"],
+        )
         self.assertEqual(select_areas({"memory/README.md"}), ["memory"])
         self.assertEqual(select_areas({"02 Evidence/mcp-security-routing-events.jsonl"}), ["memory"])
         self.assertEqual(select_areas({"tools/mcp_reroute_evidence.py"}), ["memory"])
@@ -58,14 +62,27 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("tools/mcp_reroute_evidence.py", compile_command)
         self.assertIn([sys.executable, "tools/mcp_reroute_evidence.py", "verify"], [call.args[0] for call in run.call_args_list])
 
+    @patch("tools.verify.run")
+    def test_busy_verification_executes_alias_regressions(self, run_command):
+        verify_busy()
+        commands = [call.args[0] for call in run_command.call_args_list]
+        root = "03 Fixtures and Experiments/issue125-busy-coordinator"
+        compatibility = f"{root}/tests/install_compatibility.py"
+        self.assertIn(
+            [sys.executable, "-m", "py_compile", f"{root}/python/busy.py", compatibility],
+            commands,
+        )
+        self.assertIn(["cargo", "test", "--manifest-path", f"{root}/rust/Cargo.toml"], commands)
+        self.assertIn([sys.executable, compatibility], commands)
+
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
             select_areas({"tools/verify.py"}),
-            ["stack", "memory", "conversation"],
+            ["stack", "memory", "conversation", "busy"],
         )
 
     def test_all_runs_every_area(self):
-        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation"])
+        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy"])
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):
