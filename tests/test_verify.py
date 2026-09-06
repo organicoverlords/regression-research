@@ -29,6 +29,7 @@ class VerifyTests(unittest.TestCase):
             "tools/timeline_materializer.py",
             "tests/test_timeline_materializer.py",
             "tests/test_timeline_query_filters.py",
+            "tests/test_timeline_recovery_issue649.py",
         ):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["memory"])
@@ -73,6 +74,7 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("tests/test_repo_timeline.py", test_paths)
         self.assertIn("tests/test_timeline_materializer.py", test_paths)
         self.assertIn("tests/test_timeline_query_filters.py", test_paths)
+        self.assertIn("tests/test_timeline_recovery_issue649.py", test_paths)
         self.assertIn("tests/test_mcp_reroute_evidence.py", test_paths)
         self.assertIn("tests/test_issue675_lesson_lineage_safety.py", test_paths)
         self.assertIn("tests/test_issue675_lesson_validation_safety.py", test_paths)
