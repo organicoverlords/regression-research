@@ -61,7 +61,7 @@ class BootstrapHealthTests(unittest.TestCase):
             "tools.stack_atlas._bootstrap_memory_overview", return_value={"recent": []}
         ), patch("tools.stack_atlas._bootstrap_vault_status", return_value={"available": True, "status": "OK"}), patch(
             "tools.stack_atlas._bootstrap_github_status", return_value={"available": True, "status": "WATCH"}
-        ), patch("tools.stack_atlas._bootstrap_mcp_known_good_freeze", return_value={"available": True}):
+        ), patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={"available": True}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "DEGRADED")
         self.assertEqual(glance["bootstrap"]["component_statuses"], {"mcp": "OK", "vault": "OK", "github": "WATCH"})
