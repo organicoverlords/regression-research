@@ -17,6 +17,7 @@ from tools.timeline_materializer import (
     github_events,
     install_task,
     local_artifact_events,
+    main,
     materialize,
     materialized_health,
     mcp_events,
@@ -329,6 +330,18 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(retry["status"], "FRESH")
         self.assertEqual(retry["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
         self.assertIn("DELTA_RETRY_PENDING", retry["absence_unsafe_reasons"])
+
+    def test_refresh_cli_treats_existing_refresh_lock_as_successful_noop(self):
+        with patch("tools.timeline_materializer.build_parser") as build_parser, patch(
+            "tools.timeline_materializer.materialize",
+            return_value={"ok": False, "status": "ALREADY_RUNNING", "path": "refresh.lock"},
+        ):
+            build_parser.return_value.parse_args.return_value = type("Args", (), {
+                "command": "refresh", "root": Path("."), "days": 30, "repo_events": 1000,
+                "artifact_events": 2000, "max_events": 20000, "no_github": False,
+                "rebuild": False, "quiet": True,
+            })()
+            self.assertEqual(main(), 0)
 
     def test_install_task_schedules_only_periodic_materializer(self):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="SUCCESS", stderr="")
