@@ -1,12 +1,12 @@
 {
   "schema": "mcp-known-good-freeze.v1",
   "status": "CANDIDATE_KNOWN_GOOD",
-  "frozen_at": "2026-09-05T09:47:03.975512+03:00",
-  "refreeze_not_before": "2026-09-07T09:47:03.975512+03:00",
+  "frozen_at": "2026-09-06T17:46:18.768874+03:00",
+  "refreeze_not_before": "2026-09-08T17:46:18.768874+03:00",
   "evidence_window": {
-    "stable_start": "2026-09-05T06:43:11.5Z",
-    "end": "2026-09-05T09:47:03.975512+03:00",
-    "meaning": "Immediate post-fix candidate evidence only. This is deliberately not multi-day real-use proof."
+    "stable_start": "2026-09-06T14:42:47.4099008Z",
+    "end": "2026-09-06T17:46:18.768874+03:00",
+    "meaning": "Immediate post-deploy candidate evidence only: guarded replacement SUCCEEDED, canonical/public health passed, deployed annotations were introspected, and one same-turn minimal read_output probe succeeded. This is deliberately not multi-day real-use proof."
   },
   "production_identity": {
     "public_origin": "https://5-61-91-127.sslip.io",
@@ -22,15 +22,15 @@
     },
     "backend": {
       "owner_checkout": "%LOCALAPPDATA%\\ChatGPTMcpMinimal",
-      "branch": "chatgpt/live-host443-freeze-20260905",
-      "commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
-      "dist_sha256": "4A9E946618A042FA986BD2D209A523C71EE9E81F19151022710B6C5B050E606C",
-      "pid_at_freeze": 28128,
-      "generation": "backend-3011-28128-1788590585408",
+      "branch": "(detached)",
+      "commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+      "dist_sha256": "6207503606A7B682624D09472883AF698A3D37378104A45120BA91843F15C253",
+      "pid_at_freeze": 21688,
+      "generation": "backend-3011-21688-1788705761749",
       "port": 3011,
       "force_connection_close": false,
-      "source_tag": "mcp-candidate-known-good-20260905-0947",
-      "remote_branch": "origin/chatgpt/live-host443-freeze-20260905"
+      "source_tag": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "remote_branch": "origin/master"
     },
     "host_acceptance": {
       "bare_public_host": 401,
@@ -41,12 +41,9 @@
     "public_acceptance": {
       "health": 200,
       "oauth_protected_resource_metadata": 200,
-      "stable_window_mcp_posts": 261,
-      "stable_window_http_200": 255,
-      "stable_window_http_202": 6,
-      "stable_window_4xx": 0,
-      "stable_window_5xx": 0,
-      "stable_window_posts_per_socket": 1.27
+      "minimal_post_deploy_start_read_probe": "PASS",
+      "probe_output": "ANNOTATION_DEPLOY_PROBE",
+      "meaning": "Immediate acceptance only; not a reroute-rate or multi-day stability claim."
     },
     "recovery_lanes": {
       "automatic_routing": "WireGuard only",
@@ -57,16 +54,18 @@
       "ssh_role": "explicit recovery only; not automatic Caddy upstreams"
     },
     "rollback": {
-      "dist_path": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpRollback\\host443-20260905\\index.js.pre-host443",
-      "dist_sha256": "FDBC1BA952EE82F2B330DB25701262490A117D96EE4AD7C97EF7DBD6E1A026EC",
-      "previous_generation": "backend-3011-23100-1788569334072"
+      "rollback_root": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\production-replacement\\rollback-5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "previous_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+      "previous_dist_sha256": "4A9E946618A042FA986BD2D209A523C71EE9E81F19151022710B6C5B050E606C",
+      "previous_generation": "backend-3011-17380-1788658484979",
+      "replacement_request_id": "5c853ed4-c975-402a-9424-35f7c13fa8d7"
     }
   },
   "proof_state": {
     "immediate_acceptance": "PASS",
     "multi_day_real_use": "PENDING",
     "user_confirmed_stable": false,
-    "security_reroute_rate_after_freeze": "USER_REPORTED_POST_RESTORE_REROUTE_2026-09-06T03:54:26+03:00; restored MCP baseline did not eliminate the client-visible symptom",
+    "security_reroute_rate_after_freeze": "PENDING_REAL_USE; same-turn minimal read_output succeeded after this deployment, while an earlier read_output in the same turn was blocked before dispatch on the old deployment. This is discriminating evidence, not causal or long-run proof.",
     "promotion_rule": "Do not promote to PROVEN_KNOWN_GOOD until >=48 hours of real user use have elapsed and the user explicitly confirms the security-reroute symptom remained acceptably absent/stable."
   },
   "known_transients_not_part_of_frozen_stable_window": [
@@ -80,12 +79,18 @@
     }
   ],
   "security_reroute_log": "C:\\Users\\Lauri\\Desktop\\vault\\02 Evidence\\mcp-security-routing-events.jsonl",
-  "supersedes": null,
+  "supersedes": {
+    "frozen_at": "2026-09-05T09:47:03.975512+03:00",
+    "backend_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+    "backend_generation": "backend-3011-28128-1788590585408",
+    "source_tag": "mcp-candidate-known-good-20260905-0947",
+    "reason": "Fresh user reports showed security reroutes persisted after restoring the prior candidate; issue #81 records the disqualifying evidence for the target symptom."
+  },
   "notes": [
     "This is the one canonical MCP freeze pointer for new agents. Historical files/branches/tags containing 'known-good', 'freeze', or 'recovery' are not substitutes.",
-    "Preserve this candidate as the current recovery/bisect boundary unless fresh live evidence disqualifies it. Record that disqualifying evidence before moving away from it.",
     "CANDIDATE_KNOWN_GOOD intentionally means frozen before proper multi-day proof. A later refreeze is mandatory for PROVEN_KNOWN_GOOD.",
-    "Do not infer that security rerouting is solved from server acceptance alone; user-visible real-use behavior is required for promotion."
+    "Do not infer that security rerouting is solved from server acceptance alone; user-visible real-use behavior is required for promotion.",
+    "Current candidate recovery boundary is deployment 5c853ed4-c975-402a-9424-35f7c13fa8d7 at 59b566f; preserve it unless fresh live evidence disqualifies it. The superseded d6e2972 candidate remains recorded above for regression comparison and rollback history."
   ],
   "recovery_policy": {
     "restore_first_on_regression": true,
@@ -113,5 +118,27 @@
     "post_restore_correlation": "preceding MCP start_process finished HTTP 200 at 03:54:23.310 EEST; next MCP request began at 03:54:35.454 EEST; no MCP request was in flight at the screenshot moment",
     "interpretation": "The restored MCP baseline remains the recovery/bisect boundary for MCP regressions, but the observed reroute is not explained by MCP request execution at that moment.",
     "post_restore_no_mcp_request_in_flight": true
+  },
+  "latest_deployment_observation": {
+    "deployed_at": "2026-09-06T14:42:47.4099008Z",
+    "replacement_request_id": "5c853ed4-c975-402a-9424-35f7c13fa8d7",
+    "replacement_status": "SUCCEEDED",
+    "old_head": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+    "new_head": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+    "old_generation": "backend-3011-17380-1788658484979",
+    "new_generation": "backend-3011-21688-1788705761749",
+    "old_drain": {
+      "active_requests": 0,
+      "managed_processes": 0,
+      "direct_children": 0,
+      "drained_at": "2026-09-06T14:42:35.9242796Z"
+    },
+    "candidate_drain": {
+      "drained": true,
+      "active_requests": 0,
+      "live_process_count": 0
+    },
+    "post_deploy_read_output_probe": "PASS",
+    "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Immediate transport/tool acceptance passed; real user-visible reroute rate remains pending."
   }
 }
