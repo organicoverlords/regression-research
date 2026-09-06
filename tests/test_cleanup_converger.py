@@ -12,6 +12,7 @@ from tools.cleanup_converger import (
     Worktree,
     cwd_targets_path,
     eligibility_reason,
+    exact_anchor_refs,
     generated_cache_dirs,
     _clean_generated_cache_one,
     _fresh_cache_guard,
@@ -20,6 +21,8 @@ from tools.cleanup_converger import (
     process_targets_path,
     recent_mcp_cwds,
     summarize_actions,
+    scan_repo,
+    worktree_is_clean,
 )
 
 
@@ -95,6 +98,9 @@ class CleanupConvergerTests(unittest.TestCase):
             eligibility_reason(detached, recent_cwds=set(), processes=[], clean=True, ref_matches=False),
             "detached_or_unanchored",
         )
+        self.assertIsNone(
+            eligibility_reason(detached, recent_cwds=set(), processes=[], clean=True, ref_matches=True)
+        )
         self.assertEqual(
             eligibility_reason(lane, recent_cwds={r"C:\Temp\lane"}, processes=[], clean=True, ref_matches=True),
             "recent_mcp_cwd_activity",
@@ -118,6 +124,28 @@ class CleanupConvergerTests(unittest.TestCase):
             "branch_ref_mismatch",
         )
 
+
+
+    @patch("tools.cleanup_converger._git")
+    def test_exact_anchor_refs_requires_direct_non_symbolic_ref(self, git):
+        git.return_value = subprocess.CompletedProcess(
+            ["git"],
+            0,
+            stdout=(
+                "refs/heads/topic\n"
+                "refs/remotes/origin/HEAD\n"
+                "refs/remotes/origin/main\n"
+            ),
+            stderr="",
+        )
+        lane = Worktree(Path(r"C:\Temp\lane"), "abcd", None, True)
+        self.assertEqual(
+            exact_anchor_refs(Path(r"C:\repo"), lane),
+            ["refs/heads/topic", "refs/remotes/origin/main"],
+        )
+        args = git.call_args.args
+        self.assertIn("--points-at", args)
+        self.assertIn("abcd", args)
 
     def test_locked_worktree_is_never_eligible(self):
         lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False, "protected worker lane")
@@ -195,6 +223,36 @@ class CleanupConvergerTests(unittest.TestCase):
         current.return_value = lane
         processes.return_value = [{"ProcessId": 42, "CommandLine": r"cl.exe C:\Temp\lane\x.cpp"}]
         self.assertEqual(_fresh_cache_guard(Path(r"C:\repo"), lane, 300), "external_process_targets_path")
+
+    @patch("tools.cleanup_converger._git")
+    def test_cleanliness_probe_timeout_returns_unknown(self, git):
+        git.side_effect = subprocess.TimeoutExpired(["git", "diff-files"], 15)
+        self.assertIsNone(worktree_is_clean(Path(r"C:\Temp\slow-lane")))
+
+    @patch("tools.cleanup_converger.generated_cache_dirs", return_value=[])
+    @patch("tools.cleanup_converger.branch_ref_matches", return_value=True)
+    @patch("tools.cleanup_converger.worktree_is_clean", return_value=None)
+    @patch("tools.cleanup_converger.windows_processes", return_value=[])
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger._git")
+    def test_scan_preserves_lane_when_cleanliness_probe_times_out(
+        self, git, _cwds, _processes, _clean, _ref, _cache
+    ):
+        git.return_value = subprocess.CompletedProcess(
+            ["git"],
+            0,
+            stdout=(
+                "worktree C:/repo\nHEAD root\nbranch refs/heads/main\n\n"
+                "worktree C:/slow-lane\nHEAD abcd\nbranch refs/heads/topic\n\n"
+            ),
+            stderr="",
+        )
+        candidates, cache_candidates, observations = scan_repo("P3", Path(r"C:\repo"), 300)
+        self.assertEqual(candidates, [])
+        self.assertEqual(cache_candidates, [])
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(observations[0].action, "PRESERVE")
+        self.assertEqual(observations[0].reason, "cleanliness_probe_timeout")
 
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):

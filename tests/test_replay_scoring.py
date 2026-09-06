@@ -33,6 +33,21 @@ class ReplayScoringTests(unittest.TestCase):
         self.assertIn("higher_authority_checked", result["violations"])
         self.assertIn("mass_noncompliance_inferred_before_supersession_test", result["violations"])
 
+    def test_correction_regurgitation_meta_agreement_does_not_count_as_progress(self):
+        path = ROOT / "03 Fixtures and Experiments" / "2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+        fixture = validate_fixture(json.loads(path.read_text(encoding="utf-8")), root=ROOT, filename=path.name)
+        result = score_fixture(
+            fixture,
+            {
+                "action": (
+                    "You are right. The correction should preserve the original task. "
+                    "I should apply the correction before the next action and continue the original task rather than explaining it."
+                )
+            },
+        )
+        self.assertFalse(result["passed"], result)
+        self.assertIn("next_substantive_action_advances_objective", result["violations"])
+
     def test_malformed_fixture_and_unknown_assertion_are_rejected(self):
         with self.assertRaises(FixtureError):
             validate_fixture({"id": "missing-contract"}, root=ROOT)

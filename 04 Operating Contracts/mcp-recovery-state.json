@@ -1,0 +1,248 @@
+{
+  "schema": "mcp-recovery-state.v1",
+  "updated_at": "2026-09-06T21:59:50.857262Z",
+  "deployment": {
+    "id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
+    "deployed_at": "2026-09-06T14:42:47.4099008Z",
+    "commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+    "generation": "backend-3011-21688-1788705761749",
+    "dist_sha256": "6207503606A7B682624D09472883AF698A3D37378104A45120BA91843F15C253",
+    "public_origin": "https://5-61-91-127.sslip.io",
+    "topology": "VPS Caddy HTTPS -> WireGuard 10.203.0.2:3011 -> Windows persistent portproxy -> loopback backend 127.0.0.1:3011",
+    "runtime": {
+      "owner_checkout": "%LOCALAPPDATA%\\ChatGPTMcpMinimal",
+      "branch": "(detached)",
+      "pid_at_selection": 21688,
+      "port": 3011,
+      "force_connection_close": false,
+      "remote_branch": "origin/master"
+    },
+    "caddy": {
+      "sha256": "2a41b9e2ec46ff4ccb2f3d760f64de073e31b61577cb21bd27cad7bc726b4284",
+      "public_idle": "5m",
+      "automatic_upstream": "10.203.0.2:3011 only",
+      "backend_keepalive": "30s",
+      "backend_idle_pool_cap": 4,
+      "active_health_polling": false,
+      "service_active": true
+    },
+    "rollback": {
+      "rollback_root": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\production-replacement\\rollback-5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "previous_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+      "previous_dist_sha256": "4A9E946618A042FA986BD2D209A523C71EE9E81F19151022710B6C5B050E606C",
+      "previous_generation": "backend-3011-17380-1788658484979",
+      "replacement_request_id": "5c853ed4-c975-402a-9424-35f7c13fa8d7"
+    }
+  },
+  "recovery_target": {
+    "deployment_id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
+    "selected_at": "2026-09-06T17:46:18.768874+03:00",
+    "reason": "Current preferred restore/bisect reference based on guarded deployment acceptance and subsequent real-use evidence. Selection is independent of health-condition truth.",
+    "recovery_lanes": {
+      "automatic_routing": "WireGuard only",
+      "ssh_3101": 200,
+      "ssh_3102": 200,
+      "ssh_3103": 200,
+      "ssh_3104": 200,
+      "ssh_role": "explicit recovery only; not automatic Caddy upstreams"
+    },
+    "policy": {
+      "restore_first_on_regression": true,
+      "trigger": "When an assistant/operator-authored production MCP change causes a severe recurring regression, or the user explicitly reports the previously working MCP regressed after our change and requests restoration, restore the last known-working production behavior/topology before speculative fixes.",
+      "required_order": [
+        "If the user explicitly asks for platform-reroute/security analysis or incident tracking, log any user-observed reroute with report/event-time semantics before further MCP/edge mutation; otherwise treat platform security events as external and do not persist them.",
+        "Preserve the current runtime, dist, serving identity, and rollback evidence.",
+        "Use the production change gate, exact Busy scope, independent rollback, off-path proof, and drain active child processes before cutover.",
+        "Restore the frozen production behavior and topology; a source SHA alone is not sufficient when topology differs. Use only the minimal compatibility required by the proven replacement mechanism.",
+        "Do not stack unrelated logging, diagnostics, guards, or speculative fixes onto the regressed serving runtime before restoration.",
+        "After restoration, verify public route, Host handling, OAuth/tool contract, canonical port, and candidate drain.",
+        "If the client-visible symptom persists after restoration while bounded transport evidence shows no MCP request in flight at the symptom time, classify that event as above-MCP/platform evidence and stop MCP/edge mutation unless new MCP-local evidence appears."
+      ],
+      "preservation_rule": "Restoration must preserve unique work and active child processes; do not kill foreign work to accelerate recovery.",
+      "authorization_rule": "Shared-production restoration still requires explicit user authorization and the production-change gate; a generic go does not authorize a new live-production mutation.",
+      "recovery_invariants": [
+        "During an active MCP incident, keep the selected recovery target fixed unless new evidence positively disqualifies it; do not search for or promote a 'better' target mid-recovery.",
+        "Before any serving-path mutation, reconcile the selected deployment artifact, the live backend artifact/generation, the live Caddy transport/topology, and an independent rollback/control route.",
+        "If the live backend artifact already matches the selected recovery artifact and only topology differs, restore only the topology; do not restart or replace the backend.",
+        "MCP serving repair must not depend solely on the same MCP request path being repaired; verify an independent control/rollback route before a serving mutation.",
+        "Automatic Caddy routing is WireGuard 10.203.0.2:3011; SSH 3101-3104 lanes are explicit recovery only. A reverse-SSH primary is topology drift, not a new recovery target.",
+        "A 502 that leaves no Node/backend request row proves only that the request did not reach the Node app; exclude Caddy/VPS/tunnel/listener failure before classifying it as above-MCP/platform."
+      ]
+    }
+  },
+  "conditions": [
+    {
+      "type": "Serving",
+      "status": "True",
+      "observed_generation": "backend-3011-21688-1788705761749",
+      "last_transition_at": "2026-09-06T14:42:47.4099008Z",
+      "reason": "CanonicalAcceptancePassed",
+      "message": "Canonical/public health and host/OAuth acceptance passed for this deployment generation."
+    },
+    {
+      "type": "ToolContractHealthy",
+      "status": "True",
+      "observed_generation": "backend-3011-21688-1788705761749",
+      "last_transition_at": "2026-09-06T17:46:18.768874+03:00",
+      "reason": "ProcessToolContractValidated",
+      "message": "The three process tools are live with the intended annotations and bounded live validation passed."
+    },
+    {
+      "type": "SecurityReroutesReduced",
+      "status": "Unknown",
+      "observed_generation": "backend-3011-21688-1788705761749",
+      "last_transition_at": "2026-09-06T18:35:10Z",
+      "reason": "RateReductionNotStatisticallyEstablished",
+      "message": "Observed direct-tool-block evidence fell from 3 known occurrences across 17,141 pre-refresh process calls (0.175019 per 1,000) to 0 across 7,105 post-refresh calls, but the post zero-event one-sided 95% Poisson upper bound is about 0.422 per 1,000 and the equal-exposure control is also sparse. The underlying reduction is therefore not statistically established; broader user-visible/above-MCP reroutes persist."
+    },
+    {
+      "type": "SecurityReroutesEliminated",
+      "status": "False",
+      "observed_generation": "backend-3011-21688-1788705761749",
+      "last_transition_at": "2026-09-06T19:11:14+03:00",
+      "reason": "PostRefreshRecurrenceObserved",
+      "message": "User-visible reroutes recurred after deployment/refresh, including a user-supplied 20:27-20:39 EEST window; the broader platform-side reroute class is not eliminated."
+    },
+    {
+      "type": "LongRunStable",
+      "status": "Unknown",
+      "observed_generation": "backend-3011-21688-1788705761749",
+      "last_transition_at": "2026-09-06T17:46:18.768874+03:00",
+      "reason": "ObservationWindowIncomplete",
+      "message": "Long-run stability remains unevaluated until the configured observation window has elapsed and the user explicitly confirms acceptable stability."
+    }
+  ],
+  "condition_policies": {
+    "LongRunStable": {
+      "evaluate_not_before": "2026-09-08T17:46:18.768874+03:00",
+      "requires_explicit_user_confirmation": true,
+      "rule": "Set LongRunStable to True or False from real-use evidence after the observation window; do not rename or promote the deployment."
+    }
+  },
+  "evidence": {
+    "observation_window": {
+      "stable_start": "2026-09-06T14:42:47.4099008Z",
+      "end": "2026-09-06T17:46:18.768874+03:00",
+      "meaning": "Immediate post-deploy candidate evidence only: guarded replacement SUCCEEDED, canonical/public health passed, deployed annotations were introspected, and one same-turn minimal read_output probe succeeded. This is deliberately not multi-day real-use proof."
+    },
+    "host_acceptance": {
+      "bare_public_host": 401,
+      "explicit_default_https_port_443": 401,
+      "nondefault_port_444": 403,
+      "meaning": "Bare and explicit :443 reach authentication; non-default authority remains rejected."
+    },
+    "public_acceptance": {
+      "health": 200,
+      "oauth_protected_resource_metadata": 200,
+      "minimal_post_deploy_start_read_probe": "PASS",
+      "probe_output": "ANNOTATION_DEPLOY_PROBE",
+      "meaning": "Immediate acceptance only; not a reroute-rate or multi-day stability claim."
+    },
+    "known_transients": [
+      {
+        "start": "2026-09-05T06:43:05.437Z",
+        "end": "2026-09-05T06:43:10.654Z",
+        "event": "16 HTTP 502 responses during backend replacement gap",
+        "classification": "DEPLOYMENT_PROCEDURE_DEFECT_NOT_NEW_RUNTIME_ACCEPTANCE",
+        "tracking": "https://github.com/organicoverlords/chatgpt-mcp-clean/issues/99",
+        "rule": "Do not reuse the 2026-09-05 replacement procedure as a claimed zero-downtime production path until issue #99 is fixed and independently proven."
+      }
+    ],
+    "security_reroute_log": "C:\\Users\\Lauri\\Desktop\\vault\\02 Evidence\\mcp-security-routing-events.jsonl",
+    "latest_restore_observation": {
+      "restored_at": "2026-09-06T03:50:10.7736548+03:00",
+      "production_head": "e1839c817665600fb56cdf81bbdc0599e61539af",
+      "frozen_behavior_base": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+      "compatibility_delta": "26 insertions / 7 deletions across 5 files, limited to guarded replacement and live-process health compatibility",
+      "replacement_request_id": "331adfbd-e8b6-4469-81fd-895d6fc9fcac",
+      "replacement_status": "SUCCEEDED",
+      "post_restore_user_event": "2026-09-06T03:54:26+03:00",
+      "post_restore_correlation": "preceding MCP start_process finished HTTP 200 at 03:54:23.310 EEST; next MCP request began at 03:54:35.454 EEST; no MCP request was in flight at the screenshot moment",
+      "interpretation": "The restored MCP baseline remains the recovery/bisect boundary for MCP regressions, but the observed reroute is not explained by MCP request execution at that moment.",
+      "post_restore_no_mcp_request_in_flight": true
+    },
+    "latest_deployment_observation": {
+      "deployed_at": "2026-09-06T14:42:47.4099008Z",
+      "replacement_request_id": "5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "replacement_status": "SUCCEEDED",
+      "old_head": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+      "new_head": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+      "old_generation": "backend-3011-17380-1788658484979",
+      "new_generation": "backend-3011-21688-1788705761749",
+      "old_drain": {
+        "active_requests": 0,
+        "managed_processes": 0,
+        "direct_children": 0,
+        "drained_at": "2026-09-06T14:42:35.9242796Z"
+      },
+      "candidate_drain": {
+        "drained": true,
+        "active_requests": 0,
+        "live_process_count": 0
+      },
+      "post_deploy_read_output_probe": "PASS",
+      "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Post-refresh direct-tool-block observations are lower than the pre-refresh record, but normalized sparse-event analysis does not statistically establish a reduced underlying rate: 3 known direct blocks / 17,141 pre-refresh calls (0.175019 per 1,000) versus 0 / 7,105 post-refresh calls, whose one-sided 95% Poisson upper bound is about 0.422 per 1,000. Broader user-visible/above-MCP reroutes persist, so no causal or elimination claim is supported."
+    },
+    "latest_topology_restore_observation": {
+      "observed_at": "2026-09-07T00:44:03+03:00",
+      "incident_id": "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence",
+      "tracking_issue": "https://github.com/organicoverlords/regression-research/issues/675",
+      "user_reported_recurrence": "9th time in 48 hour you kill whole stack just by mcp",
+      "selected_recovery_commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+      "selected_recovery_dist_sha256": "6207503606A7B682624D09472883AF698A3D37378104A45120BA91843F15C253",
+      "selected_recovery_topology": "VPS Caddy HTTPS -> WireGuard 10.203.0.2:3011 -> Windows persistent portproxy -> loopback backend 127.0.0.1:3011",
+      "before_restore": {
+        "caddy_transport": "reverse_ssh",
+        "caddy_sha256": "d92fd192b13c9026349e05956b2f41d617139e8640a3f5bf554074b7cbd16754",
+        "backend_generation": "backend-3011-45164-1788726029621",
+        "backend_dist_sha256": "6207503606a7b682624d09472883af698a3d37378104a45120ba91843f15c253",
+        "backend_artifact_matches_selected_recovery": true
+      },
+      "failed_replacement_attempt": {
+        "request_id": "670e48e0-0649-4a31-983a-9846903ed3e9",
+        "status": "ROLLED_BACK_CANDIDATE_DRAIN_PENDING",
+        "runtime_changed": false,
+        "production_task_stopped": false,
+        "edge_on_candidate": false,
+        "error": "canonical backend changed unexpectedly while drain was in progress",
+        "candidate_drain": {
+          "drained": false,
+          "active_requests": 0,
+          "live_process_count": 1
+        }
+      },
+      "discriminating_finding": "The live backend binary already matched the selected recovery artifact exactly; the proven divergence was Caddy routing topology, so another backend replacement was unnecessary.",
+      "restore": {
+        "action": "Caddy-only route restore from reverse_ssh to WireGuard 10.203.0.2:3011; backend process/generation unchanged",
+        "caddy_sha256": "2a41b9e2ec46ff4ccb2f3d760f64de073e31b61577cb21bd27cad7bc726b4284",
+        "backend_generation": "backend-3011-45164-1788726029621",
+        "public_health_statuses": [
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "fresh_mcp_process_call": "PASS"
+      },
+      "interpretation": "Recovery-target churn and incomplete topology reconciliation repeatedly widened outages. Future recovery must keep the selected target fixed, identify the exact divergent component, and restore only that component through an independent control route."
+    }
+  },
+  "history": {
+    "previous_recovery_target": {
+      "frozen_at": "2026-09-05T09:47:03.975512+03:00",
+      "backend_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
+      "backend_generation": "backend-3011-28128-1788590585408",
+      "source_tag": "mcp-candidate-known-good-20260905-0947",
+      "reason": "Fresh user reports showed security reroutes persisted after restoring the prior candidate; issue #81 records the disqualifying evidence for the target symptom."
+    }
+  },
+  "notes": [
+    "Recovery-target selection and observed conditions are independent facts. Never infer whole-system health from the selected recovery target.",
+    "Conditions use True/False/Unknown and are tied to the observed deployment generation; update only the condition supported by new evidence.",
+    "Do not recreate any promotion label that combines recovery-target selection with health. LongRunStable can be Unknown while the same deployment remains the preferred recovery target.",
+    "Current operational truth is SecurityReroutesReduced=Unknown and SecurityReroutesEliminated=False: a lower observed direct-block count is real, but sparse normalized evidence does not yet establish a reduced underlying rate.",
+    "Incident recovery invariant: the selected recovery target remains fixed during an outage unless positive evidence disqualifies it; rollback-target search is not a debugging loop.",
+    "Before any MCP serving mutation, compare selected artifact, live backend artifact/generation, live Caddy transport, and independent control route. Restore only the proven divergent component."
+  ]
+}

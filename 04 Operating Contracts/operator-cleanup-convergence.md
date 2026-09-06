@@ -10,4 +10,6 @@ For an inactive secondary **P3** worktree that must otherwise be preserved, the 
 
 If Windows detaches worktree metadata but cannot delete the directory, the tool may finish only that residue when the same exact branch anchor remains, `.git`/registration are absent, and fresh CWD plus external-process guards are clear. Locked or active residues remain blocked for a later round.
 
-This is an operator tool. Recurring workers must not invoke it to administer themselves or sibling lanes. Dirty, detached/unanchored, ref-mismatched, active, or otherwise ambiguous lanes are preserved. The tool never fetches, resets, rebases, deletes branches, changes permissions, kills processes, or treats cleanup as product/acceptance authority.
+Git cleanliness probes are individually time-bounded. A timeout is **unknown state**, not clean state: the worktree is preserved with `cleanliness_probe_timeout`, so one pathological dirty/LFS-heavy lane cannot wedge the entire convergence operation.
+
+This is an operator tool. Recurring workers must not invoke it to administer themselves or sibling lanes. Dirty, detached lanes without an exact durable ref at HEAD, ref-mismatched, active, or otherwise ambiguous lanes are preserved. A clean detached lane may be removed only when a local branch, tag, or non-symbolic remote-tracking ref points exactly at its HEAD before and after removal. The tool never fetches, resets, rebases, deletes branches, changes permissions, kills processes, or treats cleanup as product/acceptance authority.

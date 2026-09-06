@@ -29,3 +29,13 @@ Use `--project p3` only when the artifact is explicitly attributable to P3. Othe
 ## Operational rule
 
 The local scheduled materializer cannot directly enumerate the private ChatGPT Library connector. The model/operator bridge therefore performs the connector read when artifacts are created, uploaded, reviewed, or intentionally backfilled, then invokes the helper. Do not invent metadata or infer unseen attachment IDs. Do not create a new cloud/VPS/MCP service merely to move this metadata.
+
+## Tool-loss incident continuity
+
+For a RED ALERT or other operator-caused interruption where the active tool/connector failure prevents writing the canonical Vault report immediately:
+
+1. Use the existing ChatGPT Library artifact path to preserve an interim incident report with the incident ID, exact user report, known event/report times, observed impact, actions attempted, and last verified live state. Unknown times or states remain unknown.
+2. When Vault-capable tools return, before resuming the interrupted engineering task, create or update the canonical incident report under `01 Reports`.
+3. Run the existing timeline materializer so the outage, restoration, and report are visible through the existing timeline/bootstrap surfaces. Do not create a parallel incident, blocker, scheduler, or monitoring system for this purpose.
+4. Never leave an incident chronology ending at tool loss when later evidence establishes the restoration or failure outcome; close the gap in the Vault report when tools return.
+5. This continuity rule does not authorize any production mutation. It only preserves evidence when the normal Vault write path is temporarily unavailable.

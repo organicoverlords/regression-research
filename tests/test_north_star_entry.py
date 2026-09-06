@@ -21,12 +21,12 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertIn("Vault history are evidence only", rules)
         self.assertIn("Stack Atlas", rules)
 
-    def test_shared_contract_keeps_go_open_ended_and_stop_task_level(self):
+    def test_shared_contract_keeps_go_scoped_and_stop_immediate(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
         agents = (RULES_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("a `go` turn is not a one-slice checkpoint", rules)
-        self.assertIn("Stop only for a concrete task-level blocker", rules)
-        self.assertIn("continue through nonblocking waits instead of polling or stopping early", agents)
+        self.assertIn("`go` means continue the already-established scope", rules)
+        self.assertIn("`stop` means stop immediately", rules)
+        self.assertIn("yield after that operation plus necessary validation or at a decision-ready checkpoint", agents)
 
     def test_north_star_exposes_current_project_direction_and_finish_line(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")

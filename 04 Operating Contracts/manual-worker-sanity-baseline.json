@@ -1,0 +1,65 @@
+{
+  "schema": "manual-worker-sanity-baseline.v2",
+  "baseline_id": "2026-09-06-insanity-point-pr658",
+  "label": "2026-09-06 manual-worker insanity point",
+  "boundary_at": "2026-09-06T21:26:41+03:00",
+  "change_ref": "regression-research#658 / 818b76b5d2c4931d0eff30f71f7269ca4896bc9a",
+  "baseline_window_hours": 6.0,
+  "comparison_window_hours": 6.0,
+  "population_semantics": "manual runs are assigned by started_at; archive time never moves an old-format run across the boundary",
+  "baseline_run_count": 48,
+  "metrics": {
+    "median_report_bytes": 1625.5,
+    "mean_transcript_fields": 3.42,
+    "self_reported_lifecycle_anomaly_pct": 16.67,
+    "micro_run_lt2_pct": 14.58,
+    "median_tool_interval_minutes_guardrail": 9.38,
+    "short_run_lt5_pct_guardrail": 31.25
+  },
+  "sample_gates": {
+    "minimum_post_runs_for_provisional": 5,
+    "minimum_post_runs_for_comparable": 20
+  },
+  "score_semantics": {
+    "range": "-100..+100",
+    "baseline_score": 0,
+    "higher_is_better": true,
+    "component_formula": "weight * clamp((baseline-current)/baseline, -1, 1); all scored components are lower-is-better",
+    "direction_threshold": 10.0,
+    "important": "diagnostic trend only; mixed manual-task duration is not part of the headline. Go/continue duration is a separate continuation projection. Never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive.",
+    "headline_formula": "min(friction_delta, operational_lifecycle_delta); continuation run duration is separate and never folded into this score"
+  },
+  "guardrails": [
+    "General manual sanity scores reporting friction and lifecycle mistakes only; mixed task duration is not scored or used as a verdict guardrail.",
+    "Continuation/go duration and fragmentation are reported separately from bounded manual task durations; never use the mixed manual population to answer whether `go` runs are too short.",
+    "Do not claim continuation improvement before the continuation sample gate is met.",
+    "The score measures manual-reporting/process behavior, not model intelligence, user wellbeing, product quality, or MCP health."
+  ],
+  "axes": {
+    "friction": {
+      "metrics": {
+        "median_report_bytes": 50.0,
+        "mean_transcript_fields": 50.0
+      },
+      "semantics": "Measures reporting overhead directly changed by PR #658; useful as friction evidence but insufficient by itself to claim sanity improved."
+    },
+    "operational": {
+      "metrics": {
+        "self_reported_lifecycle_anomaly_pct": 100.0
+      },
+      "semantics": "Measures report/execution lifecycle mistakes across actual manual execution runs. Run duration/fragmentation is intentionally excluded and tracked only for continuation go/continue runs."
+    }
+  },
+  "continuation_baseline": {
+    "source_semantics": "Six hours before PR #658, using only historical manual reports explicitly identifiable as go/continue from run_id or scope; bounded historical subset, not all manual work.",
+    "baseline_run_count": 7,
+    "median_duration_minutes": 18.78,
+    "short_run_lt5_pct": 0.0,
+    "micro_run_lt2_pct": 0.0,
+    "sample_gates": {
+      "minimum_post_runs_for_provisional": 5,
+      "minimum_post_runs_for_comparable": 20
+    },
+    "important": "Separate from the general manual sanity score. Do not infer go/continue quality from bounded one-shot task or correction durations; user-interrupted continuation runs should be identified by stop_reason when available."
+  }
+}

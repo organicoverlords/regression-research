@@ -2,7 +2,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas
+from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_stack
 
 
 class VerifyTests(unittest.TestCase):
@@ -12,17 +12,98 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"AGENTS.md"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
         self.assertEqual(select_areas({"tools/memory_context.py"}), ["memory"])
+        self.assertEqual(
+            select_areas({"03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py"}),
+            ["busy"],
+        )
         self.assertEqual(select_areas({"memory/README.md"}), ["memory"])
+        self.assertEqual(select_areas({"02 Evidence/mcp-security-routing-events.jsonl"}), ["memory"])
+        self.assertEqual(select_areas({"tools/mcp_reroute_evidence.py"}), ["memory"])
+        self.assertEqual(select_areas({"tests/test_mcp_reroute_evidence.py"}), ["memory"])
         self.assertEqual(select_areas({"README.md"}), [])
+
+    def test_timeline_changes_select_memory_verification(self):
+        for path in (
+            "tools/repo_timeline.py",
+            "tests/test_repo_timeline.py",
+            "tools/timeline_materializer.py",
+            "tests/test_timeline_materializer.py",
+            "tests/test_timeline_query_filters.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["memory"])
+
+    def test_issue693_entry_fixture_selects_stack_verification(self):
+        for path in (
+            "tests/test_issue693_fresh_worker_entry.py",
+            "tests/fixtures/issue693_fresh_worker_entry.json",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
+
+    def test_busy_alias_owner_changes_select_busy_verification(self):
+        for path in (
+            "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
+            "03 Fixtures and Experiments/issue125-busy-coordinator/rust/src/main.rs",
+            "03 Fixtures and Experiments/issue125-busy-coordinator/tests/install_compatibility.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["busy"])
+
+    def test_issue675_lesson_guards_select_memory_verification(self):
+        for path in (
+            "tests/test_issue675_lesson_lineage_safety.py",
+            "tests/test_issue675_lesson_validation_safety.py",
+            "tests/test_issue675_static_proof_safety.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["memory"])
+
+    @patch("tools.verify.run")
+    def test_stack_verification_executes_issue693_entry_fixture(self, run):
+        verify_stack()
+        unittest_command = run.call_args_list[1].args[0]
+        self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
+
+    @patch("tools.verify.run")
+    @patch("tools.verify.run_pytest")
+    def test_memory_verification_executes_timeline_regressions(self, pytest_run, run):
+        verify_memory()
+        test_paths = pytest_run.call_args.args[0]
+        self.assertIn("tests/test_repo_timeline.py", test_paths)
+        self.assertIn("tests/test_timeline_materializer.py", test_paths)
+        self.assertIn("tests/test_timeline_query_filters.py", test_paths)
+        self.assertIn("tests/test_mcp_reroute_evidence.py", test_paths)
+        self.assertIn("tests/test_issue675_lesson_lineage_safety.py", test_paths)
+        self.assertIn("tests/test_issue675_lesson_validation_safety.py", test_paths)
+        self.assertIn("tests/test_issue675_static_proof_safety.py", test_paths)
+        compile_command = run.call_args_list[0].args[0]
+        self.assertIn("tools/repo_timeline.py", compile_command)
+        self.assertIn("tools/timeline_materializer.py", compile_command)
+        self.assertIn("tools/mcp_reroute_evidence.py", compile_command)
+        self.assertIn([sys.executable, "tools/mcp_reroute_evidence.py", "verify"], [call.args[0] for call in run.call_args_list])
+
+    @patch("tools.verify.run")
+    def test_busy_verification_executes_alias_regressions(self, run_command):
+        verify_busy()
+        commands = [call.args[0] for call in run_command.call_args_list]
+        root = "03 Fixtures and Experiments/issue125-busy-coordinator"
+        compatibility = f"{root}/tests/install_compatibility.py"
+        self.assertIn(
+            [sys.executable, "-m", "py_compile", f"{root}/python/busy.py", compatibility],
+            commands,
+        )
+        self.assertIn(["cargo", "test", "--release", "--manifest-path", f"{root}/rust/Cargo.toml"], commands)
+        self.assertIn([sys.executable, compatibility], commands)
 
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
             select_areas({"tools/verify.py"}),
-            ["stack", "memory", "conversation"],
+            ["stack", "memory", "conversation", "busy"],
         )
 
     def test_all_runs_every_area(self):
-        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation"])
+        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy"])
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):

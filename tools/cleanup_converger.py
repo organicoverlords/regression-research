@@ -33,6 +33,7 @@ DEFAULT_REPOS = (
     ("Vault", Path(r"C:\Users\Lauri\Desktop\vault"), "regression-research:git-worktree-metadata"),
 )
 P3_GENERATED_DIR_NAMES = frozenset({"Binaries", "Intermediate", "DerivedDataCache"})
+CLEANLINESS_PROBE_TIMEOUT_SECONDS = 15.0
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,13 @@ class Action:
     reason: str | None = None
 
 
-def _run(command: list[str], *, cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    check: bool = True,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         command,
         cwd=str(cwd) if cwd else None,
@@ -64,11 +71,17 @@ def _run(command: list[str], *, cwd: Path | None = None, check: bool = True) -> 
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=check,
+        timeout=timeout,
     )
 
 
-def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return _run(["git", "-C", str(repo), *args], check=check)
+def _git(
+    repo: Path,
+    *args: str,
+    check: bool = True,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return _run(["git", "-C", str(repo), *args], check=check, timeout=timeout)
 
 
 def parse_worktrees(text: str) -> list[Worktree]:
@@ -233,28 +246,40 @@ def cwd_targets_path(path: Path, recent_cwds: Iterable[str]) -> bool:
     return any(path_is_same_or_child(cwd, path) for cwd in recent_cwds)
 
 
-def worktree_is_clean(path: Path) -> bool:
+def worktree_is_clean(
+    path: Path, timeout_seconds: float = CLEANLINESS_PROBE_TIMEOUT_SECONDS
+) -> bool | None:
+    """Return clean/dirty, or None when a bounded Git probe times out.
+
+    Timeout is deliberately fail-closed: the caller must preserve the lane rather
+    than treating an expensive or wedged cleanliness probe as evidence of clean state.
+    """
     for args in (("diff-files", "--quiet", "--"), ("diff-index", "--cached", "--quiet", "HEAD", "--")):
-        completed = _git(path, *args, check=False)
+        try:
+            completed = _git(path, *args, check=False, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            return None
         if completed.returncode == 1:
             return False
         if completed.returncode != 0:
             raise RuntimeError(f"git {' '.join(args)} failed for {path}: {completed.stderr.strip()}")
-    process = subprocess.Popen(
-        ["git", "-C", str(path), "ls-files", "--others", "--exclude-standard", "-z"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    assert process.stdout is not None
-    first = process.stdout.read(1)
-    if first:
-        process.kill()
-        process.communicate()
-        return False
-    _stdout, stderr = process.communicate()
-    if process.returncode:
-        raise RuntimeError(f"git ls-files failed for {path}: {stderr.decode(errors='replace').strip()}")
-    return True
+    try:
+        completed = _git(
+            path,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--directory",
+            "--no-empty-directory",
+            "-z",
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    if completed.returncode != 0:
+        raise RuntimeError(f"git ls-files failed for {path}: {completed.stderr.strip()}")
+    return not bool(completed.stdout)
 
 
 def _is_reparse_dir(path: Path) -> bool:
@@ -394,6 +419,45 @@ def branch_ref_matches(repo: Path, worktree: Worktree) -> bool:
     return completed.returncode == 0 and completed.stdout.strip() == worktree.head
 
 
+def exact_anchor_refs(repo: Path, worktree: Worktree) -> list[str]:
+    """Return durable refs that point exactly at this worktree HEAD.
+
+    Detached worktrees are removable only when at least one local branch, tag, or
+    remote-tracking ref points exactly at HEAD. Remote symbolic HEAD aliases are
+    ignored so a symbolic alias alone can never satisfy preservation.
+    """
+    if not worktree.head:
+        return []
+    try:
+        completed = _git(
+            repo,
+            "for-each-ref",
+            "--format=%(refname)",
+            "--points-at",
+            worktree.head,
+            "refs/heads",
+            "refs/remotes",
+            "refs/tags",
+            check=False,
+            timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return []
+    if completed.returncode != 0:
+        return []
+    return [
+        ref
+        for ref in completed.stdout.splitlines()
+        if ref and not (ref.startswith("refs/remotes/") and ref.endswith("/HEAD"))
+    ]
+
+
+def worktree_anchor_matches(repo: Path, worktree: Worktree) -> bool:
+    if worktree.detached or not worktree.branch:
+        return bool(exact_anchor_refs(repo, worktree))
+    return branch_ref_matches(repo, worktree)
+
+
 def registered_paths(repo: Path) -> set[str]:
     completed = _git(repo, "worktree", "list", "--porcelain")
     return {_norm_path(row.path) for row in parse_worktrees(completed.stdout)}
@@ -431,7 +495,7 @@ def eligibility_reason(
 ) -> str | None:
     if worktree.locked:
         return f"git_worktree_locked:{worktree.locked}"
-    if worktree.detached or not worktree.branch:
+    if (worktree.detached or not worktree.branch) and not ref_matches:
         return "detached_or_unanchored"
     if cwd_targets_path(worktree.path, recent_cwds):
         return "recent_mcp_cwd_activity"
@@ -453,10 +517,13 @@ def _fresh_guard(repo: Path, worktree: Worktree, window_seconds: int) -> str | N
         return "recent_mcp_cwd_activity"
     if process_targets_path(worktree.path, processes, self_pid=os.getpid()):
         return "external_process_targets_path"
-    if not worktree_is_clean(worktree.path):
+    clean = worktree_is_clean(worktree.path)
+    if clean is None:
+        return "cleanliness_probe_timeout"
+    if clean is False:
         return "dirty"
-    if not branch_ref_matches(repo, worktree):
-        return "branch_ref_mismatch"
+    if not worktree_anchor_matches(repo, worktree):
+        return "detached_or_unanchored" if worktree.detached or not worktree.branch else "branch_ref_mismatch"
     return None
 
 
@@ -467,16 +534,16 @@ def _remove_one(repo_name: str, repo: Path, worktree: Worktree, window_seconds: 
 
     completed = _git(repo, "worktree", "remove", str(worktree.path), check=False)
     if completed.returncode == 0:
-        if not branch_ref_matches(repo, worktree):
-            raise RuntimeError(f"branch anchor changed after removal: {worktree.branch} {worktree.head}")
+        if not worktree_anchor_matches(repo, worktree):
+            raise RuntimeError(f"preservation anchor changed after removal: {worktree.branch} {worktree.head}")
         return Action(repo_name, str(worktree.path), "REMOVED_WORKTREE", worktree.branch, worktree.head)
 
     # Windows can detach worktree metadata before filesystem deletion fails. Only
-    # finish such a residue when the exact branch anchor remains and fresh live
-    # activity checks are clear. Otherwise leave it untouched.
+    # finish such a residue when an exact preservation anchor remains and fresh
+    # live activity checks are clear. Otherwise leave it untouched.
     if _norm_path(worktree.path) in registered_paths(repo):
         return Action(repo_name, str(worktree.path), "BLOCKED", worktree.branch, worktree.head, "git_remove_failed_registered")
-    if (worktree.path / ".git").exists() or not branch_ref_matches(repo, worktree):
+    if (worktree.path / ".git").exists() or not worktree_anchor_matches(repo, worktree):
         return Action(repo_name, str(worktree.path), "BLOCKED", worktree.branch, worktree.head, "detached_residue_not_proven_safe")
 
     recent = recent_mcp_cwds(window_seconds)
@@ -506,13 +573,14 @@ def scan_repo(
             or process_targets_path(worktree.path, processes, self_pid=os.getpid())
         )
         # Cheap guards first: do not run expensive status checks on active or
-        # detached/unanchored lanes that can never be removed as whole lanes.
+        # unanchored lanes that can never be removed as whole lanes. Detached lanes
+        # proceed only when a durable ref points exactly at HEAD.
         preliminary = eligibility_reason(
             worktree,
             recent_cwds=recent,
             processes=processes,
             clean=None,
-            ref_matches=branch_ref_matches(repo, worktree),
+            ref_matches=worktree_anchor_matches(repo, worktree),
         )
         if preliminary and (preliminary.startswith("git_worktree_locked:") or preliminary in {"detached_or_unanchored", "recent_mcp_cwd_activity", "external_process_targets_path", "branch_ref_mismatch"}):
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, preliminary))
@@ -520,6 +588,20 @@ def scan_repo(
                 cache_candidates.append(worktree)
             continue
         clean = worktree_is_clean(worktree.path)
+        if clean is None:
+            observations.append(
+                Action(
+                    repo_name,
+                    str(worktree.path),
+                    "PRESERVE",
+                    worktree.branch,
+                    worktree.head,
+                    "cleanliness_probe_timeout",
+                )
+            )
+            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
+                cache_candidates.append(worktree)
+            continue
         reason = eligibility_reason(
             worktree,
             recent_cwds=recent,

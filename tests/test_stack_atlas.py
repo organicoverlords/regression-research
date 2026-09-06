@@ -10,6 +10,7 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
+    BOOTSTRAP_GLANCE_MAX_BYTES,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     blast_radius,
     build_bootstrap_atlas,
@@ -22,13 +23,17 @@ from tools.stack_atlas import (
     render_manual,
     _bootstrap_pc_status,
     _bootstrap_worker_status,
+    _bootstrap_manual_sanity,
     _bootstrap_manual_current_status,
     _bootstrap_disk_trend,
     _read_jsonl_tail,
     _read_jsonl_window,
+    _remote_is_newer,
+    _git_blob_sha_for_file,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
+    _fit_bootstrap_glance_budget,
     _bootstrap_memory_overview,
 )
 
@@ -329,7 +334,7 @@ class StackAtlasTests(unittest.TestCase):
              patch("tools.stack_atlas._bootstrap_memory_overview", return_value=memory), \
              patch("tools.stack_atlas._bootstrap_vault_status", return_value=vault), \
              patch("tools.stack_atlas._bootstrap_github_status", return_value=github), \
-             patch("tools.stack_atlas._bootstrap_mcp_known_good_freeze", return_value={}):
+             patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "OK")
         self.assertIn("timeline_history_incomplete_github_runner_logs", glance["notable_conditions"])
@@ -361,7 +366,9 @@ class StackAtlasTests(unittest.TestCase):
         with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
-        self.assertLess(len(payload), 12000)
+        self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertLess(BOOTSTRAP_GLANCE_MAX_BYTES, 12000)
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
@@ -393,6 +400,96 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
+
+    def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "mcp_recovery_state": {
+                "path": r"C:\\vault\\mcp-recovery-state.json",
+                "conditions": [
+                    {
+                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
+                        "message": "detail " * 120, "observed_generation": "g" * 80,
+                        "last_transition_at": "2026-09-06T18:00:00Z",
+                    }
+                    for i in range(5)
+                ],
+            },
+            "memory_overview": {
+                "contract": "history only", "eligible_entries": 400,
+                "timeline_snapshots": {
+                    "authority": "DERIVED_HISTORY_ONLY",
+                    "narrative": {"primary": "cases", "read_order": "cases>work_graph>evidence_density>context_only"},
+                    "windows": [{
+                        "window": "24h", "cases": {"total": 20, "red": 1}, "observations": 5000,
+                        "case_examples": [{"id": "case:important", "title": "important case", "support": "mixed"}],
+                        "highlights": [{"title": "x" * 500} for _ in range(8)],
+                    }],
+                },
+                "timeline_materialized": {"status": "FRESH", "coverage_status": "HISTORICAL_INCOMPLETE"},
+                "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
+            },
+            "source_freshness": {
+                "available": True, "attention_required": True, "updates_pending": False,
+                "meaning": "detail " * 120, "cache": {"used": True, "age_seconds": 1},
+                "sources": {
+                    "RULES.md": {"path": "p" * 500, "last_update_commit": "a" * 40, "last_updated_at": "2026-09-06T18:00:00Z", "local_last_committed_at": "2026-09-06T18:00:00Z", "local_matches_remote_main": False, "local_differs_from_remote_main": True, "updates_pending": False},
+                },
+            },
+            "mcp": {
+                "active_session_count": 9, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 9},
+                "active_sessions": [{"caller_id": f"caller-{i}", "cwd": "C:\\" + ("x" * 350), "workspace": "Vault", "busy_titles": []} for i in range(4)],
+            },
+            "workers": {
+                "attention": [{"worker": f"w{i}", "detail": "x" * 300} for i in range(4)], "stale_reports": [],
+                "manual_sanity": {
+                    "available": True, "path": "p" * 500, "baseline_id": "baseline", "boundary_at": "2026-09-06T21:26:41+03:00",
+                    "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                    "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                    "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
+                    "semantics": "diagnostic detail " * 100,
+                },
+            },
+            "paths": {"mcp_recovery_state": r"C:\\vault\\mcp-recovery-state.json"},
+            "commands": {"stack_owner": "python tools/stack_atlas.py lookup <id>"},
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["mcp"]["active_session_count"], 9)
+        self.assertEqual(fitted["mcp"]["workspace_counts"], {"Vault": 9})
+        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
+        self.assertTrue(fitted["source_freshness"]["attention_required"])
+        self.assertTrue(fitted["source_freshness"]["sources"]["RULES.md"]["local_differs_from_remote_main"])
+        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
+        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
+        self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
+
+    def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "workers": {"manual_sanity": {
+                "available": True, "path": "p" * 500, "baseline_id": "baseline",
+                "boundary_at": "2026-09-06T21:26:41+03:00", "status": "PROVISIONAL",
+                "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
+                "semantics": "diagnostic detail " * 200,
+            }},
+            "mcp": {
+                "active_session_count": 4, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 4},
+                "active_sessions": [{"caller_id": f"c{i}", "cwd": "C:/" + ("x" * 250), "workspace": "Vault", "busy_titles": []} for i in range(4)],
+            },
+        }
+        fitted = _fit_bootstrap_glance_budget(glance, 2_200)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, 2_200)
+        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 4)
+        self.assertEqual(fitted["mcp"]["active_session_count"], 4)
+        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
+        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
+        self.assertNotIn("components", fitted["workers"]["manual_sanity"])
 
     def test_production_change_gate_blocks_go_fix_style_implicit_authorization(self):
         mcp = {
@@ -477,25 +574,33 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count_semantics"], None)
 
-    def test_worker_status_reads_materialized_projection_from_live_root_without_history_scan(self):
+    def test_worker_status_reads_live_timed_metrics_without_history_or_timeline_scan(self):
+        from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             source_root = root / "source"
             live_root = root / "live"
             source_root.mkdir()
-            projection = live_root / ".state" / "timeline" / "bootstrap-memory-overview.json"
-            projection.parent.mkdir(parents=True)
-            projection.write_text(json.dumps({
-                "schema": "vault.timeline.bootstrap.v1",
+            metrics = live_root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            latest = [
+                {
+                    "automation_id": f"worker-{index}", "display_label": f"Worker {index}",
+                    "finished_at": now.isoformat(), "duration_minutes": 20.0 + index,
+                    "target_utilization_pct": 83.3 + index,
+                }
+                for index in range(5)
+            ]
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": now.isoformat(), "window_hours": 24.0, "latest_reports": latest,
+            }), encoding="utf-8")
+            stale_timeline = live_root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            stale_timeline.parent.mkdir(parents=True)
+            stale_timeline.write_text(json.dumps({
                 "generated_at": "2026-09-06T12:00:00+00:00",
-                "overview": {},
-                "workers": {
-                    "available": True, "read_mode": "MATERIALIZED_ONLY",
-                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
-                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state"},
-                    "archive_sample": {"sampled_worker_count": 5, "average_latest_utilization_pct": 86.2},
-                    "attention": [], "stale_reports": [],
-                },
+                "workers": {"archive_sample": {"sampled_worker_count": 1}},
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ROOT", source_root), patch("tools.stack_atlas.ATLAS_LIVE_ROOT", live_root), patch(
                 "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("bootstrap must not scan worker history")
@@ -503,44 +608,47 @@ class StackAtlasTests(unittest.TestCase):
                 workers = _bootstrap_worker_status()
             load_history.assert_not_called()
             self.assertTrue(workers["available"])
-            self.assertEqual(workers["read_mode"], "MATERIALIZED_ONLY")
+            self.assertEqual(workers["status"], "CURRENT")
+            self.assertEqual(workers["read_mode"], "DIRECT_METRICS")
             self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
-            self.assertEqual(workers["materialized_as_of"], "2026-09-06T12:00:00+00:00")
-            self.assertEqual(Path(workers["projection_path"]), projection)
+            self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_from_live_metrics")
+            self.assertEqual(workers["generated_at"], now.isoformat())
+            self.assertEqual(Path(workers["projection_path"]), metrics)
+            self.assertIn("historical context only", workers["historical_timeline_semantics"])
 
-    def test_worker_projection_preserves_archived_quality_not_liveness_semantics(self):
+    def test_worker_direct_metrics_preserve_archived_quality_not_liveness_semantics(self):
+        from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            projection = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
-            projection.parent.mkdir(parents=True)
-            projection.write_text(json.dumps({
-                "schema": "vault.timeline.bootstrap.v1", "generated_at": "2026-09-06T12:00:00+00:00", "overview": {},
-                "workers": {
-                    "available": True, "read_mode": "MATERIALIZED_ONLY",
-                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
-                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state"},
-                    "archive_sample": {"stale_report_count": 1}, "attention": [],
-                    "stale_reports": [{"worker": "Fir", "age_minutes": 120.0, "last_archived_classification": "SEVERELY_PREMATURE"}],
-                },
+            metrics = root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": now.isoformat(), "window_hours": 24.0,
+                "latest_reports": [
+                    {"automation_id": "recent", "display_label": "Recent", "finished_at": (now - timedelta(minutes=30)).isoformat(), "duration_minutes": 12.0, "target_utilization_pct": 50.0},
+                    {"automation_id": "stale", "display_label": "Stale", "finished_at": (now - timedelta(minutes=120)).isoformat(), "duration_minutes": 4.0, "target_utilization_pct": 16.7},
+                ],
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 workers = _bootstrap_worker_status()
-        self.assertEqual(workers["evidence_semantics"], "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership")
-        self.assertEqual(workers["attention"], [])
-        self.assertEqual(workers["stale_reports"][0]["worker"], "Fir")
+        self.assertEqual(workers["evidence_semantics"], "current_archived_timed_run_quality_not_process_liveness_or_scheduler_membership")
+        self.assertEqual(workers["attention"][0]["worker"], "Recent")
+        self.assertEqual(workers["stale_reports"][0]["worker"], "Stale")
 
-    def test_worker_status_missing_projection_fails_closed_without_history_scan(self):
+    def test_worker_status_missing_live_metrics_fails_closed_without_history_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch(
-                "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("missing projection must not trigger history scan")
+                "tools.worker_report_history.load_history_metadata", side_effect=AssertionError("missing metrics must not trigger history scan")
             ) as load_history:
                 workers = _bootstrap_worker_status()
             load_history.assert_not_called()
         self.assertFalse(workers["available"])
         self.assertEqual(workers["status"], "MISSING")
-        self.assertEqual(workers["read_mode"], "MATERIALIZED_ONLY")
-        self.assertIn("timeline_materializer.py", workers["refresh_command"])
+        self.assertEqual(workers["read_mode"], "DIRECT_METRICS")
+        self.assertNotIn("refresh_command", workers)
 
     def test_manual_current_diagnostic_surfaces_recent_running_purpose_without_claiming_liveness(self):
         from datetime import datetime, timedelta, timezone
@@ -664,32 +772,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(manual["recent_running_report_count"], BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT)
         self.assertEqual(manual["recent_running_report_count_status"], "LOWER_BOUND")
 
-    def test_worker_archive_projection_is_not_presented_as_current_scheduler_fleet(self):
+    def test_direct_worker_metrics_are_not_presented_as_current_scheduler_fleet(self):
+        from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            projection = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
-            projection.parent.mkdir(parents=True)
-            projection.write_text(json.dumps({
-                "schema": "vault.timeline.bootstrap.v1", "generated_at": "2026-09-06T12:00:00+00:00", "overview": {},
-                "workers": {
-                    "available": True, "read_mode": "MATERIALIZED_ONLY",
-                    "population_scope": "timed_worker_reports_in_materialized_horizon",
-                    "evidence_semantics": "archived_run_quality_only_not_current_worker_liveness_or_scheduler_membership",
-                    "current_scheduler_membership": {"available": False, "authority": "ChatGPT Automations state", "reason": "not derivable"},
-                    "archive_sample": {
-                        "selection": "five_most_recent_latest_timed_archives_in_materialized_horizon",
-                        "sample_limit": 5, "sampled_worker_count": 5, "historical_worker_ids_seen": 6,
-                    }, "attention": [], "stale_reports": [],
-                },
+            metrics = root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": now.isoformat(), "window_hours": 24.0,
+                "latest_reports": [
+                    {"automation_id": f"worker-{index}", "display_label": f"Worker {index}", "finished_at": now.isoformat(), "duration_minutes": 20.0, "target_utilization_pct": 83.3}
+                    for index in range(5)
+                ],
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 workers = _bootstrap_worker_status()
         self.assertNotIn("fleet", workers)
         self.assertFalse(workers["current_scheduler_membership"]["available"])
         self.assertEqual(workers["current_scheduler_membership"]["authority"], "ChatGPT Automations state")
-        self.assertEqual(workers["archive_sample"]["historical_worker_ids_seen"], 6)
+        self.assertEqual(workers["archive_sample"]["worker_ids_in_metrics_sample"], 5)
         self.assertEqual(workers["archive_sample"]["sampled_worker_count"], 5)
-        self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_in_materialized_horizon")
+        self.assertEqual(workers["archive_sample"]["selection"], "five_most_recent_latest_timed_archives_from_live_metrics")
 
     def test_disk_trend_can_report_approx_24h_loss(self):
         from datetime import datetime, timedelta, timezone
@@ -1135,6 +1240,41 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
 
+    def test_source_freshness_pending_means_remote_is_newer(self):
+        self.assertTrue(_remote_is_newer("2026-09-06T18:16:33Z", "2026-09-05T09:50:28+03:00"))
+        self.assertFalse(_remote_is_newer("2026-09-05T12:36:29Z", "2026-09-06T09:50:28+03:00"))
+        self.assertFalse(_remote_is_newer("bad", "2026-09-06T09:50:28+03:00"))
+
+    def test_source_freshness_hash_normalizes_windows_crlf_like_git(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.txt"
+            path.write_bytes(b"one\r\ntwo\r\n")
+            normalized = b"one\ntwo\n"
+            import hashlib
+            expected = hashlib.sha1(f"blob {len(normalized)}\0".encode("ascii") + normalized).hexdigest()
+            self.assertEqual(_git_blob_sha_for_file(path), expected)
+
+    def test_bootstrap_surfaces_behavior_source_freshness_without_reading_policy_bodies(self):
+        sample = {
+            "available": True,
+            "attention_required": True,
+            "updates_pending": True,
+            "sources": {
+                "AGENTS.md": {"last_updated_at": "2026-09-05T12:36:29Z", "updates_pending": False},
+                "RULES.md": {"last_updated_at": "2026-09-06T18:16:33Z", "updates_pending": True},
+                "worker_report_contract": {"last_updated_at": "2026-09-06T14:21:15Z", "updates_pending": False},
+            },
+        }
+        with patch("tools.stack_atlas._bootstrap_source_freshness", return_value=sample):
+            glance = build_live_bootstrap_glance()
+        self.assertTrue(glance["source_freshness"]["available"])
+        self.assertTrue(glance["source_freshness"]["attention_required"])
+        self.assertTrue(glance["source_freshness"]["updates_pending"])
+        self.assertIn("RULES.md", glance["source_freshness"]["sources"])
+        self.assertTrue(glance["source_freshness"]["sources"]["RULES.md"]["updates_pending"])
+        self.assertIn("worker_report_contract", glance["source_freshness"]["sources"])
+        self.assertEqual(sample["sources"]["RULES.md"]["last_updated_at"], "2026-09-06T18:16:33Z")
+
     def test_bootstrap_points_to_canonical_issue_first_contract_without_policy_copy(self):
         with patch("tools.stack_atlas._bootstrap_pc_status", return_value={}), \
              patch("tools.stack_atlas._bootstrap_worker_status", return_value={}), \
@@ -1376,6 +1516,62 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertTrue(details["canonical_sources"])
                 self.assertTrue(details["runbook"])
 
+    def test_bootstrap_case_sample_prioritizes_canonical_red_incident_over_scope_only_red_cases(self):
+        report = {
+            "contract": "history only",
+            "eligible_entries": 20,
+            "timeline_snapshots": {
+                "authority": "DERIVED_HISTORY_ONLY",
+                "narrative_contract": {"primary_unit": "CONTINUITY_CASE"},
+                "windows": [{
+                    "window": "24h",
+                    "event_count": 20,
+                    "continuity_case_summary": {"total": 3, "red": 3, "incident": 3},
+                    "signal_observation_summary": {"total": 3, "red": 3, "incident": 3},
+                    "continuity_case_examples": [
+                        {
+                            "case_id": "scope:newer-red",
+                            "severity": "RED",
+                            "traits": ["regression"],
+                            "observation_count": 1,
+                            "source_families": ["memory"],
+                            "evidence_forms": ["memory"],
+                            "latest_signal_at": "2026-09-06T20:41:00+03:00",
+                            "latest_title": "Newer scope-only red",
+                            "classification_quality": "STRUCTURED",
+                        },
+                        {
+                            "case_id": "incident:inc-20260906-live-stack",
+                            "severity": "RED",
+                            "traits": ["incident", "regression"],
+                            "observation_count": 2,
+                            "source_families": ["artifact", "memory"],
+                            "evidence_forms": ["report", "memory"],
+                            "latest_signal_at": "2026-09-06T20:18:00+03:00",
+                            "latest_title": "RED ALERT: recurring live MCP stack disruption",
+                            "classification_quality": "STRUCTURED",
+                        },
+                        {
+                            "case_id": "scope:older-red",
+                            "severity": "RED",
+                            "traits": ["regression"],
+                            "observation_count": 1,
+                            "source_families": ["memory"],
+                            "evidence_forms": ["memory"],
+                            "latest_signal_at": "2026-09-06T20:10:00+03:00",
+                            "latest_title": "Older scope-only red",
+                            "classification_quality": "STRUCTURED",
+                        },
+                    ],
+                }],
+            },
+            "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
+        }
+        compact = _compact_memory_overview(report, 3)
+        window = compact["timeline_snapshots"]["windows"][0]
+        self.assertEqual(window["case_examples"][0]["id"], "incident:inc-20260906-live-stack")
+        self.assertEqual(window["case_examples"][0]["title"], "RED ALERT: recurring live MCP stack disruption")
+
 class Issue394StackVisibilityTests(unittest.TestCase):
     def test_human_aliases_cover_invisible_stack_seams(self):
         self.assertEqual(component_details("tailscale")["id"], "tailscale_ingress")
@@ -1384,33 +1580,63 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("visual proof")["id"], "visual_proof")
         self.assertEqual(component_details("workers")["id"], "execution_workers")
 
-class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
+class McpRecoveryStateVisibilityTests(unittest.TestCase):
     def test_bootstrap_surfaces_canonical_mcp_freeze_and_reroute_log_paths(self):
-        glance = build_live_bootstrap_glance()
-        self.assertIn("mcp_known_good_freeze", glance)
-        if glance["mcp_known_good_freeze"]["available"]:
-            self.assertEqual(glance["mcp_known_good_freeze"]["status"], "CANDIDATE_KNOWN_GOOD")
-        self.assertTrue(glance["paths"]["mcp_known_good_freeze"].endswith("mcp-known-good-freeze.json"))
+        import tools.stack_atlas as atlas
+        recovery_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
+        with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", recovery_path):
+            glance = build_live_bootstrap_glance()
+        self.assertIn("mcp_recovery_state", glance)
+        if glance["mcp_recovery_state"]["available"]:
+            self.assertEqual(glance["mcp_recovery_state"]["read_state"], "OK")
+            self.assertEqual(len(glance["mcp_recovery_state"]["recovery_invariants"]), 6)
+            self.assertEqual(glance["mcp_recovery_state"]["latest_topology_restore"]["after_transport"], "wireguard")
+            payload = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
+            summary = {item["type"]: item["status"] for item in glance["mcp_recovery_state"]["conditions"]}
+            self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
+            self.assertEqual(summary["SecurityReroutesEliminated"], "False")
+            self.assertEqual(summary["LongRunStable"], "Unknown")
+        self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
         self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))
 
     def test_freeze_contract_exposes_restore_first_policy(self):
         import tools.stack_atlas as atlas
-        freeze_path = ROOT / "04 Operating Contracts" / "mcp-known-good-freeze.json"
-        with patch.object(atlas, "MCP_KNOWN_GOOD_FREEZE_PATH", freeze_path):
-            freeze = atlas._bootstrap_mcp_known_good_freeze()
-        self.assertTrue(freeze["restore_first_on_regression"])
-        self.assertTrue(freeze["post_restore_no_mcp_request_in_flight"])
-        self.assertTrue(str(freeze["security_reroute_rate_after_freeze"]).strip())
+        freeze_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
+        with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", freeze_path):
+            state = atlas._bootstrap_mcp_recovery_state()
+        self.assertTrue(state["restore_first_on_regression"])
+        self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
+        self.assertEqual(state["automatic_routing"], "WireGuard only")
+        self.assertIn("explicit recovery only", state["ssh_role"])
+        self.assertTrue(any("keep the selected recovery target fixed" in item for item in state["recovery_invariants"]))
+        self.assertTrue(any("502" in item and "Node/backend" in item for item in state["recovery_invariants"]))
+        self.assertIn("preserve unique work", state["preservation_rule"])
+        self.assertIn("explicit user authorization", state["authorization_rule"])
+        self.assertTrue(any("2026-09-05 replacement procedure" in item for item in state["replacement_safety_rules"]))
+        latest = state["latest_topology_restore"]
+        self.assertEqual(latest["incident_id"], "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence")
+        self.assertEqual(latest["before_transport"], "reverse_ssh")
+        self.assertEqual(latest["after_transport"], "wireguard")
+        self.assertTrue(latest["backend_artifact_matches_selected_recovery"])
+        self.assertEqual(latest["failed_replacement_status"], "ROLLED_BACK_CANDIDATE_DRAIN_PENDING")
+        self.assertEqual(latest["public_health_statuses"], [200, 200, 200, 200, 200])
+        self.assertEqual(latest["fresh_mcp_process_call"], "PASS")
+        summary = {item["type"]: item["status"] for item in state["conditions"]}
+        self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
+        self.assertEqual(summary["SecurityReroutesEliminated"], "False")
         raw = json.loads(freeze_path.read_text(encoding="utf-8"))
-        first_step = raw["recovery_policy"]["required_order"][0]
+        first_step = raw["recovery_target"]["policy"]["required_order"][0]
         self.assertIn("user explicitly asks", first_step)
         self.assertIn("do not persist them", first_step)
 
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
-        self.assertEqual(freeze["id"], "mcp.known_good_freeze")
-        self.assertIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
+        self.assertEqual(freeze["id"], "mcp.recovery_state")
+        self.assertIn("True/False/Unknown", freeze["boundary"])
+        self.assertNotIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
+        self.assertNotIn("PROVEN_KNOWN_GOOD", freeze["boundary"])
         reroute = find_features("security reroute")[0]
         self.assertEqual(reroute["id"], "mcp.security_reroute_log")
         self.assertIn("must be logged", reroute["boundary"])
@@ -1422,6 +1648,22 @@ class McpKnownGoodFreezeVisibilityTests(unittest.TestCase):
         self.assertIn("user explicitly asks", recovery["boundary"])
         self.assertIn("source SHA alone is insufficient", recovery["boundary"])
         self.assertIn("no MCP request in flight", recovery["boundary"])
+
+class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
+    def test_chatgpt_plugin_surface_search_routes_to_process_only_contract(self):
+        for query in (
+            "ChatGPT plugin tool contract busy_list process profile",
+            "busy_list plugin command",
+            "view_image plugin",
+        ):
+            with self.subTest(query=query):
+                result = find_features(query)[0]
+                self.assertEqual(result["id"], "mcp.chatgpt_plugin_surface")
+                self.assertEqual(result["owner_components"], ["mcp_minimal_clone"])
+                self.assertIn("only start_process, read_output, and kill_process", result["boundary"])
+                self.assertIn("not ChatGPT plugin commands", result["boundary"])
+        sources = component_details("mcp_minimal_clone")["canonical_sources"]
+        self.assertTrue(any(item.endswith(r"\config\process-tool-contract.json") for item in sources))
 
 class VaultUsefulnessRoutingTests(unittest.TestCase):
     def test_vague_vault_usefulness_routes_to_overview_first(self):
@@ -1444,3 +1686,32 @@ class VaultUsefulnessRoutingTests(unittest.TestCase):
         results = find_features("generation pinned process transport clone", limit=1)
         self.assertEqual(results[0]["id"], "component.mcp_minimal_clone")
         self.assertEqual(results[0]["owner_components"], ["mcp_minimal_clone"])
+
+
+class ManualSanityBootstrapTests(unittest.TestCase):
+    def test_bootstrap_manual_sanity_reads_existing_metrics_projection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics = root / "worker-reports" / "manual" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            metrics.write_text(json.dumps({"sanity": {
+                "available": True, "baseline_id": "insanity", "boundary_at": "2026-09-06T21:26:41+03:00",
+                "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                "descriptive_delta": 43.0,
+                "axes": {"friction": {"score_delta": 50.0}, "operational": {"score_delta": 42.0}},
+                "guardrails": {"short_run_lt5_pct": {"status": "REGRESSED", "scored": False}},
+                "continuation": {"status": "INSUFFICIENT_DATA", "post_run_count": 2, "baseline_run_count": 7},
+                "components": {"median_report_bytes": {"delta_points": 20.0}}, "semantics": "diagnostic only",
+            }}), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                result = _bootstrap_manual_sanity()
+            self.assertTrue(result["available"])
+            self.assertEqual(result["score_delta"], 42.0)
+            self.assertEqual(result["direction"], "IMPROVED")
+            self.assertEqual(result["descriptive_delta"], 43.0)
+            self.assertEqual(result["axes"]["operational"]["score_delta"], 42.0)
+            self.assertEqual(result["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
+            self.assertEqual(result["continuation"]["post_run_count"], 2)
+            self.assertEqual(result["continuation"]["status"], "INSUFFICIENT_DATA")
+            self.assertEqual(result["post_run_count"], 7)

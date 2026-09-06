@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_metrics_projection, worker_history_events
+from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_manual_sanity_projection, build_metrics_projection, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -323,6 +323,29 @@ class WorkerReportHistoryTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "started_at.*last_activity_at.*mutation.*remaining_gate"):
                 archive_finalized_report(report, root / "history")
+
+    def test_thin_manual_report_archives_without_execution_transcript_fields(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            run_id = "manual-thin-report"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                f"run_id: {run_id}\n"
+                "started_at: 2026-09-05T10:00:00+00:00\n"
+                "last_activity_at: 2026-09-05T10:05:00+00:00\n"
+                "repo: p3\nstate: RUN_FINISHED\noutcome: useful work\n",
+                encoding="utf-8",
+            )
+            result = archive_finalized_report(report, history)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["population"], "manual")
+            self.assertEqual(metadata["duration_minutes"], 5.0)
+            self.assertIsNone(metadata["mutation"])
+            self.assertIsNone(metadata["validation"])
+            self.assertIsNone(metadata["remaining_gate"])
 
     def test_current_report_rejects_duplicate_canonical_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -988,6 +1011,228 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertEqual(events[0]["outcome"], "newest valid metadata")
 
 
+
+    def test_manual_sanity_requires_post_boundary_sample_and_then_scores_improvement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "test-baseline",
+                "label": "test",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0,
+                    "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0,
+                    "micro_run_lt2_pct": 20.0,
+                    "short_run_lt5_pct_guardrail": 30.0,
+                    "median_tool_interval_minutes_guardrail": 8.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 100.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            now = datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            empty = build_manual_sanity_projection(history, baseline_path=baseline_path, now=now)
+            self.assertEqual(empty["status"], "INSUFFICIENT_DATA")
+            self.assertIsNone(empty["score_delta"])
+            self.assertIsNone(empty["axes"]["friction"]["score_delta"])
+            self.assertIsNone(empty["descriptive_delta"])
+            for index in range(5):
+                archive = reports / f"r{index}.md"
+                archive.write_text(
+                    f"run_id: r{index}\nstarted_at: 2026-09-06T21:{10+index:02d}:00+03:00\n"
+                    f"last_activity_at: 2026-09-06T21:{15+index:02d}:00+03:00\nrepo: vault\n"
+                    "state: RUN_FINISHED\noutcome: useful work\n",
+                    encoding="utf-8",
+                )
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"r{index}",
+                    "run_id": f"r{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{15+index:02d}:00+03:00", "duration_minutes": 5.0,
+                    "archived_at": f"2026-09-06T21:{16+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"r{index}", "outcome": "useful work"},
+                    "outcome": "useful work",
+                }
+                (reports / f"r{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+            scored = build_manual_sanity_projection(history, baseline_path=baseline_path, now=now)
+            self.assertEqual(scored["status"], "PROVISIONAL")
+            self.assertEqual(scored["post_run_count"], 5)
+            self.assertGreater(scored["score_delta"], 10.0)
+            self.assertEqual(scored["direction"], "IMPROVED")
+            self.assertEqual(scored["score_delta"], min(scored["axes"]["friction"]["score_delta"], scored["axes"]["operational"]["score_delta"]))
+            self.assertEqual(scored["observation"]["mean_transcript_fields"], 0.0)
+            self.assertEqual(scored["guardrails"]["short_run_lt5_pct"]["status"], "NOT_REGRESSED")
+
+
+    def test_manual_sanity_friction_cannot_mask_operational_regression(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "anti-gaming",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0, "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0, "micro_run_lt2_pct": 20.0,
+                    "short_run_lt5_pct_guardrail": 30.0, "median_tool_interval_minutes_guardrail": 8.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 60.0, "micro_run_lt2_pct": 40.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            for index in range(5):
+                archive = reports / f"bad{index}.md"
+                archive.write_text(
+                    f"run_id: bad{index}\nstarted_at: 2026-09-06T21:{10+index:02d}:00+03:00\n"
+                    f"last_activity_at: 2026-09-06T21:{11+index:02d}:00+03:00\nrepo: vault\n"
+                    "state: RUN_FINISHED\noutcome: report opened late after tool work\n",
+                    encoding="utf-8",
+                )
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"bad{index}",
+                    "run_id": f"bad{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{11+index:02d}:00+03:00", "duration_minutes": 1.0,
+                    "archived_at": f"2026-09-06T21:{12+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"bad{index}", "outcome": "report opened late after tool work"},
+                    "outcome": "report opened late after tool work",
+                }
+                (reports / f"bad{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+            scored = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            self.assertGreater(scored["axes"]["friction"]["score_delta"], 0.0)
+            self.assertLess(scored["axes"]["operational"]["score_delta"], 0.0)
+            self.assertEqual(scored["score_delta"], scored["axes"]["operational"]["score_delta"])
+            self.assertEqual(scored["direction"], "WORSE")
+            self.assertEqual(scored["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
+
+
+    def test_manual_sanity_regressed_guardrail_blocks_clean_improved_direction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "guardrail-veto",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0, "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0, "micro_run_lt2_pct": 20.0,
+                    "short_run_lt5_pct_guardrail": 20.0, "median_tool_interval_minutes_guardrail": 8.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 60.0, "micro_run_lt2_pct": 40.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            for index in range(5):
+                archive = reports / f"short{index}.md"
+                archive.write_text(
+                    f"run_id: short{index}\nstarted_at: 2026-09-06T21:{10+index:02d}:00+03:00\n"
+                    f"last_activity_at: 2026-09-06T21:{13+index:02d}:00+03:00\nrepo: vault\n"
+                    "state: RUN_FINISHED\noutcome: useful work\n", encoding="utf-8",
+                )
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"short{index}",
+                    "run_id": f"short{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{13+index:02d}:00+03:00", "duration_minutes": 3.0,
+                    "archived_at": f"2026-09-06T21:{14+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"short{index}", "outcome": "useful work"}, "outcome": "useful work",
+                }
+                (reports / f"short{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+            scored = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            self.assertGreater(scored["score_delta"], 10.0)
+            self.assertEqual(scored["guardrails"]["short_run_lt5_pct"]["status"], "REGRESSED")
+            self.assertEqual(scored["direction"], "MIXED_GUARDRAIL_REGRESSION")
+
+
+
+    def test_continuation_projection_excludes_bounded_task_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "continuation-separation",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0, "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0, "micro_run_lt2_pct": 20.0,
+                    "short_run_lt5_pct_guardrail": 20.0, "median_tool_interval_minutes_guardrail": 8.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 60.0, "micro_run_lt2_pct": 40.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "continuation_baseline": {
+                    "baseline_run_count": 7, "median_duration_minutes": 18.78,
+                    "short_run_lt5_pct": 0.0, "micro_run_lt2_pct": 0.0,
+                    "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                },
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+
+            fixtures = [
+                ("go-explicit", 12.0, {"run_mode": "continuation"}, "normal run"),
+                ("bounded-task", 1.0, {}, "quick verification"),
+                ("manual-go2-legacy", 20.0, {}, "legacy continuation"),
+                ("go-interrupted", 2.0, {"run_mode": "continuation", "stop_reason": "user_interrupted"}, "interrupted"),
+            ]
+            for index, (run_id, duration, extra, outcome) in enumerate(fixtures):
+                archive = reports / f"c{index}.md"
+                archive.write_text(f"run_id: {run_id}\nstate: RUN_FINISHED\noutcome: {outcome}\n", encoding="utf-8")
+                fields = {"run_id": run_id, "outcome": outcome, **extra}
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"c{index}",
+                    "run_id": run_id, "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{20+index:02d}:00+03:00", "duration_minutes": duration,
+                    "archived_at": f"2026-09-06T21:{25+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": fields, "outcome": outcome, "stop_reason": extra.get("stop_reason"),
+                }
+                (reports / f"c{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+
+            projected = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            continuation = projected["continuation"]
+            self.assertEqual(continuation["status"], "INSUFFICIENT_DATA")
+            self.assertEqual(continuation["observation"]["identified_run_count"], 3)
+            self.assertEqual(continuation["observation"]["eligible_run_count"], 2)
+            self.assertEqual(continuation["observation"]["excluded_user_interrupted_count"], 1)
+            self.assertEqual(continuation["observation"]["median_duration_minutes"], 16.0)
+            self.assertEqual(continuation["observation"]["short_run_lt5_pct"], 0.0)
+            self.assertEqual(continuation["observation"]["micro_run_lt2_pct"], 0.0)
+            self.assertEqual(projected["guardrails"], {})
 
 
 if __name__ == "__main__":

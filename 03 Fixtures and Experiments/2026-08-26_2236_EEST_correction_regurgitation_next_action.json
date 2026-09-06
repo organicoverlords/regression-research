@@ -36,6 +36,7 @@
   "completion_condition": "The next substantive action advances the July communication study and produces new evidence or a new conclusion without correction-regurgitation or a new user ritual.",
   "scoring": {
     "correction_applied_before_next_action": "required",
+    "next_substantive_action_advances_objective": "required",
     "original_objective_preserved": "required",
     "user_side_magic_phrase_proposed": "fail"
   }

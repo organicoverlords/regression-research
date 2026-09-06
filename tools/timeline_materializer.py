@@ -6,11 +6,13 @@ import hashlib
 import json
 import math
 import os
+import pickle
 import re
 import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
+from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -22,21 +24,26 @@ try:
         build_overview,
         load_bank,
     )
-    from .memory_timeline import build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
+    from .memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from .repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_bank import DEFAULT_MANUAL_WORKER_HISTORY, DEFAULT_WORKER_HISTORY, build_overview, load_bank
-    from memory_timeline import build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
+    from memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from worker_report_history import worker_history_events
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE_ROOT = ROOT / ".state" / "timeline"
 STORE_PATH = STATE_ROOT / "timeline-store.json"
+QUERY_INDEX_PATH = STATE_ROOT / "timeline-query-index.pkl"
+QUERY_CACHE_ROOT = STATE_ROOT / "query-results"
 BOOTSTRAP_PATH = STATE_ROOT / "bootstrap-memory-overview.json"
 STATUS_PATH = STATE_ROOT / "status.json"
 LOCK_PATH = STATE_ROOT / "refresh.lock"
+QUERY_RESULT_CACHE_SECONDS = 30.0
+QUERY_RESULT_CACHE_MAX_FILES = 128
+QUERY_INDEX_SCHEMA = "vault.timeline.query-index.v1"
 
 SCHEMA = "vault.timeline.materialized.v1"
 BOOTSTRAP_SCHEMA = "vault.timeline.bootstrap.v1"
@@ -84,6 +91,9 @@ _QUERY_CONCEPT_GROUPS = (
 )
 _QUERY_CONCEPT_BY_TOKEN = {token: group for group in _QUERY_CONCEPT_GROUPS for token in group}
 _QUERY_SOURCE_PRIOR = {"VAULT_MEMORY": 2.0, "WORKER_REPORT": 0.82, "GITHUB_ACTION": 0.9}
+_QUERY_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_QUERY_WEIGHT_TO_CODE = {0.7: 1, 1.2: 2, 2.0: 3, 2.2: 4, 4.0: 5}
+_QUERY_CODE_TO_WEIGHT = {code: weight for weight, code in _QUERY_WEIGHT_TO_CODE.items()}
 _CAUSAL_QUERY_TOKENS = {"why", "cause", "causal", "because", "caused"}
 _CAUSAL_CORRECTION_PHRASES = (
     "did not reproduce",
@@ -132,6 +142,13 @@ def _dt(value: Any) -> datetime | None:
     return parsed
 
 
+def _instant_key(value: Any) -> datetime:
+    parsed = _dt(value)
+    if parsed is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def _iso_now() -> str:
     return datetime.now().astimezone().isoformat()
 
@@ -151,9 +168,59 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _atomic_pickle(path: Path, payload: dict[str, Any]) -> None:
+    """Write a trusted local derived read cache atomically; canonical JSON remains authoritative."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+    with tmp.open("wb") as handle:
+        pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    os.replace(tmp, path)
+
+
+def _read_query_index(path: Path, *, generated_at: str) -> dict[str, Any] | None:
+    try:
+        with path.open("rb") as handle:
+            value = pickle.load(handle)
+    except (OSError, EOFError, pickle.PickleError, AttributeError, ValueError):
+        return None
+    if not isinstance(value, dict) or value.get("schema") != QUERY_INDEX_SCHEMA:
+        return None
+    if str(value.get("generated_at") or "") != generated_at:
+        return None
+    ids = value.get("ids")
+    postings = value.get("postings")
+    anchors = value.get("anchors")
+    weight_codes = value.get("weight_codes")
+    if (
+        not isinstance(ids, list) or not isinstance(postings, dict) or not isinstance(anchors, list)
+        or not isinstance(weight_codes, dict) or len(ids) != len(anchors)
+    ):
+        return None
+    return value
+
+
+def _store_generation_token(root: Path) -> str | None:
+    try:
+        stat = (root / ".state" / "timeline" / STORE_PATH.name).stat()
+    except OSError:
+        return None
+    return f"{stat.st_mtime_ns}:{stat.st_size}"
+
+
+def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
+    """Run a child process without creating or showing a console window on Windows."""
+    if os.name == "nt":
+        kwargs.setdefault("creationflags", getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if "startupinfo" not in kwargs and hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+            startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = startupinfo
+    return subprocess.run(*args, **kwargs)
+
 def _run_json(command: list[str], *, timeout: int = 30) -> tuple[Any, str | None]:
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             command,
             capture_output=True,
             text=True,
@@ -174,7 +241,7 @@ def _run_json(command: list[str], *, timeout: int = 30) -> tuple[Any, str | None
 
 def _git_value(path: Path, *args: str) -> str | None:
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             ["git", "-C", str(path), *args],
             capture_output=True,
             text=True,
@@ -222,7 +289,7 @@ def _branch_refs(decorations: Any) -> list[str]:
 def _batch_patch_ids(spec: RepoSpec, *, since: datetime) -> dict[str, str]:
     """Compute stable patch ids for all non-merge commits in one Git pipeline."""
     try:
-        log = subprocess.run(
+        log = _run_process(
             [
                 "git", "-C", str(spec.path), "log", "--all", "--no-merges",
                 f"--since={since.isoformat()}", "--max-count=2000",
@@ -234,7 +301,7 @@ def _batch_patch_ids(spec: RepoSpec, *, since: datetime) -> dict[str, str]:
         )
         if log.returncode != 0:
             return {}
-        patch = subprocess.run(
+        patch = _run_process(
             ["git", "patch-id", "--stable"],
             input=log.stdout,
             capture_output=True,
@@ -1489,6 +1556,9 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
                     "allocated_duration_minutes": round(float(duration) / share, 3) if isinstance(duration, (int, float)) else None,
                     "target_utilization_pct": utilization,
                     "outcome": event.get("outcome"),
+                    "finding_tags": event.get("finding_tags") or [],
+                    "findings": event.get("findings"),
+                    "validation": event.get("validation"),
                 })
 
     # Derive efficiency and CI summaries after attachments are complete.
@@ -1511,10 +1581,13 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
             "action_conclusions": dict(sorted(conclusions.items())),
         }
         row["attached_event_ids"] = sorted(set(row["attached_event_ids"]))
-        row["latest_at"] = max(
+        latest_candidates = (
             [str(commit.get("at") or "") for commit in row["commits"]]
             + [str(events_by_id[event_id].get("event_at") or "") for event_id in row["attached_event_ids"] if event_id in events_by_id]
         )
+        row["latest_at"] = max(
+            latest_candidates, key=lambda value: (_instant_key(value), value)
+        ) if latest_candidates else None
 
     workstreams: dict[str, dict[str, Any]] = {}
     for event in all_events:
@@ -1535,7 +1608,7 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
                 item["event_ids"].add(event_id)
                 item["work_ids"].update(attachments_by_event.get(event_id, set()))
             stamp = str(event.get("event_at") or "")
-            if not item["latest_at"] or stamp > item["latest_at"]:
+            if not item["latest_at"] or _instant_key(stamp) > _instant_key(item["latest_at"]):
                 item["latest_at"] = stamp
 
     workstream_rows = [
@@ -1549,10 +1622,10 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
         }
         for anchor, item in workstreams.items()
     ]
-    workstream_rows.sort(key=lambda item: (item.get("latest_at") or "", item["anchor"]), reverse=True)
+    workstream_rows.sort(key=lambda item: (_instant_key(item.get("latest_at")), item["anchor"]), reverse=True)
 
     group_list = list(group_rows.values())
-    group_list.sort(key=lambda item: (item.get("latest_at") or "", item["work_id"]), reverse=True)
+    group_list.sort(key=lambda item: (_instant_key(item.get("latest_at")), item["work_id"]), reverse=True)
     similar = [
         {
             "work_id": row["work_id"],
@@ -1587,6 +1660,53 @@ def _coverage_counts(events: Iterable[dict[str, Any]]) -> dict[str, int]:
     return dict(sorted(Counter(str(event.get("source_type") or "UNKNOWN") for event in events).items()))
 
 
+def _pid_liveness(pid: int) -> bool | None:
+    if pid <= 0:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            open_process = kernel32.OpenProcess
+            open_process.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+            open_process.restype = ctypes.c_void_p
+            close_handle = kernel32.CloseHandle
+            close_handle.argtypes = [ctypes.c_void_p]
+            close_handle.restype = ctypes.c_int
+            handle = open_process(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+            if handle:
+                close_handle(handle)
+                return True
+            error = ctypes.get_last_error()
+            if error == 87:  # ERROR_INVALID_PARAMETER: no such process
+                return False
+            if error == 5:  # ERROR_ACCESS_DENIED still proves a process owns the PID
+                return True
+            return None
+        except Exception:
+            return None
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return None
+    return True
+
+
+def _lock_owner_liveness(path: Path) -> bool | None:
+    try:
+        first_line = path.read_text(encoding="ascii").splitlines()[0].strip()
+        return _pid_liveness(int(first_line))
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def _acquire_lock(path: Path) -> int | None:
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -1594,7 +1714,7 @@ def _acquire_lock(path: Path) -> int | None:
     except FileExistsError:
         try:
             age = time.time() - path.stat().st_mtime
-            if age > LOCK_STALE_MINUTES * 60:
+            if age > LOCK_STALE_MINUTES * 60 and _lock_owner_liveness(path) is False:
                 path.unlink(missing_ok=True)
                 return os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except OSError:
@@ -1834,13 +1954,27 @@ def materialize(
     horizon_since = now - timedelta(days=max(1, int(days)))
     state_root = state_root or (root / ".state" / "timeline")
     store_path = state_root / STORE_PATH.name
+    query_index_path = state_root / QUERY_INDEX_PATH.name
     bootstrap_path = state_root / BOOTSTRAP_PATH.name
     status_path = state_root / STATUS_PATH.name
     lock_path = state_root / LOCK_PATH.name
 
     lock_fd = _acquire_lock(lock_path)
     if lock_fd is None:
-        return {"ok": False, "status": "ALREADY_RUNNING", "path": str(lock_path)}
+        current = _read_json(status_path) or {}
+        return {
+            "ok": False,
+            "status": "ALREADY_RUNNING",
+            "coalesced": True,
+            "readable_while_refresh": store_path.is_file(),
+            "generated_at": current.get("generated_at"),
+            "refresh_mode": current.get("refresh_mode"),
+            "current_status": current.get("status"),
+            "store_path": str(store_path),
+            "query_index_path": str(query_index_path),
+            "bootstrap_path": str(bootstrap_path),
+            "path": str(lock_path),
+        }
     try:
         os.write(lock_fd, f"{os.getpid()}\n".encode("ascii"))
         previous = None if rebuild else _read_json(store_path)
@@ -1955,21 +2089,25 @@ def materialize(
             name for name in source_names
             if _coverage_saturated(name, delta_coverage.get(name, {}))
         ]
+        skipped_sources = [
+            name for name in source_names
+            if isinstance(delta_coverage.get(name), dict) and delta_coverage[name].get("skipped") is True
+        ]
 
         previous_watermarks = previous.get("source_watermarks") if isinstance(previous, dict) and isinstance(previous.get("source_watermarks"), dict) else {}
         source_watermarks: dict[str, str] = {}
         for name in source_names:
-            if refresh_mode == "INCREMENTAL" and name in saturated_sources:
-                source_watermarks[name] = str(previous_watermarks.get(name) or previous.get("generated_at") or source_since[name].isoformat())
+            if name in skipped_sources or (refresh_mode == "INCREMENTAL" and name in saturated_sources):
+                source_watermarks[name] = str(previous_watermarks.get(name) or (previous or {}).get("generated_at") or source_since[name].isoformat())
             else:
                 source_watermarks[name] = now.isoformat()
 
         previous_ingestion = previous.get("ingestion") if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict) else {}
         previous_backfill_incomplete = set(str(value) for value in previous_ingestion.get("backfill_incomplete_sources", []) if str(value).strip())
         backfill_incomplete_sources = (
-            sorted(set(saturated_sources))
+            sorted(set(saturated_sources) | set(skipped_sources))
             if refresh_mode == "BACKFILL"
-            else sorted(previous_backfill_incomplete)
+            else sorted(previous_backfill_incomplete | set(skipped_sources))
         )
         retry_sources = sorted(set(saturated_sources)) if refresh_mode == "INCREMENTAL" else []
         source_coverage = {
@@ -1983,6 +2121,7 @@ def materialize(
                 "retained_previous_external_events": len(previous_events),
                 "merged_external_events": len(merged_external),
                 "saturated_sources": saturated_sources,
+                "skipped_sources": skipped_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
                 "retry_sources": retry_sources,
             },
@@ -2017,6 +2156,7 @@ def materialize(
             "source_counts": _coverage_counts(timeline["events"]),
             "source_watermarks": source_watermarks,
             "saturated_sources": saturated_sources,
+            "skipped_sources": skipped_sources,
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
             "historical_evidence_events": len(historical_evidence_events),
@@ -2034,12 +2174,43 @@ def materialize(
                 "delta_events": len(all_delta),
                 "source_since": {name: value.isoformat() for name, value in source_since.items()},
                 "saturated_sources": saturated_sources,
+                "skipped_sources": skipped_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
                 "retry_sources": retry_sources,
             },
             "timeline": timeline,
         }
         _atomic_json(store_path, store_payload)
+
+        # Compact multi-reader index: canonical JSON remains the complete source. The
+        # sidecar stores only token postings plus normalized lineage anchors so distinct
+        # queries can narrow/rank the full rich events without repeating work across agents.
+        query_events: dict[str, dict[str, Any]] = {}
+        for raw in [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])]:
+            if isinstance(raw, dict) and raw.get("id"):
+                query_events[str(raw["id"])] = raw
+        query_ids = list(query_events)
+        postings: dict[str, list[int]] = defaultdict(list)
+        weight_codes: dict[str, bytearray] = defaultdict(bytearray)
+        query_anchors: list[list[str]] = []
+        for index, event in enumerate(query_events.values()):
+            best_weight_by_token: dict[str, float] = {}
+            for weight, tokens in _event_query_fields(event):
+                for token in tokens:
+                    if weight > best_weight_by_token.get(token, 0.0):
+                        best_weight_by_token[token] = weight
+            for token, weight in best_weight_by_token.items():
+                postings[token].append(index)
+                weight_codes[token].append(_QUERY_WEIGHT_TO_CODE[weight])
+            query_anchors.append(_event_anchors(event))
+        _atomic_pickle(query_index_path, {
+            "schema": QUERY_INDEX_SCHEMA,
+            "generated_at": str(store_payload.get("generated_at") or ""),
+            "ids": query_ids,
+            "postings": dict(postings),
+            "weight_codes": {token: bytes(codes) for token, codes in weight_codes.items()},
+            "anchors": query_anchors,
+        })
 
         overview = build_overview(entries, limit=20, include_timeline_snapshots=False, now=now)
         overview["timeline_snapshots"] = timeline["snapshots"]
@@ -2102,8 +2273,10 @@ def materialize(
             "worker_archive": worker_archive["archive_sample"],
             "work_graph": graph["summary"],
             "store_path": str(store_path),
+            "query_index_path": str(query_index_path),
             "bootstrap_path": str(bootstrap_path),
             "store_bytes": store_path.stat().st_size,
+            "query_index_bytes": query_index_path.stat().st_size,
             "bootstrap_bytes": bootstrap_path.stat().st_size,
         }
         _atomic_json(status_path, status)
@@ -2203,24 +2376,31 @@ def _simple_query_token(token: str) -> str:
     return token
 
 
-def _query_concepts(query: str) -> list[frozenset[str]]:
+@lru_cache(maxsize=256)
+def _query_concepts(query: str) -> tuple[frozenset[str], ...]:
     concepts: list[frozenset[str]] = []
     seen: set[frozenset[str]] = set()
-    for token in re.findall(r"[a-z0-9]+", query.casefold()):
+    for token in _QUERY_TOKEN_RE.findall(query.casefold()):
         if token in _QUERY_STOP_WORDS:
             continue
         concept = _QUERY_CONCEPT_BY_TOKEN.get(token, frozenset({_simple_query_token(token)}))
         if concept not in seen:
             seen.add(concept)
             concepts.append(concept)
-    return concepts
+    return tuple(concepts)
 
 
 def _query_tokens(value: Any) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
+    return set(_QUERY_TOKEN_RE.findall(str(value or "").casefold()))
 
 
 def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
+    cached = event.get("_query_fields_cache")
+    if isinstance(cached, list) and len(cached) == 5:
+        try:
+            return [(float(weight), set(tokens)) for weight, tokens in cached]
+        except (TypeError, ValueError):
+            pass
     metadata = " ".join([
         " ".join(str(value) for value in event.get("tags", []) or []),
         str(event.get("scope") or ""),
@@ -2236,17 +2416,25 @@ def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
         " ".join(str(value) for value in event.get("anchors", []) or []),
         " ".join(str(value) for value in event.get("evidence", []) or []),
     ])
+    rich_search = " ".join([
+        str(event.get("_search_text") or ""),
+        str(event.get("body") or ""),
+        " ".join(str(value) for value in event.get("changed_paths", []) or []),
+        str(event.get("findings") or ""),
+        str(event.get("validation") or ""),
+        str(event.get("outcome") or ""),
+    ])
     return [
         (4.0, _query_tokens(event.get("title"))),
         (2.0, _query_tokens(event.get("summary"))),
-        (1.2, _query_tokens(event.get("_search_text"))),
+        (1.2, _query_tokens(rich_search)),
         (2.2, _query_tokens(metadata)),
         (0.7, _query_tokens(links)),
     ]
 
 
 def _event_matches_identity_query(event: dict[str, Any], query: str) -> bool:
-    tokens = set(re.findall(r"[a-z0-9]+", query.casefold()))
+    tokens = _query_tokens(query)
     if not tokens:
         return True
     hay = " ".join([
@@ -2259,7 +2447,7 @@ def _event_matches_identity_query(event: dict[str, Any], query: str) -> bool:
         str(event.get("thread_id") or ""),
         " ".join(str(value) for value in event.get("case_anchors", []) or []),
     ]).casefold()
-    return tokens <= set(re.findall(r"[a-z0-9]+", hay))
+    return tokens <= set(_QUERY_TOKEN_RE.findall(hay))
 
 
 def _event_matches_query(event: dict[str, Any], query: str) -> bool:
@@ -2272,7 +2460,7 @@ def _event_matches_query(event: dict[str, Any], query: str) -> bool:
     return matched >= (2 if len(concepts) >= 2 else 1)
 
 
-def _rank_query_events(events: list[dict[str, Any]], query: str) -> list[tuple[float, dict[str, Any]]]:
+def _rank_query_events(events: list[dict[str, Any]], query: str, *, corpus_size_override: int | None = None) -> list[tuple[float, dict[str, Any]]]:
     concepts = _query_concepts(query)
     if not concepts:
         return [(1.0, event) for event in events]
@@ -2283,8 +2471,9 @@ def _rank_query_events(events: list[dict[str, Any]], query: str) -> list[tuple[f
         for index, concept in enumerate(concepts):
             if merged & concept:
                 document_frequency[index] += 1
-    corpus_size = max(1, len(events))
+    corpus_size = max(1, int(corpus_size_override) if corpus_size_override is not None else len(events))
     minimum_matches = 2 if len(concepts) >= 2 else 1
+    causal_query = bool(_query_tokens(query) & _CAUSAL_QUERY_TOKENS)
     ranked: list[tuple[float, dict[str, Any]]] = []
     for event, fields in zip(events, fields_by_id):
         matched = 0
@@ -2301,8 +2490,83 @@ def _rank_query_events(events: list[dict[str, Any]], query: str) -> list[tuple[f
         coverage = matched / min(len(concepts), 6)
         score *= 0.75 + (1.35 * coverage)
         score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
-        query_tokens = _query_tokens(query)
-        if query_tokens & _CAUSAL_QUERY_TOKENS:
+        if causal_query:
+            causal_hay = " ".join([
+                str(event.get("title") or ""),
+                str(event.get("summary") or ""),
+                str(event.get("_search_text") or ""),
+            ]).casefold()
+            if any(phrase in causal_hay for phrase in _CAUSAL_CORRECTION_PHRASES):
+                score *= 2.25
+        ranked.append((score, event))
+    ranked.sort(
+        key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
+        reverse=True,
+    )
+    return ranked
+
+
+def _rank_query_events_indexed(
+    events: list[dict[str, Any]],
+    query: str,
+    index: dict[str, Any],
+    *,
+    corpus_size_override: int | None = None,
+) -> list[tuple[float, dict[str, Any]]] | None:
+    concepts = _query_concepts(query)
+    if not concepts:
+        return [(1.0, event) for event in events]
+    ids = index.get("ids") if isinstance(index.get("ids"), list) else []
+    postings = index.get("postings") if isinstance(index.get("postings"), dict) else {}
+    weight_codes = index.get("weight_codes") if isinstance(index.get("weight_codes"), dict) else {}
+    position_by_id = {str(event_id): position for position, event_id in enumerate(ids)}
+    allowed_positions = {
+        position_by_id[event_id]
+        for event in events
+        if (event_id := str(event.get("id") or "")) in position_by_id
+    }
+    event_by_position = {position_by_id[str(event.get("id") or "")]: event for event in events if str(event.get("id") or "") in position_by_id}
+    if not allowed_positions:
+        return []
+
+    best_weights: list[dict[int, float]] = []
+    document_frequency: list[int] = []
+    for concept in concepts:
+        best: dict[int, float] = {}
+        for token in concept:
+            rows = postings.get(token)
+            codes = weight_codes.get(token)
+            if not isinstance(rows, list) or not isinstance(codes, (bytes, bytearray)) or len(rows) != len(codes):
+                continue
+            for position, code in zip(rows, codes):
+                if position not in allowed_positions:
+                    continue
+                weight = _QUERY_CODE_TO_WEIGHT.get(int(code), 0.0)
+                if weight > best.get(position, 0.0):
+                    best[position] = weight
+        best_weights.append(best)
+        document_frequency.append(len(best))
+
+    corpus_size = max(1, int(corpus_size_override) if corpus_size_override is not None else len(events))
+    minimum_matches = 2 if len(concepts) >= 2 else 1
+    causal_query = bool(_query_tokens(query) & _CAUSAL_QUERY_TOKENS)
+    ranked: list[tuple[float, dict[str, Any]]] = []
+    for position, event in event_by_position.items():
+        matched = 0
+        score = 0.0
+        for concept_index, best in enumerate(best_weights):
+            weight = best.get(position, 0.0)
+            if not weight:
+                continue
+            matched += 1
+            rarity = math.log(1.0 + (corpus_size + 1.0) / (document_frequency[concept_index] + 1.0))
+            score += weight * rarity
+        if matched < minimum_matches:
+            continue
+        coverage = matched / min(len(concepts), 6)
+        score *= 0.75 + (1.35 * coverage)
+        score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
+        if causal_query:
             causal_hay = " ".join([
                 str(event.get("title") or ""),
                 str(event.get("summary") or ""),
@@ -2383,6 +2647,386 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _query_index_candidate_ids(index: dict[str, Any], query: str) -> set[str] | None:
+    concepts = _query_concepts(query)
+    if not concepts:
+        return None
+    ids = index.get("ids") if isinstance(index.get("ids"), list) else []
+    postings = index.get("postings") if isinstance(index.get("postings"), dict) else {}
+    positions: set[int] = set()
+    for concept in concepts:
+        for token in concept:
+            rows = postings.get(token)
+            if isinstance(rows, list):
+                positions.update(int(value) for value in rows if isinstance(value, int) and 0 <= value < len(ids))
+    return {str(ids[position]) for position in positions}
+
+
+def _apply_query_index_anchors(events: Iterable[dict[str, Any]], index: dict[str, Any]) -> None:
+    ids = index.get("ids") if isinstance(index.get("ids"), list) else []
+    anchors = index.get("anchors") if isinstance(index.get("anchors"), list) else []
+    by_id = {str(event_id): position for position, event_id in enumerate(ids)}
+    for event in events:
+        position = by_id.get(str(event.get("id") or ""))
+        if position is None or position >= len(anchors) or not isinstance(anchors[position], list):
+            continue
+        event["_all_anchors_cache"] = list(anchors[position])
+
+
+def _query_cache_key(generated_at: str, *, query: str, view: str, project: str | None, thread: str | None, days: int | None, limit: int, include_workers: bool) -> str:
+    payload = {
+        "generated_at": generated_at,
+        "query": " ".join(query.split()).casefold(),
+        "view": view,
+        "project": project.casefold() if project else None,
+        "thread": thread,
+        "days": days,
+        "limit": int(limit),
+        "include_workers": bool(include_workers),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _read_query_result_cache(root: Path, key: str) -> tuple[dict[str, Any] | None, float | None]:
+    path = root / ".state" / "timeline" / QUERY_CACHE_ROOT.name / f"{key}.json"
+    try:
+        age = max(0.0, time.time() - path.stat().st_mtime)
+        if age > QUERY_RESULT_CACHE_SECONDS:
+            return None, age
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        return (payload, age) if isinstance(payload, dict) else (None, age)
+    except (OSError, json.JSONDecodeError):
+        return None, None
+
+
+def _write_query_result_cache(root: Path, key: str, result: dict[str, Any]) -> None:
+    cache_root = root / ".state" / "timeline" / QUERY_CACHE_ROOT.name
+    path = cache_root / f"{key}.json"
+    try:
+        _atomic_json(path, result)
+        files = sorted(cache_root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        for stale in files[QUERY_RESULT_CACHE_MAX_FILES:]:
+            stale.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _refresh_cached_query_result(result: dict[str, Any], cache_age: float | None) -> dict[str, Any]:
+    refreshed = dict(result)
+    materialized = dict(refreshed.get("materialized") or {})
+    as_of = _dt(materialized.get("as_of"))
+    if as_of is not None:
+        now = datetime.now().astimezone()
+        current_age = max(0.0, (now - as_of.astimezone(now.tzinfo)).total_seconds())
+        stale_after = float(materialized.get("stale_after_seconds") or DEFAULT_REFRESH_MINUTES * 180.0)
+        materialized["age_seconds"] = round(current_age, 1)
+        stale = current_age > stale_after
+        materialized["status"] = "STALE" if stale else "FRESH"
+        reasons = {str(value) for value in materialized.get("absence_unsafe_reasons", []) if str(value)}
+        if stale:
+            reasons.add("MATERIALIZATION_STALE")
+        else:
+            reasons.discard("MATERIALIZATION_STALE")
+        materialized["absence_unsafe_reasons"] = sorted(reasons)
+        materialized["absence_semantics"] = (
+            "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE"
+            if reasons else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY"
+        )
+        refreshed["materialized"] = materialized
+    refreshed["query_cache"] = {
+        "used": True,
+        "age_seconds": round(cache_age or 0.0, 3),
+        "max_age_seconds": QUERY_RESULT_CACHE_SECONDS,
+    }
+    return refreshed
+
+
+
+_LESSON_GENERIC_TOKENS = {
+    "after", "again", "already", "before", "branch", "commit", "current", "exact", "failed", "failure",
+    "file", "files", "fixed", "issue", "later", "main", "only", "path", "paths", "project", "report",
+    "accepted", "correctly", "coverage", "result", "same", "source", "still", "test", "tests", "through", "tool", "using", "verified", "worker",
+}
+
+
+_LESSON_TRAILER_RE = re.compile(
+    r"(?i)^\s*(?:co-authored-by|signed-off-by|reviewed-by|acked-by|tested-by|change-id)\s*:"
+)
+_LESSON_CONCEPT_GROUPS = {
+    "deform": {"deform", "deformed", "deforming", "deformation", "deformations"},
+    "skin": {"skin", "skins", "skinned", "skinning", "binding", "bindings", "bind", "bound"},
+    "weight": {"weight", "weights", "weighted", "weighting"},
+    "rig": {"rig", "rigs", "rigged", "rigger", "rigging", "armature", "armatures", "skeleton", "skeletons"},
+    "export": {"export", "exports", "exported", "exporter", "exporting"},
+    "animation": {"animate", "animated", "animation", "animations", "clip", "clips", "keyframe", "keyframes", "playback", "replay", "replayed"},
+    "proof": {"proof", "prove", "proved", "proven", "verify", "verified", "verifier", "verification", "validate", "validated", "validation", "gate", "gated"},
+    "surface": {"surface", "surfaces", "geodesic", "adjacency", "weld", "welded", "welding"},
+    "limb": {"limb", "limbs", "leg", "legs", "arm", "arms", "wing", "wings", "tail", "tails"},
+}
+_LESSON_CONCEPT_BY_TOKEN = {
+    token: concept for concept, tokens in _LESSON_CONCEPT_GROUPS.items() for token in tokens
+}
+_LESSON_CORRECTIVE_TOKENS = {
+    "broken", "cause", "caused", "correct", "corrected", "disproved", "failed", "failing", "failure", "false",
+    "fix", "fixed", "instead", "invalid", "lost", "missing", "prevent", "prevented", "rejected", "repair", "repaired",
+    "wrong", "zero", "unreachable", "drift", "inverted", "shear", "shears",
+}
+_LESSON_PROCESS_TOKENS = {
+    "authorship", "batch", "batches", "branch", "branches", "chain", "chains", "commit", "committed", "job", "jobs",
+    "queue", "queued", "session", "sessions", "scaffold", "supervisor", "supervisors", "survive", "survives",
+    "uncommitted", "untracked", "usage", "wait", "waiting", "workflow", "worktree", "worktrees",
+}
+
+
+def _clean_lesson_body(value: Any) -> str:
+    """Remove commit trailers/metadata that cannot be a technical lesson by themselves."""
+    lines = []
+    for raw in str(value or "").splitlines():
+        line = raw.strip()
+        if not line or _LESSON_TRAILER_RE.match(line):
+            continue
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _lesson_concepts(value: Any) -> set[str]:
+    return {
+        concept
+        for token in _query_tokens(value)
+        if (concept := _LESSON_CONCEPT_BY_TOKEN.get(token)) is not None
+    }
+
+
+def _lesson_candidate_text(event: dict[str, Any]) -> str:
+    source = str(event.get("source_type") or "")
+    body = _clean_lesson_body(event.get("body"))
+    if source == "GIT_COMMIT":
+        return body
+    if source == "WORKER_REPORT":
+        return " ".join(str(event.get(field) or "") for field in ("findings", "validation", "summary", "outcome")).strip()
+    if source == "VAULT_MEMORY":
+        return " ".join(str(event.get(field) or "") for field in ("text", "conclusion", "summary", "body")).strip()
+    return " ".join([
+        str(event.get("findings") or ""),
+        str(event.get("validation") or ""),
+        body,
+        str(event.get("summary") or ""),
+    ]).strip()
+
+
+def _lesson_candidate_quality(event: dict[str, Any], text: str) -> float:
+    """Reject metadata-only candidates and favor corrective technical evidence over process narration."""
+    tokens = _query_tokens(text)
+    content = {
+        token for token in tokens
+        if len(token) >= 3 and token not in _QUERY_STOP_WORDS and token not in _LESSON_GENERIC_TOKENS
+    }
+    if len(content) < 6:
+        return 0.0
+    corrective = len(tokens & _LESSON_CORRECTIVE_TOKENS)
+    process = len(tokens & _LESSON_PROCESS_TOKENS)
+    quality = 1.0 + min(0.55, len(content) / 80.0) + min(1.0, corrective * 0.16) - min(1.15, process * 0.20)
+    if str(event.get("source_type") or "") == "GIT_COMMIT" and corrective >= 2:
+        quality += 0.20
+    if process >= 3 and process > corrective:
+        quality *= 0.35
+    return max(0.2, quality)
+
+
+def _lesson_text(event: dict[str, Any]) -> str:
+    """Prefer technical evidence fields over identity-heavy report titles when expanding a task query."""
+    technical = " ".join([
+        str(event.get("findings") or ""),
+        str(event.get("validation") or ""),
+        _clean_lesson_body(event.get("body")),
+        str(event.get("scope") or ""),
+    ]).strip()
+    if technical:
+        return technical
+    return " ".join([
+        str(event.get("summary") or ""),
+        str(event.get("outcome") or ""),
+        str(event.get("title") or ""),
+    ])
+
+
+def _lesson_packet(
+    query: str,
+    *,
+    selected: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    query_index: dict[str, Any] | None,
+    limit: int = 6,
+) -> dict[str, Any]:
+    """Build a bounded historical-prior packet from the existing query corpus only."""
+    packet_limit = min(8, max(3, int(limit)))
+    base = {
+        "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+        "validation": "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED",
+        "live_truth_required": True,
+        "nonblocking": True,
+        "query": " ".join(query.split()),
+        "items": [],
+    }
+    if not query:
+        return {**base, "status": "NOT_REQUESTED"}
+    seeds = [event for event in selected[:4] if isinstance(event, dict)]
+    if not seeds:
+        return {**base, "status": "NO_SEED_MATCH"}
+
+    query_tokens = _query_tokens(query)
+    seed_counts: Counter[str] = Counter()
+    for event in seeds:
+        seed_counts.update(_query_tokens(_lesson_text(event)))
+
+    postings = query_index.get("postings") if isinstance(query_index, dict) and isinstance(query_index.get("postings"), dict) else {}
+    corpus_size = max(1, len(candidates))
+    expansion_ranked: list[tuple[float, str, int]] = []
+    for token, count in seed_counts.items():
+        if (
+            len(token) < 4 or token.isdigit() or token in query_tokens or token in _QUERY_STOP_WORDS
+            or token in _LESSON_GENERIC_TOKENS
+        ):
+            continue
+        rows = postings.get(token)
+        if isinstance(rows, list):
+            df = len(rows)
+        else:
+            df = sum(1 for event in candidates if token in set().union(*(tokens for _, tokens in _event_query_fields(event))))
+        # A bridge term must reach beyond the seed and must not be generic across the corpus.
+        if df < 2 or df > max(40, int(corpus_size * 0.18)):
+            continue
+        score = float(count) * math.log(1.0 + (corpus_size + 1.0) / (df + 1.0))
+        expansion_ranked.append((score, token, df))
+    expansion_ranked.sort(key=lambda item: (item[0], -item[2], item[1]), reverse=True)
+    expansion = [token for _, token, _ in expansion_ranked[:16]]
+    expansion_weights = {token: score for score, token, _ in expansion_ranked[:16]}
+    if not expansion:
+        return {
+            **base,
+            "status": "NO_BRIDGE_TERMS",
+            "seed_event_ids": [str(event.get("id") or "") for event in seeds if event.get("id")],
+        }
+
+    concepts = _query_concepts(query)
+    query_lesson_concepts = _lesson_concepts(query)
+    seed_lesson_concepts: set[str] = set()
+    for event in seeds:
+        seed_lesson_concepts.update(_lesson_concepts(_lesson_text(event)))
+    seed_ids = {str(event.get("id") or "") for event in seeds}
+    ranked: list[tuple[float, dict[str, Any], list[str]]] = []
+    lesson_sources = {"GIT_COMMIT", "WORKER_REPORT", "VAULT_MEMORY", "TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT"}
+    for event in candidates:
+        source = str(event.get("source_type") or "")
+        if source not in lesson_sources:
+            continue
+        event_id = str(event.get("id") or "")
+        if event_id in seed_ids:
+            continue
+        candidate_text = _lesson_candidate_text(event)
+        quality = _lesson_candidate_quality(event, candidate_text)
+        if quality <= 0.0:
+            continue
+        merged = set().union(*(tokens for _, tokens in _event_query_fields(event)))
+        overlaps = [token for token in expansion if token in merged]
+        query_hits = sum(1 for concept in concepts if merged & concept)
+        candidate_lesson_concepts = _lesson_concepts(candidate_text)
+        direct_lesson_hits = len(query_lesson_concepts & candidate_lesson_concepts)
+        bridge_lesson_hits = len(seed_lesson_concepts & candidate_lesson_concepts)
+        if query_hits < 1 and direct_lesson_hits < 1 and candidate_lesson_concepts == {"proof"}:
+            continue
+        process_hits = len(_query_tokens(candidate_text) & _LESSON_PROCESS_TOKENS)
+        if query_hits < 1 and process_hits >= 3:
+            continue
+        if query_hits < 1 and direct_lesson_hits < 1 and len(overlaps) < 3 and bridge_lesson_hits < 2:
+            continue
+        corrective_hits = len(_query_tokens(candidate_text) & _LESSON_CORRECTIVE_TOKENS)
+        corrective_weight = 3.0 if source == "GIT_COMMIT" else 0.75
+        score = (
+            sum(expansion_weights.get(token, 0.0) for token in overlaps)
+            + (2.0 * query_hits)
+            + (2.5 * direct_lesson_hits)
+            + (1.25 * bridge_lesson_hits)
+            + (corrective_weight * min(4, corrective_hits))
+        )
+        score *= {
+            "GIT_COMMIT": 1.35,
+            "TRACKED_ARTIFACT": 1.12,
+            "LOCAL_ARTIFACT": 1.0,
+            "WORKER_REPORT": 0.78,
+            "VAULT_MEMORY": 0.72,
+        }.get(source, 0.9)
+        if event.get("body"):
+            score *= 1.12
+        score *= quality
+        ranked.append((score, event, overlaps))
+    ranked.sort(
+        key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
+        reverse=True,
+    )
+
+    # Prefer cross-project transfer when it exists, but never discard same-project history:
+    # a soft first pass defers only the fifth+ item from one project, then fills any remaining slots.
+    per_project_soft_cap = max(2, packet_limit - 3)
+    primary: list[tuple[float, dict[str, Any], list[str]]] = []
+    deferred: list[tuple[float, dict[str, Any], list[str]]] = []
+    project_counts: Counter[str] = Counter()
+    for row in ranked:
+        project_key = str(row[1].get("project") or "").casefold()
+        if project_key and project_counts[project_key] >= per_project_soft_cap:
+            deferred.append(row)
+            continue
+        primary.append(row)
+        if project_key:
+            project_counts[project_key] += 1
+
+    items: list[dict[str, Any]] = []
+    seen_subjects: set[tuple[str, str]] = set()
+    for score, event, overlaps in [*primary, *deferred]:
+        project = str(event.get("project") or "")
+        subject = _subject_key(event.get("title")) or str(event.get("title") or "").casefold()
+        subject_key = (project.casefold(), subject)
+        if subject and subject_key in seen_subjects:
+            continue
+        if subject:
+            seen_subjects.add(subject_key)
+        anchors = list(event.get("anchors", []) or [])
+        sha = str(event.get("sha") or "").strip()
+        if sha:
+            anchors.insert(0, f"gitsha:{sha}")
+        conclusion = (
+            _clip_query_value(_clean_lesson_body(event.get("body")), 440)
+            or _clip_query_value(event.get("findings"), 440)
+            or _clip_query_value(event.get("summary"), 440)
+            or _clip_query_value(event.get("outcome"), 440)
+            or _clip_query_value(event.get("title"), 440)
+        )
+        item = {
+            "source_event_id": event.get("id"),
+            "source_type": event.get("source_type"),
+            "project": event.get("project"),
+            "event_at": event.get("event_at"),
+            "title": _clip_query_value(event.get("title"), 220),
+            "conclusion": conclusion,
+            "relevance_terms": overlaps[:6],
+            "evidence_anchors": anchors[:6],
+        }
+        changed_paths = [str(value) for value in event.get("changed_paths", []) or [] if str(value).strip()]
+        if changed_paths:
+            item["changed_paths"] = changed_paths[:6]
+        items.append({key: value for key, value in item.items() if value not in (None, "", [], {})})
+        if len(items) >= packet_limit:
+            break
+
+    return {
+        **base,
+        "status": "READY" if items else "NO_RELATED_PRIORS",
+        "seed_event_ids": [str(event.get("id") or "") for event in seeds if event.get("id")],
+        "expansion_terms": expansion[:12],
+        "items": items,
+    }
+
+
 def query_materialized(
     *,
     root: Path = ROOT,
@@ -2394,12 +3038,25 @@ def query_materialized(
     limit: int = 20,
     include_workers: bool = True,
 ) -> dict[str, Any] | None:
+    store_generation = _store_generation_token(root)
+    cache_key = _query_cache_key(
+        store_generation, query=query, view=view, project=project, thread=thread, days=days, limit=limit, include_workers=include_workers
+    ) if store_generation else None
+    if cache_key:
+        cached_result, cache_age = _read_query_result_cache(root, cache_key)
+        if cached_result is not None:
+            return _refresh_cached_query_result(cached_result, cache_age)
+
     payload = load_materialized(root=root)
     if not payload:
         return None
     timeline = payload.get("timeline")
     if not isinstance(timeline, dict):
         return None
+    query_index = _read_query_index(
+        root / ".state" / "timeline" / QUERY_INDEX_PATH.name,
+        generated_at=str(payload.get("generated_at") or ""),
+    )
     event_rows = [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])]
     by_id: dict[str, dict[str, Any]] = {}
     for raw in event_rows:
@@ -2431,7 +3088,17 @@ def query_materialized(
             continue
         candidates.append(event)
     if query:
-        ranked_events = _rank_query_events(candidates, query)
+        rank_candidates = candidates
+        if query_index is not None:
+            indexed_ids = _query_index_candidate_ids(query_index, query)
+            if indexed_ids is not None:
+                rank_candidates = [event for event in candidates if str(event.get("id") or "") in indexed_ids]
+        ranked_events = (
+            _rank_query_events_indexed(rank_candidates, query, query_index, corpus_size_override=len(candidates))
+            if query_index is not None else None
+        )
+        if ranked_events is None:
+            ranked_events = _rank_query_events(rank_candidates, query, corpus_size_override=len(candidates))
         selected = [event for _, event in ranked_events]
     else:
         selected = sorted(
@@ -2439,6 +3106,17 @@ def query_materialized(
             key=lambda event: (str(event.get("event_at") or ""), str(event.get("id") or "")),
             reverse=True,
         )
+    if query_index is not None:
+        _apply_query_index_anchors(selected, query_index)
+    # Graphs are stored across the entire horizon. Enforce explicit event
+    # filters before topical matching so an empty filtered result cannot
+    # accidentally expand back into unrelated historical work.
+    event_filters = bool(project or thread or days is not None or view == "errors" or not include_workers)
+    eligible_ids = {str(event.get("id") or "") for event in candidates}
+    eligible_commits = {
+        (str(event.get("project") or "").casefold(), str(event.get("sha") or "").casefold())
+        for event in candidates if event.get("source_type") == "GIT_COMMIT" and event.get("sha")
+    }
     effective_limit = min(500, max(1, int(limit)))
     graph_limit = min(6, effective_limit)
     selected_ids = {str(event.get("id") or "") for event in selected}
@@ -2477,11 +3155,12 @@ def query_materialized(
                 continue
             item = {key: worker.get(key) for key in (
                 "worker", "duration_minutes", "allocated_duration_minutes",
-                "target_utilization_pct", "outcome",
-            ) if worker.get(key) is not None}
-            outcome = str(item.get("outcome") or "")
-            if len(outcome) > 240:
-                item["outcome"] = outcome[:237].rstrip() + "..."
+                "target_utilization_pct", "outcome", "finding_tags", "findings", "validation",
+            ) if worker.get(key) not in (None, [], "")}
+            for field, clip in (("outcome", 240), ("findings", 360), ("validation", 240)):
+                value = str(item.get(field) or "")
+                if len(value) > clip:
+                    item[field] = value[: clip - 3].rstrip() + "..."
             workers.append(item)
         return {
             key: row.get(key) for key in (
@@ -2513,7 +3192,7 @@ def query_materialized(
             continue
         member_ids = set(str(value) for value in case.get("event_ids", []) or [])
         selected_overlap = bool(member_ids & selected_ids)
-        if (project or thread or view == "errors") and not selected_overlap:
+        if event_filters and not (member_ids & eligible_ids):
             continue
         if query and not selected_overlap and not case_matches_query(case):
             continue
@@ -2537,11 +3216,19 @@ def query_materialized(
             result["signal_event_ids_truncated"] = True
         return result
 
+    eligible_work_ids: set[str] = set()
     matched_groups: list[dict[str, Any]] = []
     for row in all_graph_groups:
         if project and str(row.get("project") or "").casefold() != project.casefold():
             continue
         attached = set(str(value) for value in row.get("attached_event_ids", []) or [])
+        commit_overlap = any(
+            (str(row.get("project") or "").casefold(), str(commit.get("sha") or "").casefold())
+            in eligible_commits for commit in row.get("commits", []) or []
+        )
+        if event_filters and not (commit_overlap or attached & eligible_ids):
+            continue
+        eligible_work_ids.add(str(row.get("work_id") or ""))
         if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("github_anchors", [])}, query) and not (attached & selected_attachment_ids):
             continue
         matched_groups.append(row)
@@ -2550,12 +3237,22 @@ def query_materialized(
     for row in graph.get("similar_commit_groups", []) if isinstance(graph.get("similar_commit_groups"), list) else []:
         if project and str(row.get("project") or "").casefold() != project.casefold():
             continue
+        if event_filters and str(row.get("work_id") or "") not in eligible_work_ids:
+            continue
         if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("branch_refs", [])}, query):
             continue
         matched_similar.append(row)
 
     materialized = materialized_health(payload, now=now)
     materialized["schema"] = payload.get("schema")
+    lesson_packet = _lesson_packet(
+        query,
+        selected=selected,
+        candidates=candidates,
+        query_index=query_index,
+        limit=min(8, max(3, effective_limit)),
+    )
+
     result = {
         "schema_version": timeline.get("schema_version"),
         "authority": timeline.get("authority"),
@@ -2578,7 +3275,7 @@ def query_materialized(
         "snapshots": build_timeline_snapshots(selected, now=now) if selected else {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
         "continuity_graph": {
             "semantics": stored_continuity.get("semantics") or "STRONG_ANCHOR_CASE_IDENTITY",
-            "scope": "QUERY_MATCHED" if query or project or thread or view == "errors" else "BOUNDED_OVERVIEW",
+            "scope": "QUERY_MATCHED" if query or event_filters else "BOUNDED_OVERVIEW",
             "summary": {
                 "matched_cases": len(matched_cases),
                 "returned_cases": min(len(matched_cases), case_limit),
@@ -2587,9 +3284,10 @@ def query_materialized(
             "store_summary": stored_continuity.get("summary", {}),
             "cases": [compact_case(case) for case in matched_cases[:case_limit]],
         },
+        "lesson_packet": lesson_packet,
         "work_graph": {
             "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
-            "scope": "QUERY_MATCHED" if query or project or thread else "BOUNDED_OVERVIEW",
+            "scope": "QUERY_MATCHED" if query or event_filters else "BOUNDED_OVERVIEW",
             "summary": {
                 "matched_commit_groups": len(matched_groups),
                 "returned_commit_groups": min(len(matched_groups), graph_limit),
@@ -2609,6 +3307,13 @@ def query_materialized(
         "events": [_compact_query_event(event) for event in selected[:effective_limit]],
         "truncated": len(selected) > effective_limit,
     }
+    result["query_cache"] = {"used": False, "age_seconds": 0.0, "max_age_seconds": QUERY_RESULT_CACHE_SECONDS}
+    effective_generation = _store_generation_token(root) or store_generation
+    effective_key = _query_cache_key(
+        effective_generation, query=query, view=view, project=project, thread=thread, days=days, limit=limit, include_workers=include_workers
+    ) if effective_generation else None
+    if effective_key:
+        _write_query_result_cache(root, effective_key, result)
     return result
 
 
@@ -2628,7 +3333,7 @@ def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
         "/SC", "MINUTE", "/MO", str(minutes), "/TR", action,
     ]
     try:
-        proc = subprocess.run(command, capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=30)
+        proc = _run_process(command, capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=30)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "status": "TASK_INSTALL_ERROR", "error": str(exc)}
     return {
@@ -2643,7 +3348,7 @@ def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
 
 def task_status() -> dict[str, Any]:
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             ["schtasks.exe", "/Query", "/TN", TASK_NAME, "/FO", "LIST", "/V"],
             capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=15,
         )
