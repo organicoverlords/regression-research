@@ -91,7 +91,7 @@
     "restore_first_on_regression": true,
     "trigger": "When an assistant/operator-authored production MCP change causes a severe recurring regression, or the user explicitly reports the previously working MCP regressed after our change and requests restoration, restore the last known-working production behavior/topology before speculative fixes.",
     "required_order": [
-      "Log any user-observed reroute with report/event-time semantics before further MCP/edge mutation.",
+      "If the user explicitly asks for platform-reroute/security analysis or incident tracking, log any user-observed reroute with report/event-time semantics before further MCP/edge mutation; otherwise treat platform security events as external and do not persist them.",
       "Preserve the current runtime, dist, serving identity, and rollback evidence.",
       "Use the production change gate, exact Busy scope, independent rollback, off-path proof, and drain active child processes before cutover.",
       "Restore the frozen production behavior and topology; a source SHA alone is not sufficient when topology differs. Use only the minimal compatibility required by the proven replacement mechanism.",
