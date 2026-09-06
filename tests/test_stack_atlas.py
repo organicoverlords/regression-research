@@ -10,6 +10,7 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
+    BOOTSTRAP_GLANCE_MAX_BYTES,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     blast_radius,
     build_bootstrap_atlas,
@@ -31,6 +32,7 @@ from tools.stack_atlas import (
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
+    _fit_bootstrap_glance_budget,
     _bootstrap_memory_overview,
 )
 
@@ -363,7 +365,9 @@ class StackAtlasTests(unittest.TestCase):
         with patch("tools.stack_atlas._bootstrap_worker_status", return_value=sample_workers):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
-        self.assertLess(len(payload), 12000)
+        self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertLess(BOOTSTRAP_GLANCE_MAX_BYTES, 12000)
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
@@ -395,6 +399,96 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
+
+    def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "mcp_recovery_state": {
+                "path": r"C:\\vault\\mcp-recovery-state.json",
+                "conditions": [
+                    {
+                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
+                        "message": "detail " * 120, "observed_generation": "g" * 80,
+                        "last_transition_at": "2026-09-06T18:00:00Z",
+                    }
+                    for i in range(5)
+                ],
+            },
+            "memory_overview": {
+                "contract": "history only", "eligible_entries": 400,
+                "timeline_snapshots": {
+                    "authority": "DERIVED_HISTORY_ONLY",
+                    "narrative": {"primary": "cases", "read_order": "cases>work_graph>evidence_density>context_only"},
+                    "windows": [{
+                        "window": "24h", "cases": {"total": 20, "red": 1}, "observations": 5000,
+                        "case_examples": [{"id": "case:important", "title": "important case", "support": "mixed"}],
+                        "highlights": [{"title": "x" * 500} for _ in range(8)],
+                    }],
+                },
+                "timeline_materialized": {"status": "FRESH", "coverage_status": "HISTORICAL_INCOMPLETE"},
+                "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
+            },
+            "source_freshness": {
+                "available": True, "attention_required": True, "updates_pending": False,
+                "meaning": "detail " * 120, "cache": {"used": True, "age_seconds": 1},
+                "sources": {
+                    "RULES.md": {"path": "p" * 500, "last_update_commit": "a" * 40, "last_updated_at": "2026-09-06T18:00:00Z", "local_last_committed_at": "2026-09-06T18:00:00Z", "local_matches_remote_main": False, "local_differs_from_remote_main": True, "updates_pending": False},
+                },
+            },
+            "mcp": {
+                "active_session_count": 9, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 9},
+                "active_sessions": [{"caller_id": f"caller-{i}", "cwd": "C:\\" + ("x" * 350), "workspace": "Vault", "busy_titles": []} for i in range(4)],
+            },
+            "workers": {
+                "attention": [{"worker": f"w{i}", "detail": "x" * 300} for i in range(4)], "stale_reports": [],
+                "manual_sanity": {
+                    "available": True, "path": "p" * 500, "baseline_id": "baseline", "boundary_at": "2026-09-06T21:26:41+03:00",
+                    "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                    "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                    "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
+                    "semantics": "diagnostic detail " * 100,
+                },
+            },
+            "paths": {"mcp_recovery_state": r"C:\\vault\\mcp-recovery-state.json"},
+            "commands": {"stack_owner": "python tools/stack_atlas.py lookup <id>"},
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["mcp"]["active_session_count"], 9)
+        self.assertEqual(fitted["mcp"]["workspace_counts"], {"Vault": 9})
+        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
+        self.assertTrue(fitted["source_freshness"]["attention_required"])
+        self.assertTrue(fitted["source_freshness"]["sources"]["RULES.md"]["local_differs_from_remote_main"])
+        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
+        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
+        self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
+
+    def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "workers": {"manual_sanity": {
+                "available": True, "path": "p" * 500, "baseline_id": "baseline",
+                "boundary_at": "2026-09-06T21:26:41+03:00", "status": "PROVISIONAL",
+                "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
+                "semantics": "diagnostic detail " * 200,
+            }},
+            "mcp": {
+                "active_session_count": 4, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 4},
+                "active_sessions": [{"caller_id": f"c{i}", "cwd": "C:/" + ("x" * 250), "workspace": "Vault", "busy_titles": []} for i in range(4)],
+            },
+        }
+        fitted = _fit_bootstrap_glance_budget(glance, 2_200)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, 2_200)
+        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 4)
+        self.assertEqual(fitted["mcp"]["active_session_count"], 4)
+        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
+        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
+        self.assertNotIn("components", fitted["workers"]["manual_sanity"])
 
     def test_production_change_gate_blocks_go_fix_style_implicit_authorization(self):
         mcp = {
@@ -1155,10 +1249,13 @@ class StackAtlasTests(unittest.TestCase):
         }
         with patch("tools.stack_atlas._bootstrap_source_freshness", return_value=sample):
             glance = build_live_bootstrap_glance()
-        self.assertEqual(glance["source_freshness"], sample)
+        self.assertTrue(glance["source_freshness"]["available"])
+        self.assertTrue(glance["source_freshness"]["attention_required"])
         self.assertTrue(glance["source_freshness"]["updates_pending"])
         self.assertIn("RULES.md", glance["source_freshness"]["sources"])
+        self.assertTrue(glance["source_freshness"]["sources"]["RULES.md"]["updates_pending"])
         self.assertIn("worker_report_contract", glance["source_freshness"]["sources"])
+        self.assertEqual(sample["sources"]["RULES.md"]["last_updated_at"], "2026-09-06T18:16:33Z")
 
     def test_bootstrap_points_to_canonical_issue_first_contract_without_policy_copy(self):
         with patch("tools.stack_atlas._bootstrap_pc_status", return_value={}), \

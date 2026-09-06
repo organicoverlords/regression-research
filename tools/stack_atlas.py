@@ -43,6 +43,7 @@ BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
+BOOTSTRAP_GLANCE_MAX_BYTES = 11_700  # keep headroom below the external <12 KB bootstrap contract
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
@@ -1384,6 +1385,88 @@ def _compact_json_bytes(value: Any) -> int:
     return len(json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 
 
+def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES) -> dict[str, Any]:
+    """Bound the whole bootstrap payload while preserving live truth and drill-down routes."""
+    budget = max(2_048, int(max_bytes))
+    bounded = json.loads(json.dumps(glance, ensure_ascii=False))
+    bootstrap = bounded.setdefault("bootstrap", {})
+    if isinstance(bootstrap, dict):
+        bootstrap["payload_budget"] = {"max_bytes": budget, "compacted": False}
+
+    if _compact_json_bytes(bounded) <= budget:
+        return bounded
+
+    recovery = bounded.get("mcp_recovery_state")
+    if isinstance(recovery, dict):
+        conditions = recovery.get("conditions")
+        if isinstance(conditions, list):
+            recovery["conditions"] = [
+                {key: item.get(key) for key in ("type", "status", "reason") if key in item}
+                for item in conditions
+                if isinstance(item, dict)
+            ]
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
+        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 2_400)
+        bounded["recent_memory_titles"] = bounded["memory_overview"].get("recent", [])
+
+    if _compact_json_bytes(bounded) > budget:
+        freshness = bounded.get("source_freshness")
+        if isinstance(freshness, dict):
+            freshness.pop("meaning", None)
+            freshness.pop("cache", None)
+            sources = freshness.get("sources")
+            if isinstance(sources, dict):
+                for item in sources.values():
+                    if not isinstance(item, dict):
+                        continue
+                    for key in ("path", "last_update_commit", "last_updated_at", "local_last_committed_at", "local_matches_remote_main"):
+                        item.pop(key, None)
+
+    workers = bounded.get("workers")
+    if _compact_json_bytes(bounded) > budget and isinstance(workers, dict):
+        sanity = workers.get("manual_sanity")
+        if isinstance(sanity, dict):
+            workers["manual_sanity"] = {
+                key: sanity.get(key)
+                for key in (
+                    "available", "baseline_id", "status", "score_delta", "direction", "post_run_count",
+                    "minimum_post_runs_for_provisional", "minimum_post_runs_for_comparable",
+                )
+                if key in sanity
+            }
+
+    mcp = bounded.get("mcp")
+    if _compact_json_bytes(bounded) > budget and isinstance(mcp, dict):
+        activity = mcp.get("activity_summary")
+        if isinstance(activity, dict):
+            mcp["activity_summary"] = {
+                key: activity.get(key)
+                for key in ("activity_window_seconds", "activity_window_complete", "starts", "reads", "exits", "kills", "nonzero_exits", "last_event_at")
+                if key in activity
+            }
+        mcp.pop("cache", None)
+
+    sessions = mcp.get("active_sessions") if isinstance(mcp, dict) else None
+    while _compact_json_bytes(bounded) > budget and isinstance(sessions, list) and sessions:
+        sessions.pop()
+        bounded["mcp"]["active_sessions_truncated"] = True
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
+        for key in ("attention", "stale_reports"):
+            items = bounded["workers"].get(key)
+            if isinstance(items, list) and len(items) > 1:
+                bounded["workers"][key] = items[:1]
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
+        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 1_800)
+        bounded["recent_memory_titles"] = bounded["memory_overview"].get("recent", [])
+
+    if isinstance(bootstrap, dict):
+        bootstrap["payload_budget"]["compacted"] = True
+    return bounded
+
+
 def _clip_bootstrap_text(value: Any, limit: int) -> Any:
     if not isinstance(value, str) or len(value) <= limit:
         return value
@@ -2220,7 +2303,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "component_statuses": {"mcp": mcp_health, "vault": vault_health, "github": github_health},
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
     }
-    return {
+    glance = {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "paths": {
@@ -2264,6 +2347,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "memory_overview": memory_overview,
         "recent_memory_titles": memory_overview.get("recent", []),
     }
+    return _fit_bootstrap_glance_budget(glance)
 
 
 def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, Any]:
