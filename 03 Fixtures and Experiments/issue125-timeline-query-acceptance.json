@@ -1,0 +1,211 @@
+{
+  "schema": "rr125.timeline-query-acceptance.v1",
+  "purpose": "Data-only acceptance corpus for canonical Vault timeline retrieval. Historical evidence only; this file does not define ranking architecture or current truth.",
+  "generated_at": "2026-09-06T05:36:32.001844+03:00",
+  "base": {
+    "vault_origin_main": "54d5c759e357103e801e9be4f36333c350efec31",
+    "live_memory_rows_at_baseline": 354,
+    "repo_events_per_repo": 100,
+    "artifact_event_limit": 240,
+    "worker_roots": [
+      "worker-reports/history",
+      "worker-reports/manual/history"
+    ],
+    "note": "Baseline query observations used current-main collector/query code with read-only live memory/worker archives. Source counts can advance; intended links and negative controls are the durable acceptance contract."
+  },
+  "acceptance_semantics": {
+    "expected_links": "Events that should be discoverable and rank materially above generic token-sharing noise for the stated historical question.",
+    "negative_controls": "Events/patterns that may match a token but must not dominate the answer unless stronger case anchors make them relevant.",
+    "baseline_rank": "Observed current behavior, not the desired rank. null means the expected event was missed entirely.",
+    "pass_shape": "For each case, retrieve at least one primary expected link in the first page and avoid filling that page with generic project/merge/token matches. Preserve explicit causal falsifiers/corrections when the question asks why something happened."
+  },
+  "cases": [
+    {
+      "id": "p3_ram_paging_pressure",
+      "theme": "P3 RAM / paging pressure",
+      "historical_prompt": {
+        "kind": "issue-derived task text preserved in finalized worker history",
+        "text": "Issue #296: fix screenshot failure chain around stale/dirty editor routing, build pressure classification, diagnostic attribution, retry receipt semantics, and current-main editor/runtime proof.",
+        "source_event": "worker:c083a4405e04c0212736866085b2bf5d478e94857d0bb3cf211fdc8f59bb3361"
+      },
+      "acceptance_query": "P3 RAM paging pressure pagefile runners",
+      "question_intent": "Recover both the observed high-load/P3 runner context and the later falsifier that moderate paging / 2.5 GB memory holds did not reproduce the MCP failure; do not equate pressure observation with proven causality.",
+      "expected_links": [
+        {
+          "id": "worker:c083a4405e04c0212736866085b2bf5d478e94857d0bb3cf211fdc8f59bb3361",
+          "role": "primary recent #296 paging/build failure-chain evidence",
+          "baseline_rank": 109
+        },
+        {
+          "id": "mem-20260825-7e943f4c",
+          "role": "historical observed pressure: 92% CPU, 86% RAM, nine self-hosted runners / multiple P3 build trees",
+          "baseline_rank": 416
+        },
+        {
+          "id": "mem-20260826-a24f548c",
+          "role": "causal falsifier: CPU burn and 2.5 GB memory holds/moderate paging did not reproduce the MCP failure",
+          "baseline_rank": null
+        }
+      ],
+      "negative_controls": [
+        {
+          "id": "mem-20260830-c4d46c54",
+          "reason": "pagefile cleanup policy shares pagefile token but is not evidence that paging caused the P3/MCP failure chain"
+        },
+        {
+          "pattern": "generic current P3 #803 gameplay commits",
+          "reason": "project token P3 alone must not outrank pressure/paging evidence"
+        }
+      ],
+      "baseline": {
+        "match_count": 419,
+        "obvious_false_positive_top_ids": [
+          "git:p3:b1533bcee58baabf9ab5e07005912773a0f89eee",
+          "git:p3:6488190c10115097645f7e3a2cea70642fa1f042",
+          "git:p3:e576eb37de855158f308000269eb24cf4cb352cf"
+        ],
+        "known_miss": "mem-20260826-a24f548c is absent despite containing the decisive paging/memory-load falsifier."
+      }
+    },
+    {
+      "id": "ci_visual_proof_capture",
+      "theme": "CI / proof capture",
+      "historical_prompt": {
+        "kind": "verbatim-source excerpt",
+        "text": "Proofs and visual things must be unified and you must use 100% working transfers for pictures and videos and captures and there must be no churn or wrong scripts or wrong screenshots or build queue spam.",
+        "source_memory": "mem-20260904-1bfc720f"
+      },
+      "acceptance_query": "CI proof capture screenshot reviewed visual",
+      "question_intent": "Find the canonical visual-proof activation and the durable requirement that player-visible claims need inspected runtime proof; distinguish capture existence from reviewed/accepted proof.",
+      "expected_links": [
+        {
+          "id": "git:p3:5e9eb364f1d9ba996bb0ff2aed830eee03efee5b",
+          "role": "canonical L3 visual-proof activation commit",
+          "baseline_rank": 3
+        },
+        {
+          "id": "mem-20260827-f9d7a1f5",
+          "role": "runtime-proof acceptance rule; compile/log/file existence are supporting evidence only",
+          "baseline_rank": 160
+        },
+        {
+          "id": "mem-20260904-1bfc720f",
+          "role": "real historical request tying unified proof/capture transfer to CI/build churn reduction",
+          "baseline_rank": null
+        }
+      ],
+      "negative_controls": [
+        {
+          "id": "mem-20260906-2c61f818",
+          "reason": "timeline taxonomy mentions proofs/reports but is not CI/proof-capture history"
+        },
+        {
+          "pattern": "generic live-proof authorization policy events",
+          "reason": "authorization wording is not a substitute for proof artifact/capture acceptance history"
+        }
+      ],
+      "baseline": {
+        "match_count": 349,
+        "known_miss": "mem-20260904-1bfc720f is missed because the relevant proof/capture wording lives in preserved source_messages rather than the event fields currently searched.",
+        "obvious_false_positive_top_ids": [
+          "mem-20260906-2c61f818",
+          "worker:5cff4e5ddab2c1bd596be69fcffa109e0695ba9a9d5d68419e4c1cf7ab363127"
+        ]
+      }
+    },
+    {
+      "id": "mcp_regression_history",
+      "theme": "MCP regression history",
+      "historical_prompt": {
+        "kind": "verbatim-source questions",
+        "texts": [
+          "Is this another regression",
+          "did you check logs for any kind of anomalies.. this is not real debugging"
+        ],
+        "source_memories": [
+          "mem-20260902-da39b1b0",
+          "mem-20260904-0b8acbf6"
+        ]
+      },
+      "acceptance_query": "MCP regression reconnect token reroute",
+      "question_intent": "Recover the runtime-invariant regression and the 03:07 reconnect/token burst with its explicit unresolved causal boundary; recent unrelated timeline work must not bury the incident chronology.",
+      "expected_links": [
+        {
+          "id": "mem-20260904-0b8acbf6",
+          "role": "03:07 reconnect/auth burst; causal layer explicitly unresolved",
+          "baseline_rank": 225
+        },
+        {
+          "id": "mem-20260902-da39b1b0",
+          "role": "MCP process/runtime invariant regression and restoration history",
+          "baseline_rank": 290
+        }
+      ],
+      "negative_controls": [
+        {
+          "id": "git:vault:70cfa3b0a4d70be50e1e5cc0c05893a6997e2c8b",
+          "reason": "#125 profiling report happens to mention MCP but is not MCP regression history"
+        },
+        {
+          "id": "git:vault:54d5c759e357103e801e9be4f36333c350efec31",
+          "reason": "timeline merge commit shares surrounding Vault context but is not an MCP regression event"
+        }
+      ],
+      "baseline": {
+        "match_count": 595,
+        "obvious_false_positive_top_ids": [
+          "git:vault:70cfa3b0a4d70be50e1e5cc0c05893a6997e2c8b",
+          "artifact:70cfa3b0a4d70be50e1e5cc0c05893a6997e2c8b:01 Reports/2026-09-06_0531_EEST_RR125_timeline_convergence_research.md",
+          "git:vault:54d5c759e357103e801e9be4f36333c350efec31"
+        ],
+        "known_failure": "Both primary historical memories are hundreds of results down while current Vault/timeline artifacts dominate."
+      }
+    },
+    {
+      "id": "cross_branch_worker_convergence",
+      "theme": "cross-branch worker convergence",
+      "historical_prompt": {
+        "kind": "verbatim-source excerpts",
+        "texts": [
+          "never leave dirty main, dev outside of its, always start by looking at recent commit history on all the brances main should be irrelevant to everybody",
+          "agent work must converge and then only reach main when youre ready to show me instead of constantly messing with the working main without me approving",
+          "now edit policy so main or master or whatever gets merged and branches dont just stack up"
+        ],
+        "source_memory": "mem-20260904-cb38ce61"
+      },
+      "acceptance_query": "branch worker convergence worktree merge main",
+      "question_intent": "Recover the durable branch/worktree convergence lessons and the earlier P3 convergence/backlog history, not merely any recent merge commit.",
+      "expected_links": [
+        {
+          "id": "mem-20260904-cb38ce61",
+          "role": "verified-work convergence and branch cleanup preserving warm state",
+          "baseline_rank": 306
+        },
+        {
+          "id": "mem-20260825-p3-convergence",
+          "role": "early P3 fleet/PR convergence history",
+          "baseline_rank": 441
+        }
+      ],
+      "negative_controls": [
+        {
+          "pattern": "generic recent Merge pull request commits",
+          "reason": "the token merge is ubiquitous and must not dominate a convergence-policy/history question"
+        },
+        {
+          "id": "git:vault:70cfa3b0a4d70be50e1e5cc0c05893a6997e2c8b",
+          "reason": "research-report commit is not cross-branch worker convergence history"
+        }
+      ],
+      "baseline": {
+        "match_count": 443,
+        "obvious_false_positive_top_ids": [
+          "git:p3:e576eb37de855158f308000269eb24cf4cb352cf",
+          "git:vault:70cfa3b0a4d70be50e1e5cc0c05893a6997e2c8b",
+          "git:p3:fd81200c86066f9a8ff522915c3eaca66e18fa81"
+        ],
+        "known_failure": "Primary convergence memories rank ~300-441 because generic merge/main/worker tokens swamp semantic history."
+      }
+    }
+  ]
+}
