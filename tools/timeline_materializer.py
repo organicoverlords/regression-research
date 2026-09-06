@@ -455,6 +455,7 @@ def github_events(
             })
             repo_cov["prs"]["events"] += 1
 
+        action_saturation_limit = limit_per_kind
         action_rows, err = _run_json([
             "gh", "run", "list", "--repo", slug, "--created", ">=" + since.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), "--limit", str(limit_per_kind),
             "--json", "databaseId,workflowName,status,conclusion,createdAt,updatedAt,headSha,headBranch,event,displayTitle,url",
@@ -469,6 +470,7 @@ def github_events(
             ])
             if isinstance(fallback_rows, list) and not fallback_err:
                 action_rows = fallback_rows
+                action_saturation_limit = fallback_limit
                 coverage["warnings"].append({
                     "repo": slug,
                     "source": "actions",
@@ -612,7 +614,7 @@ def github_events(
         })
         repo_cov["issues"]["saturated"] = isinstance(issue_rows, list) and len(issue_rows) >= limit_per_kind
         repo_cov["prs"]["saturated"] = isinstance(pr_rows, list) and len(pr_rows) >= limit_per_kind
-        repo_cov["actions"]["saturated"] = isinstance(action_rows, list) and len(action_rows) >= limit_per_kind
+        repo_cov["actions"]["saturated"] = isinstance(action_rows, list) and len(action_rows) >= action_saturation_limit
         repo_cov["limit_per_kind"] = limit_per_kind
         # Only historical delta sources control the GitHub watermark/retry state.
         # The queue is a current bounded orientation snapshot; its cap/error must
@@ -1886,17 +1888,20 @@ def _merge_materialized_events(
     *,
     since: datetime,
 ) -> list[dict[str, Any]]:
-    """Merge immutable/revisable source observations by stable event id and prune the horizon."""
+    """Merge history by stable ID; current-only snapshots must be re-emitted each refresh."""
     by_id: dict[str, dict[str, Any]] = {}
-    for raw in [*previous_events, *delta_events]:
-        if not isinstance(raw, dict):
-            continue
-        if not raw.get("retain_history") and not _event_within_horizon(raw, since):
-            continue
-        event_id = str(raw.get("id") or "").strip()
-        if not event_id:
-            continue
-        by_id[event_id] = dict(raw)
+    for is_previous, rows in ((True, previous_events), (False, delta_events)):
+        for raw in rows:
+            if not isinstance(raw, dict):
+                continue
+            if is_previous and raw.get("current_only"):
+                continue
+            if not raw.get("retain_history") and not _event_within_horizon(raw, since):
+                continue
+            event_id = str(raw.get("id") or "").strip()
+            if not event_id:
+                continue
+            by_id[event_id] = dict(raw)
     events = list(by_id.values())
     events.sort(
         key=lambda event: (

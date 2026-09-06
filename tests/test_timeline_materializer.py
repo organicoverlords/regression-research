@@ -29,6 +29,7 @@ from tools.timeline_materializer import (
     mcp_replacement_events,
     query_materialized,
     runner_log_events,
+    _merge_materialized_events,
     _run_process,
 )
 
@@ -377,6 +378,33 @@ class TimelineMaterializerTests(unittest.TestCase):
         commands = [call.args[0] for call in run_json.call_args_list]
         self.assertEqual(commands[2][commands[2].index("--limit") + 1], "1000")
         self.assertEqual(commands[3][commands[3].index("--limit") + 1], "200")
+        repo = coverage["repos"]["organicoverlords/p3"]
+        self.assertFalse(repo["actions"]["saturated"])
+        self.assertNotIn("actions", repo["saturated_kinds"])
+
+
+    def test_github_actions_fallback_at_effective_cap_preserves_historical_retry(self):
+        spec = RepoSpec("p3", Path("C:/fake/p3"))
+        now = "2026-09-06T05:00:00Z"
+        fallback_limit = 200
+        runs = [{
+            "databaseId": index, "workflowName": "verify", "status": "completed", "conclusion": "success",
+            "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "main",
+            "event": "push", "displayTitle": f"fallback run {index}", "url": f"https://example/run/{index}",
+        } for index in range(fallback_limit)]
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
+            "tools.timeline_materializer._run_json",
+            side_effect=[([], None), ([], None), (None, "primary too large"), (runs, None), ([], None)],
+        ):
+            _, coverage = github_events(
+                [spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc), limit_per_kind=1000
+            )
+        repo = coverage["repos"]["organicoverlords/p3"]
+        self.assertTrue(repo["actions"]["saturated"])
+        self.assertIn("actions", repo["saturated_kinds"])
+        self.assertTrue(coverage["saturated"])
+        self.assertTrue(repo["queue"]["complete"])
+        self.assertNotIn("queue", repo["bounded_snapshot_kinds"])
 
     def test_queue_snapshot_cap_does_not_poison_historical_github_retry(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
@@ -529,6 +557,45 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertNotIn("SECRET", json.dumps(event))
             self.assertIn("raw log body not materialized", event["summary"])
             self.assertEqual(coverage["events"], 1)
+
+    def test_incremental_merge_drops_stale_current_only_snapshots_unless_reemitted(self):
+        since = datetime(2026, 9, 6, 4, 0, tzinfo=timezone.utc)
+        historical = {
+            "id": "git:vault:abc",
+            "source_type": "GIT_COMMIT",
+            "event_at": "2026-09-06T04:30:00+00:00",
+        }
+        stale_coordinator = {
+            "id": "coordinator-state-snapshot",
+            "source_type": "COORDINATOR_EVENT",
+            "event_at": "2026-09-06T04:31:00+00:00",
+            "current_only": True,
+            "refs": ["stale-scope"],
+        }
+        stale_queue = {
+            "id": "github-action-summary:organicoverlords/regression-research",
+            "source_type": "GITHUB_ACTION_SUMMARY",
+            "event_at": "2026-09-06T04:32:00+00:00",
+            "current_only": True,
+            "queue_counts": {"queued": 9},
+        }
+        fresh_queue = {
+            **stale_queue,
+            "event_at": "2026-09-06T05:00:00+00:00",
+            "queue_counts": {"queued": 1},
+        }
+
+        merged = _merge_materialized_events(
+            [historical, stale_coordinator, stale_queue],
+            [fresh_queue],
+            since=since,
+        )
+        by_id = {event["id"]: event for event in merged}
+
+        self.assertIn(historical["id"], by_id)
+        self.assertNotIn(stale_coordinator["id"], by_id)
+        self.assertEqual(by_id[stale_queue["id"]]["queue_counts"]["queued"], 1)
+        self.assertEqual(by_id[stale_queue["id"]]["event_at"], fresh_queue["event_at"])
 
     def test_second_refresh_is_incremental_and_reuses_materialized_history(self):
         with tempfile.TemporaryDirectory() as d:
