@@ -1599,7 +1599,10 @@ def materialize(
             "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if backfill_incomplete_sources else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY",
             "live_truth_required": True,
             "historical_evidence_events": len(historical_evidence_events),
-            "work_graph": graph["summary"],
+            "work_graph": {
+                "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
+                **graph["summary"],
+            },
         }
         compact = _fit_memory_overview_budget(compact)
         _atomic_json(bootstrap_path, {
@@ -1901,16 +1904,18 @@ def query_materialized(
             "timeline_role": "HISTORICAL_ORIENTATION_AND_LINEAGE",
             "current_diagnosis": "VERIFY_THE_OWNING_LIVE_REPO_RUNTIME_SCHEDULER_OR_COORDINATOR",
             "absence_semantics": materialized["absence_semantics"],
+            "narrative_order": "CONTINUITY_CASES>WORK_GRAPH>EVIDENCE_DENSITY>CONTEXT_ONLY_CORROBORATION",
+            "observation_semantics": "EVIDENCE_DENSITY_NOT_CASE_COUNT",
+            "broad_github_anchor_semantics": "CONTEXT_ONLY_NEVER_CASE_IDENTITY",
         },
         "materialized": materialized,
         "view": view,
         "project": project.casefold() if project else None,
         "query": " ".join(query.split()),
         "thread": thread,
-        "matching_events": len(selected),
-        "events": [_compact_query_event(event) for event in selected[:effective_limit]],
         "snapshots": build_timeline_snapshots(selected, now=now) if selected else {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
         "work_graph": {
+            "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
             "scope": "QUERY_MATCHED" if query or project or thread else "BOUNDED_OVERVIEW",
             "summary": {
                 "matched_commit_groups": len(matched_groups),
@@ -1922,6 +1927,13 @@ def query_materialized(
             "commit_groups": [compact_group(row) for row in matched_groups[:graph_limit]],
             "similar_commit_groups": matched_similar[:graph_limit],
         },
+        "evidence_density": {
+            "matching_observations": len(selected),
+            "returned_observations": min(len(selected), effective_limit),
+            "semantics": "OBSERVATION_VOLUME_IS_EVIDENCE_DENSITY_NOT_CASE_COUNT",
+        },
+        "matching_events": len(selected),
+        "events": [_compact_query_event(event) for event in selected[:effective_limit]],
         "truncated": len(selected) > effective_limit,
     }
     return result

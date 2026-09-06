@@ -112,8 +112,13 @@ class StackAtlasTests(unittest.TestCase):
                 "artifact_counts": {"report": 3, "screenshot": 2, "evidence_log": 2},
                 "slice": label,
                 "slice_event_count": len(highlights),
+                "continuity_case_summary": {"total": 4, "incident": 2, "regression": 1},
+                "signal_observation_summary": {"total": count, "incident": count // 3, "regression": count // 2},
                 "corroborated_anchors": [
-                    {"anchor": f"github:example/repo#{i}", "source_families": ["memory", "repo"], "event_count": 3}
+                    {
+                        "anchor": f"github:example/repo#{i}", "source_families": ["memory", "repo"],
+                        "event_count": 3, "role": "CONTEXT_ONLY", "case_identity": False,
+                    }
                     for i in range(6)
                 ],
                 "highlights": [
@@ -131,6 +136,12 @@ class StackAtlasTests(unittest.TestCase):
             "eligible_entries": 200,
             "timeline_snapshots": {
                 "authority": "DERIVED_HISTORY_ONLY",
+                "narrative_contract": {
+                    "primary_unit": "CONTINUITY_CASE",
+                    "answer_order": ["CONTINUITY_CASES", "WORK_GRAPH", "EVIDENCE_DENSITY", "CONTEXT_ONLY_CORROBORATION"],
+                    "observation_counts": "EVIDENCE_DENSITY_NOT_CASE_COUNT",
+                    "broad_github_anchors": "CONTEXT_ONLY_NEVER_CASE_IDENTITY",
+                },
                 "windows": [window("24h", 40, list(range(8))), window("3d", 90, list(range(8))), window("7d", 160, list(range(8)))],
             },
             "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
@@ -143,6 +154,15 @@ class StackAtlasTests(unittest.TestCase):
         self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["3d"].get("highlights", [])))
         self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["7d"].get("highlights", [])))
         self.assertIn("sources", windows["24h"])
+        self.assertEqual(compact["timeline_snapshots"]["narrative"]["primary"], "cases")
+        self.assertEqual(compact["timeline_snapshots"]["narrative"]["read_order"], "cases>work_graph>evidence_density>context_only")
+        self.assertEqual(list(windows["24h"])[0:4], ["window", "cases", "evidence_density", "context_only"] if not windows["24h"].get("case_examples") else ["window", "cases", "case_examples", "evidence_density"])
+        self.assertIn("evidence_density", windows["24h"])
+        self.assertIn("observations", windows["24h"])
+        self.assertNotIn("signal_observations", windows["24h"])
+        self.assertNotIn("events", windows["24h"])
+        if windows["24h"].get("context_only"):
+            self.assertEqual(windows["24h"]["context_only"][0]["role"], "CONTEXT_ONLY")
 
     def test_bootstrap_memory_overview_reads_periodic_projection_without_rebuilding_sources(self):
         from datetime import datetime, timezone
