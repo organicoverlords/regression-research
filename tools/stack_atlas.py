@@ -1338,9 +1338,17 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(raw_case_examples, list):
             # Compatibility with materializations created before timeline schema v3.
             raw_case_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
-        for case in raw_case_examples:
-            if not isinstance(case, dict):
-                continue
+        ordered_case_examples = sorted(
+            (case for case in raw_case_examples if isinstance(case, dict)),
+            key=lambda case: (
+                1 if case.get("severity") == "RED" else 0,
+                1 if str(case.get("case_id") or "").casefold().startswith("incident:") else 0,
+                str(case.get("latest_signal_at") or ""),
+                str(case.get("case_id") or ""),
+            ),
+            reverse=True,
+        )
+        for case in ordered_case_examples:
             cases.append({
                 key: value for key, value in {
                     "id": _clip_bootstrap_text(case.get("case_id"), 120),

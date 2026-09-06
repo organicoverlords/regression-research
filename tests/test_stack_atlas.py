@@ -189,6 +189,62 @@ class StackAtlasTests(unittest.TestCase):
         if windows["24h"].get("context_only"):
             self.assertEqual(windows["24h"]["context_only"][0]["role"], "CONTEXT_ONLY")
 
+    def test_bootstrap_case_sample_prioritizes_canonical_red_incident_over_scope_only_red_cases(self):
+        report = {
+            "contract": "history only",
+            "eligible_entries": 20,
+            "timeline_snapshots": {
+                "authority": "DERIVED_HISTORY_ONLY",
+                "narrative_contract": {"primary_unit": "CONTINUITY_CASE"},
+                "windows": [{
+                    "window": "24h",
+                    "event_count": 20,
+                    "continuity_case_summary": {"total": 3, "red": 3, "incident": 3},
+                    "signal_observation_summary": {"total": 3, "red": 3, "incident": 3},
+                    "continuity_case_examples": [
+                        {
+                            "case_id": "scope:newer-red",
+                            "severity": "RED",
+                            "traits": ["regression"],
+                            "observation_count": 1,
+                            "source_families": ["memory"],
+                            "evidence_forms": ["memory"],
+                            "latest_signal_at": "2026-09-06T20:41:00+03:00",
+                            "latest_title": "Newer scope-only red",
+                            "classification_quality": "STRUCTURED",
+                        },
+                        {
+                            "case_id": "incident:inc-20260906-live-stack",
+                            "severity": "RED",
+                            "traits": ["incident", "regression"],
+                            "observation_count": 2,
+                            "source_families": ["artifact", "memory"],
+                            "evidence_forms": ["report", "memory"],
+                            "latest_signal_at": "2026-09-06T20:18:00+03:00",
+                            "latest_title": "RED ALERT: recurring live MCP stack disruption",
+                            "classification_quality": "STRUCTURED",
+                        },
+                        {
+                            "case_id": "scope:older-red",
+                            "severity": "RED",
+                            "traits": ["regression"],
+                            "observation_count": 1,
+                            "source_families": ["memory"],
+                            "evidence_forms": ["memory"],
+                            "latest_signal_at": "2026-09-06T20:10:00+03:00",
+                            "latest_title": "Older scope-only red",
+                            "classification_quality": "STRUCTURED",
+                        },
+                    ],
+                }],
+            },
+            "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
+        }
+        compact = _compact_memory_overview(report, 3)
+        window = compact["timeline_snapshots"]["windows"][0]
+        self.assertEqual(window["case_examples"][0]["id"], "incident:inc-20260906-live-stack")
+        self.assertEqual(window["case_examples"][0]["title"], "RED ALERT: recurring live MCP stack disruption")
+
     def test_second_stage_materialized_metadata_preserves_24h_case_context_and_highlights(self):
         def window(label, count):
             return {
