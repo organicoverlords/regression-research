@@ -3,8 +3,10 @@
 
 Operator-only cleanup. The command never force-removes a worktree, deletes a
 branch, resets/rebases, fetches, or discards dirty/unanchored state. It loops
-internally so a single invocation can absorb lanes that become safely idle
-while it is running.
+internally so a single invocation can absorb lanes that become safely idle.
+For inactive preserved P3 lanes it may also reclaim only Git-ignored standard
+Unreal build/cache directories; tracked Content, Saved, proof/evidence, and
+dirty source are outside that cleanup surface.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ DEFAULT_REPOS = (
     ("P3", Path(r"C:\Users\Lauri\Documents\Unreal Projects\p3"), "p3:git-worktree-metadata"),
     ("Vault", Path(r"C:\Users\Lauri\Desktop\vault"), "regression-research:git-worktree-metadata"),
 )
+P3_GENERATED_DIR_NAMES = frozenset({"Binaries", "Intermediate", "DerivedDataCache"})
 
 
 @dataclass(frozen=True)
@@ -254,6 +257,136 @@ def worktree_is_clean(path: Path) -> bool:
     return True
 
 
+def _is_reparse_dir(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except OSError:
+        return True
+    # Windows FILE_ATTRIBUTE_REPARSE_POINT. Skip symlinks/junction-like dirs so
+    # cache cleanup can never recurse outside the worktree through a reparse.
+    return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & 0x400)
+
+
+def generated_cache_dirs(path: Path) -> list[Path]:
+    """Return only Git-ignored standard Unreal build/cache directories."""
+    candidates: list[Path] = []
+    for name in P3_GENERATED_DIR_NAMES:
+        candidate = path / name
+        if candidate.is_dir() and not _is_reparse_dir(candidate):
+            candidates.append(candidate)
+    plugins = path / "Plugins"
+    if plugins.is_dir() and not _is_reparse_dir(plugins):
+        for current_root, dir_names, _file_names in os.walk(plugins):
+            current = Path(current_root)
+            kept: list[str] = []
+            for name in dir_names:
+                candidate = current / name
+                if _is_reparse_dir(candidate):
+                    continue
+                if name in P3_GENERATED_DIR_NAMES:
+                    candidates.append(candidate)
+                    continue  # do not recurse through generated output
+                kept.append(name)
+            dir_names[:] = kept
+
+    ignored: list[Path] = []
+    for candidate in sorted(set(candidates), key=lambda item: (len(item.parts), str(item).lower())):
+        if any(path_is_same_or_child(candidate, parent) for parent in ignored):
+            continue
+        try:
+            relative = candidate.relative_to(path)
+        except ValueError:
+            continue
+        check = _git(path, "check-ignore", "-q", "--", str(relative), check=False)
+        if check.returncode == 0:
+            ignored.append(candidate)
+    return ignored
+
+
+def _current_worktree(repo: Path, path: Path) -> Worktree | None:
+    needle = _norm_path(path)
+    for item in parse_worktrees(_git(repo, "worktree", "list", "--porcelain").stdout):
+        if _norm_path(item.path) == needle:
+            return item
+    return None
+
+
+def _fresh_cache_guard(repo: Path, worktree: Worktree, window_seconds: int) -> str | None:
+    current = _current_worktree(repo, worktree.path)
+    if current is None:
+        return "missing_registration"
+    if current.head != worktree.head or current.branch != worktree.branch:
+        return "worktree_identity_changed"
+    if current.locked:
+        return f"git_worktree_locked:{current.locked}"
+    recent = recent_mcp_cwds(window_seconds)
+    processes = windows_processes()
+    if cwd_targets_path(worktree.path, recent):
+        return "recent_mcp_cwd_activity"
+    if process_targets_path(worktree.path, processes, self_pid=os.getpid()):
+        return "external_process_targets_path"
+    return None
+
+
+def _cache_scope(repo_name: str, worktree: Worktree) -> str:
+    leaf = worktree.path.name.replace(":", "_") or "worktree"
+    return f"{repo_name.lower()}:generated-cache:{leaf}"
+
+
+def _clean_generated_cache_one(
+    repo_name: str, repo: Path, worktree: Worktree, window_seconds: int
+) -> Action:
+    reason = _fresh_cache_guard(repo, worktree, window_seconds)
+    if reason:
+        return Action(repo_name, str(worktree.path), "SKIP", worktree.branch, worktree.head, reason)
+    candidates = generated_cache_dirs(worktree.path)
+    if not candidates:
+        return Action(repo_name, str(worktree.path), "SKIP", worktree.branch, worktree.head, "no_generated_cache")
+
+    removed: list[str] = []
+    for candidate in candidates:
+        try:
+            relative = candidate.relative_to(worktree.path)
+        except ValueError:
+            continue
+        # Re-prove ignore status immediately before each destructive directory
+        # operation. Never remove a directory merely because its name matches.
+        check = _git(worktree.path, "check-ignore", "-q", "--", str(relative), check=False)
+        if check.returncode != 0 or _is_reparse_dir(candidate):
+            continue
+        try:
+            shutil.rmtree(candidate)
+        except OSError as exc:
+            if removed:
+                return Action(
+                    repo_name,
+                    str(worktree.path),
+                    "CLEANED_GENERATED_CACHE",
+                    worktree.branch,
+                    worktree.head,
+                    f"partial dirs={len(removed)} blocked={relative}:{exc.__class__.__name__}",
+                )
+            return Action(
+                repo_name,
+                str(worktree.path),
+                "BLOCKED",
+                worktree.branch,
+                worktree.head,
+                f"generated_cache_locked:{relative}:{exc.__class__.__name__}",
+            )
+        removed.append(str(relative))
+    if not removed:
+        return Action(repo_name, str(worktree.path), "SKIP", worktree.branch, worktree.head, "no_generated_cache")
+    return Action(
+        repo_name,
+        str(worktree.path),
+        "CLEANED_GENERATED_CACHE",
+        worktree.branch,
+        worktree.head,
+        f"dirs={len(removed)}",
+    )
+
+
 def branch_ref_matches(repo: Path, worktree: Worktree) -> bool:
     if worktree.detached or not worktree.branch or not worktree.head:
         return False
@@ -357,15 +490,23 @@ def _remove_one(repo_name: str, repo: Path, worktree: Worktree, window_seconds: 
     return Action(repo_name, str(worktree.path), "REMOVED_RESIDUE", worktree.branch, worktree.head)
 
 
-def scan_repo(repo_name: str, repo: Path, window_seconds: int) -> tuple[list[Worktree], list[Action]]:
+def scan_repo(
+    repo_name: str, repo: Path, window_seconds: int
+) -> tuple[list[Worktree], list[Worktree], list[Action]]:
     worktrees = parse_worktrees(_git(repo, "worktree", "list", "--porcelain").stdout)
     recent = recent_mcp_cwds(window_seconds)
     processes = windows_processes()
     candidates: list[Worktree] = []
+    cache_candidates: list[Worktree] = []
     observations: list[Action] = []
     for worktree in worktrees[1:]:
+        cache_guarded = bool(
+            worktree.locked
+            or cwd_targets_path(worktree.path, recent)
+            or process_targets_path(worktree.path, processes, self_pid=os.getpid())
+        )
         # Cheap guards first: do not run expensive status checks on active or
-        # detached/unanchored lanes that can never be removed by this tool.
+        # detached/unanchored lanes that can never be removed as whole lanes.
         preliminary = eligibility_reason(
             worktree,
             recent_cwds=recent,
@@ -375,6 +516,8 @@ def scan_repo(repo_name: str, repo: Path, window_seconds: int) -> tuple[list[Wor
         )
         if preliminary and (preliminary.startswith("git_worktree_locked:") or preliminary in {"detached_or_unanchored", "recent_mcp_cwd_activity", "external_process_targets_path", "branch_ref_mismatch"}):
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, preliminary))
+            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
+                cache_candidates.append(worktree)
             continue
         clean = worktree_is_clean(worktree.path)
         reason = eligibility_reason(
@@ -386,9 +529,39 @@ def scan_repo(repo_name: str, repo: Path, window_seconds: int) -> tuple[list[Wor
         )
         if reason:
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, reason))
+            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
+                cache_candidates.append(worktree)
         else:
             candidates.append(worktree)
-    return candidates, observations
+    return candidates, cache_candidates, observations
+
+
+def summarize_actions(actions: list[Action]) -> dict[str, Any]:
+    final_by_path: dict[tuple[str, str], Action] = {}
+    for row in actions:
+        final_by_path[(row.repo, row.path)] = row
+    compact_actions = list(final_by_path.values())
+    progress_events = [
+        row
+        for row in actions
+        if row.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE", "CLEANED_GENERATED_CACHE"}
+    ]
+    removed_paths = {
+        (row.repo, row.path)
+        for row in progress_events
+        if row.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}
+    }
+    cache_cleaned_paths = {
+        (row.repo, row.path) for row in progress_events if row.action == "CLEANED_GENERATED_CACHE"
+    }
+    blocked = [row for row in compact_actions if row.action == "BLOCKED"]
+    return {
+        "removed_count": len(removed_paths),
+        "generated_cache_cleanup_count": len(cache_cleaned_paths),
+        "blocked_count": len(blocked),
+        "progress_events": [row.__dict__ for row in progress_events],
+        "actions": [row.__dict__ for row in compact_actions],
+    }
 
 
 def converge(
@@ -413,34 +586,55 @@ def converge(
         round_progress = 0
         round_candidates = 0
         for repo_name, repo, scope in existing_repos:
-            candidates, observations = scan_repo(repo_name, repo, window_seconds)
+            candidates, cache_candidates, observations = scan_repo(repo_name, repo, window_seconds)
             actions.extend(observations)
-            round_candidates += len(candidates)
-            if not candidates:
-                continue
+            round_candidates += len(candidates) + len(cache_candidates)
             if not apply:
                 actions.extend(Action(repo_name, str(item.path), "WOULD_REMOVE", item.branch, item.head) for item in candidates)
+                actions.extend(
+                    Action(repo_name, str(item.path), "WOULD_CLEAN_GENERATED_CACHE", item.branch, item.head, f"dirs={len(generated_cache_dirs(item.path))}")
+                    for item in cache_candidates
+                )
                 continue
 
-            claimed, detail = busy_claim(actor, scope)
-            if not claimed:
-                actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"busy_claim_failed:{detail}"))
-                continue
-            removed_here = 0
-            try:
-                for item in candidates:
-                    result = _remove_one(repo_name, repo, item, window_seconds)
+            if candidates:
+                claimed, detail = busy_claim(actor, scope)
+                if not claimed:
+                    actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"busy_claim_failed:{detail}"))
+                else:
+                    removed_here = 0
+                    try:
+                        for item in candidates:
+                            result = _remove_one(repo_name, repo, item, window_seconds)
+                            actions.append(result)
+                            if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
+                                round_progress += 1
+                                removed_here += 1
+                        _git(repo, "worktree", "prune", check=False)
+                    finally:
+                        busy_release(
+                            actor,
+                            scope,
+                            f"cleanup converger round {round_no}: removed {removed_here}; non-force branch-preserving operator cleanup",
+                        )
+
+            for item in cache_candidates:
+                cache_scope = _cache_scope(repo_name, item)
+                claimed, detail = busy_claim(actor, cache_scope)
+                if not claimed:
+                    actions.append(Action(repo_name, str(item.path), "BLOCKED", item.branch, item.head, f"cache_busy_claim_failed:{detail}"))
+                    continue
+                try:
+                    result = _clean_generated_cache_one(repo_name, repo, item, window_seconds)
                     actions.append(result)
-                    if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
+                    if result.action == "CLEANED_GENERATED_CACHE":
                         round_progress += 1
-                        removed_here += 1
-                _git(repo, "worktree", "prune", check=False)
-            finally:
-                busy_release(
-                    actor,
-                    scope,
-                    f"cleanup converger round {round_no}: removed {removed_here}; non-force branch-preserving operator cleanup",
-                )
+                finally:
+                    busy_release(
+                        actor,
+                        cache_scope,
+                        f"cleanup converger round {round_no}: generated-cache pass for {item.path.name}; ignored Unreal build outputs only",
+                    )
 
         if not apply:
             break
@@ -454,24 +648,19 @@ def converge(
             time.sleep(settle_seconds)
 
     after_free = disk_free_gb(existing_repos[0][1])
-    final_by_path: dict[tuple[str, str], Action] = {}
-    for row in actions:
-        final_by_path[(row.repo, row.path)] = row
-    compact_actions = list(final_by_path.values())
-    removed = [row for row in compact_actions if row.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}]
-    blocked = [row for row in compact_actions if row.action == "BLOCKED"]
+    summary = summarize_actions(actions)
     return {
         "mode": "apply" if apply else "dry-run",
         "operator_only": True,
         "rounds_run": rounds_run,
         "stable_rounds_required": stable_rounds,
-        "removed_count": len(removed),
-        "blocked_count": len(blocked),
+        **{key: summary[key] for key in ("removed_count", "generated_cache_cleanup_count", "blocked_count")},
         "disk_free_before_gb": before_free,
         "disk_free_after_gb": after_free,
         "disk_free_delta_gb": round(after_free - before_free, 1),
         "action_events_total": len(actions),
-        "actions": [row.__dict__ for row in compact_actions],
+        "progress_events": summary["progress_events"],
+        "actions": summary["actions"],
     }
 
 

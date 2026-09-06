@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -7,13 +8,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.cleanup_converger import (
+    Action,
     Worktree,
     cwd_targets_path,
     eligibility_reason,
+    generated_cache_dirs,
+    _clean_generated_cache_one,
+    _fresh_cache_guard,
     parse_worktrees,
     path_is_same_or_child,
     process_targets_path,
     recent_mcp_cwds,
+    summarize_actions,
 )
 
 
@@ -119,6 +125,76 @@ class CleanupConvergerTests(unittest.TestCase):
             eligibility_reason(lane, recent_cwds=set(), processes=[], clean=True, ref_matches=True),
             "git_worktree_locked:protected worker lane",
         )
+
+
+
+    def test_progress_summary_retains_cache_cleanup_before_later_preserve(self):
+        actions = [
+            Action("P3", r"C:\lane", "CLEANED_GENERATED_CACHE", reason="dirs=3"),
+            Action("P3", r"C:\lane", "PRESERVE", reason="dirty"),
+        ]
+        summary = summarize_actions(actions)
+        self.assertEqual(summary["generated_cache_cleanup_count"], 1)
+        self.assertEqual(summary["actions"][0]["action"], "PRESERVE")
+        self.assertEqual(summary["progress_events"][0]["action"], "CLEANED_GENERATED_CACHE")
+
+    def test_generated_cache_dirs_are_git_ignored_unreal_outputs_only(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / ".gitignore").write_text(
+                "Intermediate/\nBinaries/\nDerivedDataCache/\nPlugins/**/Intermediate/\nPlugins/**/Binaries/\n",
+                encoding="utf-8",
+            )
+            for relative in (
+                "Intermediate/x",
+                "Binaries/x",
+                "Plugins/P3/P3UI/Intermediate/x",
+                "Plugins/P3/P3UI/Binaries/x",
+                "Content/keep",
+                "Saved/proof",
+                "evidence/keep",
+            ):
+                (root / relative).mkdir(parents=True, exist_ok=True)
+            found = {item.relative_to(root).as_posix() for item in generated_cache_dirs(root)}
+            self.assertEqual(
+                found,
+                {"Intermediate", "Binaries", "Plugins/P3/P3UI/Intermediate", "Plugins/P3/P3UI/Binaries"},
+            )
+
+    @patch("tools.cleanup_converger._fresh_cache_guard", return_value=None)
+    def test_generated_cache_cleanup_preserves_content_saved_and_dirty_source(self, _guard):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / ".gitignore").write_text(
+                "Intermediate/\nPlugins/**/Intermediate/\n", encoding="utf-8"
+            )
+            keep_paths = [root / "Content" / "asset.uasset", root / "Saved" / "proof.png", root / "Source" / "dirty.cpp"]
+            for keep in keep_paths:
+                keep.parent.mkdir(parents=True, exist_ok=True)
+                keep.write_text("keep", encoding="utf-8")
+            generated = [root / "Intermediate" / "build.obj", root / "Plugins" / "P3" / "P3UI" / "Intermediate" / "build.obj"]
+            for item in generated:
+                item.parent.mkdir(parents=True, exist_ok=True)
+                item.write_text("generated", encoding="utf-8")
+            lane = Worktree(root, "abcd", "topic", False)
+            result = _clean_generated_cache_one("P3", root, lane, 300)
+            self.assertEqual(result.action, "CLEANED_GENERATED_CACHE")
+            self.assertTrue(all(path.exists() for path in keep_paths))
+            self.assertTrue(all(not path.exists() for path in generated))
+
+    @patch("tools.cleanup_converger.windows_processes")
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger._current_worktree")
+    def test_generated_cache_guard_preserves_locked_or_process_targeted_lane(self, current, _cwds, processes):
+        lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False)
+        current.return_value = Worktree(lane.path, lane.head, lane.branch, False, "protected")
+        processes.return_value = []
+        self.assertEqual(_fresh_cache_guard(Path(r"C:\repo"), lane, 300), "git_worktree_locked:protected")
+        current.return_value = lane
+        processes.return_value = [{"ProcessId": 42, "CommandLine": r"cl.exe C:\Temp\lane\x.cpp"}]
+        self.assertEqual(_fresh_cache_guard(Path(r"C:\repo"), lane, 300), "external_process_targets_path")
 
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):

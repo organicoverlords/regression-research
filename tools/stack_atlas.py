@@ -375,7 +375,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
             r"python C:\Users\Lauri\Desktop\vault\tools\cleanup_converger.py --apply --operator-ack",
             r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\operator-cleanup-convergence.md",
         ],
-        "boundary": "Operator-only bounded convergence. One invocation loops internally to a stable boundary and may remove only clean branch-anchored inactive secondary P3/Vault worktrees after both recent MCP-CWD and external process-command-line guards pass. No force removal, branch deletion, fetch, reset/rebase, dirty/unanchored deletion, permission change, or process kill. Recurring workers must not use it to administer themselves or sibling lanes.",
+        "boundary": "Operator-only bounded convergence. One invocation loops internally to a stable boundary; it may remove only clean branch-anchored inactive secondary P3/Vault worktrees, and may reclaim only Git-ignored standard Unreal Binaries/Intermediate/DerivedDataCache from inactive preserved secondary P3 lanes. Recent MCP-CWD, external process targets, and Git-locked lanes veto cache cleanup; tracked Content/Saved/proof/evidence/source are excluded. No force removal, branch deletion, fetch, reset/rebase, dirty/unanchored deletion, permission change, or process kill. Recurring workers must not use it to administer themselves or sibling lanes.",
     },
     "work.intake": {
         "owner_components": ["agent_rules", "github", "local_git", "busy_coordinator"],
