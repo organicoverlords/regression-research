@@ -1295,6 +1295,65 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexes the #569 Vault/MCP audit reconciliation addendum. It narrows live activity semantics, records workspace-attribution and manual-history robustness gaps, and distinguishes merged MCP evidence-owner code from the older serving generation. Named live runtime/GitHub evidence is not fabricated as a local provenance path."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-06_0204_EEST_MCP_log_retention_regression.md",
+      "title": "Major regression incident — MCP log retention semantics",
+      "date": "2026-09-06T02:02:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the MCP log-retention regression report. The report records an approximately 02:02 EEST observation and names external GitHub commits/issues as evidence; no direct local raw transcript, evidence file, or contract snapshot is claimed, so those links remain unresolved rather than guessed."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-06_0346_EEST_RED_ALERT_unproven_MCP_batching_ban_regression.md",
+      "title": "RED ALERT — unproven MCP batching-ban policy regression",
+      "date": "2026-09-06T03:46:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the RED ALERT report about promoting an unproven MCP batching hypothesis into shared policy. The report cites external agents issues/PRs and a user correction; no direct local raw transcript, evidence file, or contract snapshot is named, so none is fabricated here."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "research_synthesis_not_incident_id",
+      "report_path": "01 Reports/2026-09-06_0531_EEST_RR125_timeline_convergence_research.md",
+      "title": "Regression Research #125 - timeline convergence research",
+      "date": "2026-09-06T05:31:00+03:00",
+      "evidence_type": "research_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the #125 timeline-convergence research synthesis. It is a read-only research report rather than a single incident. The report cites measured repository/runtime evidence and issue history but does not name a direct local raw transcript, evidence file, or contract snapshot for provenance indexing."
     }
   ],
   "orphan_evidence": [
