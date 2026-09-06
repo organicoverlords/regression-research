@@ -630,6 +630,43 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(old_errors["matching_events"], 1)
             self.assertEqual(old_errors["events"][0]["id"], "mem:old")
 
+    def test_query_materialized_ranks_semantic_history_and_preserves_causal_correction(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            stamp = datetime.now(timezone.utc).isoformat()
+            primary = {
+                "id": "worker:primary", "source_type": "WORKER_REPORT", "event_at": stamp,
+                "title": "Fix P3 paging build failure chain under healthy memory headroom",
+                "summary": "P3 build pressure classification", "project": "p3", "refs": [], "anchors": [],
+            }
+            falsifier = {
+                "id": "mem:falsifier", "source_type": "VAULT_MEMORY", "event_at": stamp,
+                "title": "MCP stress correction", "summary": "Causal correction from stress tests",
+                "_search_text": "2.5 GB memory hold and moderate paging not sufficient; per-connection transient not_proven",
+                "project": "p3", "refs": [], "anchors": [],
+            }
+            generic = {
+                "id": "git:generic", "source_type": "GIT_COMMIT", "event_at": stamp,
+                "title": "P3 build update with RAM paging pressure", "summary": "generic project token overlap",
+                "project": "p3", "refs": [], "anchors": [],
+            }
+            (state / "timeline-store.json").write_text(json.dumps({
+                "schema": SCHEMA, "generated_at": stamp, "horizon_days": 30,
+                "timeline": {"schema_version": 3, "authority": "DERIVED_HISTORY_ONLY", "contract": {},
+                    "events": [generic, falsifier, primary], "historical_evidence_events": [],
+                    "continuity_graph": {"cases": [], "summary": {}}, "work_graph": {}},
+            }), encoding="utf-8")
+            result = query_materialized(
+                root=root,
+                query="why did P3 builds stop under RAM paging pressure with healthy headroom",
+                limit=20,
+            )
+            ids = [event["id"] for event in result["events"]]
+            self.assertEqual(ids[0], "worker:primary")
+            self.assertIn("mem:falsifier", ids[:3])
+
     def test_install_task_schedules_only_periodic_materializer(self):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="SUCCESS", stderr="")
         with patch("tools.timeline_materializer.subprocess.run", return_value=completed) as run:

@@ -4,6 +4,7 @@ import argparse
 from bisect import bisect_left, bisect_right
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -59,6 +60,43 @@ LOCK_STALE_MINUTES = 30
 WORKER_ARCHIVE_SAMPLE_LIMIT = 5
 WORKER_ARCHIVE_STALE_MINUTES = 90.0
 
+_QUERY_STOP_WORDS = {
+    "a", "an", "and", "be", "by", "cross", "did", "for", "from", "getting", "history", "how", "in",
+    "is", "keep", "of", "on", "or", "that", "the", "this", "to", "was", "were", "what", "why", "with",
+}
+_QUERY_CONCEPT_GROUPS = (
+    frozenset({"ram", "memory"}),
+    frozenset({"paging", "pagefile"}),
+    frozenset({"runner", "runners"}),
+    frozenset({"proof", "evidence"}),
+    frozenset({"review", "reviewed", "inspection", "inspected", "accepted", "acceptance"}),
+    frozenset({"capture", "captures", "captured", "screenshot", "screenshots", "frame", "frames"}),
+    frozenset({"visual", "visible", "render", "rendered", "image", "images", "picture", "pictures"}),
+    frozenset({"branch", "branches", "worktree", "worktrees"}),
+    frozenset({"convergence", "converge", "converged", "merge", "merged", "integration", "integrated"}),
+    frozenset({"reconnect", "reconnection", "connection", "connections"}),
+    frozenset({"reroute", "rerouted", "routing", "route"}),
+    frozenset({"regression", "incident"}),
+    frozenset({"ci", "workflow", "action", "actions"}),
+    frozenset({"pressure", "headroom", "commit"}),
+)
+_QUERY_CONCEPT_BY_TOKEN = {token: group for group in _QUERY_CONCEPT_GROUPS for token in group}
+_QUERY_SOURCE_PRIOR = {"VAULT_MEMORY": 2.0, "WORKER_REPORT": 0.82, "GITHUB_ACTION": 0.9}
+_CAUSAL_QUERY_TOKENS = {"why", "cause", "causal", "because", "caused"}
+_CAUSAL_CORRECTION_PHRASES = (
+    "did not reproduce",
+    "didn't reproduce",
+    "not reproduce",
+    "did not cause",
+    "not the cause",
+    "paging not sufficient",
+    "not_proven",
+    "causal falsifier",
+    "causal link not proven",
+    "causality not proven",
+    "ruled out",
+    "disproved",
+)
 _GITHUB_REMOTE_RE = re.compile(r"github\.com[:/](?P<repo>[^/\s]+/[^/\s]+?)(?:\.git)?$", re.I)
 _ISSUE_REF_RE = re.compile(r"#(?P<number>\d+)\b")
 _SHA_RE = re.compile(r"\b[0-9a-f]{7,40}\b", re.I)
@@ -1702,6 +1740,7 @@ def materialize(
             snapshot_now=now,
             source_coverage=source_coverage,
         )
+        _enrich_memory_search_text(timeline.get("events", []), entries)
         timeline["historical_evidence_events"] = historical_evidence_events
         timeline["worker_archive"] = worker_archive
         continuity_graph = build_continuity_graph(timeline["events"])
@@ -1897,7 +1936,57 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
     }
 
 
-def _event_matches_query(event: dict[str, Any], query: str) -> bool:
+def _simple_query_token(token: str) -> str:
+    if len(token) > 4 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 4 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
+def _query_concepts(query: str) -> list[frozenset[str]]:
+    concepts: list[frozenset[str]] = []
+    seen: set[frozenset[str]] = set()
+    for token in re.findall(r"[a-z0-9]+", query.casefold()):
+        if token in _QUERY_STOP_WORDS:
+            continue
+        concept = _QUERY_CONCEPT_BY_TOKEN.get(token, frozenset({_simple_query_token(token)}))
+        if concept not in seen:
+            seen.add(concept)
+            concepts.append(concept)
+    return concepts
+
+
+def _query_tokens(value: Any) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
+
+
+def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
+    metadata = " ".join([
+        " ".join(str(value) for value in event.get("tags", []) or []),
+        str(event.get("scope") or ""),
+        str(event.get("semantic_category") or ""),
+        str(event.get("primary_domain") or ""),
+        str(event.get("project") or ""),
+        " ".join(str(value) for value in event.get("projects", []) or []),
+        str(event.get("worker") or ""),
+        str(event.get("artifact_type") or ""),
+    ])
+    links = " ".join([
+        " ".join(str(value) for value in event.get("refs", []) or []),
+        " ".join(str(value) for value in event.get("anchors", []) or []),
+        " ".join(str(value) for value in event.get("evidence", []) or []),
+    ])
+    return [
+        (4.0, _query_tokens(event.get("title"))),
+        (2.0, _query_tokens(event.get("summary"))),
+        (1.2, _query_tokens(event.get("_search_text"))),
+        (2.2, _query_tokens(metadata)),
+        (0.7, _query_tokens(links)),
+    ]
+
+
+def _event_matches_identity_query(event: dict[str, Any], query: str) -> bool:
     tokens = set(re.findall(r"[a-z0-9]+", query.casefold()))
     if not tokens:
         return True
@@ -1912,6 +2001,82 @@ def _event_matches_query(event: dict[str, Any], query: str) -> bool:
         " ".join(str(value) for value in event.get("case_anchors", []) or []),
     ]).casefold()
     return tokens <= set(re.findall(r"[a-z0-9]+", hay))
+
+
+def _event_matches_query(event: dict[str, Any], query: str) -> bool:
+    concepts = _query_concepts(query)
+    if not concepts:
+        return True
+    fields = _event_query_fields(event)
+    merged = set().union(*(tokens for _, tokens in fields))
+    matched = sum(1 for concept in concepts if merged & concept)
+    return matched >= (2 if len(concepts) >= 2 else 1)
+
+
+def _rank_query_events(events: list[dict[str, Any]], query: str) -> list[tuple[float, dict[str, Any]]]:
+    concepts = _query_concepts(query)
+    if not concepts:
+        return [(1.0, event) for event in events]
+    fields_by_id = [_event_query_fields(event) for event in events]
+    document_frequency = [0] * len(concepts)
+    for fields in fields_by_id:
+        merged = set().union(*(tokens for _, tokens in fields))
+        for index, concept in enumerate(concepts):
+            if merged & concept:
+                document_frequency[index] += 1
+    corpus_size = max(1, len(events))
+    minimum_matches = 2 if len(concepts) >= 2 else 1
+    ranked: list[tuple[float, dict[str, Any]]] = []
+    for event, fields in zip(events, fields_by_id):
+        matched = 0
+        score = 0.0
+        for index, concept in enumerate(concepts):
+            best_weight = max((weight for weight, tokens in fields if tokens & concept), default=0.0)
+            if not best_weight:
+                continue
+            matched += 1
+            rarity = math.log(1.0 + (corpus_size + 1.0) / (document_frequency[index] + 1.0))
+            score += best_weight * rarity
+        if matched < minimum_matches:
+            continue
+        coverage = matched / min(len(concepts), 6)
+        score *= 0.75 + (1.35 * coverage)
+        score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
+        query_tokens = _query_tokens(query)
+        if query_tokens & _CAUSAL_QUERY_TOKENS:
+            causal_hay = " ".join([
+                str(event.get("title") or ""),
+                str(event.get("summary") or ""),
+                str(event.get("_search_text") or ""),
+            ]).casefold()
+            if any(phrase in causal_hay for phrase in _CAUSAL_CORRECTION_PHRASES):
+                score *= 2.25
+        ranked.append((score, event))
+    ranked.sort(
+        key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
+        reverse=True,
+    )
+    return ranked
+
+
+def _memory_search_text(entry: dict[str, Any]) -> str:
+    values = [
+        str(entry.get("text") or ""),
+        " ".join(str(value) for value in entry.get("source_messages", []) or []),
+        str(entry.get("interpretation") or ""),
+        str(entry.get("confidence_reason") or ""),
+    ]
+    return " ".join(value for value in values if value)[:6000]
+
+
+def _enrich_memory_search_text(events: Iterable[dict[str, Any]], entries: Iterable[dict[str, Any]]) -> None:
+    by_id = {str(entry.get("id") or ""): entry for entry in entries if isinstance(entry, dict) and entry.get("id")}
+    for event in events:
+        if event.get("source_type") != "VAULT_MEMORY":
+            continue
+        source = by_id.get(str(event.get("id") or ""))
+        if source:
+            event["_search_text"] = _memory_search_text(source)
 
 
 def _clip_query_value(value: Any, limit: int) -> str | None:
@@ -1987,7 +2152,7 @@ def query_materialized(
     events = list(by_id.values())
     now = datetime.now().astimezone()
     since = now - timedelta(days=days) if days is not None else None
-    selected: list[dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
     for event in events:
         if not include_workers and event.get("source_type") == "WORKER_REPORT":
             continue
@@ -2005,10 +2170,16 @@ def query_materialized(
             continue
         if view == "errors" and not is_forensic_error_event(event):
             continue
-        if not _event_matches_query(event, query):
-            continue
-        selected.append(event)
-    selected.sort(key=lambda event: (str(event.get("event_at") or ""), str(event.get("id") or "")), reverse=True)
+        candidates.append(event)
+    if query:
+        ranked_events = _rank_query_events(candidates, query)
+        selected = [event for _, event in ranked_events]
+    else:
+        selected = sorted(
+            candidates,
+            key=lambda event: (str(event.get("event_at") or ""), str(event.get("id") or "")),
+            reverse=True,
+        )
     effective_limit = min(500, max(1, int(limit)))
     graph_limit = min(6, effective_limit)
     selected_ids = {str(event.get("id") or "") for event in selected}
@@ -2037,7 +2208,7 @@ def query_materialized(
                 "refs": [event.get("automation_id") or "", event.get("run_id") or ""],
                 "anchors": [],
             }
-            if _event_matches_query(identity_probe, query):
+            if _event_matches_identity_query(identity_probe, query):
                 selected_attachment_ids.add(event_id)
 
     def compact_group(row: dict[str, Any]) -> dict[str, Any]:
@@ -2068,7 +2239,7 @@ def query_materialized(
     def case_matches_query(case: dict[str, Any]) -> bool:
         if not query:
             return True
-        return _event_matches_query({
+        return _event_matches_identity_query({
             "title": case.get("latest_title") or "",
             "summary": " ".join(str(value) for value in case.get("traits", []) or []),
             "refs": case.get("anchors", []) or [],
@@ -2182,6 +2353,14 @@ def query_materialized(
     return result
 
 
+def _schtasks_encoding() -> str:
+    return "oem" if os.name == "nt" else "utf-8"
+
+
+def _emit_json(payload: Any) -> None:
+    print(json.dumps(payload, ensure_ascii=True))
+
+
 def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
     minutes = max(1, int(minutes))
     action = f'"{sys.executable}" "{Path(__file__).resolve()}" refresh --quiet'
@@ -2190,7 +2369,7 @@ def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
         "/SC", "MINUTE", "/MO", str(minutes), "/TR", action,
     ]
     try:
-        proc = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, timeout=30)
+        proc = subprocess.run(command, capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=30)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "status": "TASK_INSTALL_ERROR", "error": str(exc)}
     return {
@@ -2207,7 +2386,7 @@ def task_status() -> dict[str, Any]:
     try:
         proc = subprocess.run(
             ["schtasks.exe", "/Query", "/TN", TASK_NAME, "/FO", "LIST", "/V"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, timeout=15,
+            capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=15,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "status": "UNKNOWN", "error": str(exc)}
@@ -2259,7 +2438,7 @@ def main() -> int:
             rebuild=args.rebuild,
         )
         if not args.quiet:
-            print(json.dumps(result, ensure_ascii=False))
+            _emit_json(result)
         # A concurrent materializer already holding the atomic refresh lock is an
         # intentional successful no-op for periodic scheduling. Reporting it as a
         # process failure makes Task Scheduler look unhealthy even though duplicate
@@ -2269,11 +2448,11 @@ def main() -> int:
         return 0 if result.get("ok") else 1
     if args.command == "install-task":
         result = install_task(minutes=args.minutes)
-        print(json.dumps(result, ensure_ascii=False))
+        _emit_json(result)
         return 0 if result.get("ok") else 1
     if args.command == "task-status":
         result = task_status()
-        print(json.dumps(result, ensure_ascii=False))
+        _emit_json(result)
         return 0 if result.get("ok") else 1
     result = query_materialized(
         root=args.root,
@@ -2288,7 +2467,7 @@ def main() -> int:
     if result is None:
         print(json.dumps({"status": "MISSING", "error": "materialized timeline not available"}))
         return 2
-    print(json.dumps(result, ensure_ascii=False))
+    _emit_json(result)
     return 0
 
 
