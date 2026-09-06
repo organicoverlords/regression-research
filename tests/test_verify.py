@@ -19,9 +19,13 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"README.md"}), [])
 
     def test_timeline_changes_select_memory_verification(self):
-        for path in ("tools/timeline_materializer.py",
-                     "tests/test_timeline_materializer.py",
-                     "tests/test_timeline_query_filters.py"):
+        for path in (
+            "tools/repo_timeline.py",
+            "tests/test_repo_timeline.py",
+            "tools/timeline_materializer.py",
+            "tests/test_timeline_materializer.py",
+            "tests/test_timeline_query_filters.py",
+        ):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["memory"])
 
@@ -30,10 +34,12 @@ class VerifyTests(unittest.TestCase):
     def test_memory_verification_executes_timeline_regressions(self, pytest_run, run):
         verify_memory()
         test_paths = pytest_run.call_args.args[0]
+        self.assertIn("tests/test_repo_timeline.py", test_paths)
         self.assertIn("tests/test_timeline_materializer.py", test_paths)
         self.assertIn("tests/test_timeline_query_filters.py", test_paths)
         self.assertIn("tests/test_mcp_reroute_evidence.py", test_paths)
         compile_command = run.call_args_list[0].args[0]
+        self.assertIn("tools/repo_timeline.py", compile_command)
         self.assertIn("tools/timeline_materializer.py", compile_command)
         self.assertIn("tools/mcp_reroute_evidence.py", compile_command)
         self.assertIn([sys.executable, "tools/mcp_reroute_evidence.py", "verify"], [call.args[0] for call in run.call_args_list])
