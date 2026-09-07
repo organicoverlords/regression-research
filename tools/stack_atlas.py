@@ -50,6 +50,36 @@ BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
 BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT = 4
 BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES = 30.0
 BOOTSTRAP_MANUAL_REPORT_READ_BYTES = 16 * 1024
+CANONICAL_RECURRING_WORKER_PARTITIONS = {
+    "S1": (
+        ("6a9adbfcc0588191b0af53bdf70fc1fe", "Repo Worker Hazel"),
+        ("6a9adc04e6a881918433be70752b1426", "Repo Worker Maple"),
+        ("6a9adc0dbf6481919c607312a5041d1d", "Repo Worker Pine"),
+        ("6a9adbe27ff08191a918fa3e51aaf9b8", "Repo Worker Aspen"),
+        ("6a9b8fc37c148191a70dc17e1e83eda4", "Repo Worker Alder"),
+    ),
+    "S2": (
+        ("6a9ee44357908191a11023d4ff0b5b82", "Repo Worker Rowan #S2"),
+        ("6a9ee44e36908191aa0f4fd3d8ebad55", "Repo Worker Spruce #S2"),
+        ("6a9ee456182881918005c354563e8638", "Repo Worker Willow #S2"),
+        ("6a9ee45e7c208191aae86087f11875d9", "Repo Worker Juniper #S2"),
+        ("6a9ee46471a88191b478716a47a38cc4", "Repo Worker Alder #S2"),
+    ),
+}
+CANONICAL_RECURRING_WORKERS = tuple(
+    worker
+    for partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.values()
+    for worker in partition_workers
+)
+CANONICAL_RECURRING_WORKER_PARTITION_BY_ID = {
+    worker_id: partition
+    for partition, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
+    for worker_id, _ in partition_workers
+}
+BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES = 70.0
+BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES = 70.0
+BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES = 10.0
+BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES = 2.0
 AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
@@ -891,6 +921,294 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         "malformed_running_reports": malformed_running_sample,
         "malformed_running_reports_truncated": malformed_running_reports > len(malformed_running_sample),
     }
+
+def _bootstrap_fleet_watch(
+    now: datetime | None = None,
+    *,
+    partition: str | None = None,
+    worker_id: str | None = None,
+) -> dict[str, Any]:
+    """Compact fleet-cadence signal from local reports/start receipts only.
+
+    Unscoped callers get the global 5+5 view. Timed workers pass their own automation id
+    so recovery candidates are restricted to siblings in that subscription partition.
+    """
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+
+    requested_partition = str(partition or "").strip().upper() or None
+    worker_key = str(worker_id or "").strip().lower() or None
+    if worker_key is not None:
+        worker_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_key)
+        if worker_partition is None:
+            return {
+                "status": "INVALID_WORKER_ID",
+                "authority": "canonical_recurring_worker_partition_map",
+                "worker_id": worker_key,
+                "scheduler_probe": "not_performed",
+            }
+        if requested_partition is not None and requested_partition != worker_partition:
+            return {
+                "status": "PARTITION_MISMATCH",
+                "authority": "canonical_recurring_worker_partition_map",
+                "worker_id": worker_key,
+                "requested_partition": requested_partition,
+                "worker_partition": worker_partition,
+                "scheduler_probe": "not_performed",
+            }
+        requested_partition = worker_partition
+    if requested_partition is not None and requested_partition not in CANONICAL_RECURRING_WORKER_PARTITIONS:
+        return {
+            "status": "INVALID_PARTITION",
+            "authority": "canonical_recurring_worker_partition_map",
+            "requested_partition": requested_partition,
+            "scheduler_probe": "not_performed",
+        }
+
+    selected_workers = (
+        CANONICAL_RECURRING_WORKER_PARTITIONS[requested_partition]
+        if requested_partition is not None
+        else CANONICAL_RECURRING_WORKERS
+    )
+    current_root = ATLAS_LIVE_ROOT / "worker-reports" / "current"
+    supervision_root = ATLAS_LIVE_ROOT / "worker-reports" / ".supervision"
+    first_expected_start_by_id: dict[str, str] = {}
+    try:
+        topology_payload = json.loads(
+            (ATLAS_LIVE_ROOT / "04 Operating Contracts" / "chatgpt-swarm-topology.json").read_text(encoding="utf-8-sig")
+        )
+        topology_subscriptions = topology_payload.get("subscriptions") if isinstance(topology_payload, dict) else {}
+        if isinstance(topology_subscriptions, dict):
+            for subscription in topology_subscriptions.values():
+                if not isinstance(subscription, dict):
+                    continue
+                for worker in subscription.get("workers", []) if isinstance(subscription.get("workers"), list) else []:
+                    if not isinstance(worker, dict):
+                        continue
+                    candidate_id = str(worker.get("automation_id") or "").strip().lower()
+                    candidate_start = str(worker.get("first_expected_start_at") or "").strip()
+                    if candidate_id and candidate_start:
+                        first_expected_start_by_id[candidate_id] = candidate_start
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        pass
+    partition_summary = {
+        name: {
+            "expected_recurring_workers": len(partition_workers),
+            "observed_worker_reports": sum(
+                1 for candidate_id, _ in partition_workers
+                if (current_root / f"{candidate_id}.md").is_file()
+            ) if current_root.is_dir() else 0,
+        }
+        for name, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
+    }
+    if not current_root.is_dir():
+        return {
+            "status": "UNAVAILABLE",
+            "authority": "local_worker_reports_and_machine_start_receipts",
+            "subscription_scope": requested_partition or "ALL",
+            "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
+            "worker_partitions": partition_summary,
+            "expected_recurring_workers": len(selected_workers),
+            "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+            "scheduler_probe": "not_performed",
+        }
+
+    canonical_ids = {worker_id for worker_id, _ in selected_workers}
+    report_cache: dict[str, str] = {}
+    recent_recoveries: dict[str, dict[str, Any]] = {}
+    recovery_pattern = re.compile(
+        r"Peer recovery:\s*sibling=(?P<sibling>[0-9a-f]{32})\s+"
+        r"action=is_enabled=true\s+result=success\s+at=(?P<at>[^\s;,]+)",
+        re.IGNORECASE,
+    )
+    legacy_recovery_pattern = re.compile(
+        r"Peer recovery:\s*re-enabled canonical sibling .*?"
+        r"\((?P<sibling>[0-9a-f]{32})\).*?targeted is_enabled=true succeeded",
+        re.IGNORECASE,
+    )
+
+    def remember_recovery(sibling_id: str, recovered_at: datetime, actor_id: str, actor_label: str) -> None:
+        if sibling_id not in canonical_ids or sibling_id == actor_id:
+            return
+        if CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(sibling_id) != CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(actor_id):
+            return
+        recovery_age_minutes = max(0.0, (current_time - recovered_at).total_seconds() / 60.0)
+        existing = recent_recoveries.get(sibling_id)
+        existing_at = _parse_event_time(existing.get("recovered_at")) if isinstance(existing, dict) else None
+        if existing_at is not None and existing_at >= recovered_at:
+            return
+        recent_recoveries[sibling_id] = {
+            "actor": actor_label,
+            "actor_id": actor_id,
+            "recovered_at": recovered_at.isoformat(),
+            "age_minutes": round(recovery_age_minutes, 1),
+        }
+    for actor_id, actor_label in selected_workers:
+        report_path = current_root / f"{actor_id}.md"
+        if not report_path.is_file():
+            continue
+        try:
+            raw = report_path.read_text(encoding="utf-8-sig", errors="replace")[:16 * 1024]
+        except OSError:
+            continue
+        report_cache[actor_id] = raw
+        for match in recovery_pattern.finditer(raw):
+            recovered_at = _parse_event_time(match.group("at"))
+            if recovered_at is not None:
+                remember_recovery(match.group("sibling").lower(), recovered_at, actor_id, actor_label)
+
+        actor_started_at = None
+        for line in raw.splitlines():
+            if line.startswith("started_at:"):
+                actor_started_at = _parse_event_time(line.split(":", 1)[1].strip())
+                break
+        if actor_started_at is not None:
+            for match in legacy_recovery_pattern.finditer(raw):
+                # Legacy findings have no explicit recovery timestamp. Use the acting run's
+                # immutable start as a conservative lower bound; last_activity moves and
+                # would otherwise extend recovery suppression every time the report updates.
+                remember_recovery(match.group("sibling").lower(), actor_started_at, actor_id, actor_label)
+
+    workers: list[dict[str, Any]] = []
+    suspects: list[dict[str, Any]] = []
+    for worker_id, label in selected_workers:
+        report_path = current_root / f"{worker_id}.md"
+        fields: dict[str, str] = {}
+        raw = report_cache.get(worker_id, "")
+        if raw:
+            for line in raw.splitlines():
+                if ":" not in line:
+                    continue
+                key, value = line.split(":", 1)
+                key = key.strip()
+                if key in {"state", "started_at", "last_activity_at"}:
+                    fields[key] = value.strip()
+
+        started = _parse_event_time(fields.get("started_at"))
+        last_activity = _parse_event_time(fields.get("last_activity_at"))
+        state = str(fields.get("state") or "").upper() or None
+        receipt_present = (supervision_root / f"{worker_id}.start.json").is_file()
+        age_minutes = None
+        if started is not None:
+            age_minutes = max(0.0, (current_time - started).total_seconds() / 60.0)
+
+        first_expected_start = _parse_event_time(first_expected_start_by_id.get(worker_id))
+        if started is None:
+            if first_expected_start is not None and current_time <= first_expected_start + timedelta(
+                minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
+            ):
+                cadence_state = "FIRST_START_PENDING"
+            else:
+                cadence_state = "NO_LOCAL_START_EVIDENCE"
+        elif state == "RUNNING" and not receipt_present:
+            cadence_state = (
+                "RUNNING_WITHOUT_START_RECEIPT"
+                if age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES
+                else "START_RECEIPT_PENDING"
+            )
+        elif age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES:
+            cadence_state = "MISSED_EXPECTED_HOURLY_CADENCE"
+        elif state == "RUNNING" and receipt_present:
+            cadence_state = "RUNNING_WITH_START_RECEIPT"
+        else:
+            cadence_state = "RECENT_START_EVIDENCE"
+
+        row = {
+            "worker": label,
+            "automation_id": worker_id,
+            "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
+            "report_present": report_path.is_file(),
+            "state": state,
+            "started_at": started.isoformat() if started is not None else None,
+            "first_expected_start_at": first_expected_start.isoformat() if first_expected_start is not None else None,
+            "last_activity_at": last_activity.isoformat() if last_activity is not None else None,
+            "start_age_minutes": round(age_minutes, 1) if age_minutes is not None else None,
+            "cadence_state": cadence_state,
+            "start_receipt_present": receipt_present,
+        }
+        workers.append(row)
+        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_WITHOUT_START_RECEIPT"}:
+            recent_recovery = recent_recoveries.get(worker_id)
+            recovery_actionable = recent_recovery is None
+            recovery_status = "RECOVERY_NEEDED" if recovery_actionable else "RECOVERY_PENDING"
+            pending_until = None
+            if recent_recovery is not None:
+                recovered_at = _parse_event_time(recent_recovery.get("recovered_at"))
+                if recovered_at is not None and started is not None and started > recovered_at:
+                    # A newer local start consumed the older recovery; a later missed cadence
+                    # is a fresh failure and must be actionable again.
+                    recent_recovery = None
+                    recovery_actionable = True
+                    recovery_status = "RECOVERY_NEEDED"
+                elif recovered_at is not None and started is not None:
+                    elapsed = max(0.0, (recovered_at - started).total_seconds())
+                    hourly_steps = int(elapsed // 3600.0) + 1
+                    expected_after_recovery = started + timedelta(hours=hourly_steps)
+                    pending_until = expected_after_recovery + timedelta(
+                        minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
+                    )
+                    if current_time > pending_until:
+                        recovery_actionable = True
+                        recovery_status = "RECOVERY_RETRY_NEEDED"
+                elif recovered_at is not None:
+                    pending_until = recovered_at + timedelta(
+                        minutes=BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES
+                    )
+                    if current_time > pending_until:
+                        recovery_actionable = True
+                        recovery_status = "RECOVERY_RETRY_NEEDED"
+
+            suspect = {
+                "worker": label,
+                "automation_id": worker_id,
+                "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
+                "started_at": row["started_at"],
+                "start_age_minutes": row["start_age_minutes"],
+                "reason": cadence_state,
+                "recovery_status": recovery_status,
+                "recovery_actionable": recovery_actionable,
+            }
+            if recent_recovery is not None:
+                suspect["last_recovery"] = recent_recovery
+            if pending_until is not None:
+                suspect["recovery_pending_until"] = pending_until.isoformat()
+            suspects.append(suspect)
+    recovery_candidates = [
+        {
+            "worker": item["worker"],
+            "automation_id": item["automation_id"],
+            "subscription_partition": item.get("subscription_partition") or CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(item["automation_id"]),
+            "reason": item["reason"],
+        }
+        for item in suspects
+        if item.get("recovery_actionable")
+    ]
+    return {
+        "status": "SUSPECT_DEGRADED" if suspects else "CURRENT_LOCAL_EVIDENCE",
+        "authority": "local_worker_reports_and_machine_start_receipts",
+        "subscription_scope": requested_partition or "ALL",
+        "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
+        "worker_partitions": partition_summary,
+        "expected_recurring_workers": len(selected_workers),
+        "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+        "observed_worker_reports": sum(1 for row in workers if row.get("report_present")),
+        "running_with_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITH_START_RECEIPT"),
+        "recent_start_evidence": sum(1 for row in workers if row.get("cadence_state") == "RECENT_START_EVIDENCE"),
+        "first_start_pending": sum(1 for row in workers if row.get("cadence_state") == "FIRST_START_PENDING"),
+        "start_receipt_pending": sum(1 for row in workers if row.get("cadence_state") == "START_RECEIPT_PENDING"),
+        "running_without_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITHOUT_START_RECEIPT"),
+        "suspect_count": len(suspects),
+        "suspect_workers": suspects,
+        "recovery_candidate_count": len(recovery_candidates),
+        "recovery_candidates": recovery_candidates,
+        "recovery_cooldown_minutes": BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES,
+        "recovery_start_grace_minutes": BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES,
+        "start_receipt_grace_minutes": BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES,
+        "recovery_retry_basis": "next_observed_hourly_phase_plus_grace_then_fallback_cooldown",
+        "scheduler_probe": "not_performed",
+    }
+
 
 def _bootstrap_manual_sanity() -> dict[str, Any]:
     path = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "metrics.json"
@@ -3021,6 +3339,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Derived stack capability/dependency Atlas; never a runtime authority.")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("bootstrap-glance")
+    fleet = sub.add_parser("fleet-watch")
+    fleet.add_argument("--partition", choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS))
+    fleet.add_argument("--worker-id")
     sub.add_parser("inventory")
     manual = sub.add_parser("manual")
     manual.add_argument("--output", type=Path)
@@ -3043,6 +3364,8 @@ def main() -> int:
 
     if args.command == "bootstrap-glance":
         value = build_live_bootstrap_glance()
+    elif args.command == "fleet-watch":
+        value = _bootstrap_fleet_watch(partition=args.partition, worker_id=args.worker_id)
     elif args.command == "inventory":
         value = full_inventory()
     elif args.command == "manual":

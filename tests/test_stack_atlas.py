@@ -7,6 +7,9 @@ from pathlib import Path
 
 from tools.cleanup_converger import Worktree, eligibility_reason, process_targets_path
 from tools.stack_atlas import (
+    _bootstrap_fleet_watch,
+    CANONICAL_RECURRING_WORKERS,
+    CANONICAL_RECURRING_WORKER_PARTITIONS,
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
@@ -1773,3 +1776,74 @@ class ManualSanityBootstrapTests(unittest.TestCase):
             self.assertEqual(result["continuation"]["post_run_count"], 2)
             self.assertEqual(result["continuation"]["status"], "INSUFFICIENT_DATA")
             self.assertEqual(result["post_run_count"], 7)
+
+class TestFleetWatchSubscription(unittest.TestCase):
+    def test_recovery_candidates_stay_in_callers_subscription_partition(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "worker-reports" / "current"
+            current.mkdir(parents=True)
+            now = datetime(2026, 9, 7, 16, 30, tzinfo=timezone.utc)
+            s2 = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]
+            missing_id = s2[0][0]
+            actor_id = s2[1][0]
+            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+                if worker_id == missing_id:
+                    continue
+                started = now - timedelta(minutes=20)
+                (current / f"{worker_id}.md").write_text(
+                    f"automation_id: {worker_id}\n"
+                    f"display_label: {label}\n"
+                    f"started_at: {started.isoformat()}\n"
+                    f"last_activity_at: {started.isoformat()}\n"
+                    "state: RUN_FINISHED\n",
+                    encoding="utf-8",
+                )
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                watch = _bootstrap_fleet_watch(now, worker_id=actor_id)
+        self.assertEqual(watch["subscription_scope"], "S2")
+        self.assertEqual(watch["expected_recurring_workers"], 5)
+        self.assertEqual(watch["expected_recurring_workers_total"], 10)
+        self.assertEqual(watch["recovery_candidate_count"], 1)
+        self.assertEqual(watch["recovery_candidates"][0]["automation_id"], missing_id)
+        self.assertTrue(all(item["subscription_partition"] == "S2" for item in watch["recovery_candidates"]))
+
+    def test_new_worker_is_not_recoverable_before_first_expected_start_plus_grace(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "worker-reports" / "current"
+            current.mkdir(parents=True)
+            contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
+            contract.parent.mkdir(parents=True)
+            now = datetime(2026, 9, 7, 16, 35, tzinfo=timezone.utc)
+            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"][0]
+            actor_id = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"][1][0]
+            first_expected = now + timedelta(minutes=1)
+            contract.write_text(json.dumps({"subscriptions": {"S2": {"workers": [{
+                "automation_id": target_id,
+                "label": target_label,
+                "first_expected_start_at": first_expected.isoformat(),
+            }]}}}), encoding="utf-8")
+            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]:
+                if worker_id == target_id:
+                    continue
+                started = now - timedelta(minutes=20)
+                (current / f"{worker_id}.md").write_text(
+                    f"automation_id: {worker_id}\n"
+                    f"display_label: {label}\n"
+                    f"started_at: {started.isoformat()}\n"
+                    f"last_activity_at: {started.isoformat()}\n"
+                    "state: RUN_FINISHED\n",
+                    encoding="utf-8",
+                )
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                pending = _bootstrap_fleet_watch(now, worker_id=actor_id)
+                overdue = _bootstrap_fleet_watch(first_expected + timedelta(minutes=11), worker_id=actor_id)
+        self.assertEqual(pending["status"], "CURRENT_LOCAL_EVIDENCE")
+        self.assertEqual(pending["first_start_pending"], 1)
+        self.assertEqual(pending["recovery_candidates"], [])
+        target = next(item for item in overdue["suspect_workers"] if item["automation_id"] == target_id)
+        self.assertEqual(target["reason"], "NO_LOCAL_START_EVIDENCE")
+        self.assertTrue(target["recovery_actionable"])
