@@ -20,6 +20,11 @@ try:
 except ModuleNotFoundError:
     from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
 
+try:
+    from tools.tiny3d_atlas_projection import project_current as project_tiny3d_current
+except ModuleNotFoundError:
+    from tiny3d_atlas_projection import project_current as project_tiny3d_current
+
 ROOT = Path(__file__).resolve().parents[1]
 ATLAS_LIVE_ROOT = Path(r"C:\Users\Lauri\Desktop\vault")
 BUSY_ROOT = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator"))
@@ -591,7 +596,14 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
             "showroom", "showroom status", "visual proof library", "visual_proof_library",
             "durable proof", "proof transport", "android proof",
         ],
-        "entrypoints": [TINY3D_LIBRARY, TINY3D_LIBRARY_INDEX, TINY3D_SHOWROOM_CATALOGUE, TINY3D_LIBRARY_SEARCH, TINY3D_LIBRARY_SHOW],
+        "entrypoints": [
+            TINY3D_LIBRARY,
+            TINY3D_LIBRARY_INDEX,
+            TINY3D_SHOWROOM_CATALOGUE,
+            TINY3D_LIBRARY_SEARCH,
+            TINY3D_LIBRARY_SHOW,
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup tiny3d_library --query <asset-or-name>",
+        ],
         "boundary": "Navigation only; Tiny3D repo/library data remain product authority. Use the canonical production workspace, bounded library search/show, and receipt-declared proof paths. Do not recursively scan, fetch LFS, unzip, regenerate previews, re-encode media, or hunt producer paths merely to inspect evidence. Producer/runtime PASS and independent visual review are separate states.",
         "workspace": TINY3D_LIBRARY,
         "catalogue_sources": {"unified_inventory": TINY3D_LIBRARY_INDEX, "showroom": TINY3D_SHOWROOM_CATALOGUE},
@@ -3414,23 +3426,46 @@ def component_details(name: str) -> dict[str, Any]:
     raise KeyError(requested)
 
 
-def atlas_lookup(name: str) -> dict[str, Any]:
-    """Resolve a stack component or an exact feature-navigation target."""
+def _tiny3d_lookup_projection(query: str) -> dict[str, Any]:
+    """Attach bounded current Tiny3D evidence without turning Atlas into product authority."""
+    try:
+        return project_tiny3d_current(query, TINY3D_LIBRARY, limit=8)
+    except (OSError, ValueError) as exc:
+        return {
+            "schema": "stack-atlas.tiny3d-current.v1",
+            "authority": "READ_ONLY_MATERIALIZED_TINY3D_ORIENTATION",
+            "query": query,
+            "status": "UNKNOWN_SOURCE_UNAVAILABLE",
+            "error": str(exc),
+            "boundary": "Fail closed: no current asset/proof claim is made when bounded materialized sources cannot be validated.",
+        }
+
+
+def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
+    """Resolve a stack component or exact feature target, optionally with bounded Tiny3D evidence."""
     requested = name
     try:
-        return component_details(name)
+        result = component_details(name)
     except KeyError:
-        pass
-    feature_id = FEATURE_LOOKUP_ALIASES.get(name.casefold(), name)
-    if feature_id in FEATURE_INDEX:
-        return {
+        feature_id = FEATURE_LOOKUP_ALIASES.get(name.casefold(), name)
+        if feature_id not in FEATURE_INDEX:
+            raise KeyError(requested)
+        result = {
             "id": feature_id,
             "requested_as": requested,
             "kind": "feature_navigation",
             **FEATURE_INDEX[feature_id],
             "authority": ATLAS_CONTRACT["authority"],
         }
-    raise KeyError(requested)
+    if query is not None:
+        query = query.strip()
+        if not query:
+            raise ValueError("lookup --query must not be empty")
+        if result.get("id") != "project.tiny3d_asset_library":
+            raise ValueError("lookup --query is supported only for tiny3d_library/asset catalogue/showroom targets")
+        result = dict(result)
+        result["current_projection"] = _tiny3d_lookup_projection(query)
+    return result
 
 
 def _busy_scope_status(scope: str) -> dict[str, Any]:
@@ -3923,6 +3958,7 @@ def main() -> int:
     find.add_argument("--limit", type=int, default=5)
     lookup = sub.add_parser("lookup")
     lookup.add_argument("target")
+    lookup.add_argument("--query", help="bounded current Tiny3D asset/name query for tiny3d_library-style targets")
     blast = sub.add_parser("blast-radius")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
@@ -3957,9 +3993,11 @@ def main() -> int:
         value = find_features(args.query, args.limit)
     elif args.command == "lookup":
         try:
-            value = atlas_lookup(args.target)
+            value = atlas_lookup(args.target, query=args.query)
         except KeyError:
             parser.error(f"unknown Atlas lookup target: {args.target}")
+        except ValueError as exc:
+            parser.error(str(exc))
     elif args.command == "production-change-gate":
         value = production_change_gate(
             args.target,

@@ -1944,6 +1944,40 @@ class StackAtlasTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             component_details("tiny3d_library")
 
+    @patch("tools.stack_atlas.project_tiny3d_current")
+    def test_tiny3d_lookup_query_attaches_current_projection_in_one_bounded_lookup(self, projector):
+        projector.return_value = {
+            "schema": "stack-atlas.tiny3d-current.v1",
+            "authority": "READ_ONLY_MATERIALIZED_TINY3D_ORIENTATION",
+            "query": "android",
+            "count": 1,
+            "entries": [{
+                "asset_id": "60c984",
+                "showroom": {"state": "LINKED_MATERIALIZED_CATALOGUE"},
+                "proof": {
+                    "strongest_state": "TINY3D_VERIFIED",
+                    "durable_visual": {"state": "NOT_DECLARED", "present": False},
+                    "independent_review_state": "NOT_RECORDED",
+                },
+            }],
+        }
+
+        details = atlas_lookup("tiny3d_library", query="android")
+
+        self.assertEqual(details["id"], "project.tiny3d_asset_library")
+        self.assertEqual(details["current_projection"]["entries"][0]["asset_id"], "60c984")
+        self.assertEqual(details["current_projection"]["entries"][0]["proof"]["strongest_state"], "TINY3D_VERIFIED")
+        projector.assert_called_once_with("android", r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY", limit=8)
+
+    @patch("tools.stack_atlas.project_tiny3d_current", side_effect=ValueError("source missing"))
+    def test_tiny3d_lookup_query_fails_closed_when_current_projection_is_unavailable(self, _projector):
+        details = atlas_lookup("showroom", query="android")
+
+        current = details["current_projection"]
+        self.assertEqual(current["status"], "UNKNOWN_SOURCE_UNAVAILABLE")
+        self.assertIn("Fail closed", current["boundary"])
+        self.assertNotIn("entries", current)
+
     def test_atlas_is_product_agnostic_and_product_repos_are_not_lookup_authorities(self):
         atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS"])
         self.assertIn("STACK_INFRA_MAP_ONLY", ATLAS_CONTRACT["scope"])
