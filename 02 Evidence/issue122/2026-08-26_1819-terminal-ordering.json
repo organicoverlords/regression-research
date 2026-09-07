@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source_issue": 122,
   "event": "2026-08-26T18:19:03+03:00 execution-finalization recurrence",
-  "classification": "confirmed_post_good_recurrence_open_delivery_mechanism",
+  "classification": "confirmed_second_post_good_recurrence_open_delivery_mechanism",
   "conversation": {
     "title": "Fix worker convergence lifecycle",
     "request_id": "fb97ffaf-28c3-418c-b249-42d4e3d748c7",
@@ -21,12 +21,22 @@
     "tool_result_node_minus_assistant_final_ms": 2,
     "process_id": "58d9b170-5230-4f73-9dab-47385638fe3f",
     "pid": 29384,
-    "mcp_caller_id": "caller_b5cccc8796df"
+    "mcp_caller_id": "caller_b5cccc8796df",
+    "active_ancestry_structural_order": {
+      "tool_call_node": "37070ce5-e680-4ca9-87b4-3c84333314ea",
+      "tool_result_node": "87d59fc3-227f-4dd6-b929-d0d3e11667cd",
+      "assistant_final_node": "6bf288e0-4946-439f-a921-ebcd18f65598",
+      "order": "tool_call < tool_result < assistant_final",
+      "source": "2026-08-26_1743-1819-active-branch-terminal-pair.json"
+    },
+    "timestamp_ordering_limit": "The raw ChatGPT create_time places the tool-result node 2 ms after the final, but current_node parent ancestry places that tool-result node structurally before the final. Do not infer delivery order from the near-equal timestamps alone."
   },
   "raw_completion_metadata": {
     "status": "finished_successfully",
     "finish_details_type": "stop",
-    "stop_tokens": [200002],
+    "stop_tokens": [
+      200002
+    ],
     "is_complete": true,
     "timeout_or_cutoff_marker_observed": false
   },
@@ -65,17 +75,18 @@
     "same_failure_family_predates_aug25_repair": true,
     "earlier_incident": "INC-20260822-041206-EEST-6fbe00877ea1",
     "earlier_phenotype": "assistant claimed execution window ended while an owned healthy validation process remained active and requested work was incomplete",
-    "interpretation": "18:19 is the first independently confirmed recurrence after the known-good Aug 25/Aug 26 checkpoint, not the first-ever occurrence of premature process finalization."
+    "interpretation": "18:19 is the second currently confirmed direct recurrence after the known-good state; 17:43 EEST in the same active conversation ancestry is earlier. It remains the strongest instrumented server/process-timing instance.",
+    "earlier_post_good_recurrence": "2026-08-26T17:43:17+03:00; see 2026-08-26_1743-1819-active-branch-terminal-pair.json"
   },
   "interpretation": {
     "proven": [
       "MCP server accepted and completed the final process before the assistant final.",
       "The assistant final was an ordinary successful stop, not a serialized timeout/cutoff completion.",
-      "The ChatGPT-side tool-result node is ordered 2 ms after the assistant final in the raw export.",
+      "The ChatGPT-side tool-result create_time is 2 ms after the assistant-final create_time, while current_node ancestry places the tool-result node structurally before the final; timestamp near-order is not delivery order.",
       "A universal 24m45 turn/tool ceiling is falsified by longer healthy controls, including the same GPT-5.6 Thinking/extended mode."
     ],
     "open": [
-      "Whether the 2 ms result-after-final ordering reflects a product/tool-result delivery race, timestamp jitter, or another orchestration mechanism.",
+      "Why the ChatGPT export create_time values are non-monotonic relative to current_node parent ancestry near the terminal tool result/final boundary.",
       "Whether control-layer composition increased the probability of this pre-existing execution-binding failure family after the 17:10 good checkpoint."
     ],
     "do_not_infer": [
@@ -84,5 +95,5 @@
       "Do not attribute the recurrence to one policy clause without a same-mode intervention/replay."
     ]
   },
-  "comparison_required": "For healthy long-turn raw controls, compare final required tool-result node timestamp against assistant final timestamp. The race hypothesis is not promoted until that control comparison is available."
+  "comparison_required": "For healthy long-turn controls, compare active-parent ancestry, raw create_time, and MCP receipt/process timing as distinct clocks. Do not promote a delivery-race hypothesis from create_time ordering alone."
 }
