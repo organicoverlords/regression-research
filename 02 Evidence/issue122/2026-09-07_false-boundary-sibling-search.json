@@ -1,0 +1,59 @@
+{
+  "issue": 122,
+  "title": "Branch-aware sibling/retry search for the 17:16 -> 17:43/18:19 false-boundary chain",
+  "method": "Follow each target final backward through parent links to its target user node and count mapping nodes on that response path whose children array has more than one entry. Separately count branch points across the full mapping to prove the export can represent branching.",
+  "source": {
+    "conversation_title": "Fix worker convergence lifecycle",
+    "local_path": "memory/conversations/raw/chatport-evidence/raw/2026-08-26/20260827T031355Z_6a8ef32a-44b4-83eb-bc3d-efbad2ab09c3_sha256-d033b99f1584.json",
+    "sha256": "d033b99f158486c291de82e003d718e20aa63b19e86f7f74900fe5fd2f02725b",
+    "mapping_nodes": 829,
+    "note": "The raw source was locally present and read-only during this analysis. This derived receipt pins its bytes by SHA-256 and does not promote the raw export into live authority."
+  },
+  "target_paths": [
+    {
+      "name": "false_boundary_explanation_1716",
+      "start_user_node": "5feccf97-a015-4343-8990-581dcd887664",
+      "start_at_eest": "2026-08-26T17:16:18.386000+03:00",
+      "end_assistant_node": "4fa4db06-dcdb-4490-9a7e-4cd9ed117694",
+      "end_at_eest": "2026-08-26T17:16:35.827808+03:00",
+      "path_nodes": 4,
+      "branch_points": []
+    },
+    {
+      "name": "premature_final_1743",
+      "start_user_node": "8ff73c4a-7b2d-41ab-958a-1299323fc650",
+      "start_at_eest": "2026-08-26T17:24:07.522000+03:00",
+      "end_assistant_node": "d44064d4-2ca8-45fe-a12a-f7bae5bee263",
+      "end_at_eest": "2026-08-26T17:43:17.222367+03:00",
+      "path_nodes": 158,
+      "branch_points": []
+    },
+    {
+      "name": "premature_final_1819",
+      "start_user_node": "eca6fd4c-1848-4632-84fb-8b62d6a4081a",
+      "start_at_eest": "2026-08-26T17:52:45.138000+03:00",
+      "end_assistant_node": "6bf288e0-4946-439f-a921-ebcd18f65598",
+      "end_at_eest": "2026-08-26T18:19:03.072338+03:00",
+      "path_nodes": 276,
+      "branch_points": []
+    }
+  ],
+  "graph_control": {
+    "total_branch_points": 1,
+    "branch_points": [
+      {
+        "node_id": "da929c95-486a-4be8-bd0b-baccc137623f",
+        "at_eest": "2026-08-26T19:10:58.056615+03:00",
+        "role": "assistant",
+        "children": 2
+      }
+    ],
+    "interpretation": "Branch structure exists in this export, but none is preserved on the three target response paths."
+  },
+  "result": {
+    "natural_retry_or_sibling_control_available": false,
+    "classification": "NEGATIVE_SOURCE_SEARCH",
+    "next_evidence_gate": "Do not repeat this sibling/retry search unless a different capture or version of the conversation becomes available."
+  },
+  "causal_limit": "This negative search does not prove or disprove that the 17:16 false boundary mechanistically caused the 17:43 or 18:19 finals. It only proves that this export contains no preserved same-path sibling/retry natural A/B for those target responses."
+}

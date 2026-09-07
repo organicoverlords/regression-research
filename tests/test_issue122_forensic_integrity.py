@@ -1,4 +1,5 @@
 import hashlib
+import json
 import unittest
 from pathlib import Path
 
@@ -7,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PRE_REPAIR = ROOT / "02 Evidence" / "issue122" / "2026-08-25_122229_EEST_pre-repair-memory-block.txt"
 LEDGER = ROOT / "02 Evidence" / "issue122" / "2026-08-27_canonical-claim-evidence-ledger.md"
 ATTRS = ROOT / ".gitattributes"
+SIBLING_SEARCH = ROOT / "02 Evidence" / "issue122" / "2026-09-07_false-boundary-sibling-search.json"
 
 
 class Issue122ForensicIntegrityTests(unittest.TestCase):
@@ -28,6 +30,28 @@ class Issue122ForensicIntegrityTests(unittest.TestCase):
             "-text whitespace=cr-at-eol"
         )
         self.assertEqual(ATTRS.read_text(encoding="ascii").strip(), line)
+
+    def test_false_boundary_sibling_search_is_hash_bound_and_negative_only(self):
+        data = json.loads(SIBLING_SEARCH.read_text(encoding="utf-8"))
+        self.assertEqual(data["issue"], 122)
+        self.assertEqual(data["source"]["mapping_nodes"], 829)
+        self.assertEqual(
+            data["source"]["sha256"],
+            "d033b99f158486c291de82e003d718e20aa63b19e86f7f74900fe5fd2f02725b",
+        )
+        self.assertEqual(
+            [(item["name"], item["path_nodes"], len(item["branch_points"])) for item in data["target_paths"]],
+            [
+                ("false_boundary_explanation_1716", 4, 0),
+                ("premature_final_1743", 158, 0),
+                ("premature_final_1819", 276, 0),
+            ],
+        )
+        self.assertEqual(data["graph_control"]["total_branch_points"], 1)
+        self.assertEqual(data["graph_control"]["branch_points"][0]["children"], 2)
+        self.assertFalse(data["result"]["natural_retry_or_sibling_control_available"])
+        self.assertEqual(data["result"]["classification"], "NEGATIVE_SOURCE_SEARCH")
+        self.assertIn("does not prove or disprove", data["causal_limit"])
 
     def test_ledger_uses_branch_aware_counts_and_pins_later_provenance(self):
         text = LEDGER.read_text(encoding="utf-8")
