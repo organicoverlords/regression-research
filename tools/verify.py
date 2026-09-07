@@ -28,6 +28,10 @@ STACK_PATHS = {
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
+    "tests/test_issue122_forensic_integrity.py",
+    "02 Evidence/issue122/2026-08-25_122229_EEST_pre-repair-memory-block.txt",
+    "02 Evidence/issue122/2026-08-27_canonical-claim-evidence-ledger.md",
+    ".gitattributes",
     "03 Fixtures and Experiments/issue123-current-vault-history-boundary.json",
 }
 
@@ -152,6 +156,7 @@ def verify_stack() -> None:
             "tests.test_stack_atlas",
             "tests.test_issue693_fresh_worker_entry",
             "tests.test_issue122_acceptance_boundary_replay",
+            "tests.test_issue122_forensic_integrity",
             "tests.test_issue123_current_vault_history_boundary",
             "tests.test_north_star_entry",
             "-v",
