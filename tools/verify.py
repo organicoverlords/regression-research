@@ -38,6 +38,8 @@ STACK_PATHS = {
     "01 Reports/2026-09-03_issue123-current-vault-history-boundary.md",
     "02 Evidence/issue123/2026-08-27_current-user-preference-coverage.md",
     "tests/test_issue123_current_vault_history_boundary.py",
+    "tests/fixtures/issue123-small-response-shape.json",
+    "tests/test_issue123_response_shape.py",
 }
 
 
@@ -164,6 +166,7 @@ def verify_stack() -> None:
             "tests.test_issue122_false_boundary_replay",
             "tests.test_issue122_forensic_integrity",
             "tests.test_issue123_current_vault_history_boundary",
+            "tests.test_issue123_response_shape",
             "tests.test_north_star_entry",
             "-v",
         ]

@@ -48,6 +48,8 @@ class VerifyTests(unittest.TestCase):
             "01 Reports/2026-09-03_issue123-current-vault-history-boundary.md",
             "02 Evidence/issue123/2026-08-27_current-user-preference-coverage.md",
             "tests/test_issue123_current_vault_history_boundary.py",
+            "tests/fixtures/issue123-small-response-shape.json",
+            "tests/test_issue123_response_shape.py",
         ):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["stack"])
@@ -96,6 +98,7 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("tests.test_issue122_forensic_integrity", unittest_command)
         self.assertIn("tests.test_issue122_false_boundary_replay", unittest_command)
         self.assertIn("tests.test_issue123_current_vault_history_boundary", unittest_command)
+        self.assertIn("tests.test_issue123_response_shape", unittest_command)
 
     @patch("tools.verify.run")
     @patch("tools.verify.run_pytest")
