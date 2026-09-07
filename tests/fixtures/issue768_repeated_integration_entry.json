@@ -1,0 +1,86 @@
+{
+  "schema": "regression-research.issue768.repeated-integration-entry.v1",
+  "task_text": "make the library integrated so when I ask for a stored proof picture you can inspect it and show me the same picture here without figuring out transport again",
+  "task_class": [
+    "repeated",
+    "cross_project_integration",
+    "historical"
+  ],
+  "historical_context": [
+    {
+      "owner": "p3",
+      "anchor": "github:organicoverlords/p3#1936",
+      "result": "MCP JPEG/base64 review payload already existed via PR #1244; model review transport is not proof of user-visible same-chat display",
+      "disposition": "partial_prior"
+    },
+    {
+      "owner": "p3",
+      "anchor": "github:organicoverlords/p3#2677",
+      "result": "PR #2678 built a bounded durable Drive visual-evidence index under G:/Oma Drive/P3 Visual Evidence/p3",
+      "disposition": "reuse"
+    },
+    {
+      "owner": "tiny3d",
+      "anchor": "github:organicoverlords/tiny3d#13",
+      "result": "PR #397 preserves hash-verified visual proof bytes in relocatable asset bundles",
+      "disposition": "reuse"
+    },
+    {
+      "owner": "tiny3d",
+      "anchor": "github:organicoverlords/tiny3d#101",
+      "result": "content-addressed asset library already owns cross-location identity",
+      "disposition": "reuse"
+    },
+    {
+      "owner": "lowvram3d",
+      "anchor": "github:organicoverlords/lowvram3d-studio#42",
+      "result": "exact-run local independent visual review already existed; retired publisher WIP must be treated as history, not silently resurrected",
+      "disposition": "prior_attempt"
+    },
+    {
+      "owner": "vault",
+      "anchor": "github:organicoverlords/regression-research#675",
+      "result": "task context must derive historical priors from current task without requiring old keywords before new structural implementation",
+      "disposition": "governing_entry_contract"
+    },
+    {
+      "owner": "vault",
+      "anchor": "github:organicoverlords/regression-research#693",
+      "result": "fresh entry must select reuse/resume, complement, review/prove, integrate, or genuinely new after reconciling WIP/history",
+      "disposition": "governing_entry_contract"
+    }
+  ],
+  "current_wip": [
+    {
+      "owner": "vault",
+      "anchor": "github:organicoverlords/regression-research#755",
+      "result": "Stack Atlas Tiny3D visual-library/current projection is active WIP; do not create a competing Atlas implementation"
+    },
+    {
+      "owner": "mcp",
+      "anchor": "github:organicoverlords/chatgpt-mcp-clean#155",
+      "result": "new MCP visual/share transport was started before prior-attempt reconciliation and is superseded as the primary solution"
+    }
+  ],
+  "expected": {
+    "required_prior_owners": [
+      "p3",
+      "tiny3d",
+      "lowvram3d",
+      "vault"
+    ],
+    "required_decision_modes": [
+      "reuse/resume",
+      "review/prove",
+      "integrate",
+      "complement"
+    ],
+    "forbidden_first_actions": [
+      "build a new MCP image transport",
+      "add another base64 image tool",
+      "ask the user which old project tried this"
+    ],
+    "history_is_prior_not_current_truth": true,
+    "routine_small_fix_fast_path": true
+  }
+}
