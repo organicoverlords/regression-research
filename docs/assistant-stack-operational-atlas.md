@@ -229,6 +229,19 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Supervisor: organicoverlords/agents
 - Self-heal: not_applicable
 
+### `stack_atlas`
+
+- Role: `derived:stack-atlas-navigation`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md; C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py; C:\\Users\\Lauri\\Desktop\\vault\\docs\\assistant-stack-operational-atlas.md
+- Live status: python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py bootstrap-glance; python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py lookup stack_atlas
+- Independent recovery: read canonical agent rules, project direction, and named live/source authorities directly; Atlas unavailability is not a permission gate
+- Resources: Stack Atlas North Star; derived component map; feature index; generated operational manual
+- Dependents: chatgpt_session; execution_workers
+- Runbook: organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md
+- Supervisor: none; derived map generated from named authorities
+- Self-heal: not_applicable
+
 ### `chatgpt_memory`
 
 - Role: `context:chatgpt-continuity`

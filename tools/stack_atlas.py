@@ -122,6 +122,8 @@ COMPONENT_ALIASES = {
     "operator": "agent_rules",
     "designated orchestrator": "agent_rules",
     "repo rules": "repo_rule_pointer",
+    "atlas": "stack_atlas",
+    "stack atlas": "stack_atlas",
 }
 
 ATLAS_CONTRACT = {
@@ -368,6 +370,27 @@ COMPONENTS.update({
         "live_status": ["read current Agents-repo product direction; derive obvious unmet product outcomes into actionable work and prefer visible progress"], "supervisor": "organicoverlords/agents", "self_heal": "not_applicable",
         "independent_recovery": ["current user direction outranks stale prose"], "resources": ["docs/repos/<repo>/ North Star/equivalent"],
         "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["organicoverlords/agents@main docs/repos/<repo>/"],
+    },
+    "stack_atlas": {
+        "role": "derived:stack-atlas-navigation",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [
+            "organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md",
+            r"C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py",
+            r"C:\\Users\\Lauri\\Desktop\\vault\\docs\\assistant-stack-operational-atlas.md",
+        ],
+        "live_status": [
+            r"python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py bootstrap-glance",
+            r"python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py lookup stack_atlas",
+        ],
+        "supervisor": "none; derived map generated from named authorities",
+        "self_heal": "not_applicable",
+        "independent_recovery": [
+            "read canonical agent rules, project direction, and named live/source authorities directly; Atlas unavailability is not a permission gate"
+        ],
+        "resources": ["Stack Atlas North Star", "derived component map", "feature index", "generated operational manual"],
+        "dependents": ["chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md"],
     },
     "chatgpt_memory": {
         "role": "context:chatgpt-continuity", "capabilities": ["memory_read"],
