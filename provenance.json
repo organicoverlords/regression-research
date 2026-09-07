@@ -1457,6 +1457,66 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexes the direct-help stall retrospective. It explicitly cites the tracked recurring-worker peer-recovery evidence and the worker-fleet incident report; the latter is indexed separately as a report rather than duplicated as an evidence-file path."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-07_0110_EEST_red-alert_invalid-five-minute-swarm-rule-regression.md",
+      "title": "RED ALERT - invalid five-minute swarm rule regression",
+      "date": "2026-09-07T01:10:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the invalid five-minute swarm-rule regression report. The report cites external agents PR/commit evidence and the shared rules owner, but no direct tracked raw transcript, local evidence file, or local contract snapshot is named; none is fabricated here."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-07_0221_EEST_go-issue-completion-stop-regression_incident_report.md",
+      "title": "Incident report - `go` incorrectly treated as stop-at-issue-completion",
+      "date": "2026-09-07T02:21:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-07_0221_EEST_go-issue-completion-stop_next_action.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the go/issue-completion stopping regression. The report directly names the tracked next-action replay fixture; no raw platform transcript or local contract snapshot is claimed."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "observation_not_incident",
+      "report_path": "01 Reports/2026-09-07_security-reroute-build-status-observations.md",
+      "title": "Security reroute / build-status observation log",
+      "date": "2026-09-07",
+      "evidence_type": "observation_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the observation-only security-reroute/build-status log. It records a user-supplied screenshot observation and possible correlates without claiming causation; no tracked raw transcript, evidence file, or contract snapshot is directly linked."
     }
   ],
   "orphan_evidence": [
