@@ -1,0 +1,65 @@
+{
+  "schema": "issue89.unresolved-event-resolution.v1",
+  "issue": 89,
+  "resolved_at": "2026-09-07T02:56:00+03:00",
+  "source_index": "02 Evidence/2026-08-26_slopwall_event_index.json",
+  "conversation_index": ".state/conversation-search/conversations.sqlite3",
+  "findings": {
+    "SW-20260826-009": {
+      "disposition": "BOUND_AND_SCORED",
+      "conversation_id": "6a8efde2-e364-83ed-a923-11acd1c9ea55",
+      "conversation_title": "Compare Plus Business Privacy",
+      "user_message_id": "f2c759e3-cb6d-46d9-bed3-f4fbf349c835",
+      "user_created_at": "2026-08-26T15:01:38.676000Z",
+      "order_index": 30,
+      "source_path": "memory/conversations/raw/chatport-evidence/raw/2026-08-26/20260827T104625Z_6a8efde2-e364-83ed-a923-11acd1c9ea55_sha256-d31ad0a34d89.json",
+      "source_sha256": "d31ad0a34d8911c3c26e8f6496d23ad314cefce581c572842290e355ea6e73ce",
+      "bounded_sequence": [
+        {
+          "order_index": 27,
+          "role": "assistant",
+          "created_at": "2026-08-26T15:00:54.468194Z",
+          "summary": "Long MCP/Codex pricing and product-strategy answer."
+        },
+        {
+          "order_index": 30,
+          "role": "user",
+          "created_at": "2026-08-26T15:01:38.676000Z",
+          "text": "slopwall"
+        },
+        {
+          "order_index": 32,
+          "role": "assistant",
+          "created_at": "2026-08-26T15:01:55.928120Z",
+          "summary": "Compresses to MCP likely staying while heavy autonomous Plus usage may become metered/upmarket."
+        },
+        {
+          "order_index": 35,
+          "role": "user",
+          "created_at": "2026-08-26T15:03:31.670000Z",
+          "summary": "Moves on to Codex reset limits."
+        }
+      ],
+      "score": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1,
+        "severity_100": 24
+      }
+    },
+    "SW-20260826-011": {
+      "disposition": "REJECTED_NO_SOURCE_MATCH",
+      "asserted_user_time": "2026-08-26T20:22:47Z",
+      "asserted_followup_time": "2026-08-26T20:22:53Z",
+      "preserved_corpus_checks": {
+        "user_slopwall_messages_20_22_40_to_20_23_00Z": 0,
+        "source_messages_matching_claimed_concretely_established_phrase": 0
+      },
+      "historical_origin": "The asserted timestamp and follow-up wording are found only inside the Aug 26 assistant command that created SW-20260826-011 from prior-turn retrieval, not in a preserved source conversation.",
+      "action": "Remove SW-20260826-011 and OCC-20260826-015 from canonical event/occurrence counts; preserve this rejected-candidate record instead of inventing a severity score."
+    }
+  },
+  "boundary": "Absence is asserted only against the currently indexed preserved conversation corpus. The overall #89 corpus remains a lower bound until separately tracked screenshot coverage is complete."
+}
