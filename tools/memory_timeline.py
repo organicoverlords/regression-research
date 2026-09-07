@@ -1122,6 +1122,10 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
 def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, max_threads: int = 4, events_per_thread: int = 6) -> list[dict[str, Any]]:
     if not needs_timeline_fallback(query):
         return []
+    effective_max_threads = max(0, int(max_threads))
+    effective_events_per_thread = max(0, int(events_per_thread))
+    if effective_max_threads == 0:
+        return []
     projects = sorted(projects_from_text(query))
     project = projects[0] if len(projects) == 1 else None
     report = build_timeline(entries, view="errors", project=project, limit=MAX_LIMIT)
@@ -1132,7 +1136,8 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
     for thread in report["threads"]:
         if thread.get("latest_disposition") not in RECALL_VISIBLE_DISPOSITIONS:
             continue
-        events = sorted(by_thread.get(thread["thread_id"], []), key=lambda event: _dt(event["event_at"]))[-events_per_thread:]
+        thread_events = sorted(by_thread.get(thread["thread_id"], []), key=lambda event: _dt(event["event_at"]))
+        events = thread_events[-effective_events_per_thread:] if effective_events_per_thread else []
         out.append({
             "thread_id": thread["thread_id"],
             "scope": thread["scope"],
@@ -1147,6 +1152,6 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
                 "semantic_category": event["semantic_category"],
             } for event in events],
         })
-        if len(out) >= max_threads:
+        if len(out) >= effective_max_threads:
             break
     return out
