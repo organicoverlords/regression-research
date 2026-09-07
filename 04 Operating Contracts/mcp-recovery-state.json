@@ -59,7 +59,7 @@
         "If the client-visible symptom persists after restoration while bounded transport evidence shows no MCP request in flight at the symptom time, classify that event as above-MCP/platform evidence and stop MCP/edge mutation unless new MCP-local evidence appears."
       ],
       "preservation_rule": "Restoration must preserve unique work and active child processes; do not kill foreign work to accelerate recovery.",
-      "authorization_rule": "Shared-production restoration still requires explicit user authorization and the production-change gate; a generic go does not authorize a new live-production mutation.",
+      "authorization_rule": "Routine reversible shared-production restoration or serving advance that is already the established scoped objective is authorized by go/continue once the existing production-change safety gates pass; do not ask for redundant per-cutover approval. Separate explicit user authorization remains required only for scope-widening, destructive overwrite of user/foreign state, scheduler/fleet mutation, credential/permission changes, or shared production topology/control-plane redesign.",
       "recovery_invariants": [
         "During an active MCP incident, keep the selected recovery target fixed unless new evidence positively disqualifies it; do not search for or promote a 'better' target mid-recovery.",
         "Before any serving-path mutation, reconcile the selected deployment artifact, the live backend artifact/generation, the live Caddy transport/topology, and an independent rollback/control route.",

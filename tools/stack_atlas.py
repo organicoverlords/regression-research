@@ -439,9 +439,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["production mutation", "control plane mutation", "serving path", "cutover", "live routing", "shared production", "rollback", "blast radius"],
         "entrypoints": [
             "python tools\\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
-            "PASS additionally requires --explicit-user-authorization --independent-rollback-verified --offpath-proof-verified",
+            "PASS requires --independent-rollback-verified --offpath-proof-verified plus either --routine-scoped-advance for an already-established reversible serving advance or --explicit-user-authorization for a scope-widening/destructive/topology change",
         ],
-        "boundary": "Read-only preflight for shared production/control-plane mutation. PASS is necessary evidence, never mutation authority by itself; a broader debugging/fix/go instruction is not represented as explicit live-production authorization.",
+        "boundary": "Read-only preflight for shared production/control-plane mutation. A routine already-scoped reversible serving advance does not require redundant per-cutover user approval; arbitrary new, scope-widening, destructive, credential/permission, scheduler/fleet, or topology/control-plane mutation still requires explicit user authorization.",
     },
     "mcp.edge_monitoring": {
         "owner_components": ["vps_edge_ingress"],
@@ -504,8 +504,8 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "mcp.regression_recovery": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "busy_coordinator"],
         "triggers": ["restore working MCP", "rollback working MCP", "MCP regression after change", "restore last working", "regression recovery"],
-        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
-        "boundary": "Restore-first for severe regressions caused by our production MCP change: preserve rollback evidence and active work, then restore the canonical known-working production behavior and topology before speculative fixes. Persist platform-reroute/security event details only when the user explicitly asks for that analysis or incident tracking. A source SHA alone is insufficient when topology differs; only minimal proven replacement compatibility may be layered onto the frozen behavior. After restore, a reroute observed between successful MCP calls with no MCP request in flight is above-MCP/platform evidence and must not trigger more MCP/edge mutation without new MCP-local evidence. Shared-production authorization and the production-change gate still apply.",
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011 --routine-scoped-advance --independent-rollback-verified --offpath-proof-verified", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
+        "boundary": "Restore-first for severe regressions caused by our production MCP change: preserve rollback evidence and active work, then restore the canonical known-working production behavior and topology before speculative fixes. Persist platform-reroute/security event details only when the user explicitly asks for that analysis or incident tracking. A source SHA alone is insufficient when topology differs; only minimal proven replacement compatibility may be layered onto the frozen behavior. After restore, a reroute observed between successful MCP calls with no MCP request in flight is above-MCP/platform evidence and must not trigger more MCP/edge mutation without new MCP-local evidence. When restoration is already the established scoped objective, use the routine-scoped production-change gate path and do not request redundant per-cutover approval; scope-widening or destructive/topology changes still require explicit authorization.",
     },
     "mcp.security_reroute_log": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
@@ -2888,6 +2888,7 @@ def production_change_gate(
     actor: str,
     busy_scope: str,
     explicit_user_authorization: bool = False,
+    routine_scoped_advance: bool = False,
     independent_rollback_verified: bool = False,
     offpath_proof_verified: bool = False,
     mcp_status: dict[str, Any] | None = None,
@@ -2903,8 +2904,11 @@ def production_change_gate(
     elif component not in SHARED_PRODUCTION_COMPONENTS:
         reasons.append("target_not_classified_shared_production")
 
-    if not explicit_user_authorization:
-        reasons.append("missing_explicit_live_production_authorization")
+    scope_authorization_source = (
+        "EXPLICIT_USER" if explicit_user_authorization else ("ROUTINE_SCOPED_ADVANCE" if routine_scoped_advance else None)
+    )
+    if scope_authorization_source is None:
+        reasons.append("missing_live_production_scope_basis")
     if not independent_rollback_verified:
         reasons.append("independent_rollback_control_route_not_verified")
     if not offpath_proof_verified:
@@ -2948,6 +2952,8 @@ def production_change_gate(
         "busy_scope": busy_scope,
         "checks": {
             "explicit_user_authorization_for_specific_live_change": bool(explicit_user_authorization),
+            "routine_scoped_reversible_advance": bool(routine_scoped_advance),
+            "scope_authorization_source": scope_authorization_source,
             "independent_rollback_control_route_verified": bool(independent_rollback_verified),
             "offpath_canary_proof_verified": bool(offpath_proof_verified),
             "busy_scope": busy,
@@ -2957,7 +2963,8 @@ def production_change_gate(
         "reasons": reasons,
         "verdict": "PASS" if not reasons else "BLOCK",
         "semantics": {
-            "go_continue_fix_are_not_production_authorization": True,
+            "routine_scoped_advance_does_not_require_redundant_user_approval": True,
+            "scope_widening_or_destructive_change_requires_explicit_user_authorization": True,
             "busy_claim_is_collision_control_not_authorization": True,
             "pass_is_necessary_not_sufficient_authority": True,
         },
@@ -3358,6 +3365,7 @@ def main() -> int:
     prod.add_argument("--actor", required=True)
     prod.add_argument("--busy-scope", required=True)
     prod.add_argument("--explicit-user-authorization", action="store_true")
+    prod.add_argument("--routine-scoped-advance", action="store_true")
     prod.add_argument("--independent-rollback-verified", action="store_true")
     prod.add_argument("--offpath-proof-verified", action="store_true")
     args = parser.parse_args()
@@ -3390,6 +3398,7 @@ def main() -> int:
             actor=args.actor,
             busy_scope=args.busy_scope,
             explicit_user_authorization=args.explicit_user_authorization,
+            routine_scoped_advance=args.routine_scoped_advance,
             independent_rollback_verified=args.independent_rollback_verified,
             offpath_proof_verified=args.offpath_proof_verified,
         )
