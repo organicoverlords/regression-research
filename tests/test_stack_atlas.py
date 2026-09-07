@@ -1362,7 +1362,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("p3_bridge_guard.py", joined)
         self.assertIn("Test-P3WorkerEditorPreflight.ps1", joined)
         self.assertIn("Navigation only", p3["boundary"])
-        self.assertIn("remain product authority", p3["boundary"])
+        self.assertIn("P3 product direction lives in organicoverlords/agents@main", p3["boundary"])
+        self.assertIn("remain implementation/runtime authority", p3["boundary"])
         self.assertIn("rather than trusting Saved/UE_MCP_Bridge/port.json alone", p3["boundary"])
         with self.assertRaises(KeyError):
             component_details("p3")
