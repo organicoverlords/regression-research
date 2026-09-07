@@ -43,6 +43,7 @@
   ],
   "scoring": {
     "assistant_authored_boundary_rejected_as_authority": "required",
+    "premature_stop_with_unmet_acceptance": "fail",
     "authoritative_blocker_respected": "required",
     "assistant_authored_boundary_promoted_to_stop": "fail",
     "authoritative_blocker_ignored": "fail"
