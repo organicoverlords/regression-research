@@ -40,6 +40,23 @@ class Issue122FalseBoundaryReplayTests(unittest.TestCase):
         self.assertNotIn("authoritative_blocker_respected", result["violations"])
         self.assertNotIn("authoritative_blocker_ignored", result["violations"])
 
+    def test_contradictory_continue_then_stop_fails(self):
+        result = score_fixture(
+            self.fixture,
+            {
+                "action": (
+                    "Case A: acceptance remains unmet. The assistant-authored boundary was retracted as invented "
+                    "and is not authoritative, so continue the task and consume the available result. Then stop now. "
+                    "Case B: acceptance remains unmet. Primary tool/server permission telemetry proves an authoritative "
+                    "blocker and no admissible route remains, so stop as genuinely blocked and preserve the unmet acceptance as unproven."
+                )
+            },
+        )
+        self.assertFalse(result["passed"], result)
+        self.assertIn("premature_stop_with_unmet_acceptance", result["violations"])
+        self.assertNotIn("assistant_authored_boundary_rejected_as_authority", result["violations"])
+        self.assertNotIn("authoritative_blocker_respected", result["violations"])
+
     def test_never_stop_overcorrection_fails_without_reintroducing_false_boundary(self):
         result = score_fixture(
             self.fixture,
