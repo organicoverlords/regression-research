@@ -14,6 +14,7 @@ from tools.timeline_materializer import (
     DEFAULT_DELTA_REPO_EVENTS_PER_REPO,
     DEFAULT_OVERLAP_MINUTES,
     SCHEMA,
+    build_parser,
     build_work_graph,
     build_worker_archive_summary,
     coordinator_events,
@@ -606,7 +607,7 @@ class TimelineMaterializerTests(unittest.TestCase):
             prior_at = datetime(2026, 9, 6, 5, 0, tzinfo=timezone.utc)
             old_sha = "1" * 40
             new_sha = "2" * 40
-            old_event = self.commit_event(old_sha, "Old retained work", "2026-09-06T04:50:00+00:00")
+            old_event = self.commit_event(old_sha, "Old retained work", "2026-07-01T04:50:00+00:00")
             (state / "timeline-store.json").write_text(json.dumps({
                 "schema": SCHEMA,
                 "generated_at": prior_at.isoformat(),
@@ -650,11 +651,10 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(collect_repo.call_args.kwargs["since"], expected_since)
             self.assertEqual(collect_repo.call_args.kwargs["limit_per_repo"], DEFAULT_DELTA_REPO_EVENTS_PER_REPO)
             self.assertTrue(all(call.kwargs["since"] == expected_since for call in worker_history.call_args_list))
-            expected_active_new_source_since = datetime(2026, 8, 7, 5, 5, tzinfo=timezone.utc)
-            expected_historical_source_since = datetime(2000, 1, 1, tzinfo=timezone.utc)
-            self.assertEqual(library_artifacts.call_args.kwargs["since"], expected_historical_source_since)
-            self.assertEqual(machine_observations.call_args.kwargs["since"], expected_active_new_source_since)
-            self.assertEqual(mcp_history.call_args.kwargs["since"], expected_historical_source_since)
+            expected_unbounded_source_since = datetime(2000, 1, 1, tzinfo=timezone.utc)
+            self.assertEqual(library_artifacts.call_args.kwargs["since"], expected_unbounded_source_since)
+            self.assertEqual(machine_observations.call_args.kwargs["since"], expected_unbounded_source_since)
+            self.assertEqual(mcp_history.call_args.kwargs["since"], expected_unbounded_source_since)
             payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
             ids = {event["id"] for event in payload["timeline"]["events"]}
             self.assertIn(old_event["id"], ids)
@@ -663,6 +663,27 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(payload["ingestion"]["backfill_incomplete_sources"], ["github", "repos"])
             self.assertEqual(payload["timeline"]["materialized"]["backfill_incomplete_sources"], ["github", "repos"])
             self.assertEqual(payload["source_watermarks"]["repos"], "2026-09-06T05:05:00+00:00")
+            self.assertIsNone(payload["horizon_days"])
+            self.assertIsNone(payload["timeline"]["materialized"]["horizon_days"])
+
+    def test_refresh_defaults_to_age_unbounded_but_explicit_days_remain_available(self):
+        default_args = build_parser().parse_args(["refresh"])
+        explicit_args = build_parser().parse_args(["refresh", "--days", "30"])
+        self.assertIsNone(default_args.days)
+        self.assertEqual(explicit_args.days, 30)
+
+    def test_materialized_health_reports_age_unbounded_complete_history(self):
+        now = datetime(2026, 9, 6, 6, 0, tzinfo=timezone.utc)
+        payload = {
+            "generated_at": "2026-09-06T05:58:00+00:00",
+            "horizon_days": None,
+            "ingestion": {"mode": "INCREMENTAL", "backfill_incomplete_sources": [], "retry_sources": []},
+            "timeline": {"materialized": {"refresh_minutes": 5, "horizon_days": None}},
+        }
+        health = materialized_health(payload, now=now)
+        self.assertEqual(health["coverage_status"], "COMPLETE_MATERIALIZED_HISTORY")
+        self.assertEqual(health["absence_semantics"], "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HISTORY_AND_ENABLED_SOURCES_ONLY")
+        self.assertIsNone(health["horizon_days"])
 
     def test_materialized_health_keeps_history_role_separate_from_live_truth(self):
         now = datetime(2026, 9, 6, 6, 0, tzinfo=timezone.utc)
