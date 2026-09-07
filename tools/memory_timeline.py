@@ -1091,9 +1091,10 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
             key=lambda event: (_dt(str(event["event_at"])), str(event["id"])),
             reverse=True,
         )
-        if not events:
+        visible_events = [event for event in events if event.get("disposition") in visible_dispositions]
+        if not visible_events:
             continue
-        latest = events[0]
+        latest = visible_events[0]
         thread_id = str(thread["thread_id"])
         thread_source = str(latest.get("thread_source") or "")
         if thread_source not in {"EXPLICIT_THREAD", "EVIDENCE_ANCHOR"} and thread_id not in error_thread_ids:
@@ -1112,7 +1113,7 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
             "summary": _clip(latest.get("summary"), 240),
             "projects": list(thread.get("projects") or []),
             "entities": list(thread.get("entities") or []),
-            "member_ids": [str(event["id"]) for event in events[:effective_member_limit]],
+            "member_ids": [str(event["id"]) for event in visible_events[:effective_member_limit]],
             "drilldown": f'python tools\\memory_bank.py timeline --thread "{quoted_thread}" --limit 20 --no-workers',
         })
         if len(out) >= effective_limit:
@@ -1136,7 +1137,10 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
     for thread in report["threads"]:
         if thread.get("latest_disposition") not in RECALL_VISIBLE_DISPOSITIONS:
             continue
-        thread_events = sorted(by_thread.get(thread["thread_id"], []), key=lambda event: _dt(event["event_at"]))
+        thread_events = sorted(
+            (event for event in by_thread.get(thread["thread_id"], []) if event.get("disposition") in RECALL_VISIBLE_DISPOSITIONS),
+            key=lambda event: _dt(event["event_at"]),
+        )
         events = thread_events[-effective_events_per_thread:] if effective_events_per_thread else []
         out.append({
             "thread_id": thread["thread_id"],
