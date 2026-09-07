@@ -1,0 +1,168 @@
+{
+  "body": "## 2026-09-07 economy decision and tuning acceptance\r\nRecent earn/spend and +1 EXTRA LANE PRESSURE feedback already landed; preserve it and test its actual consequence before adding more labels.\r\n\r\nRecord a short normal-match baseline: first affordable decision, source of gold, purchase opportunities, creep pressure before/after spend and time until a win/loss opportunity. Compare extra-unit versus upgrade choice at matched initial state; exact tuning remains data-driven. Do not claim balance from UI wording.\r\n\r\nReject duplicate/stale/invalid purchase requests, insufficient gold, terminal-match spending and disconnected-client attempts through the existing authoritative transaction path. Spend and resulting unit/upgrade happen exactly once; rematch resets only declared match state.\r\n\r\nKeep earthworks free and map-wide as required by the northstar; do not attach the construction/shop economy to terrain editing. Construction cost and salvage/refund remain their own declared rules.\r\n\r\nUse the existing shop/economy/HUD owners. P3TowerDefenseFeatureActor.cpp and P3LaneWarHUDWidget.cpp serialize with #2437/#2440 and other current contributors. Evidence/tuning analysis can proceed without editing those files.\r\n\r\n---\r\n\r\nParent: #803 / #941.\r\n\r\nTurn the existing Lane War economy into a player decision loop. Reuse current gold, creep-shop and upgrade authority; no new economy framework.\r\n\r\nAcceptance:\r\n- gold rises from the intended creep-related play and periodic income;\r\n- the player can clearly see current gold and what can be bought;\r\n- buying an extra allied creep/minion visibly changes lane pressure;\r\n- buying a creep upgrade visibly changes later allied creeps and communicates the new level/effect;\r\n- pacing is playable enough that a normal short match demonstrates earn -> choose -> spend -> visible consequence;\r\n- server authority/replication remain the existing implementation.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7Lg7w",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen source slice landed via #2466: successful creep-upgrade purchases now show the authoritative new level/max, exact +health/+damage per-level effect, and remaining gold. Focused economy+upgrade contracts 27/27 PASS; hosted p3 contract gate SUCCESS. This closes the missing purchase-consequence communication slice; integrated match pacing/runtime acceptance remains with #2438.",
+      "createdAt": "2026-09-07T04:21:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5564981487",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7QX4Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "PR #2477 makes the existing unaffordable shop state show the approximate passive-income wait derived from authoritative tick/cadence, while pointing to creep kills as the faster earn path. No economy tuning/authority change. Focused economy + gold-HUD contracts: 29/29 PASS; diff-check PASS.",
+      "createdAt": "2026-09-07T04:31:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5565061089",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-0x_w",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Maple found a first-/third-person readability mismatch: creep health/level/damage/source labels still faced/scaled from pawn view, while recent opponent combat labels correctly use the actual PlayerCameraManager to account for third-person camera offset. #2539 / PR #2540 at c88109e4b applies the same camera-position rule with pawn-view fallback. Focused creep health/team/hit contracts 10/10 + diff-check PASS; hosted gate pending.",
+      "createdAt": "2026-09-07T09:51:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5568803327",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-1wQA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up #2541 / PR #2542 at 08c916010 closes the same third-person camera-offset mismatch for the in-world creep/upgrade shop labels: they now face/scale from PlayerCameraManager with pawn-view fallback. Focused economy/shop contracts 23/23 + diff-check PASS; hosted gate pending.",
+      "createdAt": "2026-09-07T09:52:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5568819264",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS_NOxQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen landed #2551 as 3f2e03cb5: repairs the merged third-person creep-label camera path's controller scope (current main had C2065 at the PlayerCameraManager access) while preserving actual-camera facing. Focused creep health/damage contracts 9/9 + diff-check + hosted gate passed. Remaining full-module native blocker is in the separately owned P3Construction/#2515 path.",
+      "createdAt": "2026-09-07T10:24:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5569203909",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTAm1iA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Alder landed the player-visible purchase-pressure explanation through #2561 (world creep labels), #2563 (live HUD legend), #2565 (pre-match friend onboarding), and #2568 (successful purchase confirmation). Each reused existing economy/spawn authority and passed its focused contracts + hosted gate. #2570 aligns the ready/unaffordable buy-status wording and is pending its hosted gate. Integrated runtime acceptance remains separate/unclaimed.",
+      "createdAt": "2026-09-07T12:31:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5570672008",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCHpIQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main transaction audit: shop authority correctly rechecks team/match/max-level/balance and refunds a failed creep spawn, but the purchase API has no request identity/sequence. `AP3TowerDefenseLaneWarShopActor::Interact` directly calls `AuthorityTryPurchaseLaneWarCreep*`, and each accepted call spends again if the player still has enough gold. Existing tests cover insufficient gold, max upgrade, rematch reset and one successful purchase, but not duplicate/stale request rejection. Therefore the issue acceptance for duplicate/stale purchase requests is still unproven and structurally absent; fix it at the existing authoritative shop transaction path, not in UI wording.",
+      "createdAt": "2026-09-07T14:40:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5572258081",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCISkA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Correction/refinement to my previous transaction note after tracing the controller RPC: the client does not send a shop target, offer, cost, balance, or purchase payload at all. `ServerTryInteract()` is Reliable and the server resolves the current in-range visible interactable, then `CanInteract`/`Interact` revalidate current team/match/max-level/balance. So stale/forged purchase payloads are structurally excluded by this path, and transport retransmission is handled by UE's reliable RPC semantics. The remaining acceptance gap is narrower: prove that repeated distinct interaction presses cannot create an unintended double-spend/duplicate effect under the recorded network-emulation profile, rather than adding an application request-ID mechanism without evidence it is needed.",
+      "createdAt": "2026-09-07T14:41:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5572268688",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCtRyg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main source-derived economy baseline at 3c312eff5731, for the requested matched-state tuning comparison: passive income is 1 gold / 2s; extra creep costs 20 gold; creep upgrade costs 50; creep kill reward is 5. With passive income only, first extra-pressure purchase is affordable at ~40s and first upgrade at ~100s; each 5-gold creep reward advances either decision by ~10s of passive time. Base creep stats are 100 health / 20 attack damage; each upgrade level adds +25 health and +5 damage, so level 1 is 125 health / 25 damage (+25% each). This establishes the deterministic starting comparison only. Actual before/after lane pressure, purchase opportunity timing under combat income, and time-to-win still require the normal-match runtime baseline requested by this issue; no balance claim from constants alone.",
+      "createdAt": "2026-09-07T15:34:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5572874698",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCz-_A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "One additional source-level pacing bound from the same constants: max creep upgrade level is 5, so buying all five upgrades costs 250 gold. Passive-only time to fund the full chain is ~500s; level 5 yields 225 health and 45 attack damage from the 100/20 base. That makes the first 50-gold upgrade the relevant short-match comparison; full-chain balance should not be inferred or tuned before the requested normal-match runtime baseline.",
+      "createdAt": "2026-09-07T15:45:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2438#issuecomment-5572984572",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOT0JNpc8AAAACvsYdWg",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    }
+  ],
+  "milestone": null,
+  "number": 2438,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Make gold spending and creep upgrades matter during the match",
+  "updatedAt": "2026-09-07T15:45:24Z"
+}

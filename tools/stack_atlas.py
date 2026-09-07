@@ -15,6 +15,11 @@ from pathlib import Path
 from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
+try:
+    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+except ModuleNotFoundError:
+    from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+
 ROOT = Path(__file__).resolve().parents[1]
 ATLAS_LIVE_ROOT = Path(r"C:\Users\Lauri\Desktop\vault")
 BUSY_ROOT = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator"))
@@ -84,6 +89,10 @@ AGENT_RULES_REMOTE = "organicoverlords/agents@main"
 COMPONENT_ALIASES = {
     "chatgpt": "chatgpt_session",
     "webgpt": "chatgpt_session",
+    "swarm": "swarm_topology",
+    "swarm topology": "swarm_topology",
+    "worker topology": "swarm_topology",
+    "subscription topology": "swarm_topology",
     "mcp": "mcp_minimal_clone",
     "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
@@ -256,7 +265,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
         "independent_recovery": [
             "local laptop console remains independent of SSH",
-            "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this optional node",
+            "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this preferred execution node",
         ],
         "resources": [
             "HP OMEN by HP Laptop 15-dc0xxx",
@@ -384,6 +393,17 @@ COMPONENTS.update({
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
         "resources": ["worker-reports/current/<automation-id>.md", "worker-reports/history/_reports/*.json"], "dependents": ["chatgpt_session"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\worker-reports"],
+    },
+    "swarm_topology": {
+        "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
+        "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
+        "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
+        "supervisor": "user-designated ChatGPT subscription operator; current primary operator is read from chatgpt-swarm-topology.json",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["read the topology contract, canonical shared rules, local worker reports/start receipts, and the controlling subscription's scheduler state only when an authorized exact scheduler mutation is required"],
+        "resources": ["S1 five recurring slots", "S2 five recurring slots", "manual/on-demand worker population"],
+        "dependents": ["chatgpt_session", "execution_workers", "scheduler"],
+        "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
     },
     "chatgpt_session": {
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
@@ -559,6 +579,12 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
         "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
     },
+    "worker.swarm_topology": {
+        "owner_components": ["swarm_topology"],
+        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
+        "boundary": "User-declared swarm membership and operator-handoff topology: two ChatGPT subscription scheduler partitions with five recurring workers each, plus a separate manual/on-demand population. Current activity/liveness remains live MCP/runtime evidence, and scheduler administration never crosses subscription partitions.",
+    },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
         "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
@@ -566,7 +592,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
             "python tools\\stack_atlas.py lookup linux_omen_node",
             LINUX_OMEN_CONTRACT,
         ],
-        "boundary": "Optional LAN compute/build node behind the existing Windows MCP transport. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route. Reverify live SSH and current machine resources before use; preserve user data and do not expose TCP 22 publicly.",
+        "boundary": "Preferred LAN compute/build node for portable compute-intensive work behind the existing Windows MCP transport when its live SSH/resource probe passes and the owning repo has a compatible Linux/offload path. LowVRAM, Windows-only workflows, editor/UI-bound work, and MCP/control transport remain on Windows. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
@@ -1210,6 +1236,59 @@ def _bootstrap_fleet_watch(
     }
 
 
+def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
+    """Current user-declared subscription topology plus bounded manual-worker context."""
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+    topology_path = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
+    payload: dict[str, Any] = {}
+    read_state = "MISSING"
+    try:
+        candidate = json.loads(topology_path.read_text(encoding="utf-8-sig"))
+        if isinstance(candidate, dict):
+            payload = candidate
+            read_state = "OK"
+        else:
+            read_state = "INVALID"
+    except FileNotFoundError:
+        pass
+    except (OSError, json.JSONDecodeError):
+        read_state = "ERROR"
+
+    manual = _bootstrap_manual_current_status(current_time)
+    subscriptions = payload.get("subscriptions") if isinstance(payload.get("subscriptions"), dict) else {}
+    handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
+    manual_contract = payload.get("manual_workers") if isinstance(payload.get("manual_workers"), dict) else {}
+    return {
+        "authority": payload.get("authority") or "canonical_recurring_worker_partition_map",
+        "read_state": read_state,
+        "topology_path": str(topology_path),
+        "chatgpt_subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
+        "recurring_worker_partition_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
+        "recurring_worker_partitions": {
+            name: len(partition_workers)
+            for name, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
+        },
+        "recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+        "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five recurring workers per ChatGPT subscription partition",
+        "subscriptions": subscriptions,
+        "operator_handoff": handoff,
+        "manual_workers": {
+            "population": manual_contract.get("population") or "SEPARATE_ON_DEMAND",
+            "counts_against_recurring_slots": bool(manual_contract.get("counts_against_recurring_slots", False)),
+            "active_count_authority": manual_contract.get("active_count_authority") or "live MCP/runtime evidence",
+            "total_swarm_semantics": manual_contract.get("total_swarm_semantics") or "10 recurring workers plus any concurrently active manual/on-demand workers",
+            "current_report_hint": {
+                "available": manual.get("available") if isinstance(manual, dict) else False,
+                "recent_running_report_count": manual.get("recent_running_report_count") if isinstance(manual, dict) else None,
+                "recent_running_report_count_status": manual.get("recent_running_report_count_status") if isinstance(manual, dict) else None,
+                "evidence_semantics": manual.get("evidence_semantics") if isinstance(manual, dict) else None,
+            },
+        },
+    }
+
+
 def _bootstrap_manual_sanity() -> dict[str, Any]:
     path = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "metrics.json"
     try:
@@ -1238,6 +1317,294 @@ def _bootstrap_manual_sanity() -> dict[str, Any]:
         "continuation": sanity.get("continuation", {}),
         "components": sanity.get("components", {}),
         "semantics": sanity.get("semantics"),
+    }
+
+
+def _bootstrap_fleet_watch(
+    now: datetime | None = None,
+    *,
+    partition: str | None = None,
+    worker_id: str | None = None,
+) -> dict[str, Any]:
+    """Compact fleet-cadence signal from local reports/start receipts only.
+
+    Bootstrap uses the global 5+5 view. Timed workers pass their own automation id
+    so recovery candidates are restricted to siblings in that subscription partition.
+    """
+    current_time = now or datetime.now(timezone.utc)
+    if current_time.tzinfo is None:
+        current_time = current_time.replace(tzinfo=timezone.utc)
+
+    requested_partition = str(partition or "").strip().upper() or None
+    worker_key = str(worker_id or "").strip().lower() or None
+    if worker_key is not None:
+        worker_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_key)
+        if worker_partition is None:
+            return {
+                "status": "INVALID_WORKER_ID",
+                "authority": "canonical_recurring_worker_partition_map",
+                "worker_id": worker_key,
+                "scheduler_probe": "not_performed",
+            }
+        if requested_partition is not None and requested_partition != worker_partition:
+            return {
+                "status": "PARTITION_MISMATCH",
+                "authority": "canonical_recurring_worker_partition_map",
+                "worker_id": worker_key,
+                "requested_partition": requested_partition,
+                "worker_partition": worker_partition,
+                "scheduler_probe": "not_performed",
+            }
+        requested_partition = worker_partition
+    if requested_partition is not None and requested_partition not in CANONICAL_RECURRING_WORKER_PARTITIONS:
+        return {
+            "status": "INVALID_PARTITION",
+            "authority": "canonical_recurring_worker_partition_map",
+            "requested_partition": requested_partition,
+            "scheduler_probe": "not_performed",
+        }
+
+    selected_workers = (
+        CANONICAL_RECURRING_WORKER_PARTITIONS[requested_partition]
+        if requested_partition is not None
+        else CANONICAL_RECURRING_WORKERS
+    )
+    current_root = ATLAS_LIVE_ROOT / "worker-reports" / "current"
+    supervision_root = ATLAS_LIVE_ROOT / "worker-reports" / ".supervision"
+    first_expected_start_by_id: dict[str, str] = {}
+    try:
+        topology_payload = json.loads(
+            (ATLAS_LIVE_ROOT / "04 Operating Contracts" / "chatgpt-swarm-topology.json").read_text(encoding="utf-8-sig")
+        )
+        topology_subscriptions = topology_payload.get("subscriptions") if isinstance(topology_payload, dict) else {}
+        if isinstance(topology_subscriptions, dict):
+            for subscription in topology_subscriptions.values():
+                if not isinstance(subscription, dict):
+                    continue
+                for worker in subscription.get("workers", []) if isinstance(subscription.get("workers"), list) else []:
+                    if not isinstance(worker, dict):
+                        continue
+                    candidate_id = str(worker.get("automation_id") or "").strip().lower()
+                    candidate_start = str(worker.get("first_expected_start_at") or "").strip()
+                    if candidate_id and candidate_start:
+                        first_expected_start_by_id[candidate_id] = candidate_start
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        pass
+    partition_summary = {
+        name: {
+            "expected_recurring_workers": len(partition_workers),
+            "observed_worker_reports": sum(
+                1 for candidate_id, _ in partition_workers
+                if (current_root / f"{candidate_id}.md").is_file()
+            ) if current_root.is_dir() else 0,
+        }
+        for name, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
+    }
+    if not current_root.is_dir():
+        return {
+            "status": "UNAVAILABLE",
+            "authority": "local_worker_reports_and_machine_start_receipts",
+            "subscription_scope": requested_partition or "ALL",
+            "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
+            "worker_partitions": partition_summary,
+            "expected_recurring_workers": len(selected_workers),
+            "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+            "scheduler_probe": "not_performed",
+        }
+
+    canonical_ids = {worker_id for worker_id, _ in selected_workers}
+    report_cache: dict[str, str] = {}
+    recent_recoveries: dict[str, dict[str, Any]] = {}
+    recovery_pattern = re.compile(
+        r"Peer recovery:\s*sibling=(?P<sibling>[0-9a-f]{32})\s+"
+        r"action=is_enabled=true\s+result=success\s+at=(?P<at>[^\s;,]+)",
+        re.IGNORECASE,
+    )
+    legacy_recovery_pattern = re.compile(
+        r"Peer recovery:\s*re-enabled canonical sibling .*?"
+        r"\((?P<sibling>[0-9a-f]{32})\).*?targeted is_enabled=true succeeded",
+        re.IGNORECASE,
+    )
+
+    def remember_recovery(sibling_id: str, recovered_at: datetime, actor_id: str, actor_label: str) -> None:
+        if sibling_id not in canonical_ids or sibling_id == actor_id:
+            return
+        if CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(sibling_id) != CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(actor_id):
+            return
+        recovery_age_minutes = max(0.0, (current_time - recovered_at).total_seconds() / 60.0)
+        existing = recent_recoveries.get(sibling_id)
+        existing_at = _parse_event_time(existing.get("recovered_at")) if isinstance(existing, dict) else None
+        if existing_at is not None and existing_at >= recovered_at:
+            return
+        recent_recoveries[sibling_id] = {
+            "actor": actor_label,
+            "actor_id": actor_id,
+            "recovered_at": recovered_at.isoformat(),
+            "age_minutes": round(recovery_age_minutes, 1),
+        }
+    for actor_id, actor_label in selected_workers:
+        report_path = current_root / f"{actor_id}.md"
+        if not report_path.is_file():
+            continue
+        try:
+            raw = report_path.read_text(encoding="utf-8-sig", errors="replace")[:16 * 1024]
+        except OSError:
+            continue
+        report_cache[actor_id] = raw
+        for match in recovery_pattern.finditer(raw):
+            recovered_at = _parse_event_time(match.group("at"))
+            if recovered_at is not None:
+                remember_recovery(match.group("sibling").lower(), recovered_at, actor_id, actor_label)
+
+        actor_started_at = None
+        for line in raw.splitlines():
+            if line.startswith("started_at:"):
+                actor_started_at = _parse_event_time(line.split(":", 1)[1].strip())
+                break
+        if actor_started_at is not None:
+            for match in legacy_recovery_pattern.finditer(raw):
+                # Legacy findings have no explicit recovery timestamp. Use the acting run's
+                # immutable start as a conservative lower bound; last_activity moves and
+                # would otherwise extend recovery suppression every time the report updates.
+                remember_recovery(match.group("sibling").lower(), actor_started_at, actor_id, actor_label)
+
+    workers: list[dict[str, Any]] = []
+    suspects: list[dict[str, Any]] = []
+    for worker_id, label in selected_workers:
+        report_path = current_root / f"{worker_id}.md"
+        fields: dict[str, str] = {}
+        raw = report_cache.get(worker_id, "")
+        if raw:
+            for line in raw.splitlines():
+                if ":" not in line:
+                    continue
+                key, value = line.split(":", 1)
+                key = key.strip()
+                if key in {"state", "started_at", "last_activity_at"}:
+                    fields[key] = value.strip()
+
+        started = _parse_event_time(fields.get("started_at"))
+        last_activity = _parse_event_time(fields.get("last_activity_at"))
+        state = str(fields.get("state") or "").upper() or None
+        receipt_present = (supervision_root / f"{worker_id}.start.json").is_file()
+        age_minutes = None
+        if started is not None:
+            age_minutes = max(0.0, (current_time - started).total_seconds() / 60.0)
+
+        first_expected_start = _parse_event_time(first_expected_start_by_id.get(worker_id))
+        if started is None:
+            if first_expected_start is not None and current_time <= first_expected_start + timedelta(
+                minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
+            ):
+                cadence_state = "FIRST_START_PENDING"
+            else:
+                cadence_state = "NO_LOCAL_START_EVIDENCE"
+        elif state == "RUNNING" and not receipt_present:
+            cadence_state = (
+                "RUNNING_WITHOUT_START_RECEIPT"
+                if age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES
+                else "START_RECEIPT_PENDING"
+            )
+        elif age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES:
+            cadence_state = "MISSED_EXPECTED_HOURLY_CADENCE"
+        elif state == "RUNNING" and receipt_present:
+            cadence_state = "RUNNING_WITH_START_RECEIPT"
+        else:
+            cadence_state = "RECENT_START_EVIDENCE"
+
+        row = {
+            "worker": label,
+            "automation_id": worker_id,
+            "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
+            "report_present": report_path.is_file(),
+            "state": state,
+            "started_at": started.isoformat() if started is not None else None,
+            "first_expected_start_at": first_expected_start.isoformat() if first_expected_start is not None else None,
+            "last_activity_at": last_activity.isoformat() if last_activity is not None else None,
+            "start_age_minutes": round(age_minutes, 1) if age_minutes is not None else None,
+            "cadence_state": cadence_state,
+            "start_receipt_present": receipt_present,
+        }
+        workers.append(row)
+        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_WITHOUT_START_RECEIPT"}:
+            recent_recovery = recent_recoveries.get(worker_id)
+            recovery_actionable = recent_recovery is None
+            recovery_status = "RECOVERY_NEEDED" if recovery_actionable else "RECOVERY_PENDING"
+            pending_until = None
+            if recent_recovery is not None:
+                recovered_at = _parse_event_time(recent_recovery.get("recovered_at"))
+                if recovered_at is not None and started is not None and started > recovered_at:
+                    # A newer local start consumed the older recovery; a later missed cadence
+                    # is a fresh failure and must be actionable again.
+                    recent_recovery = None
+                    recovery_actionable = True
+                    recovery_status = "RECOVERY_NEEDED"
+                elif recovered_at is not None and started is not None:
+                    elapsed = max(0.0, (recovered_at - started).total_seconds())
+                    hourly_steps = int(elapsed // 3600.0) + 1
+                    expected_after_recovery = started + timedelta(hours=hourly_steps)
+                    pending_until = expected_after_recovery + timedelta(
+                        minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
+                    )
+                    if current_time > pending_until:
+                        recovery_actionable = True
+                        recovery_status = "RECOVERY_RETRY_NEEDED"
+                elif recovered_at is not None:
+                    pending_until = recovered_at + timedelta(
+                        minutes=BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES
+                    )
+                    if current_time > pending_until:
+                        recovery_actionable = True
+                        recovery_status = "RECOVERY_RETRY_NEEDED"
+
+            suspect = {
+                "worker": label,
+                "automation_id": worker_id,
+                "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
+                "started_at": row["started_at"],
+                "start_age_minutes": row["start_age_minutes"],
+                "reason": cadence_state,
+                "recovery_status": recovery_status,
+                "recovery_actionable": recovery_actionable,
+            }
+            if recent_recovery is not None:
+                suspect["last_recovery"] = recent_recovery
+            if pending_until is not None:
+                suspect["recovery_pending_until"] = pending_until.isoformat()
+            suspects.append(suspect)
+    recovery_candidates = [
+        {
+            "worker": item["worker"],
+            "automation_id": item["automation_id"],
+            "subscription_partition": item.get("subscription_partition") or CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(item["automation_id"]),
+            "reason": item["reason"],
+        }
+        for item in suspects
+        if item.get("recovery_actionable")
+    ]
+    return {
+        "status": "SUSPECT_DEGRADED" if suspects else "CURRENT_LOCAL_EVIDENCE",
+        "authority": "local_worker_reports_and_machine_start_receipts",
+        "subscription_scope": requested_partition or "ALL",
+        "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
+        "worker_partitions": partition_summary,
+        "expected_recurring_workers": len(selected_workers),
+        "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+        "observed_worker_reports": sum(1 for row in workers if row.get("report_present")),
+        "running_with_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITH_START_RECEIPT"),
+        "recent_start_evidence": sum(1 for row in workers if row.get("cadence_state") == "RECENT_START_EVIDENCE"),
+        "first_start_pending": sum(1 for row in workers if row.get("cadence_state") == "FIRST_START_PENDING"),
+        "start_receipt_pending": sum(1 for row in workers if row.get("cadence_state") == "START_RECEIPT_PENDING"),
+        "running_without_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITHOUT_START_RECEIPT"),
+        "suspect_count": len(suspects),
+        "suspect_workers": suspects,
+        "recovery_candidate_count": len(recovery_candidates),
+        "recovery_candidates": recovery_candidates,
+        "recovery_cooldown_minutes": BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES,
+        "recovery_start_grace_minutes": BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES,
+        "start_receipt_grace_minutes": BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES,
+        "recovery_retry_basis": "next_observed_hourly_phase_plus_grace_then_fallback_cooldown",
+        "scheduler_probe": "not_performed",
     }
 
 
@@ -1271,7 +1638,8 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         if not isinstance(raw, dict):
             continue
         worker_id = str(raw.get("automation_id") or "").strip()
-        if not worker_id or worker_id in latest_by_worker:
+        canonical_ids = {item[0] for item in CANONICAL_RECURRING_WORKERS}
+        if not worker_id or worker_id not in canonical_ids or worker_id in latest_by_worker:
             continue
         finished = _parse_event_time(raw.get("finished_at") or raw.get("archived_at"))
         if finished is None:
@@ -1346,6 +1714,7 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
         "historical_timeline_semantics": "timeline worker reports are historical context only and are not used for this current worker-quality block",
     }
+    result["fleet_watch"] = _bootstrap_fleet_watch(now)
     result["manual_sanity"] = _bootstrap_manual_sanity()
     return result
 
@@ -1834,7 +2203,6 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
         bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 2_400)
-        bounded["recent_memory_titles"] = bounded["memory_overview"].get("recent", [])
 
     if _compact_json_bytes(bounded) > budget:
         freshness = bounded.get("source_freshness")
@@ -1886,7 +2254,50 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
         bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 1_800)
-        bounded["recent_memory_titles"] = bounded["memory_overview"].get("recent", [])
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
+        memory = bounded["memory_overview"]
+        materialized = memory.get("timeline_materialized") if isinstance(memory.get("timeline_materialized"), dict) else {}
+        snapshots = memory.get("timeline_snapshots") if isinstance(memory.get("timeline_snapshots"), dict) else {}
+        memory["timeline_materialized"] = {
+            key: materialized.get(key)
+            for key in ("status", "coverage_status", "age_seconds", "live_truth_required")
+            if key in materialized
+        }
+        memory["timeline_snapshots"] = {
+            key: snapshots.get(key)
+            for key in ("authority", "memory_history")
+            if key in snapshots
+        }
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
+        workers = bounded["workers"]
+        fleet = workers.get("fleet_watch") if isinstance(workers.get("fleet_watch"), dict) else {}
+        workers["fleet_watch"] = {key: fleet.get(key) for key in (
+            "status", "expected_recurring_workers", "observed_worker_reports", "recent_start_evidence",
+            "running_with_start_receipt", "running_without_start_receipt", "suspect_count", "recovery_candidate_count",
+        ) if key in fleet}
+        workers.pop("archive_sample", None)
+        workers.pop("attention", None)
+        workers.pop("stale_reports", None)
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("swarm_topology"), dict):
+        topo = bounded["swarm_topology"]
+        handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
+        manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
+        bounded["swarm_topology"] = {
+            key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
+        }
+        bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
+        bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
+
+    live_swarm = bounded.get("live_swarm")
+    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and len(live_swarm["lanes"]) > 2:
+        live_swarm["lanes"].pop()
+        live_swarm["lanes_truncated"] = True
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
+        commands = bounded["commands"]
+        bounded["commands"] = {key: commands.get(key) for key in ("bootstrap", "live_swarm", "fleet_watch", "stack_owner", "stack_find") if key in commands}
 
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"]["compacted"] = True
@@ -2717,20 +3128,65 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
     }
 
 
+def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Legacy bootstrap MCP projection from the same live-swarm evidence; avoids a second transport scan."""
+    if not isinstance(snapshot, dict) or not snapshot.get("available"):
+        return {"available": False, "status": "MISSING", "active_session_count": 0, "active_sessions": [], "workspace_counts": {}}
+    evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
+    summary = snapshot.get("summary") if isinstance(snapshot.get("summary"), dict) else {}
+    complete = bool(evidence.get("observation_window_complete"))
+    sessions = []
+    for lane in snapshot.get("lanes", []) if isinstance(snapshot.get("lanes"), list) else []:
+        if not isinstance(lane, dict): continue
+        owners = [str(item.get("owner")) for item in lane.get("busy", []) if isinstance(item, dict) and item.get("owner")]
+        worktree = lane.get("worktree") if isinstance(lane.get("worktree"), dict) else {}
+        for caller in lane.get("callers", []) if isinstance(lane.get("callers"), list) else []:
+            if not isinstance(caller, dict): continue
+            sessions.append({
+                "caller_id": caller.get("caller_id"),
+                "activity_age_seconds": caller.get("last_activity_age_seconds"),
+                "cwd": worktree.get("path"),
+                "workspace": caller.get("workspace"),
+                "busy_titles": owners,
+            })
+    sessions.sort(key=lambda item: float(item.get("activity_age_seconds") or 1e9))
+    activity = evidence.get("activity_summary") if isinstance(evidence.get("activity_summary"), dict) else {}
+    return {
+        "available": True,
+        "status": "LIVE" if float(evidence.get("source_age_seconds") or 0) <= 60 else "STALE",
+        "source_age_seconds": evidence.get("source_age_seconds"),
+        "service_health": {"available": None, "status": "NOT_PROBED_FRESH_TRANSPORT"},
+        "activity_evidence_status": "FRESH" if complete else "BOUNDED",
+        "active_session_count": int(summary.get("recent_callers") or 0),
+        "active_session_count_status": "COMPLETE" if complete else "LOWER_BOUND",
+        "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
+        "active_sessions": sessions[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT],
+        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+        "active_sessions_truncated": len(sessions) > BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+        "workspace_counts": summary.get("workspace_counts", {}),
+        "activity_summary": {
+            **activity,
+            "activity_window_seconds": 300,
+            "activity_window_complete": complete,
+        },
+    }
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=7) as pool:
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
-        f_mcp = pool.submit(_bootstrap_mcp_status)
+        f_live_swarm = pool.submit(build_live_swarm_snapshot)
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        pc, workers, mcp, memory_overview, vault, github, source_freshness = (
-            f_pc.result(), f_workers.result(), f_mcp.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
+        pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
+            f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
+    mcp = _bootstrap_mcp_from_live_swarm(live_swarm)
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
     notable_conditions: list[str] = []
     disk = pc.get("disk", {})
@@ -2749,7 +3205,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     worker_glance = {
         key: workers.get(key) for key in (
             "available", "generated_at", "read_mode", "population_scope", "evidence_semantics",
-            "archive_sample", "attention", "stale_reports", "manual_sanity",
+            "archive_sample", "attention", "stale_reports", "fleet_watch", "manual_sanity",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     if isinstance(worker_glance, dict):
@@ -2760,7 +3216,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
                 for key in ("available", "status", "score_delta", "direction", "post_run_count")
                 if key in sanity
             }
-        worker_glance["current_activity"] = _bootstrap_worker_activity_from_mcp(mcp)
+        worker_glance["current_activity"] = {"authority": "live_mcp_runtime_evidence"}
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
     vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
@@ -2771,6 +3227,14 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"vault_{vault_health.casefold()}")
     if github_health != "OK":
         notable_conditions.append(f"github_{github_health.casefold()}")
+    fleet_watch = worker_glance.get("fleet_watch") if isinstance(worker_glance, dict) else None
+    if isinstance(fleet_watch, dict) and fleet_watch.get("status") == "SUSPECT_DEGRADED":
+        labels = [
+            str(item.get("worker") or "").replace("Repo Worker ", "").casefold()
+            for item in fleet_watch.get("suspect_workers", [])
+            if isinstance(item, dict) and str(item.get("worker") or "").strip()
+        ]
+        notable_conditions.append("recurring_fleet_local_evidence_suspect" + ("_" + "_".join(labels) if labels else ""))
     timeline_materialized = memory_overview.get("timeline_materialized", {}) if isinstance(memory_overview, dict) else {}
     if isinstance(timeline_materialized, dict):
         timeline_status = str(timeline_materialized.get("status") or "").upper()
@@ -2793,7 +3257,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "status": bootstrap_status,
         "self_check": "OK" if (ROOT / "tools" / "stack_atlas.py").is_file() else "DEGRADED",
         "elapsed_ms": elapsed_ms,
-        "component_statuses": {"mcp": mcp_health, "vault": vault_health, "github": github_health},
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
     }
     glance = {
@@ -2815,8 +3278,11 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "mcp_recovery_state": str(MCP_RECOVERY_STATE_PATH),
             "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
         },
+        "swarm_topology": _bootstrap_swarm_topology(),
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+            "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+            "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
             "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
             "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
@@ -2829,6 +3295,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "timeline_task_status": r"python C:\Users\Lauri\Desktop\vault\tools\timeline_materializer.py task-status",
         },
         "bootstrap": bootstrap,
+        "live_swarm": compact_for_bootstrap(live_swarm, lane_limit=4),
         "mcp": mcp,
         "vault": vault,
         "github": github,
@@ -2836,9 +3303,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "pc": pc,
         "workers": worker_glance,
         "mcp_recovery_state": mcp_recovery_state,
-        "notable_conditions": notable_conditions,
         "memory_overview": memory_overview,
-        "recent_memory_titles": memory_overview.get("recent", []),
     }
     return _fit_bootstrap_glance_budget(glance)
 
@@ -3346,6 +3811,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Derived stack capability/dependency Atlas; never a runtime authority.")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("bootstrap-glance")
+    sub.add_parser("live-swarm")
     fleet = sub.add_parser("fleet-watch")
     fleet.add_argument("--partition", choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS))
     fleet.add_argument("--worker-id")
@@ -3372,6 +3838,8 @@ def main() -> int:
 
     if args.command == "bootstrap-glance":
         value = build_live_bootstrap_glance()
+    elif args.command == "live-swarm":
+        value = build_live_swarm_snapshot()
     elif args.command == "fleet-watch":
         value = _bootstrap_fleet_watch(partition=args.partition, worker_id=args.worker_id)
     elif args.command == "inventory":

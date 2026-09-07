@@ -1,0 +1,273 @@
+{
+  "body": "## 2026-09-07 placement, destruction and anti-soft-lock contract\r\nReuse current #1033/#1012, #2605 placement and #2600 rollback WIP. Shared placement/authority files serialize.\r\n\r\nThe player may choose defenses/Core position, but a valid match must retain declared access/counterplay. Revalidate placement against authoritative terrain/structure state, player/team rights, support/collision and the actual route policy. Handle a terrain change or another placement between preview and server commit; reject/rollback without double cost or stale invisible collision.\r\n\r\nTest full blocking attempts, Core relocation during existing creep targeting, destruction during pending nav update, support removal and repeated undo/refund as applicable. Server gameplay health/collision determines access; Chaos debris presentation cannot keep an invisible permanent blocker or award duplicate damage/refund.\r\n\r\nShow place -> defend -> enemy counter -> reopened route -> renewed Core pressure through normal controls on both clients. Keep free earthworks separate from construction economy. The final outcome belongs in #803/#941, not a standalone placement demo.\r\n\r\n---\r\n\r\nParent: #803 / #941. Compose existing Core relocation plus #1033 construction and existing destruction; do not add another placement or objective system.\r\n\r\nAcceptance:\r\n- each player can choose a valid Core position in/around the live base through normal controls;\r\n- the player can place existing walls/defences to make that position meaningfully easier to defend;\r\n- the enemy can attack/destroy defences and reopen access rather than creating a permanent soft lock;\r\n- invalid Core/defence placements fail visibly and preserve a playable route;\r\n- both clients see the same authoritative Core/base state;\r\n- prove the loop as player choice -> build defence -> enemy counterplay -> Core pressure.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7Lhdg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen opened #2470 at 209ddfa58: Core relocation destination preview now checks the Core collision profile/extent for blocking occupancy before showing the green move marker, while the existing authoritative swept move remains the commit gate. Core relocation/presentation/binding cohort 44/44 PASS + diff-check. One exact-head OMEN P3Gameplay admission passed preflight but timed out in the canonical lane-2 queue after 60s; no native PASS or retry claimed.",
+      "createdAt": "2026-09-07T04:21:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5564981622",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9Q7xw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2507 merged as bdfe63cff22956bfa1f474444aefdacf0fa99ded. Core relocation now rejects destinations that cannot project to navmesh or retain a complete non-partial route from the Core home when navigation data is present. Focused relocation contract 10/10 PASS, diff-check PASS; P3Gameplay native module build also passed in composite cohort 34096249376. No runtime/rendered PASS claimed.",
+      "createdAt": "2026-09-07T07:47:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567167431",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9fDng",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Pine landed #2510 and published #2511 to align both Core-relocation rejection surfaces with #2507's route-preservation rule. Interaction rejection now says the destination must stay connected to the lane route; the live pre-interaction cue says the same before input. Both focused heads passed 10/10 Core relocation contracts + diff-check; hosted gate is green on #2511.",
+      "createdAt": "2026-09-07T08:04:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567398814",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9hSJQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Fresh current-main follow-up after #2510/#2511: the normal player construction path still has no lane-route preservation admission. AuthorityPlaceDefaultStructure validates team/intent/slot/asset/materials, then AuthoritySpawnStructure(AP3ConstructionBlockingStructure...); that blocker exports UNavArea_Null and physical BlockAll, but no pre/post placement route check exists. The TowerDefense synthetic test proves one blocker reroutes and destruction reopens, not that repeated player placements cannot fully seal the lane. Do not paper this over with another warning string: next #2440 implementation should reject/refund a placement that would remove the complete Core-to-Core creep route, using the existing Construction transaction/AuthoritySalvageStructure path or an equivalent authority-owned precommit check, then runtime-prove the rejection and unchanged materials.",
+      "createdAt": "2026-09-07T08:08:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567435301",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9i_Sg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Implementation note from UE 5.8 source review: UNavigationSystemV1::OnNavigationGenerationFinishedDelegate is available and broadcasts after nav generation. That makes an authority-owned deferred validation/rollback viable without calling synchronous NavigationSystem->Build() in the player input path: place/register/charge through the existing transaction, wait for the dynamic-nav generation completion, test complete Core-to-Core path, and AuthoritySalvageStructure on failure so the exact build cost is refunded. This should be proven against repeated blockers; the existing single-blocker synthetic test is insufficient.",
+      "createdAt": "2026-09-07T08:10:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567463242",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9r8sg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen published PR #2512 at exact head ecc96e7e5. Active Lane War wall placement now defers route admission until dynamic-nav regeneration, projects both live Core positions to nav, requires a complete non-partial Core-to-Core path, and automatically salvages/refunds the just-placed wall if it seals the creep route. Another placement is blocked with no additional spend while validation is pending. Focused Construction cohort 36/36 PASS + diff-check. Native/runtime unclaimed: this run's single OMEN admission failed closed before runtime on lane source mismatch actual=56a545027... expected=4443cb0b0..., so no unchanged heavy retry.",
+      "createdAt": "2026-09-07T08:21:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567610034",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9uG0g",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Proof-seam follow-up after #2512 merge: the existing P3ConstructionRuntimeAcceptance cannot validate the new lane-preservation guard and should not be expanded into a substitute Lane War harness. Its AP3ConstructionRuntimeTestGameMode clears DefaultExperienceId, creates no Lane War Cores/nav lane, and its current route check is only a 700 cm physical pawn sweep across one blocker. #2512 intentionally arms only with active Lane War + both registered Cores + nav data. Therefore the next discriminating proof remains the normal playable Lane War path on a compatible exact-current runtime: place route-safe wall -> BUILD CONFIRMED; attempt repeated closure -> BUILD UNDONE / MATERIALS REFUNDED, then confirm creeps still retain Core-to-Core pressure. The stale lane-1 identity prevents that proof this run.",
+      "createdAt": "2026-09-07T08:24:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567645394",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9vveQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Post-merge review found and fixed one follow-up race in #2512: after auto-salvage/refund, placement became available before nav regeneration from the removed wall was itself confirmed. A fast second Place could therefore bind to the removal rebuild rather than its own blocker update. PR #2514 at 4b90e4766 keeps build placement fenced across the refund until a later nav-generation callback proves the Core-to-Core route reopened; rollback failure also keeps building locked until an external route change restores it. Focused Construction cohort 37/37 PASS + diff-check; hosted gate running.",
+      "createdAt": "2026-09-07T08:26:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5567672185",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-yrFw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Maple found a concrete solo/base-defense counterplay gap after #2536: player-built Construction walls already carry authoritative OwningTeamId but lacked the LaneWarBlockingDefense.TeamN marker consumed by the solo opponent, so a hostile player wall could obstruct the hero while it kept targeting a creep/Core beyond it. #2537 / PR #2538 at 3af696023 tags successful player wall placement from the validated team id. Focused Construction ownership + solo-AI contracts 24/24 PASS; diff-check PASS; hosted gate pending.",
+      "createdAt": "2026-09-07T09:48:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5568768791",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-2rSA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up #2543 / PR #2544 at 80a20ac63 fixes Core objective/relocation labels using pawn view despite third-person camera offset. Both the persistent Core label and relocation preview now use PlayerCameraManager with pawn-view fallback. Focused Core beacon/relocation/facing contracts 35/35 + diff-check PASS; hosted gate pending.",
+      "createdAt": "2026-09-07T09:53:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5568834376",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-3Qwg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up #2545 / PR #2546 at ba0988abc fixes the active Construction preview status using pawn view despite third-person camera offset. Placement/cost guidance now faces/scales from PlayerCameraManager with pawn-view fallback. Focused Construction input/preview/control contracts 33/33 + diff-check PASS; hosted gate pending.",
+      "createdAt": "2026-09-07T09:54:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5568843970",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-39BA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up #2547 / PR #2548 at 7504ef3b9 fixes resource-node collection labels using pawn view despite third-person camera offset. Construction-material guidance now faces/scales from PlayerCameraManager with pawn-view fallback. Focused harvest contracts 6/6 + diff-check PASS; hosted gate pending.",
+      "createdAt": "2026-09-07T09:55:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5568855300",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS_NMZQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen landed #2549 as 860cf7b49: player-built blocking walls now identify themselves in the existing world interaction UI as PLAYER WALL - CORE DEFENSE | BLOCKS CREEP ROUTES, so repair/destroy counterplay explains the wall's Lane War role instead of generic PLAYER FORTIFICATION. Focused Construction/base contracts 38/38 + diff-check + hosted gate passed.",
+      "createdAt": "2026-09-07T10:24:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5569203301",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBKZqQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Pine update: #2599 merged as 16118334c10d, preserving post-spend MATERIALS LEFT feedback while the Lane War route check is pending and adding the normal human-launch closure/refund check. Follow-up #2600 is at 597961933: rollback now reports authoritative restored material counts; the live preview is fenced with CHECKING/RESTORING state instead of green BUILD VALID; and those route-fence bits are replicated so the owning multiplayer client can actually see that state. Focused Construction input contract 31/31 PASS + diff-check. Native OMEN admission was not submitted: live /mnt/ue has 36 GiB free, below lane-2's 40 GiB floor.",
+      "createdAt": "2026-09-07T13:19:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5571254697",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCbCfw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Pine published #2636 at 42cd5eaca. Catastrophic authored Chaos debris now drops collision and navigation influence after crumble, so destroying a wall cannot leave presentation shards as a creep/player route blocker. Focused destruction/base/fortification source contracts 23/23 PASS + diff-check; hosted contract gate PASS. One exact-head OMEN P3Construction admission failed closed before build on LOW_FREE_DISK and was not retried. Merge guard is currently blocked on missing current-main integration cohort, so no merge claimed.",
+      "createdAt": "2026-09-07T15:08:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5572575871",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCdBKA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up on #2636: final head is now 0a85608ff. Review showed partial fracture had the same authority leak: the GeometryCollection component was created as QueryAndPhysics before lethal destruction. The PR now makes Chaos presentation nonblocking from creation through catastrophic crumble; the structure/blocking volume remains the sole gameplay collision/nav owner. Focused destruction/base/fortification source contracts remain 23/23 PASS and exact-head hosted contract gate is green. Current merge guard still blocks on the new current-main cohort c20aad90a331 being absent; no polling/retry.",
+      "createdAt": "2026-09-07T15:10:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5572608296",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCzdeQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main destruction safety: #2636 merged as e770cddfd02a. Chaos fracture presentation now has gameplay collision disabled/non-nav ownership for the structure lifetime, leaving the authoritative structure/blocking volume as the only traversal owner until destruction; catastrophic crumble therefore cannot leave a second invisible route blocker. Fresh focused destruction/base/fortification contracts were 23/23 PASS plus hosted contract gate; native build remains unclaimed because the one OMEN admission failed LOW_FREE_DISK.",
+      "createdAt": "2026-09-07T15:44:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2440#issuecomment-5572975993",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOT0JNpc8AAAACvsYdWg",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    }
+  ],
+  "milestone": null,
+  "number": 2440,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Core placement and base-defense counterplay",
+  "updatedAt": "2026-09-07T15:44:35Z"
+}

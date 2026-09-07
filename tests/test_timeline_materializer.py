@@ -17,6 +17,7 @@ from tools.timeline_materializer import (
     DEFAULT_OVERLAP_MINUTES,
     DEFAULT_REPO_EVENTS,
     DEFAULT_RUNNER_LOG_EVENTS,
+    HISTORICAL_EVIDENCE_FLOOR,
     SCHEMA,
     build_parser,
     build_work_graph,
@@ -634,12 +635,16 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "timeline": {"events": [old_event]},
             }), encoding="utf-8")
             new_event = self.commit_event(new_sha, "New delta work", "2026-09-06T05:04:00+00:00")
+            repaired_old = dict(old_event, body="Historical Hummingbird wing deformation lesson", changed_paths=["rigging/avian.py"], _search_text="Historical Hummingbird wing deformation lesson rigging/avian.py")
             minimal_overview = {"contract": "history only", "eligible_entries": 0, "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": []}
             with patch("tools.timeline_materializer.discover_repo_specs", return_value=[RepoSpec("p3", root)]), patch(
                 "tools.timeline_materializer._repo_maps", return_value=({"p3": "organicoverlords/p3"}, {"organicoverlords/p3": "p3"})
             ), patch("tools.timeline_materializer.load_bank", return_value=[]), patch(
                 "tools.timeline_materializer.collect_repo_history",
-                return_value={"events": [new_event], "coverage": {"p3": {"events": 1, "limit": DEFAULT_DELTA_REPO_EVENTS_PER_REPO, "saturated": False}}},
+                side_effect=[
+                    {"events": [repaired_old], "coverage": {"p3": {"events": 1, "limit": DEFAULT_REPO_EVENTS, "saturated": False}}},
+                    {"events": [new_event], "coverage": {"p3": {"events": 1, "limit": DEFAULT_DELTA_REPO_EVENTS_PER_REPO, "saturated": False}}},
+                ],
             ) as collect_repo, patch("tools.timeline_materializer.enrich_repo_events"), patch(
                 "tools.timeline_materializer.worker_history_events", side_effect=[[], []]
             ) as worker_history, patch("tools.timeline_materializer.tracked_artifact_events", return_value=[]), patch(
@@ -661,19 +666,24 @@ class TimelineMaterializerTests(unittest.TestCase):
                     now=datetime(2026, 9, 6, 5, 5, tzinfo=timezone.utc),
                 )
             self.assertEqual(result["refresh_mode"], "INCREMENTAL")
-            self.assertEqual(result["delta_events"], 1)
+            self.assertEqual(result["delta_events"], 2)
             expected_since = prior_at - timedelta(minutes=DEFAULT_OVERLAP_MINUTES)
-            self.assertEqual(collect_repo.call_args.kwargs["since"], expected_since)
-            self.assertEqual(collect_repo.call_args.kwargs["limit_per_repo"], DEFAULT_DELTA_REPO_EVENTS_PER_REPO)
+            self.assertEqual(len(collect_repo.call_args_list), 2)
+            self.assertEqual(collect_repo.call_args_list[0].kwargs["since"], HISTORICAL_EVIDENCE_FLOOR)
+            self.assertEqual(collect_repo.call_args_list[0].kwargs["limit_per_repo"], DEFAULT_REPO_EVENTS)
+            self.assertEqual(collect_repo.call_args_list[1].kwargs["since"], expected_since)
+            self.assertEqual(collect_repo.call_args_list[1].kwargs["limit_per_repo"], DEFAULT_DELTA_REPO_EVENTS_PER_REPO)
             self.assertTrue(all(call.kwargs["since"] == expected_since for call in worker_history.call_args_list))
             expected_unbounded_source_since = datetime(2000, 1, 1, tzinfo=timezone.utc)
             self.assertEqual(library_artifacts.call_args.kwargs["since"], expected_unbounded_source_since)
             self.assertEqual(machine_observations.call_args.kwargs["since"], expected_unbounded_source_since)
             self.assertEqual(mcp_history.call_args.kwargs["since"], expected_unbounded_source_since)
             payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
-            ids = {event["id"] for event in payload["timeline"]["events"]}
-            self.assertIn(old_event["id"], ids)
-            self.assertIn(new_event["id"], ids)
+            events_by_id = {event["id"]: event for event in payload["timeline"]["events"]}
+            self.assertIn(old_event["id"], events_by_id)
+            self.assertIn(new_event["id"], events_by_id)
+            self.assertEqual(events_by_id[old_event["id"]]["body"], repaired_old["body"])
+            self.assertEqual(events_by_id[old_event["id"]]["changed_paths"], ["rigging/avian.py"])
             self.assertEqual(payload["ingestion"]["mode"], "INCREMENTAL")
             self.assertEqual(payload["ingestion"]["backfill_incomplete_sources"], ["github", "repos"])
             self.assertEqual(payload["timeline"]["materialized"]["backfill_incomplete_sources"], ["github", "repos"])

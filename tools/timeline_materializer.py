@@ -1559,6 +1559,7 @@ def build_work_graph(events: Iterable[dict[str, Any]]) -> dict[str, Any]:
                     "target_utilization_pct": utilization,
                     "outcome": event.get("outcome"),
                     "finding_tags": event.get("finding_tags") or [],
+                    "summary": event.get("summary"),
                     "findings": event.get("findings"),
                     "validation": event.get("validation"),
                 })
@@ -2005,6 +2006,31 @@ def materialize(
         project_to_slug, _ = _repo_maps(specs)
         entries = load_bank(root / "memory" / "memory-bank.jsonl")
 
+        # One-time bounded self-heal for materialized Git rows created before commit
+        # bodies/changed paths were indexed. Re-read only affected repo streams inside
+        # the existing horizon, then preserve prior graph enrichment such as patch-id.
+        legacy_repo_projects = {
+            str(event.get("project") or "")
+            for event in previous_events
+            if event.get("source_type") == "GIT_COMMIT"
+            and ("body" not in event or "changed_paths" not in event)
+            and str(event.get("project") or "")
+        }
+        legacy_repo_repair_delta: list[dict[str, Any]] = []
+        if incremental and legacy_repo_projects:
+            repair_specs = [spec for spec in specs if spec.project in legacy_repo_projects]
+            repair_report = collect_repo_history(
+                repair_specs, limit_per_repo=repo_events_per_repo, since=horizon_since
+            )
+            previous_by_id = {str(event.get("id") or ""): event for event in previous_events}
+            for event in repair_report.get("events") or []:
+                repaired = dict(event)
+                prior = previous_by_id.get(str(repaired.get("id") or ""), {})
+                for key in ("branch_refs", "patch_id"):
+                    if prior.get(key) not in (None, "", [], {}):
+                        repaired[key] = prior[key]
+                legacy_repo_repair_delta.append(repaired)
+
         repo_limit = min(repo_events_per_repo, DEFAULT_DELTA_REPO_EVENTS_PER_REPO) if incremental else repo_events_per_repo
         repo_report = collect_repo_history(specs, limit_per_repo=repo_limit, since=source_since["repos"])
         repo_delta = list(repo_report.get("events") or [])
@@ -2052,7 +2078,7 @@ def materialize(
             *library_delta,
             *machine_delta,
         ]
-        all_delta = [*repo_delta, *worker_delta, *artifact_delta, *supplemental_delta]
+        all_delta = [*legacy_repo_repair_delta, *repo_delta, *worker_delta, *artifact_delta, *supplemental_delta]
 
         merged_external = _merge_materialized_events(
             previous_events, all_delta, since=horizon_since
@@ -2123,6 +2149,7 @@ def materialize(
                 "overlap_minutes": DEFAULT_OVERLAP_MINUTES,
                 "source_since": {name: value.isoformat() for name, value in source_since.items()},
                 "delta_events": len(all_delta),
+                "legacy_repo_events_reenriched": len(legacy_repo_repair_delta),
                 "retained_previous_external_events": len(previous_events),
                 "merged_external_events": len(merged_external),
                 "saturated_sources": saturated_sources,
@@ -2625,7 +2652,7 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
         "id", "source_type", "authority", "event_at", "recorded_at", "project", "projects",
         "state", "kind", "scope", "worker", "display_label", "population", "automation_id", "run_id",
         "duration_minutes", "target_run_minutes", "target_utilization_pct", "finding_tags",
-        "sha", "short_sha", "patch_id", "branch_refs", "decorations", "repo_path", "repo_state",
+        "sha", "short_sha", "patch_id", "branch_refs", "decorations", "repo_path", "repo_state", "changed_paths",
         "artifact_type", "path", "report_path", "evidence_type", "incident_id", "change",
         "github_kind", "github_number", "github_repo", "url", "head_ref", "base_ref", "head_sha",
         "workflow", "status", "conclusion", "event", "tool", "process_id", "backend_generation",
@@ -2638,7 +2665,7 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
         value = event.get(key)
         if value not in (None, "", [], {}):
             result[key] = value
-    for key, limit in (("title", 260), ("summary", 480), ("outcome", 240), ("remaining_gate", 240), ("findings", 300), ("stop_reason", 200)):
+    for key, limit in (("title", 260), ("summary", 480), ("body", 600), ("outcome", 240), ("remaining_gate", 240), ("findings", 300), ("stop_reason", 200)):
         clipped = _clip_query_value(event.get(key), limit)
         if clipped:
             result[key] = clipped
@@ -3135,6 +3162,10 @@ def query_materialized(
     effective_limit = min(500, max(1, int(limit)))
     graph_limit = min(6, effective_limit)
     selected_ids = {str(event.get("id") or "") for event in selected}
+    selected_commits = {
+        (str(event.get("project") or "").casefold(), str(event.get("sha") or "").casefold())
+        for event in selected if event.get("source_type") == "GIT_COMMIT" and event.get("sha")
+    }
     graph = timeline.get("work_graph") if isinstance(timeline.get("work_graph"), dict) else {}
     all_graph_groups = graph.get("commit_groups", []) if isinstance(graph.get("commit_groups"), list) else []
     attachment_counts: Counter[str] = Counter()
@@ -3170,9 +3201,9 @@ def query_materialized(
                 continue
             item = {key: worker.get(key) for key in (
                 "worker", "duration_minutes", "allocated_duration_minutes",
-                "target_utilization_pct", "outcome", "finding_tags", "findings", "validation",
+                "target_utilization_pct", "outcome", "summary", "finding_tags", "findings", "validation",
             ) if worker.get(key) not in (None, [], "")}
-            for field, clip in (("outcome", 240), ("findings", 360), ("validation", 240)):
+            for field, clip in (("outcome", 240), ("summary", 300), ("findings", 420), ("validation", 320)):
                 value = str(item.get(field) or "")
                 if len(value) > clip:
                     item[field] = value[: clip - 3].rstrip() + "..."
@@ -3244,7 +3275,11 @@ def query_materialized(
         if event_filters and not (commit_overlap or attached & eligible_ids):
             continue
         eligible_work_ids.add(str(row.get("work_id") or ""))
-        if query and not _event_matches_query({"title": row.get("title"), "refs": row.get("github_anchors", [])}, query) and not (attached & selected_attachment_ids):
+        selected_commit_overlap = any(
+            (str(row.get("project") or "").casefold(), str(commit.get("sha") or "").casefold())
+            in selected_commits for commit in row.get("commits", []) or []
+        )
+        if query and not selected_commit_overlap and not _event_matches_query({"title": row.get("title"), "refs": row.get("github_anchors", [])}, query) and not (attached & selected_attachment_ids):
             continue
         matched_groups.append(row)
 
@@ -3313,6 +3348,7 @@ def query_materialized(
             "commit_groups": [compact_group(row) for row in matched_groups[:graph_limit]],
             "similar_commit_groups": matched_similar[:graph_limit],
         },
+        "lesson_packet": lesson_packet,
         "evidence_density": {
             "matching_observations": len(selected),
             "returned_observations": min(len(selected), effective_limit),

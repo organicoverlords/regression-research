@@ -41,7 +41,7 @@ class WorkerReportHistoryTests(unittest.TestCase):
             root = Path(tmp)
             current = root / "manual" / "current"
             history = root / "manual" / "history"
-            fixed = datetime.fromisoformat("2026-09-07T04:18:39.832317+03:00")
+            fixed = datetime.now().astimezone()
 
             def create_one() -> dict[str, object]:
                 return create_manual_run(
@@ -138,6 +138,33 @@ class WorkerReportHistoryTests(unittest.TestCase):
             audit = audit_manual_current_reports(current, history)
             self.assertEqual(audit["reports"][0]["lifecycle_status"], "UNFINALIZED_OPEN")
             self.assertEqual(audit["reports"][0]["liveness"], "NOT_ESTABLISHED_BY_REPORT")
+
+    def test_manual_reconcile_archives_old_terminal_and_keeps_recent_open(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            old = now - timedelta(hours=1)
+            terminal = current / "manual-terminal.md"
+            terminal.write_text(
+                f"run_id: manual-terminal\nstarted_at: {(old - timedelta(minutes=5)).isoformat()}\n"
+                f"last_activity_at: {old.isoformat()}\nrepo: p3\nstate: RUN_FINISHED\noutcome: done\n",
+                encoding="utf-8",
+            )
+            recent = current / "manual-recent.md"
+            recent.write_text(
+                f"run_id: manual-recent\nstarted_at: {now.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nstate: RUNNING\noutcome: active\n",
+                encoding="utf-8",
+            )
+            result = reconcile_manual_current_reports(current, history, now=now)
+            self.assertFalse(terminal.exists())
+            self.assertTrue(recent.exists())
+            self.assertEqual(result["action_count"], 1)
+            self.assertEqual(result["actions"][0]["action"], "terminal_archived")
+            self.assertEqual(build_metrics_projection(history)["reports"], 1)
 
     def test_manual_reconcile_preserves_stale_open_as_nonterminal_history_without_metrics(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -652,6 +679,94 @@ class WorkerReportHistoryTests(unittest.TestCase):
                     self.assertIn("state: RUNNING", current_text)
                     self.assertIn("stop_reason: premature finalization rejected; run continuing", current_text)
                     self.assertFalse((root / "history" / "_reports").exists())
+
+    def test_timed_run_begin_normalizes_known_legacy_start_preamble(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "9" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                "worker: Repo Worker Alder\n"
+                f"automation_id: {automation_id}\n"
+                f"started_at: {now.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\n"
+                "state: RUNNING\n"
+                "finding_tags: []\n"
+                "findings: []\n"
+                "commits: []\n"
+                "diffs: []\n"
+                "tests: []\n"
+                "failures: []\n"
+                "anomalies: []\n"
+                "route_problems: []\n"
+                "resource_issues: []\n"
+                "proof_gaps: []\n"
+                "improvements: []\n",
+                encoding="utf-8",
+            )
+            result = begin_timed_run(report)
+            text = report.read_text(encoding="utf-8")
+            receipt_exists = Path(result["receipt_path"]).exists()
+
+        self.assertTrue(receipt_exists)
+        self.assertIn("repo: startup-unresolved", text)
+        self.assertIn("scope: startup scope selection pending", text)
+        self.assertIn("outcome: in progress", text)
+        self.assertIn("mutation: none yet", text)
+        self.assertIn("validation: none yet", text)
+        self.assertIn("remaining_gate: scope selection and execution pending", text)
+        self.assertIn("finding_tags: none", text)
+        self.assertIn("findings: none", text)
+        self.assertIn("startup_schema_normalized: legacy_minimal_v1", text)
+
+    def test_timed_run_begin_still_rejects_arbitrary_incomplete_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "7" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                f"automation_id: {automation_id}\n"
+                f"started_at: {now.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\n"
+                "state: RUNNING\n"
+                "worker: Unknown\n"
+                "commits: []\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "missing required canonical field"):
+                begin_timed_run(report)
+            self.assertFalse((root / ".supervision" / f"{automation_id}.start.json").exists())
+
+    def test_timed_run_begin_rejects_partial_legacy_lookalike(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "current"
+            current.mkdir()
+            automation_id = "6" * 32
+            now = datetime.now().astimezone()
+            report = current / f"{automation_id}.md"
+            report.write_text(
+                "worker: Repo Worker Lookalike\n"
+                f"automation_id: {automation_id}\n"
+                f"started_at: {now.isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\n"
+                "state: RUNNING\n"
+                "finding_tags: []\n"
+                "findings: []\n"
+                "commits: []\n"
+                "diffs: []\n"
+                "tests: []\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "missing required canonical field"):
+                begin_timed_run(report)
+            self.assertFalse((root / ".supervision" / f"{automation_id}.start.json").exists())
 
     def test_timed_run_begin_allows_earlier_reported_start_but_observes_now(self):
         with tempfile.TemporaryDirectory() as tmp:

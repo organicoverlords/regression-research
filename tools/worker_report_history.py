@@ -192,9 +192,76 @@ def _timed_start_receipt_path(report: Path) -> Path:
     return report.parent.parent / START_RECEIPT_DIRNAME / f"{report.stem}.start.json"
 
 
+LEGACY_TIMED_START_FIELDS = frozenset({
+    "commits", "diffs", "tests", "failures", "anomalies", "route_problems",
+    "resource_issues", "proof_gaps", "improvements",
+})
+
+
+def _normalize_legacy_timed_start_report(report: Path, raw: bytes, fields: dict[str, str]) -> bytes:
+    """Bridge the known static-launcher startup preamble into the canonical timed schema."""
+    if report.parent.name.casefold() != "current" or _report_population(report=report) != "timed":
+        return raw
+    if str(fields.get("state") or "").strip().upper() != "RUNNING":
+        return raw
+    if not str(fields.get("worker") or "").strip():
+        return raw
+    if not LEGACY_TIMED_START_FIELDS.issubset(fields):
+        return raw
+    if str(fields.get("finding_tags") or "").strip() != "[]" or str(fields.get("findings") or "").strip() != "[]":
+        return raw
+    missing = [key for key in CURRENT_REPORT_REQUIRED_FIELDS if not str(fields.get(key) or "").strip()]
+    bridgeable = {"repo", "scope", "outcome", "mutation", "validation", "remaining_gate"}
+    if any(key not in bridgeable for key in missing):
+        return raw
+
+    text = raw.decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    replacements = {"finding_tags": "none", "findings": "none"}
+    seen: set[str] = set()
+    normalized_lines: list[str] = []
+    for line in lines:
+        if ":" not in line:
+            normalized_lines.append(line)
+            continue
+        key, value = line.split(":", 1)
+        canonical = key.strip().lstrip("\ufeff").casefold()
+        seen.add(canonical)
+        if canonical in replacements and value.strip() == "[]":
+            normalized_lines.append(f"{key}: {replacements[canonical]}")
+        else:
+            normalized_lines.append(line)
+
+    defaults = {
+        "repo": "startup-unresolved",
+        "scope": "startup scope selection pending",
+        "outcome": "in progress",
+        "mutation": "none yet",
+        "validation": "none yet",
+        "remaining_gate": "scope selection and execution pending",
+    }
+    for key in CURRENT_REPORT_REQUIRED_FIELDS:
+        if key in defaults and not str(fields.get(key) or "").strip():
+            normalized_lines.append(f"{key}: {defaults[key]}")
+    if "finding_tags" not in seen:
+        normalized_lines.append("finding_tags: none")
+    if "findings" not in seen:
+        normalized_lines.append("findings: none")
+    normalized_lines.append("startup_schema_normalized: legacy_minimal_v1")
+    normalized = ("\n".join(normalized_lines).rstrip() + "\n").encode("utf-8")
+    tmp = report.with_name(report.name + ".begin-normalize.tmp")
+    tmp.write_bytes(normalized)
+    tmp.replace(report)
+    return normalized
+
+
 def begin_timed_run(report: Path) -> dict[str, Any]:
     raw = report.read_bytes()
     fields = _fields(raw)
+    normalized = _normalize_legacy_timed_start_report(report, raw, fields)
+    if normalized != raw:
+        raw = normalized
+        fields = _fields(raw)
     _validate_current_report(report, fields, raw)
     if _report_population(report=report) != "timed" or report.parent.name.casefold() != "current":
         raise ValueError("timed run begin requires worker-reports/current/<automation-id>.md")

@@ -1,0 +1,138 @@
+{
+  "body": "## 2026-09-07 route-change and pressure acceptance\r\nCompose existing P3AI navigation, P3TowerDefense combat/wave authority, Earthworks #1012 and placement #1033/#2440. Reuse current #2603 wave-phase WIP.\r\n\r\nTest one real lane sequence: baseline creep route -> valid terrain/defense change -> nav/collision update -> alternate route/declared failure -> destruction or undo -> route reopened. Define the pending-update behavior; creeps must not tunnel, attack an unreachable stale Core location, freeze indefinitely or instantly teleport through the obstruction. A final-path rejection/rollback must preserve valid world/economy state.\r\n\r\nCore relocation invalidates relevant goals; spawn/defeat and wave pressure remain server-owned. Declare target selection and no-path recovery in current feature data/logic. Do not add a second navigation registry. Local nav generation/invokers are an option only if #2611 identifies the existing generation strategy as a cost problem.\r\n\r\nShow both teams' pressure and the player's ability to change it in normal play. Measure edit-to-valid-route latency on the fixed workload; no invented universal timing threshold. Enemy behavior and navigation updates serialize at their actual .cpp owners; scenario/evidence preparation can proceed independently.\r\n\r\n---\r\n\r\nParent: #803 / #941.\r\n\r\nMake the live Lane War feel like a lane battle rather than a systems sandbox. Reuse the existing creep, faction, navigation, damage and Core authorities; do not create another wave/combat system.\r\n\r\nAcceptance:\r\n- both teams continuously create visible lane pressure;\r\n- opposing creeps meet, fight, die and continue toward the enemy Core;\r\n- surviving creeps can damage the Core and player actions can materially change that pressure;\r\n- blockers/terrain changes use the existing navigation behavior instead of bypassing it;\r\n- Core destruction produces the existing replicated match result;\r\n- verify through the normal playable Lane War path, not a new proof harness.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS69nLg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Root cause confirmed on current main: existing creeps already acquire opposing creeps, route through AI/nav when nav data exists, attack survivors/Core, and feed existing match resolution; the Lane War feature configured exactly one WaveDirector wave, while WaveDirector stopped after its final configured wave. #2446 fixes only that gap by making WaveDirector looping opt-in and enabling it for Lane War. Exact head b31ea02c adds an engine regression for loop-back lifecycle; focused source contract 1/1 and diff-check passed. Hosted gate is running; runtime acceptance remains required.",
+      "createdAt": "2026-09-07T03:48:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5564753710",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBSfIA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2603 publishes a small player-visible lane-pressure readout on Core labels: replicated wave state now distinguishes forming, spawning, live/resolving and failed pressure and shows active creep count plus push/defend guidance. Original focused head: core-team-beacon contracts 19/19 PASS + diff-check; refreshed head 1025d235b4f8ff004e7bd50f8907706824467d0a has the same scoped file content because main changed only unrelated combat files, and its hosted contract gate is SUCCESS. Native P3Gameplay admission was refused LOW_FREE_DISK, so no native/runtime PASS is claimed.",
+      "createdAt": "2026-09-07T13:30:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5571387168",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCEfug",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main read at 47e1cf1e3 found a remaining no-path recovery gap in P3TowerDefenseCombatActors.cpp: with nav data present, Lane War creeps call AIController::MoveToActor every tick but ignore the request result and have no OnMoveCompleted/no-path branch; direct movement is deliberately disabled whenever nav data exists. A nav failure can therefore leave a creep indefinitely reissuing a failed move instead of using a declared recovery policy. This is distinct from the #2440 placement rollback guard and matches #2437's pending/no-path acceptance. Next implementation should handle the existing AI move result at this owner (reacquire/wait/recover under an explicit policy) and prove it in the normal Lane War route-change sequence; no runtime PASS claimed here.",
+      "createdAt": "2026-09-07T14:37:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5572206522",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCF7Ag",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Addendum from the same current-main path: ResolveLaneWarCombatTarget retains any hostile creep within 700 cm and acquires the nearest within 500 cm using distance/height only; it does not test reachability. Combined with the ignored MoveToActor result, an unreachable nearby enemy creep can pin RouteTarget indefinitely even when the Core route itself is valid. A narrow fix should therefore make failed path admission invalidate/reconsider the creep target before falling back to Core pressure, without ever using the direct-motion fallback while nav data exists. This also avoids copying P3LaneWarSoloAIController's current MoveToActor pattern, which likewise does not implement no-path recovery.",
+      "createdAt": "2026-09-07T14:38:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5572229890",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCSMGA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2630 addresses the current no-path pin: when AI path admission rejects a nearby hostile creep, the creep target is cleared immediately and the same authoritative creep retries only the enemy Core route; direct-motion fallback remains reserved for worlds with no nav data. Final head 2352f0e5 strengthens the source contract to pin failed-path -> Core retry ordering before the no-nav fallback. Focused contract 2/2 PASS, diff-check PASS, hosted contract gate SUCCESS. Native P3TowerDefense compile first found/fixed the enum-definition include at 0986bbbd; the one changed-head re-admission then hit the shared build-slot timeout, so native/runtime PASS remains unclaimed.",
+      "createdAt": "2026-09-07T14:55:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5572430872",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCUi9Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen #2634 exact head 9ae592757 implements the narrow no-path recovery identified above: with nav data present, TickLaneWarRoute now inspects MoveToActor admission; an immediate failure against a hostile creep clears that unreachable creep target and retries the enemy Core through the same AI/nav path. The no-nav direct-motion fallback is unchanged and remains gated to missing nav data. Focused navigation fallback + creep-pressure contracts 3/3 PASS; diff-check PASS. UE 5.8 path-request enum/header contract was verified and included explicitly. Native/build proof was not retried because this run's OMEN condition remains LOW_FREE_DISK.",
+      "createdAt": "2026-09-07T14:58:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5572469493",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCkwHA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Alder #2644 exact head f3916d6a makes the no-nav direct creep fallback collision-safe: SetActorLocation now sweeps instead of teleporting, so walls/terrain can physically stop fallback pressure rather than being tunneled through. Normal nav-data movement remains AI-owned. Focused road-routing 6/6 + navigation-fallback 1/1 PASS; diff-check PASS. Hosted gate is queued, so no merge/runtime PASS claimed. Duplicate no-path PR #2642 was closed after current issue comments exposed existing stronger #2630/#2634 WIP; #2634 was then closed in favor of #2630's stronger ordering contract/header fix.",
+      "createdAt": "2026-09-07T15:22:05Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5572735004",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCzYeA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main routing progress: #2644 merged as e00072bdd6fd so the no-nav direct fallback now sweeps collision instead of teleporting through blockers; #2630 then merged cleanly as f61974b92168 so a nav-rejected nearby hostile target is cleared and creep pressure retries the enemy Core route instead of reissuing the same failed MoveToActor forever. Existing fresh focused evidence was 6/6 road + 1/1 nav-fallback for #2644 and 2/2 nav-fallback for #2630; no runtime PASS claimed.",
+      "createdAt": "2026-09-07T15:44:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2437#issuecomment-5572974712",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOT0JNpc8AAAACvsYdWg",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    }
+  ],
+  "milestone": null,
+  "number": 2437,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Lane War creep pressure and Core assault",
+  "updatedAt": "2026-09-07T15:44:27Z"
+}

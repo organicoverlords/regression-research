@@ -1,0 +1,67 @@
+﻿{
+    "schema":  "user-confirmed-platform-security-reroute.v1",
+    "reported_at":  "2026-09-07T17:56:34.3115868+03:00",
+    "event_time_known":  false,
+    "event_time":  null,
+    "event_time_note":  "The supplied screenshot has no visible clock. Conversational/process context places the symptom immediately after the 17:49:59..17:50:35 EEST Hummingbird full-pack process, but exact screenshot seconds are not invented.",
+    "user_report":  "save in vault you got security rerouted. save what commands you were sending and how much you were polling etc save logs and analyze the trace before this message",
+    "caller_id":  "caller_09918a517358",
+    "workstream":  "Tiny3D #10 avian immutable review and Hummingbird full compile_avian portable-pack proof",
+    "screenshot":  {
+                       "sha256":  "8e2ef644e7dc0502822f9e623148fac8b891018fb9fcb6f78d6c53488916f2ba",
+                       "bytes":  7892,
+                       "conversation_container_path":  "/mnt/data/05609a23-56ea-41f7-831c-e6a15822b174.png",
+                       "visible_text":  [
+                                            "pack path—not just the Blender worker report.",
+                                            "Posted verified immutable avian review evidence and monitored output",
+                                            "Called tool"
+                                        ]
+                   },
+    "conversation_visible_pre_message_counts":  {
+                                                    "start_process":  39,
+                                                    "read_output":  24,
+                                                    "total_process_tool_interactions":  63,
+                                                    "completeness":  "conversation-visible lower bound / orchestration trace; not transport-log completeness"
+                                                },
+    "immediate_avian_window":  {
+                                   "utc_start":  "2026-09-07T14:44:35.964Z",
+                                   "utc_end":  "2026-09-07T14:50:35.910Z",
+                                   "start_process":  15,
+                                   "read_output":  11,
+                                   "total":  26
+                               },
+    "boundary_process":  {
+                             "process_id":  "fce55e17-0afb-4160-889f-d6e6030ae1ac",
+                             "started_at":  "2026-09-07T14:49:59.476Z",
+                             "finished_at":  "2026-09-07T14:50:35.910Z",
+                             "exit_code":  0,
+                             "pre_message_read_output":  2,
+                             "pre_message_read_ages_seconds":  [
+                                                                   26.136,
+                                                                   36.356
+                                                               ],
+                             "second_read_to_exit_ms_approx":  78,
+                             "result":  "PACK_ACCEPTED=True"
+                         },
+    "analysis":  {
+                     "observed_fact":  "The user-visible reroute occurred in a turn with dense process-tool activity, but the immediate long-running Hummingbird compile_avian process completed successfully and remained recoverable through the same MCP process id.",
+                     "recurring_correlate":  "Repeated read_output-heavy orchestration around successful long-running processes is again present, consistent with the previously preserved 17:17 EEST recurrence.",
+                     "not_proven":  "No evidence establishes the internal platform classifier rule or proves that polling density, connection churn, Blender, command content, output size, or MCP backend failure caused the reroute.",
+                     "counterevidence_to_local_failure":  "The boundary process exited 0 with complete portable-pack evidence; no restart/replacement was needed."
+                 },
+    "comparison":  {
+                       "prior_event":  "02 Evidence/2026-09-07_1717_EEST_security-reroute-recurrence",
+                       "prior_counts":  {
+                                            "tool_calls":  38,
+                                            "read_output":  29,
+                                            "start_process":  9
+                                        },
+                       "prior_transport":  "all recorded MCP tool responses HTTP 200",
+                       "shared_shape":  "user-visible reroute during continued successful long-running process-tool activity"
+                   },
+    "evidence_files":  [
+                           "02 Evidence/2026-09-07_1750_EEST_security-reroute-recurrence/README.md",
+                           "02 Evidence/2026-09-07_1750_EEST_security-reroute-recurrence/pre-message-trace.md",
+                           "02 Evidence/2026-09-07_1750_EEST_security-reroute-recurrence/fullpack-process-receipt.json"
+                       ]
+}

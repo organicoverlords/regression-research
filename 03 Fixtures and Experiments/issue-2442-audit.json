@@ -1,0 +1,408 @@
+{
+  "body": "## 2026-09-07 lifecycle and network edge acceptance\r\nKeep current launcher/session/match owners. Reuse merged #2608 result-menu wording and existing rematch cleanup work.\r\n\r\n- Declare current scope as solo AI and LAN 1v1; do not promise Internet discovery, NAT traversal, matchmaking or host migration from a LAN success.\r\n- Handle occupied slot, incompatible build/content, invalid address, join timeout, peer disconnect and host loss with a clear existing-menu recovery/return path. Automatic reconnect/host migration is not required for the first milestone.\r\n- After respawn, character swap, view switch and rematch, ensure possession/input/ASC ownership, HUD and body-only abilities/timers match the intended lifecycle; holding a key through transition must not leave actions stuck.\r\n- Late join follows a declared match policy and cannot mint gold, duplicate units or restore an obsolete result. Empty/disconnected player slots must not become invisible active opponents.\r\n- Test baseline LAN plus one explicit engine network-emulation profile with recorded direction/lag/jitter/loss settings. Verify no duplicate purchases/damage/terrain transactions and coherent movement/result state. Poor-network defects belong to their gameplay owner.\r\n- Show the actual host and remote-client outcomes through #941. Use existing session UI and tests; do not create a network harness or broaden infrastructure scope.\r\n\r\nSeparate P3SessionMenuWidget.cpp presentation from the exact match authority/launcher change. Overlapping shared files serialize; independent scenario review can proceed.\r\nSource: https://dev.epicgames.com/documentation/en-us/unreal-engine/using-network-emulation-in-unreal-engine\r\n\r\n---\r\n\r\nParent: #803 / #941.\r\n\r\nMake the current two-player Lane War something a friend can actually start and replay without developer ritual. Reuse the existing friend launcher/session and match-state owners; no new launcher/orchestration system.\r\n\r\nAcceptance:\r\n- one player can host through the normal user-facing route and a second player can join;\r\n- both players receive a clear match start and spawn on opposing sides;\r\n- disconnect/failure messaging is actionable enough for ordinary LAN friend testing;\r\n- Core destruction shows clear victory/defeat to the correct players;\r\n- after match end there is a simple existing-route rematch/restart or return path instead of requiring manual editor/process cleanup;\r\n- developer-only PIE is not the final acceptance path.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7NEIg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen opened #2473 at e3695501b after confirming the existing match-over UI never clears bShowingNextMatchAction or restores Solo/Host/Join when session teardown reaches LAN: ready. The fix resets that stale action state, restores normal match choices, and hides the old Return button. Friend-session/filter/operation/connect/recovery cohort 29/29 PASS + diff-check. No second heavy admission after this run's OMEN queue timeout.",
+      "createdAt": "2026-09-07T04:24:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5565006882",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7NXDA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "PR #2473 passed the hosted p3 contract gate and merged. The return-to-menu path now restores Solo/Host/Join and removes the stale prior-match Return action after session teardown reaches ready.",
+      "createdAt": "2026-09-07T04:25:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5565011724",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7PMzg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "PR #2475 adds an explicit `MATCH LIVE` marker to both active Lane War HUD paths so host/join players get a clear started-match cue distinct from waiting/session states. Focused HUD + friend-session contracts: 65/65 PASS; diff-check PASS. Runtime friend acceptance remains separate.",
+      "createdAt": "2026-09-07T04:29:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5565041870",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9t8sQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "PR #2513 fixes rematch economy carryover: when the existing Lane War economy restarts for a fresh match, authoritative player gold is reset before passive income resumes. Focused economy/HUD source contracts 31/31 PASS; diff-check PASS.",
+      "createdAt": "2026-09-07T08:23:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5567642801",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS91wTQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2513 merged into main as `1de4486b7` with exact head `a0ed4b490`: fresh Lane War economy startup now clears carried authoritative gold before passive income, including the fast-rematch case where the previous passive timer is still active. Focused economy/HUD contracts 31/31 PASS, diff-check PASS, hosted contract gate SUCCESS. Runtime friend rematch acceptance remains separate/unclaimed.",
+      "createdAt": "2026-09-07T08:34:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5567770701",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS_NNnQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen landed #2550 as 05d8cf001: same-world rematch startup now resets the looping WaveDirector and destroys every prior Lane War creep before fresh waves, including purchased creeps outside WaveDirector ownership. This prevents prior-match health/upgrade/wave state leaking into the next match. Focused rematch/base/HUD contracts 56/56 + diff-check + hosted gate passed; changed FeatureActor TU compiled in bounded native build before unrelated current-main blockers stopped the module.",
+      "createdAt": "2026-09-07T10:24:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5569203613",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBOeYA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen rematch-state slice: PR #2604 exact head 3b4fe5230 fixes a same-world rematch leak where a hero defeated at prior match end could remain movement/input-locked after match state returned live. Authority now recreates the pawn through the existing GameMode RestartPlayer boundary, resets ignored movement input, and confirms the fresh hero state. Local exact-head evidence: ownership-aware focused cohort 9/9 PASS, rematch/match_over/friend_session selection 87/87 PASS, diff-check PASS. First hosted head exposed and removed a forbidden direct UnPossess call; repaired hosted gate is in flight. Native hot-build admission for the superseded head timed out on the shared build slot, so no native PASS is claimed. Separately, current OMEN traversal runtime preflight proved lane1 product 10fde7e5 GPU/editor-ready, but exact Content publication failed closed LOW_NVME_FREE before runtime launch.",
+      "createdAt": "2026-09-07T13:25:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5571321440",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBPnVQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Landed: PR #2604 merged as 30a87420c28dd2756a3fd6e2ddace9a185c7f464. Same-world rematches now recreate the hero through GameMode RestartPlayer after the prior match-over latch, so defeated health/movement/input state cannot leak into the next match. Repaired exact head 3b4fe5230: focused match-over/defeat/ski/ownership 9/9 PASS, broader rematch/match_over/friend_session 87/87 PASS, diff-check PASS, hosted contract gate SUCCESS. Native PASS remains unclaimed because the single hot-build admission timed out on the shared build slot.",
+      "createdAt": "2026-09-07T13:26:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5571340117",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBRfOw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up PR #2608 at cf93e5080 aligns all visible match-over rematch instructions with the actions the menu actually restores: PLAY SOLO or HOST/JOIN LAN, rather than telling players only to host/join. Session result action, combat HUD, and defense HUD now agree. Focused UI/session/result contracts 78/78 PASS + diff-check; hosted gate in flight. Native build not reattempted because the shared build-slot capacity condition has not materially changed.",
+      "createdAt": "2026-09-07T13:29:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5571370811",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBSVOQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Landed follow-up: PR #2608 merged as 50aa9f44df2f74bc25e5634f5e35d0535ee0503f. Match-over session, combat, and defense result surfaces now consistently tell players the actual restored next-match choices: PLAY SOLO or HOST/JOIN LAN. Exact head cf93e5080: focused UI/session/result contracts 78/78 PASS, diff-check PASS, hosted contract gate SUCCESS.",
+      "createdAt": "2026-09-07T13:30:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5571384633",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCFavQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "PR #2622 exact head 5bc67ae0a aligns all remaining player-visible match-over action/recovery surfaces with the actual next-match choices: return to match menu, then PLAY SOLO or HOST/JOIN LAN. This covers controller actions, Core relocation, resource collection, fortification/build placement, shop, earthworks, result-sync HUD and session-menu result-sync text. Focused slices 22/22, 16/16, 38/38, 41/41, 8/8, 19/19 PASS; hosted contract gate SUCCESS. Landing remains blocked by the current integration-cohort failure; no duplicate heavy retry.",
+      "createdAt": "2026-09-07T14:38:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572221629",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCIoTg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "´╗┐Current-main late-join policy is explicit in code even though acceptance is not complete: LAN sessions set bAllowJoinInProgress=true with two public connections. A late player begins with the PlayerState default gold (0); passive income is awarded from then on by the authoritative feature timer, while creep upgrade level and match/result state live on replicated GameState rather than being recreated from the joining client. So the intended first-milestone policy should be: late join allowed while the host slot is open; joiner receives current authoritative match/team state and no retroactive gold. Remaining proof: runtime join after match start must show no duplicated units/gold and the current result if joining at/after finish; do not change session policy without a failing runtime observation.\r\n",
+      "createdAt": "2026-09-07T14:42:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572274254",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCI2cQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "There is an existing reusable late-join runtime owner: `Invoke-P3PlayerFoundationRuntimeAcceptance.ps1` starts client 2 with `-P3RuntimeLateJoinClient`, and P3Testing reports late-join PASS only after shared PlayerArray>=2, Iris, local PlayerState/ASC ownership and pawn ownership are ready. It does not assert Lane War gold, creep/unit duplication, or current result state. Extend/reuse that runtime owner for the remaining late-join lifecycle assertions rather than creating another network harness.",
+      "createdAt": "2026-09-07T14:42:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572277873",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCJJNw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Additional disconnect gap from current-main source: `AP3GameModeBase::Logout` only unbinds survival state/timers, then calls `Super::Logout`; it does not change the active Lane War match state. `AP3GameStateBase` has initialize/winner transitions but no neutral abort/disconnect transition. Therefore a host that loses its peer can retain `bActive=true, bMatchOver=false`, leaving shops/combat/waves logically active against an empty slot. This directly matches the issue requirement that disconnected slots not become invisible active opponents. Fix should add one authoritative neutral-abort/recovery transition at the existing GameMode/GameState lifecycle owner, with existing match-menu recovery wording, rather than treating disconnect as a normal win without an explicit product decision.",
+      "createdAt": "2026-09-07T14:42:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572282679",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCKbcA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "UI follow-through confirms why a neutral disconnect transition needs an explicit reason bit/state: current `bMatchOver=true, WinningTeam=0` renders `WINNER/RESULT SYNCING - WAIT`, so reusing unknown winner for peer loss would create a permanent false-sync message. A correct disconnect slice should distinguish aborted/peer-left from unresolved replication, expose RETURN TO MATCH MENU immediately, and leave normal core-destruction victory/defeat semantics unchanged.",
+      "createdAt": "2026-09-07T14:44:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572303728",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCK0Tw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Smallest implementation/test owner for the disconnect slice is now bounded: GameState match state + GameMode Logout in P3Gameplay, LaneWar HUD + SessionMenu result wording in P3UI, and existing source contracts `test_lane_war_friend_session_flow.py`, `test_lane_war_match_result_ui.py`, `test_lane_war_hud_controls.py` / `test_lane_war_economy.py`. Existing ReturnToMatchMenu already destroys the session and reloads the match menu, so no new recovery framework is needed. The abort state must not reuse WinningTeam=0 alone because current UI reserves that for replication still syncing.",
+      "createdAt": "2026-09-07T14:45:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572310095",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCLKMw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "One more affected presentation owner: `AP3LaneWarCoreActor` world-space core labels also map match-over + unknown winner to `WINNER SYNCING - WAIT`. The disconnect-abort reason therefore needs to reach core-label presentation as well as LaneWarHUD/SessionMenu (DefenseHUD currently only appends match-over result when winner is known). This keeps the fix player-visible and prevents any surface from looking permanently replication-stuck after a peer leaves.",
+      "createdAt": "2026-09-07T14:45:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572315699",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCQBPw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen #2632 exact head b0816236b closes two held-input lifecycle gaps on the existing controller path: local pressed keys are flushed when match-over transitions back to live before authoritative rematch RestartPlayer, and before a local avatar-cycle request replaces the pawn. This prevents held actions from crossing those pawn-reset boundaries without changing possession/ASC authority. Focused match-over/avatar/ownership cohort 20/20 PASS; earlier related friend/ski cohort 26/26 PASS; diff-check PASS. Hosted gate is rerunning on the updated head. One OMEN P3Gameplay admission failed closed LOW_FREE_DISK, so no native PASS/retry is claimed.",
+      "createdAt": "2026-09-07T14:52:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572395327",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCgadg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen PR #2640 exact head 88d79a46 adds the neutral peer-disconnect lifecycle: a live two-player Lane War is authoritatively marked aborted on Logout, winner remains unset, and Core/session/HUD surfaces show PEER LEFT with RETURN TO MATCH MENU instead of indefinite winner/result syncing. Final focused lifecycle/result/HUD/economy/Core cohort 116/116 PASS; diff-check PASS. One native P3UI admission was attempted and failed closed on the occupied shared build slot after admission, so no native/runtime PASS is claimed.",
+      "createdAt": "2026-09-07T15:15:40Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572663926",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCzT3w",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main convergence: #2640 merged as 3c312eff5731 (peer logout aborts Lane War cleanly with PEER LEFT / RETURN TO MATCH MENU), and #2632 merged as 034e495e20d3 (flush held local input before rematch RestartPlayer and avatar-cycle pawn replacement). Both used their existing fresh focused contract evidence; no native/runtime PASS is claimed because the OMEN build route is currently storage-blocked.",
+      "createdAt": "2026-09-07T15:44:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5572973535",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDJBpw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen: #2648 now flushes held local input across solo/host/join/map/return transitions and bounds stalled join connecting at 15s with session recovery; focused friend-session cohort 30/30, hosted gate green. #2650 declares LAN-only/no-host-migration scope in the match menu and adds clear join-timeout recovery text; focused flow 22/22. Current-main integration cohort admission deferred on the occupied long-queue build route; no retry under unchanged conditions.",
+      "createdAt": "2026-09-07T16:18:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5573329319",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDLCsw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up integration hygiene: #2648 and #2650 initially conflicted only because both appended contracts to the same test file. #2650 head 7c1e97bc moves its scope/timeout contracts to a dedicated test file; bounded merge-tree proof against current #2648 head is now CLEAN, with the same 22/22 focused flow passing.",
+      "createdAt": "2026-09-07T16:22:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5573362355",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDXtRQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main integration proof after #2647: #2648 head be539149b880 and #2650 head 7c1e97bc1e3 merge cleanly together onto main 5b4a55d253b3 in disposable combined head 462b0ba99903. Focused friend-session/scope/result/match-over contracts pass 47/47 and git diff --check is clean. This is source/integration evidence only; the current C++ cohort route separately deferred LONG_QUEUE_WAIT_CI_ONLY, so no native/two-player runtime PASS is claimed.",
+      "createdAt": "2026-09-07T16:44:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5573569861",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDbP1w",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main late-join source check after #2648/#2650: LAN session creation still sets bAllowJoinInProgress=true with 2 public connections, while AP3GameModeBase::PostLogin always assigns a Lane War team and binds survival state; there is no explicit match-phase late-join rejection/policy at PostLogin. I did not add a request-ID or session framework. Remaining acceptance is to choose/prove the existing-product policy (join-in-progress safely reconciles live economy/result state, or server closes/rejects joining once the live match begins) and expose that policy through the existing session flow. No runtime PASS claimed.",
+      "createdAt": "2026-09-07T16:50:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5573627863",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDbdgA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Refinement: LaneWar match state is initialized active during GameMode startup, so bAllowJoinInProgress=true is necessary for the normal second player to enter the host's already-running map; simply disabling join-in-progress would break the friend flow. With NumPublicConnections=2, a third concurrent player is excluded. The concrete late-join edge is after peer Logout aborts the match: that vacates a public slot while the LAN session can remain advertised, so a replacement join may enter an already-aborted result unless the existing session/match owner closes that slot/session or routes the newcomer to recovery. This is the narrow policy/proof gap; no source mutation yet.",
+      "createdAt": "2026-09-07T16:51:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5573631360",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDeJ-Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Maple landed #2652 after exact-current native P3Combat admission exposed a real #2648 compile regression: P3SessionSubsystem.h stores FTimerHandle JoinConnectTimeoutHandle by value without including TimerManager.h, producing C3646/C4430 and downstream C2065 errors. #2652 adds only the defining include; focused friend-session flow is 22/22 PASS, diff-check PASS, hosted contract gate SUCCESS. Changed-head native re-admission was attempted once and deferred on the occupied shared build slot, so native PASS remains unclaimed.",
+      "createdAt": "2026-09-07T16:56:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2442#issuecomment-5573675513",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOT0JNpc8AAAACvsYdWg",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    }
+  ],
+  "milestone": null,
+  "number": 2442,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Friend match start, finish, and rematch flow",
+  "updatedAt": "2026-09-07T16:56:18Z"
+}

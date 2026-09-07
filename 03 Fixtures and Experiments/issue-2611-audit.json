@@ -1,0 +1,56 @@
+{
+  "body": "´╗┐## Contribution plan\nParent #803 / #941. This is a game performance and tuning issue, not build/fleet/infrastructure work.\n\n| Contribution | Existing owner / exact boundary | Output |\n| --- | --- | --- |\n| Fixed playable workload | Existing Lane War P3Testing scenario; issue-owned evidence result | Versioned normal-match scenario/input recipe and observed baseline |\n| Navigation/terrain costs | Existing P3Earthworks + P3AI/P3TowerDefense owners; each concrete .cpp serial with #1012/#2437/#2440 | Fix only measured collision/nav/game-thread hotspot; preserve route correctness |\n| Animation/VFX/render cost | P3AvatarHumanoid, P3CombatMeteorPresentationActor.cpp and exact existing content assets | Bounded quality/cost change preserving readable attacks/contacts |\n| Independent replay/review | Existing Unreal Insights, runtime and capture tools | Same-workload before/after trace and reviewed video; immutable head and settings |\n\nThe first contributor pins the workload through this issue, not a new registry. Others reuse that baseline and select a proven independent hotspot; they do not each build another profiler or benchmark harness.\n\n## Uncovered acceptance\nSubsystem passes do not show that two players, creeps, meteor/spells, construction/destruction and earthworks coexist without severe hitches or unreadable effects. Establish a measured combined-match budget and fix the worst load-bearing failure.\n\n## Scope\n- Use the normal selected Lane War map, roster, view/resolution/quality, machine/build identity, creep/wave counts, edit/placement/destruction sequence and spell activity. Keep cold launch separate from warmed play.\n- Measure client frame-time p50/p95/p99, game/render/GPU time, server frame/update time, peak RAM/VRAM, nav/collision completion latency, animation/VFX load and obvious repeated hitch/stall counts with existing Unreal Insights/stat tools.\n- Use the existing Earthworks contract of no single >100 ms game-thread hitch over 30 standard edits; retain its recorded p95 requirement. Choose and record a reference hardware/quality tier and overall frame target from the first real baseline before tuning. Do not invent a current FPS result.\n- Verify both first/third-person and host/remote-client behavior at the chosen bounded workload. Frame budgets are measured acceptance for that configuration, not hardware-dependent unit-test thresholds.\n- Prioritize playable responsiveness, visible attack/impact cues, contact quality and prompt correct navigation. Reduce unnecessary work before reducing essential readability.\n- Profile animation budget/update-rate controls, VFX scalability/culling and bounded nav tile regeneration only where a trace identifies the cost. Far-away animation throttling must not break gameplay notifies/contacts; nav generation must retain a complete Core route.\n- Repeat the same workload once after the targeted change; expand only to answer a concrete regression question. Preserve raw trace and proof references; do not create recurring performance workers.\n\n## Done\nA declared reproducible workload has an honest baseline, reference-tier budget, measured correction for its dominant failing cost, and independently reviewed normal-match evidence without gameplay/visual regression. If already within budget, publish that measured result and stop optimization.\n\nPrimary sources checked 2026-09-07:\n- https://dev.epicgames.com/documentation/unreal-engine/introduction-to-performance-profiling-and-configuration-in-unreal-engine\n- https://dev.epicgames.com/documentation/unreal-engine/animation-budget-allocator-in-unreal-engine\n- https://dev.epicgames.com/documentation/en-us/unreal-engine/using-navigation-invokers-in-unreal-engine\n\r\n",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTB-NFQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main workload pin at `a5cbf728b353`: use the normal `scripts/launch_lane_war_human_1v1.ps1` path on `/Game/V2/Maps/Lvl_V2ProductionWorld`, 1600x900 windowed, with the launcher's existing scoped ProductionWorld/Raincoat/Fennec/creep/spell content. The fixed interaction recipe should include the launcher-prescribed economy buy+upgrade, continuing creep waves, meteor cast, earthworks route edit, route-safe construction + destroy/reopen, ski->grapple, both first/third-person views, roster cycle, and defeat/rematch. This is the existing combined-match acceptance surface rather than a synthetic benchmark.\n\nGap before performance PASS: the launcher does not currently pin deterministic creep/wave counts or a timed action sequence, so measurements taken from ad-hoc play would not yet be comparable. First #2611 implementation should add only that deterministic workload recipe at the existing P3Testing/launch owner, then collect the baseline; no new profiler/benchmark framework is warranted.",
+      "createdAt": "2026-09-07T14:29:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2611#issuecomment-5572103445",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCFDLw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Implementation PR #2626 now pins the first versioned combined-match workload: ProductionWorld, 2 players, 1600x900, Epic/60 FPS target, 30 s warmup excluded from measurement, then a 270 s bounded sequence covering lane economy/pressure, Meteor, terrain route edit, construction route block/reopen, ski->grapple in both views, Raincoat/SealDiver/Fennec animation/spells, and finish/replay. It also declares required frame/server/RAM/VRAM metrics. Focused recipe + existing human-launch contracts are 7/7 PASS and diff-check passes. Hosted contract gate is queued; no performance PASS is claimed until the recipe is actually executed and measured.",
+      "createdAt": "2026-09-07T14:37:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2611#issuecomment-5572215599",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCFg4g",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up source check for the measurement step: current repo scripts/modules do not contain an existing trace flag, TraceFile, UnrealInsights, CSVProfiler, stat unit, or stat gpu invocation. #2626 should therefore remain the workload/input contract only. The measurement contribution should invoke Unreal Engine's existing trace/profiling surface against this recipe rather than adding a repo-owned profiler framework; record the exact trace flags/settings with the resulting baseline.",
+      "createdAt": "2026-09-07T14:38:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2611#issuecomment-5572223202",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [],
+  "milestone": null,
+  "number": 2611,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Measure and meet a combined Lane War playability budget",
+  "updatedAt": "2026-09-07T14:38:32Z"
+}
