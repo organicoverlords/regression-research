@@ -1,9 +1,9 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "study_issue": 89,
   "generated_date": "2026-08-26",
   "coverage_state": "NOT_PROVEN",
-  "coverage_note": "Canonical index remains a confirmed lower bound. 38 raw ChatPort direct corrections are bound to canonical events; 0 reviewed direct corrections remain explicit promotion candidates; 8 raw meta/design references are preserved as exact lexical occurrences. Library screenshot exhaustion remains separately open under #86.",
+  "coverage_note": "Canonical index remains a confirmed lower bound. 38 direct corrections from the reviewed raw-discovery surface remain bound, and SW-20260826-009 is now independently bound and scored from the preserved conversation corpus. The unsupported SW-20260826-011 candidate is retained only as rejected provenance. Library screenshot exhaustion remains separately open under #86.",
   "events": [
     {
       "event_id": "SW-20260822-001",
@@ -397,27 +397,40 @@
       "event_time": "15:01:38Z",
       "domain": "Plus/MCP/Codex economics / response density",
       "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
+      "evidence_confidence": "B",
       "provenance": [
         {
-          "ref": "prior-conversation-2026-08-26T15:01:38Z",
-          "role": "prior_turn_retrieval",
-          "name": "Plus/MCP/Codex economics discussion"
+          "ref": "sha256:d31ad0a34d8911c3c26e8f6496d23ad314cefce581c572842290e355ea6e73ce#message=f2c759e3-cb6d-46d9-bed3-f4fbf349c835",
+          "role": "raw_chatport_export",
+          "name": "memory/conversations/raw/chatport-evidence/raw/2026-08-26/20260827T104625Z_6a8efde2-e364-83ed-a923-11acd1c9ea55_sha256-d31ad0a34d89.json"
+        },
+        {
+          "ref": "02 Evidence/2026-09-07_issue89_unresolved_event_resolution.json#SW-20260826-009",
+          "role": "resolution_evidence",
+          "name": "Issue #89 unresolved-event resolution"
         }
       ],
-      "context_before": "The user sent a standalone `slopwall` during the Plus/MCP/Codex economics discussion after an overlong response. The full preceding assistant turn is not durably bound in this index pass.",
-      "user_visible_symptom": "The economics/usage answer was rejected for excessive text.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "At 15:01:55Z the assistant replied `Yep. Too much text.` and compressed the answer to the likelihood that MCP remains while heavy autonomous Plus usage may eventually be metered or moved behind a higher tier.",
-      "assistant_action_after": "COMPRESSED_EXPLANATION",
-      "execution_restored_next_substantive_turn": null,
+      "context_before": "[user] yesthiswillnotlastlongimsure,ibettheybanmcppluginsormovetheusagemeteredsoon | [assistant] A long pricing/strategy answer argues that heavy autonomous MCP usage is more likely to be metered or moved upmarket than banned, with multiple caveats, examples, and an unsolicited monitoring suggestion. | [assistant] Worked for 21s",
+      "user_visible_symptom": "A speculative pricing answer expanded into a long multi-paragraph analysis when the user wanted the compact conclusion.",
+      "assistant_action_before": "BOUND_RAW_CONTEXT",
+      "context_after": "[assistant] Yep. Too much text. Short version: MCP likely stays, while heavy autonomous MCP usage on Plus may eventually be metered or moved behind a higher tier. | [user] doeseverybodygetthesameamountofcodexresets",
+      "assistant_action_after": "COMPRESSED_PRICING_CONCLUSION",
+      "execution_restored_next_substantive_turn": true,
       "phenotypes": [
         "EMPTY_WALL",
         "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
       ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: the literal correction and immediate assistant reaction are recovered, but the complete bounded preceding turn is not yet bound."
+      "scores": {
+        "information_slop": 4,
+        "task_displacement": 1,
+        "execution_damage": 0,
+        "correction_resistance": 0,
+        "control_state_pathology": 1
+      },
+      "severity_100": 24,
+      "score_rationale": "The preserved raw conversation binds the full before/after sequence. The original answer is substantially overlong for the user's speculative pricing point, but the correction immediately produces the compact conclusion and the user moves to the next question. This is primarily presentation burden with successful immediate recovery.",
+      "raw_message_id": "f2c759e3-cb6d-46d9-bed3-f4fbf349c835",
+      "conversation_corpus_ref": "memory/conversations/raw/chatport-evidence/raw/2026-08-26/20260827T104625Z_6a8efde2-e364-83ed-a923-11acd1c9ea55_sha256-d31ad0a34d89.json"
     },
     {
       "event_id": "SW-20260826-010",
@@ -461,36 +474,6 @@
       "score_rationale": "The online-research result is overlong, but the correction immediately yields a concise discriminating summary. The user then supplies a concrete constraint ('tunnel not available') and diagnosis continues, so the bounded evidence shows successful recovery rather than repeated correction.",
       "raw_message_id": "17b9220f-6b52-4be2-a5e1-d07ef42e07f5",
       "raw_discovery_ref": "02 Evidence/2026-08-27_slopwall_raw_discovery.json#message_id=17b9220f-6b52-4be2-a5e1-d07ef42e07f5"
-    },
-    {
-      "event_id": "SW-20260826-011",
-      "exact_spelling": "slopwall",
-      "event_date": "2026-08-26",
-      "event_time": "20:22:47Z",
-      "domain": "preference research / slopwall corpus discussion",
-      "intervention_type": "GENUINE_CORRECTION",
-      "evidence_confidence": "D",
-      "provenance": [
-        {
-          "ref": "prior-conversation-2026-08-26T20:22:47Z",
-          "role": "prior_turn_retrieval",
-          "name": "Preference-research conversation"
-        }
-      ],
-      "context_before": "During the ongoing preference-research conversation, after repeated concern that the research would not converge, the user sent a standalone `slopwall`.",
-      "user_visible_symptom": "The user again used the marker to reject the current response path during preference research.",
-      "assistant_action_before": "PARTIAL_CONTEXT_ONLY",
-      "context_after": "At 20:22:53Z the assistant responded by discussing that the `slopwall corpus` was concretely established, which treated the correction partly as a topic rather than proving corrected execution.",
-      "assistant_action_after": "DISCUSSED_MARKER",
-      "execution_restored_next_substantive_turn": null,
-      "phenotypes": [
-        "EXPLANATION_INSTEAD_OF_EXECUTION",
-        "REPEATED_PROMISE_NO_ACTION",
-        "OVERFORMAT_OR_TEMPLATE_LOCK_IN"
-      ],
-      "scores": null,
-      "severity_100": null,
-      "score_rationale": "UNSCORABLE: exact occurrence and immediate response are recovered, but the full bounded before/after sequence is not yet bound."
     },
     {
       "event_id": "SW-20260822-002",
@@ -1748,22 +1731,6 @@
       ]
     },
     {
-      "occurrence_id": "OCC-20260826-015",
-      "matched_form": "slopwall",
-      "raw_user_text": "slopwall",
-      "event_date": "2026-08-26",
-      "event_time": "20:22:47Z",
-      "occurrence_role": "CORRECTIVE_INTERVENTION",
-      "canonical_event_id": "SW-20260826-011",
-      "provenance": [
-        {
-          "ref": "prior-conversation-2026-08-26T20:22:47Z",
-          "role": "prior_turn_retrieval",
-          "name": "Preference-research conversation"
-        }
-      ]
-    },
-    {
       "occurrence_id": "OCC-RAW-55ab5891-f08",
       "matched_form": "slopwall",
       "raw_user_text": "slopwalleli5",
@@ -2351,21 +2318,31 @@
     }
   ],
   "confirmed_counts": {
-    "lexical_occurrences": 49,
-    "canonical_interventions": 40,
-    "slopwall": 49,
+    "lexical_occurrences": 48,
+    "canonical_interventions": 39,
+    "slopwall": 48,
     "slop wall": 0,
-    "scored": 38,
-    "unscorable": 2,
+    "scored": 39,
+    "unscorable": 0,
     "occurrence_roles": {
-      "CORRECTIVE_INTERVENTION": 40,
+      "CORRECTIVE_INTERVENTION": 39,
       "META_REFERENCE": 9
     }
   },
   "pending_coverage": [
     "Complete #86 Library screenshot pagination/accounting; screenshot-only instances may remain outside the closed Aug20-Aug26 visual window.",
-    "Literal-match deferred local transcript/export surfaces when the machine route is available; do not infer absence from semantic search.",
-    "Bind stable full-turn evidence for D-confidence Aug26 events before assigning severity.",
     "Resolve additional recent-history candidates that were surfaced without sufficiently stable exact-turn provenance before promoting them into the canonical index."
+  ],
+  "rejected_candidates": [
+    {
+      "candidate_id": "SW-20260826-011",
+      "original_occurrence_id": "OCC-20260826-015",
+      "original_event_time": "20:22:47Z",
+      "disposition": "REJECTED_NO_SOURCE_MATCH",
+      "reason": "The preserved conversation corpus contains no user slopwall message at the asserted 20:22:47Z boundary and no source assistant message matching the claimed 20:22:53Z follow-up. Those details are present only in the historical assistant command that created the candidate from unverified prior-turn retrieval.",
+      "evidence": [
+        "02 Evidence/2026-09-07_issue89_unresolved_event_resolution.json#SW-20260826-011"
+      ]
+    }
   ]
 }
