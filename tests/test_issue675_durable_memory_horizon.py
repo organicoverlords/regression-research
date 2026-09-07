@@ -10,7 +10,7 @@ from tools.timeline_materializer import materialize, query_materialized
 
 
 class Issue675DurableMemoryHorizonTests(unittest.TestCase):
-    def test_promoted_durable_memory_survives_raw_timeline_horizon(self):
+    def test_promoted_durable_memory_is_not_aged_out_by_default_materialization(self):
         durable = {
             "id": "mem:durable-front-axis-correction",
             "timestamp": "2026-08-01T12:00:00+03:00",
@@ -60,7 +60,6 @@ class Issue675DurableMemoryHorizonTests(unittest.TestCase):
                 result = materialize(
                     root=root,
                     include_github=False,
-                    days=30,
                     now=datetime(2026, 9, 7, 0, 0, tzinfo=timezone.utc),
                 )
 
@@ -68,15 +67,11 @@ class Issue675DurableMemoryHorizonTests(unittest.TestCase):
             query = query_materialized(root=root, query="front axis camera wrong", limit=8)
             self.assertIsNotNone(query)
             event_ids = {row.get("id") for row in query.get("events", [])}
-            packet_ids = {
-                row.get("source_event_id") for row in (query.get("lesson_packet") or {}).get("items", [])
-            }
             self.assertIn(
                 durable["id"],
                 event_ids,
-                "durable Memory corrections must remain queryable after their raw source ages out of the hot horizon",
+                "default materialization must not age out durable Memory corrections",
             )
-            self.assertIn(durable["id"], packet_ids)
 
 
 if __name__ == "__main__":

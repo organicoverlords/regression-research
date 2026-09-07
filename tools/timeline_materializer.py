@@ -48,7 +48,7 @@ QUERY_INDEX_SCHEMA = "vault.timeline.query-index.v1"
 SCHEMA = "vault.timeline.materialized.v1"
 BOOTSTRAP_SCHEMA = "vault.timeline.bootstrap.v1"
 TASK_NAME = "Vault Timeline Materializer"
-DEFAULT_DAYS = 30
+DEFAULT_DAYS: int | None = None
 DEFAULT_REPO_EVENTS = 1000
 DEFAULT_ARTIFACT_EVENTS = 2000
 DEFAULT_REFRESH_MINUTES = 5
@@ -1945,7 +1945,7 @@ def materialize(
     root: Path = ROOT,
     state_root: Path | None = None,
     now: datetime | None = None,
-    days: int = DEFAULT_DAYS,
+    days: int | None = DEFAULT_DAYS,
     repo_events_per_repo: int = DEFAULT_REPO_EVENTS,
     artifact_events_limit: int = DEFAULT_ARTIFACT_EVENTS,
     max_events: int = DEFAULT_MAX_EVENTS,
@@ -1956,7 +1956,7 @@ def materialize(
 ) -> dict[str, Any]:
     started = time.perf_counter()
     now = now or datetime.now().astimezone()
-    horizon_since = now - timedelta(days=max(1, int(days)))
+    horizon_since = HISTORICAL_EVIDENCE_FLOOR if days is None else now - timedelta(days=max(1, int(days)))
     state_root = state_root or (root / ".state" / "timeline")
     store_path = state_root / STORE_PATH.name
     query_index_path = state_root / QUERY_INDEX_PATH.name
@@ -2242,8 +2242,8 @@ def materialize(
             "backfill_incomplete_sources": backfill_incomplete_sources,
             "retry_sources": retry_sources,
             "timeline_truncated": bool(timeline.get("truncated")),
-            "coverage_status": "HISTORICAL_INCOMPLETE" if (backfill_incomplete_sources or timeline.get("truncated")) else "COMPLETE_WITHIN_MATERIALIZED_HORIZON",
-            "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if (backfill_incomplete_sources or timeline.get("truncated")) else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY",
+            "coverage_status": "HISTORICAL_INCOMPLETE" if (backfill_incomplete_sources or timeline.get("truncated")) else ("COMPLETE_MATERIALIZED_HISTORY" if days is None else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"),
+            "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if (backfill_incomplete_sources or timeline.get("truncated")) else ("NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HISTORY_AND_ENABLED_SOURCES_ONLY" if days is None else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY"),
             "live_truth_required": True,
             "historical_evidence_events": len(historical_evidence_events),
             "work_graph": {
@@ -2338,7 +2338,11 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
         or []
     ) if str(value).strip()))
     timeline_truncated = bool(timeline.get("truncated") or meta.get("timeline_truncated"))
-    coverage_status = "HISTORICAL_INCOMPLETE" if (incomplete or timeline_truncated) else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
+    horizon_days = payload.get("horizon_days")
+    if horizon_days is None:
+        horizon_days = meta.get("horizon_days")
+    complete_coverage_status = "COMPLETE_MATERIALIZED_HISTORY" if horizon_days is None else "COMPLETE_WITHIN_MATERIALIZED_HORIZON"
+    coverage_status = "HISTORICAL_INCOMPLETE" if (incomplete or timeline_truncated) else complete_coverage_status
     absence_unsafe_reasons: list[str] = []
     if status != "FRESH":
         absence_unsafe_reasons.append("MATERIALIZATION_STALE")
@@ -2351,7 +2355,7 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
     absence_semantics = (
         "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE"
         if absence_unsafe_reasons
-        else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY"
+        else ("NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HISTORY_AND_ENABLED_SOURCES_ONLY" if horizon_days is None else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY")
     )
     return {
         "status": status,
@@ -2360,7 +2364,7 @@ def materialized_health(payload: dict[str, Any], *, now: datetime | None = None)
         "stale_after_seconds": round(stale_after_seconds, 1),
         "refresh_minutes": refresh_minutes,
         "refresh_mode": meta.get("refresh_mode") or ingestion.get("mode"),
-        "horizon_days": payload.get("horizon_days") or meta.get("horizon_days"),
+        "horizon_days": horizon_days,
         "read_mode": "MATERIALIZED_ONLY",
         "coverage_status": coverage_status,
         "backfill_incomplete_sources": incomplete,
@@ -3372,7 +3376,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     refresh = sub.add_parser("refresh")
     refresh.add_argument("--root", type=Path, default=ROOT, help="Vault root to aggregate into .state/timeline")
-    refresh.add_argument("--days", type=int, default=DEFAULT_DAYS)
+    refresh.add_argument("--days", type=int, default=DEFAULT_DAYS, help="optional explicit materialization window; default retains history regardless of age")
     refresh.add_argument("--repo-events", type=int, default=DEFAULT_REPO_EVENTS)
     refresh.add_argument("--artifact-events", type=int, default=DEFAULT_ARTIFACT_EVENTS)
     refresh.add_argument("--max-events", type=int, default=DEFAULT_MAX_EVENTS)
