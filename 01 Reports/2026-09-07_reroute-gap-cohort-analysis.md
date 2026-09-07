@@ -1,16 +1,26 @@
-# Reroute-gap cohort analysis: strongest current explanation
+# CORRECTED: generic MCP inactivity-gap cohort (not a reroute cohort)
 
 **Date:** 2026-09-07 EEST
 **Scope:** user-visible ChatGPT reroute/thinking incidents correlated with local MCP transport activity
-**Status:** statistical correlate identified; internal platform mechanism not directly observable
+**Status:** INVALID for estimating reroute feature rates; retained only as a generic same-caller inactivity-gap analysis
+
+## Methodological correction — 2026-09-07
+
+The 60–600 second cohort below was built from **MCP transport silence between one successful tool response and the next request from the same caller**. It did **not** distinguish a user-visible reroute/stalled open assistant turn from ordinary inactivity such as: the worker finished, the assistant returned control, and the user simply waited before sending `go` or another message.
+
+Therefore the 3,800-gap cohort and its 200-gap sample **must not be treated as reroute positives**, and the short-gap cohort must not be treated as reroute negatives. Feature ratios from those cohorts cannot establish or eliminate a reroute cause. The counts remain useful only for characterizing generic transport inactivity.
+
+The preserved **user-confirmed reroute incidents remain valid evidence** because their UI state/timing was supplied or observed separately from MCP. Any future causal cohort must require an independent turn-state/UI signal proving that the assistant response was still open during the gap, or otherwise exclude gaps that cross user-wait/end-of-turn boundaries. MCP transport alone cannot make that distinction.
+
+Consequently, prior wording in this report calling accumulated tool state the "strongest explanation" is withdrawn pending a properly labeled positive/negative reroute cohort. The Git/credential, output-size, process-state, and accumulated-state statistics below are **generic-gap correlations only**.
 
 ## Short version
 
 The broad evidence no longer supports GitHub credentials, secret output, Blender/UBT, repeated 10-second polling, a live child process, or machine-wide worker concurrency as the common cause.
 
-The strongest measurable common link is **post-tool model re-entry in an old, tool-heavy chat/caller state**. Long action gaps become much more common after a caller has accumulated hundreds to thousands of tool interactions and multiple megabytes of MCP response payload. Large individual/recent tool results amplify the effect. This fits the live `stop -> go` behavior: `go` creates a fresh execution continuation, but it returns to the same heavily accumulated chat state, so one additional tool call can immediately enter the visible reroute state again.
+Within the contaminated generic-gap cohort, an apparent correlate was **post-tool inactivity in older, tool-heavy caller state**; this is not established as a reroute-specific link. Long action gaps become much more common after a caller has accumulated hundreds to thousands of tool interactions and multiple megabytes of MCP response payload. Large individual/recent tool results amplify the effect. This fits the live `stop -> go` behavior: `go` creates a fresh execution continuation, but it returns to the same heavily accumulated chat state, so one additional tool call can immediately enter the visible reroute state again.
 
-This does **not** prove the private OpenAI routing/compaction implementation. It is the strongest observable correlate in our logs.
+Because ordinary user-wait/end-of-turn gaps were not filtered out, this analysis does **not** identify a reroute-specific platform mechanism.
 
 ## Dataset
 

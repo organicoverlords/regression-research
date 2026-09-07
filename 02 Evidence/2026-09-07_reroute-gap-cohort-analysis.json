@@ -2,8 +2,14 @@
   "schema": "reroute-gap-cohort-analysis.v1",
   "captured_at": "2026-09-07T23:14:00+03:00",
   "definition": {
-    "long_gap_seconds": [60, 600],
-    "control_gap_seconds": [1, 10],
+    "long_gap_seconds": [
+      60,
+      600
+    ],
+    "control_gap_seconds": [
+      1,
+      10
+    ],
     "warning": "same-caller action gaps are a transport signature, not by themselves proof of a user-visible reroute"
   },
   "transport_feature_snapshot": {
@@ -13,22 +19,56 @@
     "control_count": 86246,
     "long_preceding_status_200_percent": 100.0,
     "features": {
-      "start_process": {"long_percent": 77.76, "control_percent": 67.27},
-      "read_output": {"long_percent": 21.50, "control_percent": 31.92},
-      "running_false": {"long_percent": 77.42, "control_percent": 60.96},
-      "completed_read_output": {"long_percent": 10.18, "control_percent": 5.88, "rate_ratio": 1.73},
-      "running_true": {"long_percent": 16.05, "control_percent": 27.93},
-      "wait_10000ms": {"long_percent": 22.68, "control_percent": 36.51},
-      "response_gt_8k": {"long_percent": 26.39, "control_percent": 13.38, "rate_ratio": 1.97},
-      "response_gt_32k": {"long_percent": 5.0, "control_percent": 1.98, "rate_ratio": 2.53},
-      "next_connection_changed": {"long_percent": 87.08, "control_percent": 64.10}
+      "start_process": {
+        "long_percent": 77.76,
+        "control_percent": 67.27
+      },
+      "read_output": {
+        "long_percent": 21.5,
+        "control_percent": 31.92
+      },
+      "running_false": {
+        "long_percent": 77.42,
+        "control_percent": 60.96
+      },
+      "completed_read_output": {
+        "long_percent": 10.18,
+        "control_percent": 5.88,
+        "rate_ratio": 1.73
+      },
+      "running_true": {
+        "long_percent": 16.05,
+        "control_percent": 27.93
+      },
+      "wait_10000ms": {
+        "long_percent": 22.68,
+        "control_percent": 36.51
+      },
+      "response_gt_8k": {
+        "long_percent": 26.39,
+        "control_percent": 13.38,
+        "rate_ratio": 1.97
+      },
+      "response_gt_32k": {
+        "long_percent": 5.0,
+        "control_percent": 1.98,
+        "rate_ratio": 2.53
+      },
+      "next_connection_changed": {
+        "long_percent": 87.08,
+        "control_percent": 64.1
+      }
     }
   },
   "recent_top200": {
     "min_gap_seconds": 40.604,
     "max_gap_seconds": 554.712,
     "callers": 19,
-    "tools": {"start_process": 165, "read_output": 32, "kill_process": 3},
+    "tools": {
+      "start_process": 165,
+      "read_output": 32,
+      "kill_process": 3
+    },
     "completed_process_result": 170,
     "running_process_result": 20,
     "unknown_or_kill_state": 10,
@@ -63,29 +103,102 @@
     "long_median_cumulative_response_bytes": 2338277,
     "last20_bytes_ge_200k_short_percent": 6.06,
     "last20_bytes_ge_200k_long_percent": 16.38,
-    "last20_bytes_ge_200k_rate_ratio": 2.70,
+    "last20_bytes_ge_200k_rate_ratio": 2.7,
     "gap_rates_by_calls": {
-      "lt100": {"long60_percent": 2.75, "gap30_percent": 5.37},
-      "100_299": {"long60_percent": 1.92, "gap30_percent": 4.11},
-      "300_599": {"long60_percent": 2.33, "gap30_percent": 5.30},
-      "600_999": {"long60_percent": 3.64, "gap30_percent": 9.54},
-      "gte1000": {"long60_percent": 4.94, "gap30_percent": 24.90}
+      "lt100": {
+        "long60_percent": 2.75,
+        "gap30_percent": 5.37
+      },
+      "100_299": {
+        "long60_percent": 1.92,
+        "gap30_percent": 4.11
+      },
+      "300_599": {
+        "long60_percent": 2.33,
+        "gap30_percent": 5.3
+      },
+      "600_999": {
+        "long60_percent": 3.64,
+        "gap30_percent": 9.54
+      },
+      "gte1000": {
+        "long60_percent": 4.94,
+        "gap30_percent": 24.9
+      }
     },
     "gap_rates_by_cumulative_response_bytes": {
-      "lt0_5MB": {"long60_percent": 2.44, "gap30_percent": 4.70},
-      "0_5_1MB": {"long60_percent": 2.16, "gap30_percent": 4.55},
-      "1_2MB": {"long60_percent": 1.84, "gap30_percent": 3.99},
-      "2_4MB": {"long60_percent": 2.73, "gap30_percent": 6.43},
-      "gte4MB": {"long60_percent": 4.69, "gap30_percent": 18.37}
+      "lt0_5MB": {
+        "long60_percent": 2.44,
+        "gap30_percent": 4.7
+      },
+      "0_5_1MB": {
+        "long60_percent": 2.16,
+        "gap30_percent": 4.55
+      },
+      "1_2MB": {
+        "long60_percent": 1.84,
+        "gap30_percent": 3.99
+      },
+      "2_4MB": {
+        "long60_percent": 2.73,
+        "gap30_percent": 6.43
+      },
+      "gte4MB": {
+        "long60_percent": 4.69,
+        "gap30_percent": 18.37
+      }
     }
   },
   "confirmed_incident_state": [
-    {"incident": "2026-09-06 20:27 EEST", "caller": "caller_86efff37c610", "calls_sofar": 543, "response_bytes_sofar": 3031527},
-    {"incident": "2026-09-06 21:44 EEST", "caller": "caller_86efff37c610", "calls_sofar": 734, "response_bytes_sofar": 4460007},
-    {"incident": "2026-09-07 17:50 EEST", "caller": "caller_09918a517358", "calls_sofar": 309, "response_bytes_sofar": 2375848},
-    {"incident": "2026-09-07 22:10 EEST", "caller": "caller_e89dd7b969dd", "calls_sofar": 862, "response_bytes_sofar": 2936513},
-    {"incident": "2026-09-07 22:59 EEST", "caller": "caller_cf4d3c2b8796", "calls_sofar": 614, "response_bytes_sofar": 3711146},
-    {"incident": "2026-09-06 03:54 EEST", "caller": "caller_a018b0cbc049", "calls_sofar": 478, "response_bytes_sofar": 3349208}
+    {
+      "incident": "2026-09-06 20:27 EEST",
+      "caller": "caller_86efff37c610",
+      "calls_sofar": 543,
+      "response_bytes_sofar": 3031527
+    },
+    {
+      "incident": "2026-09-06 21:44 EEST",
+      "caller": "caller_86efff37c610",
+      "calls_sofar": 734,
+      "response_bytes_sofar": 4460007
+    },
+    {
+      "incident": "2026-09-07 17:50 EEST",
+      "caller": "caller_09918a517358",
+      "calls_sofar": 309,
+      "response_bytes_sofar": 2375848
+    },
+    {
+      "incident": "2026-09-07 22:10 EEST",
+      "caller": "caller_e89dd7b969dd",
+      "calls_sofar": 862,
+      "response_bytes_sofar": 2936513
+    },
+    {
+      "incident": "2026-09-07 22:59 EEST",
+      "caller": "caller_cf4d3c2b8796",
+      "calls_sofar": 614,
+      "response_bytes_sofar": 3711146
+    },
+    {
+      "incident": "2026-09-06 03:54 EEST",
+      "caller": "caller_a018b0cbc049",
+      "calls_sofar": 478,
+      "response_bytes_sofar": 3349208
+    }
   ],
-  "working_conclusion": "The strongest observable link for the gap subtype is post-tool model re-entry in an old/tool-heavy caller state, with large individual/recent result payloads acting as an amplifier. Internal platform routing/compaction mechanics remain unobservable."
+  "working_conclusion": "WITHDRAWN as reroute-specific conclusion. The accumulated-state/output-size associations are generic inactivity-gap correlations until reroute positives and true non-reroute controls are labeled with independent UI/turn-state evidence.",
+  "validity": {
+    "status": "INVALID_AS_REROUTE_COHORT",
+    "corrected_at": "2026-09-07T23:22:00+03:00",
+    "reason": "Same-caller MCP gaps were not filtered for ordinary end-of-turn/user-wait intervals. MCP transport alone cannot distinguish an open-turn reroute stall from a worker that finished and waited for the next user message.",
+    "allowed_use": "generic transport inactivity statistics only",
+    "not_allowed_use": [
+      "reroute-positive prevalence",
+      "reroute-negative control comparison",
+      "causal elimination of credential/GitHub/output/process-state hypotheses",
+      "claim that accumulated tool state is a reroute-specific cause"
+    ],
+    "required_future_filter": "independent UI/turn-state evidence that the assistant response remained open during the gap, plus exclusion of gaps crossing user-wait/end-of-turn boundaries"
+  }
 }
