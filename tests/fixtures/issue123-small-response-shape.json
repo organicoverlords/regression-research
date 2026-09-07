@@ -1,0 +1,57 @@
+{
+  "schema": "issue123-small-response-shape.v1",
+  "issue": 123,
+  "source_report": "01 Reports/2026-08-29_1042_EEST_slopwall-premature-fixed-and-text-shape.md",
+  "boundary": {
+    "applies_when": [
+      "yes_no",
+      "status",
+      "small_clarification"
+    ],
+    "default_when_structure_not_requested": "one cohesive paragraph without headings, lists, arrows, or flow scaffolding",
+    "does_not_apply_when": [
+      "user_requests_structure",
+      "task_genuinely_requires_structure"
+    ]
+  },
+  "cases": [
+    {
+      "id": "tiny-status-clean",
+      "request_class": "status",
+      "structure_requested": false,
+      "task_requires_structure": false,
+      "response": "Merged as 824628c. Hosted verification passed, and the current issue body now reflects the targeted-history boundary.",
+      "expect_pass": true
+    },
+    {
+      "id": "tiny-status-slopwall-shape",
+      "request_class": "status",
+      "structure_requested": false,
+      "task_requires_structure": false,
+      "response": "## Status\n\n- Merge complete\n- Verification passed\n- Issue updated\n\nNext -> review the remaining policy surface.",
+      "expect_pass": false,
+      "expected_violations": [
+        "multiple_paragraphs",
+        "heading",
+        "list",
+        "arrow_scaffolding"
+      ]
+    },
+    {
+      "id": "requested-checklist-control",
+      "request_class": "status",
+      "structure_requested": true,
+      "task_requires_structure": false,
+      "response": "- Merge complete\n- Verification passed\n- Issue updated",
+      "expect_pass": true
+    },
+    {
+      "id": "complex-analysis-control",
+      "request_class": "analysis",
+      "structure_requested": false,
+      "task_requires_structure": true,
+      "response": "## Evidence classes\n\n- Runtime continuity\n- Git productivity\n- Worker output",
+      "expect_pass": true
+    }
+  ]
+}
