@@ -9,6 +9,8 @@ PRE_REPAIR = ROOT / "02 Evidence" / "issue122" / "2026-08-25_122229_EEST_pre-rep
 LEDGER = ROOT / "02 Evidence" / "issue122" / "2026-08-27_canonical-claim-evidence-ledger.md"
 ATTRS = ROOT / ".gitattributes"
 SIBLING_SEARCH = ROOT / "02 Evidence" / "issue122" / "2026-09-07_false-boundary-sibling-search.json"
+TERMINAL_PAIR = ROOT / "02 Evidence" / "issue122" / "2026-08-26_1743-1819-active-branch-terminal-pair.json"
+FALSE_BOUNDARY = ROOT / "03 Fixtures and Experiments" / "issue122-false-boundary-provenance.json"
 
 
 class Issue122ForensicIntegrityTests(unittest.TestCase):
@@ -53,6 +55,30 @@ class Issue122ForensicIntegrityTests(unittest.TestCase):
         self.assertEqual(data["result"]["classification"], "NEGATIVE_SOURCE_SEARCH")
         self.assertIn("does not prove or disprove", data["causal_limit"])
 
+    def test_post_replay_artifacts_are_hash_bound_and_promoted_in_ledger(self):
+        expected = {
+            TERMINAL_PAIR: "306a25c7fb913e96adab95d87213d1e2c968bc5a1b9838bb5fe67b04cb7d8bec",
+            FALSE_BOUNDARY: "bd9afa8f966a59d7c53e3641fcdd6d9e892cc0b66cec516a194fc92a23a51a43",
+            SIBLING_SEARCH: "91f9825891d9f245a59110922a73e83ed7c7f35bed1d868ba8e0d9ef2c1f4df7",
+        }
+        for path, digest in expected.items():
+            with self.subTest(path=path.name):
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), digest)
+
+        text = LEDGER.read_text(encoding="utf-8")
+        for evidence_id, path, digest in (
+            ("E17", TERMINAL_PAIR, expected[TERMINAL_PAIR]),
+            ("E18", FALSE_BOUNDARY, expected[FALSE_BOUNDARY]),
+            ("E19", SIBLING_SEARCH, expected[SIBLING_SEARCH]),
+        ):
+            with self.subTest(evidence_id=evidence_id):
+                self.assertIn(f"| {evidence_id} | B |", text)
+                self.assertIn(path.name, text)
+                self.assertIn(digest, text)
+        self.assertNotIn("pending standalone artifact promotion", text)
+        self.assertIn("deterministic authority intervention added; historical causation open", text)
+        self.assertIn("no preserved target retry/sibling natural A/B", text)
+
     def test_ledger_uses_branch_aware_counts_and_pins_later_provenance(self):
         text = LEDGER.read_text(encoding="utf-8")
         self.assertIn("123 minimal direct non-async GPT-5.6 turns", text)
@@ -66,7 +92,7 @@ class Issue122ForensicIntegrityTests(unittest.TestCase):
         self.assertIn("Context/mission continuity is directly user-authored by Aug 20", text)
         self.assertIn("`issue.updatedAt` is comment-sensitive", text)
         self.assertIn(
-            "a22d85efc6b88572ec30eff802c88eacd744da97c172461e3efe7003728c2bd6",
+            "4641b11c53ab86d435bd69f1dff0e4aa476958cec9b7190b9655065d8060115c",
             text,
         )
         self.assertNotIn("canonical body `updatedAt`:", text)
