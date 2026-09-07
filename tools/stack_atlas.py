@@ -325,10 +325,10 @@ COMPONENTS.update({
         "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "north_star": {
-        "role": "direction:project", "capabilities": ["source_read"], "canonical_sources": ["repo NORTH_STAR/equivalent"],
-        "live_status": ["read current direction doc; derive obvious unmet product outcomes into actionable work and prefer visible progress"], "supervisor": "repo-local", "self_heal": "not_applicable",
-        "independent_recovery": ["current user direction outranks stale prose"], "resources": ["NORTH_STAR/equivalent"],
-        "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["repo NORTH_STAR/equivalent"],
+        "role": "direction:project", "capabilities": ["source_read"], "canonical_sources": ["organicoverlords/agents@main docs/repos/<repo>/ North Star/equivalent"],
+        "live_status": ["read current Agents-repo product direction; derive obvious unmet product outcomes into actionable work and prefer visible progress"], "supervisor": "organicoverlords/agents", "self_heal": "not_applicable",
+        "independent_recovery": ["current user direction outranks stale prose"], "resources": ["docs/repos/<repo>/ North Star/equivalent"],
+        "dependents": ["chatgpt_session", "execution_workers"], "runbook": ["organicoverlords/agents@main docs/repos/<repo>/"],
     },
     "chatgpt_memory": {
         "role": "context:chatgpt-continuity", "capabilities": ["memory_read"],
@@ -498,7 +498,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
-        "entrypoints": ["shared .agents RULES.md + AGENTS.md", "repo NORTH_STAR/equivalent", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
+        "entrypoints": ["shared .agents RULES.md + AGENTS.md", "organicoverlords/agents@main docs/repos/<repo>/ product direction", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
     "project.p3_unreal_navigation": {
@@ -509,7 +509,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
             r"C:\Users\Lauri\Documents\Unreal Projects\p3\scripts\v2\verification\p3_bridge_guard.py",
             r"C:\Users\Lauri\Documents\Unreal Projects\p3\scripts\Test-P3WorkerEditorPreflight.ps1",
         ],
-        "boundary": "Navigation only. Current P3 repo/main, repo-owned contracts, and live editor/runtime evidence remain product authority; Atlas must not become P3 product state. Validate UE_MCP_Bridge endpoint identity through the repo-owned live guard/preflight rather than trusting Saved/UE_MCP_Bridge/port.json alone; a configured UnrealMCPBridge port is not liveness or ownership proof.",
+        "boundary": "Navigation only. P3 product direction lives in organicoverlords/agents@main under docs/repos/p3; current P3 repo/main, repo-owned machine contracts, and live editor/runtime evidence remain implementation/runtime authority. Atlas must not become P3 product state. Validate UE_MCP_Bridge endpoint identity through the repo-owned live guard/preflight rather than trusting Saved/UE_MCP_Bridge/port.json alone; a configured UnrealMCPBridge port is not liveness or ownership proof.",
     },
     "coordination.ownership": {
         "owner_components": ["busy_coordinator"],
