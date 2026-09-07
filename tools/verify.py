@@ -35,6 +35,9 @@ STACK_PATHS = {
     "02 Evidence/issue122/2026-08-27_canonical-claim-evidence-ledger.md",
     ".gitattributes",
     "03 Fixtures and Experiments/issue123-current-vault-history-boundary.json",
+    "01 Reports/2026-09-03_issue123-current-vault-history-boundary.md",
+    "02 Evidence/issue123/2026-08-27_current-user-preference-coverage.md",
+    "tests/test_issue123_current_vault_history_boundary.py",
 }
 
 
