@@ -42,6 +42,14 @@ class VerifyTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["stack"])
 
+    def test_issue122_false_boundary_replay_selects_stack_verification(self):
+        for path in (
+            "03 Fixtures and Experiments/issue122-false-boundary-provenance.json",
+            "tests/test_issue122_false_boundary_replay.py",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
+
     def test_issue122_forensic_integrity_selects_stack_verification(self):
         for path in (
             "tests/test_issue122_forensic_integrity.py",
@@ -76,6 +84,7 @@ class VerifyTests(unittest.TestCase):
         unittest_command = run.call_args_list[1].args[0]
         self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
         self.assertIn("tests.test_issue122_forensic_integrity", unittest_command)
+        self.assertIn("tests.test_issue122_false_boundary_replay", unittest_command)
 
     @patch("tools.verify.run")
     @patch("tools.verify.run_pytest")
