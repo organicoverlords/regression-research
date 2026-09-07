@@ -23,6 +23,31 @@ class LiveSwarmTests(unittest.TestCase):
         self.assertEqual(_workspace(r"C:\Users\Lauri\.agents"), "Agents")
         self.assertEqual(_workspace(r"C:\Users\Lauri\AppData\Local\ChatGPTMcpMinimal"), "MCP-runtime")
 
+    def test_command_target_resolves_git_path_variables_and_forward_slashes(self):
+        for command, expected in (
+            ("$wt='C:\\repo\\p3'; git -C $wt status", r"C:\repo\p3"),
+            ("git -C C:/repo/p3 status", "C:/repo/p3"),
+            ("Set-Location -LiteralPath 'C:/repo/p3'; git status", "C:/repo/p3"),
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(_command_target(command)[0], expected)
+
+    def test_command_target_does_not_infer_location_from_unused_or_dynamic_values(self):
+        for command in (
+            "$wt='C:\\repo\\p3'; Get-Process",
+            "git -C $wt status; $wt='C:\\repo\\p3'",
+            'git -C "C:/repo/$project" status',
+            "$wt='C:/repo/p3'; $wt=Get-Location; git -C $wt status",
+            "$wt='C:/repo/p3' + $suffix; git -C $wt status",
+            "$wt='C:/repo'; git -C $wt/$project status",
+            "Write-Output 'git -C C:/repo/p3 status'",
+            "if ($enabled) { $wt='C:/repo/p3' }; git -C $wt status",
+            "$wt=C:/repo/p3; git -C $wt status",
+            "git -C C:/repo/p3 -C C:/repo/tiny3d status",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(_command_target(command), (None, None))
+
     def test_git_identity_reports_commit_sha_not_branch_name(self):
         with tempfile.TemporaryDirectory() as td:
             repo=Path(td)/"repo"

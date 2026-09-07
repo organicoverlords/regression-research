@@ -175,20 +175,56 @@ def _workspace(path: str | None) -> str | None:
 
 
 def _command_target(command: str) -> tuple[str | None, str | None]:
-    variables = {
-        m.group(1).casefold(): m.group(2)
-        for m in re.finditer(r"\$([A-Za-z_]\w*)\s*=\s*['\"]([A-Za-z]:\\[^'\"]+)['\"]", command)
-    }
-    for name, path in variables.items():
-        if re.search(rf"(?i)\b(?:Set-Location|cd)\s+\${re.escape(name)}\b", command):
-            return path, "command_cwd"
-    for pattern, basis in (
-        (r"(?i)\b(?:Set-Location|cd)(?:\s+-LiteralPath)?\s+['\"]([A-Za-z]:\\[^'\"]+)['\"]", "command_cwd"),
-        (r"(?i)\bgit\s+-C\s+['\"]([A-Za-z]:\\[^'\"]+)['\"]", "command_git_c"),
-    ):
-        match = re.search(pattern, command)
-        if match:
-            return match.group(1), basis
+    # Parse only explicit static locations. A variable assignment by itself is
+    # not evidence that the command operates on that repository.
+    literal = r'''(?:'([A-Za-z]:[\\/][^'\r\n]+)'|"([A-Za-z]:[\\/][^"$`\r\n]+)"|([A-Za-z]:[\\/][^\s;'"|&$`]+))'''
+    argument = literal + r"|\$([A-Za-z_]\w*)"
+    # Keep quoted text together before separating simple statements. This is
+    # deliberately not a PowerShell evaluator: compound/control syntax is unknown.
+    tokens = re.findall(r''''(?:[^']|'')*'|"(?:`.|[^"`])*"|#[^\r\n]*|[;\r\n]|[^;'"\r\n#]+''', command)
+    if "".join(tokens) != command:
+        return None, None
+    statements = [""]
+    for token in tokens:
+        if token.startswith("#"):
+            continue
+        if token in (";", "\r", "\n"):
+            statements.append("")
+        else:
+            if token[0] not in "'\"" and re.search(r"[{}()|&`]", token):
+                return None, None
+            statements[-1] += token
+    variables: dict[str, str] = {}
+    for statement in statements:
+        statement = statement.strip()
+        if not statement:
+            continue
+        assignment = re.fullmatch(r"\$([A-Za-z_]\w*)\s*=\s*(.*)", statement)
+        if assignment:
+            name, value = assignment.groups()
+            match = re.fullmatch(literal, value) if value.startswith(("'", '"')) else None
+            variables.pop(name.casefold(), None)
+            if match:
+                variables[name.casefold()] = next(v for v in match.groups() if v)
+            else:
+                variables.clear()
+            continue
+        for pattern, basis in (
+            (r"(?i)^(?:Set-Location|cd)(?:\s+-LiteralPath)?\s+", "command_cwd"),
+            (r"(?i)^git(?:\.exe)?\s+-C\s+", "command_git_c"),
+        ):
+            match = re.match(pattern + "(?:" + argument + r")(?=\s|$)", statement)
+            if not match:
+                continue
+            if basis == "command_git_c" and re.search(r"\s-C(?:\s|\S)", statement[match.end():]):
+                return None, None
+            path = next((value for value in match.groups()[:3] if value), None)
+            if path:
+                return path, basis
+            path = variables.get(match.group(4).casefold())
+            return (path, basis) if path else (None, None)
+        # An unrecognised statement may mutate a previously assigned variable.
+        variables.clear()
     return None, None
 
 

@@ -20,6 +20,8 @@ STACK_PATHS = {
     "tools/stack_atlas.py",
     "tools/tiny3d_atlas_projection.py",
     "tests/test_tiny3d_atlas_projection.py",
+    "tools/live_swarm.py",
+    "tests/test_live_swarm.py",
     "docs/assistant-stack-operational-atlas.md",
     "tests/fixtures/stack-atlas-pid-29864.json",
     "tests/test_stack_atlas.py",
@@ -155,6 +157,7 @@ def verify_stack() -> None:
             "py_compile",
                     "tools/stack_atlas.py",
             "tools/tiny3d_atlas_projection.py",
+            "tools/live_swarm.py",
             "tools/replay_scoring.py",
         ]
     )
@@ -165,6 +168,7 @@ def verify_stack() -> None:
             "unittest",
             "tests.test_stack_atlas",
             "tests.test_tiny3d_atlas_projection",
+            "tests.test_live_swarm",
             "tests.test_issue693_fresh_worker_entry",
             "tests.test_issue122_acceptance_boundary_replay",
             "tests.test_issue122_false_boundary_replay",
