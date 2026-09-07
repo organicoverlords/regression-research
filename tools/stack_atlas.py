@@ -43,6 +43,7 @@ P3_VISUAL_EVIDENCE_QUERY = r"$i=Get-Content 'G:\Oma Drive\P3 Visual Evidence\p3\
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
+SWARM_ROUTING_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "swarm-routing-cohort.md")
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
@@ -263,9 +264,9 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "runbook": [MCP_ROOT + r"\keepalive.ps1"],
     },
     "linux_omen_node": {
-        "role": "lan_ssh_execution_node",
+        "role": "primary_lan_execution_node",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate", "artifact_transfer", "build_compute"],
-        "canonical_sources": [LINUX_OMEN_CONTRACT],
+        "canonical_sources": [LINUX_OMEN_CONTRACT, SWARM_ROUTING_CONTRACT],
         "live_status": [
             "bounded SSH probe through the documented Windows MCP -> LAN SSH route",
             "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass",
@@ -273,7 +274,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "sudo -n /usr/local/sbin/omen-agent-admin verify-storage validates /mnt/ue and /boot/efi without exposing a general root shell",
         ],
         "supervisor": "user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only",
-        "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
+        "self_heal": "machine admission is owned by the shared swarm routing cohort; repository lanes supervise their own execution; do not add a second scheduler/control plane on OMEN",
         "independent_recovery": [
             "local laptop console remains independent of SSH",
             "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this preferred execution node",
@@ -289,7 +290,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "/usr/local/sbin/omen-agent-admin fixed-action storage helper (status, verify-storage, mount-ue, restart-ready)",
         ],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": [LINUX_OMEN_CONTRACT],
+        "runbook": [LINUX_OMEN_CONTRACT, SWARM_ROUTING_CONTRACT, r"python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status --refresh-probe"],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
@@ -655,9 +656,11 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
         "entrypoints": [
             "python tools\\stack_atlas.py lookup linux_omen_node",
+            r"python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable-task-id> --kind <work-kind>",
             LINUX_OMEN_CONTRACT,
+            SWARM_ROUTING_CONTRACT,
         ],
-        "boundary": "Preferred LAN compute/build node for portable compute-intensive work behind the existing Windows MCP transport when its live SSH/resource probe passes and the owning repo has a compatible Linux/offload path. LowVRAM, Windows-only workflows, editor/UI-bound work, and MCP/control transport remain on Windows. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route; preserve user data and do not expose TCP 22 publicly.",
+        "boundary": "Default execution node under the shared swarm routing cohort for substantive work that is not LowVRAM or genuinely Windows-only. Windows remains MCP/control transport and takes ordinary execution only after fresh cohort evidence that OMEN is saturated/unavailable for that work class; the VPS may take supported portable-light overflow. OMEN is not an MCP endpoint, worker scheduler, repository queue, product authority, or public route; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
