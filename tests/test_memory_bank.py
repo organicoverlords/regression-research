@@ -172,6 +172,80 @@ class MemoryBankValidationTests(unittest.TestCase):
             self.assertTrue(sync.call_args_list[1].kwargs["strict"])
 
 
+    def test_default_bank_local_record_uses_external_overlay_and_keeps_seed_unchanged(self):
+        seed_entry = self.valid()
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        values["text"] = "Local overlay entry"
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            seed = root / "repo" / "memory" / "memory-bank.jsonl"
+            overlay = root / "state" / "memory-bank.local.jsonl"
+            seed.parent.mkdir(parents=True)
+            seed.write_text(json.dumps(seed_entry) + "\n", encoding="utf-8")
+            before = seed.read_bytes()
+            with patch("tools.memory_bank.DEFAULT_BANK", seed), patch(
+                "tools.memory_bank.DEFAULT_LOCAL_BANK", overlay
+            ), patch("tools.memory_bank.sync_bank") as sync:
+                saved = append_entry(seed, values)
+                effective = load_bank(seed)
+            self.assertEqual(seed.read_bytes(), before)
+            self.assertEqual([entry["id"] for entry in effective], [seed_entry["id"], saved["id"]])
+            self.assertEqual([entry["id"] for entry in load_bank(overlay)], [saved["id"]])
+            sync.assert_not_called()
+
+    def test_default_bank_overlay_conflict_fails_closed_on_read(self):
+        seed_entry = self.valid()
+        conflicting = dict(seed_entry)
+        conflicting["text"] = "Conflicting local text"
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            seed = root / "repo" / "memory" / "memory-bank.jsonl"
+            overlay = root / "state" / "memory-bank.local.jsonl"
+            seed.parent.mkdir(parents=True)
+            overlay.parent.mkdir(parents=True)
+            seed.write_text(json.dumps(seed_entry) + "\n", encoding="utf-8")
+            overlay.write_text(json.dumps(conflicting) + "\n", encoding="utf-8")
+            with patch("tools.memory_bank.DEFAULT_BANK", seed), patch(
+                "tools.memory_bank.DEFAULT_LOCAL_BANK", overlay
+            ):
+                with self.assertRaisesRegex(BankError, "memory id conflict"):
+                    load_bank(seed)
+
+    def test_default_bank_publish_syncs_effective_overlay_without_mutating_seed(self):
+        seed_entry = self.valid()
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        values["text"] = "Publish from overlay"
+        calls = []
+
+        def fake_sync(staged, *, publish):
+            calls.append((Path(staged), publish, Path(staged).read_bytes()))
+            return {"status": "PROVEN", "pulled": 0, "pending_push": 0, "pushed": 1, "aligned_head": False}
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            seed = root / "repo" / "memory" / "memory-bank.jsonl"
+            overlay = root / "state" / "memory-bank.local.jsonl"
+            seed.parent.mkdir(parents=True)
+            seed.write_text(json.dumps(seed_entry) + "\n", encoding="utf-8")
+            before = seed.read_bytes()
+            with patch("tools.memory_bank.DEFAULT_BANK", seed), patch(
+                "tools.memory_bank.DEFAULT_LOCAL_BANK", overlay
+            ), patch("tools.memory_bank.sync_bank", side_effect=fake_sync):
+                saved = append_entry(seed, values, publish=True)
+                effective = load_bank(seed)
+            self.assertEqual(seed.read_bytes(), before)
+            self.assertEqual(len(calls), 2)
+            self.assertTrue(all(publish for _, publish, _ in calls))
+            self.assertTrue(all(staged != seed for staged, _, _ in calls))
+            self.assertNotIn(saved["id"].encode(), calls[0][2])
+            self.assertIn(saved["id"].encode(), calls[1][2])
+            self.assertEqual([entry["id"] for entry in effective], [seed_entry["id"], saved["id"]])
+
+
     def _reroute_memory(self):
         entry = self.valid()
         entry.update({

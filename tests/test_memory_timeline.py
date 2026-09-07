@@ -200,6 +200,15 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual([thread["thread_id"] for thread in threads], ["thread:active"])
         self.assertEqual([event["id"] for event in threads[0]["events"]], ["active-root", "active-again"])
 
+    def test_recurrence_context_honors_zero_thread_and_event_bounds(self):
+        root = self.e("root", "2026-09-07T10:00:00+03:00", "Root", scope="vault/timeline/error", title="Root", tags=["error"], thread="active")
+        recurrence = self.e("again", "2026-09-07T11:00:00+03:00", "Recurrence", scope="vault/timeline/error", state="PROVISIONAL", title="Recurrence", tags=["error"], thread="active")
+        entries = [root, recurrence]
+        self.assertEqual(build_recurrence_context(entries, "this error again", max_threads=0), [])
+        threads = build_recurrence_context(entries, "this error again", max_threads=1, events_per_thread=0)
+        self.assertEqual([thread["thread_id"] for thread in threads], ["thread:active"])
+        self.assertEqual(threads[0]["events"], [])
+
     def test_multi_source_snapshots_emphasize_24h_and_use_incremental_older_slices(self):
         now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
         memory = self.e(
