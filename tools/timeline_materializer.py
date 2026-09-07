@@ -3280,7 +3280,7 @@ def query_materialized(
             "observation_semantics": "EVIDENCE_DENSITY_NOT_CASE_COUNT",
             "broad_github_anchor_semantics": "CONTEXT_ONLY_NEVER_CASE_IDENTITY",
             "snapshot_case_arrays": "BOUNDED_EXAMPLES_NOT_COMPLETE_GRAPH",
-            "continuity_graph": "FULL_MATERIALIZED_HORIZON_QUERYABLE",
+            "continuity_graph": ("FULL_MATERIALIZED_HISTORY_QUERYABLE" if materialized.get("horizon_days") is None else "FULL_MATERIALIZED_HORIZON_QUERYABLE"),
         },
         "materialized": materialized,
         "view": view,

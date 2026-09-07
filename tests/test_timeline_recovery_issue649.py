@@ -33,6 +33,7 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
         "mcp",
         "mcp_history",
         "runner_logs",
+        "coordinator",
     )
 
     @staticmethod
@@ -81,6 +82,7 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
             ),
             patch("tools.timeline_materializer.mcp_replacement_events", return_value=([], clean)),
             patch("tools.timeline_materializer.runner_log_events", return_value=([], clean)),
+            patch("tools.timeline_materializer.coordinator_events", return_value=([], clean)),
             patch("tools.timeline_materializer.build_overview", return_value=self._minimal_overview()),
         )
 
@@ -162,7 +164,7 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
             root = Path(directory)
             state = self._write_previous_store(root, generated_at=prior)
             patches = self._empty_refresh_patches()
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9], patches[10], patches[11]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9], patches[10], patches[11], patches[12]:
                 result = materialize(root=root, include_github=False, now=now)
 
             payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
@@ -221,7 +223,7 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
             root = Path(directory)
             state = self._write_previous_store(root, generated_at=prior, events=[event])
             patches = self._empty_refresh_patches()
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9], patches[10], patches[11], patch(
+            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9], patches[10], patches[11], patches[12], patch(
                 "tools.timeline_materializer._atomic_pickle", side_effect=OSError("simulated interrupted sidecar publication")
             ):
                 with self.assertRaises(OSError):
@@ -234,7 +236,7 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
             self.assertFalse((state / "refresh.lock").exists())
 
             retry_patches = self._empty_refresh_patches()
-            with retry_patches[0], retry_patches[1], retry_patches[2], retry_patches[3], retry_patches[4], retry_patches[5], retry_patches[6], retry_patches[7], retry_patches[8], retry_patches[9], retry_patches[10], retry_patches[11]:
+            with retry_patches[0], retry_patches[1], retry_patches[2], retry_patches[3], retry_patches[4], retry_patches[5], retry_patches[6], retry_patches[7], retry_patches[8], retry_patches[9], retry_patches[10], retry_patches[11], retry_patches[12]:
                 retry = materialize(root=root, include_github=False, now=datetime(2026, 9, 6, 6, 5, tzinfo=timezone.utc))
             self.assertTrue(retry["ok"])
             self.assertEqual(retry["status"], "REFRESHED")
