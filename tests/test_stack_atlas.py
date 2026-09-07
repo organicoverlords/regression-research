@@ -30,6 +30,7 @@ from tools.stack_atlas import (
     _read_jsonl_window,
     _remote_is_newer,
     _git_blob_sha_for_file,
+    _git_remote_update_already_applied,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
@@ -1253,6 +1254,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(_remote_is_newer("2026-09-06T18:16:33Z", "2026-09-05T09:50:28+03:00"))
         self.assertFalse(_remote_is_newer("2026-09-05T12:36:29Z", "2026-09-06T09:50:28+03:00"))
         self.assertFalse(_remote_is_newer("bad", "2026-09-06T09:50:28+03:00"))
+
+    def test_source_freshness_recognizes_fetched_remote_delta_already_in_dirty_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess = __import__("subprocess")
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+            path = repo / "policy.md"
+            path.write_text("one\nold\nthree\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "policy.md"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "base"], check=True)
+            base = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+            path.write_text("one\nnew\nthree\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "remote update"], check=True)
+            remote = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+            subprocess.run(["git", "-C", str(repo), "reset", "--hard", "-q", base], check=True)
+
+            path.write_text("local-only\none\nnew\nthree\n", encoding="utf-8")
+            self.assertTrue(_git_remote_update_already_applied(repo, "policy.md", remote))
+
+            path.write_text("local-only\none\nold\nthree\n", encoding="utf-8")
+            self.assertFalse(_git_remote_update_already_applied(repo, "policy.md", remote))
 
     def test_source_freshness_hash_normalizes_windows_crlf_like_git(self):
         with tempfile.TemporaryDirectory() as tmp:
