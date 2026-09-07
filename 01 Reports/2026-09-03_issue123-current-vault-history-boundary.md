@@ -1,5 +1,5 @@
-# Issue #123 current Vault-history boundary
+﻿# Issue #123 current Vault-history boundary
 
-On 2026-09-03 the current explicit user instruction superseded the historical #123 startup-memory preference: ChatGPT conversation/Memory carry continuity; Vault is optional history/evidence only; no Vault bootstrap or broad memory/history sweep should run at startup or after compaction; targeted Vault retrieval is appropriate only when a specific past fact, decision, incident, or prior work materially helps.
+The Sept-3 startup-history correction is now reconciled with the live operating contract: native ChatGPT Memory is disabled and is not a continuity source; current conversation plus active user/Personal Instructions carry the user-facing instruction context; every fresh chat still performs the required bounded `stack_atlas.py bootstrap-glance` for live orientation; that bootstrap does not authorize `memory_bank.py recent`, recent-title reads, or a broad Vault/history sweep; targeted Vault history remains appropriate only when a specific past fact, decision, incident, or prior work materially helps.
 
-Regression target: an ordinary startup must proceed without Vault retrieval, while a concrete historical need may still trigger a targeted history read. Historical #123 evidence remains preserved rather than rewritten.
+Regression target: a fresh chat must retain the bounded Stack Atlas bootstrap-glance while avoiding default broad/recent Vault history retrieval and avoiding any reliance on native ChatGPT Memory while it is disabled. A concrete historical need may still trigger a targeted Vault read. Historical #123 evidence remains preserved rather than rewritten.

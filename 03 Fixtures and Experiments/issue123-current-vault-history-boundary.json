@@ -1,25 +1,29 @@
 {
   "id": "issue123-current-vault-history-boundary-2026-09-03",
-  "title": "Keep Vault history targeted instead of a startup prerequisite",
+  "title": "Keep broad Vault history targeted while preserving bounded startup orientation",
   "incident_class": "stale_startup_memory_preference_supersession",
-  "inherited_objective": "Start from current conversation and ChatGPT Memory; use Vault only when a specific past fact materially helps.",
+  "inherited_objective": "Start from the current conversation plus active user/Personal Instructions; native ChatGPT Memory is currently disabled; on fresh chats run the bounded Stack Atlas bootstrap-glance, then use Vault history only when a specific past fact materially helps.",
   "live_state": [
-    "Current explicit user instruction supersedes the historical mandatory startup Vault glance.",
-    "Vault is optional history/evidence, not behavior bootstrap or current-state authority."
+    "Native ChatGPT Memory is disabled and is not a continuity source.",
+    "Fresh-chat startup still requires stack_atlas.py bootstrap-glance as the bounded live orientation step.",
+    "Vault history is targeted evidence only, not behavior bootstrap or current-state authority."
   ],
-  "user_correction": "Never run a Vault bootstrap or broad memory/history sweep at chat startup or after compaction. Retrieve Vault history only when a specific past fact, decision, incident, or prior piece of work would materially help.",
+  "user_correction": "Do not rely on native ChatGPT Memory. Preserve the mandatory bounded Stack Atlas bootstrap-glance on fresh chat, but do not run memory_bank.py recent or a broad Vault/history sweep by default. Retrieve targeted Vault history only when a specific past fact, decision, incident, or prior piece of work would materially help.",
   "protected_state": [
-    "Current conversation and ChatGPT Memory continuity",
+    "Current conversation plus active user/Personal Instructions",
+    "Mandatory bounded fresh-chat Stack Atlas bootstrap-glance",
     "Live sources for current truth",
     "Targeted Vault history when specifically needed"
   ],
   "hard_exclusions": [
-    "Do not run Vault bootstrap or recent-title reads by default at startup.",
-    "Do not use Vault as current-state or behavior authority."
+    "Do not treat native ChatGPT Memory as available while it is disabled.",
+    "Do not remove or replace the required fresh-chat Stack Atlas bootstrap-glance.",
+    "Do not run memory_bank.py recent, recent-title reads, or broad Vault/history retrieval by default at startup.",
+    "Do not use Vault history as current-state or behavior authority."
   ],
   "failure_candidate": {
-    "action": "Run the old Vault recent-memory bootstrap before doing the current task.",
-    "why_wrong": "It promotes a superseded historical preference into a startup prerequisite.",
+    "action": "Run the old memory_bank.py recent / recent-title history sweep at startup and treat it as the continuity source.",
+    "why_wrong": "It promotes a superseded broad-history preference and confuses Vault history with the required bounded Stack Atlas bootstrap-glance.",
     "scenarios": [
       {
         "id": "default-startup",
@@ -39,14 +43,18 @@
     ]
   },
   "success_candidate": {
-    "action": "Start from current context and live state; retrieve Vault history only for a concrete past-fact need.",
-    "why_correct": "It preserves continuity without making history a bootstrap gate.",
+    "action": "Start from current context and active user/Personal Instructions, run the required bounded Stack Atlas bootstrap-glance on fresh chat, and retrieve Vault history only for a concrete past-fact need.",
+    "why_correct": "It matches the live operating boundary: Memory-off, bounded bootstrap orientation, live-source authority, and targeted history only.",
     "scenarios": [
       {
         "id": "ordinary-startup",
         "events": [
           {
             "kind": "session_start"
+          },
+          {
+            "kind": "stack_atlas_bootstrap_glance",
+            "bounded": true
           },
           {
             "kind": "live_orientation"
@@ -75,10 +83,12 @@
     ]
   },
   "discriminating_evidence": [
-    "Presence of default startup Vault/history reads",
-    "Whether a targeted Vault history read follows a specific past-fact need"
+    "Presence of required bounded Stack Atlas bootstrap-glance on fresh chat",
+    "Absence of default memory_bank.py recent / broad Vault history reads",
+    "Whether a targeted Vault history read follows a specific past-fact need",
+    "Whether native ChatGPT Memory is incorrectly treated as an available continuity source"
   ],
-  "completion_condition": "Ordinary startup proceeds without Vault retrieval while a specific historical need still permits targeted history retrieval.",
+  "completion_condition": "Fresh chat performs the bounded Stack Atlas bootstrap-glance without broad Vault history retrieval; native ChatGPT Memory is not relied on while disabled; a specific historical need still permits targeted Vault history retrieval.",
   "scoring": {
     "startup_vault_history_by_default": "fail",
     "startup_vault_history_requires_specific_need": "required"

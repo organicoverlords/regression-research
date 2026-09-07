@@ -1,4 +1,4 @@
-import json
+﻿import json
 import unittest
 from copy import deepcopy
 from pathlib import Path
@@ -8,6 +8,7 @@ from tools.replay_scoring import score_fixture, validate_fixture
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_PATH = ROOT / "03 Fixtures and Experiments" / "issue123-current-vault-history-boundary.json"
 COVERAGE_PATH = ROOT / "02 Evidence" / "issue123" / "2026-08-27_current-user-preference-coverage.md"
+
 
 class Issue123CurrentVaultHistoryBoundaryTests(unittest.TestCase):
     @classmethod
@@ -23,13 +24,20 @@ class Issue123CurrentVaultHistoryBoundaryTests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertIn("startup_vault_history_by_default", result["violations"])
 
-
     def test_current_coverage_map_marks_old_startup_rule_superseded(self):
         text = COVERAGE_PATH.read_text(encoding="utf-8-sig")
         self.assertIn("HISTORICAL_SUPERSEDED", text)
-        self.assertIn("no remaining startup-memory orchestration gap", text)
-        self.assertIn("ordinary startup performs no Vault retrieval", text)
+        self.assertIn("no remaining startup-history orchestration gap", text)
+        self.assertIn("required bounded Stack Atlas bootstrap-glance", text)
+        self.assertIn("Native ChatGPT Memory is not relied on while disabled", text)
         self.assertNotIn("The main concrete behavioral hole is the startup-memory orchestration boundary", text)
+
+    def test_current_startup_keeps_bounded_stack_atlas_bootstrap(self):
+        ordinary = self.fixture["success_candidate"]["scenarios"][0]["events"]
+        kinds = [event["kind"] for event in ordinary]
+        self.assertIn("stack_atlas_bootstrap_glance", kinds)
+        self.assertNotIn("recent_titles_read", kinds)
+        self.assertIn("Native ChatGPT Memory is disabled", " ".join(self.fixture["live_state"]))
 
     def test_targeted_history_requires_specific_need(self):
         candidate = deepcopy(self.fixture["success_candidate"])
@@ -37,6 +45,7 @@ class Issue123CurrentVaultHistoryBoundaryTests(unittest.TestCase):
         scenario["events"] = scenario["events"][1:]
         result = score_fixture(self.fixture, candidate)
         self.assertIn("startup_vault_history_requires_specific_need", result["violations"])
+
 
 if __name__ == "__main__":
     unittest.main()
