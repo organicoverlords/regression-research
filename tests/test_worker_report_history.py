@@ -4,13 +4,79 @@ import json
 import os
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_manual_sanity_projection, build_metrics_projection, reconcile_manual_current_reports, worker_history_events
+from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_manual_sanity_projection, build_metrics_projection, build_parser, create_manual_run, reconcile_manual_current_reports, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
+    def test_manual_create_cli_is_registered(self):
+        args = build_parser().parse_args([
+            "create-manual", "--repo", "p3", "--stem", "same stem", "--run-mode", "continuation"
+        ])
+        self.assertEqual(args.command, "create-manual")
+        self.assertEqual(args.repo, "p3")
+        self.assertEqual(args.stem, "same stem")
+        self.assertEqual(args.run_mode, "continuation")
+
+    def test_manual_create_retries_same_exact_id_without_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            current = Path(tmp) / "manual" / "current"
+            fixed = datetime.fromisoformat("2026-09-07T04:18:39.635+03:00")
+            with patch("tools.worker_report_history._manual_run_token", side_effect=("a" * 16, "a" * 16, "b" * 16)):
+                first = create_manual_run(current, repo="p3", stem="p3-1068-converge", now=fixed)
+                first_path = Path(first["report_path"])
+                before = first_path.read_bytes()
+                second = create_manual_run(current, repo="p3", stem="p3-1068-converge", now=fixed)
+            self.assertNotEqual(first["run_id"], second["run_id"])
+            self.assertEqual(first_path.read_bytes(), before)
+            self.assertTrue(Path(second["report_path"]).exists())
+            self.assertEqual(len(list(current.glob("*.md"))), 2)
+
+    def test_manual_same_stem_concurrent_creates_archive_independently(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            fixed = datetime.fromisoformat("2026-09-07T04:18:39.832317+03:00")
+
+            def create_one() -> dict[str, object]:
+                return create_manual_run(
+                    current,
+                    repo="p3",
+                    stem="p3-1068-converge",
+                    scope="PR #1068 converged native respawn verification",
+                    run_mode="continuation",
+                    now=fixed,
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                created = list(pool.map(lambda _: create_one(), range(2)))
+            self.assertEqual(len({item["run_id"] for item in created}), 2)
+            self.assertEqual(len(list(current.glob("*.md"))), 2)
+
+            archive_paths = []
+            for item in created:
+                report = Path(str(item["report_path"]))
+                text = report.read_text(encoding="utf-8")
+                report.write_text(
+                    text.replace("state: RUNNING", "state: RUN_FINISHED").replace("outcome: in progress", "outcome: useful work"),
+                    encoding="utf-8",
+                )
+                result = archive_finalized_report(report, history)
+                archive_paths.append(result["path"])
+            self.assertEqual(len(set(archive_paths)), 2)
+            self.assertFalse(any(Path(str(item["report_path"])).exists() for item in created))
+            self.assertEqual(len(list((history / "_reports").glob("*.md"))), 2)
+
+    def test_fresh_worker_contract_requires_canonical_manual_create_helper(self):
+        contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts" / "fresh-worker-generation-launch.md").read_text(encoding="utf-8-sig")
+        self.assertIn("worker_report_history.py create-manual", contract)
+        self.assertIn("Do not handcraft manual run IDs or current report paths", contract)
+
     def test_manual_current_audit_never_treats_open_file_as_liveness(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+import secrets
 import statistics
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -49,6 +50,7 @@ FINDING_TAG_ALIASES = {
 }
 
 MANUAL_SANITY_BASELINE_PATH = Path(__file__).resolve().parents[1] / "04 Operating Contracts" / "manual-worker-sanity-baseline.json"
+MANUAL_CURRENT_ROOT = Path(__file__).resolve().parents[1] / "worker-reports" / "manual" / "current"
 MANUAL_SANITY_TRANSCRIPT_FIELDS = ("scope", "mutation", "validation", "remaining_gate")
 MANUAL_SANITY_LIFECYCLE_RE = re.compile(
     r"opened late|created late|left tool_interval_open|incorrectly left|not opened before|lifecycle gap|report creation occurred after",
@@ -57,6 +59,76 @@ MANUAL_SANITY_LIFECYCLE_RE = re.compile(
 
 
 
+
+
+def _manual_run_token() -> str:
+    return secrets.token_hex(8)
+
+
+def _manual_run_stem(value: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9]+", "-", str(value or "").strip()).strip("-").lower()
+    return safe[:48] or "run"
+
+
+def create_manual_run(
+    current_root: Path,
+    *,
+    repo: str,
+    stem: str | None = None,
+    scope: str | None = None,
+    run_mode: str | None = None,
+    display_label: str | None = None,
+    outcome: str = "in progress",
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Atomically create one collision-resistant manual current report."""
+    repo = str(repo or "").strip()
+    outcome = str(outcome or "").strip()
+    if not repo:
+        raise ValueError("manual run creation requires repo")
+    if not outcome:
+        raise ValueError("manual run creation requires outcome")
+    if run_mode is not None and str(run_mode).strip() != "continuation":
+        raise ValueError("manual run_mode must be continuation when provided")
+
+    observed = now or datetime.now().astimezone()
+    if observed.tzinfo is None:
+        observed = observed.astimezone()
+    started_at = observed.isoformat()
+    timestamp = observed.strftime("%Y%m%d-%H%M%S-%f")
+    safe_stem = _manual_run_stem(stem or repo)
+    current_root = Path(current_root)
+    current_root.mkdir(parents=True, exist_ok=True)
+
+    for _ in range(32):
+        run_id = f"manual-{timestamp}-{safe_stem}-{_manual_run_token()}"
+        report = current_root / f"{run_id}.md"
+        lines = [
+            f"run_id: {run_id}",
+            f"started_at: {started_at}",
+            f"last_activity_at: {started_at}",
+            f"repo: {repo}",
+        ]
+        if display_label:
+            lines.append(f"display_label: {str(display_label).strip()}")
+        if scope:
+            lines.append(f"scope: {str(scope).strip()}")
+        if run_mode:
+            lines.append("run_mode: continuation")
+        lines.extend(("state: RUNNING", f"outcome: {outcome}"))
+        try:
+            with report.open("x", encoding="utf-8", newline="\n") as handle:
+                handle.write("\n".join(lines) + "\n")
+        except FileExistsError:
+            continue
+        return {
+            "ok": True,
+            "population": "manual",
+            "run_id": run_id,
+            "report_path": str(report),
+            "started_at": started_at,
+        }
+    raise RuntimeError("manual run creation exhausted collision retries")
 
 def _fields(raw: bytes) -> dict[str, str]:
     text = raw.decode("utf-8", errors="replace")
@@ -1119,6 +1191,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     begin = sub.add_parser("begin")
     begin.add_argument("--report", type=Path, required=True)
+    create_manual = sub.add_parser("create-manual")
+    create_manual.add_argument("--current-root", type=Path, default=MANUAL_CURRENT_ROOT)
+    create_manual.add_argument("--repo", required=True)
+    create_manual.add_argument("--stem")
+    create_manual.add_argument("--scope")
+    create_manual.add_argument("--run-mode", choices=("continuation",))
+    create_manual.add_argument("--display-label")
+    create_manual.add_argument("--outcome", default="in progress")
     archive = sub.add_parser("archive")
     archive.add_argument("--report", type=Path, required=True)
     archive.add_argument("--history-root", type=Path)
@@ -1143,6 +1223,16 @@ def main() -> int:
     try:
         if args.command == "begin":
             result = begin_timed_run(args.report)
+        elif args.command == "create-manual":
+            result = create_manual_run(
+                args.current_root,
+                repo=args.repo,
+                stem=args.stem,
+                scope=args.scope,
+                run_mode=args.run_mode,
+                display_label=args.display_label,
+                outcome=args.outcome,
+            )
         elif args.command == "audit-manual-current":
             result = audit_manual_current_reports(args.current_root, args.history_root)
         elif args.command == "sanity":
