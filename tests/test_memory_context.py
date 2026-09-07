@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from tools.memory_bank import annotate_memory
@@ -92,6 +93,17 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertTrue(pack["truncated"])
         self.assertEqual([x["id"] for x in pack["durable_memory"]], ["m1"])
         self.assertLessEqual(pack["serialized_chars"], 2000)
+
+    def test_hard_budget_counts_serialized_chars_field_itself(self):
+        history = [
+            {"conversation_id": f"c{i}", "title": "Old chat", "role": "assistant", "created_at": "2026-08-20T00:00:00Z",
+             "match": "H" * 330, "sources": ["source:a"], "source_class": "HISTORICAL_CONTEXT", "retrieval_role": "EVIDENCE_EXCERPT"}
+            for i in range(19)
+        ]
+        pack = build_context_pack("p3 evidence", history, max_chars=10000)
+        actual = len(json.dumps(pack, ensure_ascii=False, separators=(",", ":")))
+        self.assertEqual(pack["serialized_chars"], actual)
+        self.assertLessEqual(actual, 10000)
 
     def test_long_memory_body_is_clipped(self):
         pack = build_context_pack("test evidence", [self.memory("m", text="x" * 5000)])

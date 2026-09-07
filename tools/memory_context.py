@@ -108,15 +108,24 @@ def _json_size(value: Any) -> int:
     return len(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
 
 
+def _set_stable_serialized_chars(pack: dict[str, Any]) -> int:
+    """Set serialized_chars to the exact self-inclusive serialized pack size."""
+    reported = _json_size({k: v for k, v in pack.items() if k != "serialized_chars"})
+    while True:
+        pack["serialized_chars"] = reported
+        actual = _json_size(pack)
+        if actual == reported:
+            return actual
+        reported = actual
+
+
 def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
     """Drop lowest-value tail records until the serialized pack fits the hard budget."""
     max_chars = max(MIN_CONTEXT_CHARS, min(MAX_CONTEXT_CHARS, int(max_chars)))
     order = ("historical_evidence", "timeline", "durable_memory")
     while True:
-        pack["serialized_chars"] = _json_size({k: v for k, v in pack.items() if k != "serialized_chars"})
-        actual = _json_size(pack)
+        actual = _set_stable_serialized_chars(pack)
         if actual <= max_chars:
-            pack["serialized_chars"] = actual
             return pack
         removed = False
         for key in order:
