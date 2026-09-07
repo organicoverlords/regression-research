@@ -18,6 +18,7 @@ ERROR_MARKERS = {
     "recurrence", "regression", "failure", "security-incident",
 }
 RECURRENCE_WORDS = {"again", "same", "recurrence", "recurred", "returned", "back"}
+RECALL_VISIBLE_DISPOSITIONS = frozenset({"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"})
 ERROR_WORDS = {"error", "bug", "broken", "failure", "failed", "failing", "incident", "problem", "issue", "wrong"}
 _GITHUB_EVIDENCE_RE = re.compile(r"^github:([^/\s]+/[^#\s]+)#(\d+)$", re.I)
 _GITHUB_URL_RE = re.compile(r"^https?://github\.com/([^/\s]+/[^/\s]+)/(?:issues|pull)/(\d+)(?:[/?#].*)?$", re.I)
@@ -1075,7 +1076,7 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
     report = build_timeline(items, view="general", limit=MAX_LIMIT)
     error_report = build_timeline(items, view="errors", limit=MAX_LIMIT)
     error_thread_ids = {str(thread["thread_id"]) for thread in error_report["threads"]}
-    visible_dispositions = {"CURRENT_DURABLE", "PROVISIONAL/NEEDS_EVIDENCE"}
+    visible_dispositions = RECALL_VISIBLE_DISPOSITIONS
     events_by_thread: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for event in report["events"]:
         events_by_thread[str(event["thread_id"])].append(event)
@@ -1128,7 +1129,9 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
     for event in report["events"]:
         by_thread[event["thread_id"]].append(event)
     out: list[dict[str, Any]] = []
-    for thread in report["threads"][:max_threads]:
+    for thread in report["threads"]:
+        if thread.get("latest_disposition") not in RECALL_VISIBLE_DISPOSITIONS:
+            continue
         events = sorted(by_thread.get(thread["thread_id"], []), key=lambda event: _dt(event["event_at"]))[-events_per_thread:]
         out.append({
             "thread_id": thread["thread_id"],
@@ -1144,4 +1147,6 @@ def build_recurrence_context(entries: Iterable[dict[str, Any]], query: str, *, m
                 "semantic_category": event["semantic_category"],
             } for event in events],
         })
+        if len(out) >= max_threads:
+            break
     return out
