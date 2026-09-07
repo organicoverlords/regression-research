@@ -1,0 +1,82 @@
+{
+  "schema": "chatgpt-swarm-topology.v1",
+  "recorded_at": "2026-09-07T19:31:00+03:00",
+  "authority": "USER_EXPLICIT_TOPOLOGY_AND_OPERATOR_HANDOFF",
+  "subscriptions": {
+    "S1": {
+      "recurring_worker_slots": 5,
+      "operator_control": "DEGRADED_TEMPORARILY",
+      "operator_control_reason": "User reports the first ChatGPT subscription exhausted thinking availability until 2026-09-09.",
+      "recurring_workers_remain_enabled": true,
+      "workers": [
+        {
+          "automation_id": "6a9adbfcc0588191b0af53bdf70fc1fe",
+          "label": "Repo Worker Hazel"
+        },
+        {
+          "automation_id": "6a9adc04e6a881918433be70752b1426",
+          "label": "Repo Worker Maple"
+        },
+        {
+          "automation_id": "6a9adc0dbf6481919c607312a5041d1d",
+          "label": "Repo Worker Pine"
+        },
+        {
+          "automation_id": "6a9adbe27ff08191a918fa3e51aaf9b8",
+          "label": "Repo Worker Aspen"
+        },
+        {
+          "automation_id": "6a9b8fc37c148191a70dc17e1e83eda4",
+          "label": "Repo Worker Alder"
+        }
+      ]
+    },
+    "S2": {
+      "recurring_worker_slots": 5,
+      "operator_control": "PRIMARY",
+      "operator_control_reason": "User designated the second ChatGPT subscription to carry primary swarm scheduler/operator control while S1 thinking availability is exhausted.",
+      "recurring_workers_remain_enabled": true,
+      "workers": [
+        {
+          "automation_id": "6a9ee44357908191a11023d4ff0b5b82",
+          "label": "Repo Worker Rowan #S2",
+          "first_expected_start_at": "2026-09-07T19:24:00+03:00"
+        },
+        {
+          "automation_id": "6a9ee44e36908191aa0f4fd3d8ebad55",
+          "label": "Repo Worker Spruce #S2",
+          "first_expected_start_at": "2026-09-07T19:36:00+03:00"
+        },
+        {
+          "automation_id": "6a9ee456182881918005c354563e8638",
+          "label": "Repo Worker Willow #S2",
+          "first_expected_start_at": "2026-09-07T19:48:00+03:00"
+        },
+        {
+          "automation_id": "6a9ee45e7c208191aae86087f11875d9",
+          "label": "Repo Worker Juniper #S2",
+          "first_expected_start_at": "2026-09-07T20:00:00+03:00"
+        },
+        {
+          "automation_id": "6a9ee46471a88191b478716a47a38cc4",
+          "label": "Repo Worker Alder #S2",
+          "first_expected_start_at": "2026-09-07T20:12:00+03:00"
+        }
+      ]
+    }
+  },
+  "recurring_worker_total": 10,
+  "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; no cross-partition sibling administration.",
+  "manual_workers": {
+    "population": "SEPARATE_ON_DEMAND",
+    "counts_against_recurring_slots": false,
+    "active_count_authority": "live MCP/runtime evidence; manual current reports are purpose/freshness hints only",
+    "total_swarm_semantics": "10 recurring workers plus any concurrently active manual/on-demand workers"
+  },
+  "handoff": {
+    "primary_operator_subscription": "S2",
+    "s1_expected_thinking_recovery_date": "2026-09-09",
+    "automatic_scheduler_mutation_on_date": false,
+    "note": "S1's recurring worker partition remains part of the swarm; only operator/control emphasis shifts to S2 until the user changes or confirms the handoff state."
+  }
+}
