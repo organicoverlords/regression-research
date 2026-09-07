@@ -37,6 +37,9 @@ TINY3D_LIBRARY_INDEX = TINY3D_LIBRARY + r"\.tiny3d\library\unified-asset-invento
 TINY3D_SHOWROOM_CATALOGUE = TINY3D_LIBRARY + r"\.tiny3d\library\showroom-v2-catalog-v1.json"
 TINY3D_LIBRARY_SHOW = r"$env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; python -m tiny3d library show <asset-id> --workspace 'C:\Users\Lauri\Desktop\Tiny3D_LIBRARY'"
 TINY3D_LIBRARY_SEARCH = r"$env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; python -m tiny3d library search <query> --workspace 'C:\Users\Lauri\Desktop\Tiny3D_LIBRARY'"
+P3_VISUAL_EVIDENCE_ROOT = r"G:\Oma Drive\P3 Visual Evidence\p3"
+P3_VISUAL_EVIDENCE_INDEX = P3_VISUAL_EVIDENCE_ROOT + r"\index-v1.json"
+P3_VISUAL_EVIDENCE_QUERY = r"$i=Get-Content 'G:\Oma Drive\P3 Visual Evidence\p3\index-v1.json' -Raw | ConvertFrom-Json; $i.entries | Where-Object { $_.search_text -match '<query>' } | Select-Object -First 10"
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
@@ -601,6 +604,17 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
             "legacy_gap": r"C:\P3Proofs and other producer paths are capture staging only; missing original bytes must be surfaced as a durability gap rather than searched for recursively",
         },
         "operator_fields": ["proof.strongest_state", "proof.proof_bundle.state", "proof.latest_visual_proof.durable_path", "proof.latest_visual_proof.durable_motion_sequence_path", "proof.independent_review_state", "proof.metadata_gaps"],
+    },
+    "project.p3_visual_evidence": {
+        "owner_components": ["visual_proof", "local_git"],
+        "triggers": ["p3 visual evidence", "p3_visual_evidence", "p3 proof library", "p3_proof_library", "spell proof", "meteor proof", "lane war proof", "lanewar proof", "combat proof", "map proof"],
+        "entrypoints": [P3_VISUAL_EVIDENCE_INDEX, P3_VISUAL_EVIDENCE_QUERY],
+        "boundary": "Navigation only; the durable P3 root index is the normal operator read path for screenshots/videos. Query the single index, then open only selected manifest/media paths. Do not recursively scan the archive, transfer/re-encode media, hydrate LFS, expand archives, or regenerate proof merely to inspect evidence. Independent visual review must be reported exactly as indexed, including NOT_RECORDED and REJECTED.",
+        "archive_root": P3_VISUAL_EVIDENCE_ROOT,
+        "index": P3_VISUAL_EVIDENCE_INDEX,
+        "query": P3_VISUAL_EVIDENCE_QUERY,
+        "index_schema": "p3.visual-evidence-index.v1",
+        "operator_fields": ["run_id", "date", "claim", "independent_review_state", "media.path", "media.declared_sha256", "gaps"],
     },
     "project.p3_unreal_navigation": {
         "owner_components": ["local_git", "github"],
@@ -3385,6 +3399,10 @@ FEATURE_LOOKUP_ALIASES = {
     "showroom": "project.tiny3d_asset_library",
     "visual_proof_library": "project.tiny3d_asset_library",
     "visual proof library": "project.tiny3d_asset_library",
+    "p3_visual_evidence": "project.p3_visual_evidence",
+    "p3 visual evidence": "project.p3_visual_evidence",
+    "p3_proof_library": "project.p3_visual_evidence",
+    "p3 proof library": "project.p3_visual_evidence",
 }
 
 
