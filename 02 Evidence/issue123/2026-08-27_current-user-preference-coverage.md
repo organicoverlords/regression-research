@@ -1,12 +1,15 @@
 ﻿# Issue #123 current user-preference coverage map
 
-Date: 2026-08-27 EEST
-Source: GitHub issue #123, `Current user-set behavior preferences`, read from live GitHub during this work pass.
+Original audit date: 2026-08-27 EEST
+Current reconciliation: 2026-09-07 EEST
+Source: GitHub issue #123 plus the merged 2026-09-03 current Vault-history boundary.
 Scope: repository regression/audit coverage only. This document does **not** edit or claim control over ChatGPT memory, Personal Instructions, settings, or other live personal-context surfaces.
 
 ## Why this exists
 
 Issue #123 is an external audit of the user's current behavior preferences. Those preferences are not all the same kind of requirement, and treating every sentence as a lexical hard gate would recreate the overfitting/canned-response problem the corpus already documents. This map separates deterministic executable coverage from partial evidence and policy-only guidance so future work can close real gaps without manufacturing test churn.
+
+**Supersession note:** the Aug-27 mandatory startup `memory_bank.py recent` preference is preserved as historical evidence only. The current explicit boundary, merged on 2026-09-03, is: ordinary startup proceeds from current conversation + ChatGPT Memory without a Vault bootstrap/recent-title read; Vault is optional targeted history/evidence only when a specific past fact, decision, incident, or prior work materially helps.
 
 ## Coverage
 
@@ -14,11 +17,11 @@ Issue #123 is an external audit of the user's current behavior preferences. Thos
 | --- | --- | --- | --- |
 | Preferred name is Joonas | #123 issue body and audit comment preserve the user-authored fact with provenance. | EXTERNAL_ONLY | No behavior test is appropriate merely to force name usage. |
 | Prefer concise, information-dense answers | `NORTH_STAR.md` keeps tool chatter/process dumps out of the user experience; `tests/test_durable_memory_adapter.py` has a durable-memory preference example. | POLICY_ONLY | There is no deterministic answer-length/style acceptance test, intentionally avoiding brittle lexical formatting gates. |
-| Run the Vault recent-memory glance before the first user-facing reply of a new conversation/repo-work session | Historical incident/experiment evidence exists, but current `origin/main` has no replay fixture that proves first-reply invocation. | GAP | `tests/test_memory_recent_titles.py` proves the read primitive, not that the assistant invokes it at the correct boundary. |
-| Inspect only the 10 newest compact entries | `tests/test_memory_recent_titles.py::test_newest_first_default_is_ten_and_hard_cap_is_twenty`. | DETERMINISTIC | Default is exactly 10; hard cap is 20. |
-| Do not load full memories/search the corpus by default | The recent-title API is bounded, but no whole-stack test proves that a fresh assistant stops at titles unless relevance requires retrieval. | PARTIAL | Primitive is safe; orchestration boundary is not yet directly replayed. |
-| Retrieve a memory only when a recent title is clearly relevant | Memory ranking/recall machinery is tested elsewhere, but no first-turn title-to-selective-retrieval acceptance exists for #123. | PARTIAL | Keep separate from general retrieval quality. |
-| If the memory bank/command fails, continue immediately rather than investigating | Optional/missing-memory behavior exists in memory adapters, but there is no direct #123 startup-failure replay. | PARTIAL | A route/read failure must not become the task; this still needs a first-turn-specific acceptance if promoted. |
+| Run the Vault recent-memory glance before the first user-facing reply of a new conversation/repo-work session | Superseded by `03 Fixtures and Experiments/issue123-current-vault-history-boundary.json` and `tests/test_issue123_current_vault_history_boundary.py`. | HISTORICAL_SUPERSEDED | The old startup glance is now a negative control: ordinary startup must not perform it by default. |
+| Inspect only the 10 newest compact entries | `tests/test_memory_recent_titles.py::test_newest_first_default_is_ten_and_hard_cap_is_twenty` still proves the historical primitive. | HISTORICAL_PRIMITIVE | The 10-entry bound remains valid if that primitive is explicitly used, but it is no longer a startup requirement. |
+| Do not load full memories/search the corpus by default | `issue123-current-vault-history-boundary` directly requires ordinary startup without Vault retrieval and allows only targeted history after a specific past-fact need. | DETERMINISTIC_CURRENT | Current orchestration boundary is replayed without turning Vault into behavior/current-state authority. |
+| Retrieve Vault history only when a specific past fact materially helps | `issue123-current-vault-history-boundary` requires a `specific_past_fact_need` before `vault_history_read`. | DETERMINISTIC_CURRENT | This supersedes title-driven startup retrieval; targeted history remains allowed. |
+| If the old mandatory startup memory command fails, continue immediately rather than investigating | Superseded together with the mandatory startup command. | HISTORICAL_SUPERSEDED | Current startup does not invoke Vault by default, so there is no startup Vault failure to make into a prerequisite. |
 | Current user instructions and live repo/runtime state outrank memory | `AGENTS.md` precedence plus `tests/test_instruction_provenance.py::test_current_turn_beats_current_personal_instructions` and `::test_current_personal_instructions_beat_repo_durable_and_historical_context`. | DETERMINISTIC | Covers current-turn and current-PI authority over lower/stale context. |
 | Do the necessary analysis/retrieval/falsification/tool work/verification before answering | Evidence/proof rules exist in `AGENTS.md`/`NORTH_STAR.md`; many domain fixtures require direct evidence before acceptance. | POLICY_ONLY | Not reduced to a generic "use N tools" metric because that would reward churn. |
 | Compress presentation, not underlying work | `NORTH_STAR.md` explicitly keeps tool chatter out unless it changes decision/risk/result. | POLICY_ONLY | Intentionally not enforced by fixed answer template or token count. |
@@ -32,10 +35,10 @@ Issue #123 is an external audit of the user's current behavior preferences. Thos
 
 ## Current actionable gaps
 
-There are three related orchestration gaps around the startup memory rule: proving the first-reply invocation boundary, proving selective retrieval rather than automatic full-memory loading, and proving immediate continuation when the Vault read fails. They should be handled as one bounded startup-memory acceptance packet if work is opened, not as three serial micro-PRs.
+There is **no remaining startup-memory orchestration gap** under the current authority boundary. The merged Sept-3 fixture proves the opposite of the Aug-27 packet: ordinary startup performs no Vault retrieval, and targeted Vault history is permitted only after a specific historical need. Future #123 work should not resurrect the superseded startup-glance packet.
 
 The style/reporting preferences are intentionally **not** converted into fixed lexical templates. Existing evidence shows that over-formalizing response shape can itself become a regression. Their enforcement should remain outcome/materiality based unless a future failure yields a discriminating replay that can be tested without prescribing canned prose.
 
 ## Conclusion
 
-#123 is substantially covered on precedence, mixed-request preservation, bounded completion, and the recent-title primitive. The main concrete behavioral hole is the startup-memory orchestration boundary. This map is the stop point for the audit pass; it identifies the next coherent packet instead of continuing to manufacture one-assertion follow-ups.
+#123 is substantially covered on precedence, mixed-request preservation, bounded completion, and the current targeted-history boundary. The old startup-memory orchestration packet is historical/superseded and must not be reopened as a current gap. Style/reporting preferences remain outcome/materiality based unless a future discriminating failure justifies a non-brittle replay.
