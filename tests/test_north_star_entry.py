@@ -24,9 +24,13 @@ class NorthStarEntryTests(unittest.TestCase):
     def test_shared_contract_keeps_go_scoped_and_stop_immediate(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
         agents = (RULES_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn("`go` means continue the already-established scope", rules)
+        self.assertIn(
+            "`go`/`continue` in a manual/on-demand execution chat means resume the already-established unresolved engineering objective",
+            rules,
+        )
+        self.assertIn("it does not broaden scope", rules)
         self.assertIn("`stop` means stop immediately", rules)
-        self.assertIn("yield after that operation plus necessary validation or at a decision-ready checkpoint", agents)
+        self.assertIn("follow the `go`/`continue` completion and yield semantics in `RULES.md`", agents)
 
     def test_north_star_exposes_current_project_direction_and_finish_line(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
