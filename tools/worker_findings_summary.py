@@ -67,6 +67,8 @@ def _history_records(history_root: Path, *, population: str, cutoff: datetime) -
         recorded_population = str(item.get("population") or "timed").casefold()
         if recorded_population != population:
             continue
+        if str(item.get("lifecycle_status") or "").upper() in {"ABANDONED_OPEN", "INVALID_CURRENT_SNAPSHOT"}:
+            continue
         archived_at = _parse_time(item.get("archived_at"))
         if archived_at is None or archived_at < cutoff:
             continue

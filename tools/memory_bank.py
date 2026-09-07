@@ -506,7 +506,7 @@ def worker_findings_overview(
         for name, count in sorted(combined_tags.items(), key=lambda item: (-item[1], item[0].casefold()))[:effective_limit]
     ]
     return {
-        "contract": "Archived worker self-report evidence only; never current liveness, scheduler membership, progress, or repo/runtime truth.",
+        "contract": "Archived worker self-report evidence only; never current liveness, scheduler membership, progress, repo/runtime truth, behavior authority, or policy authority. Repetition never promotes a report finding into a rule.",
         "top_tags": combined_top_tags,
         "populations": populations,
     }

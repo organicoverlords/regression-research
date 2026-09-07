@@ -1912,7 +1912,6 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
         "recent": recent,
         "projects": report.get("projects", [])[:effective_limit],
         "recurring_tags": report.get("recurring_tags", [])[:effective_limit],
-        "worker_findings": _compact_worker_findings(report, effective_limit),
     }
     return _fit_memory_overview_budget(overview)
 
