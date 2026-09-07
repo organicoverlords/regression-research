@@ -3317,11 +3317,15 @@ def query_materialized(
         "truncated": len(selected) > effective_limit,
     }
     result["query_cache"] = {"used": False, "age_seconds": 0.0, "max_age_seconds": QUERY_RESULT_CACHE_SECONDS}
-    effective_generation = _store_generation_token(root) or store_generation
-    effective_key = _query_cache_key(
-        effective_generation, query=query, view=view, project=project, thread=thread, days=days, limit=limit, include_workers=include_workers
-    ) if effective_generation else None
-    if effective_key:
+    # Cache only when the canonical store is still the exact generation observed
+    # before this query began. A refresh published mid-query makes the computed
+    # result generation-ambiguous, so publishing it under the newer key would let
+    # stale evidence survive the correction that just replaced it.
+    effective_generation = _store_generation_token(root)
+    if store_generation and effective_generation == store_generation:
+        effective_key = _query_cache_key(
+            store_generation, query=query, view=view, project=project, thread=thread, days=days, limit=limit, include_workers=include_workers
+        )
         _write_query_result_cache(root, effective_key, result)
     return result
 
