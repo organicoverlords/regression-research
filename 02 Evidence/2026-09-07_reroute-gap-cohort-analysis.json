@@ -1,0 +1,91 @@
+{
+  "schema": "reroute-gap-cohort-analysis.v1",
+  "captured_at": "2026-09-07T23:14:00+03:00",
+  "definition": {
+    "long_gap_seconds": [60, 600],
+    "control_gap_seconds": [1, 10],
+    "warning": "same-caller action gaps are a transport signature, not by themselves proof of a user-visible reroute"
+  },
+  "transport_feature_snapshot": {
+    "tool_calls_with_next": 145121,
+    "callers": 540,
+    "long_gap_count": 3800,
+    "control_count": 86246,
+    "long_preceding_status_200_percent": 100.0,
+    "features": {
+      "start_process": {"long_percent": 77.76, "control_percent": 67.27},
+      "read_output": {"long_percent": 21.50, "control_percent": 31.92},
+      "running_false": {"long_percent": 77.42, "control_percent": 60.96},
+      "completed_read_output": {"long_percent": 10.18, "control_percent": 5.88, "rate_ratio": 1.73},
+      "running_true": {"long_percent": 16.05, "control_percent": 27.93},
+      "wait_10000ms": {"long_percent": 22.68, "control_percent": 36.51},
+      "response_gt_8k": {"long_percent": 26.39, "control_percent": 13.38, "rate_ratio": 1.97},
+      "response_gt_32k": {"long_percent": 5.0, "control_percent": 1.98, "rate_ratio": 2.53},
+      "next_connection_changed": {"long_percent": 87.08, "control_percent": 64.10}
+    }
+  },
+  "recent_top200": {
+    "min_gap_seconds": 40.604,
+    "max_gap_seconds": 554.712,
+    "callers": 19,
+    "tools": {"start_process": 165, "read_output": 32, "kill_process": 3},
+    "completed_process_result": 170,
+    "running_process_result": 20,
+    "unknown_or_kill_state": 10,
+    "response_gt_8k": 61,
+    "response_gt_32k": 10,
+    "connection_changed": 186,
+    "receipt_joined": 197,
+    "credential_related": 5,
+    "secret_like_output": 0
+  },
+  "credential_hypothesis": {
+    "current_long_joined": 133,
+    "current_long_credential_percent": 3.01,
+    "current_control_joined": 3411,
+    "current_control_credential_percent": 1.64,
+    "current_long_github_network_percent": 33.83,
+    "current_control_github_network_percent": 38.17,
+    "secret_like_output_detected": false,
+    "conclusion": "credential/GitHub content is not a broad common cause"
+  },
+  "global_concurrency": {
+    "median_other_callers_short": 10,
+    "median_other_callers_long": 10,
+    "other_callers_ge_15_short_percent": 13.69,
+    "other_callers_ge_15_long_percent": 7.84,
+    "conclusion": "highest shared-MCP concurrency is not overrepresented in long gaps"
+  },
+  "accumulated_state": {
+    "short_median_calls_sofar": 238,
+    "long_median_calls_sofar": 402,
+    "short_median_cumulative_response_bytes": 1211130,
+    "long_median_cumulative_response_bytes": 2338277,
+    "last20_bytes_ge_200k_short_percent": 6.06,
+    "last20_bytes_ge_200k_long_percent": 16.38,
+    "last20_bytes_ge_200k_rate_ratio": 2.70,
+    "gap_rates_by_calls": {
+      "lt100": {"long60_percent": 2.75, "gap30_percent": 5.37},
+      "100_299": {"long60_percent": 1.92, "gap30_percent": 4.11},
+      "300_599": {"long60_percent": 2.33, "gap30_percent": 5.30},
+      "600_999": {"long60_percent": 3.64, "gap30_percent": 9.54},
+      "gte1000": {"long60_percent": 4.94, "gap30_percent": 24.90}
+    },
+    "gap_rates_by_cumulative_response_bytes": {
+      "lt0_5MB": {"long60_percent": 2.44, "gap30_percent": 4.70},
+      "0_5_1MB": {"long60_percent": 2.16, "gap30_percent": 4.55},
+      "1_2MB": {"long60_percent": 1.84, "gap30_percent": 3.99},
+      "2_4MB": {"long60_percent": 2.73, "gap30_percent": 6.43},
+      "gte4MB": {"long60_percent": 4.69, "gap30_percent": 18.37}
+    }
+  },
+  "confirmed_incident_state": [
+    {"incident": "2026-09-06 20:27 EEST", "caller": "caller_86efff37c610", "calls_sofar": 543, "response_bytes_sofar": 3031527},
+    {"incident": "2026-09-06 21:44 EEST", "caller": "caller_86efff37c610", "calls_sofar": 734, "response_bytes_sofar": 4460007},
+    {"incident": "2026-09-07 17:50 EEST", "caller": "caller_09918a517358", "calls_sofar": 309, "response_bytes_sofar": 2375848},
+    {"incident": "2026-09-07 22:10 EEST", "caller": "caller_e89dd7b969dd", "calls_sofar": 862, "response_bytes_sofar": 2936513},
+    {"incident": "2026-09-07 22:59 EEST", "caller": "caller_cf4d3c2b8796", "calls_sofar": 614, "response_bytes_sofar": 3711146},
+    {"incident": "2026-09-06 03:54 EEST", "caller": "caller_a018b0cbc049", "calls_sofar": 478, "response_bytes_sofar": 3349208}
+  ],
+  "working_conclusion": "The strongest observable link for the gap subtype is post-tool model re-entry in an old/tool-heavy caller state, with large individual/recent result payloads acting as an amplifier. Internal platform routing/compaction mechanics remain unobservable."
+}
