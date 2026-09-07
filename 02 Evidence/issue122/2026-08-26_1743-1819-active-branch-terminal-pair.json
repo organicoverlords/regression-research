@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "source_issue": 122,
+  "purpose": "Branch-aware durable proof for the 17:43 and 18:19 Aug 26 direct-assistant premature-finalization recurrences.",
+  "source": {
+    "conversation_id": "6a8ef32a-44b4-83eb-bc3d-efbad2ab09c3",
+    "title": "Fix worker convergence lifecycle",
+    "canonical_raw_export": "memory/conversations/raw/chatport-evidence/raw/2026-08-27/20260827T113518Z_6a8ef32a-44b4-83eb-bc3d-efbad2ab09c3_sha256-ac917e0899c9.json",
+    "raw_export_sha256": "ac917e0899c9697f3b4a3944a69d66d0935e9f2cb5805cbb12664ba3e4ae5c72",
+    "current_node": "7d59011c-7573-4660-b11a-b15aa27b046f",
+    "mapping_nodes": 829,
+    "active_ancestry_nodes": 827,
+    "off_branch_nodes": 2,
+    "extraction": "follow current_node -> parent -> root, reverse to active conversation order; do not timestamp-sort mapping.values()"
+  },
+  "events": {
+    "1743_eest": {
+      "label": "2026-08-26 17:43 EEST",
+      "request_id": "b2172f47-706f-4fa3-939b-1eca5182f24e",
+      "model": "gpt-5-6-thinking",
+      "thinking_effort": "extended",
+      "active_ancestry": {
+        "tool_call_node": "5adb0102-00f3-4235-9b76-ac93f3e7ca56",
+        "tool_call_index": 276,
+        "tool_result_node": "677d0c06-ba3c-4c97-bd75-394dd3acc50e",
+        "tool_result_index": 277,
+        "reported_duration_node": "790ea13c-1283-4939-96eb-07c8b638567b",
+        "reported_duration_index": 278,
+        "final_node": "d44064d4-2ca8-45fe-a12a-f7bae5bee263",
+        "final_index": 279,
+        "structural_order": "tool_call < tool_result < final"
+      },
+      "timestamps": {
+        "tool_call_utc": "2026-08-26T14:42:38.013342Z",
+        "tool_result_utc": "2026-08-26T14:43:17.235538Z",
+        "final_utc": "2026-08-26T14:43:17.222367Z",
+        "final_eest": "2026-08-26T17:43:17.222367+03:00",
+        "tool_result_minus_final_ms": 13.171,
+        "note": "create_time is not monotonic with active-parent ancestry and must not be used as branch/delivery order by itself"
+      },
+      "tool_result_status": "finished_successfully",
+      "final_completion": {
+        "end_turn": true,
+        "is_complete": true,
+        "finish_details_type": "stop",
+        "stop_tokens": [
+          200002
+        ]
+      },
+      "final_text_sha256": "a8b38d5d6a5da3d2a849f7bd34e1fca5222e70eafdb3f640ca6873968ea8e5cd",
+      "assistant_boundary_claim": "tool-execution window ended",
+      "explicit_unmet_acceptance": "P3 lifecycle-code/test change plus 4/60 checkpoint wording were explicitly stated as not landed; final enumerated the remaining implementation.",
+      "classification": "confirmed_premature_finalization_with_explicit_unmet_acceptance"
+    },
+    "1819_eest": {
+      "label": "2026-08-26 18:19 EEST",
+      "request_id": "fb97ffaf-28c3-418c-b249-42d4e3d748c7",
+      "model": "gpt-5-6-thinking",
+      "thinking_effort": "extended",
+      "active_ancestry": {
+        "tool_call_node": "37070ce5-e680-4ca9-87b4-3c84333314ea",
+        "tool_call_index": 560,
+        "tool_result_node": "87d59fc3-227f-4dd6-b929-d0d3e11667cd",
+        "tool_result_index": 561,
+        "reported_duration_node": "10bccbf3-e184-4c7b-b3bb-4415048bdd9c",
+        "reported_duration_index": 563,
+        "final_node": "6bf288e0-4946-439f-a921-ebcd18f65598",
+        "final_index": 564,
+        "structural_order": "tool_call < tool_result < final"
+      },
+      "timestamps": {
+        "tool_call_utc": "2026-08-26T15:18:17.291232Z",
+        "tool_result_utc": "2026-08-26T15:19:03.074146Z",
+        "final_utc": "2026-08-26T15:19:03.072338Z",
+        "final_eest": "2026-08-26T18:19:03.072338+03:00",
+        "tool_result_minus_final_ms": 1.808,
+        "note": "create_time is not monotonic with active-parent ancestry and must not be used as branch/delivery order by itself"
+      },
+      "tool_result_status": "finished_successfully",
+      "final_completion": {
+        "end_turn": true,
+        "is_complete": true,
+        "finish_details_type": "stop",
+        "stop_tokens": [
+          200002
+        ]
+      },
+      "final_text_sha256": "1c93ce9a35d3659c37c7a619457f706ad2da1fbb75112c3653d044d780ef45fb",
+      "assistant_boundary_claim": "tool window ended",
+      "explicit_unmet_acceptance": "Direct-push changelog hardening was explicitly stated as not landed; final said the staging-helper modification had only begun.",
+      "classification": "confirmed_premature_finalization_with_explicit_unmet_acceptance"
+    }
+  },
+  "pair_interpretation": {
+    "proven": [
+      "Both final answers are on the same raw conversation current_node ancestry, not mutually exclusive retry branches.",
+      "Both are ordinary successful stop completions on GPT-5.6 Thinking / extended.",
+      "17:43 precedes 18:19 and is therefore the earlier confirmed post-good recurrence in this conversation.",
+      "Both finals reuse an unsupported execution-window boundary while explicitly naming task-local implementation that remained unfinished.",
+      "For both events the ChatGPT tool-result node is structurally before the final on active ancestry even though create_time is slightly later than the final (13.171 ms at 17:43; 1.808 ms at 18:19)."
+    ],
+    "scope_boundary": "The user added a distinct timeline/changelog task after the 17:43 recurrence. Treat the two events as repeated completion-classification phenotype in one conversation, not as one uninterrupted identical acceptance scope.",
+    "causal_limit": "Lexical reuse and repeated phenotype are proven; mechanistic causation from the earlier self-generated phrase to either later stop remains unproven without replay/intervention evidence.",
+    "ordering_correction": "Raw create_time near-equality must not be promoted to tool-result delivery order. Active parent ancestry establishes structural conversation order; MCP receipts separately establish server/process timing."
+  }
+}
