@@ -504,7 +504,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
         self.assertNotIn("components", fitted["workers"]["manual_sanity"])
 
-    def test_production_change_gate_blocks_go_fix_style_implicit_authorization(self):
+    def test_production_change_gate_requires_specific_scope_basis(self):
         mcp = {
             "available": True, "status": "LIVE", "active_session_count": 20,
             "active_session_count_status": "COMPLETE", "active_sessions": [{"caller_id": "c1"}],
@@ -516,9 +516,19 @@ class StackAtlasTests(unittest.TestCase):
             mcp_status=mcp, busy_status=busy,
         )
         self.assertEqual(gate["verdict"], "BLOCK")
-        self.assertIn("missing_explicit_live_production_authorization", gate["reasons"])
-        self.assertTrue(gate["semantics"]["go_continue_fix_are_not_production_authorization"])
+        self.assertIn("missing_live_production_scope_basis", gate["reasons"])
+        self.assertTrue(gate["semantics"]["routine_scoped_advance_does_not_require_redundant_user_approval"])
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
+
+        routine = production_change_gate(
+            "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
+            explicit_user_authorization=False, routine_scoped_advance=True,
+            independent_rollback_verified=True, offpath_proof_verified=True,
+            mcp_status=mcp, busy_status=busy,
+        )
+        self.assertEqual(routine["verdict"], "PASS")
+        self.assertEqual(routine["reasons"], [])
+        self.assertEqual(routine["checks"]["scope_authorization_source"], "ROUTINE_SCOPED_ADVANCE")
 
     def test_production_change_gate_covers_shared_agent_rules_serving_root(self):
         busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
@@ -529,7 +539,7 @@ class StackAtlasTests(unittest.TestCase):
         )
         self.assertEqual(blocked["verdict"], "BLOCK")
         self.assertTrue(blocked["target"]["shared_production"])
-        self.assertEqual(blocked["reasons"], ["missing_explicit_live_production_authorization"])
+        self.assertEqual(blocked["reasons"], ["missing_live_production_scope_basis"])
         self.assertEqual(blocked["live_dependencies"], {})
 
         allowed = production_change_gate(
@@ -1674,7 +1684,9 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertTrue(any("keep the selected recovery target fixed" in item for item in state["recovery_invariants"]))
         self.assertTrue(any("502" in item and "Node/backend" in item for item in state["recovery_invariants"]))
         self.assertIn("preserve unique work", state["preservation_rule"])
-        self.assertIn("explicit user authorization", state["authorization_rule"])
+        self.assertIn("authorized by go/continue", state["authorization_rule"])
+        self.assertIn("do not ask for redundant per-cutover approval", state["authorization_rule"])
+        self.assertIn("scope-widening", state["authorization_rule"])
         self.assertTrue(any("2026-09-05 replacement procedure" in item for item in state["replacement_safety_rules"]))
         latest = state["latest_topology_restore"]
         self.assertEqual(latest["incident_id"], "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence")
