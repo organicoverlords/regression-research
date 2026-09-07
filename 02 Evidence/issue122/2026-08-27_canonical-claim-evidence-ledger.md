@@ -1,8 +1,8 @@
 # Issue #122 canonical claim-to-evidence ledger
 
 Snapshot basis:
-- Git `origin/main`: `63fa9e37b3eb932c351c6fae0830d3702a5e10d3`
-- GitHub issue #122 canonical body `updatedAt`: `2026-09-06T23:48:38Z`
+- Git `origin/main` at ledger refresh: `215bbb627248f9d62141029315d10a514f7c47aa`
+- GitHub issue #122 canonical body identity is the SHA-256 below. `issue.updatedAt` is comment-sensitive: adding a comment changes it even when the body bytes do not, so it is not a durable body pin.
 - canonical body SHA-256: `a22d85efc6b88572ec30eff802c88eacd744da97c172461e3efe7003728c2bd6`
 
 Purpose: make the canonical report auditable without turning later synthesis into stronger evidence than its sources. This ledger is a forensic index, not a new causal experiment and not an assistant-stack design.

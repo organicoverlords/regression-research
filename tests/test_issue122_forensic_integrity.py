@@ -40,6 +40,12 @@ class Issue122ForensicIntegrityTests(unittest.TestCase):
                 self.assertIn(comment_id, text)
         self.assertIn("d84e78b1939244532913c5a970850c9085865c372685bd9a3e70a8352d876929", text)
         self.assertIn("Context/mission continuity is directly user-authored by Aug 20", text)
+        self.assertIn("`issue.updatedAt` is comment-sensitive", text)
+        self.assertIn(
+            "a22d85efc6b88572ec30eff802c88eacd744da97c172461e3efe7003728c2bd6",
+            text,
+        )
+        self.assertNotIn("canonical body `updatedAt`:", text)
 
 
 if __name__ == "__main__":
