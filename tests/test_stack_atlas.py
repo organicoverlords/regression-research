@@ -97,6 +97,15 @@ class StackAtlasTests(unittest.TestCase):
     def test_bootstrap_memory_budget_allows_richer_canonical_timeline(self):
         self.assertGreaterEqual(BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES, 3_800)
 
+    def test_compact_memory_overview_never_includes_worker_findings_as_bootstrap_context(self):
+        report = {
+            "contract": "memory", "eligible_entries": 0, "timeline_snapshots": {},
+            "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
+            "worker_findings": {"recent_findings": [{"finding": "do not become policy"}]},
+        }
+        compact = _compact_memory_overview(report, 3)
+        self.assertNotIn("worker_findings", compact)
+
     def test_compact_memory_overview_enforces_hard_byte_budget_without_losing_primary_context(self):
         report = {
             "contract": "history only",

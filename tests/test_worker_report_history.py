@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_manual_sanity_projection, build_metrics_projection, worker_history_events
+from tools.worker_report_history import _proof_artifact_fields, archive_finalized_report, audit_manual_current_reports, begin_timed_run, build_manual_sanity_projection, build_metrics_projection, reconcile_manual_current_reports, worker_history_events
 
 
 class WorkerReportHistoryTests(unittest.TestCase):
@@ -50,8 +50,9 @@ class WorkerReportHistoryTests(unittest.TestCase):
             audit = audit_manual_current_reports(current, history)
             by_id = {row["run_id"]: row for row in audit["reports"]}
             self.assertNotIn("manual-archived", by_id)
-            self.assertEqual(by_id["manual-unarchived"]["lifecycle_status"], "UNARCHIVED_TERMINAL")
-            self.assertEqual(audit["unarchived_terminal_count"], 1)
+            self.assertNotIn("manual-unarchived", by_id)
+            self.assertEqual(audit["unarchived_terminal_count"], 0)
+            self.assertEqual(build_metrics_projection(history)["reports"], 2)
 
 
     def test_manual_current_audit_normalizes_legacy_running_to_open_lifecycle(self):
@@ -71,6 +72,84 @@ class WorkerReportHistoryTests(unittest.TestCase):
             audit = audit_manual_current_reports(current, history)
             self.assertEqual(audit["reports"][0]["lifecycle_status"], "UNFINALIZED_OPEN")
             self.assertEqual(audit["reports"][0]["liveness"], "NOT_ESTABLISHED_BY_REPORT")
+
+    def test_manual_reconcile_preserves_stale_open_as_nonterminal_history_without_metrics(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            old = now - timedelta(hours=7)
+            report = current / "manual-stale.md"
+            raw = (
+                f"run_id: manual-stale\nstarted_at: {(old - timedelta(minutes=2)).isoformat()}\n"
+                f"last_activity_at: {old.isoformat()}\nrepo: p3\nstate: TOOL_INTERVAL_OPEN\noutcome: interrupted\n"
+            ).encode("utf-8")
+            report.write_bytes(raw)
+            result = reconcile_manual_current_reports(current, history, now=now)
+            self.assertFalse(report.exists())
+            self.assertEqual(result["actions"][0]["lifecycle_status"], "ABANDONED_OPEN")
+            digest = result["actions"][0]["sha256"]
+            archived = history / "_reports" / f"{digest}.md"
+            metadata = json.loads((history / "_reports" / f"{digest}.json").read_text(encoding="utf-8"))
+            self.assertEqual(archived.read_bytes(), raw)
+            self.assertEqual(metadata["authority"], "NON_AUTHORITATIVE_REPORT_EVIDENCE")
+            self.assertFalse(metadata["included_in_metrics"])
+            self.assertEqual(metadata["lifecycle_status"], "ABANDONED_OPEN")
+            self.assertEqual(build_metrics_projection(history)["reports"], 0)
+            self.assertEqual(worker_history_events(history), [])
+
+    def test_manual_reconcile_retires_invalid_legacy_snapshot_after_short_grace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            old = now - timedelta(hours=2)
+            report = current / "legacy-invalid.md"
+            raw = (
+                f"run_id: legacy-invalid\nstarted_at: {old.isoformat()}\n"
+                f"last_activity_at: {old.isoformat()}\nstate: RUNNING\n"
+            ).encode("utf-8")
+            report.write_bytes(raw)
+            result = reconcile_manual_current_reports(current, history, now=now)
+            self.assertFalse(report.exists())
+            self.assertEqual(result["actions"][0]["lifecycle_status"], "INVALID_CURRENT_SNAPSHOT")
+            digest = result["actions"][0]["sha256"]
+            self.assertEqual((history / "_reports" / f"{digest}.md").read_bytes(), raw)
+            self.assertEqual(build_metrics_projection(history)["reports"], 0)
+
+    def test_manual_archive_self_reconciles_old_current_debris(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            current.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            old = now - timedelta(hours=7)
+            stale = current / "manual-stale.md"
+            stale.write_text(
+                f"run_id: manual-stale\nstarted_at: {old.isoformat()}\nlast_activity_at: {old.isoformat()}\n"
+                "repo: p3\nstate: RUNNING\noutcome: stale\n",
+                encoding="utf-8",
+            )
+            fresh = current / "manual-fresh.md"
+            fresh.write_text(
+                f"run_id: manual-fresh\nstarted_at: {(now - timedelta(minutes=1)).isoformat()}\n"
+                f"last_activity_at: {now.isoformat()}\nrepo: p3\nstate: RUN_FINISHED\noutcome: done\n",
+                encoding="utf-8",
+            )
+            archive_finalized_report(fresh, history)
+            self.assertFalse(fresh.exists())
+            self.assertFalse(stale.exists())
+            metadata = list((history / "_reports").glob("*.json"))
+            self.assertEqual(len(metadata), 2)
+            lifecycle = {json.loads(path.read_text(encoding="utf-8"))["run_id"]: json.loads(path.read_text(encoding="utf-8")).get("lifecycle_status") for path in metadata}
+            self.assertIsNone(lifecycle["manual-fresh"])
+            self.assertEqual(lifecycle["manual-stale"], "ABANDONED_OPEN")
+            self.assertEqual(build_metrics_projection(history)["reports"], 1)
 
     @staticmethod
     def _write_timed_start_receipt(
@@ -103,6 +182,8 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertTrue(result["archived"])
             self.assertEqual(archived.parent.name, "_reports")
             self.assertEqual(archived.read_bytes(), raw)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            self.assertEqual(metadata["authority"], "NON_AUTHORITATIVE_REPORT_EVIDENCE")
 
     def test_derives_runtime_and_preserves_reported_fields(self):
         with tempfile.TemporaryDirectory() as tmp:

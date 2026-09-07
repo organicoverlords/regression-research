@@ -92,6 +92,23 @@ class WorkerFindingsSummaryTests(unittest.TestCase):
             self.assertEqual(summary["populations"]["manual"]["active_runs"], 0)
             self.assertEqual(summary["findings"]["tag_counts"], {"improvement": 1})
 
+    def test_excludes_abandoned_history_snapshots_from_findings_and_run_counts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_history(
+                root,
+                "manual",
+                "abandoned",
+                lifecycle_status="ABANDONED_OPEN",
+                included_in_metrics=False,
+                finding_tags=["improvement"],
+                findings="self report only",
+            )
+            summary = build_summary(root)
+            self.assertEqual(summary["populations"]["manual"]["archived_runs"], 0)
+            self.assertEqual(summary["findings"]["tag_counts"], {})
+            self.assertEqual(summary["findings"]["recent"], [])
+
     def test_ignores_old_history_outside_window(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

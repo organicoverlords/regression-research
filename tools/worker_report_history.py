@@ -20,6 +20,10 @@ LOCAL_CONTENTION_STOP_MARKERS = (
 USER_END_MARKERS = ("user interrupt", "user supersed")
 CONTINUATION_STOP_REASON = "premature finalization rejected; run continuing"
 MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
+MANUAL_CURRENT_TERMINAL_GRACE_MINUTES = 10.0
+MANUAL_CURRENT_STALE_OPEN_HOURS = 6.0
+MANUAL_CURRENT_INVALID_GRACE_HOURS = 1.0
+NONTERMINAL_HISTORY_LIFECYCLE_STATUSES = frozenset({"ABANDONED_OPEN", "INVALID_CURRENT_SNAPSHOT"})
 START_RECEIPT_SCHEMA = "worker-run-start.v1"
 START_RECEIPT_DIRNAME = ".supervision"
 PROVEN_NO_SAFE_WORK_MARKERS = (
@@ -105,6 +109,11 @@ def _report_population(*, report: Path | None = None, history_root: Path | None 
 def _metadata_population(item: dict[str, Any]) -> str:
     population = str(item.get("population") or "timed").strip().casefold()
     return population if population in {"timed", "manual"} else "timed"
+
+
+def _history_record_is_terminal(item: dict[str, Any]) -> bool:
+    lifecycle = str(item.get("lifecycle_status") or "TERMINAL").strip().upper()
+    return lifecycle not in NONTERMINAL_HISTORY_LIFECYCLE_STATUSES
 
 
 def _timed_start_receipt_path(report: Path) -> Path:
@@ -316,6 +325,7 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
     metadata: dict[str, Any] = {
         "schema": "worker-report-history.v6",
         "population": population,
+        "authority": "NON_AUTHORITATIVE_REPORT_EVIDENCE",
         "report_sha256": digest,
         "automation_id": fields.get("automation_id"),
         "run_id": fields.get("run_id"),
@@ -530,7 +540,7 @@ def build_manual_sanity_projection(
     window_start = max(boundary, current_now - timedelta(hours=window_hours))
     records = [
         item for item in load_history_metadata(history_root)
-        if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item)
+        if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item) and _history_record_is_terminal(item)
     ]
     records = _dedupe_manual_run_records(records)
     post_records: list[dict[str, Any]] = []
@@ -686,7 +696,7 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
     cutoff = now - timedelta(hours=hours)
     records: list[dict[str, Any]] = []
     for item in load_history_metadata(history_root):
-        if _metadata_population(item) != population:
+        if _metadata_population(item) != population or not _history_record_is_terminal(item):
             continue
         archived = _parse_time(item.get("archived_at"))
         if archived is not None and archived >= cutoff and _history_chronology_is_plausible(item):
@@ -770,7 +780,7 @@ def worker_history_events(history_root: Path, *, since: datetime | None = None) 
     population = _report_population(history_root=history_root)
     records = [
         item for item in load_history_metadata(history_root, since=since)
-        if _metadata_population(item) == population and _history_chronology_is_plausible(item)
+        if _metadata_population(item) == population and _history_chronology_is_plausible(item) and _history_record_is_terminal(item)
     ]
     if population == "manual":
         records = _dedupe_manual_run_records(records)
@@ -820,7 +830,135 @@ def worker_history_events(history_root: Path, *, since: datetime | None = None) 
     return events
 
 
-def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]:
+def _manual_current_age_hours(report: Path, fields: dict[str, str], now: datetime) -> float:
+    activity = _parse_time(fields.get("last_activity_at"))
+    if activity is not None:
+        try:
+            return max(0.0, (now - activity.astimezone(now.tzinfo)).total_seconds() / 3600.0)
+        except (TypeError, ValueError):
+            pass
+    try:
+        modified = datetime.fromtimestamp(report.stat().st_mtime, tz=now.tzinfo)
+    except OSError:
+        return 0.0
+    return max(0.0, (now - modified).total_seconds() / 3600.0)
+
+
+def _archive_manual_nonterminal_snapshot(report: Path, history_root: Path, *, lifecycle_status: str) -> dict[str, Any]:
+    raw = report.read_bytes()
+    fields = _fields(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    target_dir = history_root / "_reports"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"{digest}.md"
+    metadata_path = target_dir / f"{digest}.json"
+    if target.exists() and target.read_bytes() != raw:
+        raise RuntimeError(f"history hash collision at {target}")
+    if not target.exists():
+        target.write_bytes(raw)
+    if not metadata_path.exists():
+        try:
+            metadata = _derived_metadata(fields, digest=digest, archive_path=target, population="manual")
+        except ValueError:
+            metadata = {
+                "schema": "worker-report-history.v6",
+                "population": "manual",
+                "authority": "NON_AUTHORITATIVE_REPORT_EVIDENCE",
+                "report_sha256": digest,
+                "run_id": fields.get("run_id") or report.stem,
+                "state": fields.get("state"),
+                "started_at": fields.get("started_at"),
+                "finished_at": fields.get("last_activity_at"),
+                "repo": fields.get("repo"),
+                "scope": fields.get("scope"),
+                "outcome": fields.get("outcome"),
+                "reported_fields": fields,
+                "archived_at": datetime.now().astimezone().isoformat(),
+                "archive_path": str(target),
+            }
+        metadata["lifecycle_status"] = lifecycle_status
+        metadata["included_in_metrics"] = False
+        metadata["authority"] = "NON_AUTHORITATIVE_REPORT_EVIDENCE"
+        metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    report.unlink(missing_ok=True)
+    return {
+        "run_id": fields.get("run_id") or report.stem,
+        "action": "snapshot_archived",
+        "lifecycle_status": lifecycle_status,
+        "sha256": digest,
+    }
+
+
+def reconcile_manual_current_reports(
+    current_root: Path,
+    history_root: Path,
+    *,
+    now: datetime | None = None,
+    terminal_grace_minutes: float = MANUAL_CURRENT_TERMINAL_GRACE_MINUTES,
+    stale_open_hours: float = MANUAL_CURRENT_STALE_OPEN_HOURS,
+    invalid_grace_hours: float = MANUAL_CURRENT_INVALID_GRACE_HOURS,
+    max_actions: int | None = None,
+) -> dict[str, Any]:
+    """Keep manual/current bounded while preserving stale records as non-authoritative history evidence."""
+    if current_root.name.casefold() != "current" or current_root.parent.name.casefold() != "manual":
+        raise ValueError("manual current reconciliation requires worker-reports/manual/current")
+    if _report_population(history_root=history_root) != "manual":
+        raise ValueError("manual current reconciliation requires worker-reports/manual/history")
+    current_now = now or datetime.now().astimezone()
+    if current_now.tzinfo is None:
+        current_now = current_now.replace(tzinfo=timezone.utc)
+    archived_run_ids = {
+        str(item.get("run_id") or "").strip().casefold()
+        for item in load_history_metadata(history_root)
+        if _metadata_population(item) == "manual"
+        and _history_record_is_terminal(item)
+        and str(item.get("run_id") or "").strip()
+    }
+    actions: list[dict[str, Any]] = []
+    for report in sorted(current_root.glob("*.md"), key=lambda path: path.stat().st_mtime):
+        if max_actions is not None and len(actions) >= max(0, int(max_actions)):
+            break
+        raw = report.read_bytes()
+        fields = _fields(raw)
+        run_id = str(fields.get("run_id") or report.stem).strip()
+        if run_id.casefold() in archived_run_ids:
+            report.unlink(missing_ok=True)
+            actions.append({"run_id": run_id, "action": "archived_pointer_removed"})
+            continue
+        state = str(fields.get("state") or "").strip().upper()
+        age_hours = _manual_current_age_hours(report, fields, current_now)
+        valid = True
+        try:
+            _validate_current_report(report, fields, raw)
+        except ValueError:
+            valid = False
+        if valid and state in {"RUN_FINISHED", "COMPLETE", "WAITING", "BLOCKED", "DONE"} and age_hours * 60.0 >= terminal_grace_minutes:
+            result = archive_finalized_report(
+                report,
+                history_root,
+                _skip_manual_reconcile=True,
+                _skip_metrics=True,
+            )
+            actions.append({"run_id": run_id, "action": "terminal_archived", "sha256": result.get("sha256")})
+            archived_run_ids.add(run_id.casefold())
+            continue
+        if not valid and age_hours >= invalid_grace_hours:
+            actions.append(_archive_manual_nonterminal_snapshot(report, history_root, lifecycle_status="INVALID_CURRENT_SNAPSHOT"))
+            continue
+        if valid and state in {"RUNNING", "TOOL_INTERVAL_OPEN"} and age_hours >= stale_open_hours:
+            actions.append(_archive_manual_nonterminal_snapshot(report, history_root, lifecycle_status="ABANDONED_OPEN"))
+    if actions:
+        write_metrics_projection(history_root)
+    return {
+        "ok": True,
+        "authority": "lifecycle_housekeeping_only_not_liveness_or_policy",
+        "actions": actions,
+        "action_count": len(actions),
+        "remaining_current_files": len(list(current_root.glob("*.md"))),
+    }
+
+
+def archive_finalized_report(report: Path, history_root: Path, *, _skip_manual_reconcile: bool = False, _skip_metrics: bool = False) -> dict[str, Any]:
     population = _report_population(report=report)
     history_population = _report_population(history_root=history_root)
     if report.parent.name.casefold() == "current" and population != history_population:
@@ -885,11 +1023,15 @@ def archive_finalized_report(report: Path, history_root: Path) -> dict[str, Any]
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    metrics_path, metrics = write_metrics_projection(history_root)
+    metrics_path = history_root.parent / "metrics.json"
+    metrics = {} if _skip_metrics else write_metrics_projection(history_root)[1]
     if observed_started_at is not None and report.parent.name.casefold() == "current":
         _timed_start_receipt_path(report).unlink(missing_ok=True)
     if population == "manual" and report.parent.name.casefold() == "current":
+        current_root = report.parent
         report.unlink(missing_ok=True)
+        if not _skip_manual_reconcile:
+            reconcile_manual_current_reports(current_root, history_root, max_actions=32)
     result = {
         "ok": True,
         "population": population,
@@ -924,7 +1066,7 @@ def audit_manual_current_reports(current_root: Path, history_root: Path) -> dict
         str(item.get("run_id") or "").strip().casefold()
         for item in _dedupe_manual_run_records([
             item for item in load_history_metadata(history_root)
-            if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item)
+            if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item) and _history_record_is_terminal(item)
         ])
         if str(item.get("run_id") or "").strip()
     }
