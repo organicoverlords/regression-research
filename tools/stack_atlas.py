@@ -2231,6 +2231,43 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
     return value or None
 
 
+def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remote_commit: Any) -> bool:
+    """Detect a fetched remote file delta already present in a locally divergent working file."""
+    git = shutil.which("git")
+    commit = str(remote_commit or "").strip()
+    if not git or not commit:
+        return False
+    try:
+        exists = subprocess.run(
+            [git, "-C", str(repo_root), "cat-file", "-e", f"{commit}^{{commit}}"],
+            text=True, capture_output=True, timeout=0.75,
+        )
+        if exists.returncode != 0:
+            return False
+        base_proc = subprocess.run(
+            [git, "-C", str(repo_root), "merge-base", "HEAD", commit],
+            text=True, capture_output=True, timeout=0.75,
+        )
+        base = base_proc.stdout.strip() if base_proc.returncode == 0 else ""
+        if not base:
+            return False
+        patch_proc = subprocess.run(
+            [git, "-C", str(repo_root), "diff", "--no-ext-diff", "--unified=0", base, commit, "--", relative_path],
+            capture_output=True, timeout=1.0,
+        )
+        if patch_proc.returncode != 0:
+            return False
+        if not patch_proc.stdout:
+            return True
+        reverse_check = subprocess.run(
+            [git, "-C", str(repo_root), "apply", "--reverse", "--check", "--unidiff-zero", "--whitespace=nowarn"],
+            input=patch_proc.stdout, capture_output=True, timeout=1.0,
+        )
+        return reverse_check.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def _remote_is_newer(remote_at: Any, local_at: Any) -> bool:
     if not isinstance(remote_at, str) or not remote_at.strip() or not isinstance(local_at, str) or not local_at.strip():
         return False
@@ -2336,10 +2373,15 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         remote_blob = item.pop("remote_blob", None)
         matches = bool(local_blob and remote_blob and local_blob == remote_blob)
         local_last_committed_at = _git_last_committed_at(repo_root, relative_path)
-        updates_pending = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
+        remote_newer = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
+        remote_update_already_applied = remote_newer and _git_remote_update_already_applied(
+            repo_root, relative_path, item.get("last_update_commit")
+        )
+        updates_pending = remote_newer and not remote_update_already_applied
         sources[key] = {
             "last_updated_at": item.get("last_updated_at"),
             "updates_pending": updates_pending,
+            **({"remote_update_already_applied": True} if remote_update_already_applied else {}),
         }
         attention = attention or not matches
         any_updates_pending = any_updates_pending or updates_pending
