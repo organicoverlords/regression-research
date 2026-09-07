@@ -2737,9 +2737,13 @@ def _refresh_cached_query_result(result: dict[str, Any], cache_age: float | None
         else:
             reasons.discard("MATERIALIZATION_STALE")
         materialized["absence_unsafe_reasons"] = sorted(reasons)
+        complete_absence_semantics = (
+            "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HISTORY_AND_ENABLED_SOURCES_ONLY"
+            if materialized.get("horizon_days") is None
+            else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY"
+        )
         materialized["absence_semantics"] = (
-            "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE"
-            if reasons else "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HORIZON_AND_ENABLED_SOURCES_ONLY"
+            "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE" if reasons else complete_absence_semantics
         )
         refreshed["materialized"] = materialized
     refreshed["query_cache"] = {

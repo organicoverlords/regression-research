@@ -80,5 +80,27 @@ class Issue675QueryCacheGenerationTests(unittest.TestCase):
             self.assertGreaterEqual(load.call_count, 1)
 
 
+    def test_cached_full_history_result_preserves_absence_semantics(self):
+        with tempfile.TemporaryDirectory(prefix="issue675-cache-absence-") as raw:
+            root = Path(raw)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated_at = tm.datetime.now().astimezone().isoformat()
+            payload = self._payload(generated_at, "mem:full-history", "full history cache probe")
+            payload["horizon_days"] = None
+            (state / tm.STORE_PATH.name).write_text(json.dumps(payload), encoding="utf-8")
+
+            first = tm.query_materialized(root=root, query="full history cache probe", limit=8)
+            second = tm.query_materialized(root=root, query="full history cache probe", limit=8)
+
+            self.assertFalse(first["query_cache"]["used"])
+            self.assertTrue(second["query_cache"]["used"])
+            self.assertEqual(second["materialized"]["coverage_status"], "COMPLETE_MATERIALIZED_HISTORY")
+            self.assertEqual(
+                second["materialized"]["absence_semantics"],
+                "NO_MATCH_MEANS_NO_MATCH_IN_THE_MATERIALIZED_HISTORY_AND_ENABLED_SOURCES_ONLY",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
