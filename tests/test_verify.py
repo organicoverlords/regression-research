@@ -42,6 +42,16 @@ class VerifyTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["stack"])
 
+    def test_issue122_forensic_integrity_selects_stack_verification(self):
+        for path in (
+            "tests/test_issue122_forensic_integrity.py",
+            "02 Evidence/issue122/2026-08-25_122229_EEST_pre-repair-memory-block.txt",
+            "02 Evidence/issue122/2026-08-27_canonical-claim-evidence-ledger.md",
+            ".gitattributes",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
+
     def test_busy_alias_owner_changes_select_busy_verification(self):
         for path in (
             "03 Fixtures and Experiments/issue125-busy-coordinator/python/busy.py",
@@ -65,6 +75,7 @@ class VerifyTests(unittest.TestCase):
         verify_stack()
         unittest_command = run.call_args_list[1].args[0]
         self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
+        self.assertIn("tests.test_issue122_forensic_integrity", unittest_command)
 
     @patch("tools.verify.run")
     @patch("tools.verify.run_pytest")
