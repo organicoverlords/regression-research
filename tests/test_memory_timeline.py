@@ -191,6 +191,15 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(threads[0]["event_count"], 2)
         self.assertEqual([event["id"] for event in threads[0]["events"]], ["root", "again"])
 
+    def test_recurrence_context_skips_newer_rejected_thread_before_applying_thread_budget(self):
+        active_root = self.e("active-root", "2026-09-07T10:00:00+03:00", "Active root", scope="vault/timeline/error", title="Active root", tags=["error"], thread="active")
+        active_again = self.e("active-again", "2026-09-07T11:00:00+03:00", "Active recurrence", scope="vault/timeline/error", state="PROVISIONAL", title="Active recurrence", tags=["error"], thread="active")
+        dead_root = self.e("dead-root", "2026-09-07T12:00:00+03:00", "Dead root", scope="vault/timeline/error", title="Dead root", tags=["error"], thread="dead")
+        rejected = self.e("dead-rejected", "2026-09-07T13:00:00+03:00", "Rejected recurrence", scope="vault/timeline/error", state="REJECTED", title="Rejected recurrence", tags=["error"], thread="dead")
+        threads = build_recurrence_context([active_root, active_again, dead_root, rejected], "this error again", max_threads=1)
+        self.assertEqual([thread["thread_id"] for thread in threads], ["thread:active"])
+        self.assertEqual([event["id"] for event in threads[0]["events"]], ["active-root", "active-again"])
+
     def test_multi_source_snapshots_emphasize_24h_and_use_incremental_older_slices(self):
         now = datetime.fromisoformat("2026-09-06T04:00:00+03:00")
         memory = self.e(
