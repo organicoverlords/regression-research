@@ -4,7 +4,9 @@ import argparse
 from collections import Counter
 import json
 import mmap
+import os
 import re
+import tempfile
 import secrets
 import sys
 from datetime import datetime, timedelta
@@ -28,10 +30,21 @@ except ImportError:
     from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
     from worker_report_history import worker_history_events
 
+def _default_local_bank_path() -> Path:
+    override = os.environ.get("VAULT_MEMORY_LOCAL_BANK")
+    if override:
+        return Path(override).expanduser()
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        return Path(local_app_data) / "VaultMemory" / "memory-bank.local.jsonl"
+    return Path.home() / ".local" / "state" / "vault-memory" / "memory-bank.local.jsonl"
+
+
 KINDS = {"fact", "decision", "lesson", "preference", "status", "correction"}
 STATES = {"PROVEN", "PROVISIONAL", "REJECTED"}
 REQUIRED = {"id", "timestamp", "kind", "scope", "tags", "text", "state", "evidence", "supersedes"}
 DEFAULT_BANK = Path(__file__).resolve().parents[1] / "memory" / "memory-bank.jsonl"
+DEFAULT_LOCAL_BANK = _default_local_bank_path()
 DEFAULT_SOURCES = Path(__file__).resolve().parents[1] / "memory" / "sources.json"
 DEFAULT_WORKER_HISTORY = Path(__file__).resolve().parents[1] / "worker-reports" / "history"
 DEFAULT_MANUAL_WORKER_HISTORY = Path(__file__).resolve().parents[1] / "worker-reports" / "manual" / "history"
@@ -165,6 +178,73 @@ def _is_canonical_bank(path: Path) -> bool:
         return False
 
 
+def _uses_default_local_overlay(path: Path) -> bool:
+    try:
+        return path.resolve() == DEFAULT_BANK.resolve()
+    except OSError:
+        return False
+
+
+def _merge_effective_entries(primary: list[dict[str, Any]], secondary: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged = list(primary)
+    by_id = {entry["id"]: entry for entry in primary}
+    for entry in secondary:
+        ident = entry["id"]
+        if ident in by_id:
+            if by_id[ident] != entry:
+                raise BankError(f"memory id conflict: {ident}")
+            continue
+        merged.append(entry)
+        by_id[ident] = entry
+    return merged
+
+
+def _effective_bank_entries(path: Path) -> list[dict[str, Any]]:
+    base = _read_bank_file(path)
+    if not _uses_default_local_overlay(path):
+        return base
+    return _merge_effective_entries(base, _read_bank_file(DEFAULT_LOCAL_BANK))
+
+
+def _write_entries_file(path: Path, entries: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = "".join(json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n" for entry in entries)
+    temp_path = path.with_name(path.name + ".tmp")
+    temp_path.write_text(text, encoding="utf-8", newline="\n")
+    temp_path.replace(path)
+
+
+def _write_overlay_delta(seed_path: Path, effective_entries: list[dict[str, Any]]) -> None:
+    seed = _read_bank_file(seed_path)
+    seed_by_id = {entry["id"]: entry for entry in seed}
+    overlay: list[dict[str, Any]] = []
+    for entry in effective_entries:
+        ident = entry["id"]
+        if ident in seed_by_id:
+            if seed_by_id[ident] != entry:
+                raise BankError(f"memory id conflict: {ident}")
+            continue
+        overlay.append(entry)
+    _write_entries_file(DEFAULT_LOCAL_BANK, overlay)
+
+
+def _sync_default_overlay_locked(path: Path, *, strict: bool) -> None:
+    with tempfile.TemporaryDirectory(prefix="vault-memory-overlay-") as raw:
+        staged = Path(raw) / "memory-bank.jsonl"
+        _write_entries_file(staged, _effective_bank_entries(path))
+        try:
+            result = sync_bank(staged, publish=True)
+        except MemorySyncError as exc:
+            message = f"canonical memory GitHub sync NOT_PROVEN: {exc}"
+            if strict:
+                raise BankError(f"local memory was saved; {message}; do not append a duplicate") from exc
+            print(message, file=sys.stderr)
+            return
+        _write_overlay_delta(path, _read_bank_file(staged))
+    if result.get("pulled") or result.get("pushed"):
+        print("MEMORY_SYNC " + json.dumps(result, ensure_ascii=False), file=sys.stderr)
+
+
 def _sync_canonical_locked(path: Path, *, strict: bool) -> None:
     try:
         result = sync_bank(path, publish=True)
@@ -179,8 +259,9 @@ def _sync_canonical_locked(path: Path, *, strict: bool) -> None:
 
 
 def load_bank(path: Path = DEFAULT_BANK) -> list[dict[str, Any]]:
-    # Reads are local and side-effect free. Remote publication is explicit on writes.
-    return _read_bank_file(path)
+    # Reads are local and side-effect free. The tracked bank is a seed; local-only
+    # canonical writes live in the external overlay and are merged by id on read.
+    return _effective_bank_entries(path)
 
 
 def _bank_has_id(path: Path, entry_id: str) -> bool:
@@ -258,6 +339,17 @@ def append_entry(path: Path, values: dict[str, Any], *, publish: bool = False) -
     entry = _prepare_entry(values)
     if _is_canonical_bank(path):
         _require_canonical_reroute_evidence(entry)
+        if _uses_default_local_overlay(path):
+            DEFAULT_LOCAL_BANK.parent.mkdir(parents=True, exist_ok=True)
+            with sync_lock(DEFAULT_LOCAL_BANK):
+                if publish:
+                    _sync_default_overlay_locked(path, strict=False)
+                if _bank_has_id(path, entry["id"]) or _bank_has_id(DEFAULT_LOCAL_BANK, entry["id"]):
+                    raise BankError(f"duplicate id {entry['id']}")
+                saved = _append_entry_file(DEFAULT_LOCAL_BANK, entry)
+                if publish:
+                    _sync_default_overlay_locked(path, strict=True)
+                return saved
         with sync_lock(path):
             if publish:
                 _sync_canonical_locked(path, strict=False)
