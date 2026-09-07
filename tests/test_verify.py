@@ -8,6 +8,8 @@ from tools.verify import changed_files, run_pytest, select_areas, verify_busy, v
 class VerifyTests(unittest.TestCase):
     def test_selects_only_affected_area(self):
         self.assertEqual(select_areas({"tools/stack_atlas.py"}), ["stack", "memory"])
+        self.assertEqual(select_areas({"tools/tiny3d_atlas_projection.py"}), ["stack"])
+        self.assertEqual(select_areas({"tests/test_tiny3d_atlas_projection.py"}), ["stack"])
         self.assertEqual(select_areas({"NORTH_STAR.md"}), ["stack"])
         self.assertEqual(select_areas({"AGENTS.md"}), ["stack"])
         self.assertEqual(select_areas({"tools/conversation_search.py"}), ["conversation"])
@@ -96,6 +98,7 @@ class VerifyTests(unittest.TestCase):
         verify_stack()
         unittest_command = run.call_args_list[1].args[0]
         self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
+        self.assertIn("tests.test_tiny3d_atlas_projection", unittest_command)
         self.assertIn("tests.test_issue122_forensic_integrity", unittest_command)
         self.assertIn("tests.test_issue122_false_boundary_replay", unittest_command)
         self.assertIn("tests.test_issue123_current_vault_history_boundary", unittest_command)
