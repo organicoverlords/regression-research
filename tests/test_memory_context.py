@@ -47,6 +47,26 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual(pack["durable_memory"], [])
         self.assertEqual(pack["omitted"]["unanchored_matches"], 1)
 
+    def test_assistant_recorded_verbatim_source_anchors_context_without_evidence_refs(self):
+        entry = self.memory("m-source", kind="correction", text="Keep the exact user correction", evidence=[])
+        entry["tags"] = ["assistant-recorded", "verbatim-source"]
+        entry["source_messages"] = ["exact user correction"]
+
+        pack = build_context_pack("exact user correction", [entry])
+
+        self.assertEqual([x["id"] for x in pack["durable_memory"]], ["m-source"])
+        self.assertEqual(pack["durable_memory"][0]["source_messages"], ["exact user correction"])
+        self.assertEqual(pack["omitted"]["unanchored_matches"], 0)
+
+    def test_source_messages_without_assistant_recorded_tag_do_not_bypass_anchor_guard(self):
+        entry = self.memory("m-forged", evidence=[])
+        entry["source_messages"] = ["not schema-validated provenance"]
+
+        pack = build_context_pack("ordinary task", [entry])
+
+        self.assertEqual(pack["durable_memory"], [])
+        self.assertEqual(pack["omitted"]["unanchored_matches"], 1)
+
     def test_named_project_excludes_other_named_project_memory(self):
         p3 = self.memory("p3", scope="p3/build", project="p3", text="P3 build lesson")
         tiny = self.memory("tiny", scope="tiny3d/build", project="tiny3d", text="Tiny3D build lesson")
