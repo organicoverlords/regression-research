@@ -116,6 +116,15 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertIn("timeline --thread", rollup["drilldown"])
         self.assertIn("evidence:github:organicoverlords/regression-research#125", rollup["drilldown"])
 
+    def test_incident_rollup_member_ids_exclude_non_recall_visible_events(self):
+        old = self.e("old", "2026-09-07T10:00:00+03:00", "Old hypothesis", scope="vault/timeline/error", title="Old", tags=["error"], thread="mixed")
+        replacement = self.e("replacement", "2026-09-07T11:00:00+03:00", "Replacement hypothesis", scope="vault/timeline/error", title="Replacement", tags=["error"], thread="mixed", supersedes=["old"])
+        rejected = self.e("rejected", "2026-09-07T12:00:00+03:00", "Rejected bad lead", scope="vault/timeline/error", state="REJECTED", title="Rejected", tags=["error"], thread="mixed")
+        current = self.e("current", "2026-09-07T13:00:00+03:00", "Current recurrence", scope="vault/timeline/error", state="PROVISIONAL", title="Current", tags=["error"], thread="mixed")
+        rollup = build_incident_rollups([old, replacement, rejected, current], limit=1, member_id_limit=10)[0]
+        self.assertEqual(rollup["observations"], 4)
+        self.assertEqual(rollup["member_ids"], ["current", "replacement"])
+
     def test_explicit_thread_can_join_events_across_scopes(self):
         a = self.e("a", "2026-08-28T20:00:00+03:00", "Root incident", scope="response-quality", title="Root")
         b = self.e("b", "2026-08-29T02:00:00+03:00", "Recurrence", scope="mcp", title="Recurrence")
@@ -199,6 +208,15 @@ class MemoryTimelineTests(unittest.TestCase):
         threads = build_recurrence_context([active_root, active_again, dead_root, rejected], "this error again", max_threads=1)
         self.assertEqual([thread["thread_id"] for thread in threads], ["thread:active"])
         self.assertEqual([event["id"] for event in threads[0]["events"]], ["active-root", "active-again"])
+
+    def test_recurrence_context_events_exclude_non_recall_visible_members(self):
+        old = self.e("old", "2026-09-07T10:00:00+03:00", "Old hypothesis", scope="vault/timeline/error", title="Old", tags=["error"], thread="mixed")
+        replacement = self.e("replacement", "2026-09-07T11:00:00+03:00", "Replacement hypothesis", scope="vault/timeline/error", title="Replacement", tags=["error"], thread="mixed", supersedes=["old"])
+        rejected = self.e("rejected", "2026-09-07T12:00:00+03:00", "Rejected bad lead", scope="vault/timeline/error", state="REJECTED", title="Rejected", tags=["error"], thread="mixed")
+        current = self.e("current", "2026-09-07T13:00:00+03:00", "Current recurrence", scope="vault/timeline/error", state="PROVISIONAL", title="Current", tags=["error"], thread="mixed")
+        thread = build_recurrence_context([old, replacement, rejected, current], "this error again", max_threads=1, events_per_thread=10)[0]
+        self.assertEqual(thread["event_count"], 4)
+        self.assertEqual([event["id"] for event in thread["events"]], ["replacement", "current"])
 
     def test_recurrence_context_honors_zero_thread_and_event_bounds(self):
         root = self.e("root", "2026-09-07T10:00:00+03:00", "Root", scope="vault/timeline/error", title="Root", tags=["error"], thread="active")
