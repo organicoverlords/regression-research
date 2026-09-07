@@ -22,6 +22,7 @@ from tools.stack_atlas import (
     build_live_bootstrap_glance,
     classify_process,
     component_details,
+    atlas_lookup,
     find_features,
     full_inventory,
     production_change_gate,
@@ -428,6 +429,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])
+        self.assertIn("tiny3d_asset_library", glance["commands"])
+        self.assertIn("lookup tiny3d_library", glance["commands"]["tiny3d_asset_library"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
 
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
@@ -1920,6 +1923,26 @@ class StackAtlasTests(unittest.TestCase):
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
         self.assertNotIn("operator_live", ids)
+
+    def test_tiny3d_library_navigation_exposes_showroom_and_durable_visual_proof(self):
+        for alias in ("tiny3d_library", "asset_catalogue", "showroom", "visual_proof_library"):
+            with self.subTest(alias=alias):
+                details = atlas_lookup(alias)
+                self.assertEqual(details["id"], "project.tiny3d_asset_library")
+                self.assertEqual(details["kind"], "feature_navigation")
+                self.assertEqual(details["workspace"], r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY")
+                self.assertIn("showroom-v2-catalog-v1.json", details["catalogue_sources"]["showroom"])
+                self.assertIn("p3_proof_bundles", details["proof_contract"]["bundle"])
+                self.assertIn("durable_visual_proof", details["proof_contract"]["runtime_gate"])
+                self.assertIn("NOT_RECORDED is not visual acceptance", details["proof_contract"]["visual_review"])
+                self.assertIn("Do not recursively scan", details["boundary"])
+
+        self.assertEqual(find_features("showroom", limit=1)[0]["id"], "project.tiny3d_asset_library")
+        self.assertEqual(find_features("library", limit=1)[0]["id"], "project.tiny3d_asset_library")
+        generic = component_details("visual proof")
+        self.assertIn("not durable proof authority", generic["boundary"])
+        with self.assertRaises(KeyError):
+            component_details("tiny3d_library")
 
     def test_atlas_is_product_agnostic_and_product_repos_are_not_lookup_authorities(self):
         atlas = __import__("tools.stack_atlas", fromlist=["COMPONENTS"])
