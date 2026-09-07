@@ -1885,10 +1885,29 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(component_details("rules")["id"], "agent_rules")
         self.assertEqual(component_details("orchestrator")["id"], "agent_rules")
         self.assertEqual(component_details("operator")["id"], "agent_rules")
+        self.assertEqual(component_details("atlas")["id"], "stack_atlas")
+        self.assertEqual(component_details("stack atlas")["id"], "stack_atlas")
+        atlas = component_details("stack_atlas")
+        self.assertEqual(atlas["authority"], ATLAS_CONTRACT["authority"])
+        self.assertIn("STACK_ATLAS_NORTH_STAR.md", " ".join(atlas["canonical_sources"]))
+        self.assertIn("not a permission gate", " ".join(atlas["independent_recovery"]))
         orchestrator = find_features("orchestrator")[0]
         self.assertEqual(orchestrator["id"], "orchestration.operator")
         self.assertEqual(orchestrator["owner_components"], ["agent_rules"])
         self.assertIn("not a daemon", orchestrator["boundary"])
+
+    def test_stack_atlas_self_lookup_and_find_are_derived_navigation(self):
+        details = component_details("stack atlas")
+        self.assertEqual(details["id"], "stack_atlas")
+        self.assertEqual(details["authority"], "DERIVED_OPERATIONAL_VIEW_NOT_AUTHORITY")
+        self.assertIn("derived", details["role"])
+        self.assertTrue(any("STACK_ATLAS_NORTH_STAR.md" in source for source in details["canonical_sources"]))
+
+        results = find_features("stack atlas north star", limit=3)
+        match = next(item for item in results if item["id"] == "component.stack_atlas")
+        self.assertEqual(match["owner_components"], ["stack_atlas"])
+        self.assertEqual(match["authority"], ATLAS_CONTRACT["authority"])
+        self.assertIn("leave Atlas and work at that owner", match["boundary"])
 
     def test_bootstrap_directory_covers_major_stack_surfaces(self):
         atlas = build_bootstrap_atlas()
