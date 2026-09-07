@@ -32,29 +32,20 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertIn("`stop` means stop immediately", rules)
         self.assertIn("follow the `go`/`continue` completion and yield semantics in `RULES.md`", agents)
 
-    def test_north_star_exposes_current_project_direction_and_finish_line(self):
+    def test_north_star_is_pointer_only_to_canonical_agents_product_direction(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
-        for required in (
-            "# Assistant Stack North Star",
-            "Status: **PRODUCT DIRECTION.**",
-            "## North star",
-            "The stack should be boring to use.",
-            "## The anti-regression contract",
-            "## What finished looks like",
-        ):
-            self.assertIn(required, north_star)
+        self.assertIn("# Assistant Stack North Star", north_star)
+        self.assertIn("compatibility pointer only", north_star)
+        self.assertIn("organicoverlords/agents@main", north_star)
+        self.assertIn("docs/repos/regression-research/NORTH_STAR.md", north_star)
+        self.assertIn("docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md", north_star)
+        self.assertNotIn("## What finished looks like", north_star)
+        self.assertNotIn("## Current focus", north_star)
 
-    def test_north_star_uses_standalone_coordinator_not_mcp_or_busy_as_authority(self):
-        north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
-        self.assertIn("standalone BusyCoordinator", north_star)
-        self.assertIn("transports, not ownership authorities", north_star)
-        self.assertNotIn("Check live BUSY ownership", north_star)
-        self.assertNotIn("Make live MCP ownership the only coordination authority", north_star)
-
-    def test_orientation_keeps_north_star_distinct_from_operating_authority(self):
+    def test_orientation_keeps_canonical_north_star_distinct_from_operating_authority(self):
         north_star = (ROOT / "NORTH_STAR.md").read_text(encoding="utf-8")
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
-        self.assertIn("Status: **PRODUCT DIRECTION.**", north_star)
+        self.assertIn("Current repository/runtime/issue/tool evidence remains live execution truth", north_star)
         self.assertIn("Current explicit user instruction defines the objective.", rules)
         self.assertIn("Current repo/runtime/tool evidence defines current facts.", rules)
 
