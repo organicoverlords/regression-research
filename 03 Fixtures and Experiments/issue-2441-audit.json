@@ -1,0 +1,288 @@
+{
+  "body": "## 2026-09-07 readability and accessible feedback\r\nUse the existing P3Combat presentation actors, cues, health read models and HUD. Coordinate animation through #2610, not a second animation controller.\r\n\r\nEvaluate at ordinary speed/distance with the selected roster and real meteor/ability set:\r\n- distinguish caster/team, target/danger area, cast versus impact, hit versus miss, invulnerability/block/cooldown where applicable;\r\n- first-person hands/body/effects and third-person camera collision must not obscure aim or essential enemy tells;\r\n- communicate damage direction, health/result and resource/cooldown through readable shape/text/icon/timing as well as color; critical information must not rely on audio or color alone;\r\n- retain useful sound/impact cues but avoid repeated cue spam or effects that hide Core/creep/contact state;\r\n- expose existing sensitivity, camera/FOV and readability settings coherently where supported; do not turn this into a settings framework.\r\n\r\nCapture one attacker/observer sequence in each view and record concrete unreadable moments before tuning. Profile expensive VFX only if #2611 identifies the cost. P3CombatMeteorPresentationActor.cpp, P3CombatHUDWidget.cpp and P3LaneWarHUDWidget.cpp each serialize independently with current claimants.\r\n\r\n---\r\n\r\nParent: #803 / #941. Coordinate with #956 and #1091. Reuse current P3Combat, spell, GameplayCue/VFX, health and HUD presentation owners; no new presentation framework.\r\n\r\nAcceptance:\r\n- the important live abilities have readable cast/start, travel/active and impact/result feedback where applicable;\r\n- enemy hero/creep damage and defeat are understandable at normal gameplay distance and speed;\r\n- cooldown/resource feedback is visible enough to make combat decisions without reading logs;\r\n- first-person and third-person both remain usable and do not hide essential tells;\r\n- fix concrete missing/weak cues found in a normal Lane War play pass using existing assets where practical.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7AG5A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Bounded current-main source pass found selected-spell name/description/cooldown in the existing combat HUD, explicit failed-cast guidance, a centered gameplay reticle, and dedicated GameplayCue mappings for Meteor, Chain Lightning, Frost Field, Repair Pulse and all generated spell actions. No duplicate presentation mechanism added. Remaining #2441 value is rendered first-/third-person play evidence identifying a concrete weak/missing tell at gameplay distance.",
+      "createdAt": "2026-09-07T03:55:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5564794596",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS9a4NQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2509 as ad5d3f766: successful normal secondary spell activation now immediately confirms SPELL CAST / attack launched, tells the player to watch for impact, and points to HUD recharge state. Focused spell/combat HUD contracts passed 21/21; failure guidance remains unchanged.",
+      "createdAt": "2026-09-07T07:58:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5567330357",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-QimQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen landed #2518: the existing replicated in-world damage popup now names nonlethal results as HIT -N and lethal results as DEFEATED -N, so hit/result feedback is self-describing at gameplay distance. Focused combat feedback/HUD contracts 13/13 PASS + diff-check; hosted p3 contract gate SUCCESS.",
+      "createdAt": "2026-09-07T09:07:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5568209561",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-Sa4w",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up #2519 landed: the same replicated HIT/DEFEATED popup now scales from 36 to 52 world units across the existing 900-3200cm gameplay-distance band, matching opponent-health distance compensation. Focused combat feedback/HUD contracts 13/13 PASS + diff-check; hosted gate SUCCESS.",
+      "createdAt": "2026-09-07T09:09:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5568240355",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS-UNIg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2520 landed: opponent health and HIT/DEFEATED world labels now face/scale from the actual local PlayerCameraManager position, falling back to pawn view only when no camera manager exists. This fixes third-person camera-offset billboard alignment without changing combat authority. Focused contracts 13/13 PASS; hosted gate SUCCESS.",
+      "createdAt": "2026-09-07T09:11:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5568269602",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBVm9A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2602 as a0cf3845b: replicated combat HIT feedback now rises 48 cm over its 0.85 s life and DEFEATED feedback rises 88 cm over 2.4 s, with ease-out motion and per-hit position reset. Existing damage authority, replication, distance scaling, camera-facing behavior, and colors are unchanged. Focused combat/readability contracts 13/13 PASS; hosted contract gate SUCCESS. Rendered Meteor proof is being run on merged main once the shared local compiler slot releases.",
+      "createdAt": "2026-09-07T13:35:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5571438324",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBq1Fg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2617 as df48764cc: successful combat healing now produces replicated in-world `HEALED +N` feedback using the existing camera-facing/distance-scaled floating combat text. It reuses the same short upward result motion as normal hits; the text/+ sign communicates healing independently of color. Damage/healing authority and Repair Pulse targeting are unchanged. Focused combat/readability contracts 23/23 PASS; hosted p3 contract gate SUCCESS.",
+      "createdAt": "2026-09-07T14:04:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5571786006",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTB-17g",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2623 as 65eb2300a: Meteor now places a pre-impact ground danger ring at the resolved landing point. The ring starts broad (5.4x) and contracts to 1.6x during the existing 1.05s fall, then disappears exactly as the existing expanding impact shock ring takes over. This makes target/danger, travel and impact visually distinct without changing damage, targeting, timing or authority. Matching combat/spell/meteor contracts 59/59 PASS; exact native P3Combat build PASS; hosted contract gate SUCCESS.",
+      "createdAt": "2026-09-07T14:30:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572113902",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCA34Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main source check after #2623: player-visible HIT/DEFEATED/HEALED feedback is replicated and camera-facing, but `FP3CombatDamageFeedbackState` carries only magnitude/serial/defeated/healing. `HandleOwnerAnyDamage` explicitly discards both `InstigatedBy` and `DamageCauser`, and direct `AuthorityApplyDamage` callers likewise provide no source vector. Therefore the acceptance item for damage direction is still structurally unrepresented; do not claim it from floating hit text. A fix should extend the existing combat-health/read-model path with authoritative source-direction data rather than add a second HUD/combat authority path.",
+      "createdAt": "2026-09-07T14:32:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572147169",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCLKqg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2629 as 7e2634bb66: Chain Lightning now adds a brief blue-white impact flash at the resolved beam endpoint, and beam geometry now uses the existing impact-flash path generally. Storm Relic therefore reads as caster flash -> beam -> target flash using its existing presentation values. Damage, targeting, beam endpoints, timing and authority are unchanged. Matching combat/spell presentation contracts 59/59 PASS; native P3Combat build PASS on byte-identical module source; hosted contract gate SUCCESS.",
+      "createdAt": "2026-09-07T14:45:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572315818",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCNV1Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Bounded call-graph follow-up on current main: combat-health direct damage has only two production callsites, both in P3CombatExecutionAbility.cpp (plus HandleOwnerAnyDamage). That keeps authoritative source capture narrow: execution ability can pass its resolved source/avatar actor, while HandleOwnerAnyDamage already receives InstigatedBy/DamageCauser. However the existing floating DamageFeedbackText is OwnerNoSee, so merely adding a replicated source vector there would still not satisfy the damaged player direction cue. The implementation should carry source direction in FP3CombatDamageFeedbackState and consume it on the owner-visible combat/HUD path; observer floating text can remain unchanged. No code/runtime PASS claimed.",
+      "createdAt": "2026-09-07T14:48:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572351445",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCTmhg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "HUD owner check narrows the player-visible half further: UP3CombatHUDWidget already reads the controlled pawn UP3CombatHealthComponent every RefreshReadModel and renders HEALTH status through the existing SpellText surface. So damage direction does not need a new widget. The minimal shape is: expose replicated feedback serial + source direction from the existing health component, derive FRONT/BACK/LEFT/RIGHT relative to the controlled pawn when that serial changes, and append a short owner-visible HIT FROM <direction> cue to the existing health/combat text. Keep the current observer floating text unchanged. This preserves one health authority/read model and gives first/third person the same non-color directional cue.",
+      "createdAt": "2026-09-07T14:57:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572454022",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCUUHQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Source-capture detail: both direct health mutations in P3CombatExecutionAbility already have InstigatorActor in scope, and their UGameplayStatics fallback already passes that same actor as DamageCauser. The health-component path can therefore preserve identical semantics by accepting that actor/source location rather than inventing a new target-resolution source. HandleOwnerAnyDamage can use DamageCauser first with InstigatedBy pawn as fallback. This keeps source-direction authority aligned across component and generic Unreal damage paths.",
+      "createdAt": "2026-09-07T14:58:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572465693",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCVqEA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2633 as edb6663b20: Chain Lightning now produces a brief caster-side discharge flash before the beam, so the full read is caster flash -> beam -> target flash. The generic caster flash is limited to non-composite beam spells, so Storm Relic keeps its existing composite caster flash without duplication. Damage, targeting, beam endpoints, timing and authority are unchanged. Matching combat/spell presentation contracts 59/59 PASS; hosted contract gate SUCCESS. Local native compile was blocked before compilation by the occupied shared build mutex, with no compiler error or guard bypass.",
+      "createdAt": "2026-09-07T15:00:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572487696",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTClezQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen PR #2645 exact head 239b495a4 implements the previously identified owner-visible damage-direction gap on the existing combat health/HUD path. Authoritative direct/generic damage now records source location in replicated feedback; the controlled pawn turns each new hit into a short FRONT/BACK/LEFT/RIGHT HIT FROM HUD cue, while observer floating HIT/DEFEATED text remains unchanged. Focused combat feedback/HUD cohort 24/24 PASS; diff-check PASS. Native/runtime proof not claimed.",
+      "createdAt": "2026-09-07T15:23:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572746957",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCn2XQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #2646 as 31f066a71c: composite spell sculptures now bloom into view instead of appearing at full size on the first frame. They start at 42% scale, overshoot to 108%, and settle to full size over 0.22s before continuing their existing spin/pulse/orbit motion. This applies to the ten composite spell impacts (Lava Crown, Storm Relic, Ice Lotus, Void Core, Toxic Idol, Bone Soul Altar, Crystal Lotus, Arcane Clockwork, Thorn Seed Pod, Scarab Sun Relic). Damage, targeting, timing, replication and authority are unchanged. Matching presentation contracts 59/59 PASS; native P3Combat build PASS on byte-identical proposed source; hosted gate SUCCESS.",
+      "createdAt": "2026-09-07T15:26:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572785757",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCzijQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main combat readability: #2645 merged as d47dbf9bc53d. Owner HUD now gets a short non-color FRONT/BACK/LEFT/RIGHT cue from authoritative damage source location while existing observer HIT/DEFEATED text stays unchanged. Fresh focused combat feedback/HUD contracts were 10/10 PASS plus hosted contract gate; native/runtime proof is not claimed.",
+      "createdAt": "2026-09-07T15:44:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5572977293",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTDJChQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen: #2649 makes owner HIT FROM FRONT/BACK/LEFT/RIGHT resolve against the active camera (pawn rotation fallback), keeping first/third-person direction cues aligned with the player's view. Focused damage-feedback 3/3 and hosted gate green. One Linux OMEN single-file proof admission failed closed at host-key verification; no retry under unchanged route state.",
+      "createdAt": "2026-09-07T16:18:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2441#issuecomment-5573329541",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOT0JNpc8AAAACvsYdWg",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    }
+  ],
+  "milestone": null,
+  "number": 2441,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] First/third-person spell and hit readability pass",
+  "updatedAt": "2026-09-07T16:18:55Z"
+}

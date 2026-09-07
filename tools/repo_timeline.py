@@ -115,7 +115,7 @@ def _git_log_rows(path: Path, revisions: list[str], *, limit: int, since: dateti
             datetime.fromisoformat(event_at.replace("Z", "+00:00"))
         except ValueError:
             continue
-        changed_paths = [line.strip() for line in changed.splitlines() if line.strip()]
+        changed_paths = sorted({line.strip().replace("\\", "/") for line in changed.splitlines() if line.strip()})
         rows.append({
             "sha": sha,
             "event_at": event_at,
@@ -133,8 +133,9 @@ def _event_from_row(spec: RepoSpec, row: dict[str, Any], *, origin: str | None) 
     title = str(row.get("title") or "")
     decorations = str(row.get("decorations") or "")
     body = str(row.get("body") or "")
-    changed_paths = [str(value) for value in row.get("changed_paths", []) or [] if str(value).strip()]
+    changed_paths = [str(value).replace("\\", "/") for value in row.get("changed_paths", []) or [] if str(value).strip()]
     refs = _refs_from_title(f"{title}\n{body}")
+    search_text = " ".join(value for value in (body, " ".join(changed_paths)) if value).strip()
     return {
         "id": f"git:{spec.project}:{sha}",
         "source_type": "GIT_COMMIT",
@@ -146,6 +147,7 @@ def _event_from_row(spec: RepoSpec, row: dict[str, Any], *, origin: str | None) 
         "summary": title,
         "body": body,
         "changed_paths": changed_paths,
+        "_search_text": search_text[:6000],
         "sha": sha,
         "short_sha": sha[:10],
         "refs": refs,
@@ -156,6 +158,7 @@ def _event_from_row(spec: RepoSpec, row: dict[str, Any], *, origin: str | None) 
         "repo_state": "ALL_BRANCHES",
         "thread_id": f"repo:{spec.project}",
         "thread_source": "PROJECT_REPO_STREAM",
+        "_search_text": search_text[:6000],
     }
 
 

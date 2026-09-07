@@ -5,7 +5,7 @@ Work identity: organicoverlords/regression-research#651. NVMe production-storage
 
 ## Purpose
 
-This HP OMEN laptop is an optional Linux execution/build node behind the existing Windows MCP route. ChatGPT and other agents reach the Windows machine through the normal MCP transport, then use SSH over the local LAN to this laptop. Do not add another public MCP/Caddy/WireGuard serving path for this node.
+This HP OMEN laptop is the preferred Linux execution/build node for portable compute-intensive work behind the existing Windows MCP route whenever its bounded live SSH/resource probe passes and the owning repo has a compatible Linux/offload path. ChatGPT and other agents reach the Windows machine through the normal MCP transport, then use SSH over the local LAN to this laptop. Windows remains the MCP/control transport and the execution owner for LowVRAM, Windows-only workflows, and editor/UI-bound work. Do not add another public MCP/Caddy/WireGuard serving path for this node.
 
 ## Stable access route from the Windows stack machine
 
@@ -45,7 +45,7 @@ Observed live 2026-09-06:
 - 256 GB Samsung NVMe (`/dev/nvme0n1`), currently mostly NTFS and not used for Linux root
 - 5 GHz Wi-Fi
 
-GPU state verified 2026-09-06: the NVIDIA 535.230.02 userspace/DKMS stack is installed and current-kernel `nvidia*.ko` modules exist, but Secure Boot is enabled and the local MOK certificate used to sign the DKMS module is **not enrolled**. Kernel lockdown logged that unsigned module loading is restricted, so the NVIDIA module does not load and `nvidia-smi` cannot communicate with the GPU. `ubuntu-drivers devices` reports `nvidia-driver-580` as recommended; a 580.173.02 offline package bundle is staged under `~/.local/ue-bootstrap/debs/nvidia-driver-580.tar.gz`, but installing/upgrading the system driver and enrolling MOK require privileged/reboot-time interaction. Do not bypass Secure Boot or module-signature enforcement.
+GPU state verified 2026-09-06 after local authorization: Secure Boot remains enabled. The running kernel `5.15.0-141-generic` now resolves NVIDIA 535.230.02 to the Canonical-signed module under `/lib/modules/5.15.0-141-generic/kernel/nvidia-535/`; the conflicting current-kernel DKMS copy was removed. `nvidia-smi` successfully sees the NVIDIA GeForce GTX 1070 with Max-Q Design with 8192 MiB VRAM, and Xorg/Cinnamon are using the GPU. The staged 580.173.02 offline bundle remains available but is not required for the current working 535 path. Do not bypass Secure Boot or module-signature enforcement.
 
 ## Disk state and current attribution
 
@@ -54,9 +54,9 @@ Observed root filesystem: `/dev/sda2`, about 916 GiB, about 794 GiB used, about 
 A bounded `du` attribution established that the main consumption is user data, not Timeshift:
 
 - `/home/aatuska`: 776,924,368 KiB (~741 GiB)
-- `/home/aatuska/Ty├Âp├Âyt├ñ`: 752,715,404 KiB (~718 GiB)
-- `/home/aatuska/Ty├Âp├Âyt├ñ/ei sopinu`: 664,177,220 KiB (~633 GiB)
-- `/home/aatuska/Ty├Âp├Âyt├ñ/Nimet├Ân kansio`: 71,227,364 KiB (~67.9 GiB)
+- `/home/aatuska/TyÃ¢â€Å“Ãƒâ€špÃ¢â€Å“Ãƒâ€šytÃ¢â€Å“ÃƒÂ±`: 752,715,404 KiB (~718 GiB)
+- `/home/aatuska/TyÃ¢â€Å“Ãƒâ€špÃ¢â€Å“Ãƒâ€šytÃ¢â€Å“ÃƒÂ±/ei sopinu`: 664,177,220 KiB (~633 GiB)
+- `/home/aatuska/TyÃ¢â€Å“Ãƒâ€špÃ¢â€Å“Ãƒâ€šytÃ¢â€Å“ÃƒÂ±/NimetÃ¢â€Å“Ãƒâ€šn kansio`: 71,227,364 KiB (~67.9 GiB)
 - Timeshift plus filesystem-accounting difference was only about 27 GiB; five Timeshift snapshots exist from 2024-08 through 2025-06.
 
 Do not delete, move, deduplicate, compress, or repurpose any of these large folders merely because they are large. They are user-owned data unless the user explicitly identifies exact disposable content.
@@ -101,7 +101,17 @@ The Epic native toolchain archive is retained at `~/.local/ue-toolchains/native-
 
 The HDD root remains tight at roughly 50 GiB free, but UE tooling/build paths now target the NVMe lane; the post-migration `/mnt/ue` reading was about **132 GiB free**. Keep heavy UE source/build/cache activity on `/mnt/ue` and continue to re-read capacity before a full engine hydration/build. The large Desktop/media folders remain user-owned and must not be deleted merely to make room.
 
-UE-specific source setup remains repo/engine-owned: once an authorized UE 5.8 source tree is available on Linux and storage headroom is adequate, use Epic's normal `Setup.sh`/`GenerateProjectFiles.sh` path and the v26 native toolchain rather than substituting an arbitrary compiler.
+UE-specific source setup is now active on the NVMe lane. An authenticated EpicGames `5.8.1-release` source archive was SHA-256 verified and extracted at `/mnt/ue/engine/UnrealEngine-5.8.1`; its `Build.version` reports 5.8.1. Epic GitDependencies is hydrating a Linux-x64 dependency set with Windows/Mac/mobile and LinuxArm64 payload folders excluded. After dependencies and the Epic-required `build-essential` package are complete, use Epic's normal `Setup.sh`/`GenerateProjectFiles.sh` path and the v26 native toolchain rather than substituting an arbitrary compiler.
+
+## Live UE offload pipeline (2026-09-07)
+
+- `/mnt/ue` is the active fast lane. The clean committed P3 snapshot is `/mnt/ue/projects/p3-head`; `~/ue-work/p3-head` remains only as a compatibility symlink. The Windows `Sync-P3LinuxSource.ps1` default now resolves to this NVMe path, and a live sync + smoke run passed 65/65. The broad portable lane passed 348 tests on the same NVMe snapshot.
+- UE 5.8.1 source is at `/mnt/ue/engine/UnrealEngine-5.8.1`; Epic clang 20.1.8 resolves through the existing `UE_CLANG`/`UE_CLANGXX` variables to the NVMe-backed toolchain.
+- Epic GitDependencies is owned by the persistent user service `ue-gitdeps.service`. Do not launch ad-hoc parallel GitDependencies copies over SSH. Three orphaned copies from earlier disconnected SSH sessions were explicitly identified by PPID=1/session scopes and terminated; only the systemd-owned copy should run.
+- The functional Linux prerequisite is GNU Make plus Epic's bundled compiler/toolchain. Epic's 5.8.1 `Linux/Setup.sh` comments that compiler and dotnet are bundled and `build-essential` is useful to ensure `make`; GNU Make 4.3 and Epic clang 20.1.8 are already verified. Post-hydration therefore runs `BuildThirdParty.sh`, marks `Engine/Build/OneTimeSetupPerformed`, and runs `GenerateProjectFiles.sh` without requiring the package-manager convenience check.
+- GitDependencies/posthydrate advancement is readiness-marker driven, not generic systemd `OnSuccess` from a guarded/skipped unit: `run-ue-gitdeps.sh` starts posthydrate only after writing `UE_GITDEPS_READY`, and `run-ue-posthydrate.sh` starts UHT only after writing `UE_PROJECTFILES_READY`. An `ExecCondition` defer because a foreign hydration owns the engine tree must never advance the downstream build chain. `ue-uht-build.service` then hands successful UHT completion to `p3-linux-build.service`, which runs the Linux P3 editor build.
+- The legacy single-build 60 GiB admission rule was superseded on 2026-09-07 by the isolated lane guards documented below. Lane admission remains fail-closed on disk/RAM pressure; ue-posthydrate.service and build services route failures to ue-pipeline-diagnose.service for bounded diagnostics.
+- LowVRAM remains on the main Windows PC. Do not move or retarget LowVRAM to OMEN.
 
 ## Boundaries
 
@@ -112,3 +122,19 @@ UE-specific source setup remains repo/engine-owned: once an authorized UE 5.8 so
 - No assumption that claims, schedules, or this contract prove current worker activity or node liveness.
 - Reverify GPU driver, free disk, RAM and SSH before heavy UE build/cook/render use.
 - Avoid duplicate heavy UE builds; follow the owning repo's single-flight/build-admission contract.
+
+## Live isolated P3 build lanes (2026-09-07)
+
+OMEN now has three rootless isolated Unreal build lanes over one frozen partially-built UE 5.8.1 engine base. The base is `/mnt/ue/engine/UnrealEngine-5.8.1-base`; do not mutate or rename it while either lane is active. Each lane runs in its own user+mount namespace with an overlay upper/work tree and its own copied P3 project outputs, so concurrent UBT writers do not share `Engine/Intermediate`, `Engine/Binaries`, project `Intermediate`, project `Binaries`, or project `Saved` writes.
+
+- Lane 1 compatibility owner: `p3-linux-build.service`; full `p3Editor Linux Development`; 4 actions; persistent upper at `/mnt/ue/build-lanes/lane1/engine-upper`.
+- Lane 2 project lane: `p3-linux-lane@2.service`; `-Module=p3`; 2 actions; `-NoUBA`; persistent upper at `/mnt/ue/build-lanes/lane2/engine-upper`.
+- Lane 3 light lane: `p3-linux-light.service`; `-Module=p3`; exactly 1 action; `-NoUBA`; persistent upper at `/mnt/ue/build-lanes/lane3/engine-upper`. It is opportunistic: its wrapper requires at least 45 GiB free on `/mnt/ue` and 10 GiB `MemAvailable` before launch. A three-lane live test at a lower 6 GiB threshold caused sustained swap-out, so that threshold was rejected and lane 3 was stopped; after stopping it, swap traffic returned to zero. Low-headroom starts are treated as successful deferrals rather than service failures.
+- Shared lower/base was frozen after action 1086 of the first full editor build. Restart proof showed lane 1 planned 1659 remaining actions rather than rebuilding the original 2743 from zero.
+- Lane 2 admission refuses below 40 GiB free on `/mnt/ue` or below 4 GiB `MemAvailable`; lane 1 refuses below 30 GiB free or below 3 GiB `MemAvailable`. These are admission guards, not cleanup authorization.
+- `~/ue-work/run-p3-linux-lane.sh` and `run-p3-linux-lane-inner.sh` own the isolation. Do not launch a second ad-hoc UBT against the frozen base or the empty host mountpoint.
+- Start the current synced P3 module lane with `systemctl --user start p3-linux-lane@2.service`. Check `systemctl --user status p3-linux-lane@2.service` and `~/ue-work/logs/p3-linux-lane2.log` for live activity. A busy lane must fail/queue elsewhere rather than sharing its writable trees.
+- Source snapshots remain under `/mnt/ue/projects/p3-commits/<sha>` and `/mnt/ue/projects/p3-current` remains the current source pointer. Each lane copies source into its own project tree before build while preserving that lane's generated outputs.
+- Queue additional pinned P3 module requests without a permanent scheduler using `~/ue-work/queue-p3-linux-build.sh /mnt/ue/projects/p3-commits/<sha> p3 2`. Each request runs as a transient user service, resolves/pins its source path before waiting, and blocks on lane 2's lock. The queue wrapper was live-proven while lane 2 was occupied; the proof request was then stopped so no duplicate build remained.
+
+This is execution capacity only, not a new product authority, public endpoint, recurring scheduler, or general-purpose queue. Windows remains MCP/control transport and LowVRAM remains on Windows.

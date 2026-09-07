@@ -106,8 +106,9 @@ class BootstrapHealthTests(unittest.TestCase):
         ):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "DEGRADED")
-        self.assertEqual(glance["bootstrap"]["component_statuses"], {"mcp": "OK", "vault": "OK", "github": "WATCH"})
-        self.assertIn("github_watch", glance["notable_conditions"])
+        self.assertNotIn("component_statuses", glance["bootstrap"])
+        self.assertNotIn("notable_conditions", glance)
+        self.assertEqual(glance["github"]["status"], "WATCH")
         self.assertIn("mcp", glance)
         self.assertIn("vault", glance)
         self.assertIn("github", glance)

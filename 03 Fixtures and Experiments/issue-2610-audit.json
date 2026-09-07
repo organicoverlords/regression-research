@@ -1,0 +1,161 @@
+{
+  "body": "´╗┐## Contribution plan\nParent #803 / #941; compose #331/#394 and Tiny3D #372/#373. Authority: docs/v2/P3_V2_NORTH_STAR.md and its 2026-09-07 playable-match refinement.\n\n| Contribution | Existing owner / serialization boundary | Handoff |\n| --- | --- | --- |\n| Roster state coverage and content | P3AvatarHumanoid/Private/P3HumanoidAvatarComponent.cpp; Content/V2/Characters and Animation exact assets | Map selected generated roster to required states, then content/profile patch with Tiny3D/package identities |\n| Gameplay state integration | P3TraversalSkiComponent.cpp, P3TraversalGrappleAbility.cpp, P3CombatExecutionAbility.cpp at their feature owners | State/cancel/landing/defeat transitions; shared files serialize with #2439/#2441 |\n| Independent acceptance | Existing P3Testing scenarios and canonical capture; read-only asset/clip inventory | Actual normal-input motion on exact materialized mesh, both players and views |\n| Integration | Current claimant of each source/content file | Patch -> immutable runtime/artifact -> pixel review -> #803/#941; #394 returns matching Tiny3D proof |\n\nRead closed #21/#602 for foundation/roster work and reuse it. This issue adds complete integrated match-state coverage; it does not repeat avatar migration or revive V1 repair switches. P3AnimationProfile.h is a shared core contract: change it only for a demonstrated missing interface, separately from feature/content edits.\n\n## Problem\nThe current profile supports AnimBP and idle/locomotion/airborne fallbacks plus cosmetic melee, but that structure alone cannot prove the full match roster animates correctly while skiing, grappling, casting, swapping, dying and respawning. The milestone requires those real behaviors, not renamed or idle-only clips.\n\n## Acceptance\n- Use a small explicit selected generated roster, with exact Tiny3D source/package/skeleton/clip identities; stock Fox is excluded entirely. Missing source/motion goes back to Tiny3D, not a P3 rig-generation implementation.\n- Publish a state/transition matrix for idle/start/stop/turn/run, skiing, grapple/air/landing, action/cast, hit reaction when supported, defeat/respawn and character swap. Required/optional/unsupported are explicit.\n- Existing gameplay state selects motion; no arbitrary timer showcase or root/camera-only motion can satisfy it.\n- Contacts, stride/speed, authored scale/orientation, sockets and weapon grip remain coherent; no runtime 0.01 or yaw repair.\n- Declare root-motion ownership, locomotion/action/additive masks, cancellation, contact/notify windows and IK adjustments. Cosmetic animation notifies must not become authoritative damage or purchases.\n- Swap and respawn preserve intended player state and remove obsolete pawn animation/ability/camera bindings. Verify held input, interrupted cast/grapple and late client observation.\n- Prove two compatible generated characters by profile/content reuse rather than a new base-class branch; then show the selected milestone roster's actual coverage.\n- First-person preserves aim and essential tells; third-person makes body motion readable. Observer sees the same gameplay result even if animation sampling differs.\n- A short diagnostic close-up makes contacts/deformation inspectable; actual Lane War footage proves gameplay. Bind trace/active clip/time and media to the same execution; use #394 and existing review owners.\n\n## Technology decision\nStart with the current AnimBP/profile baseline plus scripted IK retargeting and targeted IK/contact repair. Compare Pose Search/Motion Matching only if eligible clip coverage and measured transition quality justify it. Motion Warping may align a bounded authored action to a declared target; it cannot replace server movement/hit authority. Use Rewind Debugger/Animation Insights to explain bad transitions. Do not adopt a new movement stack, stock example roster or giant motion library merely because an engine demo uses it.\n\nPrimary sources:\n- https://dev.epicgames.com/documentation/unreal-engine/motion-matching-in-unreal-engine\n- https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-warping-in-unreal-engine\n- https://dev.epicgames.com/documentation/unreal-engine/animation-debugging-and-optimization-in-unreal-engine\n\nDone means independently readable integrated gameplay motion, not a larger list of animation assets.\n\r\n",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBkUfw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main source boundary at 5b06dcd589c3: UP3HumanoidAvatarComponent's SingleNode fallback selects only airborne via CharacterMovement::IsFalling(), locomotion via horizontal speed, otherwise idle; ApplyAnimationProfile switches to AnimBP when a complete fallback trio is not used. There is no fallback-level ski/grapple/cast/defeat state discrimination. Therefore the #2610 gameplay-state milestone should be proven/bound through the existing authored AnimBP/profile + feature-owned gameplay state path (or a demonstrated missing interface), not by extending the generic fallback into a second gameplay-state machine. No runtime/animation PASS claimed.",
+      "createdAt": "2026-09-07T13:55:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5571679359",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBnlfw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main read at 5b06dcd589c3: the feature-owned SingleNode fallback in P3HumanoidAvatarComponent only selects idle, locomotion, and airborne clips; the shared profile also exposes only those fallbacks plus PrimaryMelee presentation. No ski/grapple/cast/defeat state-specific authored binding is currently present in that fallback path. I did not widen P3AnimationProfile without the issue-required authored roster/state evidence. Next implementation should start from exact selected Tiny3D clip identities and bind one real gameplay state at the feature owner, then prove the transition in-match.",
+      "createdAt": "2026-09-07T13:59:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5571732863",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBoTeg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Additional exact-main asset-authoring evidence: Raincoat currently binds ^Gssetidle_weight for idle, but reuses the same Tiny3D ^Gssethop sequence for locomotion, airborne, and PrimaryMelee in Content/Python/author_issue956_raincoat_avatar.py. That means Raincoat cannot presently demonstrate distinct locomotion/air/action coverage required here. Treat the missing authored motions as a Tiny3D/content input gap; do not promote the hop placeholder into proof for those states.",
+      "createdAt": "2026-09-07T14:00:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5571744634",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCF0lw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main content-owner evidence: `Content/Python/build_character_retargets.py` already defines an 8-clip mannequin locomotion core (idle, four walk directions, jump, fall, land) and includes Sealdiver, but its own measured chain inventory says Sealdiver/Panda/TitanRobot expose only 4 limb chains and therefore retain a rigid torso; the script explicitly says re-rigging those older meshes through the current Blender stage is required to close that gap. This is reusable locomotion input, not #2610 acceptance, and it still does not supply ski/grapple/cast/hit/defeat coverage. Raincoat remains a separate Tiny3D authored-motion gap.",
+      "createdAt": "2026-09-07T14:38:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572228247",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCsg6A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main implementation baseline at 3c312eff5731 for the required state matrix: the shared `UP3AnimationProfile` exposes authored AnimBP plus idle/locomotion/airborne SingleNode fallbacks and cosmetic primary melee only. `UP3HumanoidAvatarComponent::TickSingleNodeFallback` selects only idle vs velocity locomotion vs falling; it has no ski, grapple, cast, hit, defeat, respawn, turn/start/stop, or swap state input. Therefore fallback profiles cannot satisfy #2610 beyond idle/run/airborne. Those states must stay in the authored AnimBP/profile + feature-state path; adding a second timer-driven fallback state machine would violate the issue boundary. Current selected profile assets present in-tree include Fennec, Raincoat, and Sealdiver under `Content/V2/Animation/GPT5/`; exact clip/source/package identities and actual state coverage still need asset/runtime inspection before any coverage claim. This is a source-derived baseline only, not runtime or visual acceptance.",
+      "createdAt": "2026-09-07T15:33:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572862184",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCt03Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Narrow asset inspection on the same 3c312eff5731 baseline resolves the profile split. Fennec profile points to `/Game/Generated/fennec_playable/ABP_Fennec` + its generated skeletal mesh; Sealdiver points to `/Game/Playable/Sealdiver/ABP_Sealdiver` + `sealdiver_legfix`. Raincoat is the fallback case: its profile references the Tiny3D package `33556cd91070d2797ab5d2570367c166f307a5a56d70abe42d3d2925934d0075` and explicitly carries Idle/Locomotion/Airborne fallback fields plus PrimaryMelee, rather than a body-specific authored AnimBP. Combined with the component source, Raincoat is therefore the concrete selected-roster gap for ski/grapple/cast/hit/defeat/respawn coverage; Fennec/Sealdiver coverage must be inspected in their authored AnimBPs instead of expanding the generic fallback. Profile LFS objects were hydrated and inspected; no rendered/runtime coverage is claimed.",
+      "createdAt": "2026-09-07T15:35:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572883677",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCuNMA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Authored-AnimBP inspection narrows the other two selected profiles. Hydrated exact LFS objects: Fennec `ABP_Fennec` references Idle/Walk/Run plus Jump_Start/Jump_Loop_Fall/Jump_Land (and Sit), but no ski/grapple/cast/hit/defeat clips were found in the package reference table. Sealdiver `ABP_Sealdiver` references only `GameRig_idle` and `GameRig_walk_loop`; no run/air/action/hit/defeat references were found. So the selected three are all materially incomplete for #2610: Raincoat is generic idle/locomotion/airborne+melee fallback; Fennec has authored locomotion+jump; Sealdiver has authored idle/walk. This is package-reference evidence, not proof that every graph path is reachable or visually correct; runtime/pixel review remains required.",
+      "createdAt": "2026-09-07T15:36:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572889904",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCvRKw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "State/transition matrix baseline for the currently selected three profiles (package-reference/source evidence, `3c312eff5731`; R=required by #2610, A=asset reference present, M=missing/not evidenced):\n\n| State | Fennec | Sealdiver | Raincoat |\n|---|---|---|---|\n| idle | R/A | R/A | R/A (`idle_weight`) |\n| walk/run locomotion | R/A walk+run | R/A walk only; run M | R/A generic locomotion (`hop`) |\n| jump/air/land | R/A start+fall+land | R/M | R/A generic airborne (`settle`/profile fallback) |\n| ski | R/M | R/M | R/M |\n| grapple/air/landing-specific | R/M | R/M | R/M |\n| action/cast | R/M | R/M | R/M (PrimaryMelee is cosmetic, not cast coverage) |\n| hit reaction | R/M | R/M | R/M |\n| defeat | R/M | R/M | R/M |\n| respawn transition | R/M | R/M | R/M |\n| character swap transition/cleanup | R/M | R/M | R/M |\n\nTurn/start/stop authored coverage is not established by these package references and remains M pending graph/runtime inspection. This matrix deliberately does not infer state reachability from asset names; normal-input runtime + pixel proof remains the acceptance boundary.",
+      "createdAt": "2026-09-07T15:37:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572907307",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCvYAA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Matrix correction: for Raincoat, the profile proves that an AirborneFallbackAnimation reference is populated and the selected Tiny3D package contains hop/settle/head_turn/idle_weight, but package-string inspection alone does not prove which named clip is bound to the airborne field. Treat Raincoat jump/air as R/A generic airborne with exact clip identity still unresolved; do not infer settle specifically.",
+      "createdAt": "2026-09-07T15:38:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572909056",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTC0MNA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Roster-selection provenance for the matrix is current product code, not just profile-file presence: AP3V2PlayerController::ServerCycleCharacter cycles PD_V2_Sealdiver -> PD_V2_Fennec -> PD_V2_Raincoat -> Sealdiver, the HUD advertises RAINCOAT > SEALDIVER > FENNEC, and the session menu tells normal players to try all three. Thus the missing state coverage identified above is on the actual user-facing milestone roster.",
+      "createdAt": "2026-09-07T15:45:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2610#issuecomment-5572987956",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [],
+  "milestone": null,
+  "number": 2610,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Complete generated-roster animation through real Lane War states",
+  "updatedAt": "2026-09-07T15:45:43Z"
+}

@@ -1,0 +1,273 @@
+{
+  "body": "## 2026-09-07 movement feel and transition acceptance\r\nReuse current ski/grapple owners and #2461 proof work; consume #2606 HUD work before overlapping it.\r\n\r\nProve a normal-player route where downhill momentum creates a combat/rotation advantage and uphill/friction/landing respond predictably. Grapple valid/invalid target, release/cancel, obstruction, moving/changed terrain and attack-before/after transitions must leave input and player state coherent. Camera collision/view changes must not hide essential combat or grant an untested view-dependent movement advantage.\r\n\r\n#2610 owns animation matching the real velocity/ski/grapple/air/landing state. Do not replace skiing with a dash or solve body pose by changing movement authority. Show server/remote-client behavior under #2442's recorded emulation profile and separate expected prediction correction from gameplay-state divergence.\r\n\r\nUse a fixed route and comparable input sequence for before/after feel tuning. Record observed speed/trajectory, lost-control moments and player-visible results; no new movement framework or engine migration without a measured failing requirement.\r\n\r\n---\r\n\r\nParent: #803 / #941.\r\n\r\nMake high-mobility traversal matter inside the real Lane War. Reuse the existing movement, grapple, camera and input owners; this is gameplay integration/tuning, not a new movement system.\r\n\r\nAcceptance:\r\n- momentum skiing/surfing rewards slope and route choice instead of behaving like ordinary running;\r\n- grapple can enter, escape or reposition during live lane combat;\r\n- at least one useful route combines lane terrain/verticality with skiing and grapple;\r\n- movement remains controllable and readable in both first-person and third-person;\r\n- abilities/combat can be used before/after traversal without losing player state or input;\r\n- tune/fix concrete feel problems found in play rather than adding generic movement infrastructure.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7AGUw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Bounded current-main source pass found the basic traversal/readability owners already present: ski projects gravity onto floor slope, lowers friction/braking, raises walk cap, preserves/clamps horizontal momentum, and HUD already exposes live horizontal speed plus ski ACTIVE state; grapple adds current velocity to pull impulse and launches through the normal ability path. No speculative tuning change made without play evidence. Next useful #2439 step is an actual normal Lane War route/feel pass when runtime capacity is available.",
+      "createdAt": "2026-09-07T03:55:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5564794451",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7CCiQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "One concrete proof gap from the same audit is now tracked as #2461: existing integrated P3CombatRuntimeAcceptance proves DASH=1 and GRAPPLE=1 before combat, but P3Testing has no SKI runtime stage/receipt. #2461 is intentionally an extension of that existing integrated acceptance, not a new harness.",
+      "createdAt": "2026-09-07T04:00:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5564826249",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7D80Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Concrete current-product defect from the existing two-client runtime, promoted here because the traversal product paths are byte-unchanged from failed source `589784d64012d597d79bd8144abe6e6253549e8c` to current main `925b61137d03c620e4d784bc9faa6f3125f6e009`:\n\n`P3_RUNTIME_COMBAT_ACCEPTANCE RESULT=FAIL STAGE=GRAPPLE_MOTION PROGRESS=0.0 SPEED_TOWARD_ANCHOR=0.0`\n\nThis is stronger than a missing proof stage: grapple activation was reached, but the authored player pawn produced zero measurable motion toward the anchor. The updated #1068 verification head now deliberately decouples its respawn-transaction oracle from authored-pawn grapple motion; that is fine for #1068 scope but must not be interpreted as fixing or clearing this #2439 gameplay failure.\n\nNo P3Traversal / P3V2PlayerController traversal code changed between that failed runtime source and current main, so the failure remains actionable on current product code. Next work here should diagnose/fix the real activation -> anchor -> movement path, then rerun the existing integrated runtime. #2461's SKI proof addition is separate and should not replace this grapple-motion defect.",
+      "createdAt": "2026-09-07T04:04:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5564857553",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7PRIg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen bounded diagnosis on current main 0c8cd6745: the actionable authored-pawn failure remains `GRAPPLE_MOTION PROGRESS=0.0 SPEED_TOWARD_ANCHOR=0.0`. Grapple reaches its cooldown tag, so trace/activation passes and execution reaches `LaunchCharacter`; PullSpeed/VerticalLift defaults are 1600/220. Dash uses the same ServerInitiated + authority `LaunchCharacter` pattern and passes the same remote-client runtime stage. No P3 movement component writes zero velocity after grapple, and the replicated tether actor is presentation-only. I am not replacing movement semantics speculatively. The next discriminating runtime should capture computed grapple launch velocity + CharacterMovement mode/pending/actual velocity immediately before and after the launch tick on the authored remote pawn, then fix the first proven reset/replication boundary.",
+      "createdAt": "2026-09-07T04:29:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565042978",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7R-9g",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Proof-owner correction landed via #2474: the prior authored-pawn zero-progress result used the other pawn as a motion oracle even though default Pawn collision ignores `ECC_Visibility`. The integrated acceptance now uses a deterministic visibility-only anchor and again requires authored-pawn grapple motion. No product traversal change was needed from that historical result; native/live Lane War feel proof remains the next #2439 gate.",
+      "createdAt": "2026-09-07T04:35:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565087478",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7SiEQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Pine diagnostic handoff: #2479 at 878f2df74 adds no movement semantic change. It records the authority grapple requested launch vector + velocity/movement mode before/immediately after LaunchCharacter, and the existing integrated acceptance records first post-launch-tick velocity/mode. Focused grapple contract 4/4 PASS + diff-check. Next integrated authored-pawn failure should now distinguish bad launch computation from CharacterMovement/replication reset; fix the first proven boundary.",
+      "createdAt": "2026-09-07T04:36:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565096465",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7UqEg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up after current-main composition: main gained the stronger visibility-anchor authored-pawn oracle before #2479 landed. Pine rebased cleanly onto 5b6de3f4960e and preserved that oracle; #2479 is now 8f0116d6a with only launch/post-tick telemetry on top. Focused grapple contracts are 5/5 PASS and diff-check remains clean. Hosted gate is running; no native/runtime claim.",
+      "createdAt": "2026-09-07T04:41:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565131282",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7gESg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current integration exposed a concrete proof-owner link regression after #2482: P3Testing references FKey::IsValid/GetDisplayName from the new ski telemetry but did not link InputCore, producing LNK2019/LNK1120 after P3Gameplay compiled successfully. #2484 adds only the missing InputCore dependency; exact-head native P3Testing build is admitted/in flight. This repairs the integrated traversal proof path without changing movement semantics.",
+      "createdAt": "2026-09-07T05:07:10Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565318218",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7gjIQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2484 merged as 9c62e351e: P3Testing now links InputCore for the integrated ski/grapple key telemetry. Hosted contract gate passed. The exact pre-merge head native P3Testing build remains in flight; no native PASS is claimed yet.",
+      "createdAt": "2026-09-07T05:08:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565326113",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABS7itMw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2484 native closure: exact head `8409dfb89` P3Testing build now passes 61 actions / UBT Result: Succeeded, clearing the FKey link regression. A bounded next runtime-prep attempt then failed closed because current main ProductionWorld LFS OID `7f9b7770...` is not in the local cache and remote LFS fetch is disabled; no runtime launch/PASS was claimed.",
+      "createdAt": "2026-09-07T05:12:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5565361459",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTAiTyw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen current-main slice: #2558 merged as d008b5ac9. UP3TraversalSkiComponent now replicates authoritative ski-active state so remote first/third-person presentation can observe the same traversal state; focused ski contracts 5/5, hosted contract gate PASS, exact P3Traversal native hot build PASS. Follow-up #2559 fixes replicated release semantics with OnRep apply/restore so simulated proxies cannot retain ski friction/braking after bSkiActive returns false; changed-head ski cohort 8/8 and exact P3Traversal native build PASS, hosted integration still pending. Runtime content condition also changed: canonical narrow hydration of ProductionWorld OID 7f9b7770... is now a local-cache PASS (0 remote fetches), clearing the prior exact-map blocker. No integrated/rendered traversal PASS claimed yet; existing SKI->DASH->GRAPPLE->combat acceptance remains the correct next proof once the supported runtime surface has its required editor binaries/content.",
+      "createdAt": "2026-09-07T12:25:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5570597835",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTAm1Ig",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up landed: #2559 merged as 7673810bd and #2566 merged as 6d83b90c9. Remote ski engage/release now preserves correct movement tuning and opposing players get a camera-facing in-world SKI state cue while the owner continues to use HUD feedback. Exact-head #2566 evidence: ski cohort 9/9 PASS, diff-check PASS, hosted contract gate PASS, P3Traversal native hot build PASS. Final runtime-content inventory remains the proof blocker: 524 canonical human-play LFS files, 63 cached / 461 missing, including 0/119 ProductionWorld external actor cells and 0/3 V2 animation packages. No remote-fetch retry or rendered PASS claimed.",
+      "createdAt": "2026-09-07T12:31:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5570671906",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTA2QlQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Existing #2592 is now merged as 64dfe179c9f6 after exact-head contract gate SUCCESS and integration-cohort/d741ba71d2ad SUCCESS. The live Lane War grapple-ready HUD now explicitly teaches the ski-to-grapple momentum combo. No runtime/rendered PASS claimed.",
+      "createdAt": "2026-09-07T12:53:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5570924693",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTA3kDg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Aspen update: PR #2591 landed replicated camera-facing GRAPPLE anchor labels (focused traversal/presentation 9/9 + hosted gate). PR #2592 also landed live HUD guidance to ski then grapple to carry momentum (focused HUD/grapple 53/53 + integration cohort). PR #2594 now keeps simulated ski proxies replication/server-driven instead of locally integrating slope velocity or clearing replicated ski state; exact head 7744e1f22, focused ski cohort 10/10, hosted gate running. PR #2595 teaches the same ski->grapple momentum route in the pre-match friend goal; exact head a7c3afbb6, friend/HUD cohort 65/65, hosted gate running.",
+      "createdAt": "2026-09-07T12:54:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5570946062",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTA5fLw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up: #2594 and #2595 both passed hosted gates and merged (e24b5ccb0 / c7ebaed9e). #2594 final exact head 7744e1f22 keeps remote ski proxies replication-driven for both state and slope velocity; #2595 lands the pre-match ski->grapple route instruction. Integrated normal friend-play/rendered acceptance remains the parent gate.",
+      "createdAt": "2026-09-07T12:57:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5570977583",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBQxgQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Manual convergence: #2607 merged as `df791ad9e`. The normal friend-play MOVEMENT CHECK now exercises the actual #2439 acceptance route as one sequence: hold ski downhill for momentum -> carry that momentum into grapple on Lane War terrain/verticality -> repeat in FIRST PERSON and THIRD PERSON -> verify the other PC sees the same traversal movement with readable remote SKI/GRAPPLE state. Focused human-launch contracts are 7/7 PASS, PowerShell parse PASS, and diff-check PASS.\n\nNo runtime/rendered PASS claimed. Exact-main Windows play still cannot start because the reused clean current-main worktree lacks `Binaries/Win64/UnrealEditor-p3.dll`. Full Editor build is disallowed by the current KONE workload policy, and the canonical hot `p3` module build is presently unavailable because the shared build slot remains occupied by a foreign GitHub Actions P3Combat UBT build. That condition was not retried/polled further; the next runtime attempt should occur only after build capacity materially changes.",
+      "createdAt": "2026-09-07T13:28:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5571359105",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTBSgcg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#2606 publishes active-ski HUD feedback that uses the existing movement read model: while skiing, players see live horizontal speed, explicit downhill-acceleration guidance, and the release-for-normal-traction action; speed-syncing is explicit instead of showing a fake value. Original focused head: HUD-control contracts 46/46 PASS + diff-check; refreshed head a3ae0ae88fd545c1a3d8c957be30b5ee64fddf8a has unchanged scoped file content and hosted contract gate SUCCESS. This does not claim the remaining rendered/integrated ski->grapple route PASS.",
+      "createdAt": "2026-09-07T13:30:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/2439#issuecomment-5571387506",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [
+    {
+      "id": "LA_kwDOT0JNpc8AAAACvsYdWg",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    }
+  ],
+  "milestone": null,
+  "number": 2439,
+  "state": "OPEN",
+  "title": "[GAMEPLAY] Make skiing and grapple routes a combat mechanic",
+  "updatedAt": "2026-09-07T13:42:28Z"
+}

@@ -33,15 +33,15 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
 
     def test_worker_contract_stays_small_and_non_blocking(self):
         text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
-        self.assertIn("Exactly five canonical recurring workers stay enabled", text)
+        self.assertIn("Exactly five canonical recurring workers per ChatGPT subscription partition stay enabled", text)
 
         self.assertIn("The scheduler provides recurrence only", text)
-        self.assertIn("Every recurring worker is also a bounded peer-recovery orchestrator", text)
+        self.assertIn("Every recurring worker is a bounded sibling-recovery participant", text)
         self.assertIn("must never administer itself", text)
-        self.assertIn("re-enable that sibling once with `is_enabled=true` only", text)
-        self.assertIn("Do not require a particular failure signature before restoring the requested 5/5 enabled fleet", text)
+        self.assertIn("issue at most one targeted idempotent `is_enabled=true` write", text)
+        self.assertIn("Older launcher wording that asks for a full scheduler/report pre-startup-failure signature is satisfied by this local missed-cadence/start-evidence rule", text)
         self.assertIn("An unexpected disabled canonical worker is degradation to repair", text)
-        self.assertIn("does not create a sixth supervisor slot", text)
+        self.assertIn("does not authorize a sixth worker in either partition", text)
         self.assertIn("About 24 minutes remains the timed utilization target", text)
         self.assertIn("existing >=80% completion guard", text)
         self.assertIn("Utilization never requires creating a new work identity", text)

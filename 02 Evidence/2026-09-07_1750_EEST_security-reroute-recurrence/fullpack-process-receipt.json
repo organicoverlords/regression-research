@@ -1,0 +1,31 @@
+﻿{
+  "version": 1,
+  "process_id": "fce55e17-0afb-4160-889f-d6e6030ae1ac",
+  "caller_id": "caller_09918a517358",
+  "audit_schema": "process-output-evidence.v1",
+  "evidence_completeness": "complete",
+  "execution_outcome": "success",
+  "exit_code": 0,
+  "started_at": "2026-09-07T14:49:59.476Z",
+  "finished_at": "2026-09-07T14:50:35.910Z",
+  "command_summary": "Immutable Tiny3D checkpoint 8a5d776: compile_avian(Hummingbird.fbx) into disposable workspace, verify_portable_pack, then print source/artifact hashes, physics schema and flap QA.",
+  "command": "$snap=Join-Path $env:TEMP 'tiny3d-avian-review-8a5d776'; $ws=Join-Path $env:TEMP 'tiny3d-avian-fullpack-hummingbird-8a5d776'; if(Test-Path $ws){Remove-Item -Recurse -Force $ws}; New-Item -ItemType Directory -Force -Path $ws|Out-Null; $env:WS=$ws; [Python here-doc calls tiny3d.avian.compile_avian + verify_portable_pack on C:\\Users\\Lauri\\Documents\\Unreal Projects\\FlightLab\\Import\\Hummingbird.fbx] | uv run --project $snap --frozen --with-editable $snap --python 3.11 python -",
+  "stdout_key_results": {
+    "asset_id": "94c6ef8e1e43d37414aeb6e262687f44d7c94d9857679a0691a832c39d9a707f",
+    "pack_accepted": true,
+    "pack_errors": [],
+    "profile": "avian",
+    "source_sha256": "94c6ef8e1e43d37414aeb6e262687f44d7c94d9857679a0691a832c39d9a707f",
+    "glb_sha256": "453eb1e35887dd09e661c03d727a494dcba13db00b9703f351dc816ed4658dd3",
+    "fbx_sha256": "5b113ed30fa6442fd5a235a5fee0498d4941e5e22d277531e14d4cb9102dcd57",
+    "physics_schema": "tinylab.avian-physics-preparation.v1",
+    "flap": {
+      "collapsed_edge_count": 0,
+      "max_edge_length_ratio": 3.166520646785235,
+      "min_edge_length_ratio": 0.13179109485467247,
+      "stretched_edge_count": 0,
+      "tip_z_range_over_wingspan": 0.2375522323674672
+    }
+  },
+  "note": "This receipt was consumed after the user interruption solely to close the already-running process and is kept separate from the pre-message poll count."
+}

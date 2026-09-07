@@ -52,6 +52,24 @@ class RepoTimelineTests(unittest.TestCase):
             self.assertEqual(events[0]["repo_state"], "ALL_BRANCHES")
             self.assertNotEqual(events[0]["sha"], old)
 
+    def test_git_commit_events_index_body_and_changed_paths(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = self.make_repo(Path(d))
+            (repo / "rigging" / "avian.py").parent.mkdir(parents=True)
+            (repo / "rigging" / "avian.py").write_text("wing", encoding="utf-8")
+            (repo / "tests").mkdir()
+            (repo / "tests" / "test_avian.py").write_text("proof", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+            subprocess.run([
+                "git", "-C", str(repo), "commit", "-q", "-m", "rig avian mesh",
+                "-m", "Hummingbird wing deformation exposed cross-limb weight bleed; preserve semantic exclusion."
+            ], check=True)
+            event = git_commit_events(RepoSpec("lowvram", repo), limit=1)[0]
+            self.assertIn("cross-limb weight bleed", event["body"])
+            self.assertEqual(event["changed_paths"], ["rigging/avian.py", "tests/test_avian.py"])
+            self.assertIn("hummingbird wing deformation", event["_search_text"].casefold())
+            self.assertIn("rigging/avian.py", event["_search_text"])
+
     def test_all_branch_history_preserves_reachable_commits_without_main_privilege(self):
         with tempfile.TemporaryDirectory() as d:
             repo = self.make_repo(Path(d))

@@ -1,0 +1,506 @@
+{
+  "body": "## 2026-09-07 integrated acceptance refinement\r\nExecution plan lives in #803; no duplicate implementation scope here.\r\n\r\nUse one compatible revision, executable/build, map/Experience, settings and selected content set. Preserve the existing base/Core/shop selections until a better qualified replacement is proven. Stock Fox is excluded; Tiny3D owns generated rigging.\r\n\r\nRequired normal-user sequence:\r\n1. Start solo versus AI; separately host/join LAN with two real player perspectives. Say exactly which routes were tested; local two-instance proof does not establish Internet play.\r\n2. Find the lane, opponent/Core, shop, controls and first useful action from normal UI without developer commands.\r\n3. Fight with visible character/spell state; ski/grapple a useful route in both first-/third-person.\r\n4. Edit terrain, place a defense and destroy/reopen it; observe the same collision/navigation result on both sides.\r\n5. Earn and spend gold; see the changed lane pressure/upgrade effect.\r\n6. Defeat/respawn and character swap preserve the declared state; Core defeat gives correct replicated result.\r\n7. Rematch/restart/return through the existing UI; no leaked input, actors, timers, abilities, gold or old result state.\r\n\r\nAttach a short chaptered normal-play sequence plus exact proof/trace references. Diagnostic close-ups supplement it for contact/deformation; they do not substitute for play. Independent review must inspect pixels, not only receipt fields. Retain raw evidence and exact content/package dependencies so replay survives relocation/link expiry.\r\n\r\nReport incomplete steps honestly. #2610 owns missing full animation coverage; #2611 owns the measured combined workload. No new proof harness is requested.\r\n\r\n---\r\n\r\nParent convergence issue: #803  ## What the user actually wants  A single playable V2 match that feels like a game, not a collection of disconnected systems.  ### Core match - **2 opposing bases**. - **1 clear road/lane** connecting them. - **Creeps spawn continuously** and travel down that road toward the enemy base/core. - Killing/playing around creeps and elapsed match play produces **gold**. - Gold can be spent on meaningful match actions/upgrades. - Playable as **1v1 versus AI** or **multiplayer 1v1**.  ### Terrain and routing - **Earthworks** must work during the match. - Players can raise/lower terrain, dig trenches, make ramps/berms/high ground, and otherwise reshape the battlefield. - Terrain edits must affect **real traversal**. - Terrain edits must also affect **creep routing**: creeps should reroute around blocked paths or follow newly viable paths instead of ignoring terrain changes.  ### Building and destruction - Players can **build defenses/walls/assets** around the base and lane. - These structures are **destructible**. - Destruction must visibly reopen or change routes. - Building + destruction + earthworks must all coexist in the same match and influence players/creeps rather than being separate demos.  ### Player movement and characters - **Tribes-style skiing/momentum** is usable in the real match. - **Grappling hook** works in the real match. - **Character swapping** works from a usable roster rather than a placeholder pawn. - Character swaps preserve a usable gameplay experience with correct scale/orientation/animation.  ### Combat and spells - The player has **skills/spells** in the match. - Spells must be visibly readable and functional, including the **meteor** path. - Spells interact with the actual battlefield/enemies rather than only appearing in a proof/demo path.  ## Required integrated experience  The intended result is:  > Spawn into a 1v1 match, choose/swap a character, move with normal controls + skiing + grapple, fight using spells, earn gold from lane play, build and destroy defenses, reshape the terrain with earthworks, and watch creeps reroute through the changed battlefield while two bases fight across one clear road/lane.  This should work in either **player vs AI** or **player vs player** form.  ## Acceptance  Do not call this complete because individual source systems, unit tests, or isolated PIE probes pass. The normal user launch must visibly prove on one compatible head:  1. Two visible opposing bases and one readable connecting road/lane. 2. Creeps spawn, move down the lane, fight, and target the opposing base/core. 3. Gold increases from creep/match play and is spendable. 4. 1v1 works against AI and multiplayer 1v1 remains supported. 5. Earthworks visibly changes terrain during the match. 6. Creeps reroute when terrain/building changes block or alter their route. 7. Building works and placed walls/assets are destructible. 8. Destruction visibly changes traversal/routing again. 9. Skiing is real momentum/slope movement, not a short dash. 10. Grappling hook is visibly usable in the real match. 11. Character swapping works with correctly scaled/oriented/animated characters. 12. Spells/skills work, including meteor, with visible cast/impact/result. 13. All of the above is tested through the same ordinary human-facing launch path, not disconnected developer-only demos.  ## Non-goal  Do not rebuild duplicate systems that already exist. Converge the existing V2/Tiny3D/gameplay work into this one playable result and fix missing runtime bindings/assets/presentation where they prevent the experience above. \r\n### Base composition must use the user's real assets\r\n- Each side must have a visibly composed **base area**, not a floating/default pawn in an empty map.\r\n- The **Core must use the user's intended Core asset(s)** already selected for V2; primitive placeholders or generic dummy meshes do not count.\r\n- Each base must visibly include the previously required **house/base structure, surrounding wall/defence pieces, shop, Core, and readable base dressing**.\r\n- The shop must be a real visible/interactable part of the base/economy loop, not only a hidden actor or code path.\r\n- The road/lane must physically and visually connect the two completed bases.\r\n- Existing user assets already admitted through P3/Tiny3D should be used where they are the intended product assets. Do not replace them with temporary cubes, mannequins, untextured stand-ins, or invisible actors for acceptance.\r\n- Scale, orientation, materials/textures and placement must be visibly correct in the normal launch. A giant sideways character, floating pawn, missing material, or off-map asset is a failure.",
+  "comments": [
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSqgWLw",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Independent validation of clean unpublished branch `chatgpt/issue941-convergence-20260904` at `98e2957e`: focused #941 contracts passed for human launch, camera/character controls, production character, road routing, base composition, core binding/presentation, skiing, jump, grapple/dash traversal, economy/gold HUD, creep routing/readability, flying enemies, match result/melee/defeat presentation, construction/destruction/paint, plus the Earthworks performance-wrapper regression (2/2); `git diff --check origin/main...HEAD` also passed. The branch carries four product commits plus local `e9c7504f` queue-wait guard work; GitHub `main` advanced from `52c58bc2` to `cc7d1933` via #961, which supersedes that build-only lane, so convergence should preserve the four product commits and drop/reconcile `e9c7504f`. Publication failed before ref upload because this machine's Git/LFS credential route resolves through unavailable `127.0.0.1:1`; exactly two LFS objects are pending (Fennec and Sealdiver Experience assets). I did not retry or change credential/network configuration. No PR exists yet; heavy integrated runtime proof remains pending while another RenderOffscreen Unreal process owns the lane.",
+      "createdAt": "2026-09-04T23:10:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5547497007",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSq7waQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Cross-agent cache unblock for the current human-launch path: I audited head `5bb3df57e` without mutating this claimed worktree. `Get-P3HumanLaunchTrackedContent` resolves 436 player-facing files. All 436 are currently pointers in this lane; 376 already had local LFS objects and 60 were missing (268.1 MiB). Every one of those 60 OIDs had an exact hydrated counterpart in the primary P3 checkout. I seeded those 60 objects into the shared LFS cache with size + SHA-256 verification only; no remote fetch and no checkout/mutation in this worktree.\n\nReceipt: `P3_941_CACHE_SEED=PASS seeded=60 seeded_bytes=281130428 required_missing_cache=0`.\n\nSo the existing local-only hydration in `launch_lane_war_human_1v1.ps1` should now be able to materialize its full bounded required set from cache instead of failing on those 60 objects.",
+      "createdAt": "2026-09-05T00:13:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5547946089",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSrAAvg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "PR #969 is now published at exact head `5bb3df57e`. Canonical two-object LFS publication PASS with persistent guards unchanged; changed Python contract suites PASS; native `P3Gameplay` hot-source build PASS (`Result: Succeeded`, 737.27s). The issue remains open for ordinary human-facing integrated runtime acceptance.",
+      "createdAt": "2026-09-05T00:22:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548015806",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSrHEYA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Convergence update: #969 merged as `588b81beba0c019cbf693c967ab0d6f0dc7746ee` after hosted contract gate PASS on exact head `fbb610b5e`. During convergence, the first gate failure was reproduced and fixed by removing controller-side explicit `UnPossess()` from character cycling; the full CI-selected changed-area set then passed 25/25. Two stale Lane War source contracts were also updated to the current robust creep reward attribution and authored Weathered Rune Bridge road behavior; integrated product contract sets passed 30/30 and 29/29 locally. Duplicate implementation PR #967 was closed as superseded. #941 remains open for ordinary human-facing integrated runtime/visual acceptance.",
+      "createdAt": "2026-09-05T00:40:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548131424",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSrOIXQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Maple convergence: two prerequisites that previously obscured ordinary playable acceptance are now landed/closed. #963 runtime pointer admission is fixed by #969, and #973 persistent replicated hero health is fixed by #974. Current main therefore has the bounded hydrated human launch, solo AI/melee/reward convergence, and authoritative hero HP state. Keep #941 open for the actual ordinary integrated human-facing runtime/visual acceptance; do not reopen those prerequisite implementation slices.",
+      "createdAt": "2026-09-05T00:59:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548247133",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSrRb5A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Fresh V2 combat review found the next concrete player-visible gap after authoritative hero health: lethal `UP3CombatHealthComponent` currently exposes defeated state but does not drive a V2 combat-owned defeat/respawn transaction. Tracked as #982; it deliberately avoids the active health-file mutation scope until that lane lands.",
+      "createdAt": "2026-09-05T01:08:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548301284",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSrTqgQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Combat convergence advanced: #980 landed replicated hero HP/defeated state in the first/third-person combat HUD (`a979f38b`), and #981 landed normal Unreal point-damage routing into authoritative combat health after hosted gate success. Next combat seam is #982 authoritative defeat -> respawn.",
+      "createdAt": "2026-09-05T01:14:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548337793",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSrjvWA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Coordination checkpoint (not ownership authority): the canonical coordinator now has `p3:worktree:user-v2-test` held by `ChatGPT:p3-swarm-coordinator-20260905` for the final human acceptance lane. I will not mutate the exact files currently owned by other actors.\n\nHeavy-work policy for this lane: builds go through the existing global single-flight build slot; no duplicate P3 render/runtime is launched on top of another heavy P3 runtime; render-offscreen proofs use the merged #996 receipt-pinned pressure guard. The 04:53 Showroom termination was verified intentional pressure relief against the positively owned proof, not an unexplained crash. The `current-main-runtime-owner` snapshot now contains the #996 pressure-guard code. Final Lane War acceptance continues only after a live process/pressure check and without disturbing foreign exact claims.",
+      "createdAt": "2026-09-05T02:01:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548601176",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSr6fgg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Taking a disjoint player-visible #941 slice: replace the Lane War shop's Engine BasicShape cylinder placeholder with an existing Building15 visual-PASS production asset through config-owned presentation. Scope is only the shop actor presentation binding, normal human-launch hydration for that exact asset, and focused economy regression coverage. No TowerDefenseFeatureActor/GameMode/input mutation and no heavy Unreal run while other lanes own it.",
+      "createdAt": "2026-09-05T03:14:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548973954",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSr6qAA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "incoming change resolution: p3:scripts/launch_lane_war_human_1v1.ps1 is currently claimed by ChatGPT-Sol-803-creep-hydration-20260905. I initially intended to add one shop-asset hydration path there; no mutation occurred. I am avoiding that collision entirely by binding the shop to the already-hydrated Building15 visual-PASS WeatheredWoodWallBrace family instead, so the incoming launch-script change is superseded and requires no action from the claimant.",
+      "createdAt": "2026-09-05T03:14:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548976640",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSr6uJQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "2026-09-05 acceptance audit: the existing `P3_RUNTIME_LANEWAR_ACCEPTANCE RESULT=PASS` / `LANEWAR_LISTEN_FULL_MATCH_ACCEPTANCE=PASS` is **not sufficient to close #941**. Its current final marker proves only: two players/listen host+client, teams, cores, dash, grapple, both-side respawn, player-to-core faction damage, creep spawn/attack, core defeat/winner/match-over, and creep spawn stop.\n\nIt does **not** prove the user-facing requirements that caused the failed self-test: authored base/house/walls/shop/road presentation, qualified animated creeps, Tribes skiing, Earthworks terrain edit + creep reroute, construction + destructible walls/assets, spells/meteor, visible environment/grass/time-of-day, or character presentation/swap quality. Keep this runtime as a combat/network gate only. #941 remains open until those are visibly exercised through the ordinary product launch.",
+      "createdAt": "2026-09-05T03:14:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5548977701",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSr9TLQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Merged #1023: Lane War shops no longer use the Engine BasicShape cylinder placeholder. Presentation now resolves a Config-owned production Building15 asset already included in normal human-launch hydration and fails visibly/logged instead of silently substituting a primitive. Final exact-head source/economy/human-launch/base contracts 10/10 PASS; hosted gate SUCCESS. Rendered shop scale/readability remains part of the ordinary #941 human acceptance and is not claimed here.",
+      "createdAt": "2026-09-05T03:23:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549019949",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsDDuQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Published the disjoint friend-playability HUD slice as https://github.com/organicoverlords/p3/pull/1035 at 7ae16fced. The normal Lane War HUD now exposes only controller-guaranteed bindings: Space jump, Shift ski, Tab character cycle, V perspective, mouse-wheel zoom. Related source contracts: 14/14 PASS; diff-check PASS. No input/traversal semantics changed and no heavy/runtime proof claimed.",
+      "createdAt": "2026-09-05T03:42:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549114297",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsDqDA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Incoming human-launch hydration gap for the active scripts/launch_lane_war_human_1v1.ps1 owner; no mutation by this actor because ChatGPT:issue941-creep-hydration-20260905 currently claims that exact file. Current main's production-world builder places TREE_BROADLEAF from Content/Tiny3D/245a1e11... plus Showroom ",
+      "createdAt": "2026-09-05T03:44:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549124108",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsMNTA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Continuation/convergence for existing PR #1035: its exact old head passed the contract gate but now conflicts after newer Lane War HUD work landed. Reusing the same clean source worktree on current main and reconciling only the two-file controller-guaranteed control-hint slice; no input semantics, traversal implementation, or unrelated HUD changes.",
+      "createdAt": "2026-09-05T04:12:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549264204",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsUe4g",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "#1035 merged concurrently while this convergence was in flight. Its merged HUD line preserved current gold-delta behavior but still reflected the pre-#1054 control set. Published the minimal follow-up as PR #1061 at d4a2b1ae8: append Z DIG / X FILL and update only the focused HUD contract. 9/9 related source contracts PASS; diff-check PASS. Exact file claims released after publication.",
+      "createdAt": "2026-09-05T04:40:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549399778",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsaa-Q",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Continuing the previously recorded ordinary-launch environment hydration gap on exact current main. Production-world dressing references the qualified Tiny3D broadleaf family plus Showroom stump/fern/boulder/log/fungi/mushroom/pinecone, Brutalist boundary gate, and prototype ground/target packages, but `Get-P3HumanLaunchTrackedContent` currently omits those families. Corrected LFS audit: 37 omitted environment-family packages; 9 shared-cache objects (87.74 MiB) are absent but each has exact size-matching hydrated bytes in the primary checkout. Taking only the existing human-launch hydration manifest + its existing source contract, plus verified local-cache seeding of those 9 OIDs; no remote fetch, gameplay code, world-builder, or heavy runtime mutation.",
+      "createdAt": "2026-09-05T04:58:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549497081",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSseaNA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Combat-composition resume audit: the stale WIP that creates `/Game/V2/AS_V2Combat` should not be published. Current `main` already contains `Content/V2/Combat/AS_V2Combat.uasset` (LFS oid `713b4d0d...`, merged via #844/#797), and the hydrated baseline `FS_V2Foundation` LFS object (`ce18609e...`) already contains `/Game/V2/Combat/AS_V2Combat` as its existing contribution. The resumed authoring command did create a second root-path asset and append it (receipt: original contributions 1 -> final 2; focused static contract passed), but that would duplicate an already-composed combat system and conflict with #941's non-goal to avoid duplicate systems. No commit, push, or PR was made from `chatgpt/941-combat-composition-20260905`. #941 remains the broader integrated human-facing acceptance task.",
+      "createdAt": "2026-09-05T05:11:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549562420",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSshKMg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Continuation on an unowned source-only environment acceptance seam. Current production-world authoring still spawns fixed P3_V2_KeyLight + P3_V2_SkyFill actors even though AP3EnvironmentPresentationDirector is the canonical time/weather presentation owner (sun, moon, sky atmosphere, skylight, fog). Those fixed lights were added later in #414 and can keep the battlefield lit independently of replicated time-of-day. Taking only Content/Python/build_v2_production_world.py and its existing dressing/source contract to remove that duplicate lighting ownership; reruns already prune obsolete builder-tagged actors. No Unreal/runtime claim from this source correction.",
+      "createdAt": "2026-09-05T05:19:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549607474",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsiHwQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Environment/time-of-day source convergence merged via #1071 as 5907c446fb7fc1698a994588d958ce34b90575eb. The production-world builder no longer authors fixed P3_V2_KeyLight/P3_V2_SkyFill; lighting receipt ownership now points at the canonical AP3EnvironmentPresentationDirector, whose sun/moon/skylight/sky-atmosphere/fog follow replicated environment state. Existing builder-tag pruning will remove the obsolete fixed lights on the next real authoring run. Proof: focused world/environment source contracts 18/18 PASS, py_compile PASS, diff-check PASS, hosted contract gate SUCCESS. Boundary: current map binary has not been re-authored here, so visible time-of-day remains open under #941 until the authoring/human-proof lane executes.",
+      "createdAt": "2026-09-05T05:22:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549623233",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSslOZA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Unowned acceptance seam: current Grapple has direct GAS/two-client runtime proof (#910) but the canonical scripts/v2/verification/p3_pie_adapter.py ordinary-input path does not support Input.Traversal.Grapple. Extending only the existing verifier + its existing unit suite: physical MiddleMouseButton, no companion input, and PASS requires the possessed pawn to start near-rest then show positive planar displacement plus grapple-grade planar speed (>=700 cm/s, matching the existing native acceptance threshold). Input acknowledgement alone will not pass. This does not touch gameplay/controller/HUD or claim rendered Grapple acceptance until the real PIE path executes.",
+      "createdAt": "2026-09-05T05:28:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549674084",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsmBcg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Ordinary-input Grapple verifier support merged via #1076 as 8ede9132ac9988beac2f59481e27ef1f642d7ff6. The canonical l3/user-path adapter now drives physical MiddleMouseButton for Input.Traversal.Grapple and rejects input acknowledgement alone: PASS requires a near-rest possessed pawn, positive planar displacement, and >=700 cm/s planar speed, with normal/failure input release preserved. Proof: focused adapter 27/27 PASS, complete verification suite 77/77 PASS, related Grapple/defeat-lock contracts PASS, py_compile + diff-check PASS, hosted contract gate SUCCESS. Boundary: no real PIE Grapple run was attempted because the canonical pressure probe remained hard-paging (2193 page reads/s vs 512 threshold); rendered/human Grapple acceptance remains open.",
+      "createdAt": "2026-09-05T05:31:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549687154",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsm2gg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Alder found a distinct Grapple presentation gap separate from the canonical input verifier: current GAS Grapple visibly moved the pawn but emitted no tether/anchor at all. Draft PR #1075 exact head d06349fd1 adds a short-lived replicated P3Traversal-owned tether + anchor sphere/light only after a successful authoritative hit; the tether follows the moving owner and has no collision/navigation/gameplay authority. Focused source contracts PASS and hosted gate SUCCESS. Native/rendered acceptance remains pending under the current low-physical-memory gate.",
+      "createdAt": "2026-09-05T05:33:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549700738",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsoXow",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Published the previously identified normal-human environment hydration seam at 11927f4b9. The existing bounded local-only launcher now includes the qualified Tiny3D broadleaf plus authored Brutalist/prototype/Showroom environment families needed by Lvl_V2ProductionWorld. Focused launch contract 1/1 PASS; all 13 new pathspecs resolve to tracked content (49 files total); diff-check PASS. No runtime/rendered appearance claim.",
+      "createdAt": "2026-09-05T05:38:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549725603",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsq4ug",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Follow-up cache audit found #1078's Showroom material glob was overbroad: it would require unrelated Panda/Titan/effect assets. Repair PR #1081 at 8523e43e2 narrows that to exact MI_ShowroomGround. Intended environment set is 41 tracked LFS files; 32 already cached, and all 9 missing objects were seeded from primary hydrated bytes after exact committed size+SHA-256 verification (0 unavailable, no remote fetch). Focused launch contract 1/1 PASS; diff-check PASS.",
+      "createdAt": "2026-09-05T05:46:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549766842",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsuiXA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Pine continuation on an unclaimed, disjoint player-visible seam: normal character cycling is authoritative and Tab is discoverable, but the combat HUD never identifies which roster member is currently possessed/selected. Taking only the feature-owned Combat HUD read model/fallback text plus a focused source contract to show the current avatar identity after swaps. No Lane War controls files, gameplay authority, roster selection logic, or heavy/runtime claim changes.",
+      "createdAt": "2026-09-05T05:58:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549826652",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSsvJZg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Landed the current-avatar Combat HUD readout via #1093 after focused avatar/health/Lane War HUD source cohort 10/10 PASS, diff-check PASS, and hosted p3 contract-gate SUCCESS. The normal HUD now derives the effective possessed PawnData identity, strips the PD_V2_ prefix, and visibly updates (for example AVATAR RAINCOAT) when character cycling changes the possessed roster member. One canonical hot-source native attempt stopped before UBT because the reusable slot could not fetch a missing promisor blob from the local source checkout; no compile/runtime claim. No gameplay/roster authority changed.",
+      "createdAt": "2026-09-05T06:00:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549836646",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSs2CuQ",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Current-main regression after merged #1106: `Content/V2/AS_V2Combat.uasset` was added and `FS_V2Foundation` was switched from the pre-existing `/Game/V2/Combat/AS_V2Combat` contribution to that new root package. The repository now tracks both AbilitySets. Binary reference comparison shows the two packages expose the same P3CombatAbilitySet type/reference surface; pre-#1106 Foundation LFS oid `ce18609e...` already points at `/Game/V2/Combat/AS_V2Combat`, matching the earlier 05:11 audit that explicitly rejected publishing the duplicate root package. Taking only the four #1106 paths to restore the canonical Foundation binary, delete the duplicate root asset, and retarget the new authoring helper/test to require the existing canonical package rather than create a second one.",
+      "createdAt": "2026-09-05T06:23:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549949625",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSs3RDg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Corrective PR #1117 published at exact head $(git rev-parse HEAD): restores the pre-#1106 Foundation LFS object ce18609e..., removes duplicate /Game/V2/AS_V2Combat, and retargets the reproducibility helper to require /Game/V2/Combat/AS_V2Combat. Focused contract 1/1 PASS, py_compile PASS, diff-check PASS, final-LFS publisher PUSHED_WITH_REF while preserving the disabled local LFS guard. No gameplay/ability implementation changed.",
+      "createdAt": "2026-09-05T06:27:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5549969678",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABStfIjg",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Alder current-main convergence: #1271 merged as ebd7a6ba, adding an allied Core relocation destination marker plus invalid-ground guidance while preserving server relocation authority; #1274 merged as 5c32de10, exposing the resolved Input.Traversal.Grapple binding in the normal Lane War HUD without hardcoded keys. Combined current-main Core/HUD source cohort: 41/41 PASS, diff-check PASS. #1033 authored Construction content remains blocked at the editor-authoring boundary: the clean source workspace has no compiled p3 game module, while the existing editor-class primary workspace is not current-main compatible, so no stale bypass was used.",
+      "createdAt": "2026-09-05T08:35:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5550622862",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABStgP1A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Additional same-run convergence: #1276 merged as 589d3dcb. World-space Core labels now use the already-replicated WinningTeam plus resolved local faction to show VICTORY/DEFEAT (green/red) at match end, while unresolved team identity retains generic MATCH OVER. No winner authority/HUD changes. Current merged main 589d3dcb passes the combined Core + Lane War HUD source cohort 41/41 and diff-check.",
+      "createdAt": "2026-09-05T08:38:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5550641108",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABSvz4_A",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Pine current-main source-readiness update at 5d998afe (not acceptance): exact-head friend/human-launch 15/15, earthworks+construction+destruction+creep-navigation 27/27, grapple+ski+combat/HUD 22/22, and V2 asset contracts 146 runnable PASS with only two archive .git provenance limitations independently verified against origin/main. Full scripts/v2/tests exposed one real stale test contract (#1530); its narrow off-path repair yields 220 runnable PASS with only the same two archive provenance limitations. This does not satisfy #941's required ordinary-launch native/rendered proof.",
+      "createdAt": "2026-09-05T16:07:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5553060092",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOT0JNpc8AAAABTCeMHA",
+      "author": {
+        "login": "organicoverlords"
+      },
+      "authorAssociation": "OWNER",
+      "body": "Construction/destruction acceptance contribution: #2636 at 0a85608ff keeps authored Chaos fracture presentation nonblocking from partial fracture through catastrophic crumble; authoritative wall collision/nav remains on the construction blocker and is removed on destruction. Focused destruction/base/fortification source contracts 23/23 PASS + exact-head hosted contract gate PASS. This does not close normal-user step 4: native/runtime route-reopen proof remains missing because the run's one OMEN admission failed closed on LOW_FREE_DISK, and merge is currently blocked on the missing current-main integration cohort.",
+      "createdAt": "2026-09-07T15:12:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/organicoverlords/p3/issues/941#issuecomment-5572627484",
+      "viewerDidAuthor": true
+    }
+  ],
+  "labels": [],
+  "milestone": null,
+  "number": 941,
+  "state": "OPEN",
+  "title": "[P0][V2] User acceptance: one playable Lane War match",
+  "updatedAt": "2026-09-07T15:12:31Z"
+}
