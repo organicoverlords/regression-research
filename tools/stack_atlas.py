@@ -31,6 +31,12 @@ MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
+TINY3D_REPO = r"C:\Users\Lauri\Desktop\tiny3d"
+TINY3D_LIBRARY = r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY"
+TINY3D_LIBRARY_INDEX = TINY3D_LIBRARY + r"\.tiny3d\library\unified-asset-inventory-v1.json"
+TINY3D_SHOWROOM_CATALOGUE = TINY3D_LIBRARY + r"\.tiny3d\library\showroom-v2-catalog-v1.json"
+TINY3D_LIBRARY_SHOW = r"$env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; python -m tiny3d library show <asset-id> --workspace 'C:\Users\Lauri\Desktop\Tiny3D_LIBRARY'"
+TINY3D_LIBRARY_SEARCH = r"$env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; python -m tiny3d library search <query> --workspace 'C:\Users\Lauri\Desktop\Tiny3D_LIBRARY'"
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
@@ -297,14 +303,15 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "visual_proof": {
         "role": "acceptance:user_visible_evidence",
         "capabilities": ["source_read", "runtime_validate"],
-        "canonical_sources": [r"C:\P3Proofs", "repo-local proof/acceptance contract", "reviewed.json when independent review exists"],
-        "live_status": ["exact proof run directory", "capture manifest", "reviewed.json", "user-visible acceptance target"],
+        "canonical_sources": ["project-owned durable proof bundle/library", "repo-local proof/acceptance contract", "independent review receipt when one exists"],
+        "live_status": ["durable original media bytes and hashes", "capture/result receipt", "independent review state", "user-visible acceptance target"],
         "supervisor": "project-specific proof workflow",
         "self_heal": "not_applicable",
         "independent_recovery": ["classify why the previous proof failed and change a load-bearing condition before another expensive retry"],
-        "resources": ["capture", "manifest", "review verdict", "acceptance requirement"],
-        "dependents": ["p3", "worker_reports"],
+        "resources": ["durable capture/media bytes", "manifest/receipt", "review verdict", "acceptance requirement"],
+        "dependents": ["project runtime", "worker_reports"],
         "runbook": [AGENT_RULES_ROOT + r"\AGENTS.md"],
+        "boundary": r"Producer capture staging such as C:\P3Proofs is input, not durable proof authority. A receipt or hash without reopenable canonical media is a durability gap, not visual acceptance.",
     },
     "github_runner": {
         "role": "ci_execution_worker",
@@ -573,6 +580,27 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
         "entrypoints": ["shared .agents RULES.md + AGENTS.md", "organicoverlords/agents@main docs/repos/<repo>/ product direction", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
+    },
+    "project.tiny3d_asset_library": {
+        "owner_components": ["local_git", "visual_proof"],
+        "triggers": [
+            "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
+            "showroom", "showroom status", "visual proof library", "visual_proof_library",
+            "durable proof", "proof transport", "android proof",
+        ],
+        "entrypoints": [TINY3D_LIBRARY, TINY3D_LIBRARY_INDEX, TINY3D_SHOWROOM_CATALOGUE, TINY3D_LIBRARY_SEARCH, TINY3D_LIBRARY_SHOW],
+        "boundary": "Navigation only; Tiny3D repo/library data remain product authority. Use the canonical production workspace, bounded library search/show, and receipt-declared proof paths. Do not recursively scan, fetch LFS, unzip, regenerate previews, re-encode media, or hunt producer paths merely to inspect evidence. Producer/runtime PASS and independent visual review are separate states.",
+        "workspace": TINY3D_LIBRARY,
+        "catalogue_sources": {"unified_inventory": TINY3D_LIBRARY_INDEX, "showroom": TINY3D_SHOWROOM_CATALOGUE},
+        "proof_contract": {
+            "receipt": r"<asset-dir>\receipts\p3_test_result.json",
+            "bundle": r"<asset-dir>\receipts\p3_proof_bundles\<result-sha256>\bundle.json",
+            "media": r"<asset-dir>\receipts\p3_proof_bundles\<result-sha256>\media\<sha256>.<ext>",
+            "runtime_gate": "P3_RUNTIME_PROVEN requires a valid hash-verified durable proof bundle and durable_visual_proof; path-only media references fail closed with p3_visual_proof_durable_media",
+            "visual_review": "proof_bundle.independent_review_state is separate from producer/runtime PASS; NOT_RECORDED is not visual acceptance",
+            "legacy_gap": r"C:\P3Proofs and other producer paths are capture staging only; missing original bytes must be surfaced as a durability gap rather than searched for recursively",
+        },
+        "operator_fields": ["proof.strongest_state", "proof.proof_bundle.state", "proof.latest_visual_proof.durable_path", "proof.latest_visual_proof.durable_motion_sequence_path", "proof.independent_review_state", "proof.metadata_gaps"],
     },
     "project.p3_unreal_navigation": {
         "owner_components": ["local_git", "github"],
@@ -3308,6 +3336,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
             "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
             "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
+            "tiny3d_asset_library": "lookup tiny3d_library",
             "process_blast_radius": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py blast-radius --pid <pid>",
             "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
             "cleanup_converge": r"python C:\Users\Lauri\Desktop\vault\tools\cleanup_converger.py --apply --operator-ack",
@@ -3348,11 +3377,41 @@ def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, 
     }
 
 
+FEATURE_LOOKUP_ALIASES = {
+    "tiny3d_library": "project.tiny3d_asset_library",
+    "tiny3d library": "project.tiny3d_asset_library",
+    "asset_catalogue": "project.tiny3d_asset_library",
+    "asset catalogue": "project.tiny3d_asset_library",
+    "showroom": "project.tiny3d_asset_library",
+    "visual_proof_library": "project.tiny3d_asset_library",
+    "visual proof library": "project.tiny3d_asset_library",
+}
+
+
 def component_details(name: str) -> dict[str, Any]:
     requested = name
     name = COMPONENT_ALIASES.get(name.casefold(), name)
     if name in COMPONENTS:
         return {"id": name, "requested_as": requested, **COMPONENTS[name], "authority": ATLAS_CONTRACT["authority"]}
+    raise KeyError(requested)
+
+
+def atlas_lookup(name: str) -> dict[str, Any]:
+    """Resolve a stack component or an exact feature-navigation target."""
+    requested = name
+    try:
+        return component_details(name)
+    except KeyError:
+        pass
+    feature_id = FEATURE_LOOKUP_ALIASES.get(name.casefold(), name)
+    if feature_id in FEATURE_INDEX:
+        return {
+            "id": feature_id,
+            "requested_as": requested,
+            "kind": "feature_navigation",
+            **FEATURE_INDEX[feature_id],
+            "authority": ATLAS_CONTRACT["authority"],
+        }
     raise KeyError(requested)
 
 
@@ -3845,7 +3904,7 @@ def main() -> int:
     find.add_argument("query")
     find.add_argument("--limit", type=int, default=5)
     lookup = sub.add_parser("lookup")
-    lookup.add_argument("component")
+    lookup.add_argument("target")
     blast = sub.add_parser("blast-radius")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
@@ -3880,9 +3939,9 @@ def main() -> int:
         value = find_features(args.query, args.limit)
     elif args.command == "lookup":
         try:
-            value = component_details(args.component)
+            value = atlas_lookup(args.target)
         except KeyError:
-            parser.error(f"unknown Atlas component: {args.component}")
+            parser.error(f"unknown Atlas lookup target: {args.target}")
     elif args.command == "production-change-gate":
         value = production_change_gate(
             args.target,
