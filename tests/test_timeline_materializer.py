@@ -12,7 +12,11 @@ from tools.repo_timeline import RepoSpec
 from tools.timeline_materializer import (
     BOOTSTRAP_SCHEMA,
     DEFAULT_DELTA_REPO_EVENTS_PER_REPO,
+    DEFAULT_GITHUB_EVENTS_PER_KIND,
+    DEFAULT_MAX_EVENTS,
     DEFAULT_OVERLAP_MINUTES,
+    DEFAULT_REPO_EVENTS,
+    DEFAULT_RUNNER_LOG_EVENTS,
     SCHEMA,
     build_parser,
     build_work_graph,
@@ -36,6 +40,17 @@ from tools.timeline_materializer import (
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_default_backfill_capacity_covers_current_large_history_shape(self):
+        self.assertGreaterEqual(DEFAULT_REPO_EVENTS, 5000)
+        self.assertGreaterEqual(DEFAULT_GITHUB_EVENTS_PER_KIND, 5000)
+        self.assertGreaterEqual(DEFAULT_RUNNER_LOG_EVENTS, 8000)
+        self.assertGreaterEqual(DEFAULT_MAX_EVENTS, 50000)
+        args = build_parser().parse_args(["refresh"])
+        self.assertEqual(args.repo_events, DEFAULT_REPO_EVENTS)
+        self.assertEqual(args.github_events, DEFAULT_GITHUB_EVENTS_PER_KIND)
+        self.assertEqual(args.runner_events, DEFAULT_RUNNER_LOG_EVENTS)
+        self.assertEqual(args.max_events, DEFAULT_MAX_EVENTS)
+
     def test_child_processes_use_windows_no_window_wrapper(self):
         with patch("tools.timeline_materializer.subprocess.run") as run:
             _run_process(["gh", "--version"], capture_output=True, check=False)
