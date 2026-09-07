@@ -1056,6 +1056,14 @@ class TimelineMaterializerTests(unittest.TestCase):
                     "The workflow deletes completed receipts and dispatches rig, proof, and animation workers, but it contains no asset-quality diagnosis."
                 ), "changed_paths": ["workers/asset_supervisor.sh"],
             })
+            corrective_bridge_noise_title = "Fix CUDA numeric weight proof regression"
+            lessons.append({
+                "sha": "ce405b9a850ccbc2f3866b3a3ce41261f1aa96b9", "title": corrective_bridge_noise_title,
+                "body": (
+                    "A rejected deterministic CUDA compile path fixed an invalid zero-weight proof failure. "
+                    "The repair prevented a broken numeric test from failing again and only verified tensor finiteness."
+                ), "changed_paths": ["tests/test_numeric_backend.py"],
+            })
             events = [seed]
             for index, raw in enumerate(lessons):
                 events.append({
@@ -1096,6 +1104,7 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("fix: semantic weight repair for free-arm cape bleed", titles)
         self.assertIn("rig: separate appendages from cloth with a local shape test", titles)
         self.assertNotIn("Add asset supervisor, Unreal showroom build and matte/grade workers", titles)
+        self.assertNotIn(corrective_bridge_noise_title, titles)
         self.assertNotIn(weak_bridge_title, titles)
         self.assertTrue(all(item.get("evidence_anchors") for item in packet["items"] if item["source_type"] == "GIT_COMMIT"))
         serialized = json.dumps(packet, ensure_ascii=False)
