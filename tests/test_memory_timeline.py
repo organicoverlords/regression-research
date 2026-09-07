@@ -607,7 +607,7 @@ class MemoryTimelineTests(unittest.TestCase):
             "refs": ["#10"],
             "anchors": ["github:organicoverlords/p3#10", "pr:github:organicoverlords/p3#10"],
         }
-        result = build_timeline([], supplemental_events=[event], limit=10)
+        result = build_timeline([], supplemental_events=[event], limit=10, snapshot_now=datetime.fromisoformat("2026-09-06T05:00:00+03:00"))
         self.assertEqual(result["supplemental_events"], 1)
         self.assertEqual(result["events"][0]["evidence_form"], "pull_request")
         self.assertEqual(result["events"][0]["continuity"]["traits"], [])
