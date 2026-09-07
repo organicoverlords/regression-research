@@ -791,6 +791,14 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(result["matching_events"], 1)
             self.assertEqual(result["events"][0]["id"], old["id"])
             self.assertEqual(result["events"][0]["event_at"], "2026-05-18T15:17:35+00:00")
+            self.assertEqual(result["debugging_boundary"]["continuity_graph"], "FULL_MATERIALIZED_HORIZON_QUERYABLE")
+
+            payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
+            payload["generated_at"] = "2026-09-06T03:06:00+00:00"
+            payload["horizon_days"] = None
+            (state / "timeline-store.json").write_text(json.dumps(payload), encoding="utf-8")
+            full_history = query_materialized(root=root, query="notification permission", limit=20)
+            self.assertEqual(full_history["debugging_boundary"]["continuity_graph"], "FULL_MATERIALIZED_HISTORY_QUERYABLE")
 
     def test_query_materialized_uses_full_case_graph_and_canonical_forensic_error_selector(self):
         with tempfile.TemporaryDirectory() as d:
