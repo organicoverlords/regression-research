@@ -69,6 +69,52 @@ LOCK_STALE_MINUTES = 30
 WORKER_ARCHIVE_SAMPLE_LIMIT = 5
 WORKER_ARCHIVE_STALE_MINUTES = 90.0
 
+
+
+def _bootstrap_correction_trigger_projection(agent_rules_root: Path | None = None) -> dict[str, Any]:
+    """Project canonical user-correction trigger text into bootstrap without becoming policy authority."""
+    root = Path(agent_rules_root) if agent_rules_root is not None else Path(os.environ.get("AGENT_RULES_ROOT", Path.home() / ".agents"))
+    agents_path = root / "AGENTS.md"
+    try:
+        text = agents_path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        return {
+            "authority": "DERIVED_PROJECTION_ONLY",
+            "source": str(agents_path),
+            "status": "UNAVAILABLE",
+            "error": str(exc),
+        }
+
+    def clause(marker: str, *, stop_marker: str | None = None, sentences: int = 1) -> str | None:
+        start = text.find(marker)
+        if start < 0:
+            return None
+        tail = text[start:]
+        if stop_marker:
+            stop = tail.find(stop_marker)
+            if stop >= 0:
+                tail = tail[:stop]
+        bullet_end = tail.find("\n- ")
+        if bullet_end >= 0:
+            tail = tail[:bullet_end]
+        parts = [part.strip() for part in re.split(r"(?<=[.!?])\s+", tail.strip()) if part.strip()]
+        return " ".join(parts[:sentences]) or None
+
+    slopwall = clause(
+        "The literal user signal `slopwall`",
+        stop_marker="The literal user signal `asshole`",
+        sentences=1,
+    )
+    asshole = clause("The literal user signal `asshole`", sentences=2)
+    status = "READY" if slopwall and asshole else "INCOMPLETE_CANONICAL_SOURCE"
+    return {
+        "authority": "DERIVED_PROJECTION_ONLY",
+        "source": str(agents_path),
+        "status": status,
+        "slopwall": slopwall,
+        "asshole": asshole,
+    }
+
 _QUERY_STOP_WORDS = {
     "a", "again", "an", "and", "ask", "be", "by", "can", "could", "cross", "did", "do", "does", "figuring", "for",
     "from", "getting", "here", "history", "how", "i", "in", "is", "it", "its", "just", "keep", "make", "me", "my",
@@ -2264,6 +2310,7 @@ def materialize(
         except ImportError:
             from stack_atlas import _compact_memory_overview, _fit_memory_overview_budget
         compact = _compact_memory_overview(overview, 3)
+        compact["correction_triggers"] = _bootstrap_correction_trigger_projection()
         compact["timeline_materialized"] = {
             "status": "FRESH",
             "as_of": now.isoformat(),

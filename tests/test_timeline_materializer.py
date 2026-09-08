@@ -35,12 +35,32 @@ from tools.timeline_materializer import (
     mcp_replacement_events,
     query_materialized,
     runner_log_events,
+    _bootstrap_correction_trigger_projection,
     _merge_materialized_events,
     _run_process,
 )
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_bootstrap_projects_canonical_slopwall_and_asshole_correction_triggers(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            agents = root / "AGENTS.md"
+            agents.write_text(
+                "- User-corrected assistant missteps are mandatory local Vault learning. "
+                "The literal user signal `slopwall` always qualifies as a correction incident: record it before returning control, inspect the immediately preceding answer, then continue the inherited task. "
+                "The literal user signal `asshole`, when clearly directed at the assistant's immediately preceding answer or action, always qualifies as a lightweight correction event: inspect that action, identify the concrete mistake, and record one compact correction with tag `asshole`. "
+                "This marker is smaller than `slopwall`: do not create an incident report solely because it fired.\n",
+                encoding="utf-8",
+            )
+            projected = _bootstrap_correction_trigger_projection(root)
+        self.assertEqual(projected["status"], "READY")
+        self.assertIn("record it before returning control", projected["slopwall"])
+        self.assertIn("continue the inherited task", projected["slopwall"])
+        self.assertIn("identify the concrete mistake", projected["asshole"])
+        self.assertIn("smaller than `slopwall`", projected["asshole"])
+        self.assertEqual(projected["authority"], "DERIVED_PROJECTION_ONLY")
+
     def test_default_backfill_capacity_covers_current_large_history_shape(self):
         self.assertGreaterEqual(DEFAULT_REPO_EVENTS, 5000)
         self.assertGreaterEqual(DEFAULT_GITHUB_EVENTS_PER_KIND, 5000)
@@ -967,7 +987,10 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "tools.timeline_materializer.mcp_replacement_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
             ), patch(
                 "tools.timeline_materializer.runner_log_events", return_value=([], {"events": 0})
-            ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview) as build_overview:
+            ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview) as build_overview, patch(
+                "tools.timeline_materializer._bootstrap_correction_trigger_projection",
+                return_value={"authority": "DERIVED_PROJECTION_ONLY", "status": "READY", "slopwall": "slop", "asshole": "small"},
+            ):
                 result = materialize(root=root, include_github=False, now=datetime(2026, 9, 6, 5, 0, tzinfo=timezone.utc))
             self.assertTrue(result["ok"])
             self.assertEqual(result["work_graph"]["equivalent_commit_groups"], 1)
@@ -976,6 +999,8 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(json.loads(store_path.read_text(encoding="utf-8"))["schema"], SCHEMA)
             bootstrap = json.loads(bootstrap_path.read_text(encoding="utf-8"))
             self.assertEqual(bootstrap["schema"], BOOTSTRAP_SCHEMA)
+            self.assertEqual(bootstrap["overview"]["correction_triggers"]["slopwall"], "slop")
+            self.assertEqual(bootstrap["overview"]["correction_triggers"]["asshole"], "small")
             self.assertLess(bootstrap_path.stat().st_size, 6000)
             self.assertEqual(bootstrap["workers"]["read_mode"], "MATERIALIZED_ONLY")
             self.assertEqual(bootstrap["workers"]["archive_sample"]["sampled_worker_count"], 1)
