@@ -52,6 +52,17 @@ def canonical_scope(scope: str) -> str:
     return value
 
 
+def ambiguous_relative_path_scope(scope: str) -> bool:
+    value = scope.strip()
+    if not value or os.path.isabs(value):
+        return False
+    # A bare repo-relative path has no repository identity, so the same physical
+    # file can otherwise be claimed simultaneously as e.g. `scripts/x.py` and
+    # `p3:file:scripts/x.py`. New path-like claims must therefore be either an
+    # absolute filesystem path or a namespaced logical identifier.
+    return ("/" in value or "\\" in value) and ":" not in value
+
+
 CLAIM_ACTOR_HARNESSES = ("ChatGPT", "Codex", "Claude", "OpenCode", "CommandCode", "Traycer")
 
 
@@ -483,7 +494,14 @@ def operate(store: Path, command: str, actor: str | None = None, raw_scope: str 
         current = claim_for(state, scope)
         existing = job_for(state, scope)
         if command == "claim":
-            if current and current.get("actor") != actor:
+            if current is None and ambiguous_relative_path_scope(raw_scope):
+                result = {
+                    "ok": False,
+                    "reason": "ambiguous_relative_path_scope",
+                    "scope": scope,
+                    "guidance": "use an absolute filesystem path or a namespaced logical scope such as <repo>:file:<path>",
+                }
+            elif current and current.get("actor") != actor:
                 result = {"ok": False, "reason": "scope_already_claimed", "claim": current}
             else:
                 timestamp = iso()

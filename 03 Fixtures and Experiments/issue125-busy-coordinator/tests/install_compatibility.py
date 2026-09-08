@@ -23,6 +23,17 @@ try:
     destination = base / "BusyCoordinator"
     subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ROOT / "install.ps1"), "-Destination", str(destination)], check=True)
     wrappers = {kind: destination / f"busy-{kind}.cmd" for kind in ("python", "rust")}
+    guards = {kind: destination / f"busy-run-{kind}.cmd" for kind in ("python", "rust")}
+    assert (destination / "python" / "lease_guard.py").exists()
+    for kind, guard in guards.items():
+        assert guard.exists(), kind
+        guard_help = subprocess.run(
+            [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(guard), "--help"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "short renewable Busy lease" in guard_help.stdout
     for kind, wrapper in wrappers.items():
         assert wrapper.exists(), kind
         help_cp = subprocess.run([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(wrapper), "--help"], capture_output=True, text=True, check=True)
@@ -44,6 +55,28 @@ try:
     assert run_wrapper(wrappers["rust"], store, "release", actor, "scope", "--checkpoint", "pending")["ok"] is True
     assert run_wrapper(wrappers["python"], store, "snapshot")["counts"]["active"] == 0
     assert run_wrapper(wrappers["python"], store, "inspect", "scope")["job"] is None
+
+    # Installed guard wrappers execute under both interchangeable cores and
+    # release their short lease immediately on normal child completion.
+    for kind, guard in guards.items():
+        guard_store = base / f"guard-{kind}.json"
+        marker = base / f"guard-{kind}.marker"
+        cp = subprocess.run(
+            [
+                os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(guard),
+                "--store", str(guard_store),
+                "--lease-seconds", "3",
+                "--heartbeat-seconds", "0.5",
+                f"ChatGPT-install-guard-{kind}", f"install:guard:{kind}",
+                "--", os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c",
+                f"echo ok>{marker}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert cp.returncode == 0, (kind, cp.stdout, cp.stderr)
+        assert marker.exists(), kind
+        assert run_wrapper(wrappers[kind], guard_store, "snapshot")["counts"]["active"] == 0
 
     # T22: equivalent absolute filesystem spellings are one collision boundary
     # across the installed Python/Rust implementations. Logical scope strings

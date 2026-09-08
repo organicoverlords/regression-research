@@ -122,6 +122,18 @@ try:
         migrated.append(state)
     assert migrated[0] == migrated[1]
 
+    # Bare repo-relative path spellings are ambiguous collision identities. Both
+    # cores reject new path-like claims unless they are absolute or namespaced.
+    for kind in ("py", "rs"):
+        path_scope_store = base / f"path-scope-{kind}.json"
+        path_actor = managed_actor(f"path-scope-{kind}")
+        rejected = run(kind, path_scope_store, "claim", path_actor, "scripts/ci/job.py")
+        assert rejected["ok"] is False
+        assert rejected["reason"] == "ambiguous_relative_path_scope"
+        accepted = run(kind, path_scope_store, "claim", path_actor, "p3:file:scripts/ci/job.py")
+        assert accepted["ok"] is True
+        assert run(kind, path_scope_store, "release", path_actor, "p3:file:scripts/ci/job.py")["ok"] is True
+
 
     # Windows readers can hold the canonical file without delete sharing. Writers
     # must still be able to claim/release instead of wedging on rename forever.

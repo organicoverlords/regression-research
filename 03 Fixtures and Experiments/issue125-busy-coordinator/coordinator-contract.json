@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_version": 5,
+  "contract_version": 6,
   "authority": "standalone_busy_coordinator",
   "canonical_store": {
     "windows": "%LOCALAPPDATA%\\\\ChatGPTMcpClean\\\\.state\\\\busy-claims.json",
@@ -63,6 +63,7 @@
     "installed wrappers expose the same contract and observability commands",
     "runtime may add compatible metadata but may not omit required commands",
     "new and renewed claim owners identify an approved harness plus task/session suffix; cleanup/recovery may address legacy owner strings",
-    "sweep removes only exact-store temp files at least 60 seconds old whose encoded writer PID is positively dead; fresh, live, malformed, unknown-writer, and unrelated temp files are preserved"
+    "sweep removes only exact-store temp files at least 60 seconds old whose encoded writer PID is positively dead; fresh, live, malformed, unknown-writer, and unrelated temp files are preserved",
+    "new path-like relative claims are rejected; filesystem scopes must be absolute or namespaced logical identifiers such as <repo>:file:<path>"
   ]
 }

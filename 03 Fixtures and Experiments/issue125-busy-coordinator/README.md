@@ -19,6 +19,20 @@ New or renewed ownership (`claim`, `heartbeat`) requires an actor identity with 
 
 `release` removes ownership and its metadata. A caller may still pass `--checkpoint <text>` for call/result compatibility, but that text is not persisted after release. `recover <expected-owner> <scope> --expected-claim-timestamp <timestamp>` is compare-and-swap guarded and removes only the exact observed claim; any live checkpoint may be returned in the recovery result but is not retained afterward. Lease expiry follows the same rule.
 
+For process-bounded mutation critical sections, use the installed `busy-run-python.cmd` or `busy-run-rust.cmd` guard instead of taking a long static lease manually. The guard claims the exact scope with a short renewable lease (90 seconds by default), heartbeats only while the guarded child is alive, and releases immediately on normal completion. If renewal fails or ownership changes, the child is killed before it can continue mutating without ownership. On Windows the child tree is coupled to a kill-on-close Job Object; on Linux it is coupled with `PR_SET_PDEATHSIG`. If the guard itself crashes, that coupling stops the child and heartbeats stop, so ordinary lease expiry bounds the stale Busy residue instead of leaving a one-hour synthetic blocker.
+
+Example:
+
+```powershell
+& "$env:LOCALAPPDATA\BusyCoordinator\busy-run-python.cmd" `
+  --lease-seconds 90 `
+  --checkpoint "#2437 OMEN runtime transaction" `
+  "ChatGPT:S2-2437-runtime" "p3:runtime:omen:lane1" -- `
+  powershell -NoProfile -File .\scripts\Invoke-P3OmenRuntime.ps1 ...
+```
+
+The guard is a client of the existing ownership core, not a new Busy command, daemon, liveness authority, queue, or second store. Wrap the full critical section that truly needs collision protection. Do not use it to model persistent runtime ownership or intentionally detached daemons; those need the repo-owned process/session lock whose lifetime matches the persistent resource.
+
 `snapshot` is a bounded ownership projection: claim count, managed active ownership, legacy-only claims, optional actor ownership, and optional exact-scope focus. It contains no queue depth, checkpoint backlog, blocked count, completed count, or next-work selection.
 
 `sweep` also performs bounded atomic-temp hygiene under the same store lock. It removes only exact-store `busy-claims.json.<pid>.tmp` files that are at least 60 seconds old and whose encoded writer PID is positively proven dead. Fresh files, live writers, malformed or unknown writer identities, unrelated temp files, and temp deletion failures are preserved. The result reports the total removed count plus at most 32 removed filename/PID entries.
@@ -27,7 +41,7 @@ The tool apps are separate from MCP and can be invoked through any supported pro
 
 `coordinator-contract.json` is the machine-readable compatibility contract. Installed Python and Rust wrappers share one observability sidecar and expose the same additional `contract`, `log`, and `audit` commands without adding authority to the canonical ownership store. `log` is best-effort compatibility only: it uses a short lock budget, returns success with `logged:false` when the sidecar cannot be written, and must never gate or stop project work. Durable project findings belong on the project GitHub issue/PR and in the worker report. Audit failure is non-authoritative.
 
-`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` by default, preserving both Python and Rust implementations and the canonical store. The installer also refreshes the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` compatibility entrypoint with the current Python core.
+`install.ps1` installs stable local copies under `%LOCALAPPDATA%\BusyCoordinator` by default, preserving both Python and Rust implementations and the canonical store. The installer also refreshes the historical `%LOCALAPPDATA%\BusyCoordinator\busy.py` compatibility entrypoint with the current Python core and installs `busy-run-python.cmd` / `busy-run-rust.cmd` for short heartbeat-backed command leases.
 
 Verification:
 
@@ -37,6 +51,7 @@ cargo test --manifest-path .\rust\Cargo.toml
 python .\tests\contract_guard.py
 python .\tests\audit_wrapper_best_effort.py
 python .\tests\coordinator_parity.py
+python .\tests\lease_guard_regression.py
 python .\tests\install_compatibility.py
 python .\tests\mixed_contention.py
 ```

@@ -280,6 +280,17 @@ fn canonical_scope(raw: &str) -> Result<String, String> {
     Ok(scope)
 }
 
+fn ambiguous_relative_path_scope(raw: &str) -> bool {
+    let scope = raw.trim();
+    if scope.is_empty() || Path::new(scope).is_absolute() {
+        return false;
+    }
+    // Bare repo-relative paths have no repository identity. Requiring an
+    // absolute path or a namespaced logical scope prevents alias claims such as
+    // `scripts/x.py` and `p3:file:scripts/x.py` from bypassing exact collision.
+    (scope.contains('/') || scope.contains('\\')) && !scope.contains(':')
+}
+
 const CLAIM_ACTOR_HARNESSES: [&str; 6] = [
     "ChatGPT",
     "Codex",
@@ -873,7 +884,16 @@ fn operate(
     let existing = state.coordinator.jobs.get(&scope).cloned();
     let result = match command {
         "claim" => {
-            if let Some(claim) = current.as_ref().filter(|claim| claim.actor != actor) {
+            if current.is_none()
+                && ambiguous_relative_path_scope(raw_scope.ok_or("scope required")?)
+            {
+                json!({
+                    "ok": false,
+                    "reason": "ambiguous_relative_path_scope",
+                    "scope": scope,
+                    "guidance": "use an absolute filesystem path or a namespaced logical scope such as <repo>:file:<path>"
+                })
+            } else if let Some(claim) = current.as_ref().filter(|claim| claim.actor != actor) {
                 json!({"ok": false, "reason": "scope_already_claimed", "claim": claim})
             } else {
                 let timestamp = now_iso();
@@ -1095,12 +1115,27 @@ mod tests {
     }
 
     #[test]
+    fn ambiguous_relative_path_scope_requires_namespace_or_absolute_path() {
+        assert!(ambiguous_relative_path_scope("scripts/ci/job.py"));
+        assert!(ambiguous_relative_path_scope(r"scripts\ci\job.py"));
+        assert!(!ambiguous_relative_path_scope("p3:file:scripts/ci/job.py"));
+        assert!(!ambiguous_relative_path_scope(r"C:\Repo\scripts\ci\job.py"));
+        assert!(!ambiguous_relative_path_scope("p3:runtime:omen:lane1"));
+    }
+
+    #[test]
     fn canonical_scope_collides_absolute_windows_path_aliases() {
         let plain = r"C:\Temp\BusyAlias\scope.txt";
         let dotted = r"C:\Temp\BusyAlias\.\scope.txt";
         let slash_case = r"c:/temp/busyalias/scope.txt";
-        assert_eq!(canonical_scope(plain).unwrap(), canonical_scope(dotted).unwrap());
-        assert_eq!(canonical_scope(plain).unwrap(), canonical_scope(slash_case).unwrap());
+        assert_eq!(
+            canonical_scope(plain).unwrap(),
+            canonical_scope(dotted).unwrap()
+        );
+        assert_eq!(
+            canonical_scope(plain).unwrap(),
+            canonical_scope(slash_case).unwrap()
+        );
     }
 
     #[test]
