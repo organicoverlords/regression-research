@@ -3,6 +3,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import subprocess
+import sys
 import re
 import secrets
 import statistics
@@ -108,6 +111,7 @@ def create_manual_run(
             f"started_at: {started_at}",
             f"last_activity_at: {started_at}",
             f"repo: {repo}",
+            f"execution_cwd: {Path.cwd()}",
         ]
         if display_label:
             lines.append(f"display_label: {str(display_label).strip()}")
@@ -280,6 +284,7 @@ def begin_timed_run(report: Path) -> dict[str, Any]:
         "automation_id": fields.get("automation_id"),
         "observed_started_at": now.isoformat(),
         "reported_started_at": fields.get("started_at"),
+        "execution_cwd": str(Path.cwd()),
         "initial_report_sha256": hashlib.sha256(raw).hexdigest(),
     }
     tmp = receipt_path.with_name(receipt_path.name + ".tmp")
@@ -1278,6 +1283,52 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _archive_execution_cwd(report: Path) -> Path:
+    """Return machine-observed run CWD when available, else the archive call CWD."""
+    try:
+        fields = _fields(report.read_bytes())
+    except OSError:
+        return Path.cwd()
+    if _report_population(report=report) == "timed":
+        receipt = _timed_start_receipt_path(report)
+        try:
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        value = str(payload.get("execution_cwd") or "").strip()
+        if value:
+            return Path(value)
+    value = str(fields.get("execution_cwd") or "").strip()
+    return Path(value) if value else Path.cwd()
+
+
+def _schedule_own_worktree_reap(launch_cwd: Path) -> dict[str, Any]:
+    """Launch own-lane cleanup out-of-band; never make archive success depend on it."""
+    script = Path(__file__).resolve().with_name("worker_worktree_reaper.py")
+    if not script.is_file():
+        return {"scheduled": False, "reason": "reaper_missing"}
+    command = [sys.executable, str(script), "--path", str(launch_cwd), "--quiet"]
+    kwargs: dict[str, Any] = {
+        "cwd": str(Path(__file__).resolve().parents[1]),
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        kwargs["creationflags"] = (
+            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        )
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        child = subprocess.Popen(command, **kwargs)
+    except OSError as exc:
+        return {"scheduled": False, "reason": f"launch_error:{exc.__class__.__name__}"}
+    return {"scheduled": True, "path": str(launch_cwd), "pid": child.pid}
+
+
 def _default_history_root(report: Path) -> Path:
     parent = report.parent
     if parent.name.casefold() == "current":
@@ -1305,8 +1356,10 @@ def main() -> int:
         elif args.command == "sanity":
             result = build_manual_sanity_projection(args.history_root, baseline_path=args.baseline)
         else:
+            launch_cwd = _archive_execution_cwd(args.report)
             history_root = args.history_root or _default_history_root(args.report)
             result = archive_finalized_report(args.report, history_root)
+            result["own_worktree_reap"] = _schedule_own_worktree_reap(launch_cwd)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1
