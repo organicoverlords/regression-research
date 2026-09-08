@@ -66,6 +66,24 @@ class HybridMemoryTests(unittest.TestCase):
         )
         self.assertEqual([entry["id"] for entry in hits], ["visual"])
 
+    def test_proof_scoped_picture_synonyms_match_image_wording_without_consumer_photo_leakage(self):
+        visual = self.entry(
+            "visual",
+            "Use the shared visual library to inspect the same stored proof image.",
+            title="Shared visual proof library",
+        )
+        visual["kind"] = "correction"
+        self.assertEqual(
+            [entry["id"] for entry in search_entries_hybrid([visual], "stored proof picture", strict_admission=True)],
+            ["visual"],
+        )
+        self.assertEqual(
+            [entry["id"] for entry in search_entries_hybrid([visual], "old proof photo", strict_admission=True)],
+            ["visual"],
+        )
+        self.assertEqual(search_entries_hybrid([visual], "store family photos", strict_admission=True), [])
+        self.assertEqual(search_entries_hybrid([visual], "picture library", strict_admission=True), [])
+
     def test_rejected_and_superseded_stay_hidden(self):
         old = self.entry("old", "connector route failed", title="Old connector route")
         new = self.entry("new", "connector route correction", title="Correct connector route", supersedes=["old"])
