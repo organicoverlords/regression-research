@@ -20,15 +20,36 @@ class RouteDecisionTests(unittest.TestCase):
         self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
     def test_vps_light_only(self):
         f=facts(mem=1,vps=True); self.assertEqual(m.choose_route("portable-light",f,{})[0],"vps"); self.assertEqual(m.choose_route("heavy",f,{})[0],"windows")
-    def test_heavy_lease_does_not_fill_entire_omen(self):
-        leases={"a":{"route":"omen","kind":"heavy"}}
-        self.assertEqual(m.choose_route("heavy",facts(),leases)[0],"windows"); self.assertEqual(m.choose_route("portable-light",facts(),leases)[0],"omen")
-    def test_lane1_refresh_spills_runtime(self):
-        self.assertEqual(m.choose_route("p3-runtime",facts(lane1=True),{})[0],"windows")
+    def test_leases_are_observability_not_capacity(self):
+        leases={str(i):{"route":"omen","kind":"heavy" if i==0 else "portable-light"} for i in range(12)}
+        self.assertEqual(m.choose_route("heavy",facts(),leases)[0],"omen")
+        self.assertEqual(m.choose_route("portable",facts(),leases)[0],"omen")
+        self.assertEqual(m.choose_route("portable-light",facts(),leases)[0],"omen")
+    def test_lane1_activity_does_not_change_machine_route(self):
+        self.assertEqual(m.choose_route("p3-runtime",facts(lane1=True),{})[0],"omen")
+    def test_dedicated_nvme_uses_modest_hard_floor(self):
+        self.assertEqual(m.choose_route("heavy",facts(disk=15),{})[0],"windows")
+        self.assertEqual(m.choose_route("heavy",facts(disk=16),{})[0],"omen")
+        self.assertEqual(m.choose_route("p3-runtime",facts(disk=12),{})[0],"omen")
     def test_state_roundtrip_release(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"; s=m.empty_state(); s["assignments"]["x"]={"work_id":"x","route":"omen","kind":"portable","expires_at":"2099-01-01T00:00:00Z"}; m.save_state(p,s)
             self.assertEqual(m.load_state(p)["assignments"]["x"]["route"],"omen"); self.assertTrue(m.release_work(p,"x")["released"]); self.assertNotIn("x",m.load_state(p)["assignments"])
+    def test_low_disk_runs_one_reclaim_then_reprobes(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"
+            original_probe=m.probe_all; original_omen=m.probe_omen; original_reclaim=m.reclaim_omen_scratch
+            calls=[]
+            try:
+                m.probe_all=lambda: facts(disk=9)
+                m.reclaim_omen_scratch=lambda kind: (calls.append(kind) or {"attempted":True,"ok":True,"target_free_gb":16})
+                m.probe_omen=lambda: facts(disk=30)["omen"]
+                result=m.route_work(p,"disk-recovery","portable",600,False)
+            finally:
+                m.probe_all=original_probe; m.probe_omen=original_omen; m.reclaim_omen_scratch=original_reclaim
+            self.assertEqual(calls,["portable"])
+            self.assertEqual(result["route"],"omen")
+            self.assertTrue(result["capacity_recovery"]["ok"])
     def test_same_work_id_reuses_one_cohort_decision(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"

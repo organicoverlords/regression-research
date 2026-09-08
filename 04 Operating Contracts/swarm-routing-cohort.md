@@ -27,11 +27,13 @@ python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status
 
 State is atomically stored under `%LOCALAPPDATA%\SwarmRouting\cohort-v1.json` behind a cross-process lock. One capacity probe is shared for 45 seconds so the swarm does not independently probe the same machines.
 
-## OMEN saturation
+## OMEN saturation and scratch recovery
 
-The cohort reads live OMEN RAM, `/mnt/ue` free space, CPU load, build-lane activity, and existing cohort assignments. Heavy work admits only one heavy cohort assignment at a time and refuses when lane/resource floors are crossed. Portable work can continue beside a heavy job while actual headroom remains. A lane-1 runtime refresh temporarily makes the P3 runtime route fall back rather than racing the build.
+The cohort reads live OMEN RAM, `/mnt/ue` free space, CPU load, build-lane activity, and existing cohort assignments. **Assignments are observability/stickiness, not utilization authority**: an OMEN lease may be waiting in a repo-owned queue or may have outlived active compute, so lease count never makes the machine `full` by itself. Actual RAM/disk/load and repository-owned lane locks/queues govern execution concurrency.
 
-These thresholds are admission safeguards, not cleanup authorization.
+OMEN is a dedicated hot development node. Its NVMe is expected to carry rebuildable Unreal scratch close to useful capacity rather than preserve a large permanently-empty fraction. Router hard floors are deliberately modest (`heavy` 16 GiB, `p3-runtime` 12 GiB, `portable` 10 GiB, `portable-light` 8 GiB). When a new assignment would miss a disk floor, the router performs **one** bounded call to `/home/aatuska/ue-work/reclaim-p3-linux-scratch.sh`, which may remove only inactive P3 lane-generated overlay/build/cache state, then re-probes OMEN and continues there when recovered. Active lane locks/processes, source snapshots, engine base, Content/assets, Saved/proof/evidence, and user data are preserved. If safe scratch reclaim cannot recover the hard floor, normal fallback remains explicit.
+
+Heavy/runtime single-flight remains repository-owned. The router does not duplicate that queue and does not use sticky lease counts as a substitute for it.
 
 ## VPS role
 
