@@ -2,6 +2,8 @@ import json
 import unittest
 from pathlib import Path
 
+from tools.timeline_materializer import _query_concepts, _rank_query_events
+
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "issue768_repeated_integration_entry.json"
 DECISION_MODES = ("reuse/resume", "complement", "review/prove", "integrate", "genuinely new")
@@ -59,6 +61,38 @@ class Issue768RepeatedIntegrationEntryTests(unittest.TestCase):
             "against those owners; history is a prior and current repo/runtime truth still needs verification."
         )
         self.assertEqual(evaluate_entry(self.case, action), [])
+
+    def test_natural_task_query_rejects_incidental_timeline_overlap(self):
+        query = self.case["task_text"]
+        concepts = _query_concepts(query)
+        concept_tokens = set().union(*concepts)
+        for filler in ("i", "you", "can", "so", "when", "me", "here"):
+            self.assertNotIn(filler, concept_tokens)
+
+        relevant = {
+            "id": "relevant-visual-history",
+            "source_type": "VAULT_MEMORY",
+            "event_at": "2026-09-07T12:00:00+00:00",
+            "title": "Integrated visual library shared stored proof display",
+            "summary": (
+                "ChatGPT can inspect the picture, show the same proof, and reuse the existing "
+                "visual transport instead of rediscovering it again"
+            ),
+        }
+        incidental = {
+            "id": "incidental-stored-note",
+            "source_type": "VAULT_MEMORY",
+            "event_at": "2026-09-08T12:00:00+00:00",
+            "title": "Temporary response gate stores corrections",
+            "summary": "Keep the same stored response counter and evidence note.",
+        }
+        ranked = _rank_query_events([incidental, relevant], query, corpus_size_override=100)
+        self.assertEqual([event["id"] for _, event in ranked], ["relevant-visual-history"])
+
+        short = _rank_query_events(
+            [incidental, relevant], "stored proof", corpus_size_override=100
+        )
+        self.assertTrue(short, "short targeted queries must retain the existing two-concept fast path")
 
     def test_bad_entry_rejects_reinvented_mcp_transport(self):
         action = (
