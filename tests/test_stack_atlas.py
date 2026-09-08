@@ -1780,6 +1780,16 @@ class StackAtlasTests(unittest.TestCase):
         self.assertLessEqual(len(results), 2)
         self.assertTrue(all(item["authority"] == ATLAS_CONTRACT["authority"] for item in results))
 
+    def test_linux_omen_is_default_execution_target_under_shared_routing_cohort(self):
+        details = component_details("linux_omen_node")
+        self.assertEqual(details["role"], "primary_lan_execution_node")
+        self.assertTrue(any("swarm-routing-cohort.md" in source for source in details["canonical_sources"]))
+        self.assertIn("shared swarm routing cohort", details["self_heal"])
+        feature = atlas_lookup("execution.linux_omen_node")
+        self.assertIn("Default execution node", feature["boundary"])
+        self.assertIn("saturated/unavailable", feature["boundary"])
+        self.assertTrue(any("swarm_route.py route" in entry for entry in feature["entrypoints"]))
+
     def test_pid_is_lookup_key_not_component_identity(self):
         self.assertIn("ephemeral live lookup key", ATLAS_CONTRACT["pid_semantics"])
         self.assertIn("stable identity", ATLAS_CONTRACT["pid_semantics"])

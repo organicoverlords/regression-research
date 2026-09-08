@@ -1,11 +1,11 @@
 # Linux OMEN execution node
 
-Status: connected LAN execution node; user-owned; not a public MCP endpoint or scheduler.
+Status: primary LAN execution node for swarm work; user-owned; not a public MCP endpoint or scheduler.
 Work identity: organicoverlords/regression-research#651. NVMe production-storage work: #661.
 
 ## Purpose
 
-This HP OMEN laptop is the preferred Linux execution/build node for portable compute-intensive work behind the existing Windows MCP route whenever its bounded live SSH/resource probe passes and the owning repo has a compatible Linux/offload path. ChatGPT and other agents reach the Windows machine through the normal MCP transport, then use SSH over the local LAN to this laptop. Windows remains the MCP/control transport and the execution owner for LowVRAM, Windows-only workflows, and editor/UI-bound work. Do not add another public MCP/Caddy/WireGuard serving path for this node.
+This HP OMEN laptop is the **default execution node** for substantive swarm work that is not explicitly LowVRAM or genuinely Windows-only. Machine admission is owned by the shared routing cohort in `swarm-routing-cohort.md` / `tools/swarm_route.py`: workers reuse one sticky cohort decision instead of independently choosing a machine. When the live OMEN probe and the owning repository path admit the work, route it here first. Windows remains the MCP/control transport, LowVRAM owner, Windows-specific validation host, and general execution fallback only after the cohort has fresh evidence that OMEN is saturated or unavailable for that work class. The VPS may take only cohort-approved supported light overflow plus its edge/coordination duties. Do not add another public MCP/Caddy/WireGuard serving path for this node.
 
 ## Stable access route from the Windows stack machine
 
@@ -76,7 +76,7 @@ The Samsung NVMe fast-storage lane was provisioned on 2026-09-06 after NTFS cons
 
 Live post-provision checks passed for partition preservation, ext4 identity, UUID-backed `/mnt/ue`, user write/read/delete access, `/boot/efi`, `findmnt --verify`, and the enabled/active `omen-ue-fast-ready.service`. A root-owned fixed-action helper at `/usr/local/sbin/omen-agent-admin` exposes only `status`, `verify-storage`, `mount-ue`, and `restart-ready`; `aatuska` may invoke that exact helper through sudo without a password. This is intentionally not a general passwordless root shell. User login shells also place `~/.local/bin` first in `PATH`; `~/.local/bin/sudo` forces noninteractive `sudo -n`, so unsupported privileged commands fail immediately instead of opening another password prompt. Agents must use rootless tooling or the fixed-action helper rather than asking the user to authenticate repeatedly.
 
-Reboot persistence is **explicitly deferred by current user instruction**. Do not reboot this laptop or ask for a reboot merely to continue development. `/mnt/ue` is approved for live UE work now because UUID-backed fstab, mount identity, write access, EFI preservation, and the readiness service all pass in-session. A future explicitly authorized reboot may certify post-boot recovery, but that deferred certification is not a development admission gate.
+The OMEN proof/runtime path is continuously hot. Live state on 2026-09-08 verifies `Linger=yes` for `aatuska`, and the P3 hot runtime controller installs an enabled user service with `Restart=always`, `StartLimitIntervalSec=0`, and `WantedBy=default.target`; this is the supported 24/7 supervision path rather than a transient `systemd-run` unit. The enabled-service configuration is live-proven, but do not claim a post-change reboot-start certificate until a later reboot actually demonstrates it. Do not reboot merely to certify the mechanism. `/mnt/ue` remains approved for live UE work because UUID-backed fstab, mount identity, write access, EFI preservation, and the readiness service pass in-session.
 
 Future destructive partition changes remain local privileged operations. Do not bypass Secure Boot, filesystem consistency checks, partition-table safety checks, or local authorization. Preserve a pre-change GPT/partition-table backup before any future resize.
 ## Unreal Engine development state
@@ -115,7 +115,7 @@ UE-specific source setup is now active on the NVMe lane. An authenticated EpicGa
 
 ## Boundaries
 
-- Optional compute/build node only; not current product authority, worker scheduler, queue, or shared production control plane.
+- Primary execution target under the shared swarm routing cohort; not product authority, worker scheduler, repository queue, or public/shared production control plane. The routing cohort owns machine admission; repo-owned lanes still own build/runtime single-flight behavior.
 - Windows MCP remains the ChatGPT transport owner. SSH is a hop behind it.
 - No router port-forwarding or public TCP 22 exposure.
 - No destructive disk cleanup without exact positive evidence that the target is disposable/recoverable.
@@ -137,4 +137,4 @@ OMEN now has three rootless isolated Unreal build lanes over one frozen partiall
 - Source snapshots remain under `/mnt/ue/projects/p3-commits/<sha>` and `/mnt/ue/projects/p3-current` remains the current source pointer. Each lane copies source into its own project tree before build while preserving that lane's generated outputs.
 - Queue additional pinned P3 module requests without a permanent scheduler using `~/ue-work/queue-p3-linux-build.sh /mnt/ue/projects/p3-commits/<sha> p3 2`. Each request runs as a transient user service, resolves/pins its source path before waiting, and blocks on lane 2's lock. The queue wrapper was live-proven while lane 2 was occupied; the proof request was then stopped so no duplicate build remained.
 
-This is execution capacity only, not a new product authority, public endpoint, recurring scheduler, or general-purpose queue. Windows remains MCP/control transport and LowVRAM remains on Windows.
+This is the swarm's default execution capacity, not a new product authority, public endpoint, recurring scheduler, or general-purpose repository queue. The shared routing cohort owns machine admission; Windows remains MCP/control transport and LowVRAM remains on Windows, with ordinary Windows execution used only for cohort-proven OMEN spillover or Windows-specific work.
