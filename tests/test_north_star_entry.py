@@ -24,11 +24,11 @@ class NorthStarEntryTests(unittest.TestCase):
     def test_shared_contract_keeps_go_scoped_and_stop_immediate(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
         agents = (RULES_ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "`go`/`continue` in a manual/on-demand execution chat means resume the already-established unresolved engineering objective",
-            rules,
-        )
-        self.assertIn("it does not broaden scope", rules)
+        self.assertIn("For an ongoing manual/on-demand swarm `go`/`continue`", rules)
+        self.assertIn("the inherited scope is the user's established project/product engineering goal", rules)
+        self.assertIn("not the currently open issue/PR/branch/worktree", rules)
+        self.assertIn("the next highest-value safe supported contribution from canonical open issues or the repo North Star", rules)
+        self.assertIn("A worker has no issue lane to defend", rules)
         self.assertIn("`stop` means stop immediately", rules)
         self.assertIn("follow the `go`/`continue` completion and yield semantics in `RULES.md`", agents)
 

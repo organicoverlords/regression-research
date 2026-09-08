@@ -593,7 +593,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "project.tiny3d_asset_library": {
         "owner_components": ["local_git", "visual_proof"],
         "triggers": [
-            "library", "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
+            "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
             "showroom", "showroom status", "visual proof library", "visual_proof_library",
             "durable proof", "proof transport", "android proof",
         ],
@@ -3622,6 +3622,8 @@ FEATURE_QUERY_SYNONYMS: dict[str, set[str]] = {
 }
 
 
+FEATURE_QUERY_GENERIC_TERMS = frozenset({"library"})
+
 def _feature_query_terms(query: str) -> tuple[list[str], set[str]]:
     base = [
         term for term in re.findall(r"[a-z0-9]+", query.casefold())
@@ -3659,6 +3661,9 @@ def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
         base_detail = set(base_terms) & detail_tokens
         expanded_semantic = expanded_terms & semantic_tokens
         trigger_bonus = sum(4 for trigger in spec["triggers"] if trigger.casefold() in normalized_query)
+        generic_only_semantic = bool(base_semantic) and base_semantic <= FEATURE_QUERY_GENERIC_TERMS
+        if len(base_terms) > 1 and generic_only_semantic and not trigger_bonus:
+            continue
         if not base_semantic and not expanded_semantic and not trigger_bonus:
             continue
         covered = sum(
