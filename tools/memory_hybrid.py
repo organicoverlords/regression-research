@@ -50,6 +50,7 @@ _STOPWORDS = {
     "what", "when", "where", "which", "who", "why", "will", "with", "without", "would", "you", "your",
 }
 _STRICT_ADMISSION_GENERIC_TOKENS = {"display", "expose", "image", "library", "route", "share", "show", "transport", "use"}
+_STRICT_QUERY_GLUE_TOKENS = {"again", "same"}
 _WORD_RE = re.compile(r"[\w]+", flags=re.UNICODE)
 _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
 
@@ -249,6 +250,8 @@ def _rank_eligible_entries(
     strict_admission: bool = False,
 ) -> list[dict[str, Any]]:
     query_terms = _query_word_tokens(query)
+    if strict_admission:
+        query_terms = [term for term in query_terms if term not in _STRICT_QUERY_GLUE_TOKENS]
     query_unique = list(dict.fromkeys(query_terms))
     doc_tokens = [token_builder(entry) for entry in eligible]
     doc_counts = [Counter(tokens) for tokens in doc_tokens]
