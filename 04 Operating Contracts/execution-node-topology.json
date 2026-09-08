@@ -1,0 +1,40 @@
+{
+  "schema": "swarm.execution-node-topology.v1",
+  "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+  "contract": "Route labels describe compatibility/routing. node_id identifies the physical or logical execution node. Never infer laptop/desktop/GPU-machine identity from a route label alone.",
+  "nodes": {
+    "kone-gpu-desktop": {
+      "display_name": "KONE GPU desktop",
+      "user_alias": "GPU machine",
+      "route_label": "windows",
+      "hostnames": ["KONE"],
+      "machine_class": "desktop",
+      "os_family": "windows",
+      "system_model": "HP Pavilion Gaming Desktop TG01-2xxx",
+      "gpu": "NVIDIA GeForce GTX 1660 SUPER",
+      "roles": ["mcp_control_transport", "lowvram", "windows_specific_validation"]
+    },
+    "omen-linux-laptop": {
+      "display_name": "OMEN Linux laptop",
+      "user_alias": "laptop",
+      "route_label": "omen",
+      "hostnames": ["aatuska-OMEN-by-HP-Laptop-15-dc0xxx"],
+      "machine_class": "laptop",
+      "os_family": "linux",
+      "system_model": "HP OMEN by HP Laptop 15-dc0xxx",
+      "gpu": "NVIDIA GeForce GTX 1070 with Max-Q Design",
+      "roles": ["default_execution", "portable", "heavy", "p3_runtime"]
+    },
+    "p3-vps-light": {
+      "display_name": "P3 VPS light runner",
+      "user_alias": "VPS",
+      "route_label": "vps",
+      "hostnames": [],
+      "machine_class": "virtual_machine",
+      "os_family": "linux",
+      "system_model": null,
+      "gpu": null,
+      "roles": ["portable_light_overflow", "edge_coordination"]
+    }
+  }
+}

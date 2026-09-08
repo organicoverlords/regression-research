@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Shared sticky machine-admission cohort for the ChatGPT swarm.
 from __future__ import annotations
-import argparse, contextlib, ctypes, datetime as dt, json, os
+import argparse, contextlib, ctypes, datetime as dt, json, os, platform
 from pathlib import Path
 import re, shlex, shutil, subprocess, sys, tempfile, time, uuid
 
@@ -15,6 +15,52 @@ OMEN_HOST = "192.168.0.128"
 OMEN_HOST_KEY_ALIAS = "192.168.0.128"
 OMEN_USER = "aatuska"
 VPS_RUNNER_LABEL = "p3-vps-light"
+NODE_TOPOLOGY_PATH = Path(__file__).resolve().parents[1] / "04 Operating Contracts" / "execution-node-topology.json"
+NODE_IDENTITY_SCHEMA = "swarm.execution-node-identity.v1"
+
+def _load_node_topology():
+    data=json.loads(NODE_TOPOLOGY_PATH.read_text(encoding="utf-8-sig"))
+    if data.get("schema")!="swarm.execution-node-topology.v1" or not isinstance(data.get("nodes"),dict):
+        raise ValueError("SWARM_NODE_TOPOLOGY_INVALID")
+    return data
+
+def _declared_node(route):
+    matches=[(node_id,node) for node_id,node in _load_node_topology()["nodes"].items() if node.get("route_label")==route]
+    if len(matches)!=1: return None
+    node_id,node=matches[0]
+    return {
+        "node_identity_schema":NODE_IDENTITY_SCHEMA,
+        "node_id":node_id,
+        "node_name":node.get("display_name"),
+        "node_alias":node.get("user_alias"),
+        "machine_class":node.get("machine_class"),
+        "route_label":route,
+    }
+
+def _bind_node_identity(route, observed_hostname=None):
+    declared=_declared_node(route)
+    observed=str(observed_hostname or "").strip()
+    if declared is None:
+        return {"node_identity_schema":NODE_IDENTITY_SCHEMA,"node_id":None,"expected_node_id":None,"node_name":None,"node_alias":None,"machine_class":None,"route_label":route,"observed_hostname":observed or None,"node_identity_status":"UNRESOLVED_ROUTE"}
+    declared_id=declared["node_id"]
+    node=_load_node_topology()["nodes"][declared_id]
+    hostnames=[str(x).casefold() for x in node.get("hostnames",[]) if str(x).strip()]
+    if not hostnames:
+        return {**declared,"expected_node_id":declared_id,"observed_hostname":observed or None,"node_identity_status":"ROUTE_BOUND_LOGICAL_NODE"}
+    if not observed:
+        return {**declared,"node_id":None,"expected_node_id":declared_id,"observed_hostname":None,"node_identity_status":"HOSTNAME_UNOBSERVED"}
+    if observed.casefold() not in hostnames:
+        return {**declared,"node_id":None,"expected_node_id":declared_id,"observed_hostname":observed,"node_identity_status":"HOSTNAME_MISMATCH"}
+    return {**declared,"expected_node_id":declared_id,"observed_hostname":observed,"node_identity_status":"VERIFIED_HOSTNAME"}
+
+def _unavailable_probe(route, reason, **extra):
+    return {"available":False,"reason":reason,**_bind_node_identity(route),**extra}
+
+def _identity_from_probe(route, probe):
+    bucket=probe.get(route if route!="vps" else "vps",{}) if isinstance(probe,dict) else {}
+    if isinstance(bucket,dict) and bucket.get("node_identity_status"):
+        return {key:bucket.get(key) for key in ("node_identity_schema","node_id","expected_node_id","node_name","node_alias","machine_class","route_label","observed_hostname","node_identity_status")}
+    return _bind_node_identity(route)
 
 def utc_now(): return dt.datetime.now(dt.timezone.utc)
 def iso(t): return t.astimezone(dt.timezone.utc).isoformat().replace("+00:00", "Z")
@@ -73,7 +119,9 @@ def state_lock(path,timeout_seconds=8.0):
 def _run(args,timeout): return subprocess.run(args,capture_output=True,text=True,timeout=timeout,check=False)
 
 def probe_windows():
-    out={"available":True}
+    observed_hostname=platform.node() or os.environ.get("COMPUTERNAME") or None
+    out={"available":True,"observed_hostname":observed_hostname}
+    out.update(_bind_node_identity("windows",observed_hostname))
     try: out["disk_free_gb"]=round(shutil.disk_usage(Path.home().anchor or "C:\\").free/1024**3,2)
     except OSError: out["disk_free_gb"]=None
     if os.name=="nt":
@@ -83,6 +131,14 @@ def probe_windows():
         if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(x)):
             out["mem_available_gb"]=round(x.ullAvailPhys/1024**3,2)
             out["commit_headroom_gb"]=round(x.ullAvailPageFile/1024**3,2)
+    gpu={}
+    try:
+        cp=_run(["nvidia-smi","--query-gpu=name,utilization.gpu,memory.used,memory.free,power.draw,temperature.gpu","--format=csv,noheader,nounits"],3)
+        if cp.returncode==0:
+            a=[x.strip() for x in cp.stdout.strip().split(",")[:6]]
+            gpu={"name":a[0],"utilization_pct":int(a[1]),"vram_used_mb":int(a[2]),"vram_free_mb":int(a[3]),"power_draw_w":float(a[4]),"temperature_c":int(a[5])}
+    except (OSError,subprocess.TimeoutExpired,ValueError,IndexError): pass
+    out["gpu"]=gpu
     return out
 
 def _omen_probe_code():
@@ -112,40 +168,42 @@ root_disk=shutil.disk_usage("/")
 nvme_disk=shutil.disk_usage("/mnt/ue")
 gpu={}
 try:
-    r=subprocess.run(["nvidia-smi","--query-gpu=utilization.gpu,memory.used,memory.free","--format=csv,noheader,nounits"],capture_output=True,text=True,timeout=3)
+    r=subprocess.run(["nvidia-smi","--query-gpu=name,utilization.gpu,memory.used,memory.free","--format=csv,noheader,nounits"],capture_output=True,text=True,timeout=3)
     if r.returncode==0:
-        a=[int(x.strip()) for x in r.stdout.strip().split(",")[:3]]
-        gpu={"utilization_pct":a[0],"vram_used_mb":a[1],"vram_free_mb":a[2]}
+        a=[x.strip() for x in r.stdout.strip().split(",")[:4]]
+        gpu={"name":a[0],"utilization_pct":int(a[1]),"vram_used_mb":int(a[2]),"vram_free_mb":int(a[3])}
 except Exception: pass
 lane1=active("p3-linux-build.service") or active("p3-linux-lane@1.service") or argv_active("run-p3-linux-lane.sh",1)
 lane2=active("p3-linux-lane@2.service") or argv_active("run-p3-linux-lane.sh",2)
 lane3=active("p3-linux-light.service") or active("p3-linux-lane@3.service") or argv_active("run-p3-linux-light.sh") or argv_active("run-p3-linux-lane.sh",3)
-print(json.dumps({"available":True,"mem_available_gb":round(kb("MemAvailable")/1024/1024,2),"swap_free_gb":round(kb("SwapFree")/1024/1024,2),"disk_free_gb":round(nvme_disk.free/1024**3,2),"root_disk_free_gb":round(root_disk.free/1024**3,2),"nvme_disk_free_gb":round(nvme_disk.free/1024**3,2),"load1":round(os.getloadavg()[0],2),"cpu_count":os.cpu_count() or 1,"lane1_build_active":lane1,"lane2_build_active":lane2,"lane3_build_active":lane3,"hot_runtime_count":len([x for x in hot.stdout.splitlines() if x.strip()]),"gpu":gpu},separators=(",",":")))'''
+print(json.dumps({"available":True,"observed_hostname":os.uname().nodename,"mem_available_gb":round(kb("MemAvailable")/1024/1024,2),"swap_free_gb":round(kb("SwapFree")/1024/1024,2),"disk_free_gb":round(nvme_disk.free/1024**3,2),"root_disk_free_gb":round(root_disk.free/1024**3,2),"nvme_disk_free_gb":round(nvme_disk.free/1024**3,2),"load1":round(os.getloadavg()[0],2),"cpu_count":os.cpu_count() or 1,"lane1_build_active":lane1,"lane2_build_active":lane2,"lane3_build_active":lane3,"hot_runtime_count":len([x for x in hot.stdout.splitlines() if x.strip()]),"gpu":gpu},separators=(",",":")))'''
 
 def probe_omen(timeout=7.0):
     key=Path.home()/".ssh"/"chatgpt-linux-aatuska-ed25519"
-    if not key.is_file(): return {"available":False,"reason":"SSH_KEY_MISSING"}
+    if not key.is_file(): return _unavailable_probe("omen","SSH_KEY_MISSING")
     code=_omen_probe_code()
     remote_cmd=f"python3 -c {shlex.quote(code)}"
     args=["ssh","-F","NUL","-4","-i",str(key),"-o","BatchMode=yes","-o","ConnectTimeout=5","-o",f"HostKeyAlias={OMEN_HOST_KEY_ALIAS}",f"{OMEN_USER}@{OMEN_HOST}",remote_cmd]
     try: cp=_run(args,timeout)
-    except (OSError,subprocess.TimeoutExpired): return {"available":False,"reason":"SSH_UNAVAILABLE"}
-    if cp.returncode!=0: return {"available":False,"reason":"SSH_PROBE_FAILED","exit_code":cp.returncode}
+    except (OSError,subprocess.TimeoutExpired): return _unavailable_probe("omen","SSH_UNAVAILABLE")
+    if cp.returncode!=0: return _unavailable_probe("omen","SSH_PROBE_FAILED",exit_code=cp.returncode)
     try: out=json.loads(cp.stdout.strip())
-    except json.JSONDecodeError: return {"available":False,"reason":"PROBE_OUTPUT_INVALID"}
-    out["available"]=bool(out.get("available")); return out
+    except json.JSONDecodeError: return _unavailable_probe("omen","PROBE_OUTPUT_INVALID")
+    out["available"]=bool(out.get("available")); out.update(_bind_node_identity("omen",out.get("observed_hostname"))); return out
 
 def probe_vps(timeout=6.0):
     try: cp=_run(["gh","api","repos/organicoverlords/p3/actions/runners"],timeout)
-    except (OSError,subprocess.TimeoutExpired): return {"available":False,"reason":"RUNNER_PROBE_UNAVAILABLE"}
-    if cp.returncode!=0: return {"available":False,"reason":"RUNNER_PROBE_FAILED"}
+    except (OSError,subprocess.TimeoutExpired): return _unavailable_probe("vps","RUNNER_PROBE_UNAVAILABLE")
+    if cp.returncode!=0: return _unavailable_probe("vps","RUNNER_PROBE_FAILED")
     try: runners=json.loads(cp.stdout).get("runners",[])
-    except json.JSONDecodeError: return {"available":False,"reason":"RUNNER_PROBE_INVALID"}
+    except json.JSONDecodeError: return _unavailable_probe("vps","RUNNER_PROBE_INVALID")
     for runner in runners:
         labels={x.get("name") for x in runner.get("labels",[])}
         if VPS_RUNNER_LABEL in labels:
-            return {"available":runner.get("status")=="online" and not bool(runner.get("busy")),"online":runner.get("status")=="online","busy":bool(runner.get("busy")),"name":runner.get("name"),"route":"github-runner:p3-vps-light"}
-    return {"available":False,"reason":"RUNNER_NOT_REGISTERED"}
+            out={"available":runner.get("status")=="online" and not bool(runner.get("busy")),"online":runner.get("status")=="online","busy":bool(runner.get("busy")),"name":runner.get("name"),"route":"github-runner:p3-vps-light"}
+            out.update(_bind_node_identity("vps",runner.get("name")))
+            return out
+    return _unavailable_probe("vps","RUNNER_NOT_REGISTERED")
 
 def probe_all():
     return {"observed_at":iso(utc_now()),"omen":probe_omen(),"windows":probe_windows(),"vps":probe_vps()}
@@ -226,6 +284,9 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
         current=state["assignments"].get(work_id)
         if current:
             current["last_reused_at"]=iso(now)
+            identity=_identity_from_probe(current.get("route"),state.get("probe") or {})
+            for key,value in identity.items():
+                if current.get(key) is None and value is not None: current[key]=value
             migration_pending=current.get("policy_epoch")!=POLICY_EPOCH
             if not migration_pending:
                 current["expires_at"]=iso(now+dt.timedelta(seconds=ttl_seconds))
@@ -243,7 +304,8 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
                 probe={**probe,"observed_at":iso(utc_now()),"omen":refreshed}
                 state["probe"]=probe
                 route,reason=choose_route(kind,probe,state["assignments"])
-        a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at")}
+        identity=_identity_from_probe(route,probe)
+        a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at"),**identity}
         if recovery is not None: a["capacity_recovery"]=recovery
         state["assignments"][work_id]=a; save_state(state_path,state)
         return {**a,"reused":False,"facts":probe,"cohort_state":str(state_path)}
