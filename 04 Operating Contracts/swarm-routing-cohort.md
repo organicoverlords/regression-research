@@ -35,6 +35,8 @@ OMEN is a dedicated hot development node. Its NVMe is expected to carry rebuilda
 
 Heavy/runtime single-flight remains repository-owned. The router does not duplicate that queue and does not use sticky lease counts as a substitute for it.
 
+Routing policy carries an explicit epoch. Assignments from an older epoch remain sticky only until their already-issued expiry; reuse does **not** extend them. This drains pre-change Windows/VPS fallbacks without moving an in-flight job, after which the next request is admitted again under the current OMEN-first policy. Current-epoch assignments keep normal sticky-TTL renewal.
+
 ## VPS role
 
 The VPS remains the persistent edge/coordination machine. Its current supported swarm compute surface is the `p3-vps-light` GitHub runner; the router checks that runner is online and idle before assigning portable-light overflow. No heavy Unreal workload is routed to the VPS.
