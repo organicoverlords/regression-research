@@ -668,6 +668,12 @@ def converge(
         round_progress = 0
         round_candidates = 0
         for repo_name, repo, scope in existing_repos:
+            # Missing worktree directories leave prunable Git metadata behind. In apply mode,
+            # clear only that stale registration before scanning so a vanished temp lane cannot
+            # crash cleanliness probes or block unrelated safe cleanup. Git worktree prune never
+            # removes a live worktree directory or branch.
+            if apply:
+                _git(repo, "worktree", "prune", check=False)
             candidates, cache_candidates, observations = scan_repo(repo_name, repo, window_seconds)
             actions.extend(observations)
             round_candidates += len(candidates) + len(cache_candidates)

@@ -1274,6 +1274,75 @@ class WorkerReportHistoryTests(unittest.TestCase):
 
 
 
+    def test_manual_metrics_filter_three_hour_duration_outliers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_root = root / "manual" / "history"
+            reports = history_root / "_reports"
+            reports.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            for index, duration in enumerate((10.0, 180.0, 240.0)):
+                started = now - timedelta(minutes=duration + 1)
+                item = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"d{index}",
+                    "run_id": f"duration-{index}", "state": "RUN_FINISHED", "repo": "vault",
+                    "started_at": started.isoformat(), "finished_at": (now - timedelta(minutes=1)).isoformat(),
+                    "archived_at": now.isoformat(), "duration_minutes": duration,
+                }
+                (reports / f"d{index}.json").write_text(json.dumps(item), encoding="utf-8")
+
+            metrics = build_metrics_projection(history_root)
+            self.assertEqual(metrics["reports"], 3)
+            self.assertEqual(metrics["runs_with_duration"], 1)
+            self.assertEqual(metrics["total_duration_minutes"], 10.0)
+            self.assertEqual(metrics["average_duration_minutes"], 10.0)
+            self.assertEqual(metrics["max_duration_minutes"], 10.0)
+            self.assertEqual(metrics["duration_filter"]["exclude_at_or_above_minutes"], 180.0)
+            self.assertEqual(metrics["duration_filter"]["excluded_count"], 2)
+
+    def test_manual_sanity_since_boundary_sample_does_not_roll_back_to_insufficient(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v2",
+                "baseline_id": "persistent-sample",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "comparison_window_mode": "since_boundary",
+                "metrics": {
+                    "median_report_bytes": 1000.0, "mean_transcript_fields": 4.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0,
+                },
+                "axes": {
+                    "friction": {"metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0}},
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 100.0}},
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            for index in range(5):
+                archive = reports / f"persist{index}.md"
+                archive.write_text(f"run_id: persist{index}\nstate: RUN_FINISHED\noutcome: useful work\n", encoding="utf-8")
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"persist{index}",
+                    "run_id": f"persist{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{15+index:02d}:00+03:00", "duration_minutes": 5.0,
+                    "archived_at": f"2026-09-06T21:{16+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"persist{index}", "outcome": "useful work"}, "outcome": "useful work",
+                }
+                (reports / f"persist{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+
+            projected = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-07T08:00:00+03:00")
+            )
+            self.assertEqual(projected["comparison_window_mode"], "since_boundary")
+            self.assertEqual(projected["post_run_count"], 5)
+            self.assertEqual(projected["status"], "PROVISIONAL")
+
     def test_manual_sanity_requires_post_boundary_sample_and_then_scores_improvement(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -6,7 +6,8 @@
   "change_ref": "regression-research#658 / 818b76b5d2c4931d0eff30f71f7269ca4896bc9a",
   "baseline_window_hours": 6.0,
   "comparison_window_hours": 6.0,
-  "population_semantics": "manual runs are assigned by started_at; archive time never moves an old-format run across the boundary",
+  "comparison_window_mode": "since_boundary",
+  "population_semantics": "manual runs are assigned by started_at; archive time never moves an old-format run across the boundary; post-change sanity evidence accumulates from the fixed boundary until this baseline is explicitly superseded",
   "baseline_run_count": 48,
   "metrics": {
     "median_report_bytes": 1625.5,
