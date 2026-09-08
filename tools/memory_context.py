@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any, Iterable
 
-DEFAULT_CONTEXT_CHARS = 6000
+DEFAULT_CONTEXT_CHARS = 12000
 MIN_CONTEXT_CHARS = 2000
 MAX_CONTEXT_CHARS = 12000
-MAX_ENTRY_TEXT = 450
 MAX_HISTORY_TEXT = 350
 
 try:
@@ -67,9 +66,15 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
         "kind": entry.get("kind"),
         "scope": entry.get("scope"),
         "state": entry.get("state"),
-        "text": _clip(entry.get("text"), MAX_ENTRY_TEXT),
+        "text": str(entry.get("text") or ""),
         "evidence": list(entry.get("evidence") or [])[:4],
     }
+    if entry.get("interpretation"):
+        out["interpretation"] = str(entry["interpretation"])
+    tags = {str(tag) for tag in entry.get("tags") or []}
+    source_messages = list(entry.get("source_messages") or [])
+    if "assistant-recorded" in tags and source_messages:
+        out["source_messages"] = [_clip(message, 240) for message in source_messages[:2]]
     if classification:
         out["semantic_category"] = classification.get("semantic_category")
         out["primary_domain"] = classification.get("primary_domain")
@@ -131,7 +136,9 @@ def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
         for key in order:
             values = pack[key]
             if values:
-                values.pop()
+                removed_record = values.pop()
+                if key == "durable_memory" and removed_record.get("id"):
+                    pack.setdefault("omitted_memory_ids", []).append(removed_record["id"])
                 pack["truncated"] = True
                 removed = True
                 break
@@ -173,7 +180,7 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
             omitted_provisional += 1
         elif compact.get("kind") == "status":
             omitted_status += 1
-        elif not compact.get("evidence"):
+        elif not compact.get("evidence") and not compact.get("source_messages"):
             omitted_unanchored += 1
         else:
             durable.append(compact)
@@ -182,7 +189,7 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         "query": query,
         "selectors": {"projects": sorted(query_projects), "roles": sorted(query_roles)},
         "contract": {
-            "durable_memory": "proven anchored historical evidence, never runtime policy or live machine/repo truth",
+            "durable_memory": "proven anchored historical evidence; anchors are evidence refs or validated assistant-recorded verbatim source provenance, never runtime policy or live machine/repo truth",
             "historical_evidence": "historical evidence only; never authority by retrieval frequency or recency",
             "timeline": "derived chronology only; thread membership and recency do not prove causality or current truth",
         },
