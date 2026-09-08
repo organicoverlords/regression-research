@@ -699,6 +699,10 @@ def source_relevance(entry: dict[str, Any], registry: dict[str, Any] | None = No
     return best
 
 
+def _is_entry_id(query: str) -> bool:
+    return re.fullmatch(r"mem-[A-Za-z0-9_-]+", query.strip()) is not None
+
+
 def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
                    tags: list[str] | None = None, limit: int | None = None, history: bool = False,
                    source_registry: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -714,8 +718,11 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
     ranked: list[tuple[float, int, datetime, dict[str, Any]]] = []
     registry = source_registry or load_source_registry()
+    exact_id = query.strip() if _is_entry_id(query) else None
     for entry in entries:
         if not history and not _ordinary_recall_eligible(entry, superseded):
+            continue
+        if exact_id is not None and entry["id"] != exact_id:
             continue
         searchable_text = "\n".join([
             entry["text"],
@@ -726,7 +733,7 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
         ])
         text_tokens = _tokens(searchable_text)
         tag_tokens = {tag.casefold() for tag in entry["tags"]}
-        relevance = 0.0
+        relevance = 1.0 if exact_id is not None else 0.0
         if scope and entry["scope"].casefold() == scope.casefold():
             relevance += 4
         relevance += 4 * sum(tag in tag_tokens for tag in tags)
@@ -822,8 +829,8 @@ def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str
 
 
 def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False) -> list[dict[str, Any]]:
-    if history:
-        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=True)
+    if history or _is_entry_id(query):
+        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
     try:
         from .memory_hybrid import search_entries_hybrid
     except ImportError:
@@ -837,6 +844,8 @@ def search_context_memory(
 ) -> list[dict[str, Any]]:
     """Return bounded evidence context without promoting stored memory into behavior authority."""
     effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
+    if _is_entry_id(query):
+        return search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit)
     selectors = context_selectors(query)
     filtered = [entry for entry in entries if entry_matches_selectors(entry, selectors)]
     projects = selectors.get("projects") or set()
@@ -908,7 +917,7 @@ def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str |
     hard_cap = MAX_HISTORY_LIMIT if history else MAX_RECALL_LIMIT
     effective_limit = min(hard_cap, max(0, default_limit if limit is None else int(limit)))
     manual = search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
-    if history or not query.strip() or effective_limit == 0:
+    if history or _is_entry_id(query) or not query.strip() or effective_limit == 0:
         return manual
 
     corpus = conversation_history_report(query, limit=effective_limit, db=conversation_db)
@@ -1018,14 +1027,14 @@ def _main() -> int:
     record.add_argument("--publish", action="store_true", help="explicitly reconcile/publish the canonical bank through Git; default record is local-only")
 
     search = sub.add_parser("search")
-    search.add_argument("query", nargs="?", default="")
+    search.add_argument("query", nargs="?", default="", help="words to match, or an exact mem-... ID; --history can read superseded/rejected records")
     search.add_argument("--scope")
     search.add_argument("--tag", action="append", default=[])
     search.add_argument("--limit", type=int)
     search.add_argument("--history", action="store_true")
 
     context = sub.add_parser("context", help="build a compact task-scoped context pack from curated memory and historical corpus")
-    context.add_argument("query")
+    context.add_argument("query", help="task wording with project, or an exact mem-... ID; oversized records are listed in omitted_memory_ids")
     context.add_argument("--scope")
     context.add_argument("--tag", action="append", default=[])
     context.add_argument("--limit", type=int, default=MAX_RECALL_LIMIT)
@@ -1179,7 +1188,7 @@ def _main() -> int:
         if args.command == "context":
             selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
             hits = [annotate_memory(entry) for entry in selected]
-            if args.with_history:
+            if args.with_history and not _is_entry_id(args.query):
                 report = conversation_history_report(args.query, limit=min(3, args.limit))
                 summary = _conversation_summary_entry(args.query, report.get("summary") or {})
                 if summary is not None:
