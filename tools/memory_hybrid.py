@@ -75,7 +75,7 @@ _CONCEPT_GROUPS = (
     ("isolate", "isolated", "isolating", "experiment", "experimental", "experimentally"),
     ("investigation", "diagnostic", "diagnostics", "debug", "debugging", "investigate", "investigating"),
     ("route", "routing", "path", "paths"),
-    ("correction", "correct", "corrects", "corrected", "correcting"),
+    ("correction", "corrections", "correct", "corrects", "corrected", "correcting"),
     ("continuity", "intact", "unchanged", "unaffected", "remainder", "rest"),
     ("presentation", "wording", "format", "formatting", "phrasing"),
     ("define", "defined", "defines", "dictate", "dictated", "govern", "governed"),
