@@ -70,17 +70,23 @@ WORKER_ARCHIVE_SAMPLE_LIMIT = 5
 WORKER_ARCHIVE_STALE_MINUTES = 90.0
 
 _QUERY_STOP_WORDS = {
-    "a", "an", "and", "be", "by", "cross", "did", "for", "from", "getting", "history", "how", "in",
-    "is", "keep", "of", "on", "or", "that", "the", "this", "to", "was", "were", "what", "why", "with",
+    "a", "again", "an", "and", "ask", "be", "by", "can", "could", "cross", "did", "do", "does", "figuring", "for",
+    "from", "getting", "here", "history", "how", "i", "in", "is", "it", "its", "just", "keep", "make", "me", "my",
+    "of", "on", "or", "our", "ours", "out", "please", "same", "so", "that", "the", "their", "them", "then", "there",
+    "they", "this", "to", "us", "was", "we", "were", "what", "when", "why", "will", "with", "without", "would", "you",
+    "your", "yours",
 }
 _QUERY_CONCEPT_GROUPS = (
     frozenset({"ram", "memory"}),
     frozenset({"paging", "pagefile"}),
     frozenset({"runner", "runners"}),
     frozenset({"proof", "evidence"}),
-    frozenset({"review", "reviewed", "inspection", "inspected", "accepted", "acceptance"}),
+    frozenset({"review", "reviewed", "inspect", "inspecting", "inspection", "inspected"}),
+    frozenset({"accepted", "acceptance"}),
     frozenset({"capture", "captures", "captured", "screenshot", "screenshots", "frame", "frames"}),
     frozenset({"visual", "visible", "render", "rendered", "image", "images", "picture", "pictures"}),
+    frozenset({"transport", "delivery", "display", "displayed", "share", "shared", "show", "shown", "showing"}),
+    frozenset({"again", "repeat", "repeated", "recurring", "recurrence"}),
     frozenset({"branch", "branches", "worktree", "worktrees"}),
     frozenset({"convergence", "converge", "converged", "merge", "merged", "integration", "integrated"}),
     frozenset({"reconnect", "reconnection", "connection", "connections"}),
@@ -2486,6 +2492,26 @@ def _event_matches_identity_query(event: dict[str, Any], query: str) -> bool:
     return tokens <= set(_QUERY_TOKEN_RE.findall(hay))
 
 
+def _minimum_query_matches(concept_count: int) -> int:
+    """Require more independent concepts as a natural-language query gets richer."""
+    if concept_count <= 1:
+        return 1
+    if concept_count <= 4:
+        return 2
+    if concept_count <= 7:
+        return 3
+    return 4
+
+
+def _is_causal_correction_event(event: dict[str, Any]) -> bool:
+    hay = " ".join([
+        str(event.get("title") or ""),
+        str(event.get("summary") or ""),
+        str(event.get("_search_text") or ""),
+    ]).casefold()
+    return any(phrase in hay for phrase in _CAUSAL_CORRECTION_PHRASES)
+
+
 def _event_matches_query(event: dict[str, Any], query: str) -> bool:
     concepts = _query_concepts(query)
     if not concepts:
@@ -2508,7 +2534,7 @@ def _rank_query_events(events: list[dict[str, Any]], query: str, *, corpus_size_
             if merged & concept:
                 document_frequency[index] += 1
     corpus_size = max(1, int(corpus_size_override) if corpus_size_override is not None else len(events))
-    minimum_matches = 2 if len(concepts) >= 2 else 1
+    minimum_matches = _minimum_query_matches(len(concepts))
     causal_query = bool(_query_tokens(query) & _CAUSAL_QUERY_TOKENS)
     ranked: list[tuple[float, dict[str, Any]]] = []
     for event, fields in zip(events, fields_by_id):
@@ -2521,19 +2547,15 @@ def _rank_query_events(events: list[dict[str, Any]], query: str, *, corpus_size_
             matched += 1
             rarity = math.log(1.0 + (corpus_size + 1.0) / (document_frequency[index] + 1.0))
             score += best_weight * rarity
-        if matched < minimum_matches:
+        causal_correction = causal_query and _is_causal_correction_event(event)
+        required_matches = min(minimum_matches, 3) if causal_correction else minimum_matches
+        if matched < required_matches:
             continue
         coverage = matched / min(len(concepts), 6)
         score *= 0.75 + (1.35 * coverage)
         score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
-        if causal_query:
-            causal_hay = " ".join([
-                str(event.get("title") or ""),
-                str(event.get("summary") or ""),
-                str(event.get("_search_text") or ""),
-            ]).casefold()
-            if any(phrase in causal_hay for phrase in _CAUSAL_CORRECTION_PHRASES):
-                score *= 2.25
+        if causal_correction:
+            score *= 2.25
         ranked.append((score, event))
     ranked.sort(
         key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
@@ -2584,7 +2606,7 @@ def _rank_query_events_indexed(
         document_frequency.append(len(best))
 
     corpus_size = max(1, int(corpus_size_override) if corpus_size_override is not None else len(events))
-    minimum_matches = 2 if len(concepts) >= 2 else 1
+    minimum_matches = _minimum_query_matches(len(concepts))
     causal_query = bool(_query_tokens(query) & _CAUSAL_QUERY_TOKENS)
     ranked: list[tuple[float, dict[str, Any]]] = []
     for position, event in event_by_position.items():
@@ -2597,19 +2619,15 @@ def _rank_query_events_indexed(
             matched += 1
             rarity = math.log(1.0 + (corpus_size + 1.0) / (document_frequency[concept_index] + 1.0))
             score += weight * rarity
-        if matched < minimum_matches:
+        causal_correction = causal_query and _is_causal_correction_event(event)
+        required_matches = min(minimum_matches, 3) if causal_correction else minimum_matches
+        if matched < required_matches:
             continue
         coverage = matched / min(len(concepts), 6)
         score *= 0.75 + (1.35 * coverage)
         score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
-        if causal_query:
-            causal_hay = " ".join([
-                str(event.get("title") or ""),
-                str(event.get("summary") or ""),
-                str(event.get("_search_text") or ""),
-            ]).casefold()
-            if any(phrase in causal_hay for phrase in _CAUSAL_CORRECTION_PHRASES):
-                score *= 2.25
+        if causal_correction:
+            score *= 2.25
         ranked.append((score, event))
     ranked.sort(
         key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
