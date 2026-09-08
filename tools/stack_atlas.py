@@ -3965,7 +3965,10 @@ def main() -> int:
         else:
             processes, ports, resources = capture_windows_processes(), capture_windows_ports(), []
         value = blast_radius(args.pid, processes, ports=ports, resource_observations=resources)
-    print(json.dumps(value, indent=2, sort_keys=True))
+    if args.command == "bootstrap-glance":
+        print(json.dumps(value, separators=(",", ":"), sort_keys=True, ensure_ascii=False))
+    else:
+        print(json.dumps(value, indent=2, sort_keys=True))
     return 0
 
 

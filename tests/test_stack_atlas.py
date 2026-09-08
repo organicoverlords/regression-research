@@ -1,5 +1,7 @@
+import io
 import json
 import os
+from contextlib import redirect_stdout
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -25,6 +27,7 @@ from tools.stack_atlas import (
     atlas_lookup,
     find_features,
     full_inventory,
+    main as stack_atlas_main,
     production_change_gate,
     render_manual,
     _bootstrap_pc_status,
@@ -438,6 +441,21 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("tiny3d_asset_library", glance["commands"])
         self.assertIn("lookup tiny3d_library", glance["commands"]["tiny3d_asset_library"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
+
+    def test_bootstrap_cli_emits_the_budgeted_compact_utf8_representation(self):
+        glance = _fit_bootstrap_glance_budget({
+            "bootstrap": {"status": "OK"},
+            "non_ascii_probe": "ä" * 4000,
+        })
+        output = io.StringIO()
+        with patch("sys.argv", ["stack_atlas.py", "bootstrap-glance"]), \
+                patch("tools.stack_atlas.build_live_bootstrap_glance", return_value=glance), \
+                redirect_stdout(output):
+            self.assertEqual(stack_atlas_main(), 0)
+        raw = output.getvalue().encode("utf-8")
+        self.assertLessEqual(len(raw), BOOTSTRAP_GLANCE_MAX_BYTES + 1)
+        self.assertLess(len(raw), 12000)
+        self.assertEqual(json.loads(raw), glance)
 
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
         glance = {
