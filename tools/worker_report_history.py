@@ -27,6 +27,7 @@ MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
 MANUAL_CURRENT_TERMINAL_GRACE_MINUTES = 10.0
 MANUAL_CURRENT_STALE_OPEN_HOURS = 6.0
 MANUAL_CURRENT_INVALID_GRACE_HOURS = 1.0
+MANUAL_DURATION_OUTLIER_MINUTES = 180.0
 NONTERMINAL_HISTORY_LIFECYCLE_STATUSES = frozenset({"ABANDONED_OPEN", "INVALID_CURRENT_SNAPSHOT"})
 START_RECEIPT_SCHEMA = "worker-run-start.v1"
 START_RECEIPT_DIRNAME = ".supervision"
@@ -611,7 +612,10 @@ def _manual_sanity_observation(records: list[dict[str, Any]]) -> dict[str, Any]:
     shapes = [_manual_report_shape(item) for item in records]
     report_bytes = [item["report_bytes"] for item in shapes if item["report_bytes"] is not None]
     transcript_fields = [item["transcript_field_count"] for item in shapes]
-    durations = [item["duration_minutes"] for item in shapes if item["duration_minutes"] is not None]
+    durations = [
+        item["duration_minutes"] for item in shapes
+        if item["duration_minutes"] is not None and item["duration_minutes"] < MANUAL_DURATION_OUTLIER_MINUTES
+    ]
     return {
         "run_count": len(records),
         "median_report_bytes": round(statistics.median(report_bytes), 2) if report_bytes else None,
@@ -647,7 +651,11 @@ def _manual_continuation_observation(records: list[dict[str, Any]]) -> dict[str,
             interrupted += 1
             continue
         completed.append(item)
-    durations = [float(item["duration_minutes"]) for item in completed if isinstance(item.get("duration_minutes"), (int, float))]
+    durations = [
+        float(item["duration_minutes"]) for item in completed
+        if isinstance(item.get("duration_minutes"), (int, float))
+        and float(item["duration_minutes"]) < MANUAL_DURATION_OUTLIER_MINUTES
+    ]
     return {
         "identified_run_count": len(selected),
         "eligible_run_count": len(completed),
@@ -681,7 +689,8 @@ def build_manual_sanity_projection(
         current_now = current_now.replace(tzinfo=timezone.utc)
     boundary = boundary.astimezone(current_now.tzinfo)
     window_hours = float(baseline.get("comparison_window_hours") or 6.0)
-    window_start = max(boundary, current_now - timedelta(hours=window_hours))
+    window_mode = str(baseline.get("comparison_window_mode") or "rolling").strip().casefold()
+    window_start = boundary if window_mode == "since_boundary" else max(boundary, current_now - timedelta(hours=window_hours))
     records = [
         item for item in load_history_metadata(history_root)
         if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item) and _history_record_is_terminal(item)
@@ -816,6 +825,7 @@ def build_manual_sanity_projection(
         "baseline_path": str(baseline_path),
         "boundary_at": baseline.get("boundary_at"),
         "comparison_window_hours": window_hours,
+        "comparison_window_mode": window_mode,
         "comparison_window_start": window_start.isoformat(),
         "generated_at": current_now.isoformat(),
         "status": status,
@@ -849,7 +859,13 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
     if population == "manual":
         records = _dedupe_manual_run_records(records)
 
-    durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
+    duration_values = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
+    if population == "manual":
+        duration_outlier_count = sum(value >= MANUAL_DURATION_OUTLIER_MINUTES for value in duration_values)
+        durations = [value for value in duration_values if value < MANUAL_DURATION_OUTLIER_MINUTES]
+    else:
+        duration_outlier_count = 0
+        durations = duration_values
     tag_counts: Counter[str] = Counter()
     for item in records:
         for tag in item.get("finding_tags") or []:
@@ -894,6 +910,11 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
         "latest_reports": latest,
     }
     if population == "manual":
+        metrics["duration_filter"] = {
+            "exclude_at_or_above_minutes": MANUAL_DURATION_OUTLIER_MINUTES,
+            "excluded_count": duration_outlier_count,
+            "semantics": "Long-lived/stale manual report intervals are excluded from duration aggregates but the reports remain in outcome/finding counts.",
+        }
         metrics["sanity"] = build_manual_sanity_projection(history_root)
     if population == "timed":
         utilizations = [float(item["target_utilization_pct"]) for item in records if isinstance(item.get("target_utilization_pct"), (int, float))]

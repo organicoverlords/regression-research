@@ -10,6 +10,7 @@ from unittest.mock import patch
 from tools.cleanup_converger import (
     Action,
     Worktree,
+    converge,
     cwd_targets_path,
     eligibility_reason,
     exact_anchor_refs,
@@ -253,6 +254,38 @@ class CleanupConvergerTests(unittest.TestCase):
         self.assertEqual(len(observations), 1)
         self.assertEqual(observations[0].action, "PRESERVE")
         self.assertEqual(observations[0].reason, "cleanliness_probe_timeout")
+
+    @patch("tools.cleanup_converger.disk_free_gb", return_value=10.0)
+    @patch("tools.cleanup_converger.scan_repo")
+    @patch("tools.cleanup_converger._git")
+    def test_apply_prunes_missing_worktree_registration_before_scan(self, git, scan, _disk):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            order = []
+
+            def git_side_effect(_repo, *args, **kwargs):
+                if args == ("worktree", "prune"):
+                    order.append("prune")
+                return subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
+
+            def scan_side_effect(*_args, **_kwargs):
+                self.assertEqual(order, ["prune"])
+                return [], [], []
+
+            git.side_effect = git_side_effect
+            scan.side_effect = scan_side_effect
+            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("P3", repo, "p3:git-worktree-metadata"),)):
+                result = converge(
+                    apply=True,
+                    max_rounds=1,
+                    stable_rounds=1,
+                    settle_seconds=0,
+                    window_seconds=300,
+                    actor="test-operator",
+                )
+
+            self.assertEqual(result["rounds_run"], 1)
+            git.assert_any_call(repo, "worktree", "prune", check=False)
 
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):

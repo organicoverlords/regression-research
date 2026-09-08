@@ -151,22 +151,40 @@ def omen_admissible(kind,omen,assignments):
     if not omen.get("available"): return False,"OMEN_UNAVAILABLE"
     mem=float(omen.get("mem_available_gb") or 0); disk=float(omen.get("disk_free_gb") or 0)
     cpus=max(int(omen.get("cpu_count") or 1),1); ratio=float(omen.get("load1") or 0)/cpus
-    leased=omen_load(assignments)
+    # Assignments are sticky routing hints, not proof that compute is occupied. Repo-owned
+    # queues/locks serialize actual heavy/runtime flights, so stale or waiting leases must
+    # not make an otherwise idle OMEN look full.
     if kind=="p3-runtime":
-        if omen.get("lane1_build_active"): return False,"OMEN_LANE1_REFRESH_ACTIVE"
-        if mem<3 or disk<25: return False,"OMEN_RUNTIME_HEADROOM_LOW"
+        if disk<12: return False,"OMEN_RUNTIME_DISK_LOW"
+        if mem<2.5: return False,"OMEN_RUNTIME_MEMORY_LOW"
         return True,"OMEN_RUNTIME_READY"
     if kind=="heavy":
-        if omen.get("lane2_build_active") or leased["heavy"]>=1: return False,"OMEN_HEAVY_CAPACITY_FULL"
-        if mem<5 or disk<30 or ratio>=.85: return False,"OMEN_HEAVY_HEADROOM_LOW"
+        if disk<16: return False,"OMEN_HEAVY_DISK_LOW"
+        if mem<4 or ratio>=.90: return False,"OMEN_HEAVY_HEADROOM_LOW"
         return True,"OMEN_HEAVY_ADMITTED"
     if kind=="portable":
-        if leased["total"]>=5 or mem<3 or disk<20 or ratio>=.95: return False,"OMEN_PORTABLE_CAPACITY_FULL"
+        if disk<10: return False,"OMEN_PORTABLE_DISK_LOW"
+        if mem<2 or ratio>=1.0: return False,"OMEN_PORTABLE_HEADROOM_LOW"
         return True,"OMEN_PORTABLE_ADMITTED"
     if kind=="portable-light":
-        if leased["total"]>=6 or mem<2 or disk<15 or ratio>=1.0: return False,"OMEN_LIGHT_CAPACITY_FULL"
+        if disk<8: return False,"OMEN_LIGHT_DISK_LOW"
+        if mem<1.5 or ratio>=1.15: return False,"OMEN_LIGHT_HEADROOM_LOW"
         return True,"OMEN_LIGHT_ADMITTED"
     return False,"OMEN_KIND_UNSUPPORTED"
+
+
+def _omen_reclaim_target_gb(kind):
+    return {"p3-runtime":18,"heavy":24,"portable":16,"portable-light":12}.get(kind)
+
+def reclaim_omen_scratch(kind,timeout=12.0):
+    target=_omen_reclaim_target_gb(kind)
+    if target is None: return {"attempted":False,"reason":"KIND_NOT_RECLAIMABLE"}
+    key=Path.home()/".ssh"/"chatgpt-linux-aatuska-ed25519"
+    if not key.is_file(): return {"attempted":False,"reason":"SSH_KEY_MISSING"}
+    args=["ssh","-F","NUL","-4","-i",str(key),"-o","BatchMode=yes","-o","ConnectTimeout=5","-o",f"HostKeyAlias={OMEN_HOST_KEY_ALIAS}",f"{OMEN_USER}@{OMEN_HOST}",f"/home/{OMEN_USER}/ue-work/reclaim-p3-linux-scratch.sh {target}"]
+    try: cp=_run(args,timeout)
+    except (OSError,subprocess.TimeoutExpired): return {"attempted":True,"ok":False,"reason":"RECLAIM_UNAVAILABLE","target_free_gb":target}
+    return {"attempted":True,"ok":cp.returncode==0,"exit_code":cp.returncode,"target_free_gb":target}
 
 def choose_route(kind,facts,assignments):
     if kind=="lowvram": return "windows","LOWVRAM_PINNED_WINDOWS"
@@ -190,7 +208,16 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
         if refresh_probe or not probe_is_fresh(probe,now):
             probe=probe_all(); state["probe"]=probe
         route,reason=choose_route(kind,probe,state["assignments"])
+        recovery=None
+        if route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
+            recovery=reclaim_omen_scratch(kind)
+            if recovery.get("ok"):
+                refreshed=probe_omen()
+                probe={**probe,"observed_at":iso(utc_now()),"omen":refreshed}
+                state["probe"]=probe
+                route,reason=choose_route(kind,probe,state["assignments"])
         a={"schema":SCHEMA,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at")}
+        if recovery is not None: a["capacity_recovery"]=recovery
         state["assignments"][work_id]=a; save_state(state_path,state)
         return {**a,"reused":False,"facts":probe,"cohort_state":str(state_path)}
 
