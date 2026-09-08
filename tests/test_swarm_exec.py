@@ -65,6 +65,32 @@ class SwarmExecTests(unittest.TestCase):
         self.assertEqual(changed,[])
         self.assertEqual(deleted,[])
 
+    def test_cached_manifest_reuses_unchanged_hashes(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); cache=root/"hash-cache.json"
+            (root/"a.txt").write_text("a",encoding="utf-8")
+            (root/"b.txt").write_text("b",encoding="utf-8")
+            paths=[Path("a.txt"),Path("b.txt")]
+            first,size1,hits1,misses1=m.cached_snapshot_manifest(root,paths,cache_file=cache)
+            self.assertEqual((size1,hits1,misses1),(2,0,2))
+            cache_mtime=cache.stat().st_mtime_ns
+            second,size2,hits2,misses2=m.cached_snapshot_manifest(root,paths,cache_file=cache)
+            self.assertEqual((size2,hits2,misses2),(2,2,0))
+            self.assertEqual(first,second)
+            self.assertEqual(cache.stat().st_mtime_ns,cache_mtime)
+            (root/"a.txt").write_text("z",encoding="utf-8")
+            st=(root/"a.txt").stat(); __import__("os").utime(root/"a.txt",ns=(st.st_atime_ns,st.st_mtime_ns+1_000_000))
+            third,_size3,hits3,misses3=m.cached_snapshot_manifest(root,paths,cache_file=cache)
+            self.assertEqual((hits3,misses3),(1,1))
+            self.assertNotEqual(first["a.txt"]["sha256"],third["a.txt"]["sha256"])
+
+    def test_corrupt_local_hash_cache_fails_open_to_rehash(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); cache=root/"hash-cache.json"; cache.write_text("not json",encoding="utf-8")
+            (root/"a.txt").write_text("a",encoding="utf-8")
+            _manifest,_size,hits,misses=m.cached_snapshot_manifest(root,[Path("a.txt")],cache_file=cache)
+            self.assertEqual((hits,misses),(0,1))
+
     def test_cache_protocol_and_remote_lock_are_explicit(self):
         manifest={"a.txt":{"type":"file","sha256":"0"*64,"size":1,"mode":0o644,"mtime_ns":1}}
         line=m.CACHE_PROTOCOL_PREFIX + __import__("json").dumps(manifest,separators=(",",":")).encode() + b"\n"

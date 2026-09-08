@@ -22,6 +22,7 @@ import shlex
 import subprocess
 import sys
 import tarfile
+import tempfile
 from typing import Iterable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -138,6 +139,115 @@ def snapshot_manifest(repo_root: Path, paths: Iterable[Path]) -> dict[str, dict[
                     h.update(chunk)
             manifest[name] = {"type": "file", "sha256": h.hexdigest(), "size": st.st_size, "mode": mode, "mtime_ns": st.st_mtime_ns}
     return manifest
+
+
+LOCAL_HASH_CACHE_VERSION = 1
+
+
+def local_hash_cache_path(repo_root: Path) -> Path:
+    base = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / ".cache")) / "SwarmRouting" / "swarm-exec-hashes"
+    identity = str(repo_root.resolve()).casefold()
+    key = hashlib.sha256(identity.encode("utf-8", errors="surrogatepass")).hexdigest()[:24]
+    return base / f"{key}.json"
+
+
+def _local_fingerprint(st: os.stat_result, kind: str) -> list[int | str]:
+    return [
+        kind,
+        int(st.st_size),
+        int(stat.S_IMODE(st.st_mode)),
+        int(st.st_mtime_ns),
+        int(st.st_ctime_ns),
+        int(getattr(st, "st_ino", 0)),
+        int(getattr(st, "st_dev", 0)),
+    ]
+
+
+def _load_local_hash_cache(path: Path) -> dict[str, dict[str, object]]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(value, dict) or value.get("version") != LOCAL_HASH_CACHE_VERSION:
+        return {}
+    entries = value.get("entries")
+    return entries if isinstance(entries, dict) else {}
+
+
+def _write_local_hash_cache(path: Path, entries: dict[str, dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
+            json.dump({"version": LOCAL_HASH_CACHE_VERSION, "entries": entries}, fh, separators=(",", ":"), sort_keys=True)
+            fh.write("\n")
+            fh.flush()
+        os.replace(tmp, path)
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp)
+
+
+def cached_snapshot_manifest(
+    repo_root: Path, paths: Iterable[Path], *, cache_file: Path | None = None
+) -> tuple[dict[str, dict[str, int | str]], int, int, int]:
+    cache_path = cache_file or local_hash_cache_path(repo_root)
+    old = _load_local_hash_cache(cache_path)
+    new: dict[str, dict[str, object]] = {}
+    manifest: dict[str, dict[str, int | str]] = {}
+    total = hits = misses = 0
+    for rel in paths:
+        name = rel.as_posix()
+        _safe_manifest_path(name)
+        full = repo_root / rel
+        try:
+            st = full.lstat()
+        except FileNotFoundError:
+            continue
+        mode = stat.S_IMODE(st.st_mode)
+        if stat.S_ISLNK(st.st_mode):
+            target = os.fsencode(os.readlink(full))
+            digest = hashlib.sha256(target).hexdigest()
+            size = len(target)
+            fingerprint = _local_fingerprint(st, "symlink")
+            misses += 1
+            kind = "symlink"
+        elif stat.S_ISREG(st.st_mode):
+            kind = "file"
+            size = int(st.st_size)
+            fingerprint = _local_fingerprint(st, kind)
+            cached = old.get(name)
+            digest = ""
+            if isinstance(cached, dict) and cached.get("fingerprint") == fingerprint:
+                candidate = cached.get("sha256")
+                if isinstance(candidate, str) and re.fullmatch(r"[0-9a-f]{64}", candidate):
+                    digest = candidate
+            if digest:
+                hits += 1
+            else:
+                h = hashlib.sha256()
+                try:
+                    with full.open("rb") as fh:
+                        while True:
+                            chunk = fh.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            h.update(chunk)
+                except FileNotFoundError:
+                    continue
+                digest = h.hexdigest()
+                misses += 1
+        else:
+            continue
+        total += size
+        manifest[name] = {"type": kind, "sha256": digest, "size": size, "mode": mode, "mtime_ns": st.st_mtime_ns}
+        new[name] = {"fingerprint": fingerprint, "sha256": digest}
+    if new != old:
+        try:
+            _write_local_hash_cache(cache_path, new)
+        except OSError:
+            pass
+    return manifest, total, hits, misses
 
 
 def parse_remote_manifest(line: bytes) -> dict[str, dict[str, int | str]]:
@@ -320,11 +430,10 @@ def _forward_stdout(stream) -> None:
 
 def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False) -> int:
     paths = snapshot_paths(repo_root)
-    size = snapshot_bytes(repo_root, paths)
+    current_manifest, size, hash_hits, hash_misses = cached_snapshot_manifest(repo_root, paths)
     limit = max_sync_mb * 1024 * 1024
     if size > limit:
         raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={size} limit={limit}")
-    current_manifest = snapshot_manifest(repo_root, paths)
     cache_id = repo_cache_id(repo_root)
     workspace, script = remote_script(work_id, command, cache_id, keep_workspace=keep_workspace)
     proc = subprocess.Popen(ssh_args() + [script], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -338,7 +447,7 @@ def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, 
             "event": "SWARM_EXEC_OMEN_START", "work_id": work_id, "workspace": workspace,
             "snapshot_files": len(paths), "snapshot_bytes": size, "cache_id": cache_id,
             "cache_hit": bool(remote_manifest), "delta_files": len(changed), "delta_bytes": delta_size,
-            "deleted_files": len(deleted),
+            "deleted_files": len(deleted), "hash_cache_hits": hash_hits, "hash_cache_misses": hash_misses,
         }, separators=(",", ":")), file=sys.stderr, flush=True)
         with tarfile.open(fileobj=proc.stdin, mode="w|") as tf:
             _add_control_member(tf, current_manifest, changed, deleted)
