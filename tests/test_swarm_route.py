@@ -4,8 +4,9 @@ import tempfile, unittest
 ROOT=Path(__file__).resolve().parents[1]
 SPEC=importlib.util.spec_from_file_location("swarm_route",ROOT/"tools"/"swarm_route.py")
 m=importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(m)
-def facts(omen=True,mem=12,disk=60,load1=1,cpus=12,lane1=False,lane2=False,vps=True):
-    return {"observed_at":"2026-09-07T20:00:00Z","omen":{"available":omen,"mem_available_gb":mem,"disk_free_gb":disk,"load1":load1,"cpu_count":cpus,"lane1_build_active":lane1,"lane2_build_active":lane2},"windows":{"available":True},"vps":{"available":vps}}
+def facts(omen=True,mem=12,disk=60,root_disk=None,nvme_disk=None,load1=1,cpus=12,lane1=False,lane2=False,vps=True):
+    root_disk=disk if root_disk is None else root_disk; nvme_disk=disk if nvme_disk is None else nvme_disk
+    return {"observed_at":"2026-09-07T20:00:00Z","omen":{"available":omen,"mem_available_gb":mem,"disk_free_gb":nvme_disk,"root_disk_free_gb":root_disk,"nvme_disk_free_gb":nvme_disk,"load1":load1,"cpu_count":cpus,"lane1_build_active":lane1,"lane2_build_active":lane2},"windows":{"available":True},"vps":{"available":vps}}
 class TransportContractTests(unittest.TestCase):
     def test_omen_probe_uses_stable_lan_ip(self):
         self.assertEqual(m.OMEN_HOST, "192.168.0.128")
@@ -31,6 +32,13 @@ class RouteDecisionTests(unittest.TestCase):
         self.assertEqual(m.choose_route("heavy",facts(disk=15),{})[0],"windows")
         self.assertEqual(m.choose_route("heavy",facts(disk=16),{})[0],"omen")
         self.assertEqual(m.choose_route("p3-runtime",facts(disk=12),{})[0],"omen")
+    def test_runtime_checks_root_and_nvme_tiers(self):
+        route,reason=m.choose_route("p3-runtime",facts(root_disk=11,nvme_disk=60),{})
+        self.assertEqual(route,"windows"); self.assertIn("ROOT_DISK_LOW",reason)
+        route,reason=m.choose_route("p3-runtime",facts(root_disk=60,nvme_disk=11),{})
+        self.assertEqual(route,"windows"); self.assertIn("NVME_DISK_LOW",reason)
+        self.assertEqual(m.choose_route("portable",facts(root_disk=1,nvme_disk=60),{})[0],"omen")
+
     def test_state_roundtrip_release(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"; s=m.empty_state(); s["assignments"]["x"]={"work_id":"x","route":"omen","kind":"portable","expires_at":"2099-01-01T00:00:00Z"}; m.save_state(p,s)

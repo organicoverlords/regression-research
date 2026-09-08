@@ -98,7 +98,8 @@ def active(u):
     r=subprocess.run(["systemctl","--user","is-active",u],capture_output=True,text=True)
     return r.stdout.strip() in ("active","activating","reloading")
 hot=subprocess.run(["systemctl","--user","list-units","p3-linux-hot-runtime-*.service","--state=active,activating","--no-legend","--plain"],capture_output=True,text=True)
-disk=shutil.disk_usage("/mnt/ue")
+root_disk=shutil.disk_usage("/")
+nvme_disk=shutil.disk_usage("/mnt/ue")
 gpu={}
 try:
     r=subprocess.run(["nvidia-smi","--query-gpu=utilization.gpu,memory.used,memory.free","--format=csv,noheader,nounits"],capture_output=True,text=True,timeout=3)
@@ -106,7 +107,7 @@ try:
         a=[int(x.strip()) for x in r.stdout.strip().split(",")[:3]]
         gpu={"utilization_pct":a[0],"vram_used_mb":a[1],"vram_free_mb":a[2]}
 except Exception: pass
-print(json.dumps({"available":True,"mem_available_gb":round(kb("MemAvailable")/1024/1024,2),"swap_free_gb":round(kb("SwapFree")/1024/1024,2),"disk_free_gb":round(disk.free/1024**3,2),"load1":round(os.getloadavg()[0],2),"cpu_count":os.cpu_count() or 1,"lane1_build_active":active("p3-linux-build.service"),"lane2_build_active":active("p3-linux-lane@2.service"),"lane3_build_active":active("p3-linux-light.service"),"hot_runtime_count":len([x for x in hot.stdout.splitlines() if x.strip()]),"gpu":gpu},separators=(",",":")))'''
+print(json.dumps({"available":True,"mem_available_gb":round(kb("MemAvailable")/1024/1024,2),"swap_free_gb":round(kb("SwapFree")/1024/1024,2),"disk_free_gb":round(nvme_disk.free/1024**3,2),"root_disk_free_gb":round(root_disk.free/1024**3,2),"nvme_disk_free_gb":round(nvme_disk.free/1024**3,2),"load1":round(os.getloadavg()[0],2),"cpu_count":os.cpu_count() or 1,"lane1_build_active":active("p3-linux-build.service"),"lane2_build_active":active("p3-linux-lane@2.service"),"lane3_build_active":active("p3-linux-light.service"),"hot_runtime_count":len([x for x in hot.stdout.splitlines() if x.strip()]),"gpu":gpu},separators=(",",":")))'''
     remote_cmd=f"python3 -c {shlex.quote(code)}"
     args=["ssh","-F","NUL","-4","-i",str(key),"-o","BatchMode=yes","-o","ConnectTimeout=5","-o",f"HostKeyAlias={OMEN_HOST_KEY_ALIAS}",f"{OMEN_USER}@{OMEN_HOST}",remote_cmd]
     try: cp=_run(args,timeout)
@@ -151,24 +152,27 @@ def omen_load(assignments):
 def omen_admissible(kind,omen,assignments):
     if not omen.get("available"): return False,"OMEN_UNAVAILABLE"
     mem=float(omen.get("mem_available_gb") or 0); disk=float(omen.get("disk_free_gb") or 0)
+    root_disk=float(omen.get("root_disk_free_gb") if omen.get("root_disk_free_gb") is not None else disk)
+    nvme_disk=float(omen.get("nvme_disk_free_gb") if omen.get("nvme_disk_free_gb") is not None else disk)
     cpus=max(int(omen.get("cpu_count") or 1),1); ratio=float(omen.get("load1") or 0)/cpus
     # Assignments are sticky routing hints, not proof that compute is occupied. Repo-owned
     # queues/locks serialize actual heavy/runtime flights, so stale or waiting leases must
     # not make an otherwise idle OMEN look full.
     if kind=="p3-runtime":
-        if disk<12: return False,"OMEN_RUNTIME_DISK_LOW"
+        if root_disk<12: return False,"OMEN_RUNTIME_ROOT_DISK_LOW"
+        if nvme_disk<12: return False,"OMEN_RUNTIME_NVME_DISK_LOW"
         if mem<2.5: return False,"OMEN_RUNTIME_MEMORY_LOW"
         return True,"OMEN_RUNTIME_READY"
     if kind=="heavy":
-        if disk<16: return False,"OMEN_HEAVY_DISK_LOW"
+        if nvme_disk<16: return False,"OMEN_HEAVY_DISK_LOW"
         if mem<4 or ratio>=.90: return False,"OMEN_HEAVY_HEADROOM_LOW"
         return True,"OMEN_HEAVY_ADMITTED"
     if kind=="portable":
-        if disk<10: return False,"OMEN_PORTABLE_DISK_LOW"
+        if nvme_disk<10: return False,"OMEN_PORTABLE_DISK_LOW"
         if mem<2 or ratio>=1.0: return False,"OMEN_PORTABLE_HEADROOM_LOW"
         return True,"OMEN_PORTABLE_ADMITTED"
     if kind=="portable-light":
-        if disk<8: return False,"OMEN_LIGHT_DISK_LOW"
+        if nvme_disk<8: return False,"OMEN_LIGHT_DISK_LOW"
         if mem<1.5 or ratio>=1.15: return False,"OMEN_LIGHT_HEADROOM_LOW"
         return True,"OMEN_LIGHT_ADMITTED"
     return False,"OMEN_KIND_UNSUPPORTED"
