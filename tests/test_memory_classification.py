@@ -44,6 +44,29 @@ class MemoryClassificationTests(unittest.TestCase):
         self.assertEqual(result["roles"], ["worker"])
         self.assertEqual(result["primary_domain"], "project:tiny3d")
 
+    def test_explicit_project_can_keep_structured_cross_project_scope(self):
+        entry = self.entry(
+            project="p3",
+            scope="p3-tiny3d-visual-camera-retakes",
+            tags=["visual-proof", "tiny3d"],
+            title="Saved camera proof settings",
+        )
+        result = classify_entry(entry)
+        self.assertEqual(result["projects"], ["p3", "tiny3d"])
+        self.assertEqual(result["primary_domain"], "cross-project")
+        self.assertIn("multiple_project_descriptors", result["review_reasons"])
+        self.assertIsNone(infer_single_project(entry))
+
+    def test_explicit_project_ignores_incidental_other_project_title(self):
+        entry = self.entry(
+            project="tiny3d",
+            scope="tiny3d/build",
+            title="P3 mentioned only as an example",
+        )
+        result = classify_entry(entry)
+        self.assertEqual(result["projects"], ["tiny3d"])
+        self.assertEqual(result["primary_domain"], "project:tiny3d")
+
     def test_incident_and_checkpoint_categories_are_bounded(self):
         incident = classify_entry(self.entry(scope="assistant-orchestration/slopwall-test", title="SLOPWALL incident"))
         self.assertEqual(incident["semantic_category"], "INCIDENT")
