@@ -1811,12 +1811,19 @@ class StackAtlasTests(unittest.TestCase):
         surface = details["chatgpt_plugin_surface"]
         self.assertEqual(surface["profile"], "process")
         self.assertEqual(surface["tools"], ["start_process", "read_output", "kill_process"])
+        self.assertEqual(surface["conditional_ui"]["when"], "MCP_VISUAL_PROOF_UI=1")
+        self.assertEqual(surface["conditional_ui"]["tools"], ["open_visual_proof"])
+        self.assertEqual(surface["conditional_ui"]["resource"], "ui://visual-proof/inline-v1.html")
+        self.assertEqual(surface["conditional_ui"]["mime_type"], "text/html;profile=mcp-app")
+        self.assertIn("fresh ChatGPT connector handshake", surface["conditional_ui"]["session_refresh"])
         self.assertEqual(surface["internal_only_profiles"], ["full"])
         self.assertIn("busy_list", surface["boundary"])
         self.assertIn("view_image", surface["boundary"])
+        self.assertIn("open_visual_proof", surface["boundary"])
         status = " ".join(details["live_status"])
         self.assertIn("MCP_TOOL_PROFILE=process", status)
-        self.assertIn("not plugin commands", status)
+        self.assertIn("MCP_VISUAL_PROOF_UI=1", status)
+        self.assertIn("open_visual_proof", status)
 
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
         details = component_details("mcp_front_door")
@@ -1948,7 +1955,7 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertIn("Do not recursively scan", details["boundary"])
 
         self.assertEqual(find_features("showroom", limit=1)[0]["id"], "project.tiny3d_asset_library")
-        self.assertEqual(find_features("library", limit=1)[0]["id"], "project.tiny3d_asset_library")
+        self.assertEqual(find_features("asset library", limit=1)[0]["id"], "project.tiny3d_asset_library")
         generic = component_details("visual proof")
         self.assertIn("not durable proof authority", generic["boundary"])
         with self.assertRaises(KeyError):
@@ -1963,20 +1970,32 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertEqual(details["related_features"]["task_history"], "vault.history")
                 self.assertEqual(details["related_features"]["tiny3d_library"], "project.tiny3d_asset_library")
                 self.assertEqual(details["related_features"]["p3_visual_evidence"], "project.p3_visual_evidence")
-                self.assertEqual(details["shared_chat_display_state"], "UNPROVEN_ACCEPTANCE_GAP")
+                self.assertEqual(details["related_features"]["chatgpt_plugin_surface"], "mcp.chatgpt_plugin_surface")
+                self.assertEqual(details["shared_chat_display_state"], "SERVER_DEPLOYED_FRESH_SESSION_RENDER_PENDING")
                 self.assertTrue(any("memory_bank.py context" in item for item in details["entrypoints"]))
                 self.assertTrue(any("lookup tiny3d_library" in item for item in details["entrypoints"]))
                 self.assertTrue(any("P3 Visual Evidence" in item for item in details["entrypoints"]))
                 self.assertTrue(any("LowVRAMProofs" in item for item in details["entrypoints"]))
-                self.assertIn("model-review transport only", details["boundary"])
-                self.assertIn("not proof of user-visible same-chat display", details["boundary"])
-                self.assertIn("exact stored bytes", details["boundary"])
+                self.assertIn("historical model-review transport only", details["boundary"])
+                self.assertIn("deployed server-side", details["boundary"])
+                self.assertIn("same hash-bound stored bytes", details["boundary"])
+                self.assertIn("Fresh-session user-visible inline rendering", details["boundary"])
 
         result = find_features(
             "make the library integrated so I can inspect a stored proof picture and show the same picture here",
             limit=1,
         )
         self.assertEqual(result[0]["id"], "project.shared_visual_library_integration")
+
+    def test_generic_library_queries_do_not_route_to_tiny3d(self):
+        self.assertEqual(find_features("library"), [])
+        for query in ("python standard library", "music library", "book library"):
+            with self.subTest(query=query):
+                ids = {item["id"] for item in find_features(query)}
+                self.assertNotIn("project.tiny3d_asset_library", ids)
+
+        self.assertEqual(find_features("tiny3d library", limit=1)[0]["id"], "project.tiny3d_asset_library")
+        self.assertEqual(find_features("asset library", limit=1)[0]["id"], "project.tiny3d_asset_library")
 
     @patch("tools.stack_atlas.project_tiny3d_current")
     def test_tiny3d_lookup_query_attaches_current_projection_in_one_bounded_lookup(self, projector):
@@ -2200,20 +2219,26 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertIn("no MCP request in flight", recovery["boundary"])
 
 class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
-    def test_chatgpt_plugin_surface_search_routes_to_process_only_contract(self):
+    def test_chatgpt_plugin_surface_search_routes_to_process_baseline_plus_visual_app(self):
         for query in (
             "ChatGPT plugin tool contract busy_list process profile",
             "busy_list plugin command",
             "view_image plugin",
+            "open_visual_proof",
         ):
             with self.subTest(query=query):
                 result = find_features(query)[0]
                 self.assertEqual(result["id"], "mcp.chatgpt_plugin_surface")
                 self.assertEqual(result["owner_components"], ["mcp_minimal_clone"])
-                self.assertIn("only start_process, read_output, and kill_process", result["boundary"])
-                self.assertIn("not ChatGPT plugin commands", result["boundary"])
+                self.assertIn("MCP_TOOL_PROFILE=process", result["boundary"])
+                self.assertIn("open_visual_proof", result["boundary"])
+                self.assertIn("MCP_VISUAL_PROOF_UI=1", result["boundary"])
+                self.assertIn("busy_list", result["boundary"])
+                self.assertIn("legacy view_image", result["boundary"])
+                self.assertIn("fresh-session inline rendering", result["boundary"])
         sources = component_details("mcp_minimal_clone")["canonical_sources"]
         self.assertTrue(any(item.endswith(r"\config\process-tool-contract.json") for item in sources))
+        self.assertTrue(any(item.endswith(r"\src\lib\visual-proof-app.ts") for item in sources))
 
 class VaultUsefulnessRoutingTests(unittest.TestCase):
     def test_vague_vault_usefulness_routes_to_overview_first(self):
