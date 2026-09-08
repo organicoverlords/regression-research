@@ -1954,6 +1954,30 @@ class StackAtlasTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             component_details("tiny3d_library")
 
+    def test_shared_visual_library_integration_reconciles_existing_proof_owners(self):
+        for alias in ("shared_visual_library", "chatgpt_visual_library", "shared_chat_proof"):
+            with self.subTest(alias=alias):
+                details = atlas_lookup(alias)
+                self.assertEqual(details["id"], "project.shared_visual_library_integration")
+                self.assertEqual(details["kind"], "feature_navigation")
+                self.assertEqual(details["related_features"]["task_history"], "vault.history")
+                self.assertEqual(details["related_features"]["tiny3d_library"], "project.tiny3d_asset_library")
+                self.assertEqual(details["related_features"]["p3_visual_evidence"], "project.p3_visual_evidence")
+                self.assertEqual(details["shared_chat_display_state"], "UNPROVEN_ACCEPTANCE_GAP")
+                self.assertTrue(any("memory_bank.py context" in item for item in details["entrypoints"]))
+                self.assertTrue(any("lookup tiny3d_library" in item for item in details["entrypoints"]))
+                self.assertTrue(any("P3 Visual Evidence" in item for item in details["entrypoints"]))
+                self.assertTrue(any("LowVRAMProofs" in item for item in details["entrypoints"]))
+                self.assertIn("model-review transport only", details["boundary"])
+                self.assertIn("not proof of user-visible same-chat display", details["boundary"])
+                self.assertIn("exact stored bytes", details["boundary"])
+
+        result = find_features(
+            "make the library integrated so I can inspect a stored proof picture and show the same picture here",
+            limit=1,
+        )
+        self.assertEqual(result[0]["id"], "project.shared_visual_library_integration")
+
     @patch("tools.stack_atlas.project_tiny3d_current")
     def test_tiny3d_lookup_query_attaches_current_projection_in_one_bounded_lookup(self, projector):
         projector.return_value = {

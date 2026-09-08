@@ -593,7 +593,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "project.tiny3d_asset_library": {
         "owner_components": ["local_git", "visual_proof"],
         "triggers": [
-            "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
+            "library", "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
             "showroom", "showroom status", "visual proof library", "visual_proof_library",
             "durable proof", "proof transport", "android proof",
         ],
@@ -628,6 +628,29 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "query": P3_VISUAL_EVIDENCE_QUERY,
         "index_schema": "p3.visual-evidence-index.v1",
         "operator_fields": ["run_id", "date", "claim", "independent_review_state", "media.path", "media.declared_sha256", "gaps"],
+    },
+    "project.shared_visual_library_integration": {
+        "owner_components": ["memory_bank", "visual_proof", "local_git"],
+        "triggers": [
+            "shared visual library", "chatgpt visual library", "visual library integration",
+            "shared chat proof", "stored proof picture", "show same stored proof",
+            "same picture here", "proof picture",
+        ],
+        "entrypoints": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <current-task>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup tiny3d_library --query <asset-or-name>",
+            P3_VISUAL_EVIDENCE_INDEX,
+            r"C:\LowVRAMProofs",
+            "historical model-review transport only: organicoverlords/p3#1936 / PR #1244",
+        ],
+        "boundary": "Cross-project navigation/history context only; not a new proof registry or transport. Reconcile task history first, then use Tiny3D identity/proof bundles and the P3 Drive visual index; C:\\LowVRAMProofs is prior exact-run independent-review lineage. P3 #1936/#1244 MCP JPEG/base64/view_image is model-review transport only, not proof of user-visible same-chat display. Shared-chat retrieval/display of the exact stored bytes remains an explicit acceptance gap until proven on the current product surface.",
+        "related_features": {
+            "task_history": "vault.history",
+            "tiny3d_library": "project.tiny3d_asset_library",
+            "p3_visual_evidence": "project.p3_visual_evidence",
+            "lowvram_visual_review_lineage": r"C:\LowVRAMProofs",
+        },
+        "shared_chat_display_state": "UNPROVEN_ACCEPTANCE_GAP",
     },
     "project.p3_unreal_navigation": {
         "owner_components": ["local_git", "github"],
@@ -3418,6 +3441,12 @@ FEATURE_LOOKUP_ALIASES = {
     "p3 visual evidence": "project.p3_visual_evidence",
     "p3_proof_library": "project.p3_visual_evidence",
     "p3 proof library": "project.p3_visual_evidence",
+    "shared_visual_library": "project.shared_visual_library_integration",
+    "shared visual library": "project.shared_visual_library_integration",
+    "chatgpt_visual_library": "project.shared_visual_library_integration",
+    "chatgpt visual library": "project.shared_visual_library_integration",
+    "shared_chat_proof": "project.shared_visual_library_integration",
+    "shared chat proof": "project.shared_visual_library_integration",
 }
 
 
