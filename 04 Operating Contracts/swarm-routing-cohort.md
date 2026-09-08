@@ -17,6 +17,16 @@ Make one machine-routing decision for a stable work identity and reuse it across
 
 The cohort is machine admission only. It does not own task priority, GitHub issues, repository ownership, BusyCoordinator claims, heavy-flight identity, CI acceptance, merge authority, or proof semantics.
 
+## Execution-node identity invariant
+
+Route labels are not machine identities. The canonical node registry is `execution-node-topology.json`. Every fresh machine probe and new routing assignment must carry `node_id`, `node_name`, `node_alias`, `machine_class`, `observed_hostname`, and `node_identity_status` in addition to the compatibility `route`/`route_label`.
+
+- `kone-gpu-desktop` = **KONE GPU desktop** = user-facing **GPU machine**: Windows HP Pavilion Gaming Desktop TG01-2xxx with NVIDIA GeForce GTX 1660 SUPER. Compatibility route label: `windows`.
+- `omen-linux-laptop` = **OMEN Linux laptop** = user-facing **laptop**: Linux HP OMEN Laptop 15-dc0xxx with NVIDIA GeForce GTX 1070 Max-Q. Compatibility route label: `omen`.
+- These are physically distinct machines. Never describe a KONE/`windows` hardware sample as the laptop or an OMEN/`omen` sample as the GPU desktop. Both machines have NVIDIA GPUs, so the word `GPU` alone is not sufficient evidence of node identity.
+- A hostname mismatch or missing hostname must not borrow the expected physical node identity. Emit `node_id: null`, preserve `expected_node_id`, and mark the identity status unverified/mismatched.
+- The `p3-vps-light` runner is a separate logical execution node with compatibility route label `vps`.
+
 ## Entrypoint
 
 ```powershell
