@@ -120,6 +120,23 @@ def _word_tokens(value: str) -> list[str]:
     return out
 
 
+_PROOF_VISUAL_QUERY_ALIASES = {
+    "picture": "image",
+    "pictures": "image",
+    "photo": "image",
+    "photos": "image",
+    "screenshot": "image",
+    "screenshots": "image",
+}
+
+
+def _query_word_tokens(value: str) -> list[str]:
+    tokens = _word_tokens(value)
+    if "proof" not in tokens:
+        return tokens
+    return [_PROOF_VISUAL_QUERY_ALIASES.get(token, token) for token in tokens]
+
+
 def _entry_descriptor(entry: dict[str, Any]) -> str:
     return " ".join([
         str(entry.get("title") or ""),
@@ -231,7 +248,7 @@ def _rank_eligible_entries(
     source_registry: dict[str, Any] | None = None,
     strict_admission: bool = False,
 ) -> list[dict[str, Any]]:
-    query_terms = _word_tokens(query)
+    query_terms = _query_word_tokens(query)
     query_unique = list(dict.fromkeys(query_terms))
     doc_tokens = [token_builder(entry) for entry in eligible]
     doc_counts = [Counter(tokens) for tokens in doc_tokens]
