@@ -17,6 +17,14 @@ class SwarmExecTests(unittest.TestCase):
         self.assertIn("/mnt/ue/worker-tools/env.sh",script)
         self.assertIn("/mnt/ue/worker-tools/python-packages",script)
 
+    def test_remote_workspace_cleans_by_default_and_can_be_kept(self):
+        _workspace, cleanup_script=m.remote_script("cleanup", "true")
+        self.assertIn("keep_workspace=0", cleanup_script)
+        self.assertIn("trap cleanup EXIT", cleanup_script)
+        self.assertIn('if [ "$keep_workspace" -eq 0 ] && [ "$published" -eq 1 ]; then', cleanup_script)
+        _workspace, keep_script=m.remote_script("keep", "true", keep_workspace=True)
+        self.assertIn("keep_workspace=1", keep_script)
+
     def test_snapshot_uses_current_nonignored_files(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)
