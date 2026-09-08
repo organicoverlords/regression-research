@@ -2,7 +2,7 @@ import json
 import unittest
 
 from tools.memory_bank import annotate_memory
-from tools.memory_context import build_context_pack
+from tools.memory_context import build_context_pack, context_residual_query
 
 
 class MemoryContextPackTests(unittest.TestCase):
@@ -97,6 +97,13 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual(pack["timeline"], timeline)
         self.assertIn("chronology", pack["contract"]["timeline"])
         self.assertNotIn("behavior_authority", pack)
+
+    def test_context_residual_query_preserves_phrase_order(self):
+        residual = context_residual_query(
+            "why do failures cluster when one request has been running for about twenty five minutes"
+        )
+        self.assertIn("twenty five minutes", residual)
+        self.assertLess(residual.index("twenty"), residual.index("five"))
 
     def test_blank_query_rejected(self):
         with self.assertRaises(ValueError):
