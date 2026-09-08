@@ -593,7 +593,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "project.tiny3d_asset_library": {
         "owner_components": ["local_git", "visual_proof"],
         "triggers": [
-            "library", "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
+            "tiny3d library", "tiny3d_library", "asset library", "asset catalogue", "catalogue",
             "showroom", "showroom status", "visual proof library", "visual_proof_library",
             "durable proof", "proof transport", "android proof",
         ],
@@ -3605,7 +3605,7 @@ def production_change_gate(
 
 FEATURE_QUERY_STOPWORDS = frozenset({
     "a", "an", "and", "are", "ask", "asking", "better", "do", "does", "for", "how", "i", "is",
-    "it", "make", "me", "more", "my", "never", "of", "please", "should", "that", "the", "this", "to",
+    "it", "library", "make", "me", "more", "my", "never", "of", "please", "should", "that", "the", "this", "to",
     "what", "with", "work", "working", "works",
 })
 FEATURE_QUERY_SYNONYMS: dict[str, set[str]] = {

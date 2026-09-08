@@ -1948,7 +1948,7 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertIn("Do not recursively scan", details["boundary"])
 
         self.assertEqual(find_features("showroom", limit=1)[0]["id"], "project.tiny3d_asset_library")
-        self.assertEqual(find_features("library", limit=1)[0]["id"], "project.tiny3d_asset_library")
+        self.assertEqual(find_features("asset library", limit=1)[0]["id"], "project.tiny3d_asset_library")
         generic = component_details("visual proof")
         self.assertIn("not durable proof authority", generic["boundary"])
         with self.assertRaises(KeyError):
@@ -1977,6 +1977,16 @@ class StackAtlasTests(unittest.TestCase):
             limit=1,
         )
         self.assertEqual(result[0]["id"], "project.shared_visual_library_integration")
+
+    def test_generic_library_queries_do_not_route_to_tiny3d(self):
+        self.assertEqual(find_features("library"), [])
+        for query in ("python standard library", "music library", "book library"):
+            with self.subTest(query=query):
+                ids = {item["id"] for item in find_features(query)}
+                self.assertNotIn("project.tiny3d_asset_library", ids)
+
+        self.assertEqual(find_features("tiny3d library", limit=1)[0]["id"], "project.tiny3d_asset_library")
+        self.assertEqual(find_features("asset library", limit=1)[0]["id"], "project.tiny3d_asset_library")
 
     @patch("tools.stack_atlas.project_tiny3d_current")
     def test_tiny3d_lookup_query_attaches_current_projection_in_one_bounded_lookup(self, projector):
