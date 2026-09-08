@@ -9,6 +9,7 @@ SCHEMA = "swarm.routing.cohort.v1"
 KINDS = ("lowvram", "windows-only", "portable", "portable-light", "heavy", "p3-runtime")
 DEFAULT_TTL_SECONDS = 1800
 PROBE_TTL_SECONDS = 45
+POLICY_EPOCH = 2
 WORK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#@+-]{0,191}$")
 OMEN_HOST = "192.168.0.128"
 OMEN_HOST_KEY_ALIAS = "192.168.0.128"
@@ -202,8 +203,12 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
         state=load_state(state_path); prune_assignments(state,now)
         current=state["assignments"].get(work_id)
         if current:
-            current["expires_at"]=iso(now+dt.timedelta(seconds=ttl_seconds)); current["last_reused_at"]=iso(now)
-            save_state(state_path,state); return {**current,"reused":True,"cohort_state":str(state_path)}
+            current["last_reused_at"]=iso(now)
+            migration_pending=current.get("policy_epoch")!=POLICY_EPOCH
+            if not migration_pending:
+                current["expires_at"]=iso(now+dt.timedelta(seconds=ttl_seconds))
+            save_state(state_path,state)
+            return {**current,"reused":True,"policy_migration_pending":migration_pending,"cohort_state":str(state_path)}
         probe=state.get("probe")
         if refresh_probe or not probe_is_fresh(probe,now):
             probe=probe_all(); state["probe"]=probe
@@ -216,7 +221,7 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
                 probe={**probe,"observed_at":iso(utc_now()),"omen":refreshed}
                 state["probe"]=probe
                 route,reason=choose_route(kind,probe,state["assignments"])
-        a={"schema":SCHEMA,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at")}
+        a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at")}
         if recovery is not None: a["capacity_recovery"]=recovery
         state["assignments"][work_id]=a; save_state(state_path,state)
         return {**a,"reused":False,"facts":probe,"cohort_state":str(state_path)}

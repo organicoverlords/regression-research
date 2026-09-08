@@ -50,6 +50,29 @@ class RouteDecisionTests(unittest.TestCase):
             self.assertEqual(calls,["portable"])
             self.assertEqual(result["route"],"omen")
             self.assertTrue(result["capacity_recovery"]["ok"])
+    def test_legacy_assignment_drains_without_renewing(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"; s=m.empty_state()
+            original_expiry="2099-01-01T00:00:00Z"
+            s["assignments"]["legacy"]={"work_id":"legacy","route":"vps","kind":"portable-light","reason":"OMEN_LIGHT_CAPACITY_FULL_VPS_LIGHT_OVERFLOW","expires_at":original_expiry}
+            m.save_state(p,s)
+            reused=m.route_work(p,"legacy","portable-light",600,False)
+            self.assertTrue(reused["reused"])
+            self.assertTrue(reused["policy_migration_pending"])
+            self.assertEqual(reused["expires_at"],original_expiry)
+    def test_current_epoch_assignment_renews(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"
+            original=m.probe_all
+            try:
+                m.probe_all=lambda: facts()
+                first=m.route_work(p,"current-epoch","portable",60,False)
+                second=m.route_work(p,"current-epoch","portable",600,False)
+            finally:
+                m.probe_all=original
+            self.assertEqual(first["policy_epoch"],m.POLICY_EPOCH)
+            self.assertFalse(second["policy_migration_pending"])
+            self.assertGreater(m.parse_time(second["expires_at"]),m.parse_time(first["expires_at"]))
     def test_same_work_id_reuses_one_cohort_decision(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"
