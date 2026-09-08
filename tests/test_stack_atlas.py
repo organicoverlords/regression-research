@@ -28,6 +28,8 @@ from tools.stack_atlas import (
     production_change_gate,
     render_manual,
     _bootstrap_pc_status,
+    _bootstrap_execution_node_topology,
+    _bind_pc_node_identity,
     _bootstrap_worker_status,
     _bootstrap_fleet_watch,
     _bootstrap_manual_sanity,
@@ -688,6 +690,123 @@ class StackAtlasTests(unittest.TestCase):
                 watch = _bootstrap_fleet_watch(now)
         self.assertEqual(watch["running_with_start_receipt"], 1)
         self.assertNotIn(target_id, {item["automation_id"] for item in watch["suspect_workers"]})
+
+    def test_bootstrap_execution_node_topology_distinguishes_gpu_machine_from_laptop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            contract = root / "04 Operating Contracts" / "execution-node-topology.json"
+            contract.parent.mkdir(parents=True)
+            contract.write_text(json.dumps({
+                "schema": "swarm.execution-node-topology.v1",
+                "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+                "nodes": {
+                    "kone-gpu-desktop": {
+                        "display_name": "KONE GPU desktop",
+                        "user_alias": "GPU machine",
+                        "route_label": "windows",
+                        "hostnames": ["KONE"],
+                        "machine_class": "desktop",
+                        "os_family": "windows",
+                        "system_model": "HP Pavilion Gaming Desktop TG01-2xxx",
+                        "gpu": "NVIDIA GeForce GTX 1660 SUPER",
+                    },
+                    "omen-linux-laptop": {
+                        "display_name": "OMEN Linux laptop",
+                        "user_alias": "laptop",
+                        "route_label": "omen",
+                        "hostnames": ["aatuska-OMEN-by-HP-Laptop-15-dc0xxx"],
+                        "machine_class": "laptop",
+                        "os_family": "linux",
+                        "system_model": "HP OMEN by HP Laptop 15-dc0xxx",
+                        "gpu": "NVIDIA GeForce GTX 1070 with Max-Q Design",
+                    },
+                },
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), patch("tools.stack_atlas.platform.node", return_value="KONE"):
+                topology = _bootstrap_execution_node_topology()
+
+        self.assertEqual(topology["status"], "OK")
+        self.assertEqual(topology["local_node_id"], "kone-gpu-desktop")
+        self.assertEqual(topology["nodes"]["kone-gpu-desktop"]["user_alias"], "GPU machine")
+        self.assertEqual(topology["nodes"]["kone-gpu-desktop"]["machine_class"], "desktop")
+        self.assertEqual(topology["nodes"]["omen-linux-laptop"]["user_alias"], "laptop")
+        self.assertEqual(topology["nodes"]["omen-linux-laptop"]["machine_class"], "laptop")
+        self.assertNotEqual(topology["nodes"]["kone-gpu-desktop"]["gpu"], topology["nodes"]["omen-linux-laptop"]["gpu"])
+
+    def test_bootstrap_missing_execution_node_registry_is_visible_and_not_guessed(self):
+        with tempfile.TemporaryDirectory() as tmp, patch("tools.stack_atlas.ATLAS_LIVE_ROOT", Path(tmp)), patch("tools.stack_atlas.platform.node", return_value="KONE"):
+            topology = _bootstrap_execution_node_topology()
+        self.assertFalse(topology["available"])
+        self.assertEqual(topology["status"], "MISSING")
+        self.assertIsNone(topology["local_node_id"])
+        self.assertEqual(topology["local_observed_hostname"], "KONE")
+
+    def test_pc_telemetry_is_bound_to_canonical_kone_node(self):
+        pc = {"gpu": {"utilization_pct": 46}, "memory": {"status": "OK"}, "disk": {"status": "OK"}}
+        topology = {
+            "status": "OK",
+            "local_node_id": "kone-gpu-desktop",
+            "local_observed_hostname": "KONE",
+            "nodes": {
+                "kone-gpu-desktop": {
+                    "display_name": "KONE GPU desktop",
+                    "user_alias": "GPU machine",
+                    "route_label": "windows",
+                    "machine_class": "desktop",
+                    "os_family": "windows",
+                    "gpu": "NVIDIA GeForce GTX 1660 SUPER",
+                },
+                "omen-linux-laptop": {
+                    "display_name": "OMEN Linux laptop",
+                    "user_alias": "laptop",
+                    "route_label": "omen",
+                    "machine_class": "laptop",
+                    "os_family": "linux",
+                    "gpu": "NVIDIA GeForce GTX 1070 with Max-Q Design",
+                },
+            },
+        }
+        bound = _bind_pc_node_identity(pc, topology)
+        self.assertEqual(bound["node_identity"]["status"], "VERIFIED_CANONICAL")
+        self.assertEqual(bound["node_identity"]["node_id"], "kone-gpu-desktop")
+        self.assertEqual(bound["node_identity"]["user_alias"], "GPU machine")
+        self.assertEqual(bound["node_identity"]["machine_class"], "desktop")
+        self.assertEqual(bound["gpu"]["utilization_pct"], 46)
+        self.assertNotEqual(bound["node_identity"]["node_id"], "omen-linux-laptop")
+
+    def test_bootstrap_glance_surfaces_execution_nodes_and_binds_local_pc(self):
+        execution_nodes = {
+            "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+            "available": True,
+            "status": "OK",
+            "local_observed_hostname": "KONE",
+            "local_node_id": "kone-gpu-desktop",
+            "nodes": {
+                "kone-gpu-desktop": {
+                    "display_name": "KONE GPU desktop", "user_alias": "GPU machine",
+                    "route_label": "windows", "machine_class": "desktop", "os_family": "windows",
+                    "gpu": "NVIDIA GeForce GTX 1660 SUPER",
+                },
+                "omen-linux-laptop": {
+                    "display_name": "OMEN Linux laptop", "user_alias": "laptop",
+                    "route_label": "omen", "machine_class": "laptop", "os_family": "linux",
+                    "gpu": "NVIDIA GeForce GTX 1070 with Max-Q Design",
+                },
+            },
+        }
+        pc = {"disk": {"status": "OK", "free_gb": 100.0, "trend": {}}, "memory": {"status": "OK"}, "gpu": {"utilization_pct": 46}}
+        workers = {"available": True}
+        live_swarm = {"available": True, "summary": {"recent_callers": 0, "lanes": 0, "busy_owners": 0}, "evidence": {"activity_window_seconds": 300, "observation_window_complete": True, "source_age_seconds": 0.0}, "lanes": []}
+        mcp = {"available": True, "status": "LIVE", "active_session_count": 0, "active_session_count_status": "COMPLETE", "workspace_counts": {}}
+        with patch("tools.stack_atlas._bootstrap_execution_node_topology", return_value=execution_nodes),              patch("tools.stack_atlas._bootstrap_pc_status", return_value=pc),              patch("tools.stack_atlas._bootstrap_worker_status", return_value=workers),              patch("tools.stack_atlas.build_live_swarm_snapshot", return_value=live_swarm),              patch("tools.stack_atlas._bootstrap_memory_overview", return_value={}),              patch("tools.stack_atlas._bootstrap_vault_status", return_value={"status": "OK"}),              patch("tools.stack_atlas._bootstrap_github_status", return_value={"status": "OK"}),              patch("tools.stack_atlas._bootstrap_source_freshness", return_value={}),              patch("tools.stack_atlas._bootstrap_mcp_from_live_swarm", return_value=mcp),              patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={}),              patch("tools.stack_atlas._bootstrap_swarm_topology", return_value={"authority": "USER_EXPLICIT_TOPOLOGY_AND_OPERATOR_HANDOFF"}):
+            glance = build_live_bootstrap_glance()
+        self.assertEqual(glance["swarm_topology"]["execution_nodes"]["local_node_id"], "kone-gpu-desktop")
+        self.assertEqual(glance["swarm_topology"]["execution_nodes"]["nodes"]["omen-linux-laptop"]["user_alias"], "laptop")
+        self.assertEqual(glance["pc"]["node_identity"]["node_id"], "kone-gpu-desktop")
+        self.assertEqual(glance["pc"]["node_identity"]["user_alias"], "GPU machine")
+        self.assertEqual(glance["pc"]["node_identity"]["machine_class"], "desktop")
+        self.assertEqual(glance["pc"]["gpu"]["utilization_pct"], 46)
+        self.assertLessEqual(len(json.dumps(glance, separators=(",", ":")).encode("utf-8")), BOOTSTRAP_GLANCE_MAX_BYTES)
 
     def test_bootstrap_swarm_topology_includes_manual_population_and_primary_s2_handoff(self):
         from datetime import datetime, timezone

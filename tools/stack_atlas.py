@@ -5,6 +5,7 @@ import ctypes
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -49,6 +50,8 @@ MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-reco
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
 SWARM_ROUTING_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "swarm-routing-cohort.md")
+EXECUTION_NODE_TOPOLOGY_SCHEMA = "swarm.execution-node-topology.v1"
+EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH = Path("04 Operating Contracts") / "execution-node-topology.json"
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
@@ -807,6 +810,84 @@ def _cwd_uses_worktree(cwd: str | os.PathLike[str] | None, worktree: str | os.Pa
     except (OSError, ValueError):
         return False
     return True
+
+
+def _bootstrap_execution_node_topology() -> dict[str, Any]:
+    """Canonical execution-machine identity for bootstrap; routing labels are not identity."""
+    path = ATLAS_LIVE_ROOT / EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH
+    observed_hostname = (platform.node() or os.environ.get("COMPUTERNAME") or "").strip() or None
+    base = {
+        "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+        "path": str(path),
+        "local_observed_hostname": observed_hostname,
+        "local_node_id": None,
+    }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {**base, "available": False, "status": "MISSING", "nodes": {}}
+    except (OSError, json.JSONDecodeError):
+        return {**base, "available": False, "status": "INVALID", "nodes": {}}
+    nodes = payload.get("nodes") if isinstance(payload, dict) else None
+    if payload.get("schema") != EXECUTION_NODE_TOPOLOGY_SCHEMA or not isinstance(nodes, dict):
+        return {**base, "available": False, "status": "INVALID", "nodes": {}}
+
+    projected: dict[str, dict[str, Any]] = {}
+    local_matches: list[str] = []
+    for raw_node_id, raw_node in nodes.items():
+        if not isinstance(raw_node_id, str) or not isinstance(raw_node, dict):
+            continue
+        hostnames = [str(value) for value in raw_node.get("hostnames", []) if str(value).strip()]
+        projected[raw_node_id] = {
+            key: raw_node.get(key)
+            for key in (
+                "display_name", "user_alias", "route_label", "machine_class", "os_family",
+                "system_model", "gpu", "roles",
+            )
+            if raw_node.get(key) is not None
+        }
+        projected[raw_node_id]["hostnames"] = hostnames
+        if observed_hostname and observed_hostname.casefold() in {value.casefold() for value in hostnames}:
+            local_matches.append(raw_node_id)
+
+    if len(local_matches) == 1:
+        status = "OK"
+        local_node_id = local_matches[0]
+    elif len(local_matches) > 1:
+        status = "LOCAL_NODE_AMBIGUOUS"
+        local_node_id = None
+    else:
+        status = "LOCAL_NODE_UNRESOLVED"
+        local_node_id = None
+    return {
+        **base,
+        "available": True,
+        "status": status,
+        "schema": EXECUTION_NODE_TOPOLOGY_SCHEMA,
+        "contract": payload.get("contract"),
+        "local_node_id": local_node_id,
+        "nodes": projected,
+    }
+
+
+def _bind_pc_node_identity(pc: dict[str, Any], topology: dict[str, Any]) -> dict[str, Any]:
+    """Wrap local PC telemetry with its canonical physical-node identity."""
+    result = dict(pc)
+    node_id = topology.get("local_node_id") if isinstance(topology, dict) else None
+    nodes = topology.get("nodes") if isinstance(topology, dict) and isinstance(topology.get("nodes"), dict) else {}
+    node = nodes.get(node_id) if isinstance(node_id, str) and isinstance(nodes.get(node_id), dict) else {}
+    topology_status = str(topology.get("status") or "UNAVAILABLE") if isinstance(topology, dict) else "UNAVAILABLE"
+    identity = {
+        "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+        "status": "VERIFIED_CANONICAL" if node_id and topology_status == "OK" else f"UNRESOLVED_{topology_status}",
+        "node_id": node_id,
+        "observed_hostname": topology.get("local_observed_hostname") if isinstance(topology, dict) else None,
+    }
+    for key in ("display_name", "user_alias", "route_label", "machine_class", "os_family", "system_model", "gpu"):
+        if node.get(key) is not None:
+            identity[key] = node.get(key)
+    result["node_identity"] = identity
+    return result
 
 
 def _bootstrap_session_workspace(cwd: str | None) -> str | None:
@@ -2123,11 +2204,30 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         topo = bounded["swarm_topology"]
         handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
         manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
+        execution_nodes = topo.get("execution_nodes") if isinstance(topo.get("execution_nodes"), dict) else {}
+        raw_nodes = execution_nodes.get("nodes") if isinstance(execution_nodes.get("nodes"), dict) else {}
+        compact_nodes = {
+            node_id: {
+                key: node.get(key)
+                for key in ("display_name", "user_alias", "route_label", "machine_class", "gpu")
+                if isinstance(node, dict) and node.get(key) is not None
+            }
+            for node_id, node in raw_nodes.items()
+            if isinstance(node_id, str) and isinstance(node, dict)
+        }
+        compact_execution_nodes = {
+            key: execution_nodes.get(key)
+            for key in ("authority", "available", "status", "local_node_id", "local_observed_hostname")
+            if key in execution_nodes
+        }
+        if compact_nodes:
+            compact_execution_nodes["nodes"] = compact_nodes
         bounded["swarm_topology"] = {
             key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
         }
         bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
         bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
+        bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
 
     live_swarm = bounded.get("live_swarm")
     while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and len(live_swarm["lanes"]) > 2:
@@ -3014,7 +3114,8 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=7) as pool:
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        f_execution_nodes = pool.submit(_bootstrap_execution_node_topology)
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_live_swarm = pool.submit(build_live_swarm_snapshot)
@@ -3022,9 +3123,13 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
-            f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
+        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
+    pc = _bind_pc_node_identity(pc, execution_nodes)
+    swarm_topology = _bootstrap_swarm_topology()
+    if isinstance(swarm_topology, dict):
+        swarm_topology["execution_nodes"] = execution_nodes
     mcp = _bootstrap_mcp_from_live_swarm(live_swarm)
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
     notable_conditions: list[str] = []
@@ -3133,8 +3238,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "mcp_source_repo": r"%LOCALAPPDATA%\ChatGPTMcpClean",
             "mcp_recovery_state": str(MCP_RECOVERY_STATE_PATH),
             "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
+            "execution_node_topology": str(ATLAS_LIVE_ROOT / EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH),
         },
-        "swarm_topology": _bootstrap_swarm_topology(),
+        "swarm_topology": swarm_topology,
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
             "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
