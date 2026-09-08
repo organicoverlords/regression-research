@@ -85,10 +85,8 @@ def probe_windows():
             out["commit_headroom_gb"]=round(x.ullAvailPageFile/1024**3,2)
     return out
 
-def probe_omen(timeout=7.0):
-    key=Path.home()/".ssh"/"chatgpt-linux-aatuska-ed25519"
-    if not key.is_file(): return {"available":False,"reason":"SSH_KEY_MISSING"}
-    code=r'''import json,os,shutil,subprocess
+def _omen_probe_code():
+    return r'''import json,os,shutil,subprocess
 m={}
 with open("/proc/meminfo",encoding="utf-8") as f:
     for line in f:
@@ -97,6 +95,18 @@ def kb(n): return int(m.get(n,"0 kB").split()[0])
 def active(u):
     r=subprocess.run(["systemctl","--user","is-active",u],capture_output=True,text=True)
     return r.stdout.strip() in ("active","activating","reloading")
+def argv_active(script,lane=None):
+    for name in os.listdir("/proc"):
+        if not name.isdigit(): continue
+        try:
+            raw=open(f"/proc/{name}/cmdline","rb").read()
+        except (FileNotFoundError,PermissionError,OSError):
+            continue
+        argv=[x.decode("utf-8",errors="replace") for x in raw.split(b"\0") if x]
+        for i,arg in enumerate(argv):
+            if not (arg==script or arg.endswith("/"+script)): continue
+            if lane is None or (i+1<len(argv) and argv[i+1]==str(lane)): return True
+    return False
 hot=subprocess.run(["systemctl","--user","list-units","p3-linux-hot-runtime-*.service","--state=active,activating","--no-legend","--plain"],capture_output=True,text=True)
 root_disk=shutil.disk_usage("/")
 nvme_disk=shutil.disk_usage("/mnt/ue")
@@ -107,7 +117,15 @@ try:
         a=[int(x.strip()) for x in r.stdout.strip().split(",")[:3]]
         gpu={"utilization_pct":a[0],"vram_used_mb":a[1],"vram_free_mb":a[2]}
 except Exception: pass
-print(json.dumps({"available":True,"mem_available_gb":round(kb("MemAvailable")/1024/1024,2),"swap_free_gb":round(kb("SwapFree")/1024/1024,2),"disk_free_gb":round(nvme_disk.free/1024**3,2),"root_disk_free_gb":round(root_disk.free/1024**3,2),"nvme_disk_free_gb":round(nvme_disk.free/1024**3,2),"load1":round(os.getloadavg()[0],2),"cpu_count":os.cpu_count() or 1,"lane1_build_active":active("p3-linux-build.service"),"lane2_build_active":active("p3-linux-lane@2.service"),"lane3_build_active":active("p3-linux-light.service"),"hot_runtime_count":len([x for x in hot.stdout.splitlines() if x.strip()]),"gpu":gpu},separators=(",",":")))'''
+lane1=active("p3-linux-build.service") or active("p3-linux-lane@1.service") or argv_active("run-p3-linux-lane.sh",1)
+lane2=active("p3-linux-lane@2.service") or argv_active("run-p3-linux-lane.sh",2)
+lane3=active("p3-linux-light.service") or active("p3-linux-lane@3.service") or argv_active("run-p3-linux-light.sh") or argv_active("run-p3-linux-lane.sh",3)
+print(json.dumps({"available":True,"mem_available_gb":round(kb("MemAvailable")/1024/1024,2),"swap_free_gb":round(kb("SwapFree")/1024/1024,2),"disk_free_gb":round(nvme_disk.free/1024**3,2),"root_disk_free_gb":round(root_disk.free/1024**3,2),"nvme_disk_free_gb":round(nvme_disk.free/1024**3,2),"load1":round(os.getloadavg()[0],2),"cpu_count":os.cpu_count() or 1,"lane1_build_active":lane1,"lane2_build_active":lane2,"lane3_build_active":lane3,"hot_runtime_count":len([x for x in hot.stdout.splitlines() if x.strip()]),"gpu":gpu},separators=(",",":")))'''
+
+def probe_omen(timeout=7.0):
+    key=Path.home()/".ssh"/"chatgpt-linux-aatuska-ed25519"
+    if not key.is_file(): return {"available":False,"reason":"SSH_KEY_MISSING"}
+    code=_omen_probe_code()
     remote_cmd=f"python3 -c {shlex.quote(code)}"
     args=["ssh","-F","NUL","-4","-i",str(key),"-o","BatchMode=yes","-o","ConnectTimeout=5","-o",f"HostKeyAlias={OMEN_HOST_KEY_ALIAS}",f"{OMEN_USER}@{OMEN_HOST}",remote_cmd]
     try: cp=_run(args,timeout)
