@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Iterable
 
 DEFAULT_CONTEXT_CHARS = 12000
@@ -10,13 +11,13 @@ MAX_HISTORY_TEXT = 350
 
 try:
     from .memory_classification import (
-        PROJECT_MARKERS, ROLE_MARKERS, token_words as _words,
+        PROJECT_MARKERS, ROLE_MARKERS,
         projects_from_text as _projects_from_text, entry_projects as _entry_projects,
         roles_from_text as _roles_from_text, entry_roles as _entry_roles,
     )
 except ImportError:
     from memory_classification import (
-        PROJECT_MARKERS, ROLE_MARKERS, token_words as _words,
+        PROJECT_MARKERS, ROLE_MARKERS,
         projects_from_text as _projects_from_text, entry_projects as _entry_projects,
         roles_from_text as _roles_from_text, entry_roles as _entry_roles,
     )
@@ -33,8 +34,9 @@ def context_selectors(query: str) -> dict[str, set[str]]:
 def context_residual_query(query: str) -> str:
     selector_words = {marker for markers in PROJECT_MARKERS.values() for marker in markers}
     selector_words.update(marker for markers in ROLE_MARKERS.values() for marker in markers)
-    words = [word for word in _words(query) if word not in selector_words and word not in GENERIC_TASK_WORDS]
-    return " ".join(sorted(words))
+    ordered_words = re.findall(r"[a-z0-9]+", str(query or "").casefold())
+    words = [word for word in ordered_words if word not in selector_words and word not in GENERIC_TASK_WORDS]
+    return " ".join(words)
 
 
 def entry_context_labels(entry: dict[str, Any]) -> dict[str, set[str]]:
