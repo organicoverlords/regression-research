@@ -11,6 +11,13 @@ class TransportContractTests(unittest.TestCase):
     def test_omen_probe_uses_stable_lan_ip(self):
         self.assertEqual(m.OMEN_HOST, "192.168.0.128")
         self.assertEqual(m.OMEN_HOST_KEY_ALIAS, "192.168.0.128")
+    def test_omen_probe_detects_dynamic_lane_wrapper_processes(self):
+        code=m._omen_probe_code()
+        self.assertIn('argv_active("run-p3-linux-lane.sh",1)',code)
+        self.assertIn('argv_active("run-p3-linux-lane.sh",2)',code)
+        self.assertIn('argv_active("run-p3-linux-lane.sh",3)',code)
+        self.assertIn('argv_active("run-p3-linux-light.sh")',code)
+        self.assertIn('active("p3-linux-lane@2.service") or argv_active("run-p3-linux-lane.sh",2)',code)
 class RouteDecisionTests(unittest.TestCase):
     def test_pins(self):
         f=facts(); self.assertEqual(m.choose_route("lowvram",f,{})[0],"windows"); self.assertEqual(m.choose_route("windows-only",f,{})[0],"windows")
