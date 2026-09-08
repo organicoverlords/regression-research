@@ -41,6 +41,8 @@ from tools.stack_atlas import (
     _remote_is_newer,
     _git_blob_sha_for_file,
     _git_remote_update_already_applied,
+    _git_checkout_state,
+    _bootstrap_source_freshness,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
@@ -1786,6 +1788,102 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("before yielding", joined)
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
+
+    def test_git_checkout_state_detects_current_dirty_and_stale_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess = __import__("subprocess")
+            subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+            path = repo / "AGENTS.md"
+            path.write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "AGENTS.md"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "base"], check=True)
+            base = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+
+            current = _git_checkout_state(repo, base)
+            self.assertTrue(current["coherent"])
+            self.assertTrue(current["head_matches_remote_main"])
+            self.assertFalse(current["dirty"])
+            self.assertEqual(current["branch"], "main")
+
+            path.write_text("dirty\n", encoding="utf-8")
+            dirty = _git_checkout_state(repo, base)
+            self.assertFalse(dirty["coherent"])
+            self.assertTrue(dirty["head_matches_remote_main"])
+            self.assertTrue(dirty["dirty"])
+
+            subprocess.run(["git", "-C", str(repo), "restore", "AGENTS.md"], check=True)
+            path.write_text("remote\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "remote"], check=True)
+            remote = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+            subprocess.run(["git", "-C", str(repo), "reset", "--hard", "-q", base], check=True)
+            stale = _git_checkout_state(repo, remote)
+            self.assertFalse(stale["coherent"])
+            self.assertFalse(stale["head_matches_remote_main"])
+            self.assertFalse(stale["dirty"])
+            self.assertEqual(stale["local_head"], base)
+            self.assertEqual(stale["remote_main"], remote)
+
+    def test_source_freshness_marks_hybrid_agents_checkout_pending_even_when_policy_blobs_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            agents = root / "agents"
+            vault = root / "vault"
+            subprocess = __import__("subprocess")
+            for repo in (agents, vault):
+                subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+                subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+                subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+
+            for name in ("AGENTS.md", "RULES.md"):
+                (agents / name).write_text(f"base-{name}\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(agents), "add", "AGENTS.md", "RULES.md"], check=True)
+            subprocess.run(["git", "-C", str(agents), "commit", "-q", "-m", "base"], check=True)
+            base = subprocess.check_output(["git", "-C", str(agents), "rev-parse", "HEAD"], text=True).strip()
+            for name in ("AGENTS.md", "RULES.md"):
+                (agents / name).write_text(f"remote-{name}\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(agents), "commit", "-qam", "remote policy"], check=True)
+            remote = subprocess.check_output(["git", "-C", str(agents), "rev-parse", "HEAD"], text=True).strip()
+            agents_blob = subprocess.check_output(["git", "-C", str(agents), "rev-parse", f"{remote}:AGENTS.md"], text=True).strip()
+            rules_blob = subprocess.check_output(["git", "-C", str(agents), "rev-parse", f"{remote}:RULES.md"], text=True).strip()
+            subprocess.run(["git", "-C", str(agents), "reset", "--hard", "-q", base], check=True)
+            (agents / "AGENTS.md").write_text("remote-AGENTS.md\n", encoding="utf-8")
+            (agents / "RULES.md").write_text("remote-RULES.md\n", encoding="utf-8")
+
+            contract = vault / "04 Operating Contracts" / "fresh-worker-generation-launch.md"
+            contract.parent.mkdir(parents=True)
+            contract.write_text("worker contract\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(vault), "add", str(contract.relative_to(vault))], check=True)
+            subprocess.run(["git", "-C", str(vault), "commit", "-q", "-m", "worker contract"], check=True)
+            worker_blob = subprocess.check_output(
+                ["git", "-C", str(vault), "rev-parse", "HEAD:04 Operating Contracts/fresh-worker-generation-launch.md"],
+                text=True,
+            ).strip()
+
+            remote_metadata = {
+                "canonical_agents_checkout": {"remote_main": remote},
+                "AGENTS.md": {"remote_blob": agents_blob, "last_updated_at": "2026-09-09T00:00:00Z", "last_update_commit": remote},
+                "RULES.md": {"remote_blob": rules_blob, "last_updated_at": "2026-09-09T00:00:00Z", "last_update_commit": remote},
+                "worker_report_contract": {"remote_blob": worker_blob, "last_updated_at": "2026-09-09T00:00:00Z", "last_update_commit": None},
+            }
+            with patch("tools.stack_atlas.AGENT_RULES_ROOT", str(agents)), \
+                 patch("tools.stack_atlas.ROOT", vault), \
+                 patch("tools.stack_atlas._bootstrap_cache_read_any", return_value=(remote_metadata, 0.1)), \
+                 patch("tools.stack_atlas._bootstrap_cache_refresh_view", return_value=(remote_metadata, False)):
+                result = _bootstrap_source_freshness()
+
+            self.assertTrue(result["available"])
+            self.assertTrue(result["attention_required"])
+            self.assertTrue(result["updates_pending"])
+            self.assertFalse(result["canonical_checkout"]["coherent"])
+            self.assertFalse(result["canonical_checkout"]["head_matches_remote_main"])
+            self.assertTrue(result["canonical_checkout"]["dirty"])
+            self.assertEqual(result["canonical_checkout"]["local_head"], base)
+            self.assertEqual(result["canonical_checkout"]["remote_main"], remote)
+            self.assertFalse(result["sources"]["AGENTS.md"]["updates_pending"])
+            self.assertFalse(result["sources"]["RULES.md"]["updates_pending"])
 
     def test_source_freshness_pending_means_remote_is_newer(self):
         self.assertTrue(_remote_is_newer("2026-09-06T18:16:33Z", "2026-09-05T09:50:28+03:00"))

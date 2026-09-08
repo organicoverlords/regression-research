@@ -2181,7 +2181,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         snapshots = memory.get("timeline_snapshots") if isinstance(memory.get("timeline_snapshots"), dict) else {}
         memory["timeline_materialized"] = {
             key: materialized.get(key)
-            for key in ("status", "coverage_status", "age_seconds", "live_truth_required")
+            for key in ("status", "coverage_status", "age_seconds", "live_truth_required", "backfill_incomplete_sources", "retry_sources")
             if key in materialized
         }
         memory["timeline_snapshots"] = {
@@ -2899,6 +2899,55 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
     return value or None
 
 
+def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str = "main") -> dict[str, Any]:
+    """Bounded local serving-checkout coherence; never fetches or reads policy bodies."""
+    git = shutil.which("git")
+    remote_head = str(remote_main or "").strip() or None
+    result: dict[str, Any] = {
+        "available": False,
+        "branch": None,
+        "local_head": None,
+        "remote_main": remote_head,
+        "head_matches_remote_main": False,
+        "dirty": None,
+        "coherent": False,
+    }
+    if not git:
+        return result
+    try:
+        proc = subprocess.run(
+            [git, "-C", str(repo_root), "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
+            text=True, capture_output=True, timeout=1.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return result
+    if proc.returncode != 0:
+        return result
+    branch = None
+    local_head = None
+    dirty = False
+    for raw_line in proc.stdout.splitlines():
+        if raw_line.startswith("# branch.oid "):
+            value = raw_line[len("# branch.oid "):].strip()
+            local_head = value if value and value != "(initial)" else None
+        elif raw_line.startswith("# branch.head "):
+            value = raw_line[len("# branch.head "):].strip()
+            branch = value or None
+        elif raw_line and not raw_line.startswith("# "):
+            dirty = True
+    exact_head = bool(local_head and remote_head and local_head == remote_head)
+    coherent = bool(exact_head and branch == expected_branch and not dirty)
+    result.update({
+        "available": bool(local_head),
+        "branch": branch,
+        "local_head": local_head,
+        "head_matches_remote_main": exact_head,
+        "dirty": dirty,
+        "coherent": coherent,
+    })
+    return result
+
+
 def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remote_commit: Any) -> bool:
     """Detect a fetched remote file delta already present in a locally divergent working file."""
     git = shutil.which("git")
@@ -2954,8 +3003,12 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         "source-freshness.json", cached_raw, cache_age,
         max_age_seconds=BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS, lease_seconds=4.0,
     )
-    remote: dict[str, Any] | None = cached
-    cache_used = cached is not None
+    remote: dict[str, Any] | None = cached if isinstance(cached, dict) else None
+    if remote is not None:
+        checkout_meta = remote.get("canonical_agents_checkout")
+        if not isinstance(checkout_meta, dict) or not str(checkout_meta.get("remote_main") or "").strip():
+            remote = None
+    cache_used = remote is not None
     if remote is None:
         gh = shutil.which("gh")
         if not gh:
@@ -2964,6 +3017,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
             'query {'
             ' agents: repository(owner:"organicoverlords", name:"agents") {'
             '  ref(qualifiedName:"refs/heads/main") { target { ... on Commit {'
+            '   oid'
             '   agentsHistory: history(first:1, path:"AGENTS.md") { nodes { oid committedDate } }'
             '   rulesHistory: history(first:1, path:"RULES.md") { nodes { oid committedDate } }'
             '  } } }'
@@ -3002,6 +3056,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
                 return nodes[0] if nodes and isinstance(nodes[0], dict) else {}
 
             remote = {
+                "canonical_agents_checkout": {"remote_main": agent_target.get("oid")},
                 "AGENTS.md": {
                     "remote_blob": (agents.get("agentsBlob") or {}).get("oid"),
                     "last_updated_at": first_history(agent_target, "agentsHistory").get("committedDate"),
@@ -3023,6 +3078,9 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         except (json.JSONDecodeError, AttributeError, TypeError):
             return {"available": False, "attention_required": True, "reason": "github_metadata_invalid"}
 
+    checkout_remote = dict((remote or {}).get("canonical_agents_checkout") or {})
+    canonical_checkout = _git_checkout_state(Path(AGENT_RULES_ROOT), checkout_remote.get("remote_main"))
+
     local_sources = {
         "AGENTS.md": (Path(AGENT_RULES_ROOT) / "AGENTS.md", Path(AGENT_RULES_ROOT), "AGENTS.md"),
         "RULES.md": (Path(AGENT_RULES_ROOT) / "RULES.md", Path(AGENT_RULES_ROOT), "RULES.md"),
@@ -3033,8 +3091,9 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         ),
     }
     sources: dict[str, Any] = {}
-    attention = False
-    any_updates_pending = False
+    checkout_incoherent = not bool(canonical_checkout.get("coherent"))
+    attention = checkout_incoherent
+    any_updates_pending = checkout_incoherent
     for key, (path, repo_root, relative_path) in local_sources.items():
         item = dict((remote or {}).get(key) or {})
         local_blob = _git_blob_sha_for_file(path)
@@ -3057,6 +3116,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         "available": True,
         "attention_required": attention,
         "updates_pending": any_updates_pending,
+        "canonical_checkout": canonical_checkout,
         "sources": sources,
         "cache": {
             "used": cache_used,
