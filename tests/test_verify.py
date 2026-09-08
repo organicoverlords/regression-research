@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -133,6 +134,13 @@ class VerifyTests(unittest.TestCase):
         )
         self.assertIn(["cargo", "test", "--release", "--manifest-path", f"{root}/rust/Cargo.toml"], commands)
         self.assertIn([sys.executable, compatibility], commands)
+
+    def test_changelog_landing_timeout_covers_slow_self_hosted_startup(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "changelog-landing.yml"
+        text = workflow.read_text(encoding="utf-8")
+        timeout_lines = [line.strip() for line in text.splitlines() if line.strip().startswith("timeout-minutes:")]
+        self.assertEqual(len(timeout_lines), 1)
+        self.assertGreaterEqual(int(timeout_lines[0].split(":", 1)[1].strip()), 10)
 
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
