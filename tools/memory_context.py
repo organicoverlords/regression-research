@@ -6,7 +6,6 @@ from typing import Any, Iterable
 DEFAULT_CONTEXT_CHARS = 6000
 MIN_CONTEXT_CHARS = 2000
 MAX_CONTEXT_CHARS = 12000
-MAX_ENTRY_TEXT = 450
 MAX_HISTORY_TEXT = 350
 
 try:
@@ -67,9 +66,11 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
         "kind": entry.get("kind"),
         "scope": entry.get("scope"),
         "state": entry.get("state"),
-        "text": _clip(entry.get("text"), MAX_ENTRY_TEXT),
+        "text": str(entry.get("text") or ""),
         "evidence": list(entry.get("evidence") or [])[:4],
     }
+    if entry.get("interpretation"):
+        out["interpretation"] = str(entry["interpretation"])
     tags = {str(tag) for tag in entry.get("tags") or []}
     source_messages = list(entry.get("source_messages") or [])
     if "assistant-recorded" in tags and source_messages:
@@ -135,7 +136,9 @@ def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
         for key in order:
             values = pack[key]
             if values:
-                values.pop()
+                removed_record = values.pop()
+                if key == "durable_memory" and removed_record.get("id"):
+                    pack.setdefault("omitted_memory_ids", []).append(removed_record["id"])
                 pack["truncated"] = True
                 removed = True
                 break

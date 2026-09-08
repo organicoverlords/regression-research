@@ -125,9 +125,22 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual(pack["serialized_chars"], actual)
         self.assertLessEqual(actual, 10000)
 
-    def test_long_memory_body_is_clipped(self):
-        pack = build_context_pack("test evidence", [self.memory("m", text="x" * 5000)])
-        self.assertLess(len(pack["durable_memory"][0]["text"]), 800)
+    def test_correction_qualification_and_interpretation_are_preserved(self):
+        text = "Measured source mismatch. " * 30 + "Gameplay acceptance remains open."
+        entry = self.memory("m", text=text)
+        entry["interpretation"] = "All-roster scope; causes of other symptoms remain unproven."
+        pack = build_context_pack("test evidence", [entry])
+        self.assertEqual(pack["durable_memory"][0]["text"], text)
+        self.assertEqual(pack["durable_memory"][0]["interpretation"], entry["interpretation"])
+        self.assertLessEqual(pack["serialized_chars"], 6000)
+
+    def test_oversized_record_is_explicitly_omitted_whole(self):
+        entry = self.memory("mem-20260908-large", text="x" * 9000 + " Gameplay is unproven.")
+        pack = build_context_pack("test evidence", [entry], max_chars=6000)
+        self.assertEqual(pack["durable_memory"], [])
+        self.assertTrue(pack["truncated"])
+        self.assertIn(entry["id"], pack["omitted_memory_ids"])
+        self.assertLessEqual(pack["serialized_chars"], 6000)
 
 
 if __name__ == "__main__":

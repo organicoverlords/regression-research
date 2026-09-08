@@ -134,6 +134,21 @@ def _weighted_document_tokens(entry: dict[str, Any]) -> list[str]:
     return tokens
 
 
+def _source_evidence_text(entry: dict[str, Any]) -> str:
+    parts = [
+        str(entry.get("turn_task") or ""),
+        str(entry.get("interpretation") or ""),
+        " ".join(str(message) for message in entry.get("source_messages") or []),
+    ]
+    return " ".join(part for part in parts if part).strip()
+
+
+def _source_evidence_tokens(entry: dict[str, Any]) -> list[str]:
+    # Preserved task/correction wording is searchable evidence, but it must not
+    # perturb the canonical lesson corpus or its established BM25 ranking.
+    return _word_tokens(_source_evidence_text(entry))
+
+
 def _eligible_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
     return [
@@ -204,6 +219,74 @@ def _rank_map(scores: list[float], allowed: set[int] | None = None) -> dict[int,
     return {idx: rank for rank, (_, idx) in enumerate(pairs, start=1)}
 
 
+def _rank_eligible_entries(
+    eligible: list[dict[str, Any]],
+    query: str,
+    *,
+    token_builder,
+    descriptor_builder,
+    source_registry: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    query_terms = _word_tokens(query)
+    query_unique = list(dict.fromkeys(query_terms))
+    doc_tokens = [token_builder(entry) for entry in eligible]
+    doc_counts = [Counter(tokens) for tokens in doc_tokens]
+    doc_lengths = [len(tokens) for tokens in doc_tokens]
+    doc_sets = [set(tokens) for tokens in doc_tokens]
+    df: Counter[str] = Counter()
+    for tokens in doc_sets:
+        df.update(tokens)
+
+    total_docs = len(eligible)
+    present_query_terms = {term for term in query_unique if df.get(term, 0) > 0}
+    if not present_query_terms:
+        return []
+
+    oov_idf = _idf(total_docs, 0)
+    query_weight_total = sum(_idf(total_docs, df.get(term, 0)) if df.get(term, 0) else oov_idf for term in query_unique)
+    admitted: set[int] = set()
+    for idx, tokens in enumerate(doc_sets):
+        matched = present_query_terms & tokens
+        coverage = (
+            sum(_idf(total_docs, df[term]) for term in matched) / query_weight_total
+            if query_weight_total else 0.0
+        )
+        if len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE:
+            admitted.add(idx)
+
+    if not admitted:
+        return []
+
+    direct_weights = {term: 1.0 for term in query_unique}
+    bm25_scores = _bm25_scores(doc_counts, doc_lengths, df, direct_weights)
+    query_grams = _char_ngrams(query)
+    char_scores = [
+        _dice(query_grams, _char_ngrams(descriptor_builder(entry))) if idx in admitted else 0.0
+        for idx, entry in enumerate(eligible)
+    ]
+    ranks = {
+        "bm25": _rank_map(bm25_scores, admitted),
+        "char": _rank_map(char_scores, admitted),
+    }
+    registry = source_registry or load_source_registry()
+    ranked: list[tuple[float, int, datetime, str, dict[str, Any]]] = []
+    for idx in admitted:
+        score = 0.0
+        for component, weight in RRF_WEIGHTS.items():
+            rank = ranks[component].get(idx)
+            if rank is not None:
+                score += weight / (RRF_K + rank)
+        if score <= 0.0:
+            continue
+        entry = eligible[idx]
+        source_score = source_relevance(entry, registry)
+        stamp = datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00"))
+        ranked.append((score, source_score, stamp, str(entry["id"]), entry))
+
+    ranked.sort(key=lambda item: (-item[0], -item[1], -item[2].timestamp(), item[3]))
+    return [entry for _, _, _, _, entry in ranked]
+
+
 def search_entries_hybrid(
     entries: list[dict[str, Any]],
     query: str,
@@ -231,63 +314,26 @@ def search_entries_hybrid(
     if not eligible:
         return []
 
-    query_terms = _word_tokens(query)
-    query_unique = list(dict.fromkeys(query_terms))
-    doc_tokens = [_weighted_document_tokens(entry) for entry in eligible]
-    doc_counts = [Counter(tokens) for tokens in doc_tokens]
-    doc_lengths = [len(tokens) for tokens in doc_tokens]
-    doc_sets = [set(tokens) for tokens in doc_tokens]
-    df: Counter[str] = Counter()
-    for tokens in doc_sets:
-        df.update(tokens)
-
-    total_docs = len(eligible)
-    present_query_terms = {term for term in query_unique if df.get(term, 0) > 0}
-    if not present_query_terms:
-        return []
-
-    oov_idf = _idf(total_docs, 0)
-    query_weight_total = sum(_idf(total_docs, df.get(term, 0)) if df.get(term, 0) else oov_idf for term in query_unique)
-    admitted: set[int] = set()
-    for idx, tokens in enumerate(doc_sets):
-        matched = present_query_terms & tokens
-        coverage = (
-            sum(_idf(total_docs, df[term]) for term in matched) / query_weight_total
-            if query_weight_total else 0.0
-        )
-        if len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE:
-            admitted.add(idx)
-
-    direct_weights = {term: 1.0 for term in query_unique}
-    bm25_scores = _bm25_scores(doc_counts, doc_lengths, df, direct_weights)
-    query_grams = _char_ngrams(query)
-    char_scores = [
-        _dice(query_grams, _char_ngrams(_entry_descriptor(entry))) if idx in admitted else 0.0
-        for idx, entry in enumerate(eligible)
-    ]
-
-    candidates = admitted
-    if not candidates:
-        return []
-
-    ranks = {
-        "bm25": _rank_map(bm25_scores, admitted),
-        "char": _rank_map(char_scores, admitted),
-    }
     registry = source_registry or load_source_registry()
-    ranked: list[tuple[float, int, datetime, str, dict[str, Any]]] = []
-    for idx in candidates:
-        score = 0.0
-        for component, weight in RRF_WEIGHTS.items():
-            rank = ranks[component].get(idx)
-            if rank is not None:
-                score += weight / (RRF_K + rank)
-        if score <= 0.0:
-            continue
-        entry = eligible[idx]
-        source_score = source_relevance(entry, registry)
-        stamp = datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00"))
-        ranked.append((score, source_score, stamp, str(entry["id"]), entry))
+    canonical = _rank_eligible_entries(
+        eligible,
+        query,
+        token_builder=_weighted_document_tokens,
+        descriptor_builder=_entry_descriptor,
+        source_registry=registry,
+    )
+    evidence = _rank_eligible_entries(
+        eligible,
+        query,
+        token_builder=_source_evidence_tokens,
+        descriptor_builder=_source_evidence_text,
+        source_registry=registry,
+    )
 
-    ranked.sort(key=lambda item: (-item[0], -item[1], -item[2].timestamp(), item[3]))
-    return [entry for _, _, _, _, entry in ranked[:effective_limit]]
+    # Canonical lesson wording keeps its established ordering. Preserved source
+    # language fills otherwise unused recall slots, or becomes the primary lane
+    # when the canonical lesson text has no match.
+    merged = list(canonical)
+    seen = {str(entry["id"]) for entry in merged}
+    merged.extend(entry for entry in evidence if str(entry["id"]) not in seen)
+    return merged[:effective_limit]

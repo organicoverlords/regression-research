@@ -59,6 +59,38 @@ class HybridMemoryTests(unittest.TestCase):
         second = [e["id"] for e in search_entries_hybrid(entries, "connection disappeared but process survives")]
         self.assertEqual(first, second)
 
+    def test_preserved_correction_fields_are_searchable_without_changing_state(self):
+        for field, value, query in (
+            ("source_messages", ["walking animation keeps resetting"], "walking animation resetting"),
+            ("interpretation", "all roster causes remain unproven", "roster causes unproven"),
+            ("turn_task", "compare generated pawn bindings", "generated pawn bindings"),
+        ):
+            with self.subTest(field=field):
+                entry = self.entry("correction", "Measured inputs differ from defaults.", state="PROVISIONAL")
+                entry[field] = value
+                hits = search_entries_hybrid([entry], query)
+                self.assertEqual([hit["id"] for hit in hits], ["correction"])
+                self.assertEqual(hits[0]["state"], "PROVISIONAL")
+
+    def test_source_wording_does_not_reorder_canonical_hits(self):
+        canonical = self.entry(
+            "canonical",
+            "A connector can disappear while the command process still survives.",
+            title="Tool loss does not imply process loss",
+        )
+        source_only = self.entry("source-only", "Measured inputs differ from defaults.", title="Later correction")
+        source_only["source_messages"] = ["connector disappeared command job died"]
+        hits = search_entries_hybrid([source_only, canonical], "connector disappeared command job died", limit=2)
+        self.assertEqual([hit["id"] for hit in hits], ["canonical", "source-only"])
+
+    def test_source_wording_does_not_restore_rejected_or_sensitive_entries(self):
+        rejected = self.entry("rejected", "Measured inputs differ.", state="REJECTED")
+        rejected["source_messages"] = ["walking animation keeps resetting"]
+        expired = self.entry("expired", "Measured inputs differ.")
+        expired["source_messages"] = ["walking animation keeps resetting"]
+        expired["expires_at"] = "2020-01-01T00:00:00+00:00"
+        self.assertEqual(search_entries_hybrid([rejected, expired], "walking animation resetting"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

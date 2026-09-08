@@ -1,6 +1,7 @@
 import unittest
 
-from tools.memory_bank import search_context_memory
+from tools.memory_bank import search_context_memory, search_all_memory
+from unittest.mock import patch
 
 
 class MemoryContextRetrievalTests(unittest.TestCase):
@@ -50,6 +51,22 @@ class MemoryContextRetrievalTests(unittest.TestCase):
         tiny = self.entry("tiny", "p3 build routing exact tempting text", project="tiny3d", scope="tiny3d/build")
         hits = search_context_memory([tiny, p3], "p3 build routing", limit=8)
         self.assertEqual([h["id"] for h in hits], ["p3"])
+
+    def test_linked_memory_id_bypasses_word_search_and_conversation_fallback(self):
+        target = self.entry("mem-20260908-abc12345", "Earlier correction", project="p3")
+        decoy = self.entry("mem-20260908-decoy", "Mention mem-20260908-abc12345", project="p3")
+        with patch("tools.memory_bank.conversation_history_report", side_effect=AssertionError("no corpus lookup for IDs")):
+            self.assertEqual([e["id"] for e in search_all_memory([decoy, target], target["id"])], [target["id"]])
+            self.assertEqual([e["id"] for e in search_context_memory([decoy, target], target["id"])], [target["id"]])
+            self.assertEqual(search_all_memory([decoy, target], "mem-20260908-missing"), [])
+
+    def test_exact_id_does_not_promote_rejected_history(self):
+        target = self.entry("mem-20260908-rejected", "Earlier rejected correction")
+        target["state"] = "REJECTED"
+        self.assertEqual(search_context_memory([target], target["id"]), [])
+        with patch("tools.memory_bank.conversation_history_report", side_effect=AssertionError("no corpus lookup")):
+            historical = search_all_memory([target], target["id"], history=True)
+        self.assertEqual(historical[0]["state"], "REJECTED")
 
 
 if __name__ == "__main__":
