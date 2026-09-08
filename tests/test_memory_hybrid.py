@@ -19,6 +19,17 @@ class HybridMemoryTests(unittest.TestCase):
         hits = search_entries_hybrid(entries, "when asked to refresh, reread before saying it is done")
         self.assertEqual(hits[0]["id"], "target")
 
+    def test_checkpoint_plural_matches_shared_checkpoint_memory(self):
+        checkpoint = self.entry(
+            "checkpoint",
+            "Check the shared checkpoint before advancing the active work.",
+            title="Check shared checkpoint before advancing",
+        )
+        self.assertEqual(
+            [entry["id"] for entry in search_entries_hybrid([checkpoint], "shared checkpoints advance", strict_admission=True)],
+            ["checkpoint"],
+        )
+
     def test_continuation_word_forms_share_one_retrieval_concept(self):
         self.assertEqual(
             _word_tokens("continue continues continued continuing continuation continuations"),

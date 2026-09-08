@@ -70,6 +70,7 @@ _CONCEPT_GROUPS = (
     ("persist", "persistence", "store", "stored", "save", "saved", "preserve", "preserved"),
     ("concurrency", "simultaneous", "simultaneously", "parallel", "concurrent"),
     ("worker", "workers", "runner", "runners", "agent", "agents"),
+    ("checkpoint", "checkpoints"),
     ("prune", "trim", "trimming", "pruned", "pruning"),
     ("isolate", "isolated", "isolating", "experiment", "experimental", "experimentally"),
     ("investigation", "diagnostic", "diagnostics", "debug", "debugging", "investigate", "investigating"),
