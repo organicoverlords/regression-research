@@ -66,6 +66,7 @@ _CONCEPT_GROUPS = (
     ("scope", "area", "areas", "unrelated", "adjacent"),
     ("expand", "spread", "widen", "widened", "expansion", "expanded"),
     ("complete", "completed", "completion", "finish", "finished", "done", "ends", "ended"),
+    ("continue", "continues", "continued", "continuing", "continuation", "continuations"),
     ("persist", "persistence", "store", "stored", "save", "saved", "preserve", "preserved"),
     ("concurrency", "simultaneous", "simultaneously", "parallel", "concurrent"),
     ("worker", "workers", "runner", "runners", "agent", "agents"),
