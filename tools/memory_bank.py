@@ -828,14 +828,17 @@ def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str
     }
 
 
-def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False) -> list[dict[str, Any]]:
+def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, strict_admission: bool = False) -> list[dict[str, Any]]:
     if history or _is_entry_id(query):
         return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
     try:
         from .memory_hybrid import search_entries_hybrid
     except ImportError:
         from memory_hybrid import search_entries_hybrid
-    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=False)
+    return search_entries_hybrid(
+        entries, query, scope=scope, tags=tags, limit=limit, history=False,
+        strict_admission=strict_admission,
+    )
 
 
 def search_context_memory(
@@ -856,7 +859,8 @@ def search_context_memory(
         if len(residual_tokens) < 2:
             return []
         return search_memory_entries(
-            filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False
+            filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False,
+            strict_admission=True,
         )
 
     project_entries: list[dict[str, Any]] = []
@@ -876,13 +880,14 @@ def search_context_memory(
     project_target = max(1, (effective_limit * 3 + 3) // 4)
     if len(_tokens(residual)) >= 1:
         project_hits = search_memory_entries(
-            project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False
+            project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False,
+            strict_admission=True,
         )
         remaining_project = project_target - len(project_hits)
         if remaining_project > 0:
             project_hits.extend(search_memory_entries(
                 entity_project_entries, residual, scope=scope, tags=tags,
-                limit=remaining_project, history=False
+                limit=remaining_project, history=False, strict_admission=True
             ))
     else:
         candidates = [*project_entries, *entity_project_entries]
@@ -908,7 +913,8 @@ def search_context_memory(
     ambient_hits: list[dict[str, Any]] = []
     if remaining > 0 and len(_tokens(residual)) >= 2:
         ambient_hits = search_memory_entries(
-            ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False
+            ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False,
+            strict_admission=True,
         )
     return [*project_hits, *ambient_hits][:effective_limit]
 

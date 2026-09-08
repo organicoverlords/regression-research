@@ -46,6 +46,35 @@ class MemoryContextRetrievalTests(unittest.TestCase):
         self.assertIn("global", [h["id"] for h in hits])
         self.assertNotIn("project", global_tiny)
 
+    def test_context_rejects_generic_library_collisions_but_keeps_shared_proof_intent(self):
+        visual = self.entry(
+            "visual",
+            "Use the shared visual library to inspect the same stored proof image instead of rediscovering transport.",
+            scope="assistant-response-quality",
+        )
+        visual["kind"] = "correction"
+        visual["tags"] = ["assistant-recorded", "verbatim-source"]
+        visual["source_messages"] = ["make the stored proof easy to show here"]
+        visual["turn_task"] = "Implement durable visual proof library integration."
+        visual["interpretation"] = "Expose prior proof through one stable transport path."
+        visual["confidence"] = 100
+        visual["confidence_reason"] = "Explicit correction."
+
+        for query in (
+            "which python standard library module should I use for path handling",
+            "how should a software library expose its public api",
+            "explain image transport over a network protocol",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(search_context_memory([visual], query, limit=8), [])
+
+        hits = search_context_memory(
+            [visual],
+            "use the same stored visual proof in chat instead of rebuilding the transfer path",
+            limit=8,
+        )
+        self.assertEqual([hit["id"] for hit in hits], ["visual"])
+
     def test_other_named_project_is_excluded_before_ranking(self):
         p3 = self.entry("p3", "p3 build routing", project="p3", scope="p3/build")
         tiny = self.entry("tiny", "p3 build routing exact tempting text", project="tiny3d", scope="tiny3d/build")
