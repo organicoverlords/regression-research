@@ -1,6 +1,6 @@
 {
   "schema": "mcp-recovery-state.v1",
-  "updated_at": "2026-09-06T21:59:50.857262Z",
+  "updated_at": "2026-09-08T20:56:07.3881510Z",
   "deployment": {
     "id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
     "deployed_at": "2026-09-06T14:42:47.4099008Z",
@@ -98,18 +98,18 @@
     {
       "type": "SecurityReroutesEliminated",
       "status": "False",
-      "observed_generation": "backend-3011-21688-1788705761749",
-      "last_transition_at": "2026-09-06T19:11:14+03:00",
-      "reason": "PostRefreshRecurrenceObserved",
-      "message": "User-visible reroutes recurred after deployment/refresh, including a user-supplied 20:27-20:39 EEST window; the broader platform-side reroute class is not eliminated."
+      "observed_generation": "backend-3011-14360-1788899551179",
+      "last_transition_at": "2026-09-08T20:56:07.3881510Z",
+      "reason": "MatureWindowAndFreshRecurrenceObserved",
+      "message": "The completed 48-hour post-refresh acceptance window contains two preserved exact user-visible adverse occurrence windows, and a fresh same-operation OpenAI pre-dispatch safety block recurred during mature evaluation while this generation was live. The broader platform-side safety/routing class is not eliminated; this does not attribute causality to the backend generation."
     },
     {
       "type": "LongRunStable",
-      "status": "Unknown",
-      "observed_generation": "backend-3011-21688-1788705761749",
-      "last_transition_at": "2026-09-06T17:46:18.768874+03:00",
-      "reason": "ObservationWindowIncomplete",
-      "message": "Long-run stability remains unevaluated until the configured observation window has elapsed and the user explicitly confirms acceptable stability."
+      "status": "False",
+      "observed_generation": "backend-3011-14360-1788899551179",
+      "last_transition_at": "2026-09-08T20:56:07.3881510Z",
+      "reason": "MatureObservationRecurrenceObserved",
+      "message": "The configured observation threshold elapsed and real-use acceptance failed: the corrected analyzer reports RECURRENCE_OBSERVED from two exact user-visible occurrence windows across the 48-hour campaign, and a fresh pre-dispatch safety block also recurred. Long-run acceptable stability is therefore false; selected recovery-target identity remains unchanged."
     }
   ],
   "condition_policies": {
@@ -226,6 +226,23 @@
         "fresh_mcp_process_call": "PASS"
       },
       "interpretation": "Recovery-target churn and incomplete topology reconciliation repeatedly widened outages. Future recovery must keep the selected target fixed, identify the exact divergent component, and restore only that component through an independent control route."
+    },
+    "long_run_acceptance_observation": {
+      "evaluated_at": "2026-09-08T20:56:07.3881510Z",
+      "window_start": "2026-09-06T14:52:42.474Z",
+      "window_end": "2026-09-08T14:52:42.474Z",
+      "analyzer_status": "RECURRENCE_OBSERVED",
+      "analyzer_merge": "chatgpt-mcp-clean:936d0b65298183c32d832799b13fb724efc42054",
+      "process_tool_calls": 69296,
+      "process_tool_http_200": 69296,
+      "process_tool_non_2xx": 0,
+      "active_hour_bins": 48,
+      "total_hour_bins": 48,
+      "transport_error_events": 44,
+      "known_adverse_occurrence_windows": 2,
+      "known_adverse_family": "user_visible_or_above_mcp",
+      "fresh_pre_dispatch_same_operation_retry": true,
+      "interpretation": "MCP process-tool transport remained highly successful under heavy exposure, but the broader OpenAI safety/routing class recurred. This is a negative long-run acceptance result, not proof that the observed backend generation caused the platform-side events."
     }
   },
   "history": {
@@ -243,6 +260,7 @@
     "Do not recreate any promotion label that combines recovery-target selection with health. LongRunStable can be Unknown while the same deployment remains the preferred recovery target.",
     "Current operational truth is SecurityReroutesReduced=Unknown and SecurityReroutesEliminated=False: a lower observed direct-block count is real, but sparse normalized evidence does not yet establish a reduced underlying rate.",
     "Incident recovery invariant: the selected recovery target remains fixed during an outage unless positive evidence disqualifies it; rollback-target search is not a debugging loop.",
-    "Before any MCP serving mutation, compare selected artifact, live backend artifact/generation, live Caddy transport, and independent control route. Restore only the proven divergent component."
+    "Before any MCP serving mutation, compare selected artifact, live backend artifact/generation, live Caddy transport, and independent control route. Restore only the proven divergent component.",
+    "LongRunStable=False records mature acceptance failure from user-visible/platform-side recurrence; it does not change or disqualify the selected recovery target and does not assign backend causality."
   ]
 }
