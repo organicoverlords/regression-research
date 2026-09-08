@@ -7,8 +7,10 @@ from typing import Any, Iterable
 
 try:
     from .memory_classification import classify_entry, projects_from_text, token_words
+    from .memory_lifecycle import parse_iso_datetime
 except ImportError:
     from memory_classification import classify_entry, projects_from_text, token_words
+    from memory_lifecycle import parse_iso_datetime
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 50
@@ -44,7 +46,7 @@ VAGUE_WORDS = {
 
 
 def _dt(value: str) -> datetime:
-    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return parse_iso_datetime(value)
 
 
 def _clip(value: Any, limit: int = MAX_SUMMARY_CHARS) -> str:

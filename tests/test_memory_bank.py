@@ -110,6 +110,18 @@ class MemoryBankValidationTests(unittest.TestCase):
         with self.assertRaises(BankError):
             validate_entry(bad)
 
+    def test_iso_fraction_beyond_microseconds_is_accepted_without_rewriting(self):
+        e = self.valid()
+        e["timestamp"] = "2026-09-06T01:58:15.2203558+03:00"
+        e["event_at"] = "2026-09-06T01:58:15.9876543+03:00"
+        validate_entry(e)
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / "bank.jsonl"
+            p.write_text(json.dumps(e) + "\n", encoding="utf-8")
+            loaded = load_bank(p)
+        self.assertEqual(loaded[0]["timestamp"], e["timestamp"])
+        self.assertEqual(loaded[0]["event_at"], e["event_at"])
+
     def test_event_at_validates_timezone(self):
         e = self.valid()
         e["event_at"] = "2026-08-28T20:00:00+03:00"
