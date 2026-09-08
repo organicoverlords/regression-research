@@ -26,7 +26,7 @@ _INCIDENT_EVIDENCE_RE = re.compile(r"\bINC-\d{8}(?:-\d{6})?(?:-[A-Za-z0-9]+(?:-[
 _RED_SIGNAL_RE = re.compile(r"\bred[ _-]?(?:alert|critical)\b", re.I)
 _LEGACY_INCIDENT_SIGNAL_RE = re.compile(r"\b(?:incident\s+report|critical\s+incident|security[-_\s]+incident)\b", re.I)
 _REGRESSION_SIGNAL_RE = re.compile(r"\b(?:recurrence|failure|failed|broken|premature)\b|\bregression\b(?![-_\s]+research\b)", re.I)
-_SIGNAL_ORDER = ("red_alert", "slopwall", "security_incident", "incident", "regression")
+_SIGNAL_ORDER = ("red_alert", "slopwall", "asshole", "security_incident", "incident", "regression")
 
 TIMELINE_NARRATIVE_CONTRACT = {
     "primary_unit": "CONTINUITY_CASE",
@@ -202,6 +202,9 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
     if "slopwall" in tags:
         traits.add("slopwall")
         basis.append("structured:memory.tags:slopwall")
+    if "asshole" in tags:
+        traits.add("asshole")
+        basis.append("structured:memory.tags:asshole")
     if {"incident", "security_incident"} & tags:
         traits.update({value for value in ("incident", "security_incident") if value in tags})
         basis.append("structured:memory.tags:incident")
@@ -228,7 +231,7 @@ def _continuity_semantics(event: dict[str, Any]) -> dict[str, Any]:
     for signal in explicit_signals:
         if signal in {"red_alert", "red_critical"}:
             severity = "RED"
-        elif signal in {"incident", "regression", "slopwall", "security_incident"}:
+        elif signal in {"incident", "regression", "slopwall", "asshole", "security_incident"}:
             traits.add(signal)
     if explicit_signals:
         basis.append("structured:source.signals")
@@ -355,7 +358,7 @@ def _highlight_bucket(event: dict[str, Any]) -> str:
     if semantics.get("severity") == "RED":
         return "signal:red_alert"
     traits = set(semantics.get("traits") or [])
-    for trait in ("slopwall", "security_incident", "incident", "regression"):
+    for trait in ("slopwall", "asshole", "security_incident", "incident", "regression"):
         if trait in traits:
             return "signal:" + trait
     family = _event_source_family(event)
@@ -403,7 +406,7 @@ def _is_signal_semantics(semantics: dict[str, Any]) -> bool:
     return (
         semantics.get("severity") == "RED"
         or semantics.get("event_class") == "INCIDENT"
-        or bool(set(semantics.get("traits") or []) & {"incident", "regression", "slopwall", "security_incident"})
+        or bool(set(semantics.get("traits") or []) & {"incident", "regression", "slopwall", "asshole", "security_incident"})
     )
 
 
@@ -561,7 +564,7 @@ def _signal_observation_summary(events: Iterable[dict[str, Any]]) -> dict[str, i
         if not _case_anchors(event):
             summary["unanchored"] += 1
         for trait in semantics.get("traits", []):
-            if trait in {"incident", "regression", "slopwall", "security_incident"}:
+            if trait in {"incident", "regression", "slopwall", "asshole", "security_incident"}:
                 summary[trait] += 1
     return dict(summary)
 
@@ -576,7 +579,7 @@ def _continuity_case_summary(cases: Iterable[dict[str, Any]]) -> dict[str, int]:
         if case.get("legacy_inferred"):
             summary["legacy_inferred"] += 1
         for trait in case.get("traits", []):
-            if trait in {"incident", "regression", "slopwall", "security_incident"}:
+            if trait in {"incident", "regression", "slopwall", "asshole", "security_incident"}:
                 summary[trait] += 1
     return dict(summary)
 
@@ -586,7 +589,7 @@ def _diverse_highlights(events: list[dict[str, Any]], limit: int) -> list[dict[s
         return []
     ordered = sorted(events, key=lambda event: (_dt(str(event["event_at"])), str(event.get("id") or "")), reverse=True)
     priority = [
-        "signal:red_alert", "signal:slopwall", "signal:security_incident", "signal:incident", "signal:regression",
+        "signal:red_alert", "signal:slopwall", "signal:asshole", "signal:security_incident", "signal:incident", "signal:regression",
         "repo", "worker", "memory",
         "artifact:report", "artifact:proof", "artifact:screenshot", "artifact:evidence_log",
         "artifact:evidence", "artifact:transcript", "artifact:contract", "artifact:fixture", "artifact:artifact",
@@ -1033,7 +1036,7 @@ def build_timeline(
             "repo_history": "local all-branch Git commits/refs are observed repository history, not memory or causal interpretation",
             "worker_history": "immutable finalized worker reports are lagging self-report evidence with automatically derived duration/utilization; they are not current-state authority or liveness proof",
             "artifact_history": "Git-tracked reports, evidence, logs, screenshots, proofs, fixtures, contracts, and transcripts are preserved artifact history; untracked WIP is not promoted into durable history",
-            "continuity_cases": "report/log/screenshot/memory/commit describe evidence form; incident/regression/slopwall/security describe case traits; RED is severity; strong explicit anchors join observations into one case while broad GitHub issue refs remain corroboration-only",
+            "continuity_cases": "report/log/screenshot/memory/commit describe evidence form; incident/regression/slopwall/asshole/security describe case traits; RED is severity; strong explicit anchors join observations into one case while broad GitHub issue refs remain corroboration-only",
             "snapshot_case_examples": "snapshot continuity_case_examples are explicitly bounded examples; complete materialized case navigation lives in continuity_graph",
             "classification": "structured memory tags/classification, worker finding tags, provenance incident IDs/evidence types, and explicit anchors outrank legacy text inference; legacy fallback is labeled",
             "corroboration": "snapshot source diversity can strengthen orientation but never turns repetition into authority or proves causality; broad GitHub anchors are context-only and must never be narrated as the case/thread itself",

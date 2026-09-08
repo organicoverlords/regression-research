@@ -590,6 +590,24 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertEqual(result["snapshots"]["windows"][0]["continuity_case_summary"]["red"], 1)
         self.assertEqual(result["snapshots"]["preserved_memory_history"]["red_observations"], 2)
 
+    def test_asshole_correction_is_a_lightweight_tracked_signal_not_an_incident(self):
+        now = datetime.fromisoformat("2026-09-08T23:00:00+03:00")
+        entry = self.e(
+            "asshole-1", "2026-09-08T22:59:00+03:00",
+            "Assistant chose the wrong tool route and should have used the already-available MCPv4 path.",
+            kind="correction", scope="assistant-orchestration/action-mistake", title="Wrong tool route",
+            tags=["asshole"],
+        )
+        result = build_timeline([entry], view="errors", limit=20, snapshot_now=now)
+        event = result["events"][0]
+        self.assertEqual(event["continuity"]["traits"], ["asshole"])
+        self.assertEqual(event["continuity"]["event_class"], "MEMORY")
+        self.assertNotIn("regression", event["continuity"]["traits"])
+        window = result["snapshots"]["windows"][0]
+        self.assertEqual(window["signal_observation_summary"]["asshole"], 1)
+        self.assertEqual(window["continuity_case_summary"]["asshole"], 1)
+        self.assertEqual(window["continuity_case_summary"]["total"], 1)
+
     def test_superseded_and_rejected_memories_remain_in_chronology_but_do_not_inflate_active_signal_cases(self):
         now = datetime.fromisoformat("2026-09-06T05:00:00+03:00")
         bad = self.e(
