@@ -129,13 +129,33 @@ _PROOF_VISUAL_QUERY_ALIASES = {
     "screenshot": "image",
     "screenshots": "image",
 }
+_PROOF_HISTORY_QUERY_ALIASES = {
+    "previous": "prior",
+    "earlier": "prior",
+    "last": "prior",
+    "past": "prior",
+}
+_PROOF_HISTORY_QUERY_MARKERS = {"prior", *_PROOF_HISTORY_QUERY_ALIASES}
+_PROOF_HISTORY_SURFACE_TOKENS = {
+    "archive", "display", "image", "images", "integrated", "integration", "library",
+    "persist", "route", "setup", "share", "show", "transport", "visual",
+}
 
 
 def _query_word_tokens(value: str) -> list[str]:
     tokens = _word_tokens(value)
     if "proof" not in tokens:
         return tokens
-    return [_PROOF_VISUAL_QUERY_ALIASES.get(token, token) for token in tokens]
+    tokens = [_PROOF_VISUAL_QUERY_ALIASES.get(token, token) for token in tokens]
+    token_set = set(tokens)
+    if not (_PROOF_HISTORY_QUERY_MARKERS & token_set):
+        return tokens
+    if not (_PROOF_HISTORY_SURFACE_TOKENS & token_set):
+        return tokens
+    tokens = [_PROOF_HISTORY_QUERY_ALIASES.get(token, token) for token in tokens]
+    if "history" not in tokens:
+        tokens.append("history")
+    return tokens
 
 
 def _entry_descriptor(entry: dict[str, Any]) -> str:

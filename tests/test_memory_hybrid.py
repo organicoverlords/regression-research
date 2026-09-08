@@ -84,6 +84,36 @@ class HybridMemoryTests(unittest.TestCase):
         self.assertEqual(search_entries_hybrid([visual], "store family photos", strict_admission=True), [])
         self.assertEqual(search_entries_hybrid([visual], "picture library", strict_admission=True), [])
 
+    def test_proof_history_aliases_require_recurrence_and_visual_surface(self):
+        history = self.entry(
+            "history",
+            "Consult project history and prior attempts before inventing a new visual transport path for proof retrieval.",
+            title="Consult prior proof integration history",
+        )
+        history["kind"] = "correction"
+
+        for query in (
+            "previous proof path",
+            "earlier proof transport",
+            "last proof setup",
+            "past visual proof",
+            "prior proof path",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(
+                    [entry["id"] for entry in search_entries_hybrid([history], query, strict_admission=True)],
+                    ["history"],
+                )
+
+        for query in (
+            "previous proof method",
+            "past proof theorem",
+            "previous deployment path",
+            "last family photo",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(search_entries_hybrid([history], query, strict_admission=True), [])
+
     def test_strict_context_drops_recurrence_glue_without_losing_semantic_recall(self):
         visual = self.entry(
             "visual",
