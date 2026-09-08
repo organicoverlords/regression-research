@@ -6,6 +6,10 @@ SPEC=importlib.util.spec_from_file_location("swarm_route",ROOT/"tools"/"swarm_ro
 m=importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(m)
 def facts(omen=True,mem=12,disk=60,load1=1,cpus=12,lane1=False,lane2=False,vps=True):
     return {"observed_at":"2026-09-07T20:00:00Z","omen":{"available":omen,"mem_available_gb":mem,"disk_free_gb":disk,"load1":load1,"cpu_count":cpus,"lane1_build_active":lane1,"lane2_build_active":lane2},"windows":{"available":True},"vps":{"available":vps}}
+class TransportContractTests(unittest.TestCase):
+    def test_omen_probe_uses_stable_lan_ip(self):
+        self.assertEqual(m.OMEN_HOST, "192.168.0.128")
+        self.assertEqual(m.OMEN_HOST_KEY_ALIAS, "192.168.0.128")
 class RouteDecisionTests(unittest.TestCase):
     def test_pins(self):
         f=facts(); self.assertEqual(m.choose_route("lowvram",f,{})[0],"windows"); self.assertEqual(m.choose_route("windows-only",f,{})[0],"windows")
