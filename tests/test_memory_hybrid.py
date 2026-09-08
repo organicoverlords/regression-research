@@ -84,6 +84,30 @@ class HybridMemoryTests(unittest.TestCase):
         self.assertEqual(search_entries_hybrid([visual], "store family photos", strict_admission=True), [])
         self.assertEqual(search_entries_hybrid([visual], "picture library", strict_admission=True), [])
 
+    def test_strict_context_drops_recurrence_glue_without_losing_semantic_recall(self):
+        visual = self.entry(
+            "visual",
+            "Use the shared visual library to inspect the same stored proof image.",
+            title="Shared visual proof library",
+        )
+        noise = self.entry(
+            "noise",
+            "The same reassurance failure happened again after proof was requested.",
+            title="Repeated reassurance failure",
+        )
+        error = self.entry("error", "The routing error repeated after recovery.", title="Routing error recurrence")
+
+        ids = [
+            entry["id"]
+            for entry in search_entries_hybrid([noise, visual], "same proof image again", strict_admission=True)
+        ]
+        self.assertEqual(ids[0], "visual")
+        self.assertEqual(search_entries_hybrid([noise, visual], "same picture again", strict_admission=True), [])
+        self.assertEqual(
+            [entry["id"] for entry in search_entries_hybrid([error], "same routing error again", strict_admission=True)],
+            ["error"],
+        )
+
     def test_rejected_and_superseded_stay_hidden(self):
         old = self.entry("old", "connector route failed", title="Old connector route")
         new = self.entry("new", "connector route correction", title="Correct connector route", supersedes=["old"])
