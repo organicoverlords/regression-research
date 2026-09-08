@@ -130,7 +130,15 @@ def roles_from_text(value: Any) -> set[str]:
 def entry_projects(entry: dict[str, Any]) -> set[str]:
     explicit = str(entry.get("project") or "").strip().casefold()
     if explicit:
-        return {explicit}
+        # A single primary project remains authoritative over incidental title/body
+        # mentions, but structured scope/tags may explicitly declare a cross-project
+        # memory. This preserves a primary owner without erasing deliberate secondary
+        # project descriptors such as `p3-tiny3d-*` or a `tiny3d` tag.
+        found = {explicit}
+        if explicit in PROJECT_MARKERS:
+            for value in (entry.get("scope"), *(entry.get("tags") or [])):
+                found.update(projects_from_text(value))
+        return found
     found: set[str] = set()
     for value in _descriptor_values(entry):
         found.update(projects_from_text(value))
