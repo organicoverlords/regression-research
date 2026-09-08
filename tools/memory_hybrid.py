@@ -16,7 +16,7 @@ try:
         search_entries,
         source_relevance,
     )
-    from .memory_lifecycle import is_expired
+    from .memory_lifecycle import is_expired, parse_iso_datetime
     from .memory_classification import classify_entry
 except ImportError:
     from memory_bank import (
@@ -28,7 +28,7 @@ except ImportError:
         search_entries,
         source_relevance,
     )
-    from memory_lifecycle import is_expired
+    from memory_lifecycle import is_expired, parse_iso_datetime
     from memory_classification import classify_entry
 
 BM25_K1 = 1.2
@@ -309,7 +309,7 @@ def _rank_eligible_entries(
             continue
         entry = eligible[idx]
         source_score = source_relevance(entry, registry)
-        stamp = datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00"))
+        stamp = parse_iso_datetime(entry["timestamp"])
         ranked.append((score, source_score, stamp, str(entry["id"]), entry))
 
     ranked.sort(key=lambda item: (-item[0], -item[1], -item[2].timestamp(), item[3]))

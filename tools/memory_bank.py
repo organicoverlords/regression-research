@@ -16,7 +16,7 @@ from typing import Any
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
-    from .memory_lifecycle import is_expired, parse_expiry
+    from .memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
     from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
@@ -24,7 +24,7 @@ try:
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
-    from memory_lifecycle import is_expired, parse_expiry
+    from memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
     from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
@@ -110,13 +110,13 @@ def validate_entry(entry: dict[str, Any]) -> None:
         if not isinstance(entry["event_at"], str) or not entry["event_at"].strip():
             raise BankError("event_at must be a non-empty ISO-8601 string when present")
         try:
-            event_at = datetime.fromisoformat(entry["event_at"].replace("Z", "+00:00"))
+            event_at = parse_iso_datetime(entry["event_at"])
         except ValueError as exc:
             raise BankError("event_at must be ISO-8601") from exc
         if event_at.tzinfo is None:
             raise BankError("event_at must include a timezone offset")
     try:
-        parsed = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+        parsed = parse_iso_datetime(entry["timestamp"])
     except ValueError as exc:
         raise BankError("timestamp must be ISO-8601") from exc
     if parsed.tzinfo is None:
@@ -400,7 +400,7 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
     current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
     current.sort(
         key=lambda entry: (
-            datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
+            parse_iso_datetime(entry["timestamp"]),
             entry["id"],
         ),
         reverse=True,
@@ -425,7 +425,7 @@ def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str,
     current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
     current.sort(
         key=lambda entry: (
-            datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
+            parse_iso_datetime(entry["timestamp"]),
             entry["id"],
         ),
         reverse=True,
@@ -500,7 +500,7 @@ def _metrics_generated_at(value: Any) -> datetime | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = parse_iso_datetime(value)
     except ValueError:
         return None
     if parsed.tzinfo is None:
@@ -741,7 +741,7 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
         if (query_tokens or scope or tags) and relevance == 0:
             continue
         source_score = source_relevance(entry, registry)
-        stamp = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+        stamp = parse_iso_datetime(entry["timestamp"])
         ranked.append((relevance, source_score, stamp, entry))
     ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
     return [entry for _, _, _, entry in ranked[:effective_limit]]
@@ -903,7 +903,7 @@ def search_context_memory(
         project_hits.sort(
             key=lambda entry: (
                 1 if (entry_context_labels(entry)["projects"] & projects) else 0,
-                datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00")),
+                parse_iso_datetime(entry["timestamp"]),
             ),
             reverse=True,
         )
