@@ -98,21 +98,39 @@ def ssh_args() -> list[str]:
     ]
 
 
-def remote_script(work_id: str, command: str) -> tuple[str, str]:
+def remote_script(work_id: str, command: str, *, keep_workspace: bool = False) -> tuple[str, str]:
     safe = safe_work_id(work_id)
     final = str(OMEN_WORK_ROOT / safe)
     incoming = final + ".incoming"
     previous = final + ".previous"
+    keep = 1 if keep_workspace else 0
     script = f"""set -eu
 final={shlex.quote(final)}
 incoming={shlex.quote(incoming)}
 previous={shlex.quote(previous)}
+keep_workspace={keep}
+published=0
+cleanup() {{
+  rc=$?
+  trap - EXIT
+  rm -rf -- \"$incoming\"
+  if [ \"$published\" -eq 0 ] && [ -e \"$previous\" ] && [ ! -e \"$final\" ]; then
+    mv -- \"$previous\" \"$final\"
+  fi
+  rm -rf -- \"$previous\"
+  if [ \"$keep_workspace\" -eq 0 ] && [ \"$published\" -eq 1 ]; then
+    rm -rf -- \"$final\"
+  fi
+  exit \"$rc\"
+}}
+trap cleanup EXIT
 rm -rf -- \"$incoming\"
 mkdir -p -- \"$incoming\"
 tar -xf - -C \"$incoming\"
 rm -rf -- \"$previous\"
 if [ -e \"$final\" ]; then mv -- \"$final\" \"$previous\"; fi
 mv -- \"$incoming\" \"$final\"
+published=1
 . {shlex.quote(OMEN_TOOL_ENV)}
 export PYTHONPATH={shlex.quote(OMEN_PYTHON_PACKAGES)}:${{PYTHONPATH:-}}
 cd -- \"$final\"
@@ -120,19 +138,18 @@ set +e
 bash -c {shlex.quote(command)}
 rc=$?
 set -e
-rm -rf -- \"$previous\"
 exit \"$rc\"
 """
     return final, script
 
 
-def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int) -> int:
+def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False) -> int:
     paths = snapshot_paths(repo_root)
     size = snapshot_bytes(repo_root, paths)
     limit = max_sync_mb * 1024 * 1024
     if size > limit:
         raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={size} limit={limit}")
-    workspace, script = remote_script(work_id, command)
+    workspace, script = remote_script(work_id, command, keep_workspace=keep_workspace)
     print(json.dumps({
         "event": "SWARM_EXEC_OMEN_START", "work_id": work_id, "workspace": workspace,
         "snapshot_files": len(paths), "snapshot_bytes": size,
@@ -177,6 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-sync-mb", type=int, default=DEFAULT_MAX_SYNC_MB)
     p.add_argument("--refresh-probe", action="store_true")
     p.add_argument("--keep-lease", action="store_true")
+    p.add_argument("--keep-workspace", action="store_true", help="retain the OMEN snapshot after execution for debugging")
     p.add_argument("argv", nargs=argparse.REMAINDER)
     return p
 
@@ -198,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
             if assignment.get("route") != "omen":
                 print(json.dumps({"error": "SWARM_EXEC_NON_OMEN_ASSIGNMENT", "route": assignment.get("route"), "reason": assignment.get("reason")}), file=sys.stderr)
                 return 75
-            return execute_omen(root, args.work_id, command, args.max_sync_mb)
+            return execute_omen(root, args.work_id, command, args.max_sync_mb, keep_workspace=args.keep_workspace)
         finally:
             if not args.keep_lease:
                 swarm_route.release_work(args.state, args.work_id)
