@@ -2198,7 +2198,7 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
             summary = {item["type"]: item["status"] for item in glance["mcp_recovery_state"]["conditions"]}
             self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
             self.assertEqual(summary["SecurityReroutesEliminated"], "False")
-            self.assertEqual(summary["LongRunStable"], "Unknown")
+            self.assertEqual(summary["LongRunStable"], "False")
         self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
         self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))
