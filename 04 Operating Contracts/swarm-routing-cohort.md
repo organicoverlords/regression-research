@@ -23,13 +23,14 @@ The cohort is machine admission only. It does not own task priority, GitHub issu
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable-task-id> --kind <lowvram|windows-only|portable|portable-light|heavy|p3-runtime>
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py release --work-id <stable-task-id>
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status
+python C:\\Users\\Lauri\\Desktop\\vault\\tools\\swarm_exec.py --work-id <stable-task-id> --kind portable --repo-root <repo> -- python -m pytest <tests>
 ```
 
 State is atomically stored under `%LOCALAPPDATA%\SwarmRouting\cohort-v1.json` behind a cross-process lock. One capacity probe is shared for 45 seconds so the swarm does not independently probe the same machines.
 
 ## OMEN saturation and scratch recovery
 
-The cohort reads live OMEN RAM, `/mnt/ue` free space, CPU load, build-lane activity, and existing cohort assignments. **Assignments are observability/stickiness, not utilization authority**: an OMEN lease may be waiting in a repo-owned queue or may have outlived active compute, so lease count never makes the machine `full` by itself. Actual RAM/disk/load and repository-owned lane locks/queues govern execution concurrency.
+The cohort reads live OMEN RAM, both root (`/`) and NVMe (`/mnt/ue`) free space, CPU load, build-lane activity, and existing cohort assignments. `disk_free_gb` remains the NVMe-compatible field; `root_disk_free_gb` and `nvme_disk_free_gb` make the storage tier explicit. Runtime admission checks both tiers while the hot runtime still has root-resident state; portable and heavy scratch admission uses NVMe headroom. **Assignments are observability/stickiness, not utilization authority**: an OMEN lease may be waiting in a repo-owned queue or may have outlived active compute, so lease count never makes the machine `full` by itself. Actual RAM/disk/load and repository-owned lane locks/queues govern execution concurrency.
 
 OMEN is a dedicated hot development node. Its NVMe is expected to carry rebuildable Unreal scratch close to useful capacity rather than preserve a large permanently-empty fraction. Router hard floors are deliberately modest (`heavy` 16 GiB, `p3-runtime` 12 GiB, `portable` 10 GiB, `portable-light` 8 GiB). When a new assignment would miss a disk floor, the router performs **one** bounded call to `/home/aatuska/ue-work/reclaim-p3-linux-scratch.sh`, which may remove only inactive P3 lane-generated overlay/build/cache state, then re-probes OMEN and continues there when recovered. Active lane locks/processes, source snapshots, engine base, Content/assets, Saved/proof/evidence, and user data are preserved. If safe scratch reclaim cannot recover the hard floor, normal fallback remains explicit.
 
@@ -43,4 +44,4 @@ The VPS remains the persistent edge/coordination machine. Its current supported 
 
 ## Windows role
 
-Windows remains MCP/control transport, LowVRAM owner, and Windows-specific validation host. It is not the default general execution machine while OMEN has capacity.
+Windows remains MCP/control transport, LowVRAM owner, GitHub-authenticated coordination host, and Windows-specific validation host. It is not the default general execution machine while OMEN has capacity. Generic Linux-compatible source/test work must use `swarm_exec.py` when no repository-specific OMEN entrypoint exists; the helper snapshots the current non-ignored Git working copy to `/mnt/ue/worker-workspaces/<work-id>` and executes it there in one SSH session. A non-OMEN cohort assignment is returned explicitly rather than being silently executed on Windows.
