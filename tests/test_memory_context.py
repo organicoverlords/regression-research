@@ -132,7 +132,7 @@ class MemoryContextPackTests(unittest.TestCase):
         pack = build_context_pack("test evidence", [entry])
         self.assertEqual(pack["durable_memory"][0]["text"], text)
         self.assertEqual(pack["durable_memory"][0]["interpretation"], entry["interpretation"])
-        self.assertLessEqual(pack["serialized_chars"], 6000)
+        self.assertLessEqual(pack["serialized_chars"], 12000)
 
     def test_oversized_record_is_explicitly_omitted_whole(self):
         entry = self.memory("mem-20260908-large", text="x" * 9000 + " Gameplay is unproven.")

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Iterable
 
-DEFAULT_CONTEXT_CHARS = 6000
+DEFAULT_CONTEXT_CHARS = 12000
 MIN_CONTEXT_CHARS = 2000
 MAX_CONTEXT_CHARS = 12000
 MAX_HISTORY_TEXT = 350

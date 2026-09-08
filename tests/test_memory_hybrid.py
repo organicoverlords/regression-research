@@ -72,6 +72,17 @@ class HybridMemoryTests(unittest.TestCase):
                 self.assertEqual([hit["id"] for hit in hits], ["correction"])
                 self.assertEqual(hits[0]["state"], "PROVISIONAL")
 
+    def test_natural_recurrence_and_dimension_paraphrases_match(self):
+        recurrence = self.entry("recurrence", "walking animation keeps resetting", scope="p3:2610")
+        dimensions = self.entry("dimensions", "mesh height measured after V2 cutover", scope="p3:2610")
+        self.assertEqual(
+            [hit["id"] for hit in search_entries_hybrid([recurrence], "walking repeatedly restarts")],
+            ["recurrence"],
+        )
+        self.assertEqual(
+            [hit["id"] for hit in search_entries_hybrid([dimensions], "p3 character body size wrong")],
+            ["dimensions"],
+        )
     def test_source_wording_does_not_reorder_canonical_hits(self):
         canonical = self.entry(
             "canonical",

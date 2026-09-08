@@ -85,6 +85,8 @@ _CONCEPT_GROUPS = (
     ("report", "reports", "reporting"),
     ("hypothesis", "hypotheses", "theory", "theories"),
     ("agreement", "agree", "agreed", "agreeing", "accept", "accepted", "mirror"),
+    ("reset", "resets", "resetting", "restart", "restarts", "restarted", "restarting"),
+    ("dimension", "size", "sized", "scale", "scaled", "scaling", "height", "heights", "dimensions"),
 )
 _CONCEPT_ALIAS = {alias: group[0] for group in _CONCEPT_GROUPS for alias in group}
 _NUMBER_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
