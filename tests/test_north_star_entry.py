@@ -25,10 +25,10 @@ class NorthStarEntryTests(unittest.TestCase):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
         agents = (RULES_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn(
-            "`go`/`continue` in a manual/on-demand execution chat means resume the already-established unresolved engineering objective",
+            "For an ongoing manual/on-demand swarm `go`/`continue`, however, the inherited scope is the user's established project/product engineering goal",
             rules,
         )
-        self.assertIn("it does not broaden scope", rules)
+        self.assertIn("not the currently open issue/PR/branch/worktree", rules)
         self.assertIn("`stop` means stop immediately", rules)
         self.assertIn("follow the `go`/`continue` completion and yield semantics in `RULES.md`", agents)
 
