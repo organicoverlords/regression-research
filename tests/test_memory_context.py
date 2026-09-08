@@ -2,7 +2,7 @@ import json
 import unittest
 
 from tools.memory_bank import annotate_memory
-from tools.memory_context import build_context_pack
+from tools.memory_context import build_context_pack, context_residual_query
 
 
 class MemoryContextPackTests(unittest.TestCase):
@@ -97,6 +97,12 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual(pack["timeline"], timeline)
         self.assertIn("chronology", pack["contract"]["timeline"])
         self.assertNotIn("behavior_authority", pack)
+
+    def test_residual_query_preserves_phrase_order_for_number_normalization(self):
+        self.assertEqual(
+            context_residual_query("work on p3 request twenty five minutes"),
+            "request twenty five minutes",
+        )
 
     def test_blank_query_rejected(self):
         with self.assertRaises(ValueError):

@@ -97,8 +97,12 @@ _REVIEW_SENSITIVE_PATTERNS = (
 )
 
 
+def token_word_sequence(value: Any) -> list[str]:
+    return re.findall(r"[a-z0-9]+", str(value or "").casefold())
+
+
 def token_words(value: Any) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
+    return set(token_word_sequence(value))
 
 
 def _descriptor_values(entry: dict[str, Any]) -> list[Any]:
