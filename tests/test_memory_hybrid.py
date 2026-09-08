@@ -26,6 +26,46 @@ class HybridMemoryTests(unittest.TestCase):
         ]
         self.assertEqual(search_entries_hybrid(entries, "orchid repotting sphagnum root aeration"), [])
 
+    def test_long_generic_library_queries_do_not_inject_visual_transport_memory(self):
+        visual = self.entry(
+            "visual",
+            "Use the shared visual library to inspect the same stored proof image instead of rediscovering transport.",
+            title="Shared visual proof library",
+        )
+        visual["kind"] = "correction"
+        visual["tags"] = ["assistant-recorded", "verbatim-source"]
+        visual["source_messages"] = ["make the stored proof easy to show here"]
+        visual["turn_task"] = "Implement durable visual proof library integration."
+        visual["interpretation"] = "Expose prior proof through one stable transport path."
+        visual["confidence"] = 100
+        visual["confidence_reason"] = "Explicit correction."
+
+        self.assertEqual(
+            search_entries_hybrid([visual], "which python standard library module handles a filesystem path", strict_admission=True),
+            [],
+        )
+        self.assertEqual(
+            search_entries_hybrid([visual], "how should a software library expose its public api", strict_admission=True),
+            [],
+        )
+        self.assertEqual(
+            search_entries_hybrid([visual], "explain image transport over a network protocol", strict_admission=True),
+            [],
+        )
+
+    def test_rich_shared_proof_paraphrase_still_recalls_visual_library_memory(self):
+        visual = self.entry(
+            "visual",
+            "Use the shared visual library to inspect the same stored proof image instead of rediscovering transport.",
+            title="Shared visual proof library",
+        )
+        hits = search_entries_hybrid(
+            [visual],
+            "use the same stored visual proof in chat instead of rebuilding the transfer path",
+            strict_admission=True,
+        )
+        self.assertEqual([entry["id"] for entry in hits], ["visual"])
+
     def test_rejected_and_superseded_stay_hidden(self):
         old = self.entry("old", "connector route failed", title="Old connector route")
         new = self.entry("new", "connector route correction", title="Correct connector route", supersedes=["old"])

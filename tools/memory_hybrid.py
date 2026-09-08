@@ -49,6 +49,7 @@ _STOPWORDS = {
     "them", "then", "there", "these", "they", "this", "those", "to", "too", "us", "was", "we", "were",
     "what", "when", "where", "which", "who", "why", "will", "with", "without", "would", "you", "your",
 }
+_STRICT_ADMISSION_GENERIC_TOKENS = {"display", "expose", "image", "library", "route", "share", "show", "transport", "use"}
 _WORD_RE = re.compile(r"[\w]+", flags=re.UNICODE)
 _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
 
@@ -228,6 +229,7 @@ def _rank_eligible_entries(
     token_builder,
     descriptor_builder,
     source_registry: dict[str, Any] | None = None,
+    strict_admission: bool = False,
 ) -> list[dict[str, Any]]:
     query_terms = _word_tokens(query)
     query_unique = list(dict.fromkeys(query_terms))
@@ -253,7 +255,12 @@ def _rank_eligible_entries(
             sum(_idf(total_docs, df[term]) for term in matched) / query_weight_total
             if query_weight_total else 0.0
         )
-        if len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE:
+        ordinary_admission = len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE
+        if strict_admission:
+            meaningful_matched = matched - _STRICT_ADMISSION_GENERIC_TOKENS
+            if ordinary_admission and meaningful_matched:
+                admitted.add(idx)
+        elif ordinary_admission:
             admitted.add(idx)
 
     if not admitted:
@@ -298,6 +305,7 @@ def search_entries_hybrid(
     limit: int | None = None,
     history: bool = False,
     source_registry: dict[str, Any] | None = None,
+    strict_admission: bool = False,
 ) -> list[dict[str, Any]]:
     tags = list(tags or [])
     # Preserve history and metadata-only semantics exactly; hybridization is for textual recall.
@@ -323,6 +331,7 @@ def search_entries_hybrid(
         token_builder=_weighted_document_tokens,
         descriptor_builder=_entry_descriptor,
         source_registry=registry,
+        strict_admission=strict_admission,
     )
     evidence = _rank_eligible_entries(
         eligible,
@@ -330,6 +339,7 @@ def search_entries_hybrid(
         token_builder=_source_evidence_tokens,
         descriptor_builder=_source_evidence_text,
         source_registry=registry,
+        strict_admission=strict_admission,
     )
 
     # Canonical lesson wording keeps its established ordering. Preserved source
