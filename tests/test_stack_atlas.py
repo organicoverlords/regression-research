@@ -420,7 +420,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("manual_current", glance["workers"])
         self.assertNotIn("Head Auditor continuation", json.dumps(glance["workers"]))
         self.assertNotIn('"state":"RUNNING"', json.dumps(glance["workers"], separators=(",", ":")))
-        self.assertEqual(glance["workers"]["current_activity"], {"authority": "live_mcp_runtime_evidence"})
+        self.assertEqual(glance["workers"]["current_activity"]["authority"], "live_swarm_runtime_evidence")
+        self.assertEqual(glance["workers"]["current_activity"]["population_scope"], "unified_recurring_and_manual_on_demand_activity")
+        self.assertNotIn("fleet_watch", glance["workers"])
         self.assertNotIn("component_statuses", glance["bootstrap"])
         self.assertNotIn("recent_memory_titles", glance)
         self.assertNotIn("behavior", glance)
@@ -616,6 +618,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count_semantics"], None)
 
+    def test_fleet_watch_has_one_implementation(self):
+        source = (ROOT / "tools" / "stack_atlas.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("def _bootstrap_fleet_watch("), 1)
+
     def test_fleet_watch_flags_missing_and_stale_running_from_local_evidence_only(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
@@ -653,6 +659,35 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn(missing_id, suspect_ids)
         self.assertIn(stale_id, suspect_ids)
         self.assertEqual(watch["recovery_candidate_count"], 2)
+
+    def test_fleet_watch_running_worker_uses_last_activity_for_freshness(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "worker-reports" / "current"
+            supervision = root / "worker-reports" / ".supervision"
+            current.mkdir(parents=True)
+            supervision.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            target_id, _ = CANONICAL_RECURRING_WORKERS[0]
+            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+                started = now - timedelta(minutes=95 if worker_id == target_id else 20)
+                last_activity = now - timedelta(minutes=3) if worker_id == target_id else started
+                state = "RUNNING" if worker_id == target_id else "RUN_FINISHED"
+                (current / f"{worker_id}.md").write_text(
+                    f"automation_id: {worker_id}\n"
+                    f"display_label: {label}\n"
+                    f"started_at: {started.isoformat()}\n"
+                    f"last_activity_at: {last_activity.isoformat()}\n"
+                    f"state: {state}\n",
+                    encoding="utf-8",
+                )
+                if worker_id == target_id:
+                    (supervision / f"{worker_id}.start.json").write_text("{}", encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                watch = _bootstrap_fleet_watch(now)
+        self.assertEqual(watch["running_with_start_receipt"], 1)
+        self.assertNotIn(target_id, {item["automation_id"] for item in watch["suspect_workers"]})
 
     def test_bootstrap_swarm_topology_includes_manual_population_and_primary_s2_handoff(self):
         from datetime import datetime, timezone
