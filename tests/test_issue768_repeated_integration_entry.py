@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from tools.timeline_materializer import _query_concepts, _rank_query_events
+from tools.timeline_materializer import _lesson_packet, _query_concepts, _rank_query_events
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests" / "fixtures" / "issue768_repeated_integration_entry.json"
@@ -93,6 +93,81 @@ class Issue768RepeatedIntegrationEntryTests(unittest.TestCase):
             [incidental, relevant], "stored proof", corpus_size_override=100
         )
         self.assertTrue(short, "short targeted queries must retain the existing two-concept fast path")
+
+    def test_lesson_packet_does_not_expand_unanchored_proof_noise(self):
+        query = self.case["task_text"]
+        seed = {
+            "id": "seed:visual-library",
+            "source_type": "VAULT_MEMORY",
+            "project": "tiny3d",
+            "event_at": "2026-09-07T12:00:00+00:00",
+            "title": "Tiny3D exact library show and attribution gap",
+            "summary": "Integrated stored visual proof display transport",
+            "scope": "tiny3d issue 9",
+        }
+        supporting_seed = {
+            "id": "seed:response-gate",
+            "source_type": "VAULT_MEMORY",
+            "project": "vault",
+            "event_at": "2026-09-06T12:00:00+00:00",
+            "title": "Shared response gate",
+            "summary": "Stored presentation response counter",
+            "scope": "assistant orchestration presentation",
+        }
+        relevant = {
+            "id": "git:tiny3d:proof-library",
+            "source_type": "GIT_COMMIT",
+            "project": "tiny3d",
+            "event_at": "2026-09-05T12:00:00+00:00",
+            "title": "Integrate stored visual proof library transport",
+            "summary": "Integrate stored visual proof library transport",
+            "body": "Persist exact proof bytes in a durable library bundle and reuse the existing display transport.",
+            "sha": "a" * 40,
+        }
+        relevant_two = {
+            "id": "git:tiny3d:proof-index",
+            "source_type": "GIT_COMMIT",
+            "project": "tiny3d",
+            "event_at": "2026-09-04T12:00:00+00:00",
+            "title": "Index stored proof pictures for library display",
+            "summary": "Index stored proof pictures for library display",
+            "body": "Bounded retrieval preserves exact picture identity before shared inspection and display.",
+            "sha": "b" * 40,
+        }
+        incidental = {
+            "id": "git:lowvram:geometry",
+            "source_type": "GIT_COMMIT",
+            "project": "lowvram",
+            "event_at": "2026-09-03T12:00:00+00:00",
+            "title": "Harden geometry evaluation and orientation handling",
+            "summary": "Harden geometry evaluation and orientation handling",
+            "body": (
+                "A visual proof render exposed incorrect orientation. The repair inspects the image and "
+                "stores evidence, but it is only a geometry evaluation lesson."
+            ),
+            "sha": "c" * 40,
+        }
+        worker_noise = {
+            "id": "worker:visual-proof-noise",
+            "source_type": "WORKER_REPORT",
+            "project": "p3",
+            "event_at": "2026-09-08T12:00:00+00:00",
+            "title": "Visual proof library transport integration worker report",
+            "summary": "Stored proof picture review and shared display were mentioned during a broad convergence run.",
+            "findings": "The actual work was unrelated runtime acceptance, packaging, and worker orchestration.",
+        }
+        packet = _lesson_packet(
+            query,
+            selected=[seed, supporting_seed],
+            candidates=[seed, supporting_seed, relevant, relevant_two, incidental, worker_noise],
+            query_index=None,
+            limit=8,
+        )
+        ids = {item["source_event_id"] for item in packet["items"]}
+        self.assertIn("git:tiny3d:proof-library", ids)
+        self.assertIn("git:tiny3d:proof-index", ids)
+        self.assertNotIn("git:lowvram:geometry", ids)
+        self.assertNotIn("worker:visual-proof-noise", ids)
 
     def test_bad_entry_rejects_reinvented_mcp_transport(self):
         action = (

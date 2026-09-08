@@ -2829,6 +2829,10 @@ _LESSON_CORRECTIVE_TOKENS = {
     "fix", "fixed", "instead", "invalid", "lost", "missing", "prevent", "prevented", "rejected", "repair", "repaired",
     "wrong", "zero", "unreachable", "drift", "inverted", "shear", "shears",
 }
+_LESSON_DIRECT_STORAGE_TOKENS = {"stored", "durable", "persist", "persisted", "persistence", "archive", "archived"}
+_LESSON_DIRECT_DISPLAY_TOKENS = {"transport", "delivery", "display", "displayed", "expose", "exposed", "share", "shared", "show", "shown", "showing"}
+
+
 _LESSON_PROCESS_TOKENS = {
     "authorship", "batch", "batches", "branch", "branches", "chain", "chains", "commit", "committed", "job", "jobs",
     "queue", "queued", "session", "sessions", "scaffold", "supervisor", "supervisors", "survive", "survives",
@@ -2860,6 +2864,8 @@ def _lesson_candidate_text(event: dict[str, Any]) -> str:
     body = _clean_lesson_body(event.get("body"))
     if source == "GIT_COMMIT":
         return body
+    if source in {"GITHUB_PR", "GITHUB_ISSUE"}:
+        return " ".join([str(event.get("title") or ""), str(event.get("summary") or "")]).strip()
     if source == "WORKER_REPORT":
         return " ".join(str(event.get(field) or "") for field in ("findings", "validation", "summary", "outcome")).strip()
     if source == "VAULT_MEMORY":
@@ -2971,9 +2977,21 @@ def _lesson_packet(
     seed_lesson_concepts: set[str] = set()
     for event in seeds:
         seed_lesson_concepts.update(_lesson_concepts(_lesson_text(event)))
+    # If the selected seed carries no transferable technical lesson concepts, bridge
+    # expansion has no semantic anchor. In that mode, keep lesson candidates directly
+    # grounded in the user's query instead of letting one broad token (for example
+    # "proof") pull unrelated technical history into the packet.
+    direct_query_grounding = not seed_lesson_concepts
+    direct_query_threshold = min(3, _minimum_query_matches(len(concepts)))
     seed_ids = {str(event.get("id") or "") for event in seeds}
     ranked: list[tuple[float, dict[str, Any], list[str]]] = []
-    lesson_sources = {"GIT_COMMIT", "WORKER_REPORT", "VAULT_MEMORY", "TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT"}
+    if direct_query_grounding:
+        lesson_sources = {
+            "GIT_COMMIT", "GITHUB_PR", "GITHUB_ISSUE",
+            "TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT",
+        }
+    else:
+        lesson_sources = {"GIT_COMMIT", "WORKER_REPORT", "VAULT_MEMORY", "TRACKED_ARTIFACT", "LOCAL_ARTIFACT", "LIBRARY_ARTIFACT"}
     for event in candidates:
         source = str(event.get("source_type") or "")
         if source not in lesson_sources:
@@ -2985,12 +3003,17 @@ def _lesson_packet(
         quality = _lesson_candidate_quality(event, candidate_text)
         if quality <= 0.0:
             continue
-        merged = set().union(*(tokens for _, tokens in _event_query_fields(event)))
+        query_fields = _event_query_fields(event)
+        merged = set().union(*(tokens for _, tokens in query_fields))
+        direct = set().union(*(tokens for _, tokens in query_fields[:2]))
         overlaps = [token for token in expansion if token in merged]
         query_hits = sum(1 for concept in concepts if merged & concept)
+        direct_query_hits = sum(1 for concept in concepts if direct & concept)
         candidate_lesson_concepts = _lesson_concepts(candidate_text)
         direct_lesson_hits = len(query_lesson_concepts & candidate_lesson_concepts)
         bridge_lesson_hits = len(seed_lesson_concepts & candidate_lesson_concepts)
+        if direct_query_grounding and direct_query_hits < direct_query_threshold:
+            continue
         if query_hits < 1 and direct_lesson_hits < 1 and bridge_lesson_hits < 3:
             continue
         if query_hits < 1 and direct_lesson_hits < 1 and candidate_lesson_concepts == {"proof"}:
@@ -3002,15 +3025,31 @@ def _lesson_packet(
             continue
         corrective_hits = len(_query_tokens(candidate_text) & _LESSON_CORRECTIVE_TOKENS)
         corrective_weight = 3.0 if source == "GIT_COMMIT" else 0.75
+        bridge_score = 0.0 if direct_query_grounding else sum(expansion_weights.get(token, 0.0) for token in overlaps)
+        storage_grounding = (
+            direct_query_grounding
+            and bool(query_tokens & _LESSON_DIRECT_STORAGE_TOKENS)
+            and bool(direct & _LESSON_DIRECT_STORAGE_TOKENS)
+        )
+        display_grounding = (
+            direct_query_grounding
+            and bool(query_tokens & _LESSON_DIRECT_DISPLAY_TOKENS)
+            and bool(direct & _LESSON_DIRECT_DISPLAY_TOKENS)
+        )
         score = (
-            sum(expansion_weights.get(token, 0.0) for token in overlaps)
+            bridge_score
             + (2.0 * query_hits)
+            + ((2.5 * direct_query_hits) if direct_query_grounding else 0.0)
+            + (6.0 if storage_grounding else 0.0)
+            + (3.0 if display_grounding else 0.0)
             + (2.5 * direct_lesson_hits)
             + (1.25 * bridge_lesson_hits)
             + (corrective_weight * min(4, corrective_hits))
         )
         score *= {
             "GIT_COMMIT": 1.35,
+            "GITHUB_PR": 1.08,
+            "GITHUB_ISSUE": 0.92,
             "TRACKED_ARTIFACT": 1.12,
             "LOCAL_ARTIFACT": 1.0,
             "WORKER_REPORT": 0.78,
