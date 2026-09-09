@@ -767,6 +767,121 @@ def _manual_continuation_observation(records: list[dict[str, Any]]) -> dict[str,
         "micro_run_lt2_pct": round(100.0 * sum(value < 2.0 for value in durations) / len(durations), 2) if durations else None,
     }
 
+def _manual_terminalization_observation(
+    records: list[dict[str, Any]],
+    *,
+    start: datetime,
+    end: datetime,
+    maturity_cutoff: datetime,
+) -> dict[str, Any]:
+    eligible: list[dict[str, Any]] = []
+    too_recent = 0
+    for item in records:
+        started = _parse_time(item.get("started_at") or item.get("observed_started_at"))
+        if started is None:
+            continue
+        started = started.astimezone(start.tzinfo)
+        if not (start <= started < end):
+            continue
+        if started > maturity_cutoff:
+            too_recent += 1
+            continue
+        eligible.append(item)
+
+    failures = [item for item in eligible if not _history_record_is_terminal(item)]
+    abandoned = sum(str(item.get("lifecycle_status") or "").strip().upper() == "ABANDONED_OPEN" for item in failures)
+    invalid = sum(str(item.get("lifecycle_status") or "").strip().upper() == "INVALID_CURRENT_SNAPSHOT" for item in failures)
+    total = len(eligible)
+    failure_count = len(failures)
+    terminal_count = total - failure_count
+    return {
+        "run_count": total,
+        "terminal_count": terminal_count,
+        "nonterminal_failure_count": failure_count,
+        "terminalization_success_pct": round(100.0 * terminal_count / total, 2) if total else None,
+        "terminalization_failure_pct": round(100.0 * failure_count / total, 2) if total else None,
+        "abandoned_open_count": abandoned,
+        "invalid_current_snapshot_count": invalid,
+        "excluded_too_recent_count": too_recent,
+        "window_start": start.isoformat(),
+        "window_end": end.isoformat(),
+        "maturity_cutoff": maturity_cutoff.isoformat(),
+    }
+
+
+def _manual_machine_lifecycle_diagnostic(
+    records: list[dict[str, Any]],
+    *,
+    baseline: dict[str, Any],
+    boundary: datetime,
+    current_now: datetime,
+) -> dict[str, Any]:
+    config = baseline.get("machine_lifecycle_diagnostic")
+    if not isinstance(config, dict):
+        return {"available": False, "status": "NOT_CONFIGURED", "scored": False}
+    instrumented_at = _parse_time(config.get("instrumented_at"))
+    if instrumented_at is None:
+        return {"available": False, "status": "INVALID_CONFIG", "scored": False}
+    instrumented_at = instrumented_at.astimezone(current_now.tzinfo)
+    maturity_hours = float(config.get("maturity_lag_hours") or 6.0)
+    recent_hours = float(config.get("recent_window_hours") or 24.0)
+    comparable_min = int(config.get("minimum_runs_for_comparable") or 20)
+    maturity_cutoff = current_now - timedelta(hours=maturity_hours)
+
+    all_records = _dedupe_manual_run_records(records)
+    baseline_window_hours = float(baseline.get("comparison_window_hours") or 6.0)
+    reference = _manual_terminalization_observation(
+        all_records,
+        start=boundary - timedelta(hours=baseline_window_hours),
+        end=boundary,
+        maturity_cutoff=maturity_cutoff,
+    )
+    since_start = max(boundary, instrumented_at)
+    since = _manual_terminalization_observation(
+        all_records,
+        start=since_start,
+        end=current_now,
+        maturity_cutoff=maturity_cutoff,
+    )
+    recent_start = max(instrumented_at, maturity_cutoff - timedelta(hours=recent_hours))
+    recent = _manual_terminalization_observation(
+        all_records,
+        start=recent_start,
+        end=current_now,
+        maturity_cutoff=maturity_cutoff,
+    )
+    recent_count = int(recent.get("run_count") or 0)
+    if recent_count == 0:
+        status = "INSUFFICIENT_DATA"
+    elif recent_count < comparable_min:
+        status = "PROVISIONAL"
+    else:
+        status = "COMPARABLE"
+    return {
+        "available": True,
+        "status": status,
+        "scored": False,
+        "instrumented_at": instrumented_at.isoformat(),
+        "maturity_lag_hours": maturity_hours,
+        "recent_window_hours": recent_hours,
+        "minimum_runs_for_comparable": comparable_min,
+        "reference_pre_boundary": {
+            **reference,
+            "coverage": "RETROSPECTIVE_SURVIVOR_BIASED",
+            "comparable_baseline": False,
+        },
+        "since_instrumentation": since,
+        "recent_mature": recent,
+        "headline_population_relationship": {
+            "headline_population": "terminal_history_records_only",
+            "machine_lifecycle_population": "terminal_and_machine_classified_nonterminal_manual_runs",
+            "directly_comparable": False,
+            "warning": "The revision-3 headline excludes ABANDONED_OPEN and INVALID_CURRENT_SNAPSHOT runs; machine lifecycle is therefore a completeness diagnostic, not another estimate of the same rate.",
+        },
+        "semantics": "Machine-classified terminalization reliability. A run is eligible only after the maturity lag; ABANDONED_OPEN and INVALID_CURRENT_SNAPSHOT count as lifecycle failures. Pre-instrumentation history is survivor-biased and must not calibrate the headline.",
+    }
+
+
 def _manual_sanity_component(*, baseline: float, current: float, weight: float) -> float:
     if baseline <= 0:
         return 0.0
@@ -793,11 +908,11 @@ def build_manual_sanity_projection(
     window_hours = float(baseline.get("comparison_window_hours") or 6.0)
     window_mode = str(baseline.get("comparison_window_mode") or "rolling").strip().casefold()
     window_start = boundary if window_mode == "since_boundary" else max(boundary, current_now - timedelta(hours=window_hours))
-    records = [
+    all_manual_records = [
         item for item in load_history_metadata(history_root)
-        if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item) and _history_record_is_terminal(item)
+        if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item)
     ]
-    records = _dedupe_manual_run_records(records)
+    records = _dedupe_manual_run_records([item for item in all_manual_records if _history_record_is_terminal(item)])
     post_records: list[dict[str, Any]] = []
     for item in records:
         started = _parse_time(item.get("started_at") or item.get("observed_started_at"))
@@ -807,6 +922,9 @@ def build_manual_sanity_projection(
         if window_start <= started <= current_now and started >= boundary:
             post_records.append(item)
     observed = _manual_sanity_observation(post_records)
+    machine_lifecycle = _manual_machine_lifecycle_diagnostic(
+        all_manual_records, baseline=baseline, boundary=boundary, current_now=current_now
+    )
     continuation_observed = _manual_continuation_observation(post_records)
     continuation_baseline = baseline.get("continuation_baseline") if isinstance(baseline.get("continuation_baseline"), dict) else {}
     continuation_gates = continuation_baseline.get("sample_gates") if isinstance(continuation_baseline.get("sample_gates"), dict) else {}
@@ -962,8 +1080,9 @@ def build_manual_sanity_projection(
         "axes": axes,
         "guardrails": guardrails,
         "continuation": continuation,
+        "machine_lifecycle": machine_lifecycle,
         "components": components,
-        "semantics": "0 is the fixed pre-#658 insanity baseline. The headline uses only explicitly selected behavior axes; reporting-shape axes may remain visible as unscored diagnostics. Go/continue duration and fragmentation stay separate. Diagnostic only, never a worker target or gate.",
+        "semantics": "0 is the fixed pre-#658 insanity baseline. The revision-3 headline uses selected behavior axes over terminalized runs only; reporting-shape and machine-lifecycle projections remain unscored diagnostics. Go/continue duration and fragmentation stay separate. Diagnostic only, never a worker target or gate.",
     }
 
 
