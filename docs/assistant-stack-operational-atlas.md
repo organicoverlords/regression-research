@@ -247,14 +247,14 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 ### `chatgpt_memory`
 
-- Role: `context:chatgpt-continuity`
+- Role: `context:disabled-product-memory`
 - Capabilities: memory_read
-- Canonical sources: current conversation; ChatGPT Memory
-- Live status: current conversation and delivered ChatGPT Memory
-- Independent recovery: current conversation; targeted Vault history when useful
-- Resources: ChatGPT Memory
-- Dependents: chatgpt_session
-- Runbook: 04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt
+- Canonical sources: ChatGPT Memory disabled by current account configuration
+- Live status: disabled; not a continuity source and never current-state authority
+- Independent recovery: current conversation; targeted Vault history
+- Resources: none
+- Dependents: none
+- Runbook: none
 - Supervisor: ChatGPT
 - Self-heal: product_managed
 
@@ -301,12 +301,12 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 - Role: `session:user-facing`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: current conversation; ChatGPT Memory; agent_rules; Atlas; current authorities
+- Canonical sources: current conversation; targeted Vault history; agent_rules; Atlas; current authorities
 - Live status: current task + relevant live-source refresh
-- Independent recovery: current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional
+- Independent recovery: current conversation; targeted Vault history; Atlas on stack work
 - Resources: current task context
 - Dependents: user
-- Runbook: 04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: current ChatGPT session
 - Self-heal: session_specific
 

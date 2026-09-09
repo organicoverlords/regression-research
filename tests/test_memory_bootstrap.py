@@ -9,16 +9,13 @@ RETIRED_LIBRARY_PATH = "/Agent Bootstrap/chatgpt-bootstrap.json"
 
 
 class MemoryBootstrapRetirementTests(unittest.TestCase):
-    def test_personal_instructions_use_memory_atlas_and_live_truth(self):
-        text = (ROOT / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").read_text(encoding="utf-8")
-        self.assertIn("ChatGPT Memory for continuity", text)
-        self.assertIn("Stack Atlas", text)
-        self.assertIn("current live evidence", text)
-        self.assertIn("optional searchable history, notebook, evidence", text)
-        self.assertIn("Keep useful work and the recurring worker fleet moving", text)
-        self.assertNotIn("memory_bank.py bootstrap", text)
-        self.assertNotIn(RETIRED_LIBRARY_PATH, text)
-
+    def test_personal_instructions_are_not_repository_authority(self):
+        self.assertFalse((ROOT / "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt").exists())
+        atlas = (ROOT / "tools/stack_atlas.py").read_text(encoding="utf-8")
+        self.assertIn("context:disabled-product-memory", atlas)
+        self.assertIn('"targeted Vault history"', atlas)
+        self.assertNotIn('"canonical_sources": ["current conversation", "ChatGPT Memory"', atlas)
+        self.assertNotIn('"runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"]', atlas)
 
     def test_vault_policy_is_centralized_and_local_agents_is_pointer_only(self):
         text = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
