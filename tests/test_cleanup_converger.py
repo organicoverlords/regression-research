@@ -11,6 +11,7 @@ from tools.cleanup_converger import (
     Action,
     CLEANLINESS_PROBE_TIMEOUT_SECONDS,
     Worktree,
+    busy_claim,
     converge,
     cwd_targets_path,
     eligibility_reason,
@@ -300,7 +301,23 @@ class CleanupConvergerTests(unittest.TestCase):
                     "--ignore-submodules=none",
                 ),
             )
-            self.assertEqual(call.kwargs, {"check": False, "timeout": 15.0})
+            self.assertEqual(call.kwargs, {"check": False, "timeout": CLEANLINESS_PROBE_TIMEOUT_SECONDS})
+
+    def test_busy_claim_uses_atomic_claim_without_preinspect(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            busy_cmd = Path(temp_dir) / "busy-python.cmd"
+            busy_cmd.write_text("", encoding="utf-8")
+            completed = subprocess.CompletedProcess(
+                ["busy"], 0, stdout='{"ok":true,"claim":{"actor":"actor","scope":"scope"}}', stderr=""
+            )
+            with (
+                patch("tools.cleanup_converger.BUSY_CMD", busy_cmd),
+                patch("tools.cleanup_converger._run", return_value=completed) as run,
+            ):
+                ok, _detail = busy_claim("actor", "scope")
+
+            self.assertTrue(ok)
+            run.assert_called_once_with([str(busy_cmd), "claim", "actor", "scope"], check=False)
 
     @patch("tools.cleanup_converger._git")
     def test_cleanliness_probe_timeout_returns_unknown(self, git):

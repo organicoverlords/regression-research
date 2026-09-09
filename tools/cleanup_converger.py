@@ -443,9 +443,8 @@ def disk_free_gb(path: Path) -> float:
 def busy_claim(actor: str, scope: str) -> tuple[bool, str]:
     if not BUSY_CMD.exists():
         return False, f"BusyCoordinator missing: {BUSY_CMD}"
-    inspect = _run([str(BUSY_CMD), "inspect", scope], check=False)
-    if inspect.returncode != 0:
-        return False, inspect.stderr.strip() or inspect.stdout.strip()
+    # `claim` is the atomic collision decision. A preceding `inspect` is both
+    # redundant and racy, and doubles coordinator subprocesses on this hot path.
     claim = _run([str(BUSY_CMD), "claim", actor, scope], check=False)
     if claim.returncode != 0 or '"ok":true' not in claim.stdout.lower():
         return False, claim.stderr.strip() or claim.stdout.strip()
