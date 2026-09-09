@@ -51,12 +51,31 @@ from tools.stack_atlas import (
     _fit_memory_overview_budget,
     _fit_bootstrap_glance_budget,
     _bootstrap_memory_overview,
+    _bootstrap_mcp_from_live_swarm,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+
+    def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
+        snapshot = {
+            "available": True,
+            "summary": {"recent_callers": 2, "workspace_counts": {"Vault": 2}},
+            "evidence": {
+                "transport": "MCPv4",
+                "transport_source_count": 2,
+                "source_age_seconds": 0.5,
+                "observation_window_complete": True,
+                "activity_summary": {"starts": 2, "reads": 2},
+            },
+            "lanes": [],
+        }
+        projected = _bootstrap_mcp_from_live_swarm(snapshot)
+        self.assertEqual(projected["transport"], "MCPv4")
+        self.assertEqual(projected["transport_source_count"], 2)
+        self.assertEqual(projected["active_session_count"], 2)
 
     def test_cleanup_convergence_is_discoverable_and_operator_only(self):
         result = find_features("cleanup worktree convergence")[0]

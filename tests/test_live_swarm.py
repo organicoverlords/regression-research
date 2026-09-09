@@ -2,10 +2,11 @@ import json
 import tempfile
 import subprocess
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tools.live_swarm import _command_target, _git_identity, _read_window, _workspace, compact_for_bootstrap
+from tools.live_swarm import _command_target, _git_identity, _read_window, _workspace, build_live_swarm_snapshot, compact_for_bootstrap
 
 
 class LiveSwarmTests(unittest.TestCase):
@@ -47,6 +48,43 @@ class LiveSwarmTests(unittest.TestCase):
             out,complete,_=_read_window(p,now-timedelta(seconds=10))
             self.assertTrue(complete)
             self.assertEqual(len(out),4)
+
+
+    def test_snapshot_aggregates_current_mcpv4_transport_sources(self):
+        now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            root.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+
+            def write_source(name, rows):
+                folder=root/name
+                folder.mkdir()
+                (folder/"transport.jsonl").write_text("\n".join(json.dumps(row) for row in rows)+"\n",encoding="utf-8")
+
+            write_source("clone-a",[
+                {"at":(now-timedelta(seconds=20)).isoformat(),"event":"process_started","caller_id":"caller_a","process_id":"pa","pid":101,"cwd":r"C:\work\a"},
+                {"at":(now-timedelta(seconds=19)).isoformat(),"event":"process_read","caller_id":"caller_a","owner_caller_id":"caller_a","process_id":"pa","pid":101},
+            ])
+            write_source("home-direct-test",[
+                {"at":(now-timedelta(seconds=10)).isoformat(),"event":"process_started","caller_id":"caller_b","process_id":"pb","pid":102,"cwd":r"C:\work\b"},
+                {"at":(now-timedelta(seconds=9)).isoformat(),"event":"process_read","caller_id":"caller_b","owner_caller_id":"caller_b","process_id":"pb","pid":102},
+            ])
+            write_source("stale-replacement",[
+                {"at":(now-timedelta(hours=1)).isoformat(),"event":"process_started","caller_id":"caller_stale","process_id":"ps","pid":103,"cwd":r"C:\work\stale"},
+            ])
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                snapshot=build_live_swarm_snapshot(now=now)
+            callers={c["caller_id"] for lane in snapshot["lanes"] for c in lane["callers"]}
+            self.assertEqual(callers,{"caller_a","caller_b"})
+            self.assertEqual(snapshot["evidence"]["transport"],"MCPv4")
+            self.assertEqual(snapshot["evidence"]["transport_source_count"],2)
+            self.assertEqual({s["instance"] for s in snapshot["transport_sources"]},{"clone-a","home-direct-test"})
+            self.assertNotIn("caller_stale",callers)
 
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
         snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
