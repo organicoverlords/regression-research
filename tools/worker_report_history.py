@@ -55,6 +55,83 @@ FINDING_TAG_ALIASES = {
 
 MANUAL_SANITY_BASELINE_PATH = Path(__file__).resolve().parents[1] / "04 Operating Contracts" / "manual-worker-sanity-baseline.json"
 MANUAL_CURRENT_ROOT = Path(__file__).resolve().parents[1] / "worker-reports" / "manual" / "current"
+
+
+def _manual_identity_helpers():
+    try:
+        from tools.manual_work_disposition import binding_summary, load_binding
+    except ModuleNotFoundError:
+        from manual_work_disposition import binding_summary, load_binding
+    return binding_summary, load_binding
+
+
+def _manual_identity_summary(manual_root: Path, run_id: str) -> dict[str, Any]:
+    binding_summary, load_binding = _manual_identity_helpers()
+    return binding_summary(load_binding(Path(manual_root), run_id))
+
+
+def _manual_trace_helpers():
+    try:
+        from tools.manual_work_disposition import capture_trace, load_trace, trace_summary
+    except ModuleNotFoundError:
+        from manual_work_disposition import capture_trace, load_trace, trace_summary
+    return capture_trace, load_trace, trace_summary
+
+
+def _manual_trace_summary(manual_root: Path, run_id: str) -> dict[str, Any]:
+    _, load_trace, trace_summary = _manual_trace_helpers()
+    return trace_summary(load_trace(Path(manual_root), run_id))
+
+
+def _capture_manual_trace(manual_root: Path, run_id: str) -> dict[str, Any]:
+    receipt_dir = str(os.environ.get("MCP_PROCESS_RECEIPT_DIR") or "").strip()
+    if not receipt_dir:
+        return {"status": "UNAVAILABLE", "reason": "MCP_PROCESS_RECEIPT_DIR_missing"}
+    capture_trace, _, trace_summary = _manual_trace_helpers()
+    result = capture_trace(run_id=run_id, receipt_dir=Path(receipt_dir), manual_root=Path(manual_root))
+    if not result.get("ok"):
+        return {"status": "UNAVAILABLE", "reason": result.get("error")}
+    return trace_summary(result.get("trace"))
+
+
+def _schedule_manual_binding_capture(current_root: Path, run_id: str, started_at: str | None = None) -> dict[str, Any]:
+    """Capture the MCP caller/process binding after this create-manual process exits."""
+    receipt_dir = str(os.environ.get("MCP_PROCESS_RECEIPT_DIR") or "").strip()
+    script = Path(__file__).resolve().with_name("manual_work_disposition.py")
+    if not receipt_dir:
+        return {"scheduled": False, "reason": "MCP_PROCESS_RECEIPT_DIR_missing"}
+    if not script.is_file():
+        return {"scheduled": False, "reason": "manual_work_disposition_missing"}
+    manual_root = Path(current_root).parent
+    command = [
+        sys.executable, str(script), "capture-binding",
+        "--run-id", run_id,
+        "--creator-child-pid", str(os.getpid()),
+        "--receipt-dir", receipt_dir,
+        "--manual-root", str(manual_root),
+        "--timeout-seconds", "20",
+    ]
+    if started_at:
+        command.extend(["--started-at", str(started_at)])
+    kwargs: dict[str, Any] = {
+        "cwd": str(Path(__file__).resolve().parents[1]),
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        kwargs["creationflags"] = (
+            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        )
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        child = subprocess.Popen(command, **kwargs)
+    except OSError as exc:
+        return {"scheduled": False, "reason": f"launch_error:{exc.__class__.__name__}"}
+    return {"scheduled": True, "pid": child.pid}
 MANUAL_SANITY_TRANSCRIPT_FIELDS = ("scope", "mutation", "validation", "remaining_gate")
 MANUAL_SANITY_LIFECYCLE_RE = re.compile(
     r"opened late|created late|left tool_interval_open|incorrectly left|not opened before|lifecycle gap|report creation occurred after",
@@ -1044,6 +1121,13 @@ def _archive_manual_nonterminal_snapshot(report: Path, history_root: Path, *, li
         metadata["lifecycle_status"] = lifecycle_status
         metadata["included_in_metrics"] = False
         metadata["authority"] = "NON_AUTHORITATIVE_REPORT_EVIDENCE"
+        run_id = str(metadata.get("run_id") or report.stem)
+        identity = _manual_identity_summary(history_root.parent, run_id)
+        if identity.get("status") == "BOUND":
+            metadata["manual_identity"] = identity
+            trace = _capture_manual_trace(history_root.parent, run_id)
+            if trace.get("status") == "CAPTURED":
+                metadata["manual_process_trace"] = trace
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     report.unlink(missing_ok=True)
     return {
@@ -1188,6 +1272,20 @@ def archive_finalized_report(report: Path, history_root: Path, *, _skip_manual_r
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if population == "manual":
+        run_id = str(metadata.get("run_id") or report.stem)
+        identity = _manual_identity_summary(history_root.parent, run_id)
+        changed = False
+        if identity.get("status") == "BOUND" and metadata.get("manual_identity") != identity:
+            metadata["manual_identity"] = identity
+            changed = True
+        if identity.get("status") == "BOUND":
+            trace = _capture_manual_trace(history_root.parent, run_id)
+            if trace.get("status") == "CAPTURED" and metadata.get("manual_process_trace") != trace:
+                metadata["manual_process_trace"] = trace
+                changed = True
+        if changed:
+            metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     metrics_path = history_root.parent / "metrics.json"
     metrics = {} if _skip_metrics else write_metrics_projection(history_root)[1]
     if observed_started_at is not None and report.parent.name.casefold() == "current":
@@ -1263,6 +1361,8 @@ def audit_manual_current_reports(current_root: Path, history_root: Path) -> dict
             "archived": archived,
             "lifecycle_status": lifecycle_status,
             "liveness": "NOT_ESTABLISHED_BY_REPORT",
+            "identity": _manual_identity_summary(current_root.parent, run_id),
+            "process_trace": _manual_trace_summary(current_root.parent, run_id),
             "error": error,
         })
     counts = Counter(row["lifecycle_status"] for row in rows)
@@ -1372,6 +1472,7 @@ def main() -> int:
                 display_label=args.display_label,
                 outcome=args.outcome,
             )
+            result["identity_capture"] = _schedule_manual_binding_capture(args.current_root, str(result["run_id"]), str(result.get("started_at") or ""))
         elif args.command == "audit-manual-current":
             result = audit_manual_current_reports(args.current_root, args.history_root)
         elif args.command == "sanity":
