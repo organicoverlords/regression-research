@@ -22,6 +22,28 @@ class HybridMemoryTests(unittest.TestCase):
     def test_correction_plural_shares_correction_retrieval_concept(self):
         self.assertEqual(_word_tokens("correction corrections"), ["correction", "correction"])
 
+    def test_established_state_does_not_collapse_into_proof_concept(self):
+        self.assertEqual(_word_tokens("establish established evidence"), ["proof", "established", "proof"])
+
+    def test_follow_is_non_anchoring_for_strict_context_but_meta_followup_still_recalls(self):
+        followup = self.entry(
+            "followup",
+            "In an established manual execution scope interpret terse follow ups as go by default.",
+            title="Terse follow ups default to go",
+        )
+        self.assertEqual(
+            search_entries_hybrid([followup], "follow instructions", strict_admission=True),
+            [],
+        )
+        self.assertEqual(
+            search_entries_hybrid([followup], "follow proof path", strict_admission=True),
+            [],
+        )
+        self.assertEqual(
+            [entry["id"] for entry in search_entries_hybrid([followup], "terse follow up means go", strict_admission=True)],
+            ["followup"],
+        )
+
     def test_checkpoint_plural_matches_shared_checkpoint_memory(self):
         checkpoint = self.entry(
             "checkpoint",
