@@ -387,6 +387,47 @@ class CleanupConvergerTests(unittest.TestCase):
             self.assertEqual(result["rounds_run"], 1)
             git.assert_any_call(repo, "worktree", "prune", check=False)
 
+    @patch("tools.cleanup_converger.disk_free_gb", return_value=10.0)
+    @patch("tools.cleanup_converger.busy_release")
+    @patch("tools.cleanup_converger.busy_claim")
+    @patch("tools.cleanup_converger._remove_one")
+    @patch("tools.cleanup_converger.scan_repo")
+    @patch("tools.cleanup_converger._git")
+    def test_apply_live_branch_ref_claim_vetoes_worktree_removal(
+        self, git, scan, remove_one, busy_claim, _busy_release, _disk
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            lane = Worktree(Path(tmp) / "lane", "abcd", "topic", False)
+            scan.return_value = ([lane], [], [])
+            git.return_value = subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
+            busy_claim.side_effect = [
+                (True, "metadata acquired"),
+                (False, "scope_already_claimed"),
+            ]
+
+            with patch(
+                "tools.cleanup_converger.DEFAULT_REPOS",
+                (("Vault", repo, "regression-research:git-worktree-metadata"),),
+            ):
+                result = converge(
+                    apply=True,
+                    max_rounds=1,
+                    stable_rounds=1,
+                    settle_seconds=0,
+                    window_seconds=300,
+                    actor="test-operator",
+                )
+
+            remove_one.assert_not_called()
+            self.assertEqual(
+                busy_claim.call_args_list[1].args,
+                ("test-operator", "regression-research:git-ref:refs/heads/topic"),
+            )
+            blocked = [action for action in result["actions"] if action["action"] == "BLOCKED"]
+            self.assertEqual(len(blocked), 1)
+            self.assertEqual(blocked[0]["reason"], "branch_busy_claim_failed:scope_already_claimed")
+
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):
         lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False)

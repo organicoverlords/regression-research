@@ -331,6 +331,13 @@ def _cache_scope(repo_name: str, worktree: Worktree) -> str:
     return f"{repo_name.lower()}:generated-cache:{leaf}"
 
 
+def _branch_ref_scope(repo_scope: str, worktree: Worktree) -> str | None:
+    if not worktree.branch:
+        return None
+    namespace = repo_scope.split(":", 1)[0]
+    return f"{namespace}:git-ref:refs/heads/{worktree.branch}"
+
+
 def _clean_generated_cache_one(
     repo_name: str, repo: Path, worktree: Worktree, window_seconds: int
 ) -> Action:
@@ -690,11 +697,34 @@ def converge(
                     removed_here = 0
                     try:
                         for item in candidates:
-                            result = _remove_one(repo_name, repo, item, window_seconds)
-                            actions.append(result)
-                            if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
-                                round_progress += 1
-                                removed_here += 1
+                            branch_scope = _branch_ref_scope(scope, item)
+                            if branch_scope:
+                                branch_claimed, branch_detail = busy_claim(actor, branch_scope)
+                                if not branch_claimed:
+                                    actions.append(
+                                        Action(
+                                            repo_name,
+                                            str(item.path),
+                                            "BLOCKED",
+                                            item.branch,
+                                            item.head,
+                                            f"branch_busy_claim_failed:{branch_detail}",
+                                        )
+                                    )
+                                    continue
+                            try:
+                                result = _remove_one(repo_name, repo, item, window_seconds)
+                                actions.append(result)
+                                if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
+                                    round_progress += 1
+                                    removed_here += 1
+                            finally:
+                                if branch_scope:
+                                    busy_release(
+                                        actor,
+                                        branch_scope,
+                                        f"cleanup converger round {round_no}: candidate branch-ref guard for {item.path.name}",
+                                    )
                         _git(repo, "worktree", "prune", check=False)
                     finally:
                         busy_release(
