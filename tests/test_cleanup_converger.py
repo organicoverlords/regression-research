@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from tools.cleanup_converger import (
     Action,
+    CLEANLINESS_PROBE_TIMEOUT_SECONDS,
     Worktree,
     converge,
     cwd_targets_path,
@@ -274,8 +275,36 @@ class CleanupConvergerTests(unittest.TestCase):
         self.assertEqual(_fresh_cache_guard(Path(r"C:\repo"), lane, 300), "external_process_targets_path")
 
     @patch("tools.cleanup_converger._git")
+    def test_cleanliness_probe_uses_one_status_for_all_dirty_states(self, git):
+        git.side_effect = [
+            subprocess.CompletedProcess(["git"], 0, stdout="", stderr=""),
+            subprocess.CompletedProcess(["git"], 0, stdout=" M tracked.txt\0", stderr=""),
+            subprocess.CompletedProcess(["git"], 0, stdout="M  staged.txt\0", stderr=""),
+            subprocess.CompletedProcess(["git"], 0, stdout="?? untracked.txt\0", stderr=""),
+        ]
+        lane = Path(r"C:\Temp\lane")
+        self.assertTrue(worktree_is_clean(lane))
+        self.assertFalse(worktree_is_clean(lane))
+        self.assertFalse(worktree_is_clean(lane))
+        self.assertFalse(worktree_is_clean(lane))
+        self.assertEqual(git.call_count, 4)
+        for call in git.call_args_list:
+            self.assertEqual(
+                call.args,
+                (
+                    lane,
+                    "status",
+                    "--porcelain=v1",
+                    "-z",
+                    "--untracked-files=normal",
+                    "--ignore-submodules=none",
+                ),
+            )
+            self.assertEqual(call.kwargs, {"check": False, "timeout": CLEANLINESS_PROBE_TIMEOUT_SECONDS})
+
+    @patch("tools.cleanup_converger._git")
     def test_cleanliness_probe_timeout_returns_unknown(self, git):
-        git.side_effect = subprocess.TimeoutExpired(["git", "diff-files"], 15)
+        git.side_effect = subprocess.TimeoutExpired(["git", "status"], 15)
         self.assertIsNone(worktree_is_clean(Path(r"C:\Temp\slow-lane")))
 
     @patch("tools.cleanup_converger.generated_cache_dirs", return_value=[])
