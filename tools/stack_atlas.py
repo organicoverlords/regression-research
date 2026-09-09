@@ -3800,13 +3800,14 @@ LIVE_PROBE_TIMEOUT_SECONDS = 5
 def _powershell_json(script: str) -> Any:
     try:
         result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
             check=True,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=LIVE_PROBE_TIMEOUT_SECONDS,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(
