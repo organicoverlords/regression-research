@@ -20,6 +20,7 @@ import stat
 from pathlib import Path, PurePosixPath
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -40,6 +41,9 @@ GIT_PROVENANCE_COMMIT_LIMIT = 128
 MAX_GIT_PROVENANCE_BYTES = 16 * 1024 * 1024
 OMEN_TOOL_ENV = "/mnt/ue/worker-tools/env.sh"
 OMEN_PYTHON_PACKAGES = "/mnt/ue/worker-tools/python-packages"
+GHBUF_DEFAULT_LOCAL_ADDR = "127.0.0.1:19427"
+GHBUF_REMOTE_PORT_BASE = 20000
+GHBUF_REMOTE_PORT_SPAN = 20000
 
 
 def _run(args: list[str], *, cwd: Path | None = None, timeout: float = 20.0) -> subprocess.CompletedProcess[str]:
@@ -365,18 +369,77 @@ def _add_control_member(
     info.mode = 0o600
     tf.addfile(info, io.BytesIO(data))
 
-def ssh_args() -> list[str]:
-    key = Path.home() / ".ssh" / "chatgpt-linux-aatuska-ed25519"
-    if not key.is_file():
-        raise ValueError("SWARM_EXEC_SSH_KEY_MISSING")
+def _ghbuf_bin() -> str | None:
+    found = shutil.which("ghbuf")
+    if found:
+        return found
+    local = Path.home() / ".local" / "bin" / ("ghbuf.exe" if os.name == "nt" else "ghbuf")
+    return str(local) if local.is_file() else None
+
+
+def gh_buffer_local_target() -> tuple[str, int]:
+    raw = os.environ.get("GHBUF_ADDR", GHBUF_DEFAULT_LOCAL_ADDR).strip()
+    match = re.fullmatch(r"(127\.0\.0\.1|localhost):([0-9]{1,5})", raw, flags=re.IGNORECASE)
+    if not match:
+        raise ValueError("SWARM_EXEC_GHBUF_LOOPBACK_REQUIRED")
+    port = int(match.group(2))
+    if port < 1 or port > 65535:
+        raise ValueError("SWARM_EXEC_GHBUF_BAD_PORT")
+    return "127.0.0.1", port
+
+
+def select_gh_buffer_remote_port(work_id: str, *, pid: int | None = None) -> int:
+    safe_work_id(work_id)
+    process_id = os.getpid() if pid is None else pid
+    digest = hashlib.sha256(f"{work_id}\0{process_id}".encode("utf-8")).digest()
+    return GHBUF_REMOTE_PORT_BASE + int.from_bytes(digest[:4], "big") % GHBUF_REMOTE_PORT_SPAN
+
+
+def gh_buffer_forward_args(remote_port: int, local_host: str, local_port: int) -> list[str]:
+    if local_host != "127.0.0.1":
+        raise ValueError("SWARM_EXEC_GHBUF_LOOPBACK_REQUIRED")
+    if not (1 <= remote_port <= 65535 and 1 <= local_port <= 65535):
+        raise ValueError("SWARM_EXEC_GHBUF_BAD_PORT")
     return [
-        "ssh", "-F", "NUL", "-4", "-i", str(key), "-o", "BatchMode=yes", "-o", "ConnectTimeout=5",
-        "-o", f"HostKeyAlias={swarm_route.OMEN_HOST_KEY_ALIAS}",
-        f"{swarm_route.OMEN_USER}@{swarm_route.OMEN_HOST}",
+        "-o", "ExitOnForwardFailure=yes",
+        "-R", f"127.0.0.1:{remote_port}:{local_host}:{local_port}",
     ]
 
 
-def remote_script(work_id: str, command: str, cache_id: str, *, keep_workspace: bool = False) -> tuple[str, str]:
+def ensure_gh_buffer_sidecar(local_host: str, local_port: int, *, timeout: float = 4.0) -> None:
+    ghbuf = _ghbuf_bin()
+    if not ghbuf:
+        raise ValueError("SWARM_EXEC_GHBUF_UNAVAILABLE")
+    env = dict(os.environ)
+    env["GHBUF_ADDR"] = f"{local_host}:{local_port}"
+    proc = subprocess.run(
+        [ghbuf, "ping"], capture_output=True, text=True, timeout=timeout, check=False, env=env
+    )
+    if proc.returncode != 0:
+        raise ValueError("SWARM_EXEC_GHBUF_SIDECAR_UNAVAILABLE")
+
+
+def ssh_args(
+    *, gh_buffer_remote_port: int | None = None, gh_buffer_local_host: str = "127.0.0.1",
+    gh_buffer_local_port: int = 19427,
+) -> list[str]:
+    key = Path.home() / ".ssh" / "chatgpt-linux-aatuska-ed25519"
+    if not key.is_file():
+        raise ValueError("SWARM_EXEC_SSH_KEY_MISSING")
+    args = [
+        "ssh", "-F", "NUL", "-4", "-i", str(key), "-o", "BatchMode=yes", "-o", "ConnectTimeout=5",
+        "-o", f"HostKeyAlias={swarm_route.OMEN_HOST_KEY_ALIAS}",
+    ]
+    if gh_buffer_remote_port is not None:
+        args.extend(gh_buffer_forward_args(gh_buffer_remote_port, gh_buffer_local_host, gh_buffer_local_port))
+    args.append(f"{swarm_route.OMEN_USER}@{swarm_route.OMEN_HOST}")
+    return args
+
+
+def remote_script(
+    work_id: str, command: str, cache_id: str, *, keep_workspace: bool = False,
+    gh_buffer_remote_port: int | None = None,
+) -> tuple[str, str]:
     safe = safe_work_id(work_id)
     if not re.fullmatch(r"[0-9a-f]{24}", cache_id):
         raise ValueError("SWARM_EXEC_BAD_CACHE_ID")
@@ -388,6 +451,18 @@ def remote_script(work_id: str, command: str, cache_id: str, *, keep_workspace: 
     payload = cache + f".payload-{safe}-$$.tar"
     git_meta_dir = cache + f".git-meta-{safe}-$$"
     keep = 1 if keep_workspace else 0
+    gh_buffer_env = (
+        f"export GHBUF_ADDR={shlex.quote(f'127.0.0.1:{gh_buffer_remote_port}')}\n"
+        if gh_buffer_remote_port is not None else ""
+    )
+    if gh_buffer_remote_port is not None:
+        command_exec = (
+            "if ! command -v ghbuf >/dev/null 2>&1; then "
+            "printf '%s\n' 'SWARM_EXEC_GHBUF_REMOTE_CLIENT_MISSING' >&2; exit 69; fi\n"
+            f"ghbuf exec-readonly -- bash -c {shlex.quote(command)}"
+        )
+    else:
+        command_exec = f"bash -c {shlex.quote(command)}"
     script = f"""set -eu
 final={shlex.quote(final)}
 cache={shlex.quote(cache)}
@@ -491,7 +566,7 @@ cp -a -- \"$cache\" \"$final\"
 rm -f -- \"$final/$manifest_name\"
 . {shlex.quote(OMEN_TOOL_ENV)}
 export PYTHONPATH={shlex.quote(OMEN_PYTHON_PACKAGES)}:${{PYTHONPATH:-}}
-python3 - \"$final\" \"$git_meta_dir\" <<'PY'
+{gh_buffer_env}python3 - \"$final\" \"$git_meta_dir\" <<'PY'
 import json, shutil, subprocess, sys
 from pathlib import Path
 root=Path(sys.argv[1]); meta_dir=Path(sys.argv[2])
@@ -522,7 +597,7 @@ published=1
 flock -u 9
 cd -- \"$final\"
 set +e
-bash -c {shlex.quote(command)}
+{command_exec}
 rc=$?
 set -e
 exit \"$rc\"
@@ -544,7 +619,10 @@ def _forward_stdout(stream) -> None:
             sys.stdout.write(chunk.decode("utf-8", errors="replace")); sys.stdout.flush()
 
 
-def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False) -> int:
+def execute_omen(
+    repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False,
+    gh_buffer_readonly: bool = False,
+) -> int:
     paths = snapshot_paths(repo_root)
     current_manifest, size, hash_hits, hash_misses = cached_snapshot_manifest(repo_root, paths)
     git_provenance, git_provenance_bytes = git_provenance_payload(repo_root)
@@ -553,8 +631,23 @@ def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, 
     if bounded_size > limit:
         raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={bounded_size} limit={limit}")
     cache_id = repo_cache_id(repo_root)
-    workspace, script = remote_script(work_id, command, cache_id, keep_workspace=keep_workspace)
-    proc = subprocess.Popen(ssh_args() + [script], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    gh_buffer_local_host = "127.0.0.1"
+    gh_buffer_local_port = 19427
+    gh_buffer_remote_port: int | None = None
+    if gh_buffer_readonly:
+        gh_buffer_local_host, gh_buffer_local_port = gh_buffer_local_target()
+        ensure_gh_buffer_sidecar(gh_buffer_local_host, gh_buffer_local_port)
+        gh_buffer_remote_port = select_gh_buffer_remote_port(work_id)
+    workspace, script = remote_script(
+        work_id, command, cache_id, keep_workspace=keep_workspace,
+        gh_buffer_remote_port=gh_buffer_remote_port,
+    )
+    proc = subprocess.Popen(
+        ssh_args(
+            gh_buffer_remote_port=gh_buffer_remote_port, gh_buffer_local_host=gh_buffer_local_host,
+            gh_buffer_local_port=gh_buffer_local_port,
+        ) + [script], stdin=subprocess.PIPE, stdout=subprocess.PIPE
+    )
     assert proc.stdin is not None and proc.stdout is not None
     try:
         line = proc.stdout.readline()
@@ -567,6 +660,8 @@ def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, 
             "cache_hit": bool(remote_manifest), "delta_files": len(changed), "delta_bytes": delta_size,
             "deleted_files": len(deleted), "hash_cache_hits": hash_hits, "hash_cache_misses": hash_misses,
             "git_provenance_bytes": git_provenance_bytes,
+            "gh_buffer_readonly": gh_buffer_readonly,
+            **({"gh_buffer_remote_addr": f"127.0.0.1:{gh_buffer_remote_port}"} if gh_buffer_remote_port is not None else {}),
         }, separators=(",", ":")), file=sys.stderr, flush=True)
         with tarfile.open(fileobj=proc.stdin, mode="w|") as tf:
             _add_control_member(tf, current_manifest, changed, deleted, git_provenance)
@@ -615,6 +710,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--refresh-probe", action="store_true")
     p.add_argument("--keep-lease", action="store_true")
     p.add_argument("--keep-workspace", action="store_true", help="retain the OMEN snapshot after execution for debugging")
+    p.add_argument(
+        "--gh-buffer-readonly", action="store_true",
+        help="share the local Rust gh-buffer with this OMEN command through an authenticated loopback-only SSH reverse tunnel",
+    )
     p.add_argument("argv", nargs=argparse.REMAINDER)
     return p
 
@@ -636,7 +735,10 @@ def main(argv: list[str] | None = None) -> int:
             if assignment.get("route") != "omen":
                 print(json.dumps({"error": "SWARM_EXEC_NON_OMEN_ASSIGNMENT", "route": assignment.get("route"), "reason": assignment.get("reason")}), file=sys.stderr)
                 return 75
-            return execute_omen(root, args.work_id, command, args.max_sync_mb, keep_workspace=args.keep_workspace)
+            return execute_omen(
+                root, args.work_id, command, args.max_sync_mb, keep_workspace=args.keep_workspace,
+                gh_buffer_readonly=args.gh_buffer_readonly,
+            )
         finally:
             if not args.keep_lease:
                 swarm_route.release_work(args.state, args.work_id)
