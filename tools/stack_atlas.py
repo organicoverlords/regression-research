@@ -447,11 +447,15 @@ COMPONENTS.update({
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
         "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
-        "supervisor": "user-designated ChatGPT subscription operator; current primary operator is read from chatgpt-swarm-topology.json",
-        "self_heal": "not_applicable",
-        "independent_recovery": ["read the topology contract, canonical shared rules, local worker reports/start receipts, and the controlling subscription's scheduler state only when an authorized exact scheduler mutation is required"],
+        "supervisor": "distributed same-partition recurring workers; supervising/manual ChatGPT session may perform the same guarded recovery; operator handoff is administrative fallback only",
+        "self_heal": "bounded_same_partition_peer_recovery",
+        "independent_recovery": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
+            "perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions",
+        ],
         "resources": ["S1 five recurring slots", "S2 five recurring slots", "manual/on-demand worker population"],
-        "dependents": ["chatgpt_session", "execution_workers", "scheduler"],
+        "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
     },
     "chatgpt_session": {
@@ -463,15 +467,23 @@ COMPONENTS.update({
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
-        "supervisor": "ChatGPT + BusyCoordinator ownership", "self_heal": "worker_specific",
-        "independent_recovery": ["preserve task/checkpoint; use another proven execution route"],
+        "supervisor": "distributed peer supervision for recurring workers; supervising/manual ChatGPT session may assist; BusyCoordinator is exact mutation collision control only", "self_heal": "same_partition_sibling_recovery_for_recurring_workers",
+        "independent_recovery": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
+            "preserve task/checkpoint and use another proven execution route for execution-path failures",
+        ],
         "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
         "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "chatgpt_automations": {
         "role": "scheduler:recurrence", "capabilities": ["schedule"], "canonical_sources": ["ChatGPT Automations state"],
-        "live_status": ["current automation list/run state"], "supervisor": "ChatGPT scheduler", "self_heal": "service_specific",
-        "independent_recovery": ["present-turn work continues without scheduler"], "resources": ["timed recurrence only"],
+        "live_status": ["current automation enabled/schedule state only; not worker liveness, supervision, or recovery authority"],
+        "supervisor": "platform recurrence service only; it does not supervise worker health or own swarm recovery", "self_heal": "not_swarm_supervision",
+        "independent_recovery": [
+            "same-partition recurring siblings or a supervising/manual ChatGPT session use fleet-watch plus worker_recovery_guard and may issue one targeted is_enabled=true write; scheduler listing is not the discovery path",
+            "present-turn work continues without recurrence",
+        ], "resources": ["timed recurrence and enabled state only"],
         "dependents": ["execution_workers"], "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "github_actions": {
@@ -697,9 +709,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
-        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "User-declared swarm membership and operator-handoff topology: two ChatGPT subscription scheduler partitions with five recurring workers each, plus a separate manual/on-demand population. Current activity/liveness remains live MCP/runtime evidence, and scheduler administration never crosses subscription partitions.",
+        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
+        "boundary": "Two ChatGPT subscription partitions contain five recurring workers each. The scheduler provides recurrence only. Routine health recovery is distributed: each recurring worker checks same-partition siblings from local reports/start receipts and may perform one guard-authorized idempotent re-enable; a supervising/manual ChatGPT session may perform the same bounded recovery. Operator handoff is an administrative fallback/control surface, not routine supervision, and the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence; recovery never crosses subscription partitions.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
@@ -1169,6 +1181,7 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
     manual = _bootstrap_manual_current_status(current_time)
     subscriptions = payload.get("subscriptions") if isinstance(payload.get("subscriptions"), dict) else {}
     handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
+    routine_recovery = payload.get("routine_recurring_recovery") if isinstance(payload.get("routine_recurring_recovery"), dict) else {}
     manual_contract = payload.get("manual_workers") if isinstance(payload.get("manual_workers"), dict) else {}
     return {
         "authority": payload.get("authority") or "canonical_recurring_worker_partition_map",
@@ -1183,6 +1196,12 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
         "recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
         "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five recurring workers per ChatGPT subscription partition",
         "subscriptions": subscriptions,
+        "routine_recurring_recovery": {
+            "authority": routine_recovery.get("authority") or "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+            "scheduler_role": routine_recovery.get("scheduler_role") or "RECURRENCE_ONLY",
+            "operator_handoff_role": routine_recovery.get("operator_handoff_role") or "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+            "user_role": routine_recovery.get("user_role") or "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
+        },
         "operator_handoff": handoff,
         "manual_workers": {
             "population": manual_contract.get("population") or "SEPARATE_ON_DEMAND",
@@ -1973,6 +1992,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("swarm_topology"), dict):
         topo = bounded["swarm_topology"]
         handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
+        routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
         manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
         execution_nodes = topo.get("execution_nodes") if isinstance(topo.get("execution_nodes"), dict) else {}
         raw_nodes = execution_nodes.get("nodes") if isinstance(execution_nodes.get("nodes"), dict) else {}
@@ -1994,6 +2014,11 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             compact_execution_nodes["nodes"] = compact_nodes
         bounded["swarm_topology"] = {
             key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
+        }
+        bounded["swarm_topology"]["routine_recurring_recovery"] = {
+            key: routine_recovery.get(key)
+            for key in ("authority", "scheduler_role", "operator_handoff_role", "user_role")
+            if key in routine_recovery
         }
         bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
         bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
