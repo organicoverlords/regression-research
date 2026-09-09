@@ -11,12 +11,6 @@ Exhaustively turn the real model-bearing Tiny3D asset library into a visually in
 
 Do not spend S1 runs on unrelated Raincoat, gameplay-proof, capture, presentation, or general P3 visual work unless that exact work directly unblocks #442 catalogue fulfillment for a currently audited asset. The catalogue campaign is the S1 priority.
 
-## Recovered milestone foundation — do not rebuild it
-
-The deterministic Tiny3D library audit is an existing milestone owner, not new #442 work. `scripts/audit_library.py` was introduced in Tiny3D commit `34d85c3` (`legacy/gpt5/library-audit-150-20260823`) for the 150-asset catalogue milestone and is still present on current Tiny3D `main` as `tiny3d.library-audit.v1`. Current live audit on 2026-09-09 reports 276 indexed assets, zero index/directory identity invariant failures, 88 Tiny3D-verified assets, 23 secondary-motion assets, 28 VFX mesh contracts, 3 P3 handoff-verified assets, and 56 unindexed primary upstream GLBs. The original 150-asset target is already surpassed.
-
-#442 must **extend and consume** this owner for library integrity/population history and use the existing `src/tiny3d/catalogue.py` / library search-show surfaces for searchable catalogue projection. Do not create a second inventory audit, second asset database, or parallel ranking/report registry merely because a required #442 field is not projected on current `main`. First locate the existing milestone owner/history and prove the smallest missing extension. Existing coherent WIP wins.
-
 ## Eligibility and order
 
 Process only assets that resolve to a real 3D payload. Eligible payloads include `.glb`, `.ply`, and Unreal mesh/content assets such as `.uasset`. Do not count image-only, thumbnail-only, concept-only, or preview-only records as inventory work.
