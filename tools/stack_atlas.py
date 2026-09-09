@@ -2720,6 +2720,9 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         return result
     branch = None
     local_head = None
+    branch_upstream = None
+    branch_ahead = None
+    branch_behind = None
     dirty = False
     for raw_line in proc.stdout.splitlines():
         if raw_line.startswith("# branch.oid "):
@@ -2728,19 +2731,39 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         elif raw_line.startswith("# branch.head "):
             value = raw_line[len("# branch.head "):].strip()
             branch = value or None
+        elif raw_line.startswith("# branch.upstream "):
+            value = raw_line[len("# branch.upstream "):].strip()
+            branch_upstream = value or None
+        elif raw_line.startswith("# branch.ab "):
+            parts = raw_line[len("# branch.ab "):].split()
+            if len(parts) == 2 and parts[0].startswith("+") and parts[1].startswith("-"):
+                try:
+                    branch_ahead = int(parts[0][1:])
+                    branch_behind = int(parts[1][1:])
+                except ValueError:
+                    branch_ahead = branch_behind = None
         elif raw_line and not raw_line.startswith("# "):
             dirty = True
 
     tracking_head = None
-    try:
-        tracking_proc = subprocess.run(
-            [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
-            text=True, capture_output=True, timeout=0.75,
-        )
-        if tracking_proc.returncode == 0:
-            tracking_head = tracking_proc.stdout.strip() or None
-    except (OSError, subprocess.TimeoutExpired):
-        tracking_head = None
+    status_proves_tracking_match = bool(
+        local_head
+        and branch_upstream == f"origin/{expected_branch}"
+        and branch_ahead == 0
+        and branch_behind == 0
+    )
+    if status_proves_tracking_match:
+        tracking_head = local_head
+    else:
+        try:
+            tracking_proc = subprocess.run(
+                [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
+                text=True, capture_output=True, timeout=0.75,
+            )
+            if tracking_proc.returncode == 0:
+                tracking_head = tracking_proc.stdout.strip() or None
+        except (OSError, subprocess.TimeoutExpired):
+            tracking_head = None
 
     exact_head = bool(local_head and remote_head and local_head == remote_head)
     cached_remote_is_ancestor = exact_head

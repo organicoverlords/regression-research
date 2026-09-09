@@ -1700,6 +1700,19 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
 
+    @patch("tools.stack_atlas.subprocess.run")
+    @patch("tools.stack_atlas.shutil.which", return_value="git")
+    def test_git_checkout_state_reuses_status_tracking_relation(self, _which, run):
+        run.return_value = type("Proc", (), {
+            "returncode": 0,
+            "stdout": "# branch.oid abc123\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +0 -0\n",
+        })()
+        state = _git_checkout_state(Path(r"C:\repo"), "abc123")
+        self.assertTrue(state["coherent"])
+        self.assertTrue(state["head_matches_local_tracking_main"])
+        self.assertEqual(state["local_tracking_main"], "abc123")
+        self.assertEqual(run.call_count, 1)
+
     def test_git_checkout_state_distinguishes_cached_remote_from_local_tracking_main(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
