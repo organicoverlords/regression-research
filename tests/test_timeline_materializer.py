@@ -432,6 +432,38 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(legacy["free_gb"], 61.5)
             self.assertIsNone(legacy["commit_headroom_gb"])
 
+    def test_machine_observation_adapter_projects_bootstrap_performance_rows(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            path = Path(d) / "ChatGPTMcpClean" / ".state" / "bootstrap-observations.jsonl"
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({
+                "schema": "stack-atlas.bootstrap-observation.v1",
+                "kind": "bootstrap_performance",
+                "at": "2026-09-09T09:00:00Z",
+                "bootstrap_elapsed_ms": 410.2,
+                "source_freshness_latency_ms": 144.4,
+                "github_latency_ms": 14.4,
+                "vault_latency_ms": 78.3,
+                "live_swarm_elapsed_ms": 337.6,
+                "github_cache_used": True,
+                "github_cache_age_seconds": 5.5,
+                "source_head": "abc123",
+                "node_id": "kone-gpu-desktop",
+            }) + "\n", encoding="utf-8")
+            events, coverage = machine_observation_events(since=datetime(2026, 9, 8, tzinfo=timezone.utc))
+
+        self.assertEqual(coverage["rows"], 1)
+        self.assertEqual(len(events), 1)
+        event = events[0]
+        self.assertEqual(event["source_type"], "PERFORMANCE_OBSERVATION")
+        self.assertEqual(event["artifact_type"], "performance_snapshot")
+        self.assertEqual(event["bootstrap_elapsed_ms"], 410.2)
+        self.assertEqual(event["source_freshness_latency_ms"], 144.4)
+        self.assertTrue(event["github_cache_used"])
+        self.assertEqual(event["source_head"], "abc123")
+        self.assertEqual(event["node_id"], "kone-gpu-desktop")
+        self.assertEqual(event["thread_id"], "performance:stack-atlas-bootstrap")
+
     def test_github_adapter_projects_issues_prs_and_actions_without_body_fetches(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
         now = "2026-09-06T05:00:00Z"

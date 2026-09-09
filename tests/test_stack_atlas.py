@@ -39,6 +39,8 @@ from tools.stack_atlas import (
     _bootstrap_manual_current_status,
     _bootstrap_swarm_topology,
     _bootstrap_disk_trend,
+    _append_bootstrap_performance_observation,
+    bootstrap_performance_stats,
     _read_jsonl_tail,
     _remote_is_newer,
     _git_blob_sha_for_file,
@@ -1464,6 +1466,50 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(row["vram_free_mb"], 5086)
             self.assertEqual(row["gpu_sample_status"], "LIVE")
             self.assertNotIn("nested", row)
+
+    def test_bootstrap_performance_observations_are_typed_throttled_and_summarized(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.jsonl"
+            now = datetime(2026, 9, 9, 9, 0, tzinfo=timezone.utc)
+            with patch("tools.stack_atlas.BOOTSTRAP_OBSERVATION_PATH", path):
+                self.assertTrue(_append_bootstrap_performance_observation({
+                    "bootstrap_elapsed_ms": 100.0,
+                    "source_freshness_latency_ms": 200.0,
+                    "github_latency_ms": 10.0,
+                    "vault_latency_ms": 50.0,
+                    "live_swarm_elapsed_ms": 70.0,
+                    "github_cache_used": True,
+                    "github_cache_age_seconds": 3.0,
+                    "source_head": "abc123",
+                    "node_id": "kone-gpu-desktop",
+                }, now=now))
+                self.assertFalse(_append_bootstrap_performance_observation({
+                    "bootstrap_elapsed_ms": 999.0,
+                }, now=now + timedelta(minutes=1)))
+                self.assertTrue(_append_bootstrap_performance_observation({
+                    "bootstrap_elapsed_ms": 120.0,
+                    "source_freshness_latency_ms": 140.0,
+                    "github_latency_ms": 12.0,
+                    "vault_latency_ms": 55.0,
+                    "live_swarm_elapsed_ms": 80.0,
+                    "github_cache_used": False,
+                    "github_cache_age_seconds": 1.0,
+                    "source_head": "def456",
+                    "node_id": "kone-gpu-desktop",
+                }, now=now + timedelta(minutes=5)))
+                stats = bootstrap_performance_stats(1, now=now + timedelta(minutes=6))
+
+            rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["schema"], "stack-atlas.bootstrap-observation.v1")
+            self.assertEqual(rows[0]["kind"], "bootstrap_performance")
+            self.assertEqual(stats["sample_count"], 2)
+            self.assertEqual(stats["metrics"]["bootstrap_elapsed_ms"]["p50"], 110.0)
+            self.assertEqual(stats["metrics"]["bootstrap_elapsed_ms"]["p95"], 120.0)
+            self.assertEqual(stats["github_cache"]["used_pct"], 50.0)
+            self.assertTrue(stats["dimensions"]["mixed_source_heads"])
+            self.assertEqual(stats["dimensions"]["node_ids"], ["kone-gpu-desktop"])
 
     def test_mcp_transport_tail_does_not_parse_historical_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -740,6 +740,13 @@ def build_bootstrap_atlas() -> dict[str, Any]:
     }
 
 BOOTSTRAP_OBSERVATION_PATH = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\bootstrap-observations.jsonl"))
+BOOTSTRAP_OBSERVATION_SCHEMA = "stack-atlas.bootstrap-observation.v1"
+BOOTSTRAP_PERFORMANCE_KIND = "bootstrap_performance"
+BOOTSTRAP_PERFORMANCE_SAMPLE_SECONDS = 300
+BOOTSTRAP_PERFORMANCE_METRIC_KEYS = (
+    "bootstrap_elapsed_ms", "source_freshness_latency_ms", "github_latency_ms",
+    "vault_latency_ms", "live_swarm_elapsed_ms",
+)
 
 
 def _bootstrap_disk_trend(current_free_gb: float, observation: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -793,6 +800,121 @@ def _bootstrap_disk_trend(current_free_gb: float, observation: dict[str, Any] | 
     except OSError:
         pass
     return result
+
+
+def _append_bootstrap_performance_observation(
+    observation: dict[str, Any], *, now: datetime | None = None
+) -> bool:
+    """Persist a bounded typed performance sample; never scheduling or runtime authority."""
+    stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    try:
+        rows = _read_jsonl_tail(BOOTSTRAP_OBSERVATION_PATH, 256, max_bytes=2 * 1024 * 1024) if BOOTSTRAP_OBSERVATION_PATH.exists() else []
+        for item in reversed(rows):
+            if not isinstance(item, dict) or item.get("kind") != BOOTSTRAP_PERFORMANCE_KIND:
+                continue
+            try:
+                previous = datetime.fromisoformat(str(item.get("at") or "").replace("Z", "+00:00")).astimezone(timezone.utc)
+            except ValueError:
+                continue
+            if (stamp - previous).total_seconds() < BOOTSTRAP_PERFORMANCE_SAMPLE_SECONDS:
+                return False
+            break
+        row: dict[str, Any] = {
+            "schema": BOOTSTRAP_OBSERVATION_SCHEMA,
+            "kind": BOOTSTRAP_PERFORMANCE_KIND,
+            "at": stamp.isoformat(),
+        }
+        for key in (*BOOTSTRAP_PERFORMANCE_METRIC_KEYS, "github_cache_used", "github_cache_age_seconds", "source_head", "node_id"):
+            value = observation.get(key)
+            if value is None or isinstance(value, (dict, list, tuple, set)):
+                continue
+            row[key] = value
+        BOOTSTRAP_OBSERVATION_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with BOOTSTRAP_OBSERVATION_PATH.open("a", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(row, separators=(",", ":")) + "\n")
+        return True
+    except OSError:
+        return False
+
+
+def bootstrap_performance_stats(
+    window_hours: float = 168.0, *, now: datetime | None = None
+) -> dict[str, Any]:
+    """Summarize typed bootstrap/cache performance observations over a fixed lookback."""
+    stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    window = max(0.01, float(window_hours))
+    since = stamp - timedelta(hours=window)
+    samples: list[dict[str, Any]] = []
+    try:
+        rows = _read_jsonl_tail(BOOTSTRAP_OBSERVATION_PATH, 10000, max_bytes=8 * 1024 * 1024) if BOOTSTRAP_OBSERVATION_PATH.exists() else []
+    except OSError:
+        rows = []
+    for item in rows:
+        if not isinstance(item, dict) or item.get("kind") != BOOTSTRAP_PERFORMANCE_KIND:
+            continue
+        try:
+            at = datetime.fromisoformat(str(item.get("at") or "").replace("Z", "+00:00")).astimezone(timezone.utc)
+        except ValueError:
+            continue
+        if at < since or at > stamp + timedelta(minutes=5):
+            continue
+        samples.append({**item, "_at": at})
+    samples.sort(key=lambda item: item["_at"])
+
+    def metric_summary(key: str) -> dict[str, Any] | None:
+        values = sorted(
+            float(item[key])
+            for item in samples
+            if isinstance(item.get(key), (int, float)) and not isinstance(item.get(key), bool)
+        )
+        if not values:
+            return None
+        count = len(values)
+        middle = count // 2
+        p50 = values[middle] if count % 2 else (values[middle - 1] + values[middle]) / 2
+        p95_index = max(0, min(count - 1, ((95 * count + 99) // 100) - 1))
+        latest_value = next(
+            float(item[key])
+            for item in reversed(samples)
+            if isinstance(item.get(key), (int, float)) and not isinstance(item.get(key), bool)
+        )
+        return {
+            "n": count,
+            "min": round(values[0], 2),
+            "p50": round(p50, 2),
+            "p95": round(values[p95_index], 2),
+            "max": round(values[-1], 2),
+            "latest": round(latest_value, 2),
+        }
+
+    cache_samples = [
+        bool(item["github_cache_used"])
+        for item in samples
+        if isinstance(item.get("github_cache_used"), bool)
+    ]
+    cache_used = sum(1 for value in cache_samples if value)
+    source_heads = sorted({str(item["source_head"]) for item in samples if str(item.get("source_head") or "").strip()})
+    node_ids = sorted({str(item["node_id"]) for item in samples if str(item.get("node_id") or "").strip()})
+    return {
+        "schema": "stack-atlas.performance-stats.v1",
+        "source": str(BOOTSTRAP_OBSERVATION_PATH),
+        "window_hours": round(window, 2),
+        "sample_count": len(samples),
+        "first_at": samples[0]["_at"].isoformat() if samples else None,
+        "last_at": samples[-1]["_at"].isoformat() if samples else None,
+        "percentile_method": "nearest_rank",
+        "metrics": {key: metric_summary(key) for key in BOOTSTRAP_PERFORMANCE_METRIC_KEYS},
+        "github_cache": {
+            "observed_samples": len(cache_samples),
+            "used_samples": cache_used,
+            "used_pct": round(100.0 * cache_used / len(cache_samples), 1) if cache_samples else None,
+        },
+        "dimensions": {
+            "source_heads": source_heads,
+            "node_ids": node_ids,
+            "mixed_source_heads": len(source_heads) > 1,
+        },
+    }
 
 
 def _cwd_uses_worktree(cwd: str | os.PathLike[str] | None, worktree: str | os.PathLike[str] | None) -> bool:
@@ -3069,10 +3191,16 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
-        f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
-            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
+        def source_freshness_with_latency() -> tuple[dict[str, Any], float]:
+            source_started = time.perf_counter()
+            value = _bootstrap_source_freshness()
+            return value, round((time.perf_counter() - source_started) * 1000, 1)
+
+        f_source_freshness = pool.submit(source_freshness_with_latency)
+        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result()
         )
+        source_freshness, source_freshness_latency_ms = f_source_freshness.result()
     pc = _bind_pc_node_identity(pc, execution_nodes)
     swarm_topology = _bootstrap_swarm_topology()
     if isinstance(swarm_topology, dict):
@@ -3171,6 +3299,18 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
         "agent_contract": agent_contract,
     }
+    github_cache = github.get("cache", {}) if isinstance(github, dict) and isinstance(github.get("cache"), dict) else {}
+    _append_bootstrap_performance_observation({
+        "bootstrap_elapsed_ms": elapsed_ms,
+        "source_freshness_latency_ms": source_freshness_latency_ms,
+        "github_latency_ms": github.get("latency_ms") if isinstance(github, dict) else None,
+        "vault_latency_ms": vault.get("latency_ms") if isinstance(vault, dict) else None,
+        "live_swarm_elapsed_ms": live_swarm.get("elapsed_ms") if isinstance(live_swarm, dict) else None,
+        "github_cache_used": github_cache.get("used"),
+        "github_cache_age_seconds": github_cache.get("age_seconds"),
+        "source_head": vault.get("head") if isinstance(vault, dict) else None,
+        "node_id": ((pc.get("node_identity") or {}).get("node_id")) if isinstance(pc, dict) else None,
+    })
     glance = {
         "schema": "bootstrap.v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -3194,6 +3334,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "swarm_topology": swarm_topology,
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+            "performance_stats": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py performance-stats --hours 168",
             "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
             "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
             "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
@@ -3792,6 +3933,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Derived stack capability/dependency Atlas; never a runtime authority.")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("bootstrap-glance")
+    perf = sub.add_parser("performance-stats")
+    perf.add_argument("--hours", type=float, default=168.0)
     sub.add_parser("live-swarm")
     fleet = sub.add_parser("fleet-watch")
     fleet.add_argument("--partition", choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS))
@@ -3820,6 +3963,8 @@ def main() -> int:
 
     if args.command == "bootstrap-glance":
         value = build_live_bootstrap_glance()
+    elif args.command == "performance-stats":
+        value = bootstrap_performance_stats(args.hours)
     elif args.command == "live-swarm":
         value = build_live_swarm_snapshot()
     elif args.command == "fleet-watch":
