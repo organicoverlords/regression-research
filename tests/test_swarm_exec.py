@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
-import subprocess, tempfile, unittest
+import os, subprocess, tempfile, unittest
+from unittest import mock
 
 ROOT=Path(__file__).resolve().parents[1]
 SPEC=importlib.util.spec_from_file_location("swarm_exec",ROOT/"tools"/"swarm_exec.py")
@@ -11,6 +12,77 @@ class SwarmExecTests(unittest.TestCase):
     def test_safe_work_id(self):
         self.assertEqual(m.safe_work_id("issue/768:test"), "issue_768_test")
         with self.assertRaises(ValueError): m.safe_work_id("bad space")
+
+    def test_gh_buffer_local_target_accepts_only_loopback(self):
+        with mock.patch.dict(os.environ, {"GHBUF_ADDR": "localhost:19555"}):
+            self.assertEqual(m.gh_buffer_local_target(), ("127.0.0.1", 19555))
+        with mock.patch.dict(os.environ, {"GHBUF_ADDR": "192.168.0.127:19427"}):
+            with self.assertRaisesRegex(ValueError, "SWARM_EXEC_GHBUF_LOOPBACK_REQUIRED"):
+                m.gh_buffer_local_target()
+
+    def test_gh_buffer_forward_is_remote_loopback_and_fail_closed(self):
+        args=m.gh_buffer_forward_args(24567,"127.0.0.1",19427)
+        self.assertEqual(args,["-o","ExitOnForwardFailure=yes","-R","127.0.0.1:24567:127.0.0.1:19427"])
+        self.assertNotIn("0.0.0.0", " ".join(args))
+        with self.assertRaisesRegex(ValueError, "SWARM_EXEC_GHBUF_LOOPBACK_REQUIRED"):
+            m.gh_buffer_forward_args(24567,"192.168.0.127",19427)
+
+    def test_ssh_args_places_reverse_forward_before_destination(self):
+        with mock.patch.object(m.Path,"is_file",return_value=True):
+            args=m.ssh_args(gh_buffer_remote_port=24567,gh_buffer_local_port=19427)
+        destination=f"{m.swarm_route.OMEN_USER}@{m.swarm_route.OMEN_HOST}"
+        self.assertEqual(args[-1],destination)
+        self.assertIn("127.0.0.1:24567:127.0.0.1:19427",args[:-1])
+        self.assertNotIn("0.0.0.0", " ".join(args))
+
+    def test_gh_buffer_remote_port_is_bounded_and_process_scoped(self):
+        first=m.select_gh_buffer_remote_port("issue-remote-cache",pid=100)
+        second=m.select_gh_buffer_remote_port("issue-remote-cache",pid=101)
+        self.assertGreaterEqual(first,m.GHBUF_REMOTE_PORT_BASE)
+        self.assertLess(first,m.GHBUF_REMOTE_PORT_BASE+m.GHBUF_REMOTE_PORT_SPAN)
+        self.assertNotEqual(first,second)
+
+    def test_remote_script_exports_tunnel_addr_only_when_requested(self):
+        _workspace,plain=m.remote_script("plain","true",self.CACHE_ID)
+        self.assertNotIn("GHBUF_ADDR=",plain)
+        _workspace,tunneled=m.remote_script("tunnel","true",self.CACHE_ID,gh_buffer_remote_port=24567)
+        self.assertIn("export GHBUF_ADDR=127.0.0.1:24567",tunneled)
+        self.assertIn("command -v ghbuf",tunneled)
+        self.assertIn("ghbuf exec-readonly -- bash -c true",tunneled)
+        self.assertLess(tunneled.index("export GHBUF_ADDR="),tunneled.index("ghbuf exec-readonly"))
+        self.assertNotIn("ghbuf exec-readonly",plain)
+
+    def test_gh_buffer_sidecar_preflight_pins_local_addr(self):
+        completed=subprocess.CompletedProcess([],0,"pong\n","")
+        with mock.patch.object(m,"_ghbuf_bin",return_value="ghbuf"), mock.patch.object(
+            m.subprocess,"run",return_value=completed
+        ) as run:
+            m.ensure_gh_buffer_sidecar("127.0.0.1",19555,timeout=1.25)
+        self.assertEqual(run.call_args.args[0],["ghbuf","ping"])
+        self.assertEqual(run.call_args.kwargs["env"]["GHBUF_ADDR"],"127.0.0.1:19555")
+        self.assertEqual(run.call_args.kwargs["timeout"],1.25)
+
+    def test_tunneled_script_routes_literal_gh_through_fail_closed_exec(self):
+        command="gh pr merge 1 --repo organicoverlords/regression-research"
+        _workspace,script=m.remote_script("refusal",command,self.CACHE_ID,gh_buffer_remote_port=24567)
+        self.assertIn("ghbuf exec-readonly -- bash -c",script)
+        self.assertIn("gh pr merge 1 --repo organicoverlords/regression-research",script)
+        self.assertIn("SWARM_EXEC_GHBUF_REMOTE_CLIENT_MISSING",script)
+        self.assertNotIn("0.0.0.0",script)
+
+    def test_sidecar_preflight_failure_is_fail_closed(self):
+        failed=subprocess.CompletedProcess([],1,"","no sidecar")
+        with mock.patch.object(m,"_ghbuf_bin",return_value="ghbuf"), mock.patch.object(
+            m.subprocess,"run",return_value=failed
+        ):
+            with self.assertRaisesRegex(ValueError,"SWARM_EXEC_GHBUF_SIDECAR_UNAVAILABLE"):
+                m.ensure_gh_buffer_sidecar("127.0.0.1",19427)
+
+    def test_parser_exposes_fixed_purpose_gh_buffer_readonly_lane(self):
+        args=m.build_parser().parse_args(["--work-id","proof","--gh-buffer-readonly","--command","true"])
+        self.assertTrue(args.gh_buffer_readonly)
+        plain=m.build_parser().parse_args(["--work-id","proof","--command","true"])
+        self.assertFalse(plain.gh_buffer_readonly)
 
     def test_remote_workspace_is_nvme_and_sources_worker_tools(self):
         workspace, script=m.remote_script("issue-768", "python3 -V", self.CACHE_ID)
