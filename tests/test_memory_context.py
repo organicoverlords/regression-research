@@ -2,7 +2,7 @@ import json
 import unittest
 
 from tools.memory_bank import annotate_memory
-from tools.memory_context import build_context_pack, context_residual_query
+from tools.memory_context import build_context_pack, context_memory_eligible, context_residual_query
 
 
 class MemoryContextPackTests(unittest.TestCase):
@@ -66,6 +66,22 @@ class MemoryContextPackTests(unittest.TestCase):
 
         self.assertEqual(pack["durable_memory"], [])
         self.assertEqual(pack["omitted"]["unanchored_matches"], 1)
+
+    def test_context_memory_eligibility_matches_durable_anchor_contract(self):
+        eligible = self.memory("eligible")
+        source = self.memory("source", kind="correction", evidence=[])
+        source["tags"] = ["assistant-recorded", "verbatim-source"]
+        source["source_messages"] = ["exact correction"]
+        forged = self.memory("forged", evidence=[])
+        forged["source_messages"] = ["unvalidated source"]
+        provisional = self.memory("provisional", state="PROVISIONAL")
+        status = self.memory("status", kind="status")
+
+        self.assertTrue(context_memory_eligible(eligible))
+        self.assertTrue(context_memory_eligible(source))
+        self.assertFalse(context_memory_eligible(forged))
+        self.assertFalse(context_memory_eligible(provisional))
+        self.assertFalse(context_memory_eligible(status))
 
     def test_named_project_excludes_other_named_project_memory(self):
         p3 = self.memory("p3", scope="p3/build", project="p3", text="P3 build lesson")

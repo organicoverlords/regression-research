@@ -29,6 +29,27 @@ class MemoryContextRetrievalTests(unittest.TestCase):
         hits = search_context_memory([unrelated, relevant], "preserve inherited", limit=8)
         self.assertEqual([hit["id"] for hit in hits], ["relevant"])
 
+    def test_context_eligibility_is_applied_before_final_result_cap(self):
+        proven = self.entry("proven", "camera framing")
+        cases = {}
+        provisional = [self.entry(f"provisional-{i}", "camera framing") for i in range(8)]
+        for entry in provisional:
+            entry["state"] = "PROVISIONAL"
+        cases["provisional"] = provisional
+        statuses = [self.entry(f"status-{i}", "camera framing") for i in range(8)]
+        for entry in statuses:
+            entry["kind"] = "status"
+        cases["status"] = statuses
+        unanchored = [self.entry(f"unanchored-{i}", "camera framing") for i in range(8)]
+        for entry in unanchored:
+            entry["evidence"] = []
+        cases["unanchored"] = unanchored
+
+        for label, distractors in cases.items():
+            with self.subTest(label=label):
+                hits = search_context_memory([*distractors, proven], "camera framing", limit=8)
+                self.assertEqual([hit["id"] for hit in hits], ["proven"])
+
     def test_named_project_gets_reserved_recall_budget(self):
         globals_ = [self.entry(f"g{i}", f"build routing generic note {i}") for i in range(12)]
         project = self.entry("p3-specific", "p3 build routing project note", project="p3", scope="p3/build")

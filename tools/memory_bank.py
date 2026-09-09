@@ -15,7 +15,7 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
@@ -23,7 +23,7 @@ try:
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
@@ -850,7 +850,10 @@ def search_context_memory(
     if _is_entry_id(query):
         return search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit)
     selectors = context_selectors(query)
-    filtered = [entry for entry in entries if entry_matches_selectors(entry, selectors)]
+    filtered = [
+        entry for entry in entries
+        if entry_matches_selectors(entry, selectors) and context_memory_eligible(entry)
+    ]
     projects = selectors.get("projects") or set()
     residual = context_residual_query(query)
 

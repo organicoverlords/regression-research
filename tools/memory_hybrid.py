@@ -384,10 +384,13 @@ def search_entries_hybrid(
         strict_admission=strict_admission,
     )
 
-    # Canonical lesson wording keeps its established ordering. Preserved source
-    # language fills otherwise unused recall slots, or becomes the primary lane
-    # when the canonical lesson text has no match.
+    # Canonical lesson wording keeps its established ordering. Preserve one
+    # bounded source-evidence slot when canonical matches would otherwise consume
+    # the whole result cap; this keeps exact correction wording discoverable.
+    seen = {str(entry["id"]) for entry in canonical}
+    source_only = [entry for entry in evidence if str(entry["id"]) not in seen]
+    if source_only and effective_limit > 1 and len(canonical) >= effective_limit:
+        return [*canonical[: effective_limit - 1], source_only[0]]
     merged = list(canonical)
-    seen = {str(entry["id"]) for entry in merged}
-    merged.extend(entry for entry in evidence if str(entry["id"]) not in seen)
+    merged.extend(source_only)
     return merged[:effective_limit]

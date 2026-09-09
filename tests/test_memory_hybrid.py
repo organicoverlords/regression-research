@@ -226,6 +226,30 @@ class HybridMemoryTests(unittest.TestCase):
         hits = search_entries_hybrid([source_only, canonical], "connector disappeared command job died", limit=2)
         self.assertEqual([hit["id"] for hit in hits], ["canonical", "source-only"])
 
+    def test_source_wording_keeps_one_slot_when_canonical_hits_fill_cap(self):
+        canonical = [
+            self.entry(
+                f"generic-{i}",
+                "camera framing output",
+                evidence=[f"incident:generic-{i}"],
+            )
+            for i in range(8)
+        ]
+        source_only = self.entry(
+            "source-critical",
+            "Preserve previous asset geometry",
+            title="Prior correction",
+            evidence=["incident:source-critical"],
+        )
+        source_only["source_messages"] = ["camera framing output"]
+        source_only["turn_task"] = "camera framing output"
+
+        hits = search_entries_hybrid([*canonical, source_only], "camera framing output", limit=8)
+
+        self.assertEqual(len(hits), 8)
+        self.assertEqual([hit["id"] for hit in hits[:7]], [f"generic-{i}" for i in range(7)])
+        self.assertEqual(hits[-1]["id"], "source-critical")
+
     def test_source_wording_does_not_restore_rejected_or_sensitive_entries(self):
         rejected = self.entry("rejected", "Measured inputs differ.", state="REJECTED")
         rejected["source_messages"] = ["walking animation keeps resetting"]
