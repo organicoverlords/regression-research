@@ -849,12 +849,27 @@ def build_manual_sanity_projection(
         # Backward-compatible fallback for v1 baselines. Treat the former weighted sum as one axis.
         legacy_weights = baseline.get("weights") if isinstance(baseline.get("weights"), dict) else {}
         axis_specs = {"legacy": {"metrics": legacy_weights, "semantics": "legacy single-axis baseline"}}
+    configured_headline_axes = baseline.get("headline_axes")
+    if isinstance(configured_headline_axes, list) and configured_headline_axes:
+        headline_axis_names = list(dict.fromkeys(
+            str(name).strip() for name in configured_headline_axes if str(name).strip()
+        ))
+    else:
+        headline_axis_names = [
+            str(name) for name, raw_axis in axis_specs.items()
+            if not (isinstance(raw_axis, dict) and raw_axis.get("scored") is False)
+        ]
+
     axes: dict[str, Any] = {}
     components: dict[str, Any] = {}
-    axis_descriptive_scores: list[float] = []
-    score_complete = True
+    headline_axis_scores: list[float] = []
+    score_complete = bool(headline_axis_names) and all(name in axis_specs for name in headline_axis_names)
     for axis_name, raw_axis in axis_specs.items():
         axis = raw_axis if isinstance(raw_axis, dict) else {}
+        axis_scored = axis.get("scored") is not False
+        headline_included = axis_scored and axis_name in headline_axis_names
+        if axis_name in headline_axis_names and not axis_scored:
+            score_complete = False
         metric_weights = axis.get("metrics") if isinstance(axis.get("metrics"), dict) else {}
         axis_score = 0.0
         axis_complete = bool(metric_weights)
@@ -874,15 +889,18 @@ def build_manual_sanity_projection(
         descriptive = round(axis_score, 1) if axis_complete else None
         axes[axis_name] = {
             "descriptive_delta": descriptive,
-            "score_delta": descriptive if status != "INSUFFICIENT_DATA" and axis_complete else None,
+            "score_delta": descriptive if axis_scored and status != "INSUFFICIENT_DATA" and axis_complete else None,
+            "scored": axis_scored,
+            "headline_included": headline_included,
             "components": axis_components,
             "semantics": axis.get("semantics"),
         }
-        if descriptive is not None:
-            axis_descriptive_scores.append(descriptive)
-        else:
-            score_complete = False
-    descriptive_headline = round(min(axis_descriptive_scores), 1) if axis_descriptive_scores and score_complete else None
+        if headline_included:
+            if descriptive is not None:
+                headline_axis_scores.append(descriptive)
+            else:
+                score_complete = False
+    descriptive_headline = round(min(headline_axis_scores), 1) if headline_axis_scores and score_complete else None
     score_delta = descriptive_headline if status != "INSUFFICIENT_DATA" else None
     # Canonical v2+ baselines with a continuation baseline keep duration out of the mixed manual headline.
     # Retain the historical guardrail behavior only for older baselines/tests that predate run-mode separation.
@@ -923,6 +941,7 @@ def build_manual_sanity_projection(
         "available": True,
         "schema": "manual-worker-sanity.v1",
         "baseline_id": baseline.get("baseline_id"),
+        "score_revision": baseline.get("score_revision"),
         "baseline_label": baseline.get("label"),
         "baseline_path": str(baseline_path),
         "boundary_at": baseline.get("boundary_at"),
@@ -933,6 +952,8 @@ def build_manual_sanity_projection(
         "status": status,
         "score_delta": score_delta,
         "descriptive_delta": descriptive_headline,
+        "headline_axes": headline_axis_names,
+        "diagnostic_axes": [name for name, item in axes.items() if not item.get("headline_included")],
         "direction": direction,
         "post_run_count": run_count,
         "minimum_post_runs_for_provisional": provisional_min,
@@ -942,7 +963,7 @@ def build_manual_sanity_projection(
         "guardrails": guardrails,
         "continuation": continuation,
         "components": components,
-        "semantics": "0 is the fixed pre-#658 insanity baseline. General manual sanity covers reporting friction plus lifecycle mistakes. Go/continue duration and fragmentation are a separate continuation projection; bounded task/correction duration is not continuation evidence. Diagnostic only, never a worker target or gate.",
+        "semantics": "0 is the fixed pre-#658 insanity baseline. The headline uses only explicitly selected behavior axes; reporting-shape axes may remain visible as unscored diagnostics. Go/continue duration and fragmentation stay separate. Diagnostic only, never a worker target or gate.",
     }
 
 
