@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import tools.memory_bank as memory_bank
-from tools.memory_bank import BankError, _main, _materialized_context_query_eligible, _materialized_lesson_history, append_entry, attach_materialized_orientation, load_bank, validate_entry
+from tools.memory_bank import BankError, _compact_timeline_report, _main, _materialized_context_query_eligible, _materialized_lesson_history, append_entry, attach_materialized_orientation, load_bank, validate_entry
 
 
 class MaterializedContextPriorTests(unittest.TestCase):
@@ -117,6 +117,36 @@ class MaterializedContextPriorTests(unittest.TestCase):
         self.assertEqual(pack["historical_evidence"][0]["source_event_id"], "github-pr:repo#778")
         self.assertTrue(pack["historical_evidence"][0]["live_truth_required"])
 
+
+
+
+class CompactTimelineProjectionTests(unittest.TestCase):
+    def test_compact_projection_removes_repeated_forensic_bulk_and_bounds_text(self):
+        events = []
+        for index in range(20):
+            events.append({
+                "id": f"event-{index}", "source_type": "VAULT_MEMORY", "event_at": "2026-09-09T00:00:00Z",
+                "title": "T" * 500, "summary": "S" * 1200, "continuity": {"classification_basis": ["X" * 1000] * 10},
+                "refs": ["R" * 500] * 10,
+            })
+        report = {
+            "schema_version": 1, "authority": "DERIVED_HISTORY_ONLY", "query": "memory benchmark",
+            "materialized": {"status": "FRESH", "as_of": "2026-09-09T00:00:00Z", "live_truth_required": True, "huge": "M" * 10000},
+            "snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": [{"window": "24h", "observations": 100, "case_examples": ["X" * 5000]}]},
+            "continuity_graph": {"semantics": "cases", "summary": {"matched_cases": 9}, "cases": [{"case_id": f"c{i}", "latest_title": "C" * 500, "event_ids": ["x"] * 100} for i in range(8)]},
+            "lesson_packet": {"status": "READY", "items": [{"source_event_id": f"p{i}", "title": "P" * 500, "conclusion": "Q" * 800} for i in range(8)]},
+            "work_graph": {"summary": {"matched_commit_groups": 8}, "commit_groups": [{"work_id": f"w{i}", "title": "W" * 500, "workers": [{"findings": "F" * 2000}]} for i in range(8)]},
+            "matching_events": 20, "events": events, "truncated": False,
+        }
+        compact = _compact_timeline_report(report, limit=20)
+        encoded = json.dumps(compact, ensure_ascii=False).encode("utf-8")
+        self.assertLess(len(encoded), 24000)
+        self.assertEqual(len(compact["events"]), 20)
+        self.assertNotIn("continuity", compact["events"][0])
+        self.assertLessEqual(len(compact["events"][0]["summary"]), 320)
+        self.assertLessEqual(len(compact["continuity_graph"]["cases"]), 3)
+        self.assertLessEqual(len(compact["lesson_packet"]["items"]), 3)
+        self.assertLessEqual(len(compact["work_graph"]["commit_groups"]), 3)
 
 class MemoryBankValidationTests(unittest.TestCase):
     def valid(self):

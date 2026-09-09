@@ -1034,6 +1034,158 @@ def _print_json(value: Any, *, compact: bool = False) -> None:
     stream.flush()
 
 
+def _clip_timeline_text(value: Any, limit: int) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return text if len(text) <= limit else text[: max(0, limit - 3)].rstrip() + "..."
+
+
+def _compact_timeline_report(report: dict[str, Any], *, limit: int = 20) -> dict[str, Any]:
+    """Project rich forensic timeline output into a bounded agent-facing response."""
+    effective_limit = min(100, max(1, int(limit)))
+    result = {key: report.get(key) for key in (
+        "schema_version", "authority", "view", "project", "query", "thread",
+        "matching_events", "truncated",
+    ) if report.get(key) is not None}
+
+    materialized = report.get("materialized") if isinstance(report.get("materialized"), dict) else {}
+    if materialized:
+        result["materialized"] = {key: materialized.get(key) for key in (
+            "status", "as_of", "age_seconds", "stale_after_seconds", "coverage_status",
+            "absence_semantics", "live_truth_required", "read_mode", "refresh_mode", "delta_events",
+        ) if materialized.get(key) is not None}
+
+    density = report.get("evidence_density")
+    if isinstance(density, dict):
+        result["evidence_density"] = dict(density)
+
+    snapshots = report.get("snapshots") if isinstance(report.get("snapshots"), dict) else {}
+    compact_windows: list[dict[str, Any]] = []
+    for window in list(snapshots.get("windows") or [])[:4]:
+        if not isinstance(window, dict):
+            continue
+        item = {key: window.get(key) for key in ("window", "observations") if window.get(key) is not None}
+        cases = window.get("cases") if isinstance(window.get("cases"), dict) else {}
+        if cases:
+            item["cases"] = {key: cases.get(key) for key in (
+                "total", "red", "slopwall", "incident", "regression", "security_incident"
+            ) if cases.get(key) is not None}
+        evidence_density = window.get("evidence_density") if isinstance(window.get("evidence_density"), dict) else {}
+        if evidence_density.get("total") is not None:
+            item["evidence_density"] = {"total": evidence_density.get("total")}
+        compact_windows.append(item)
+    if snapshots or compact_windows:
+        result["snapshots"] = {
+            "authority": snapshots.get("authority") or "DERIVED_HISTORY_ONLY",
+            "windows": compact_windows,
+        }
+
+    continuity = report.get("continuity_graph") if isinstance(report.get("continuity_graph"), dict) else {}
+    if continuity:
+        cases = []
+        for case in list(continuity.get("cases") or [])[:3]:
+            if not isinstance(case, dict):
+                continue
+            item = {key: case.get(key) for key in (
+                "case_id", "anchors", "severity", "traits", "observation_count", "signal_observation_count",
+                "latest_event_at", "latest_signal_at", "latest_title", "latest_source_type",
+            ) if case.get(key) not in (None, "", [], {})}
+            if "latest_title" in item:
+                item["latest_title"] = _clip_timeline_text(item["latest_title"], 220)
+            for key, clip in (("anchors", 160), ("traits", 80)):
+                if isinstance(item.get(key), list):
+                    item[key] = [clipped for value in item[key][:4] if (clipped := _clip_timeline_text(value, clip))]
+            cases.append(item)
+        result["continuity_graph"] = {
+            "semantics": continuity.get("semantics"),
+            "scope": continuity.get("scope"),
+            "summary": continuity.get("summary", {}),
+            "cases": cases,
+        }
+
+    packet = report.get("lesson_packet") if isinstance(report.get("lesson_packet"), dict) else {}
+    if packet:
+        items = []
+        for raw in list(packet.get("items") or [])[:3]:
+            if not isinstance(raw, dict):
+                continue
+            item = {key: raw.get(key) for key in (
+                "source_event_id", "source_type", "project", "event_at", "title", "conclusion",
+                "evidence_anchors", "relevance_terms", "changed_paths", "lineage_copy_count", "lineage_semantics",
+            ) if raw.get(key) not in (None, "", [], {})}
+            for key, clip in (("title", 220), ("conclusion", 320)):
+                if key in item:
+                    item[key] = _clip_timeline_text(item[key], clip)
+            for key in ("evidence_anchors", "relevance_terms", "changed_paths"):
+                if isinstance(item.get(key), list):
+                    item[key] = [clipped for value in item[key][:4] if (clipped := _clip_timeline_text(value, 180))]
+            items.append(item)
+        result["lesson_packet"] = {key: packet.get(key) for key in (
+            "status", "authority", "validation", "live_truth_required", "query", "summary"
+        ) if packet.get(key) not in (None, "", [], {})}
+        result["lesson_packet"]["items"] = items
+
+    graph = report.get("work_graph") if isinstance(report.get("work_graph"), dict) else {}
+    if graph:
+        groups = []
+        for raw in list(graph.get("commit_groups") or [])[:3]:
+            if not isinstance(raw, dict):
+                continue
+            item = {key: raw.get(key) for key in (
+                "work_id", "project", "title", "commit_count", "equivalent_commit_count",
+                "branch_refs", "github_anchors", "source_counts", "latest_at",
+            ) if raw.get(key) not in (None, "", [], {})}
+            if isinstance(item.get("branch_refs"), list):
+                item["branch_refs"] = [clipped for value in item["branch_refs"][:4] if (clipped := _clip_timeline_text(value, 160))]
+            if isinstance(item.get("github_anchors"), list):
+                item["github_anchors"] = [clipped for value in item["github_anchors"][:4] if (clipped := _clip_timeline_text(value, 160))]
+            title = _clip_timeline_text(item.get("title"), 220)
+            if title:
+                item["title"] = title
+            groups.append(item)
+        result["work_graph"] = {
+            "semantics": graph.get("semantics"),
+            "scope": graph.get("scope"),
+            "summary": graph.get("summary", {}),
+            "commit_groups": groups,
+        }
+
+    event_keys = (
+        "id", "source_type", "authority", "event_at", "recorded_at", "project", "projects",
+        "state", "kind", "scope", "worker", "display_label", "population", "automation_id", "run_id",
+        "duration_minutes", "target_run_minutes", "target_utilization_pct", "sha", "short_sha", "patch_id",
+        "repo_path", "artifact_type", "path", "report_path", "evidence_type", "incident_id",
+        "github_kind", "github_number", "github_repo", "url", "workflow", "status", "conclusion",
+        "process_id", "backend_generation", "thread_id", "disposition", "durability",
+        "semantic_category", "primary_domain", "title", "summary", "outcome", "remaining_gate", "findings",
+        "stop_reason", "refs", "anchors", "evidence",
+    )
+    compact_events = []
+    for raw in list(report.get("events") or [])[:effective_limit]:
+        if not isinstance(raw, dict):
+            continue
+        item = {key: raw.get(key) for key in event_keys if raw.get(key) not in (None, "", [], {})}
+        for key, clip in (
+            ("title", 220), ("summary", 320), ("outcome", 220), ("remaining_gate", 220), ("findings", 260),
+            ("stop_reason", 180), ("scope", 200), ("display_label", 180), ("repo_path", 240), ("path", 240),
+            ("report_path", 240), ("url", 240),
+        ):
+            if key in item:
+                item[key] = _clip_timeline_text(item[key], clip)
+        for key in ("projects", "refs", "anchors", "evidence"):
+            if isinstance(item.get(key), list):
+                item[key] = [clipped for value in item[key][:2] if (clipped := _clip_timeline_text(value, 160))]
+        compact_events.append(item)
+    result["events"] = compact_events
+
+    cache = report.get("query_cache")
+    if isinstance(cache, dict):
+        result["query_cache"] = dict(cache)
+    result["detail"] = "COMPACT_AGENT_FACING; use --full-detail for forensic projection"
+    return result
+
+
 def attach_materialized_orientation(
     report: dict[str, Any],
     *,
@@ -1132,6 +1284,7 @@ def _main() -> int:
     timeline_cmd.add_argument("--repo", action="append", default=[], metavar="PROJECT=PATH")
     timeline_cmd.add_argument("--worker-history", type=Path, default=DEFAULT_WORKER_HISTORY, help="additional immutable worker-report history root")
     timeline_cmd.add_argument("--no-workers", action="store_true", help="exclude timed/manual worker-report history")
+    timeline_cmd.add_argument("--full-detail", action="store_true", help="emit the full forensic timeline projection instead of the compact agent-facing default")
     timeline_cmd.add_argument(
         "--live-rebuild", action="store_true",
         help="explicitly rescan timeline sources instead of reading the periodic Vault materialization",
@@ -1211,7 +1364,7 @@ def _main() -> int:
                     include_workers=not args.no_workers,
                 )
                 if materialized is not None:
-                    _print_json(materialized)
+                    _print_json(materialized if args.full_detail else _compact_timeline_report(materialized, limit=args.limit))
                     return 0
                 _print_json({
                     "status": "MISSING",
@@ -1256,7 +1409,7 @@ def _main() -> int:
                     "workers": {"bounded": False, "included": not args.no_workers},
                 },
             )
-            _print_json(report)
+            _print_json(report if args.full_detail else _compact_timeline_report(report, limit=args.limit))
             return 0
         if args.command in ("overview", "digest"):
             report = build_overview(entries, limit=args.limit)
