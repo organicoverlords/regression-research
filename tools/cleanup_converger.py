@@ -443,9 +443,8 @@ def disk_free_gb(path: Path) -> float:
 def busy_claim(actor: str, scope: str) -> tuple[bool, str]:
     if not BUSY_CMD.exists():
         return False, f"BusyCoordinator missing: {BUSY_CMD}"
-    inspect = _run([str(BUSY_CMD), "inspect", scope], check=False)
-    if inspect.returncode != 0:
-        return False, inspect.stderr.strip() or inspect.stdout.strip()
+    # `claim` is the atomic collision decision. A preceding `inspect` is both
+    # redundant and racy, and doubles coordinator subprocesses on this hot path.
     claim = _run([str(BUSY_CMD), "claim", actor, scope], check=False)
     if claim.returncode != 0 or '"ok":true' not in claim.stdout.lower():
         return False, claim.stderr.strip() or claim.stdout.strip()
@@ -619,6 +618,30 @@ def summarize_actions(actions: list[Action]) -> dict[str, Any]:
     }
 
 
+def compact_cli_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Bound human/operator JSON without changing the in-process result contract."""
+    actions = result.get("actions")
+    if not isinstance(actions, list):
+        return result
+
+    actionable: list[Any] = []
+    non_actionable_reason_counts: dict[str, int] = {}
+    for row in actions:
+        action = row.get("action") if isinstance(row, dict) else None
+        if action not in {"PRESERVE", "SKIP"}:
+            actionable.append(row)
+            continue
+        reason = row.get("reason") if isinstance(row, dict) else None
+        key = f"{action}:{reason or 'unspecified'}"
+        non_actionable_reason_counts[key] = non_actionable_reason_counts.get(key, 0) + 1
+
+    compact = dict(result)
+    compact["non_actionable_count"] = sum(non_actionable_reason_counts.values())
+    compact["non_actionable_reason_counts"] = dict(sorted(non_actionable_reason_counts.items()))
+    compact["actions"] = actionable
+    return compact
+
+
 def converge(
     *,
     apply: bool,
@@ -643,10 +666,18 @@ def converge(
         for repo_name, repo, scope in existing_repos:
             # Missing worktree directories leave prunable Git metadata behind. In apply mode,
             # clear only that stale registration before scanning so a vanished temp lane cannot
-            # crash cleanliness probes or block unrelated safe cleanup. Git worktree prune never
-            # removes a live worktree directory or branch.
+            # crash cleanliness probes or block unrelated safe cleanup. The prune mutates shared
+            # Git worktree metadata, so keep it inside the same exact collision scope as removals.
             if apply:
-                _git(repo, "worktree", "prune", check=False)
+                claimed, detail = busy_claim(actor, scope)
+                if not claimed:
+                    actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"pre_scan_busy_claim_failed:{detail}"))
+                    continue
+                try:
+                    _git(repo, "worktree", "prune", check=False)
+                finally:
+                    busy_release(actor, scope, f"cleanup converger round {round_no}: pre-scan stale worktree prune")
+
             candidates, cache_candidates, observations = scan_repo(repo_name, repo, window_seconds)
             actions.extend(observations)
             round_candidates += len(candidates) + len(cache_candidates)
@@ -659,25 +690,43 @@ def converge(
                 continue
 
             if candidates:
-                claimed, detail = busy_claim(actor, scope)
-                if not claimed:
-                    actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"busy_claim_failed:{detail}"))
-                else:
-                    removed_here = 0
+                removed_here = 0
+                claimed_any = False
+                for item in candidates:
+                    claimed, detail = busy_claim(actor, scope)
+                    if not claimed:
+                        actions.append(Action(repo_name, str(item.path), "BLOCKED", item.branch, item.head, f"busy_claim_failed:{detail}"))
+                        continue
+                    claimed_any = True
                     try:
-                        for item in candidates:
-                            result = _remove_one(repo_name, repo, item, window_seconds)
-                            actions.append(result)
-                            if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
-                                round_progress += 1
-                                removed_here += 1
-                        _git(repo, "worktree", "prune", check=False)
+                        result = _remove_one(repo_name, repo, item, window_seconds)
+                        actions.append(result)
+                        if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
+                            round_progress += 1
+                            removed_here += 1
                     finally:
                         busy_release(
                             actor,
                             scope,
-                            f"cleanup converger round {round_no}: removed {removed_here}; non-force branch-preserving operator cleanup",
+                            f"cleanup converger round {round_no}: worktree pass for {item.path.name}; non-force branch-preserving operator cleanup",
                         )
+
+                # Preserve the existing post-removal metadata prune, but do not hold the
+                # repo-wide collision scope across every candidate. Reacquire it only for
+                # this short mutation so other worktree operations can interleave safely.
+                if claimed_any:
+                    claimed, detail = busy_claim(actor, scope)
+                    if not claimed:
+                        actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"post_remove_prune_busy_claim_failed:{detail}"))
+                    else:
+                        try:
+                            _git(repo, "worktree", "prune", check=False)
+                        finally:
+                            busy_release(
+                                actor,
+                                scope,
+                                f"cleanup converger round {round_no}: post-remove prune after {removed_here} removals",
+                            )
 
             for item in cache_candidates:
                 cache_scope = _cache_scope(repo_name, item)
@@ -753,7 +802,7 @@ def main() -> int:
         window_seconds=args.activity_window_seconds,
         actor=args.actor,
     )
-    print(json.dumps(result, indent=2))
+    print(json.dumps(compact_cli_result(result), indent=2))
     return 0
 
 
