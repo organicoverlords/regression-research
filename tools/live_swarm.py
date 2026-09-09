@@ -17,6 +17,7 @@ MAX_TRANSPORT_SOURCES = 16
 TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
 TRANSPORT_KIND = "MCPv4"
 LIVE_SWARM_CACHE_SECONDS = 30.0
+LIVE_SWARM_REFRESH_LEASE_SECONDS = 5.0
 
 
 def _dt(value: Any) -> datetime | None:
@@ -158,18 +159,64 @@ def _live_swarm_cache_path() -> Path:
     return _local_appdata_root() / "StackAtlas" / "bootstrap-cache" / "live-swarm.json"
 
 
-def _read_live_swarm_cache(now: datetime) -> tuple[dict[str, Any] | None, float | None]:
+def _read_live_swarm_cache_any(now: datetime) -> tuple[dict[str, Any] | None, float | None]:
     path = _live_swarm_cache_path()
     try:
         age = max(0.0, now.timestamp() - path.stat().st_mtime)
-        if age > LIVE_SWARM_CACHE_SECONDS:
-            return None, age
         payload = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         return None, None
     if not isinstance(payload, dict) or payload.get("schema") != "live-swarm.v1":
         return None, age
     return payload, age
+
+
+def _live_swarm_refresh_lease_path() -> Path:
+    path = _live_swarm_cache_path()
+    return path.with_name(f"{path.name}.refresh")
+
+
+def _try_live_swarm_refresh_lease(now: datetime) -> bool:
+    path = _live_swarm_refresh_lease_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for _ in range(2):
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                age = max(0.0, now.timestamp() - path.stat().st_mtime)
+            except OSError:
+                continue
+            if age > LIVE_SWARM_REFRESH_LEASE_SECONDS:
+                try:
+                    path.unlink()
+                except OSError:
+                    return False
+                continue
+            return False
+        except OSError:
+            return True
+        try:
+            os.write(fd, f"{os.getpid()} {now.timestamp():.6f}\n".encode("ascii"))
+        finally:
+            os.close(fd)
+        return True
+    return False
+
+
+def _cached_live_swarm_result(
+    cached: dict[str, Any], cache_age: float, started: float, *, stale_while_refresh: bool = False,
+) -> dict[str, Any]:
+    result = dict(cached)
+    result["materialized_elapsed_ms"] = result.get("elapsed_ms")
+    result["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    result["cache"] = {
+        "used": True,
+        "age_seconds": round(cache_age, 3),
+        "max_age_seconds": LIVE_SWARM_CACHE_SECONDS,
+        "stale_while_refresh": stale_while_refresh,
+    }
+    return result
 
 
 def _write_live_swarm_cache(payload: dict[str, Any]) -> None:
@@ -306,17 +353,12 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     explicit_now = now is not None
     now = now or datetime.now(timezone.utc)
     if not explicit_now:
-        cached, cache_age = _read_live_swarm_cache(now)
-        if cached is not None:
-            result = dict(cached)
-            result["materialized_elapsed_ms"] = result.get("elapsed_ms")
-            result["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 1)
-            result["cache"] = {
-                "used": True,
-                "age_seconds": round(float(cache_age or 0.0), 3),
-                "max_age_seconds": LIVE_SWARM_CACHE_SECONDS,
-            }
-            return result
+        cached, cache_age = _read_live_swarm_cache_any(now)
+        if cached is not None and cache_age is not None:
+            if cache_age <= LIVE_SWARM_CACHE_SECONDS:
+                return _cached_live_swarm_result(cached, cache_age, started)
+            if not _try_live_swarm_refresh_lease(now):
+                return _cached_live_swarm_result(cached, cache_age, started, stale_while_refresh=True)
     root = _local_appdata_root() / "ChatGPTMcpClean" / "minimal-connectors"
     cutoff = now - timedelta(minutes=OBSERVATION_WINDOW_MINUTES)
     sources, discovery = _discover_transport_sources(root, cutoff, now)

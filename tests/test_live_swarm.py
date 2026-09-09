@@ -1,6 +1,8 @@
 import json
+import os
 import tempfile
 import subprocess
+import time
 import unittest
 from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
@@ -138,6 +140,23 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(second["summary"],first["summary"])
             self.assertEqual(second["evidence"]["sample_bytes"],first["evidence"]["sample_bytes"])
             self.assertLessEqual(second["cache"]["age_seconds"],30.0)
+
+    def test_snapshot_serves_stale_cache_while_another_caller_refreshes(self):
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                first=build_live_swarm_snapshot()
+                cache=local/"StackAtlas"/"bootstrap-cache"/"live-swarm.json"
+                stale=time.time()-60
+                os.utime(cache,(stale,stale))
+                refresh=cache.with_name(f"{cache.name}.refresh")
+                refresh.write_text("other refresher\n",encoding="utf-8")
+                with patch("tools.live_swarm._discover_transport_sources", side_effect=AssertionError("stale reader must not duplicate refresh")):
+                    second=build_live_swarm_snapshot()
+            self.assertTrue(second["cache"]["used"])
+            self.assertTrue(second["cache"]["stale_while_refresh"])
+            self.assertGreater(second["cache"]["age_seconds"],30.0)
+            self.assertEqual(second["summary"],first["summary"])
 
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
         snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
