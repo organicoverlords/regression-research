@@ -44,6 +44,20 @@ class HybridMemoryTests(unittest.TestCase):
             ["followup"],
         )
 
+    def test_active_browser_restart_plural_matches_singular_without_generic_browser_expansion(self):
+        live_browser = self.entry(
+            "live-browser",
+            "Do not restart a browser the user is actively using during extension development.",
+            title="Live browser restart boundary",
+        )
+        self.assertEqual(
+            [entry["id"] for entry in search_entries_hybrid([live_browser], "do not restart active browsers", strict_admission=True)],
+            ["live-browser"],
+        )
+        self.assertEqual(search_entries_hybrid([live_browser], "restart browsers after update", strict_admission=True), [])
+        self.assertEqual(search_entries_hybrid([live_browser], "close active browsers", strict_admission=True), [])
+        self.assertEqual(search_entries_hybrid([live_browser], "best browsers for privacy", strict_admission=True), [])
+
     def test_handoff_plural_shares_handoff_retrieval_concept(self):
         self.assertEqual(_word_tokens("handoff handoffs"), ["handoff", "handoff"])
 
