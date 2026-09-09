@@ -1761,62 +1761,6 @@ def _parse_event_time(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def _read_jsonl_window(
-    path: Path,
-    cutoff: datetime,
-    *,
-    max_bytes: int = 8 * 1024 * 1024,
-    chunk_bytes: int = 256 * 1024,
-) -> tuple[list[Any], bool, int]:
-    """Read a bounded JSONL tail until the requested time window is covered."""
-    parts: list[bytes] = []
-    size = path.stat().st_size
-    position = size
-    bytes_read = 0
-    coverage_complete = size == 0
-    with path.open("rb") as handle:
-        while position > 0 and bytes_read < max_bytes:
-            take = min(chunk_bytes, position, max_bytes - bytes_read)
-            if take <= 0:
-                break
-            position -= take
-            handle.seek(position)
-            chunk = handle.read(take)
-            parts.append(chunk)
-            bytes_read += len(chunk)
-
-            probe_lines = chunk.splitlines()
-            if position > 0 and probe_lines:
-                probe_lines = probe_lines[1:]
-            oldest_at = None
-            for raw in probe_lines:
-                try:
-                    row = json.loads(raw.decode("utf-8-sig"))
-                except (UnicodeDecodeError, json.JSONDecodeError):
-                    continue
-                oldest_at = _parse_event_time(row.get("at")) if isinstance(row, dict) else None
-                if oldest_at is not None:
-                    break
-            if oldest_at is not None and oldest_at <= cutoff:
-                coverage_complete = True
-                break
-
-    if position == 0:
-        coverage_complete = True
-
-    rows: list[Any] = []
-    for raw in b"".join(reversed(parts)).splitlines():
-        try:
-            row = json.loads(raw.decode("utf-8-sig"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            continue
-        at = _parse_event_time(row.get("at")) if isinstance(row, dict) else None
-        if at is None or at >= cutoff:
-            rows.append(row)
-    return rows, coverage_complete, bytes_read
-
-
-
 def _bootstrap_mcp_backend_health() -> dict[str, Any]:
     """Bounded direct health proof for the canonical local production backend."""
     started = time.perf_counter()
@@ -1851,198 +1795,24 @@ def _bootstrap_mcp_backend_health() -> dict[str, Any]:
         }
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
-    cached_raw, cache_age = _bootstrap_cache_read_any("mcp-status.json")
-    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
-        "mcp-status.json", cached_raw, cache_age, max_age_seconds=BOOTSTRAP_MCP_CACHE_SECONDS, lease_seconds=2.0
-    )
-    if cached is not None:
-        cached = dict(cached)
-        cached.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
-        cached["cache"] = {
-            "used": True,
-            "age_seconds": round(cache_age or 0.0, 3),
-            "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS,
-            **({"stale_while_refresh": True} if stale_while_refresh else {}),
-        }
-        return cached
-
-    root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
-    logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
-    now = datetime.now(timezone.utc)
-    activity_window_seconds = 300
-    if not logs:
+    """Compatibility status derived only from canonical MCPv4 live-swarm evidence."""
+    snapshot = build_live_swarm_snapshot()
+    status = _bootstrap_mcp_from_live_swarm(snapshot)
+    had_live_swarm = bool(status.get("available"))
+    if status.get("status") != "LIVE":
         service_health = _bootstrap_mcp_backend_health()
-        result = {
-            "available": bool(service_health.get("available")),
-            "status": "LIVE" if service_health.get("status") == "LIVE" else "MISSING",
-            "source_age_seconds": None,
-            "service_health": service_health,
-            "activity_evidence_status": "MISSING",
-            "active_session_count": 0,
-            "active_session_count_status": "LOWER_BOUND",
-            "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
-            "active_sessions": [],
-            "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
-            "active_sessions_truncated": False,
-            "workspace_counts": {},
-            "activity_summary": {
-                "starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0,
-                "sample_rows": 0, "sample_bytes": 0,
-                "activity_window_seconds": activity_window_seconds,
-                "activity_window_complete": False,
-                "source_window_complete": False,
-                "busy_receipts_per_sampled_session_limit": 4,
-                "last_event_at": None, "last_kill": None,
-            },
-            "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
-        }
-        cache_payload = dict(result)
-        cache_payload.pop("cache", None)
-        _bootstrap_cache_write("mcp-status.json", cache_payload)
-        return result
-    source = logs[0]
-    archive_dir = source.with_name(f"{source.name}.archive")
-    if archive_dir.is_dir():
-        newest_archive = max(
-            (candidate for candidate in archive_dir.iterdir() if candidate.is_file() and candidate.suffix.lower() == ".jsonl"),
-            key=lambda candidate: candidate.stat().st_mtime,
-            default=None,
-        )
-        if newest_archive is not None and newest_archive.stat().st_mtime > source.stat().st_mtime:
-            source = newest_archive
-    source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
-    source_liveness_fresh = source_age <= 60
-    source_activity_fresh = source_age <= activity_window_seconds
-    service_health = (
-        {"available": None, "status": "NOT_PROBED_FRESH_TRANSPORT"}
-        if source_liveness_fresh
-        else _bootstrap_mcp_backend_health()
-    )
-    cutoff = now - timedelta(seconds=activity_window_seconds)
-    try:
-        rows, activity_window_complete, sample_bytes = _read_jsonl_window(source, cutoff)
-    except OSError as exc:
-        return {"available": False, "status": "ERROR", "active_sessions": [], "active_session_count": 0, "error": str(exc)}
-
-    callers: dict[str, dict[str, Any]] = {}
-    counts = {"starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0}
-    last_kill = None
-    last_event_at = None
-    for row in rows:
-        event = row.get("event")
-        at = row.get("at")
-        if at and (last_event_at is None or at > last_event_at):
-            last_event_at = at
-        if event == "process_started": counts["starts"] += 1
-        elif event == "process_read": counts["reads"] += 1
-        elif event == "process_exit_observed":
-            counts["exits"] += 1
-            if row.get("exit_code") not in (None, 0): counts["nonzero_exits"] += 1
-        elif event == "process_killed":
-            counts["kills"] += 1
-            last_kill = {k: row.get(k) for k in ("at", "caller_id", "owner_caller_id", "pid") if row.get(k) is not None}
-        caller = row.get("caller_id") or row.get("owner_caller_id")
-        if not caller:
-            continue
-        item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": [], "process_ids": []})
-        if at and (item["last_at"] is None or at > item["last_at"]): item["last_at"] = at
-        if event == "process_started":
-            item["process_starts"] += 1
-            cwd = row.get("cwd")
-            if cwd: item["cwds"].append(cwd)
-            process_id = row.get("process_id")
-            if process_id and process_id not in item["process_ids"]: item["process_ids"].append(process_id)
-        elif event == "process_read":
-            item["reads"] += 1
-
-    caller_list = [x for x in sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True) if x.get("process_starts") or x.get("reads")]
-    active_items = []
-    for item in caller_list:
-        last_dt = _parse_event_time(item.get("last_at"))
-        item["activity_age_seconds"] = round(max(0.0, (now - last_dt).total_seconds()), 1) if last_dt is not None else None
-        if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= activity_window_seconds:
-            active_items.append(item)
-
-    workspace_counts: dict[str, int] = {}
-    for item in active_items:
-        cwds = item.get("cwds", [])
-        workspace = _bootstrap_session_workspace(cwds[-1] if cwds else None)
-        workspace_counts[workspace or "Unknown"] = workspace_counts.get(workspace or "Unknown", 0) + 1
-
-    sampled_items = active_items[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT]
-    recent_ids = {item["caller_id"] for item in sampled_items}
-    busy_titles: dict[str, list[str]] = {cid: [] for cid in recent_ids}
-    try:
-        claims = _bootstrap_busy_claims_direct()
-        active = {str(c.get("actor") or ""): c for c in claims if c.get("actor")}
-        remaining = set(active)
-        receipts = root / "shared-process-receipts"
-        busy_receipts_per_session_limit = 4
-        receipt_refs = [
-            (item["caller_id"], receipts / f"{process_id}.json")
-            for item in sampled_items
-            for process_id in item.get("process_ids", [])[-busy_receipts_per_session_limit:]
-        ]
-        for caller, rp in reversed(receipt_refs):
-            if not remaining:
-                break
-            try:
-                receipt = json.loads(rp.read_text(encoding="utf-8-sig"))
-            except Exception:
-                continue
-            command = str(receipt.get("command") or "")
-            for actor in list(remaining):
-                if (f"claim '{actor}'" in command) or (f'claim "{actor}"' in command) or (f"claim {actor} " in command):
-                    busy_titles[caller].append(actor)
-                    remaining.discard(actor)
-    except Exception:
-        pass
-
-    active_sessions = []
-    for original in sampled_items:
-        item = dict(original)
-        cwds = item.pop("cwds", [])
-        item.pop("process_ids", None)
-        item["cwd"] = cwds[-1] if cwds else None
-        item["workspace"] = _bootstrap_session_workspace(item["cwd"])
-        item["busy_titles"] = busy_titles.get(item["caller_id"], [])
-        item = {k: item.get(k) for k in ("caller_id", "activity_age_seconds", "cwd", "workspace", "busy_titles")}
-        active_sessions.append(item)
-    activity_evidence_complete = bool(activity_window_complete and source_activity_fresh)
-    service_live = service_health.get("status") == "LIVE"
-    result = {
-        "available": True,
-        "status": "LIVE" if source_liveness_fresh or service_live else "STALE",
-        "source_age_seconds": round(source_age,1),
-        "service_health": service_health,
-        "activity_evidence_status": (
-            "FRESH" if activity_evidence_complete
-            else ("BOUNDED" if source_activity_fresh else "STALE")
-        ),
-        "active_session_count": len(active_items),
-        "active_session_count_status": "COMPLETE" if activity_evidence_complete else "LOWER_BOUND",
-        "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
-        "active_sessions": active_sessions,
-        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
-        "active_sessions_truncated": len(active_items) > len(active_sessions),
-        "workspace_counts": workspace_counts,
-        "activity_summary": {
-            **counts,
-            "sample_rows": len(rows),
-            "sample_bytes": sample_bytes,
-            "activity_window_seconds": activity_window_seconds,
-            "activity_window_complete": activity_evidence_complete,
-            "source_window_complete": activity_window_complete,
-            "busy_receipts_per_sampled_session_limit": 4,
-            "last_event_at": last_event_at,
-            "last_kill": last_kill,
-        },
-        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
-    }
-    cache_payload = dict(result)
-    cache_payload.pop("cache", None)
-    _bootstrap_cache_write("mcp-status.json", cache_payload)
-    return result
+        status["service_health"] = service_health
+        if service_health.get("status") == "LIVE":
+            status["available"] = True
+            status["status"] = "LIVE"
+    status.setdefault("activity_evidence_status", "BOUNDED" if had_live_swarm else "MISSING")
+    status.setdefault("active_session_count_status", "LOWER_BOUND")
+    status.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
+    status.setdefault("active_session_count", 0)
+    status.setdefault("active_sessions", [])
+    status.setdefault("workspace_counts", {})
+    status["authority"] = "live_swarm_runtime_evidence"
+    return status
 
 
 def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -3480,7 +3250,7 @@ def production_change_gate(
 
     dependencies: dict[str, Any] = {}
     if component in MCP_SHARED_PRODUCTION_COMPONENTS:
-        mcp = mcp_status if mcp_status is not None else _bootstrap_mcp_status()
+        mcp = mcp_status if mcp_status is not None else _bootstrap_mcp_from_live_swarm(build_live_swarm_snapshot())
         dependencies["mcp"] = {
             "available": bool(mcp.get("available")),
             "status": mcp.get("status"),
@@ -3488,6 +3258,9 @@ def production_change_gate(
             "active_session_count_status": mcp.get("active_session_count_status"),
             "active_session_count_semantics": mcp.get("active_session_count_semantics"),
             "active_sessions": mcp.get("active_sessions", []),
+            "authority": "live_swarm_runtime_evidence" if mcp_status is None else mcp.get("authority"),
+            "transport": mcp.get("transport"),
+            "transport_source_count": mcp.get("transport_source_count"),
         }
         if not mcp.get("available") or mcp.get("status") != "LIVE" or mcp.get("active_session_count_status") != "COMPLETE":
             reasons.append("mcp_dependency_evidence_incomplete")
