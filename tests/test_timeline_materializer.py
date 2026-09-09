@@ -1,5 +1,6 @@
 import json
 import os
+import pickle
 import subprocess
 import tempfile
 import unittest
@@ -915,6 +916,49 @@ class TimelineMaterializerTests(unittest.TestCase):
             (state / "timeline-store.json").write_text(json.dumps(payload), encoding="utf-8")
             full_history = query_materialized(root=root, query="notification permission", limit=20)
             self.assertEqual(full_history["debugging_boundary"]["continuity_graph"], "FULL_MATERIALIZED_HISTORY_QUERYABLE")
+
+    def test_query_materialized_recovers_weak_typo_and_compound_wording_without_broad_false_positive(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            stamp = datetime.now(timezone.utc).isoformat()
+            target = {
+                "id": "mem:startup-budget", "source_type": "VAULT_MEMORY", "event_at": stamp,
+                "title": "P3 cold startup lifetime proof budget", "summary": "cold start validation budget",
+                "project": "p3", "refs": [], "anchors": [],
+            }
+            decoy = {
+                "id": "git:proof", "source_type": "GIT_COMMIT", "event_at": stamp,
+                "title": "Generic proof cleanup", "summary": "routine evidence update",
+                "project": "p3", "refs": [], "anchors": [],
+            }
+            (state / "timeline-store.json").write_text(json.dumps({
+                "schema": SCHEMA, "generated_at": stamp, "horizon_days": 30,
+                "timeline": {"schema_version": 3, "authority": "DERIVED_HISTORY_ONLY", "contract": {},
+                    "events": [decoy, target], "historical_evidence_events": [],
+                    "continuity_graph": {"cases": [], "summary": {}}, "work_graph": {}},
+            }), encoding="utf-8")
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1", "generated_at": stamp,
+                    "ids": ["git:proof", "mem:startup-budget"],
+                    "postings": {
+                        "p3": [0, 1], "proof": [0, 1], "cold": [1], "startup": [1],
+                        "lifetime": [1], "budget": [1],
+                    },
+                    "weight_codes": {
+                        "p3": bytes([4, 5]), "proof": bytes([5, 5]), "cold": bytes([5]),
+                        "startup": bytes([5]), "lifetime": bytes([5]), "budget": bytes([5]),
+                    },
+                    "anchors": [[], []],
+                }, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            recovered = query_materialized(root=root, query="p3 coldstartup lifetme proof budgt", limit=8)
+            self.assertEqual([event["id"] for event in recovered["events"]], ["mem:startup-budget"])
+
+            unrelated = query_materialized(root=root, query="sourdough starter hydration rye proof", limit=8)
+            self.assertEqual(unrelated["matching_events"], 0)
 
     def test_query_materialized_uses_full_case_graph_and_canonical_forensic_error_selector(self):
         with tempfile.TemporaryDirectory() as d:
