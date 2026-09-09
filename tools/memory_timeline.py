@@ -840,8 +840,26 @@ def needs_timeline_fallback(query: str) -> bool:
     return bool(words & RECURRENCE_WORDS) and bool(words & ERROR_WORDS)
 
 
-def build_event(entry: dict[str, Any], superseded_by: dict[str, list[str]]) -> dict[str, Any]:
-    classification = classify_entry(entry)
+def _classification_map(
+    entries: Iterable[dict[str, Any]],
+    classifications: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Classify each memory entry at most once for one projection request."""
+    resolved = dict(classifications or {})
+    for entry in entries:
+        entry_id = str(entry["id"])
+        if entry_id not in resolved:
+            resolved[entry_id] = classify_entry(entry)
+    return resolved
+
+
+def build_event(
+    entry: dict[str, Any],
+    superseded_by: dict[str, list[str]],
+    *,
+    classification: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    classification = classification if classification is not None else classify_entry(entry)
     event_at = str(entry.get("event_at") or entry["timestamp"])
     explicit_event_at = "event_at" in entry
     thread_id, thread_source = _thread_identity(entry, classification)
@@ -911,10 +929,15 @@ def build_timeline(
     source_coverage: dict[str, Any] | None = None,
     supplemental_events: Iterable[dict[str, Any]] | None = None,
     max_limit: int = MAX_LIMIT,
+    classifications: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     items = list(entries)
+    classification_by_id = _classification_map(items, classifications)
     superseded_by = _superseded_by(items)
-    events = [build_event(entry, superseded_by) for entry in items]
+    events = [
+        build_event(entry, superseded_by, classification=classification_by_id[str(entry["id"])])
+        for entry in items
+    ]
     if view not in {"general", "project", "errors"}:
         raise ValueError(f"invalid timeline view: {view}")
     if view == "project" and not project:
@@ -926,7 +949,7 @@ def build_timeline(
     by_id = {entry["id"]: entry for entry in items}
     for event in events:
         entry = by_id[event["id"]]
-        classification = classify_entry(entry)
+        classification = classification_by_id[str(entry["id"])]
         if view == "errors" and not _is_error_event(event):
             continue
         linkage = _project_linkage(classification, project_key)
@@ -1070,9 +1093,16 @@ def build_timeline(
 
 
 
-def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5, member_id_limit: int = 20) -> list[dict[str, Any]]:
+def build_incident_rollups(
+    entries: Iterable[dict[str, Any]],
+    *,
+    limit: int = 5,
+    member_id_limit: int = 20,
+    classifications: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Compress recurring durable incident/topic lineages without discarding source events."""
     items = list(entries)
+    classification_by_id = _classification_map(items, classifications)
     effective_limit = min(20, max(0, int(limit)))
     effective_member_limit = min(20, max(1, int(member_id_limit)))
     if effective_limit == 0 or not items:
@@ -1082,8 +1112,8 @@ def build_incident_rollups(entries: Iterable[dict[str, Any]], *, limit: int = 5,
     # can compact decisions/lessons as well as records classified as incidents.
     # Specific-scope grouping stays conservative: it is admitted only when the
     # same thread also appears in the error projection.
-    report = build_timeline(items, view="general", limit=MAX_LIMIT)
-    error_report = build_timeline(items, view="errors", limit=MAX_LIMIT)
+    report = build_timeline(items, view="general", limit=MAX_LIMIT, classifications=classification_by_id)
+    error_report = build_timeline(items, view="errors", limit=MAX_LIMIT, classifications=classification_by_id)
     error_thread_ids = {str(thread["thread_id"]) for thread in error_report["threads"]}
     visible_dispositions = RECALL_VISIBLE_DISPOSITIONS
     events_by_thread: dict[str, list[dict[str, Any]]] = defaultdict(list)

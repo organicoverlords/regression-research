@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
+from tools.memory_classification import classify_entry as classify_memory_entry
 from tools.memory_timeline import build_continuity_graph, build_incident_rollups, build_recurrence_context, build_timeline, needs_timeline_fallback
 
 
@@ -28,6 +30,24 @@ class MemoryTimelineTests(unittest.TestCase):
         if thread:
             out["thread"] = thread
         return out
+
+    def test_build_timeline_classifies_each_entry_once(self):
+        entries = [
+            self.e("one", "2026-09-09T12:00:00+03:00", "First durable lesson"),
+            self.e("two", "2026-09-09T12:01:00+03:00", "Second durable lesson"),
+        ]
+        with patch("tools.memory_timeline.classify_entry", wraps=classify_memory_entry) as classify:
+            build_timeline(entries, limit=10)
+        self.assertEqual(classify.call_count, len(entries))
+
+    def test_incident_rollups_reuses_classification_across_timeline_views(self):
+        entries = [
+            self.e("old", "2026-09-09T12:00:00+03:00", "First failure", scope="assistant-orchestration/error-a"),
+            self.e("new", "2026-09-09T12:05:00+03:00", "Recurring failure", scope="assistant-orchestration/error-a"),
+        ]
+        with patch("tools.memory_timeline.classify_entry", wraps=classify_memory_entry) as classify:
+            build_incident_rollups(entries, limit=5)
+        self.assertEqual(classify.call_count, len(entries))
 
     def test_positive_milestone_projects_tiny_sticker_to_timeline(self):
         entry = self.e("reward", "2026-09-09T12:00:00+03:00", "Useful measured recall improvement")
