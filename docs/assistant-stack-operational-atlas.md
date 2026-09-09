@@ -292,7 +292,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Live status: python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>
 - Independent recovery: python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>; python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>; perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions
 - Resources: S1 five recurring slots; S2 five recurring slots; manual/on-demand worker population
-- Dependents: chatgpt_session; execution_workers; scheduler
+- Dependents: chatgpt_session; execution_workers; chatgpt_automations
 - Runbook: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md
 - Supervisor: distributed same-partition recurring workers; supervising/manual ChatGPT session may perform the same guarded recovery; operator handoff is administrative fallback only
 - Self-heal: bounded_same_partition_peer_recovery

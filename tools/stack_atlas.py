@@ -455,7 +455,7 @@ COMPONENTS.update({
             "perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions",
         ],
         "resources": ["S1 five recurring slots", "S2 five recurring slots", "manual/on-demand worker population"],
-        "dependents": ["chatgpt_session", "execution_workers", "scheduler"],
+        "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
     },
     "chatgpt_session": {

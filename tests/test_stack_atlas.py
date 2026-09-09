@@ -942,6 +942,8 @@ class StackAtlasTests(unittest.TestCase):
         scheduler = component_details("chatgpt_automations")
 
         self.assertIn("same-partition recurring workers", topology["supervisor"])
+        self.assertIn("chatgpt_automations", topology["dependents"])
+        self.assertNotIn("scheduler", topology["dependents"])
         self.assertIn("peer", topology["self_heal"])
         self.assertIn("BusyCoordinator is exact mutation collision control only", workers["supervisor"])
         self.assertNotIn("BusyCoordinator ownership", workers["supervisor"])
