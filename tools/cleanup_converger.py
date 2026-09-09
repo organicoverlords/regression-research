@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Converge redundant P3/Vault worktrees to a bounded safe boundary.
+"""Converge redundant P3/Vault/agents worktrees to a bounded safe boundary.
 
-Operator-only cleanup. The command never force-removes a worktree, deletes a
+Operator cleanup plus a stricter worker-safe automatic mode. The command never force-removes a worktree, deletes a
 branch, resets/rebases, fetches, or discards dirty/unanchored state. It loops
 internally so a single invocation can absorb lanes that become safely idle.
 For inactive preserved P3 lanes it may also reclaim only Git-ignored standard
@@ -31,6 +31,7 @@ BUSY_CMD = LOCALAPPDATA / "BusyCoordinator" / "busy-python.cmd"
 DEFAULT_REPOS = (
     ("P3", Path(r"C:\Users\Lauri\Documents\Unreal Projects\p3"), "p3:git-worktree-metadata"),
     ("Vault", Path(r"C:\Users\Lauri\Desktop\vault"), "regression-research:git-worktree-metadata"),
+    ("Agents", Path(r"C:\Users\Lauri\.agents"), "agents:git-worktree-metadata"),
 )
 P3_GENERATED_DIR_NAMES = frozenset({"Binaries", "Intermediate", "DerivedDataCache"})
 CLEANLINESS_PROBE_TIMEOUT_SECONDS = 15.0
@@ -253,6 +254,35 @@ def worktree_is_clean(
     if completed.returncode != 0:
         raise RuntimeError(f"git status failed for {path}: {completed.stderr.strip()}")
     return not bool(completed.stdout)
+
+
+def dirty_changes_match_origin_main(repo: Path, worktree: Worktree) -> bool | None:
+    """Prove every dirty/untracked path is byte-identical to cached origin/main."""
+    if not canonical_main_contains_head(repo, worktree):
+        return False
+    try:
+        changed = _git(worktree.path, "diff", "--no-renames", "--name-only", "-z", "HEAD", "--", check=False, timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS)
+        untracked = _git(worktree.path, "ls-files", "--others", "--exclude-standard", "-z", check=False, timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return None
+    if changed.returncode != 0 or untracked.returncode != 0:
+        return None
+    paths = {item for item in (changed.stdout + untracked.stdout).split("\0") if item}
+    if not paths:
+        return None
+    for relative in paths:
+        local = worktree.path / relative
+        main_blob = _git(repo, "rev-parse", "--verify", f"refs/remotes/origin/main:{relative}", check=False, timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS)
+        if not local.exists():
+            if main_blob.returncode == 0:
+                return False
+            continue
+        if not local.is_file():
+            return False
+        local_blob = _git(worktree.path, "hash-object", "--", relative, check=False, timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS)
+        if main_blob.returncode != 0 or local_blob.returncode != 0 or local_blob.stdout.strip() != main_blob.stdout.strip():
+            return False
+    return True
 
 
 def _is_reparse_dir(path: Path) -> bool:
@@ -562,7 +592,7 @@ def _remove_one(repo_name: str, repo: Path, worktree: Worktree, window_seconds: 
 
 
 def scan_repo(
-    repo_name: str, repo: Path, window_seconds: int
+    repo_name: str, repo: Path, window_seconds: int, *, require_contained: bool = False
 ) -> tuple[list[Worktree], list[Worktree], list[Action]]:
     worktrees = parse_worktrees(_git(repo, "worktree", "list", "--porcelain").stdout)
     recent = recent_mcp_cwds(window_seconds)
@@ -571,56 +601,39 @@ def scan_repo(
     cache_candidates: list[Worktree] = []
     observations: list[Action] = []
     for worktree in worktrees[1:]:
-        cache_guarded = bool(
-            worktree.locked
-            or cwd_targets_path(worktree.path, recent)
-            or process_targets_path(worktree.path, processes, self_pid=os.getpid())
-        )
-        # Cheap guards first: do not run expensive status checks on active or
-        # unanchored lanes that can never be removed as whole lanes. Detached lanes
-        # proceed only when a durable ref points exactly at HEAD.
+        cache_guarded = bool(worktree.locked or cwd_targets_path(worktree.path, recent) or process_targets_path(worktree.path, processes, self_pid=os.getpid()))
         preliminary = eligibility_reason(
-            worktree,
-            recent_cwds=recent,
-            processes=processes,
-            clean=None,
+            worktree, recent_cwds=recent, processes=processes, clean=None,
             ref_matches=worktree_anchor_matches(repo, worktree),
         )
         if preliminary and (preliminary.startswith("git_worktree_locked:") or preliminary in {"detached_or_unanchored", "recent_mcp_cwd_activity", "external_process_targets_path", "branch_ref_mismatch"}):
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, preliminary))
-            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
+            if repo_name == "P3" and not require_contained and not cache_guarded and generated_cache_dirs(worktree.path):
                 cache_candidates.append(worktree)
             continue
         clean = worktree_is_clean(worktree.path)
         if clean is None:
-            observations.append(
-                Action(
-                    repo_name,
-                    str(worktree.path),
-                    "PRESERVE",
-                    worktree.branch,
-                    worktree.head,
-                    "cleanliness_probe_timeout",
-                )
-            )
-            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
+            observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "cleanliness_probe_timeout"))
+            continue
+        reason = eligibility_reason(worktree, recent_cwds=recent, processes=processes, clean=clean, ref_matches=True)
+        if reason:
+            if reason == "dirty" and canonical_main_contains_head(repo, worktree):
+                redundant = dirty_changes_match_origin_main(repo, worktree)
+                if redundant is True:
+                    reason = "dirty_redundant_in_origin_main"
+                elif redundant is False:
+                    reason = "dirty_unique_contained_in_origin_main"
+                else:
+                    reason = "dirty_contained_unclassified"
+            observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, reason))
+            if repo_name == "P3" and not require_contained and not cache_guarded and generated_cache_dirs(worktree.path):
                 cache_candidates.append(worktree)
             continue
-        reason = eligibility_reason(
-            worktree,
-            recent_cwds=recent,
-            processes=processes,
-            clean=clean,
-            ref_matches=True,
-        )
-        if reason:
-            observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, reason))
-            if repo_name == "P3" and not cache_guarded and generated_cache_dirs(worktree.path):
-                cache_candidates.append(worktree)
-        else:
-            candidates.append(worktree)
+        if require_contained and not canonical_main_contains_head(repo, worktree):
+            observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "not_contained_in_origin_main"))
+            continue
+        candidates.append(worktree)
     return candidates, cache_candidates, observations
-
 
 def summarize_actions(actions: list[Action]) -> dict[str, Any]:
     final_by_path: dict[tuple[str, str], Action] = {}
@@ -650,6 +663,35 @@ def summarize_actions(actions: list[Action]) -> dict[str, Any]:
     }
 
 
+def hygiene_snapshot(window_seconds: int, repo_names: set[str] | None = None) -> dict[str, Any]:
+    repos: list[dict[str, Any]] = []
+    totals = {"auxiliary_count": 0, "dirty_count": 0, "contained_dirty_count": 0, "redundant_dirty_count": 0, "unique_dirty_count": 0, "safe_reap_count": 0, "active_count": 0}
+    active_reasons = {"recent_mcp_cwd_activity", "external_process_targets_path"}
+    for repo_name, repo, _scope in DEFAULT_REPOS:
+        if repo_names is not None and repo_name not in repo_names:
+            continue
+        if not repo.exists():
+            continue
+        candidates, _cache, observations = scan_repo(repo_name, repo, window_seconds, require_contained=True)
+        actions = observations + [Action(repo_name, str(item.path), "SAFE_REAP", item.branch, item.head, "clean_idle_contained_in_origin_main") for item in candidates]
+        reasons = [row.reason or "" for row in actions]
+        row = {
+            "repo": repo_name,
+            "auxiliary_count": len(actions),
+            "dirty_count": sum(reason.startswith("dirty") for reason in reasons),
+            "contained_dirty_count": sum(reason in {"dirty_redundant_in_origin_main", "dirty_unique_contained_in_origin_main", "dirty_contained_unclassified"} for reason in reasons),
+            "redundant_dirty_count": reasons.count("dirty_redundant_in_origin_main"),
+            "unique_dirty_count": sum(reason in {"dirty_unique_contained_in_origin_main", "dirty_contained_unclassified", "dirty"} for reason in reasons),
+            "safe_reap_count": len(candidates),
+            "active_count": sum(reason in active_reasons or reason.startswith("git_worktree_locked:") for reason in reasons),
+            "actions": [action.__dict__ for action in actions],
+        }
+        repos.append(row)
+        for key in totals:
+            totals[key] += row[key]
+    return {**totals, "repos": repos}
+
+
 def converge(
     *,
     apply: bool,
@@ -658,8 +700,15 @@ def converge(
     settle_seconds: float,
     window_seconds: int,
     actor: str,
+    safe_auto: bool = False,
+    repo_names: set[str] | None = None,
 ) -> dict[str, Any]:
-    existing_repos = [(name, path, scope) for name, path, scope in DEFAULT_REPOS if path.exists()]
+    existing_repos = [
+        (name, path, scope)
+        for name, path, scope in DEFAULT_REPOS
+        if path.exists() and (repo_names is None or name in repo_names)
+    ]
+    effective_apply = apply or safe_auto
     if not existing_repos:
         raise RuntimeError("no configured repositories exist")
     before_free = disk_free_gb(existing_repos[0][1])
@@ -676,12 +725,16 @@ def converge(
             # clear only that stale registration before scanning so a vanished temp lane cannot
             # crash cleanliness probes or block unrelated safe cleanup. Git worktree prune never
             # removes a live worktree directory or branch.
-            if apply:
+            if effective_apply:
                 _git(repo, "worktree", "prune", check=False)
-            candidates, cache_candidates, observations = scan_repo(repo_name, repo, window_seconds)
+            candidates, cache_candidates, observations = scan_repo(
+                repo_name, repo, window_seconds, require_contained=safe_auto
+            )
+            if safe_auto:
+                cache_candidates = []
             actions.extend(observations)
             round_candidates += len(candidates) + len(cache_candidates)
-            if not apply:
+            if not effective_apply:
                 actions.extend(Action(repo_name, str(item.path), "WOULD_REMOVE", item.branch, item.head) for item in candidates)
                 actions.extend(
                     Action(repo_name, str(item.path), "WOULD_CLEAN_GENERATED_CACHE", item.branch, item.head, f"dirs={len(generated_cache_dirs(item.path))}")
@@ -751,7 +804,7 @@ def converge(
                         f"cleanup converger round {round_no}: generated-cache pass for {item.path.name}; ignored Unreal build outputs only",
                     )
 
-        if not apply:
+        if not effective_apply:
             break
         if round_progress:
             stable = 0
@@ -765,8 +818,9 @@ def converge(
     after_free = disk_free_gb(existing_repos[0][1])
     summary = summarize_actions(actions)
     return {
-        "mode": "apply" if apply else "dry-run",
-        "operator_only": True,
+        "mode": "safe-auto" if safe_auto else ("apply" if apply else "dry-run"),
+        "operator_only": bool(apply and not safe_auto),
+        "safe_auto": safe_auto,
         "rounds_run": rounds_run,
         "stable_rounds_required": stable_rounds,
         **{key: summary[key] for key in ("removed_count", "generated_cache_cleanup_count", "blocked_count")},
@@ -782,7 +836,9 @@ def converge(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="apply safe non-force removals; default is dry-run")
-    parser.add_argument("--operator-ack", action="store_true", help="required with --apply; workers must not self-administer sibling lanes")
+    parser.add_argument("--safe-auto", action="store_true", help="worker-safe: remove only clean idle worktrees already contained in cached origin/main")
+    parser.add_argument("--operator-ack", action="store_true", help="required with --apply; not required for --safe-auto")
+    parser.add_argument("--repo", action="append", choices=[name for name, _path, _scope in DEFAULT_REPOS], help="limit to one or more configured repos")
     parser.add_argument("--max-rounds", type=int, default=8)
     parser.add_argument("--stable-rounds", type=int, default=2)
     parser.add_argument("--settle-seconds", type=float, default=5.0)
@@ -793,6 +849,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.apply and args.safe_auto:
+        print("ERROR: choose either --apply or --safe-auto", file=sys.stderr)
+        return 2
     if args.apply and not args.operator_ack:
         print("ERROR: --apply requires --operator-ack; workers must not self-administer sibling lanes", file=sys.stderr)
         return 2
@@ -806,6 +865,8 @@ def main() -> int:
         settle_seconds=args.settle_seconds,
         window_seconds=args.activity_window_seconds,
         actor=args.actor,
+        safe_auto=args.safe_auto,
+        repo_names=set(args.repo) if args.repo else None,
     )
     print(json.dumps(result, indent=2))
     return 0
