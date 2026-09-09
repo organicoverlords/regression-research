@@ -8,6 +8,7 @@ import math
 import os
 import pickle
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -270,10 +271,25 @@ def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
             kwargs["startupinfo"] = startupinfo
     return subprocess.run(*args, **kwargs)
 
+
+def _github_read_cli() -> str:
+    found = shutil.which("gh-swarm")
+    if found:
+        return found
+    name = "gh-swarm.exe" if os.name == "nt" else "gh-swarm"
+    local = Path.home() / ".local" / "bin" / name
+    if local.is_file():
+        return str(local)
+    return shutil.which("gh") or "gh"
+
+
 def _run_json(command: list[str], *, timeout: int = 30) -> tuple[Any, str | None]:
+    selected = list(command)
+    if selected and selected[0] == "gh":
+        selected[0] = _github_read_cli()
     try:
         proc = _run_process(
-            command,
+            selected,
             capture_output=True,
             text=True,
             encoding="utf-8",

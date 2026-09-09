@@ -36,13 +36,42 @@ from tools.timeline_materializer import (
     query_materialized,
     runner_log_events,
     _bootstrap_correction_trigger_projection,
+    _github_read_cli,
     _lesson_packet,
     _merge_materialized_events,
+    _run_json,
     _run_process,
 )
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_github_read_cli_prefers_gh_swarm_on_path(self):
+        def which(name):
+            return "C:/tools/gh-swarm.exe" if name == "gh-swarm" else "C:/tools/gh.exe"
+
+        with patch("tools.timeline_materializer.shutil.which", side_effect=which):
+            self.assertEqual(_github_read_cli(), "C:/tools/gh-swarm.exe")
+
+    def test_github_read_cli_falls_back_to_real_gh(self):
+        def which(name):
+            return None if name == "gh-swarm" else "C:/tools/gh.exe"
+
+        with patch("tools.timeline_materializer.shutil.which", side_effect=which), patch(
+            "tools.timeline_materializer.Path.is_file", return_value=False
+        ):
+            self.assertEqual(_github_read_cli(), "C:/tools/gh.exe")
+
+    def test_run_json_routes_literal_gh_through_selected_read_cli(self):
+        completed = subprocess.CompletedProcess([], 0, '{"ok":true}\n', "")
+        with patch("tools.timeline_materializer._github_read_cli", return_value="gh-swarm"), patch(
+            "tools.timeline_materializer._run_process", return_value=completed
+        ) as run:
+            payload, error = _run_json(["gh", "api", "rate_limit"], timeout=1)
+        self.assertEqual(payload, {"ok": True})
+        self.assertIsNone(error)
+        self.assertEqual(run.call_args.args[0], ["gh-swarm", "api", "rate_limit"])
+        self.assertEqual(run.call_args.kwargs["timeout"], 1)
+
     def test_lesson_packet_collapses_copied_lineage_and_preserves_provenance(self):
         seed = {
             "id": "seed", "source_type": "VAULT_MEMORY", "project": "vault",
