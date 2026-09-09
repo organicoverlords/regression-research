@@ -472,10 +472,11 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
-        self.assertEqual(glance["bootstrap"]["agent_contract"]["status"], "COHERENT")
-        self.assertEqual(glance["bootstrap"]["agent_contract"]["version"], 1)
-        self.assertEqual(glance["bootstrap"]["agent_contract"]["rules_version"], 1)
-        self.assertEqual(glance["bootstrap"]["agent_contract"]["agents_version"], 1)
+        contract = glance["bootstrap"]["agent_contract"]
+        self.assertEqual(contract["status"], "COHERENT")
+        self.assertGreaterEqual(contract["version"], 1)
+        self.assertEqual(contract["version"], contract["rules_version"])
+        self.assertEqual(contract["version"], contract["agents_version"])
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])
@@ -1623,7 +1624,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
 
-    def test_git_checkout_state_detects_current_dirty_and_stale_main(self):
+    def test_git_checkout_state_distinguishes_cached_remote_from_local_tracking_main(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             subprocess = __import__("subprocess")
@@ -1635,30 +1636,62 @@ class StackAtlasTests(unittest.TestCase):
             subprocess.run(["git", "-C", str(repo), "add", "AGENTS.md"], check=True)
             subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "base"], check=True)
             base = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+            subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", base], check=True)
 
             current = _git_checkout_state(repo, base)
             self.assertTrue(current["coherent"])
             self.assertTrue(current["head_matches_remote_main"])
-            self.assertFalse(current["dirty"])
-            self.assertEqual(current["branch"], "main")
+            self.assertTrue(current["head_matches_local_tracking_main"])
+            self.assertEqual(current["coherence_basis"], "cached_remote_exact")
 
             path.write_text("dirty\n", encoding="utf-8")
             dirty = _git_checkout_state(repo, base)
             self.assertFalse(dirty["coherent"])
-            self.assertTrue(dirty["head_matches_remote_main"])
             self.assertTrue(dirty["dirty"])
-
+            self.assertEqual(dirty["coherence_basis"], "dirty")
             subprocess.run(["git", "-C", str(repo), "restore", "AGENTS.md"], check=True)
-            path.write_text("remote\n", encoding="utf-8")
-            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "remote"], check=True)
-            remote = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+
+            path.write_text("canonical-newer\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "canonical newer"], check=True)
+            canonical_newer = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+            subprocess.run(["git", "-C", str(repo), "update-ref", "refs/remotes/origin/main", canonical_newer], check=True)
+
+            cache_lag = _git_checkout_state(repo, base)
+            self.assertTrue(cache_lag["coherent"])
+            self.assertFalse(cache_lag["head_matches_remote_main"])
+            self.assertTrue(cache_lag["head_matches_local_tracking_main"])
+            self.assertTrue(cache_lag["cached_remote_is_ancestor_of_local"])
+            self.assertTrue(cache_lag["remote_metadata_lags_local_tracking"])
+            self.assertEqual(cache_lag["coherence_basis"], "local_tracking_descends_cached_remote")
+
+            path.write_text("local-only\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "local only"], check=True)
+            local_only = _git_checkout_state(repo, base)
+            self.assertFalse(local_only["coherent"])
+            self.assertTrue(local_only["cached_remote_is_ancestor_of_local"])
+            self.assertFalse(local_only["head_matches_local_tracking_main"])
+            self.assertEqual(local_only["coherence_basis"], "local_head_differs_tracking_main")
+
             subprocess.run(["git", "-C", str(repo), "reset", "--hard", "-q", base], check=True)
-            stale = _git_checkout_state(repo, remote)
-            self.assertFalse(stale["coherent"])
-            self.assertFalse(stale["head_matches_remote_main"])
-            self.assertFalse(stale["dirty"])
-            self.assertEqual(stale["local_head"], base)
-            self.assertEqual(stale["remote_main"], remote)
+            behind = _git_checkout_state(repo, canonical_newer)
+            self.assertFalse(behind["coherent"])
+            self.assertFalse(behind["head_matches_remote_main"])
+            self.assertFalse(behind["head_matches_local_tracking_main"])
+
+            subprocess.run(["git", "-C", str(repo), "switch", "-q", "-c", "local-diverge", base], check=True)
+            path.write_text("diverged\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "diverged"], check=True)
+            subprocess.run(["git", "-C", str(repo), "branch", "-M", "main"], check=True)
+            diverged = _git_checkout_state(repo, canonical_newer)
+            self.assertFalse(diverged["coherent"])
+            self.assertFalse(diverged["cached_remote_is_ancestor_of_local"])
+
+            subprocess.run(["git", "-C", str(repo), "reset", "--hard", "-q", canonical_newer], check=True)
+            subprocess.run(["git", "-C", str(repo), "switch", "-q", "-c", "feature"], check=True)
+            wrong_branch = _git_checkout_state(repo, canonical_newer)
+            self.assertFalse(wrong_branch["coherent"])
+            self.assertTrue(wrong_branch["head_matches_remote_main"])
+            self.assertEqual(wrong_branch["coherence_basis"], "wrong_branch")
 
     def test_source_freshness_marks_hybrid_agents_checkout_pending_even_when_policy_blobs_match(self):
         with tempfile.TemporaryDirectory() as tmp:
