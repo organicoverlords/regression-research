@@ -2942,6 +2942,30 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
         },
     }
 
+_SHARED_CONTRACT_VERSION_RE = re.compile(r"(?m)^Shared contract version:\s*([1-9][0-9]*)\s*$")
+
+
+def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
+    """Read the logical shared-contract version from the serving RULES/AGENTS pair."""
+    root = Path(agent_rules_root)
+
+    def read_one(name: str) -> int | None:
+        path = root / name
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        matches = _SHARED_CONTRACT_VERSION_RE.findall(text)
+        return int(matches[0]) if len(matches) == 1 else None
+
+    rules_version = read_one("RULES.md")
+    agents_version = read_one("AGENTS.md")
+    if rules_version is not None and agents_version is not None and rules_version == agents_version:
+        return {"status": "COHERENT", "version": rules_version, "rules_version": rules_version, "agents_version": agents_version}
+    if rules_version is None or agents_version is None:
+        return {"status": "MISSING", "version": None, "rules_version": rules_version, "agents_version": agents_version}
+    return {"status": "MISMATCH", "version": None, "rules_version": rules_version, "agents_version": agents_version}
+
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
@@ -2964,7 +2988,10 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         swarm_topology["execution_nodes"] = execution_nodes
     mcp = _bootstrap_mcp_from_live_swarm(live_swarm)
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
+    agent_contract = _bootstrap_agent_contract_version()
     notable_conditions: list[str] = []
+    if agent_contract["status"] != "COHERENT":
+        notable_conditions.append(f"agent_contract_version_{str(agent_contract['status']).casefold()}")
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
         notable_conditions.append(f"disk_{str(disk.get('status')).casefold()}_free_{disk.get('free_gb')}gb")
@@ -3043,7 +3070,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             notable_conditions.append("timeline_materialized_event_cap_truncated")
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-    bootstrap_status = "OK" if mcp_health == vault_health == github_health == "OK" else "DEGRADED"
+    bootstrap_status = "OK" if (mcp_health == vault_health == github_health == "OK" and agent_contract["status"] == "COHERENT") else "DEGRADED"
     if elapsed_ms >= 5000:
         notable_conditions.append(f"bootstrap_slow_{round(elapsed_ms)}ms")
     bootstrap = {
@@ -3051,6 +3078,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "self_check": "OK" if (ROOT / "tools" / "stack_atlas.py").is_file() else "DEGRADED",
         "elapsed_ms": elapsed_ms,
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
+        "agent_contract": agent_contract,
     }
     glance = {
         "schema": "bootstrap.v1",

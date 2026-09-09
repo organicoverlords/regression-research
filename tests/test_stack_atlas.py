@@ -51,12 +51,31 @@ from tools.stack_atlas import (
     _fit_bootstrap_glance_budget,
     _bootstrap_memory_overview,
     _bootstrap_mcp_from_live_swarm,
+    _bootstrap_agent_contract_version,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StackAtlasTests(unittest.TestCase):
+
+    def test_bootstrap_agent_contract_version_requires_matching_headers(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "RULES.md").write_text("# Rules\n\nShared contract version: 7\n", encoding="utf-8")
+            (root / "AGENTS.md").write_text("# Agents\n\nShared contract version: 7\n", encoding="utf-8")
+            self.assertEqual(
+                _bootstrap_agent_contract_version(root),
+                {"status": "COHERENT", "version": 7, "rules_version": 7, "agents_version": 7},
+            )
+            (root / "AGENTS.md").write_text("# Agents\n\nShared contract version: 8\n", encoding="utf-8")
+            mismatch = _bootstrap_agent_contract_version(root)
+            self.assertEqual(mismatch["status"], "MISMATCH")
+            self.assertIsNone(mismatch["version"])
+            (root / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+            missing = _bootstrap_agent_contract_version(root)
+            self.assertEqual(missing["status"], "MISSING")
+            self.assertIsNone(missing["version"])
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
@@ -453,6 +472,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
+        self.assertEqual(glance["bootstrap"]["agent_contract"]["status"], "COHERENT")
+        self.assertEqual(glance["bootstrap"]["agent_contract"]["version"], 1)
+        self.assertEqual(glance["bootstrap"]["agent_contract"]["rules_version"], 1)
+        self.assertEqual(glance["bootstrap"]["agent_contract"]["agents_version"], 1)
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])
