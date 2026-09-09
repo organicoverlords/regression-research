@@ -2162,7 +2162,8 @@ class StackAtlasTests(unittest.TestCase):
 
     def test_generated_operational_manual_matches_atlas(self):
         manual = ROOT / "docs" / "assistant-stack-operational-atlas.md"
-        self.assertEqual(manual.read_text(encoding="utf-8"), render_manual() + "\n")
+        expected = render_manual().replace(str(ROOT), r"C:\Users\Lauri\Desktop\vault") + "\n"
+        self.assertEqual(manual.read_text(encoding="utf-8"), expected)
         text = manual.read_text(encoding="utf-8")
         self.assertNotIn("desktop_commander", text.casefold())
         self.assertIn("### `mcp_front_door`", text)
