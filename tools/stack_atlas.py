@@ -76,6 +76,7 @@ BOOTSTRAP_INTEGRITY_WARNING = (
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
+BOOTSTRAP_MANUAL_LIVE_IDENTITY_LIMIT = 1
 BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT = 4
 BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES = 30.0
 BOOTSTRAP_MANUAL_REPORT_READ_BYTES = 16 * 1024
@@ -1035,8 +1036,10 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         return {"available": False, "path": str(current_root), "evidence_semantics": semantics}
     try:
         from tools.worker_report_history import _fields, _parse_time
+        from tools.manual_work_disposition import load_binding
     except ImportError:
         from worker_report_history import _fields, _parse_time
+        from manual_work_disposition import load_binding
 
     try:
         report_paths = sorted(
@@ -1103,6 +1106,19 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
                     (now - report_mtime).total_seconds(),
                 ) / 60.0,
             )
+            binding = None
+            try:
+                binding = load_binding(current_root.parent, run_id)
+            except ValueError:
+                binding = None
+            identity = None
+            if isinstance(binding, dict):
+                identity = {
+                    "authority": binding.get("authority"),
+                    "caller_id": binding.get("caller_id"),
+                    "create_process_id": binding.get("create_process_id"),
+                    "create_started_at": binding.get("create_started_at"),
+                }
             running_reports.append({
                 "run_id": clipped(run_id, 120),
                 "display_label": clipped(fields.get("display_label"), 120),
@@ -1111,6 +1127,7 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
                 "state": "RUNNING",
                 "last_activity_at": str(fields.get("last_activity_at") or "").strip(),
                 "_age_minutes": age_minutes,
+                "_identity": identity,
             })
         except (OSError, UnicodeError, ValueError, TypeError) as exc:
             record_malformed(report_path, f"read_or_parse_error:{type(exc).__name__}")
@@ -1124,6 +1141,9 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
     for item in recent_running[:BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT]:
         visible = dict(item)
         visible["age_minutes"] = round(float(visible.pop("_age_minutes")), 1)
+        identity = visible.pop("_identity", None)
+        if isinstance(identity, dict):
+            visible["identity"] = identity
         sample.append(visible)
 
     scan_truncated = len(report_paths) > len(scan_paths)
@@ -1164,7 +1184,47 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
 
 
 
-def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
+def _bootstrap_active_manual_run_identities(manual_current: dict[str, Any], live_swarm: dict[str, Any]) -> dict[str, Any]:
+    """Annotate live MCP caller activity with the newest exact bound manual run; reports never create liveness."""
+    live_callers: dict[str, dict[str, Any]] = {}
+    for lane in live_swarm.get("lanes", []) if isinstance(live_swarm, dict) else []:
+        if not isinstance(lane, dict):
+            continue
+        for caller in lane.get("callers", []) if isinstance(lane.get("callers"), list) else []:
+            if not isinstance(caller, dict):
+                continue
+            caller_id = str(caller.get("caller_id") or "").strip()
+            if not caller_id:
+                continue
+            previous = live_callers.get(caller_id)
+            current_age = float(caller.get("last_activity_age_seconds") or 1e9)
+            previous_age = float(previous.get("last_activity_age_seconds") or 1e9) if isinstance(previous, dict) else 1e9
+            if previous is None or current_age < previous_age:
+                live_callers[caller_id] = caller
+
+    selected: dict[str, tuple[datetime, dict[str, str]]] = {}
+    reports = manual_current.get("recent_running_reports", []) if isinstance(manual_current, dict) else []
+    for report in reports if isinstance(reports, list) else []:
+        if not isinstance(report, dict):
+            continue
+        identity = report.get("identity") if isinstance(report.get("identity"), dict) else None
+        caller_id = str((identity or {}).get("caller_id") or "").strip()
+        run_id = str(report.get("run_id") or "").strip()
+        create_process_id = str((identity or {}).get("create_process_id") or "").strip()
+        create_started_at = _parse_event_time((identity or {}).get("create_started_at"))
+        if not (caller_id and run_id and create_process_id and create_started_at and caller_id in live_callers):
+            continue
+        row = {"run_id": run_id, "caller_id": caller_id, "create_process_id": create_process_id}
+        previous = selected.get(caller_id)
+        if previous is None or create_started_at > previous[0]:
+            selected[caller_id] = (create_started_at, row)
+
+    rows = [item[1] for item in selected.values()]
+    rows.sort(key=lambda item: float(live_callers[item["caller_id"]].get("last_activity_age_seconds") or 1e9))
+    return {"runs": rows[:BOOTSTRAP_MANUAL_LIVE_IDENTITY_LIMIT]}
+
+
+def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[str, Any] | None = None) -> dict[str, Any]:
     """Current user-declared subscription topology plus bounded manual-worker context."""
     current_time = now or datetime.now(timezone.utc)
     if current_time.tzinfo is None:
@@ -1184,7 +1244,7 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         read_state = "ERROR"
 
-    manual = _bootstrap_manual_current_status(current_time)
+    manual = manual_current if isinstance(manual_current, dict) else _bootstrap_manual_current_status(current_time)
     subscriptions = payload.get("subscriptions") if isinstance(payload.get("subscriptions"), dict) else {}
     handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
     routine_recovery = payload.get("routine_recurring_recovery") if isinstance(payload.get("routine_recurring_recovery"), dict) else {}
@@ -2965,7 +3025,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_mcp_backend_health.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
     pc = _bind_pc_node_identity(pc, execution_nodes)
-    swarm_topology = _bootstrap_swarm_topology()
+    bootstrap_now = datetime.now(timezone.utc)
+    manual_current = _bootstrap_manual_current_status(bootstrap_now)
+    swarm_topology = _bootstrap_swarm_topology(bootstrap_now, manual_current=manual_current)
     if isinstance(swarm_topology, dict):
         swarm_topology["execution_nodes"] = execution_nodes
     mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm, mcp_backend_health)
@@ -3013,6 +3075,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "observation_window_complete": live_evidence.get("observation_window_complete"),
             "source_age_seconds": live_evidence.get("source_age_seconds"),
         }
+        manual_live_identity = _bootstrap_active_manual_run_identities(manual_current, live_swarm)
+        if manual_live_identity.get("runs"):
+            worker_glance["current_activity"]["manual_run"] = manual_live_identity["runs"][0]
         scheduler_recovery = workers.get("fleet_watch") if isinstance(workers, dict) and isinstance(workers.get("fleet_watch"), dict) else None
         if scheduler_recovery is not None:
             worker_glance["recurring_scheduler_recovery"] = {
