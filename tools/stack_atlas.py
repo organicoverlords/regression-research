@@ -1813,17 +1813,18 @@ def _bootstrap_mcp_backend_health() -> dict[str, Any]:
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
 
-def _bootstrap_mcp_status() -> dict[str, Any]:
-    """Compatibility status derived only from canonical MCPv4 live-swarm evidence."""
-    snapshot = build_live_swarm_snapshot()
+def _bootstrap_mcp_status_from_live_swarm(
+    snapshot: dict[str, Any], service_health: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Combine transport activity with a fresh canonical 3011 service identity."""
     status = _bootstrap_mcp_from_live_swarm(snapshot)
     had_live_swarm = bool(status.get("available"))
-    if status.get("status") != "LIVE":
+    if service_health is None:
         service_health = _bootstrap_mcp_backend_health()
-        status["service_health"] = service_health
-        if service_health.get("status") == "LIVE":
-            status["available"] = True
-            status["status"] = "LIVE"
+    status["service_health"] = service_health
+    if status.get("status") != "LIVE" and service_health.get("status") == "LIVE":
+        status["available"] = True
+        status["status"] = "LIVE"
     status.setdefault("activity_evidence_status", "BOUNDED" if had_live_swarm else "MISSING")
     status.setdefault("active_session_count_status", "LOWER_BOUND")
     status.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
@@ -1832,6 +1833,11 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     status.setdefault("workspace_counts", {})
     status["authority"] = "live_swarm_runtime_evidence"
     return status
+
+
+def _bootstrap_mcp_status() -> dict[str, Any]:
+    """Compatibility status with live activity plus a fresh canonical backend identity."""
+    return _bootstrap_mcp_status_from_live_swarm(build_live_swarm_snapshot())
 
 
 def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -2031,7 +2037,17 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
-        bounded["commands"] = {key: commands.get(key) for key in ("bootstrap", "live_swarm", "fleet_watch", "stack_owner", "stack_find") if key in commands}
+        compact_commands = {
+            "bootstrap": "stack_atlas.py bootstrap-glance",
+            "live_swarm": "stack_atlas.py live-swarm",
+            "fleet_watch": "stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            "stack_owner": "stack_atlas.py lookup <id-or-alias>",
+            "stack_find": "stack_atlas.py find <query>",
+            "production_change_gate": "stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": "memory_bank.py overview",
+            "tiny3d_asset_library": "lookup tiny3d_library",
+        }
+        bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
 
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"]["compacted"] = True
@@ -2485,8 +2501,9 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     return {
         "available": True,
         "read_state": "OK",
-        "deployment_id": deployment.get("id"),
-        "backend_generation": deployment.get("generation"),
+        "authority": "recovery_target_not_live_serving_identity",
+        "recovery_target_deployment_id": recovery_target.get("deployment_id") or deployment.get("id"),
+        "recovery_target_generation": deployment.get("generation"),
         "recovery_selected_at": recovery_target.get("selected_at"),
         "automatic_routing": recovery_lanes.get("automatic_routing"),
         "ssh_role": recovery_lanes.get("ssh_role"),
@@ -3046,23 +3063,24 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=9) as pool:
         f_execution_nodes = pool.submit(_bootstrap_execution_node_topology)
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_live_swarm = pool.submit(build_live_swarm_snapshot)
+        f_mcp_backend_health = pool.submit(_bootstrap_mcp_backend_health)
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
-            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
+        execution_nodes, pc, workers, live_swarm, mcp_backend_health, memory_overview, vault, github, source_freshness = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_mcp_backend_health.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
     pc = _bind_pc_node_identity(pc, execution_nodes)
     swarm_topology = _bootstrap_swarm_topology()
     if isinstance(swarm_topology, dict):
         swarm_topology["execution_nodes"] = execution_nodes
-    mcp = _bootstrap_mcp_from_live_swarm(live_swarm)
+    mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm, mcp_backend_health)
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
     agent_contract = _bootstrap_agent_contract_version()
     notable_conditions: list[str] = []

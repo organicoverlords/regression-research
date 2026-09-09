@@ -1524,16 +1524,20 @@ class StackAtlasTests(unittest.TestCase):
                 ]},
             ],
         }
+        health = {"available": True, "status": "LIVE", "backend_generation": "backend-current", "pid": 4242}
         with (
             patch("tools.stack_atlas.build_live_swarm_snapshot", return_value=snapshot),
-            patch("tools.stack_atlas._bootstrap_mcp_backend_health", side_effect=AssertionError("fresh canonical evidence needs no health fallback")),
+            patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health) as health_probe,
         ):
             status = _bootstrap_mcp_status()
+        health_probe.assert_called_once_with()
         self.assertEqual(status["authority"], "live_swarm_runtime_evidence")
         self.assertEqual(status["transport"], "MCPv4")
         self.assertEqual(status["transport_source_count"], 2)
         self.assertEqual(status["active_session_count"], 2)
         self.assertEqual(status["active_session_count_status"], "COMPLETE")
+        self.assertEqual(status["service_health"]["backend_generation"], "backend-current")
+        self.assertEqual(status["service_health"]["pid"], 4242)
 
     def test_mcp_status_health_fallback_does_not_invent_caller_completeness(self):
         from tools.stack_atlas import _bootstrap_mcp_status
