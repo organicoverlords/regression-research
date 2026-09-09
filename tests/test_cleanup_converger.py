@@ -11,6 +11,7 @@ from tools.cleanup_converger import (
     Action,
     CLEANLINESS_PROBE_TIMEOUT_SECONDS,
     Worktree,
+    canonical_main_contains_head,
     converge,
     cwd_targets_path,
     eligibility_reason,
@@ -24,6 +25,7 @@ from tools.cleanup_converger import (
     recent_mcp_cwds,
     summarize_actions,
     scan_repo,
+    worktree_anchor_matches,
     worktree_is_clean,
 )
 
@@ -196,6 +198,27 @@ class CleanupConvergerTests(unittest.TestCase):
         args = git.call_args.args
         self.assertIn("--points-at", args)
         self.assertIn("abcd", args)
+
+    @patch("tools.cleanup_converger._git")
+    def test_canonical_main_contains_head_uses_cached_origin_main_ancestry(self, git):
+        git.return_value = subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
+        lane = Worktree(Path(r"C:\Temp\detached"), "abcd", None, True)
+        self.assertTrue(canonical_main_contains_head(Path(r"C:\repo"), lane))
+        git.assert_called_once_with(
+            Path(r"C:\repo"),
+            "merge-base",
+            "--is-ancestor",
+            "abcd",
+            "refs/remotes/origin/main",
+            check=False,
+            timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS,
+        )
+
+    @patch("tools.cleanup_converger.canonical_main_contains_head", return_value=True)
+    @patch("tools.cleanup_converger.exact_anchor_refs", return_value=[])
+    def test_detached_worktree_can_anchor_via_canonical_main_ancestry(self, _exact, _contained):
+        lane = Worktree(Path(r"C:\Temp\detached"), "abcd", None, True)
+        self.assertTrue(worktree_anchor_matches(Path(r"C:\repo"), lane))
 
     def test_locked_worktree_is_never_eligible(self):
         lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False, "protected worker lane")

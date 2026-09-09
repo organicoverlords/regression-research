@@ -395,9 +395,10 @@ def branch_ref_matches(repo: Path, worktree: Worktree) -> bool:
 def exact_anchor_refs(repo: Path, worktree: Worktree) -> list[str]:
     """Return durable refs that point exactly at this worktree HEAD.
 
-    Detached worktrees are removable only when at least one local branch, tag, or
-    remote-tracking ref points exactly at HEAD. Remote symbolic HEAD aliases are
-    ignored so a symbolic alias alone can never satisfy preservation.
+    Exact refs are one preservation proof for detached worktrees. Canonical-main
+    ancestry is checked separately so an already-merged detached HEAD does not
+    need a synthetic exact ref merely to make the checkout disposable. Remote
+    symbolic HEAD aliases are ignored.
     """
     if not worktree.head:
         return []
@@ -425,9 +426,32 @@ def exact_anchor_refs(repo: Path, worktree: Worktree) -> list[str]:
     ]
 
 
+def canonical_main_contains_head(repo: Path, worktree: Worktree) -> bool:
+    """Return True when cached origin/main already contains the worktree HEAD.
+
+    This is intentionally fetch-free. A stale local origin/main can only make the
+    check conservative (False); cleanup never advances remote-tracking refs.
+    """
+    if not worktree.head:
+        return False
+    try:
+        completed = _git(
+            repo,
+            "merge-base",
+            "--is-ancestor",
+            worktree.head,
+            "refs/remotes/origin/main",
+            check=False,
+            timeout=CLEANLINESS_PROBE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return False
+    return completed.returncode == 0
+
+
 def worktree_anchor_matches(repo: Path, worktree: Worktree) -> bool:
     if worktree.detached or not worktree.branch:
-        return bool(exact_anchor_refs(repo, worktree))
+        return bool(exact_anchor_refs(repo, worktree)) or canonical_main_contains_head(repo, worktree)
     return branch_ref_matches(repo, worktree)
 
 
