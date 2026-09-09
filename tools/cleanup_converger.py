@@ -630,8 +630,11 @@ def scan_repo(
                 cache_candidates.append(worktree)
             continue
         if require_contained and not canonical_main_contains_head(repo, worktree):
-            observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "not_contained_in_origin_main"))
-            continue
+            if worktree.detached or not worktree.branch:
+                observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "detached_not_contained_in_origin_main"))
+                continue
+            # Clean idle branch worktrees are disposable execution surfaces even when unmerged.
+            # The exact HEAD remains durably anchored by the branch ref.
         candidates.append(worktree)
     return candidates, cache_candidates, observations
 
@@ -673,7 +676,7 @@ def hygiene_snapshot(window_seconds: int, repo_names: set[str] | None = None) ->
         if not repo.exists():
             continue
         candidates, _cache, observations = scan_repo(repo_name, repo, window_seconds, require_contained=True)
-        actions = observations + [Action(repo_name, str(item.path), "SAFE_REAP", item.branch, item.head, "clean_idle_contained_in_origin_main") for item in candidates]
+        actions = observations + [Action(repo_name, str(item.path), "SAFE_REAP", item.branch, item.head, "clean_idle_durably_anchored") for item in candidates]
         reasons = [row.reason or "" for row in actions]
         row = {
             "repo": repo_name,
