@@ -231,36 +231,27 @@ def cwd_targets_path(path: Path, recent_cwds: Iterable[str]) -> bool:
 def worktree_is_clean(
     path: Path, timeout_seconds: float = CLEANLINESS_PROBE_TIMEOUT_SECONDS
 ) -> bool | None:
-    """Return clean/dirty, or None when a bounded Git probe times out.
+    """Return clean/dirty, or None when the bounded Git probe times out.
 
-    Timeout is deliberately fail-closed: the caller must preserve the lane rather
-    than treating an expensive or wedged cleanliness probe as evidence of clean state.
+    One porcelain status covers staged, unstaged, and untracked changes. This keeps
+    the safety check conservative while avoiding three Git process launches per
+    worktree on cleanup scans. Timeout remains fail-closed.
     """
-    for args in (("diff-files", "--quiet", "--"), ("diff-index", "--cached", "--quiet", "HEAD", "--")):
-        try:
-            completed = _git(path, *args, check=False, timeout=timeout_seconds)
-        except subprocess.TimeoutExpired:
-            return None
-        if completed.returncode == 1:
-            return False
-        if completed.returncode != 0:
-            raise RuntimeError(f"git {' '.join(args)} failed for {path}: {completed.stderr.strip()}")
     try:
         completed = _git(
             path,
-            "ls-files",
-            "--others",
-            "--exclude-standard",
-            "--directory",
-            "--no-empty-directory",
+            "status",
+            "--porcelain=v1",
             "-z",
+            "--untracked-files=normal",
+            "--ignore-submodules=none",
             check=False,
             timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired:
         return None
     if completed.returncode != 0:
-        raise RuntimeError(f"git ls-files failed for {path}: {completed.stderr.strip()}")
+        raise RuntimeError(f"git status failed for {path}: {completed.stderr.strip()}")
     return not bool(completed.stdout)
 
 

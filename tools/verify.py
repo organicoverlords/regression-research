@@ -27,6 +27,7 @@ STACK_PATHS = {
     "tests/fixtures/issue693_fresh_worker_entry.json",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
+    "tests/test_replay_scoring.py",
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
@@ -89,6 +90,13 @@ CONVERSATION_PATHS = {
     "tests/fixtures/conversation-corpus/ChatGPTLocalExporter/new.json",
 }
 
+WORKER_REPORT_PATHS = {
+    "tools/worker_report_history.py",
+    "tools/manual_work_disposition.py",
+    "tests/test_worker_report_history.py",
+    "tests/test_manual_work_disposition.py",
+}
+
 BUSY_ROOT = "03 Fixtures and Experiments/issue125-busy-coordinator"
 BUSY_PATH_PREFIX = BUSY_ROOT + "/"
 
@@ -118,14 +126,19 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "memory", "conversation", "busy"]
+        return ["stack", "memory", "conversation", "busy", "worker_reports"]
     selected = []
-    if changed & STACK_PATHS:
+    if changed & STACK_PATHS or any(
+        Path(path).parent.as_posix() == "03 Fixtures and Experiments" and path.endswith(".json")
+        for path in changed
+    ):
         selected.append("stack")
     if changed & MEMORY_PATHS:
         selected.append("memory")
     if changed & CONVERSATION_PATHS:
         selected.append("conversation")
+    if changed & WORKER_REPORT_PATHS:
+        selected.append("worker_reports")
     if any(path.startswith(BUSY_PATH_PREFIX) for path in changed):
         selected.append("busy")
     return selected
@@ -164,6 +177,7 @@ def verify_stack() -> None:
             "-m",
             "unittest",
             "tests.test_stack_atlas",
+            "tests.test_replay_scoring",
             "tests.test_tiny3d_atlas_projection",
             "tests.test_issue693_fresh_worker_entry",
             "tests.test_issue122_acceptance_boundary_replay",
@@ -238,6 +252,12 @@ def verify_memory() -> None:
     print("MEMORY_HISTORY_RETRIEVAL_PROVEN")
 
 
+def verify_worker_reports() -> None:
+    run([sys.executable, "-m", "py_compile", "tools/worker_report_history.py", "tools/manual_work_disposition.py"])
+    run_pytest(["tests/test_worker_report_history.py", "tests/test_manual_work_disposition.py"])
+    print("MANUAL_WORK_DISPOSITION_PROVEN")
+
+
 def verify_conversation() -> None:
     run(
         [
@@ -302,6 +322,8 @@ def main() -> int:
             verify_conversation()
         elif area == "busy":
             verify_busy()
+        elif area == "worker_reports":
+            verify_worker_reports()
 
     if not areas:
         print("CHANGED_AREA_CHECKS_SKIPPED")

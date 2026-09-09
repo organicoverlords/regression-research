@@ -216,10 +216,14 @@ def prune_assignments(state,now):
         except (KeyError,TypeError,ValueError): pass
     state["assignments"]=keep
 
+def probe_age_seconds(probe,now):
+    if not probe: return None
+    try: return max(0.0,(now-parse_time(probe["observed_at"])).total_seconds())
+    except (KeyError,TypeError,ValueError): return None
+
 def probe_is_fresh(probe,now):
-    if not probe: return False
-    try: return (now-parse_time(probe["observed_at"])).total_seconds()<=PROBE_TTL_SECONDS
-    except (KeyError,TypeError,ValueError): return False
+    age=probe_age_seconds(probe,now)
+    return age is not None and age<=PROBE_TTL_SECONDS
 
 def omen_load(assignments):
     kinds=[a.get("kind") for a in assignments.values() if a.get("route")=="omen"]
@@ -293,8 +297,10 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
             save_state(state_path,state)
             return {**current,"reused":True,"policy_migration_pending":migration_pending,"cohort_state":str(state_path)}
         probe=state.get("probe")
-        if refresh_probe or not probe_is_fresh(probe,now):
-            probe=probe_all(); state["probe"]=probe
+        probe_age=probe_age_seconds(probe,now)
+        probe_cache_reused=bool(not refresh_probe and probe_age is not None and probe_age<=PROBE_TTL_SECONDS)
+        if not probe_cache_reused:
+            probe=probe_all(); state["probe"]=probe; probe_age=probe_age_seconds(probe,now)
         route,reason=choose_route(kind,probe,state["assignments"])
         recovery=None
         if route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
@@ -308,7 +314,15 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
         a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at"),**identity}
         if recovery is not None: a["capacity_recovery"]=recovery
         state["assignments"][work_id]=a; save_state(state_path,state)
-        return {**a,"reused":False,"facts":probe,"cohort_state":str(state_path)}
+        return {
+            **a,
+            "reused":False,
+            "probe_cache_reused":probe_cache_reused,
+            "probe_age_seconds":round(probe_age,3) if probe_age is not None else None,
+            "probe_cache_ttl_seconds":PROBE_TTL_SECONDS,
+            "facts":probe,
+            "cohort_state":str(state_path),
+        }
 
 def release_work(state_path,work_id):
     with state_lock(state_path):
@@ -319,9 +333,19 @@ def status(state_path,refresh_probe=False):
     now=utc_now()
     with state_lock(state_path):
         state=load_state(state_path); prune_assignments(state,now)
-        if refresh_probe or not probe_is_fresh(state.get("probe"),now): state["probe"]=probe_all()
+        probe=state.get("probe")
+        probe_age=probe_age_seconds(probe,now)
+        probe_cache_reused=bool(not refresh_probe and probe_age is not None and probe_age<=PROBE_TTL_SECONDS)
+        if not probe_cache_reused:
+            probe=probe_all(); state["probe"]=probe; probe_age=probe_age_seconds(probe,now)
         save_state(state_path,state)
-        return {"schema":SCHEMA,"observed_at":iso(now),"assignments":state["assignments"],"probe":state.get("probe"),"omen_load":omen_load(state["assignments"]),"cohort_state":str(state_path)}
+        return {
+            "schema":SCHEMA,"observed_at":iso(now),"assignments":state["assignments"],"probe":probe,
+            "probe_cache_reused":probe_cache_reused,
+            "probe_age_seconds":round(probe_age,3) if probe_age is not None else None,
+            "probe_cache_ttl_seconds":PROBE_TTL_SECONDS,
+            "omen_load":omen_load(state["assignments"]),"cohort_state":str(state_path)
+        }
 
 def build_parser():
     p=argparse.ArgumentParser(description="Shared OMEN-first swarm machine routing cohort")

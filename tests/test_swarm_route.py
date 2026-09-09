@@ -88,6 +88,37 @@ class RouteDecisionTests(unittest.TestCase):
             self.assertEqual(first["policy_epoch"],m.POLICY_EPOCH)
             self.assertFalse(second["policy_migration_pending"])
             self.assertGreater(m.parse_time(second["expires_at"]),m.parse_time(first["expires_at"]))
+    def test_distinct_work_ids_share_one_fresh_capacity_probe(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"
+            original=m.probe_all
+            calls=[]
+            try:
+                m.probe_all=lambda: (calls.append(1) or {**facts(),"observed_at":m.iso(m.utc_now())})
+                first=m.route_work(p,"issue-849-a","portable",600,False)
+                second=m.route_work(p,"issue-849-b","portable",600,False)
+            finally:
+                m.probe_all=original
+            self.assertEqual(len(calls),1)
+            self.assertFalse(first["probe_cache_reused"])
+            self.assertTrue(second["probe_cache_reused"])
+            self.assertEqual(second["probe_cache_ttl_seconds"],m.PROBE_TTL_SECONDS)
+            self.assertEqual(first["probe_observed_at"],second["probe_observed_at"])
+
+    def test_refresh_probe_bypasses_shared_probe_cache(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"
+            original=m.probe_all
+            calls=[]
+            try:
+                m.probe_all=lambda: (calls.append(1) or {**facts(),"observed_at":m.iso(m.utc_now())})
+                m.route_work(p,"issue-849-refresh-a","portable",600,False)
+                refreshed=m.route_work(p,"issue-849-refresh-b","portable",600,True)
+            finally:
+                m.probe_all=original
+            self.assertEqual(len(calls),2)
+            self.assertFalse(refreshed["probe_cache_reused"])
+
     def test_same_work_id_reuses_one_cohort_decision(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"

@@ -65,8 +65,14 @@ BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
-BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
-BOOTSTRAP_GLANCE_MAX_BYTES = 11_700  # keep headroom below the external <12 KB bootstrap contract
+BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
+BOOTSTRAP_GLANCE_MAX_BYTES = 15_000
+BOOTSTRAP_INTEGRITY_WARNING = (
+    "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
+    "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
+    "or incompleteness. If the end marker is missing, or any truncation/incompleteness is reported, "
+    "immediately tell the user after reading this bootstrap before relying on it as complete context."
+)
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
@@ -447,11 +453,15 @@ COMPONENTS.update({
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
         "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
-        "supervisor": "user-designated ChatGPT subscription operator; current primary operator is read from chatgpt-swarm-topology.json",
-        "self_heal": "not_applicable",
-        "independent_recovery": ["read the topology contract, canonical shared rules, local worker reports/start receipts, and the controlling subscription's scheduler state only when an authorized exact scheduler mutation is required"],
+        "supervisor": "distributed same-partition recurring workers; supervising/manual ChatGPT session may perform the same guarded recovery; operator handoff is administrative fallback only",
+        "self_heal": "bounded_same_partition_peer_recovery",
+        "independent_recovery": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
+            "perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions",
+        ],
         "resources": ["S1 five recurring slots", "S2 five recurring slots", "manual/on-demand worker population"],
-        "dependents": ["chatgpt_session", "execution_workers", "scheduler"],
+        "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
     },
     "chatgpt_session": {
@@ -463,15 +473,23 @@ COMPONENTS.update({
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
-        "supervisor": "ChatGPT + BusyCoordinator ownership", "self_heal": "worker_specific",
-        "independent_recovery": ["preserve task/checkpoint; use another proven execution route"],
+        "supervisor": "distributed peer supervision for recurring workers; supervising/manual ChatGPT session may assist; BusyCoordinator is exact mutation collision control only", "self_heal": "same_partition_sibling_recovery_for_recurring_workers",
+        "independent_recovery": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
+            "preserve task/checkpoint and use another proven execution route for execution-path failures",
+        ],
         "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
         "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "chatgpt_automations": {
         "role": "scheduler:recurrence", "capabilities": ["schedule"], "canonical_sources": ["ChatGPT Automations state"],
-        "live_status": ["current automation list/run state"], "supervisor": "ChatGPT scheduler", "self_heal": "service_specific",
-        "independent_recovery": ["present-turn work continues without scheduler"], "resources": ["timed recurrence only"],
+        "live_status": ["current automation enabled/schedule state only; not worker liveness, supervision, or recovery authority"],
+        "supervisor": "platform recurrence service only; it does not supervise worker health or own swarm recovery", "self_heal": "not_swarm_supervision",
+        "independent_recovery": [
+            "same-partition recurring siblings or a supervising/manual ChatGPT session use fleet-watch plus worker_recovery_guard and may issue one targeted is_enabled=true write; scheduler listing is not the discovery path",
+            "present-turn work continues without recurrence",
+        ], "resources": ["timed recurrence and enabled state only"],
         "dependents": ["execution_workers"], "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "github_actions": {
@@ -697,9 +715,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
-        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "User-declared swarm membership and operator-handoff topology: two ChatGPT subscription scheduler partitions with five recurring workers each, plus a separate manual/on-demand population. Current activity/liveness remains live MCP/runtime evidence, and scheduler administration never crosses subscription partitions.",
+        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
+        "boundary": "Two ChatGPT subscription partitions contain five recurring workers each. The scheduler provides recurrence only. Routine health recovery is distributed: each recurring worker checks same-partition siblings from local reports/start receipts and may perform one guard-authorized idempotent re-enable; a supervising/manual ChatGPT session may perform the same bounded recovery. Operator handoff is an administrative fallback/control surface, not routine supervision, and the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence; recovery never crosses subscription partitions.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
@@ -1291,6 +1309,7 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
     manual = _bootstrap_manual_current_status(current_time)
     subscriptions = payload.get("subscriptions") if isinstance(payload.get("subscriptions"), dict) else {}
     handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
+    routine_recovery = payload.get("routine_recurring_recovery") if isinstance(payload.get("routine_recurring_recovery"), dict) else {}
     manual_contract = payload.get("manual_workers") if isinstance(payload.get("manual_workers"), dict) else {}
     return {
         "authority": payload.get("authority") or "canonical_recurring_worker_partition_map",
@@ -1305,6 +1324,12 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
         "recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
         "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five recurring workers per ChatGPT subscription partition",
         "subscriptions": subscriptions,
+        "routine_recurring_recovery": {
+            "authority": routine_recovery.get("authority") or "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+            "scheduler_role": routine_recovery.get("scheduler_role") or "RECURRENCE_ONLY",
+            "operator_handoff_role": routine_recovery.get("operator_handoff_role") or "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+            "user_role": routine_recovery.get("user_role") or "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
+        },
         "operator_handoff": handoff,
         "manual_workers": {
             "population": manual_contract.get("population") or "SEPARATE_ON_DEMAND",
@@ -1916,17 +1941,18 @@ def _bootstrap_mcp_backend_health() -> dict[str, Any]:
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
 
-def _bootstrap_mcp_status() -> dict[str, Any]:
-    """Compatibility status derived only from canonical MCPv4 live-swarm evidence."""
-    snapshot = build_live_swarm_snapshot()
+def _bootstrap_mcp_status_from_live_swarm(
+    snapshot: dict[str, Any], service_health: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Combine transport activity with a fresh canonical 3011 service identity."""
     status = _bootstrap_mcp_from_live_swarm(snapshot)
     had_live_swarm = bool(status.get("available"))
-    if status.get("status") != "LIVE":
+    if service_health is None:
         service_health = _bootstrap_mcp_backend_health()
-        status["service_health"] = service_health
-        if service_health.get("status") == "LIVE":
-            status["available"] = True
-            status["status"] = "LIVE"
+    status["service_health"] = service_health
+    if status.get("status") != "LIVE" and service_health.get("status") == "LIVE":
+        status["available"] = True
+        status["status"] = "LIVE"
     status.setdefault("activity_evidence_status", "BOUNDED" if had_live_swarm else "MISSING")
     status.setdefault("active_session_count_status", "LOWER_BOUND")
     status.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
@@ -1935,6 +1961,11 @@ def _bootstrap_mcp_status() -> dict[str, Any]:
     status.setdefault("workspace_counts", {})
     status["authority"] = "live_swarm_runtime_evidence"
     return status
+
+
+def _bootstrap_mcp_status() -> dict[str, Any]:
+    """Compatibility status with live activity plus a fresh canonical backend identity."""
+    return _bootstrap_mcp_status_from_live_swarm(build_live_swarm_snapshot())
 
 
 def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -1962,8 +1993,7 @@ def _compact_incident_rollups(report: dict[str, Any], limit: int = 3) -> list[di
         return []
     fields = (
         "thread_id", "thread_source", "scope", "observations", "latest_event_at",
-        "latest_event_id", "latest_title", "latest_disposition", "summary", "projects",
-        "entities", "drilldown",
+        "latest_event_id", "latest_title", "latest_disposition", "drilldown",
     )
     return [
         {key: item.get(key) for key in fields if item.get(key) not in (None, [], "")}
@@ -1979,7 +2009,14 @@ def _compact_json_bytes(value: Any) -> int:
 def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES) -> dict[str, Any]:
     """Bound the whole bootstrap payload while preserving live truth and drill-down routes."""
     budget = max(2_048, int(max_bytes))
-    bounded = json.loads(json.dumps(glance, ensure_ascii=False))
+    source = json.loads(json.dumps(glance, ensure_ascii=False))
+    source.pop("bootstrap_warning", None)
+    source.pop("bootstrap_end", None)
+    bounded = {
+        "bootstrap_warning": BOOTSTRAP_INTEGRITY_WARNING,
+        **source,
+        "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
+    }
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {"max_bytes": budget, "compacted": False}
@@ -2013,8 +2050,6 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
                 if key in latest_restore
             }
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 2_400)
 
     if _compact_json_bytes(bounded) > budget:
         freshness = bounded.get("source_freshness")
@@ -2064,23 +2099,6 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             if isinstance(items, list) and len(items) > 1:
                 bounded["workers"][key] = items[:1]
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 1_800)
-
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        memory = bounded["memory_overview"]
-        materialized = memory.get("timeline_materialized") if isinstance(memory.get("timeline_materialized"), dict) else {}
-        snapshots = memory.get("timeline_snapshots") if isinstance(memory.get("timeline_snapshots"), dict) else {}
-        memory["timeline_materialized"] = {
-            key: materialized.get(key)
-            for key in ("status", "coverage_status", "age_seconds", "live_truth_required", "backfill_incomplete_sources", "retry_sources")
-            if key in materialized
-        }
-        memory["timeline_snapshots"] = {
-            key: snapshots.get(key)
-            for key in ("authority", "memory_history")
-            if key in snapshots
-        }
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
         workers = bounded["workers"]
         recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
@@ -2095,6 +2113,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("swarm_topology"), dict):
         topo = bounded["swarm_topology"]
         handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
+        routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
         manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
         execution_nodes = topo.get("execution_nodes") if isinstance(topo.get("execution_nodes"), dict) else {}
         raw_nodes = execution_nodes.get("nodes") if isinstance(execution_nodes.get("nodes"), dict) else {}
@@ -2117,6 +2136,11 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         bounded["swarm_topology"] = {
             key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
         }
+        bounded["swarm_topology"]["routine_recurring_recovery"] = {
+            key: routine_recovery.get(key)
+            for key in ("authority", "scheduler_role", "operator_handoff_role", "user_role")
+            if key in routine_recovery
+        }
         bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
         bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
         bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
@@ -2128,7 +2152,35 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
-        bounded["commands"] = {key: commands.get(key) for key in ("bootstrap", "live_swarm", "fleet_watch", "stack_owner", "stack_find") if key in commands}
+        compact_commands = {
+            "bootstrap": "stack_atlas.py bootstrap-glance",
+            "live_swarm": "stack_atlas.py live-swarm",
+            "fleet_watch": "stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            "stack_owner": "stack_atlas.py lookup <id-or-alias>",
+            "stack_find": "stack_atlas.py find <query>",
+            "production_change_gate": "stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": "memory_bank.py overview",
+            "tiny3d_asset_library": "lookup tiny3d_library",
+        }
+        bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("paths"), dict):
+        paths = bounded["paths"]
+        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault") if key in paths}
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("mcp_recovery_state"), dict):
+        recovery = bounded["mcp_recovery_state"]
+        bounded["mcp_recovery_state"] = {
+            key: recovery.get(key)
+            for key in ("status", "path", "selected_recovery_target")
+            if recovery.get(key) not in (None, "", [], {})
+        }
+
+    if _compact_json_bytes(bounded) > budget:
+        raise ValueError(
+            f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
+            f"bytes={_compact_json_bytes(bounded)} budget={budget}"
+        )
 
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"]["compacted"] = True
@@ -2144,27 +2196,20 @@ def _clip_bootstrap_text(value: Any, limit: int) -> Any:
 
 
 def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
+    """Project timeline history into shallow urgency/recurrence signals only."""
     raw = report.get("timeline_snapshots")
     if not isinstance(raw, dict):
         return {}
-    source_names = {
-        "VAULT_MEMORY": "memory",
-        "GIT_COMMIT": "repo",
-        "WORKER_REPORT": "worker",
-        "TRACKED_ARTIFACT": "artifact",
-    }
 
     def short_at(value: Any) -> Any:
-        text = str(value or "")
-        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", text)
+        value_text = str(value or "")
+        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", value_text)
         return f"{match.group(1)} {match.group(2)}" if match else value
 
-    def compact_signal_summary(value: Any, *, keep_total: bool = True) -> dict[str, Any]:
+    def compact_signal_summary(value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return {}
-        keys = ["red", "slopwall", "incident", "regression", "security_incident"]
-        if keep_total:
-            keys.insert(0, "total")
+        keys = ("total", "red", "slopwall", "asshole", "incident", "regression", "security_incident")
         return {key: value.get(key) for key in keys if value.get(key) not in (None, 0)}
 
     windows: list[dict[str, Any]] = []
@@ -2172,286 +2217,170 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(window, dict):
             continue
         label = str(window.get("window") or "")
-        highlight_limit = 6 if label == "24h" else 2
-        highlights: list[dict[str, Any]] = []
-        for item in window.get("highlights", []) if isinstance(window.get("highlights"), list) else []:
-            if not isinstance(item, dict):
-                continue
-            compact = {
-                "at": short_at(item.get("event_at")),
-                "source": source_names.get(str(item.get("source_type") or ""), str(item.get("source_type") or "other").casefold()),
-                "title": _clip_bootstrap_text(item.get("title"), 96),
-            }
-            if item.get("project") not in (None, "", []):
-                compact["project"] = item.get("project")
-            if item.get("artifact_type") not in (None, "", []):
-                compact["artifact"] = item.get("artifact_type")
-            if item.get("severity") == "RED":
-                compact["severity"] = "RED"
-            if item.get("traits"):
-                compact["traits"] = item.get("traits")
-            if item.get("legacy_inferred"):
-                compact["legacy"] = True
-            if item.get("short_sha") not in (None, "", []):
-                compact["sha"] = item.get("short_sha")
-            highlights.append(compact)
-            if len(highlights) >= highlight_limit:
-                break
-        context_only = []
-        for item in window.get("corroborated_anchors", []) if isinstance(window.get("corroborated_anchors"), list) else []:
-            if not isinstance(item, dict) or item.get("role") != "CONTEXT_ONLY":
-                continue
-            context_only.append({
-                "anchor": item.get("anchor"),
-                "sources": item.get("source_families"),
-                "observations": item.get("event_count"),
-                "role": "CONTEXT_ONLY",
-            })
-            if len(context_only) >= 2:
-                break
-        source_counts = {
-            source_names.get(str(name), str(name).casefold()): count
-            for name, count in (window.get("source_counts") or {}).items()
-        } if isinstance(window.get("source_counts"), dict) else {}
-        cases: list[dict[str, Any]] = []
-        case_limit = 3 if label == "24h" else 1
-        raw_case_examples = window.get("continuity_case_examples")
-        if not isinstance(raw_case_examples, list):
-            # Compatibility with materializations created before timeline schema v3.
-            raw_case_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
-        ordered_case_examples = sorted(
-            (case for case in raw_case_examples if isinstance(case, dict)),
+        case_counts = window.get("cases") if isinstance(window.get("cases"), dict) else window.get("continuity_case_summary")
+        density = window.get("evidence_density") if isinstance(window.get("evidence_density"), dict) else window.get("signal_observation_summary")
+        raw_examples = window.get("case_examples")
+        if not isinstance(raw_examples, list):
+            raw_examples = window.get("continuity_case_examples")
+        if not isinstance(raw_examples, list):
+            raw_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
+        ordered_examples = sorted(
+            (case for case in raw_examples if isinstance(case, dict)),
             key=lambda case: (
                 1 if case.get("severity") == "RED" else 0,
-                1 if str(case.get("case_id") or "").casefold().startswith("incident:") else 0,
-                str(case.get("latest_signal_at") or ""),
-                str(case.get("case_id") or ""),
+                1 if str(case.get("id") or case.get("case_id") or "").casefold().startswith("incident:") else 0,
+                str(case.get("at") or case.get("latest_signal_at") or ""),
+                str(case.get("id") or case.get("case_id") or ""),
             ),
             reverse=True,
         )
-        for case in ordered_case_examples:
-            cases.append({
-                key: value for key, value in {
-                    "id": _clip_bootstrap_text(case.get("case_id"), 120),
-                    "severity": case.get("severity") if case.get("severity") == "RED" else None,
-                    "traits": case.get("traits"),
-                    "observations": case.get("observation_count"),
-                    "sources": case.get("source_families"),
-                    "forms": case.get("evidence_forms"),
-                    "at": short_at(case.get("latest_signal_at")),
-                    "title": _clip_bootstrap_text(case.get("latest_title"), 96),
-                    "support": {
-                        "STRUCTURED": "structured",
-                        "MIXED": "mixed",
-                        "LEGACY_DEPENDENT": "legacy-dependent",
-                    }.get(str(case.get("classification_quality") or "")),
-                    "legacy": True if case.get("legacy_inferred") else None,
-                }.items() if value not in (None, {}, [], "")
-            })
-            if len(cases) >= case_limit:
-                break
+        examples = []
+        for case in ordered_examples[: (3 if label == "24h" else 1)]:
+            compact = {
+                "id": _clip_bootstrap_text(case.get("id") or case.get("case_id"), 120),
+                "severity": case.get("severity") if case.get("severity") == "RED" else None,
+                "traits": case.get("traits"),
+                "observations": case.get("observations") or case.get("observation_count"),
+                "at": short_at(case.get("at") or case.get("latest_signal_at")),
+                "title": _clip_bootstrap_text(case.get("title") or case.get("latest_title"), 96),
+            }
+            examples.append({key: value for key, value in compact.items() if value not in (None, {}, [], "")})
         windows.append({
             key: value for key, value in {
                 "window": label,
-                "cases": compact_signal_summary(window.get("continuity_case_summary")),
-                "case_examples": cases,
-                "evidence_density": compact_signal_summary(window.get("signal_observation_summary")),
-                "context_only": context_only,
-                "observations": window.get("event_count"),
-                "sources": source_counts,
-                "artifacts": window.get("artifact_counts"),
-                "slice": window.get("slice"),
-                "slice_observations": window.get("slice_event_count"),
-                "highlights": highlights,
+                "cases": compact_signal_summary(case_counts),
+                "evidence_density": compact_signal_summary(density),
+                "observations": window.get("observations") if window.get("observations") is not None else window.get("event_count"),
+                "case_examples": examples,
             }.items() if value not in (None, {}, [], "")
         })
-    coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
-    repo_coverage = coverage.get("repos") if isinstance(coverage.get("repos"), dict) else {}
-    compact_coverage = {
-        "repo_saturated": sorted(
-            name for name, item in repo_coverage.items()
-            if isinstance(item, dict) and item.get("saturated")
-        ),
-        "artifacts_saturated": bool(
-            isinstance(coverage.get("artifacts"), dict) and coverage["artifacts"].get("saturated")
-        ),
-        "workers_bounded": (coverage.get("workers") or {}).get("bounded") if isinstance(coverage.get("workers"), dict) else None,
-    }
-    compact_coverage = {key: value for key, value in compact_coverage.items() if value not in (None, [], {})}
-    memory_history = raw.get("preserved_memory_history") if isinstance(raw.get("preserved_memory_history"), dict) else {}
-    compact_memory_history = {
+
+    raw_coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
+    if any(key in raw_coverage for key in ("repo_saturated", "artifacts_saturated", "workers_bounded")):
+        coverage = {
+            key: raw_coverage.get(key)
+            for key in ("repo_saturated", "artifacts_saturated", "workers_bounded")
+            if raw_coverage.get(key) not in (None, [], {})
+        }
+    else:
+        repos = raw_coverage.get("repos") if isinstance(raw_coverage.get("repos"), dict) else {}
+        coverage = {
+            "repo_saturated": sorted(name for name, item in repos.items() if isinstance(item, dict) and item.get("saturated")),
+            "artifacts_saturated": bool(isinstance(raw_coverage.get("artifacts"), dict) and raw_coverage["artifacts"].get("saturated")),
+            "workers_bounded": (raw_coverage.get("workers") or {}).get("bounded") if isinstance(raw_coverage.get("workers"), dict) else None,
+        }
+        coverage = {key: value for key, value in coverage.items() if value not in (None, [], {})}
+
+    memory_history = raw.get("memory_history") if isinstance(raw.get("memory_history"), dict) else raw.get("preserved_memory_history")
+    memory_history = memory_history if isinstance(memory_history, dict) else {}
+    memory_history = {
         "red_observations": memory_history.get("red_observations"),
-        "cases": compact_signal_summary(memory_history.get("continuity_case_summary")),
+        "cases": compact_signal_summary(memory_history.get("cases") if isinstance(memory_history.get("cases"), dict) else memory_history.get("continuity_case_summary")),
     }
-    compact_memory_history = {key: value for key, value in compact_memory_history.items() if value not in (None, {}, [], "")}
-    narrative = raw.get("narrative_contract") if isinstance(raw.get("narrative_contract"), dict) else {}
-    compact_narrative = {
-        "primary": "cases",
-        "read_order": "cases>work_graph>evidence_density>context_only",
-        "observations": "density_not_cases",
-        "github_anchors": "context_only",
-    } if narrative else {}
+    memory_history = {key: value for key, value in memory_history.items() if value not in (None, {}, [], "")}
     return {
         "authority": raw.get("authority"),
-        "narrative": compact_narrative,
-        "memory_history": compact_memory_history,
-        "coverage": compact_coverage,
+        "memory_history": memory_history,
+        "coverage": coverage,
         "windows": windows,
     }
 
 
-def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int) -> None:
-    snapshots = overview.get("timeline_snapshots")
-    if not isinstance(snapshots, dict):
-        return
-    windows = snapshots.get("windows")
-    if not isinstance(windows, list):
-        return
-    by_label = {str(item.get("window") or ""): item for item in windows if isinstance(item, dict)}
-
-    # Corroboration counts/anchors matter more than long highlight lists. Trim older
-    # window examples first; the 24h window is deliberately the richest startup view.
-    for label, floor in (("7d", 1), ("3d", 1), ("24h", 5)):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and len(highlights) > floor and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
-        item = by_label.get(label)
-        anchors = item.get("context_only") if isinstance(item, dict) else None
-        while isinstance(anchors, list) and len(anchors) > floor and _compact_json_bytes(overview) > budget:
-            anchors.pop()
-    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
-        item = by_label.get(label)
-        cases = item.get("case_examples") if isinstance(item, dict) else None
-        while isinstance(cases, list) and len(cases) > floor and _compact_json_bytes(overview) > budget:
-            cases.pop()
-    # Older cumulative windows already retain canonical case counts. Their raw signal
-    # observation counters yield before concrete examples do.
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-            item.pop("evidence_density", None)
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and len(highlights) > 1 and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    item = by_label.get("24h")
-    highlights = item.get("highlights") if isinstance(item, dict) else None
-    while isinstance(highlights, list) and len(highlights) > 4 and _compact_json_bytes(overview) > budget:
-        highlights.pop()
-    # Pathological fallback: only after counters/case examples have yielded.
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and highlights and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    item = by_label.get("24h")
-    highlights = item.get("highlights") if isinstance(item, dict) else None
-    while isinstance(highlights, list) and len(highlights) > 2 and _compact_json_bytes(overview) > budget:
-        highlights.pop()
-
-    # Materialized health/work metadata is appended after the first snapshot compaction.
-    # Under that second-stage pressure, duplicated 3d/7d source/artifact breakdowns yield
-    # before the concrete 24h case/context/highlight evidence. Cumulative case counts and
-    # observation totals remain, so older orientation is not lost.
-    for key in ("sources", "artifacts", "slice_observations"):
-        for label in ("7d", "3d"):
-            item = by_label.get(label)
-            if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-                item.pop(key, None)
-
-
 def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES) -> dict[str, Any]:
-    """Bound bootstrap memory orientation by bytes, preserving highest-value lineage context first."""
-    budget = max(256, int(max_bytes))
-    bounded = json.loads(json.dumps(overview, ensure_ascii=False))
+    """Enforce the shallow startup-memory schema; detail requires explicit memory retrieval."""
+    budget = max(512, int(max_bytes))
+    raw = json.loads(json.dumps(overview, ensure_ascii=False))
+    materialized = raw.get("timeline_materialized") if isinstance(raw.get("timeline_materialized"), dict) else {}
+    correction_triggers = raw.get("correction_triggers") if isinstance(raw.get("correction_triggers"), dict) else {}
+    recent = []
+    for item in raw.get("recent", []) if isinstance(raw.get("recent"), list) else []:
+        if not isinstance(item, dict):
+            continue
+        recent.append({
+            key: value for key, value in {
+                "id": item.get("id"),
+                "timestamp": item.get("timestamp"),
+                "title": _clip_bootstrap_text(item.get("title"), 96),
+            }.items() if value not in (None, "")
+        })
+        if len(recent) >= 3:
+            break
+    projects = [
+        {key: item.get(key) for key in ("name", "count") if item.get(key) not in (None, "")}
+        for item in raw.get("projects", [])[:3]
+        if isinstance(item, dict)
+    ] if isinstance(raw.get("projects"), list) else []
+    recurring_tags = [
+        {key: item.get(key) for key in ("name", "count") if item.get(key) not in (None, "")}
+        for item in raw.get("recurring_tags", [])[:3]
+        if isinstance(item, dict)
+    ] if isinstance(raw.get("recurring_tags"), list) else []
+    bounded = {
+        "contract": "BOOTSTRAP_MEMORY_GLANCE_ONLY; shallow urgency/state/recurrence orientation; use memory context/timeline for detail",
+        "eligible_entries": raw.get("eligible_entries", 0),
+        "timeline_snapshots": _compact_timeline_snapshots(raw),
+        "incident_rollups": _compact_incident_rollups(raw, 3),
+        "recent": recent,
+        "projects": projects,
+        "recurring_tags": recurring_tags,
+    }
+    if correction_triggers:
+        bounded["correction_triggers"] = {
+            key: correction_triggers.get(key)
+            for key in ("authority", "status")
+            if correction_triggers.get(key) not in (None, "")
+        }
+    if materialized:
+        bounded["timeline_materialized"] = {
+            key: materialized.get(key)
+            for key in (
+                "status", "as_of", "coverage_status", "absence_semantics", "age_seconds", "backfill_incomplete_sources",
+                "retry_sources", "timeline_truncated", "live_truth_required", "read_mode", "refresh_command",
+            )
+            if materialized.get(key) not in (None, "", [], {})
+        }
+
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    # Worker findings are archived evidence and already have a dedicated worker projection;
-    # do not sacrifice memory lineage/recent context for this duplicate startup cost.
-    bounded.pop("worker_findings", None)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    rollups = bounded.get("incident_rollups") if isinstance(bounded.get("incident_rollups"), list) else []
-    for summary_limit in (160, 120, 80):
-        for rollup in rollups:
-            if isinstance(rollup, dict) and "summary" in rollup:
-                rollup["summary"] = _clip_bootstrap_text(rollup.get("summary"), summary_limit)
-        if _compact_json_bytes(bounded) <= budget:
-            return bounded
-
-    for rollup in rollups:
-        if isinstance(rollup, dict):
-            rollup.pop("summary", None)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    # Keep at least one item from each secondary orientation list before reducing rollups.
     for key in ("projects", "recurring_tags", "recent"):
         items = bounded.get(key)
-        if not isinstance(items, list):
-            continue
-        while len(items) > 1 and _compact_json_bytes(bounded) > budget:
-            items.pop()
+        if isinstance(items, list):
+            bounded[key] = items[:1]
+    snapshots = bounded.get("timeline_snapshots")
+    windows = snapshots.get("windows") if isinstance(snapshots, dict) else None
+    if isinstance(windows, list):
+        for window in windows:
+            if not isinstance(window, dict):
+                continue
+            if window.get("window") != "24h":
+                window.pop("case_examples", None)
+            elif isinstance(window.get("case_examples"), list):
+                window["case_examples"] = window["case_examples"][:1]
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    while len(rollups) > 1 and _compact_json_bytes(bounded) > budget:
-        rollups.pop()
+    rollups = bounded.get("incident_rollups")
+    if isinstance(rollups, list):
+        bounded["incident_rollups"] = rollups[:1]
+    if isinstance(windows, list):
+        for window in windows:
+            if isinstance(window, dict) and window.get("window") != "24h":
+                window.pop("evidence_density", None)
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    # Timeline snapshots are now the primary continuity surface. Generic project/tag
-    # summaries and duplicated recent titles yield before the emphasized 24h snapshot.
     for key in ("projects", "recurring_tags", "recent"):
-        if _compact_json_bytes(bounded) <= budget:
-            break
         bounded[key] = []
+    if isinstance(windows, list):
+        for window in windows:
+            if isinstance(window, dict):
+                window.pop("case_examples", None)
+                window.pop("evidence_density", None)
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    _shrink_timeline_snapshots_for_budget(bounded, budget)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    # Pathological long strings must not defeat the hard startup bound.
-    for rollup in rollups:
-        if not isinstance(rollup, dict):
-            continue
-        for key, limit in (("scope", 120), ("latest_title", 120), ("drilldown", 220), ("thread_id", 220)):
-            if key in rollup:
-                rollup[key] = _clip_bootstrap_text(rollup.get(key), limit)
-        rollup.pop("projects", None)
-        rollup.pop("entities", None)
-    for key in ("recent", "projects"):
-        for item in bounded.get(key, []) if isinstance(bounded.get(key), list) else []:
-            if isinstance(item, dict):
-                for field in ("title", "name"):
-                    if field in item:
-                        item[field] = _clip_bootstrap_text(item.get(field), 120)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    for key in ("projects", "recurring_tags", "recent", "incident_rollups"):
-        if _compact_json_bytes(bounded) <= budget:
-            break
-        bounded[key] = []
-    if _compact_json_bytes(bounded) > budget:
-        _shrink_timeline_snapshots_for_budget(bounded, budget)
-    if _compact_json_bytes(bounded) > budget:
-        snapshots = bounded.get("timeline_snapshots")
-        if isinstance(snapshots, dict):
-            for window in snapshots.get("windows", []) if isinstance(snapshots.get("windows"), list) else []:
-                if isinstance(window, dict):
-                    window.pop("highlights", None)
-                    window.pop("context_only", None)
-                    if _compact_json_bytes(bounded) <= budget:
-                        break
-    return bounded
+    raise ValueError(f"BOOTSTRAP_MEMORY_GLANCE_BUDGET_EXCEEDED bytes={_compact_json_bytes(bounded)} budget={budget}")
 
 
 def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -2582,8 +2511,9 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     return {
         "available": True,
         "read_state": "OK",
-        "deployment_id": deployment.get("id"),
-        "backend_generation": deployment.get("generation"),
+        "authority": "recovery_target_not_live_serving_identity",
+        "recovery_target_deployment_id": recovery_target.get("deployment_id") or deployment.get("id"),
+        "recovery_target_generation": deployment.get("generation"),
         "recovery_selected_at": recovery_target.get("selected_at"),
         "automatic_routing": recovery_lanes.get("automatic_routing"),
         "ssh_role": recovery_lanes.get("ssh_role"),
@@ -3183,11 +3113,12 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=9) as pool:
         f_execution_nodes = pool.submit(_bootstrap_execution_node_topology)
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_live_swarm = pool.submit(build_live_swarm_snapshot)
+        f_mcp_backend_health = pool.submit(_bootstrap_mcp_backend_health)
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
@@ -3197,15 +3128,15 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             return value, round((time.perf_counter() - source_started) * 1000, 1)
 
         f_source_freshness = pool.submit(source_freshness_with_latency)
-        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github = (
-            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result()
+        execution_nodes, pc, workers, live_swarm, mcp_backend_health, memory_overview, vault, github = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_mcp_backend_health.result(), f_memory.result(), f_vault.result(), f_github.result()
         )
         source_freshness, source_freshness_latency_ms = f_source_freshness.result()
     pc = _bind_pc_node_identity(pc, execution_nodes)
     swarm_topology = _bootstrap_swarm_topology()
     if isinstance(swarm_topology, dict):
         swarm_topology["execution_nodes"] = execution_nodes
-    mcp = _bootstrap_mcp_from_live_swarm(live_swarm)
+    mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm, mcp_backend_health)
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
     agent_contract = _bootstrap_agent_contract_version()
     notable_conditions: list[str] = []
@@ -4006,7 +3937,7 @@ def main() -> int:
             processes, ports, resources = capture_windows_processes(), capture_windows_ports(), []
         value = blast_radius(args.pid, processes, ports=ports, resource_observations=resources)
     if args.command == "bootstrap-glance":
-        print(json.dumps(value, separators=(",", ":"), sort_keys=True, ensure_ascii=False))
+        print(json.dumps(value, separators=(",", ":"), ensure_ascii=False))
     else:
         print(json.dumps(value, indent=2, sort_keys=True))
     return 0
