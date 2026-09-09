@@ -12,6 +12,27 @@ class SwarmExecTests(unittest.TestCase):
         self.assertEqual(m.safe_work_id("issue/768:test"), "issue_768_test")
         with self.assertRaises(ValueError): m.safe_work_id("bad space")
 
+    def test_main_routes_without_vps_capability(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            subprocess.run(["git","init","-q",str(root)],check=True)
+            state=root/"state.json"
+            calls=[]
+            original_route=m.swarm_route.route_work
+            original_execute=m.execute_omen
+            try:
+                def fake_route(*args,**kwargs):
+                    calls.append((args,kwargs))
+                    return {"route":"omen","reason":"OMEN_PORTABLE_ADMITTED","decision_id":"test"}
+                m.swarm_route.route_work=fake_route
+                m.execute_omen=lambda *args,**kwargs: 0
+                rc=m.main(["--state",str(state),"--work-id","issue-936","--kind","portable-light","--repo-root",str(root),"--","true"])
+            finally:
+                m.swarm_route.route_work=original_route
+                m.execute_omen=original_execute
+            self.assertEqual(rc,0)
+            self.assertEqual(calls[0][1].get("allow_vps"),False)
+
     def test_remote_workspace_is_nvme_and_sources_worker_tools(self):
         workspace, script=m.remote_script("issue-768", "python3 -V", self.CACHE_ID)
         self.assertTrue(workspace.startswith("/mnt/ue/worker-workspaces/"))

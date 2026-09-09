@@ -281,15 +281,15 @@ def reclaim_omen_scratch(kind,timeout=12.0):
     except (OSError,subprocess.TimeoutExpired): return {"attempted":True,"ok":False,"reason":"RECLAIM_UNAVAILABLE","target_free_gb":target}
     return {"attempted":True,"ok":cp.returncode==0,"exit_code":cp.returncode,"target_free_gb":target}
 
-def choose_route(kind,facts,assignments):
+def choose_route(kind,facts,assignments,allow_vps=False):
     if kind=="lowvram": return "windows","LOWVRAM_PINNED_WINDOWS"
     if kind=="windows-only": return "windows","WINDOWS_ONLY"
     ok,reason=omen_admissible(kind,facts.get("omen",{}),assignments)
     if ok: return "omen",reason
-    if kind=="portable-light" and facts.get("vps",{}).get("available"): return "vps",reason+"_VPS_LIGHT_OVERFLOW"
+    if kind=="portable-light" and allow_vps and facts.get("vps",{}).get("available"): return "vps",reason+"_VPS_LIGHT_OVERFLOW"
     return "windows",reason+"_WINDOWS_FALLBACK"
 
-def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_node_id=None):
+def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_node_id=None,allow_vps=False):
     if kind not in KINDS: raise ValueError("SWARM_ROUTE_BAD_KIND")
     if not WORK_ID_RE.fullmatch(work_id): raise ValueError("SWARM_ROUTE_BAD_WORK_ID")
     owner_route=_owner_route(owner_node_id) if owner_node_id else None
@@ -304,6 +304,9 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
                 ownership_override_previous_decision_id=current.get("decision_id")
                 state["assignments"].pop(work_id,None)
                 current=None
+        if current and current.get("route")=="vps" and not allow_vps:
+            state["assignments"].pop(work_id,None)
+            current=None
         if current:
             current["last_reused_at"]=iso(now)
             if owner_node_id: current["owner_node_id"]=owner_node_id
@@ -325,7 +328,7 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
             bucket=probe.get(route,{}) if isinstance(probe,dict) else {}
             reason="OWNER_PINNED_AVAILABLE" if isinstance(bucket,dict) and bucket.get("available") else "OWNER_PINNED_UNAVAILABLE_FAIL_CLOSED"
         else:
-            route,reason=choose_route(kind,probe,state["assignments"])
+            route,reason=choose_route(kind,probe,state["assignments"],allow_vps=allow_vps)
         recovery=None
         if not owner_node_id and route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
             recovery=reclaim_omen_scratch(kind)
@@ -333,7 +336,7 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
                 refreshed=probe_omen()
                 probe={**probe,"observed_at":iso(utc_now()),"omen":refreshed}
                 state["probe"]=probe
-                route,reason=choose_route(kind,probe,state["assignments"])
+                route,reason=choose_route(kind,probe,state["assignments"],allow_vps=allow_vps)
         identity=_identity_from_probe(route,probe)
         a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at"),**identity}
         if owner_node_id: a["owner_node_id"]=owner_node_id
@@ -377,7 +380,7 @@ def build_parser():
     p=argparse.ArgumentParser(description="Shared OMEN-first swarm machine routing cohort")
     p.add_argument("--state",type=Path,default=default_state_path())
     sub=p.add_subparsers(dest="command",required=True)
-    r=sub.add_parser("route"); r.add_argument("--work-id",required=True); r.add_argument("--kind",required=True,choices=KINDS); r.add_argument("--ttl-seconds",type=int,default=DEFAULT_TTL_SECONDS); r.add_argument("--refresh-probe",action="store_true"); r.add_argument("--owner-node-id")
+    r=sub.add_parser("route"); r.add_argument("--work-id",required=True); r.add_argument("--kind",required=True,choices=KINDS); r.add_argument("--ttl-seconds",type=int,default=DEFAULT_TTL_SECONDS); r.add_argument("--refresh-probe",action="store_true"); r.add_argument("--owner-node-id"); r.add_argument("--allow-vps",action="store_true",help="opt in only when the caller owns a supported p3-vps-light execution adapter")
     rel=sub.add_parser("release"); rel.add_argument("--work-id",required=True)
     st=sub.add_parser("status"); st.add_argument("--refresh-probe",action="store_true")
     sub.add_parser("probe"); return p
@@ -387,7 +390,7 @@ def main(argv=None):
     try:
         if args.command=="route":
             if not 60<=args.ttl_seconds<=7200: raise ValueError("SWARM_ROUTE_BAD_TTL")
-            out=route_work(args.state,args.work_id,args.kind,args.ttl_seconds,args.refresh_probe,args.owner_node_id)
+            out=route_work(args.state,args.work_id,args.kind,args.ttl_seconds,args.refresh_probe,args.owner_node_id,args.allow_vps)
         elif args.command=="release": out=release_work(args.state,args.work_id)
         elif args.command=="status": out=status(args.state,args.refresh_probe)
         else: out=probe_all()
