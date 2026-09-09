@@ -19,7 +19,7 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertIn("Current explicit user instruction defines the objective.", rules)
         self.assertIn("Current repo/runtime/tool evidence defines current facts.", rules)
         self.assertIn("Vault history are evidence only", rules)
-        self.assertIn("Stack Atlas", rules)
+        self.assertIn("stack_atlas.py", rules)
 
     def test_shared_contract_keeps_go_goal_directed_and_stop_immediate(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
