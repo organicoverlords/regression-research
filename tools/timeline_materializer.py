@@ -1293,7 +1293,7 @@ def library_artifact_events(
 def machine_observation_events(
     *, since: datetime, limit: int = DEFAULT_MACHINE_OBSERVATION_EVENTS
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Project persisted bootstrap PC observations as historical evidence, never live authority."""
+    """Project persisted bootstrap machine/performance observations as history, never live authority."""
     local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
     path = local / "ChatGPTMcpClean" / ".state" / "bootstrap-observations.jsonl"
     max_bytes = 4 * 1024 * 1024
@@ -1318,6 +1318,35 @@ def machine_observation_events(
         stamp = _dt(row.get("at"))
         if stamp is None or stamp < since.astimezone(stamp.tzinfo):
             continue
+        if row.get("kind") == "bootstrap_performance":
+            metric_keys = (
+                "bootstrap_elapsed_ms", "source_freshness_latency_ms", "github_latency_ms",
+                "vault_latency_ms", "live_swarm_elapsed_ms",
+            )
+            summary_fields = [f"{key}={row.get(key)}" for key in metric_keys if row.get(key) is not None]
+            at_key = stamp.astimezone(timezone.utc).isoformat()
+            elapsed = row.get("bootstrap_elapsed_ms")
+            events.append({
+                "id": f"performance-observation:{at_key}",
+                "source_type": "PERFORMANCE_OBSERVATION",
+                "authority": "LOCAL_BOOTSTRAP_PERFORMANCE_OBSERVATION_HISTORY",
+                "event_at": stamp.isoformat(),
+                "recorded_at": stamp.isoformat(),
+                "title": f"bootstrap performance: {elapsed} ms" if elapsed is not None else "bootstrap performance snapshot",
+                "summary": "; ".join(summary_fields) or "persisted bootstrap performance observation",
+                "artifact_type": "performance_snapshot",
+                **{key: row.get(key) for key in metric_keys},
+                "github_cache_used": row.get("github_cache_used"),
+                "github_cache_age_seconds": row.get("github_cache_age_seconds"),
+                "source_head": row.get("source_head"),
+                "node_id": row.get("node_id"),
+                "refs": [str(path)],
+                "anchors": ["performance:stack-atlas-bootstrap"],
+                "thread_id": "performance:stack-atlas-bootstrap",
+                "thread_source": "BOOTSTRAP_OBSERVATION_LOG",
+            })
+            continue
+
         free_gb = row.get("free_gb")
         title = f"machine snapshot: C free {free_gb} GB" if free_gb is not None else "machine snapshot"
         summary_fields = []

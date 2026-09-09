@@ -39,6 +39,8 @@ from tools.stack_atlas import (
     _bootstrap_manual_current_status,
     _bootstrap_swarm_topology,
     _bootstrap_disk_trend,
+    _append_bootstrap_performance_observation,
+    bootstrap_performance_stats,
     _read_jsonl_tail,
     _remote_is_newer,
     _git_blob_sha_for_file,
@@ -1387,6 +1389,50 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(row["gpu_sample_status"], "LIVE")
             self.assertNotIn("nested", row)
 
+    def test_bootstrap_performance_observations_are_typed_throttled_and_summarized(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.jsonl"
+            now = datetime(2026, 9, 9, 9, 0, tzinfo=timezone.utc)
+            with patch("tools.stack_atlas.BOOTSTRAP_OBSERVATION_PATH", path):
+                self.assertTrue(_append_bootstrap_performance_observation({
+                    "bootstrap_elapsed_ms": 100.0,
+                    "source_freshness_latency_ms": 200.0,
+                    "github_latency_ms": 10.0,
+                    "vault_latency_ms": 50.0,
+                    "live_swarm_elapsed_ms": 70.0,
+                    "github_cache_used": True,
+                    "github_cache_age_seconds": 3.0,
+                    "source_head": "abc123",
+                    "node_id": "kone-gpu-desktop",
+                }, now=now))
+                self.assertFalse(_append_bootstrap_performance_observation({
+                    "bootstrap_elapsed_ms": 999.0,
+                }, now=now + timedelta(minutes=1)))
+                self.assertTrue(_append_bootstrap_performance_observation({
+                    "bootstrap_elapsed_ms": 120.0,
+                    "source_freshness_latency_ms": 140.0,
+                    "github_latency_ms": 12.0,
+                    "vault_latency_ms": 55.0,
+                    "live_swarm_elapsed_ms": 80.0,
+                    "github_cache_used": False,
+                    "github_cache_age_seconds": 1.0,
+                    "source_head": "def456",
+                    "node_id": "kone-gpu-desktop",
+                }, now=now + timedelta(minutes=5)))
+                stats = bootstrap_performance_stats(1, now=now + timedelta(minutes=6))
+
+            rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]["schema"], "stack-atlas.bootstrap-observation.v1")
+            self.assertEqual(rows[0]["kind"], "bootstrap_performance")
+            self.assertEqual(stats["sample_count"], 2)
+            self.assertEqual(stats["metrics"]["bootstrap_elapsed_ms"]["p50"], 110.0)
+            self.assertEqual(stats["metrics"]["bootstrap_elapsed_ms"]["p95"], 120.0)
+            self.assertEqual(stats["github_cache"]["used_pct"], 50.0)
+            self.assertTrue(stats["dimensions"]["mixed_source_heads"])
+            self.assertEqual(stats["dimensions"]["node_ids"], ["kone-gpu-desktop"])
+
     def test_mcp_transport_tail_does_not_parse_historical_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "transport.jsonl"
@@ -1488,6 +1534,82 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(second["cache"]["used"])
         self.assertEqual(second["rate_limit"]["remaining"], 4900)
 
+    def test_github_bootstrap_prefers_gh_swarm_for_rate_limit_read(self):
+        import subprocess
+        from tools.stack_atlas import _bootstrap_github_status
+        rate_limit = {"resources": {"core": {"limit": 5000, "remaining": 4800, "used": 200, "reset": 1788650000}}}
+        completed = subprocess.CompletedProcess([], 0, stdout=json.dumps(rate_limit), stderr="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas._gh_swarm_bin", return_value=r"C:\gh-swarm.exe"), \
+             patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
+            status = _bootstrap_github_status()
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0], [r"C:\gh-swarm.exe", "api", "rate_limit"])
+        self.assertTrue(status["available"])
+        self.assertEqual(status["rate_limit"]["remaining"], 4800)
+
+    def test_github_bootstrap_falls_back_to_real_gh_after_proxy_failure(self):
+        import subprocess
+        from tools.stack_atlas import _bootstrap_github_status
+        proxy_failure = subprocess.CompletedProcess([], 1, stdout="", stderr="proxy unavailable")
+        rate_limit = {"resources": {"core": {"limit": 5000, "remaining": 4700, "used": 300, "reset": 1788650000}}}
+        real_success = subprocess.CompletedProcess([], 0, stdout=json.dumps(rate_limit), stderr="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas._gh_swarm_bin", return_value=r"C:\gh-swarm.exe"), \
+             patch("tools.stack_atlas.subprocess.run", side_effect=[proxy_failure, real_success]) as run:
+            status = _bootstrap_github_status()
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[0].args[0][0], r"C:\gh-swarm.exe")
+        self.assertEqual(run.call_args_list[1].args[0], [r"C:\gh.exe", "api", "rate_limit"])
+        self.assertTrue(status["available"])
+        self.assertEqual(status["rate_limit"]["remaining"], 4700)
+
+    def test_source_freshness_routes_graphql_read_through_gh_buffer(self):
+        import subprocess
+        payload = {
+            "data": {
+                "agents": {
+                    "ref": {"target": {
+                        "oid": "remote-main",
+                        "agentsHistory": {"nodes": [{"oid": "agents-commit", "committedDate": "2026-09-09T00:00:00Z"}]},
+                        "rulesHistory": {"nodes": [{"oid": "rules-commit", "committedDate": "2026-09-09T00:00:00Z"}]},
+                    }},
+                    "agentsBlob": {"oid": "agents-blob"},
+                    "rulesBlob": {"oid": "rules-blob"},
+                },
+                "vault": {
+                    "ref": {"target": {
+                        "workerHistory": {"nodes": [{"oid": "worker-commit", "committedDate": "2026-09-09T00:00:00Z"}]}
+                    }},
+                    "workerBlob": {"oid": "worker-blob"},
+                },
+            }
+        }
+        completed = subprocess.CompletedProcess([], 0, stdout=json.dumps(payload), stderr="")
+        coherent_checkout = {"coherent": True, "available": True}
+        with patch("tools.stack_atlas._bootstrap_cache_read_any", return_value=(None, None)), \
+             patch("tools.stack_atlas._bootstrap_cache_refresh_view", return_value=(None, False)), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas._github_read_cli", return_value=completed) as read_cli, \
+             patch("tools.stack_atlas._bootstrap_cache_write"), \
+             patch("tools.stack_atlas._git_checkout_state", return_value=coherent_checkout), \
+             patch("tools.stack_atlas._git_blob_sha_for_file", side_effect=["agents-blob", "rules-blob", "worker-blob"]), \
+             patch("tools.stack_atlas._git_last_committed_at") as last_committed:
+            result = _bootstrap_source_freshness()
+
+        last_committed.assert_not_called()
+        self.assertTrue(result["available"])
+        self.assertFalse(result["updates_pending"])
+        self.assertEqual(read_cli.call_count, 1)
+        args = read_cli.call_args.args
+        self.assertEqual(args[0], r"C:\gh.exe")
+        self.assertEqual(args[1][:3], ["api", "graphql", "-f"])
+        self.assertTrue(args[1][3].startswith("query=query {"))
+
     def test_github_bootstrap_auth_probe_is_failure_only_and_failure_cache_is_short(self):
         import subprocess
         from tools.stack_atlas import (
@@ -1549,6 +1671,19 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("before yielding", joined)
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
+
+    @patch("tools.stack_atlas.subprocess.run")
+    @patch("tools.stack_atlas.shutil.which", return_value="git")
+    def test_git_checkout_state_reuses_status_tracking_relation(self, _which, run):
+        run.return_value = type("Proc", (), {
+            "returncode": 0,
+            "stdout": "# branch.oid abc123\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +0 -0\n",
+        })()
+        state = _git_checkout_state(Path(r"C:\repo"), "abc123")
+        self.assertTrue(state["coherent"])
+        self.assertTrue(state["head_matches_local_tracking_main"])
+        self.assertEqual(state["local_tracking_main"], "abc123")
+        self.assertEqual(run.call_count, 1)
 
     def test_git_checkout_state_distinguishes_cached_remote_from_local_tracking_main(self):
         with tempfile.TemporaryDirectory() as tmp:
