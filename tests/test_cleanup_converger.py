@@ -300,7 +300,7 @@ class CleanupConvergerTests(unittest.TestCase):
                     "--ignore-submodules=none",
                 ),
             )
-            self.assertEqual(call.kwargs, {"check": False, "timeout": CLEANLINESS_PROBE_TIMEOUT_SECONDS})
+            self.assertEqual(call.kwargs, {"check": False, "timeout": 15.0})
 
     @patch("tools.cleanup_converger._git")
     def test_cleanliness_probe_timeout_returns_unknown(self, git):
@@ -333,12 +333,17 @@ class CleanupConvergerTests(unittest.TestCase):
         self.assertEqual(observations[0].reason, "cleanliness_probe_timeout")
 
     @patch("tools.cleanup_converger.disk_free_gb", return_value=10.0)
+    @patch("tools.cleanup_converger.busy_release")
+    @patch("tools.cleanup_converger.busy_claim", return_value=(True, "ok"))
     @patch("tools.cleanup_converger.scan_repo")
     @patch("tools.cleanup_converger._git")
-    def test_apply_prunes_missing_worktree_registration_before_scan(self, git, scan, _disk):
+    def test_apply_claims_prune_before_scan(self, git, scan, claim, release, _disk):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             order = []
+
+            claim.side_effect = lambda *_args: (order.append("claim") or (True, "ok"))
+            release.side_effect = lambda *_args: order.append("release")
 
             def git_side_effect(_repo, *args, **kwargs):
                 if args == ("worktree", "prune"):
@@ -346,7 +351,8 @@ class CleanupConvergerTests(unittest.TestCase):
                 return subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
 
             def scan_side_effect(*_args, **_kwargs):
-                self.assertEqual(order, ["prune"])
+                self.assertEqual(order, ["claim", "prune", "release"])
+                order.append("scan")
                 return [], [], []
 
             git.side_effect = git_side_effect
@@ -362,7 +368,64 @@ class CleanupConvergerTests(unittest.TestCase):
                 )
 
             self.assertEqual(result["rounds_run"], 1)
-            git.assert_any_call(repo, "worktree", "prune", check=False)
+            self.assertEqual(order, ["claim", "prune", "release", "scan"])
+            claim.assert_called_once_with("test-operator", "p3:git-worktree-metadata")
+            release.assert_called_once()
+
+    def test_apply_releases_metadata_scope_between_worktree_candidates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            first = Worktree(repo / "one", "aaaa", "one", False)
+            second = Worktree(repo / "two", "bbbb", "two", False)
+            order = []
+
+            def claim_side_effect(*_args):
+                order.append("claim")
+                return True, "ok"
+
+            def release_side_effect(*_args):
+                order.append("release")
+
+            def git_side_effect(_repo, *args, **kwargs):
+                if args == ("worktree", "prune"):
+                    order.append("prune")
+                return subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
+
+            def scan_side_effect(*_args, **_kwargs):
+                order.append("scan")
+                return [first, second], [], []
+
+            def remove_side_effect(_repo_name, _repo, item, _window):
+                order.append(f"remove:{item.path.name}")
+                return Action("P3", str(item.path), "REMOVED_WORKTREE", item.branch, item.head)
+
+            with (
+                patch("tools.cleanup_converger.DEFAULT_REPOS", (("P3", repo, "p3:git-worktree-metadata"),)),
+                patch("tools.cleanup_converger.disk_free_gb", return_value=10.0),
+                patch("tools.cleanup_converger.busy_claim", side_effect=claim_side_effect),
+                patch("tools.cleanup_converger.busy_release", side_effect=release_side_effect),
+                patch("tools.cleanup_converger.scan_repo", side_effect=scan_side_effect),
+                patch("tools.cleanup_converger._remove_one", side_effect=remove_side_effect),
+                patch("tools.cleanup_converger._git", side_effect=git_side_effect),
+            ):
+                converge(
+                    apply=True,
+                    max_rounds=1,
+                    stable_rounds=1,
+                    settle_seconds=0,
+                    window_seconds=300,
+                    actor="test-operator",
+                )
+
+            self.assertEqual(
+                order,
+                [
+                    "claim", "prune", "release", "scan",
+                    "claim", "remove:one", "release",
+                    "claim", "remove:two", "release",
+                    "claim", "prune", "release",
+                ],
+            )
 
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):

@@ -643,10 +643,18 @@ def converge(
         for repo_name, repo, scope in existing_repos:
             # Missing worktree directories leave prunable Git metadata behind. In apply mode,
             # clear only that stale registration before scanning so a vanished temp lane cannot
-            # crash cleanliness probes or block unrelated safe cleanup. Git worktree prune never
-            # removes a live worktree directory or branch.
+            # crash cleanliness probes or block unrelated safe cleanup. The prune mutates shared
+            # Git worktree metadata, so keep it inside the same exact collision scope as removals.
             if apply:
-                _git(repo, "worktree", "prune", check=False)
+                claimed, detail = busy_claim(actor, scope)
+                if not claimed:
+                    actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"pre_scan_busy_claim_failed:{detail}"))
+                    continue
+                try:
+                    _git(repo, "worktree", "prune", check=False)
+                finally:
+                    busy_release(actor, scope, f"cleanup converger round {round_no}: pre-scan stale worktree prune")
+
             candidates, cache_candidates, observations = scan_repo(repo_name, repo, window_seconds)
             actions.extend(observations)
             round_candidates += len(candidates) + len(cache_candidates)
@@ -659,25 +667,43 @@ def converge(
                 continue
 
             if candidates:
-                claimed, detail = busy_claim(actor, scope)
-                if not claimed:
-                    actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"busy_claim_failed:{detail}"))
-                else:
-                    removed_here = 0
+                removed_here = 0
+                claimed_any = False
+                for item in candidates:
+                    claimed, detail = busy_claim(actor, scope)
+                    if not claimed:
+                        actions.append(Action(repo_name, str(item.path), "BLOCKED", item.branch, item.head, f"busy_claim_failed:{detail}"))
+                        continue
+                    claimed_any = True
                     try:
-                        for item in candidates:
-                            result = _remove_one(repo_name, repo, item, window_seconds)
-                            actions.append(result)
-                            if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
-                                round_progress += 1
-                                removed_here += 1
-                        _git(repo, "worktree", "prune", check=False)
+                        result = _remove_one(repo_name, repo, item, window_seconds)
+                        actions.append(result)
+                        if result.action in {"REMOVED_WORKTREE", "REMOVED_RESIDUE"}:
+                            round_progress += 1
+                            removed_here += 1
                     finally:
                         busy_release(
                             actor,
                             scope,
-                            f"cleanup converger round {round_no}: removed {removed_here}; non-force branch-preserving operator cleanup",
+                            f"cleanup converger round {round_no}: worktree pass for {item.path.name}; non-force branch-preserving operator cleanup",
                         )
+
+                # Preserve the existing post-removal metadata prune, but do not hold the
+                # repo-wide collision scope across every candidate. Reacquire it only for
+                # this short mutation so other worktree operations can interleave safely.
+                if claimed_any:
+                    claimed, detail = busy_claim(actor, scope)
+                    if not claimed:
+                        actions.append(Action(repo_name, str(repo), "BLOCKED", reason=f"post_remove_prune_busy_claim_failed:{detail}"))
+                    else:
+                        try:
+                            _git(repo, "worktree", "prune", check=False)
+                        finally:
+                            busy_release(
+                                actor,
+                                scope,
+                                f"cleanup converger round {round_no}: post-remove prune after {removed_here} removals",
+                            )
 
             for item in cache_candidates:
                 cache_scope = _cache_scope(repo_name, item)
