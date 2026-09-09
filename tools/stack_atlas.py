@@ -2937,7 +2937,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         local_blob = _git_blob_sha_for_file(path)
         remote_blob = item.pop("remote_blob", None)
         matches = bool(local_blob and remote_blob and local_blob == remote_blob)
-        local_last_committed_at = _git_last_committed_at(repo_root, relative_path)
+        local_last_committed_at = None if matches else _git_last_committed_at(repo_root, relative_path)
         remote_newer = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
         remote_update_already_applied = remote_newer and _git_remote_update_already_applied(
             repo_root, relative_path, item.get("last_update_commit")

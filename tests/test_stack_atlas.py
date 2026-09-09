@@ -1626,9 +1626,10 @@ class StackAtlasTests(unittest.TestCase):
              patch("tools.stack_atlas._bootstrap_cache_write"), \
              patch("tools.stack_atlas._git_checkout_state", return_value=coherent_checkout), \
              patch("tools.stack_atlas._git_blob_sha_for_file", side_effect=["agents-blob", "rules-blob", "worker-blob"]), \
-             patch("tools.stack_atlas._git_last_committed_at", return_value="2026-09-09T00:00:00Z"):
+             patch("tools.stack_atlas._git_last_committed_at") as last_committed:
             result = _bootstrap_source_freshness()
 
+        last_committed.assert_not_called()
         self.assertTrue(result["available"])
         self.assertFalse(result["updates_pending"])
         self.assertEqual(read_cli.call_count, 1)
