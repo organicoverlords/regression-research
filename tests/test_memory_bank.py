@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import tools.memory_bank as memory_bank
-from tools.memory_bank import BankError, _materialized_context_query_eligible, _materialized_lesson_history, append_entry, attach_materialized_orientation, load_bank, validate_entry
+from tools.memory_bank import BankError, _main, _materialized_context_query_eligible, _materialized_lesson_history, append_entry, attach_materialized_orientation, load_bank, validate_entry
 
 
 class MaterializedContextPriorTests(unittest.TestCase):
@@ -88,6 +88,34 @@ class MaterializedContextPriorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, patch("tools.timeline_materializer.query_materialized") as query:
             self.assertEqual(_materialized_lesson_history("go", root=Path(d), limit=2), [])
         query.assert_not_called()
+
+    def test_default_context_command_injects_materialized_lesson_prior(self):
+        report = {
+            "materialized": {"status": "FRESH", "as_of": "2026-09-09T02:00:00Z"},
+            "lesson_packet": {
+                "status": "READY", "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+                "validation": "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED", "live_truth_required": True,
+                "items": [{
+                    "source_event_id": "github-pr:repo#778", "source_type": "GITHUB_PR", "project": "vault",
+                    "event_at": "2026-09-08T21:43:17Z", "title": "Owner map",
+                    "conclusion": "Reuse the owner map", "evidence_anchors": ["github:repo#778"],
+                }],
+            },
+        }
+        with (
+            patch("sys.argv", ["memory_bank.py", "context", "shared visual library"]),
+            patch("tools.memory_bank.load_bank", return_value=[]),
+            patch("tools.memory_bank.build_recurrence_context", return_value=[]),
+            patch("tools.timeline_materializer.query_materialized", return_value=report) as query,
+            patch("tools.memory_bank._print_json") as emit,
+        ):
+            self.assertEqual(_main(), 0)
+        query.assert_called_once()
+        pack = emit.call_args.args[0]
+        self.assertEqual(pack["durable_memory"], [])
+        self.assertEqual(pack["historical_evidence"][0]["kind"], "lesson-prior")
+        self.assertEqual(pack["historical_evidence"][0]["source_event_id"], "github-pr:repo#778")
+        self.assertTrue(pack["historical_evidence"][0]["live_truth_required"])
 
 
 class MemoryBankValidationTests(unittest.TestCase):
