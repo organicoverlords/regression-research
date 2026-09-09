@@ -27,15 +27,15 @@
     "higher_is_better": true,
     "component_formula": "weight * clamp((baseline-current)/baseline, -1, 1); all scored components are lower-is-better",
     "direction_threshold": 10.0,
-    "important": "Diagnostic behavior trend only. Report size/verbosity is never scored. Go/continue duration stays a separate continuation projection. Never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive.",
+    "important": "Legacy worker-report diagnostic only. Worker report fields, wording, length, lifecycle narration, and self-asserted success are not truth-score inputs. Authoritative execution evidence comes from MCP durable process/runtime receipts; repository/change acceptance comes from GitHub commits/refs/PR/check/CI/artifact evidence. Never present this legacy delta as the current sanity headline.",
     "headline_formula": "operational lifecycle delta only; reporting-shape diagnostics are excluded from the headline"
   },
   "guardrails": [
-    "General manual sanity headline scores lifecycle/process behavior only; report size and transcript-field count are diagnostic and cannot raise or lower the headline.",
-    "Reporting diagnostics remain visible to detect overhead regressions without turning brevity into an optimization target.",
-    "Continuation/go duration and fragmentation are reported separately from bounded manual task durations; never use the mixed manual population to answer whether `go` runs are too short.",
-    "Do not claim continuation improvement before the continuation sample gate is met.",
-    "The score measures manual execution/report lifecycle behavior, not model intelligence, user wellbeing, product quality, or MCP health."
+    "Worker reports are auxiliary metadata/navigation only; no report-derived field may establish task success, execution truth, repository convergence, or the authoritative sanity score.",
+    "MCP durable process/runtime receipts are authority for observed execution and tool/process ordering; GitHub commit/ref/PR/check/CI/artifact state is authority for repository convergence and automated acceptance.",
+    "GitHub issue prose records intent and coordination, not runtime or acceptance truth by itself.",
+    "Report size and transcript-field count remain diagnostic only and cannot raise or lower any authoritative score.",
+    "Continuation/go duration and fragmentation remain auxiliary observability; never use them as task correctness or model-quality evidence."
   ],
   "axes": {
     "operational": {
@@ -77,5 +77,12 @@
     "minimum_runs_for_comparable": 20,
     "scored": false,
     "important": "Machine-classified terminalization is stronger than self-reported anomaly text, but the reconciler was introduced after the fixed #658 baseline. Pre-instrumentation snapshots are survivor-biased, so this stays diagnostic-only until a comparable prospective baseline exists."
+  },
+  "headline_eligible": false,
+  "score_role": "LEGACY_REPORT_DIAGNOSTIC_ONLY",
+  "truth_authorities": {
+    "execution": "MCP durable process/runtime receipts",
+    "repository_acceptance": "GitHub commits, refs, pull-request state, checks/CI, and immutable artifacts",
+    "auxiliary": "worker reports and GitHub issue prose"
   }
 }
