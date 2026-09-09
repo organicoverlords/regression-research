@@ -68,7 +68,7 @@ class McpBootstrapIdentitySemanticsTests(unittest.TestCase):
         self.assertNotIn("backend_generation", projected)
         self.assertEqual(
             projected["authority"],
-            "RECOVERY_TARGET_AND_OBSERVED_CONDITIONS_NOT_LIVE_SERVING_IDENTITY",
+            "recovery_target_not_live_serving_identity",
         )
 
 
