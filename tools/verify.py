@@ -48,7 +48,6 @@ STACK_PATHS = {
 MEMORY_PATHS = {
     "memory/README.md",
     "02 Evidence/mcp-security-routing-events.jsonl",
-    "04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt",
     "tools/stack_atlas.py",
     "tools/memory_bank.py",
     "tools/memory_classification.py",

@@ -419,12 +419,12 @@ COMPONENTS.update({
         "runbook": ["organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md"],
     },
     "chatgpt_memory": {
-        "role": "context:chatgpt-continuity", "capabilities": ["memory_read"],
-        "canonical_sources": ["current conversation", "ChatGPT Memory"],
-        "live_status": ["current conversation and delivered ChatGPT Memory"], "supervisor": "ChatGPT",
-        "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history when useful"],
-        "resources": ["ChatGPT Memory"], "dependents": ["chatgpt_session"],
-        "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
+        "role": "context:disabled-product-memory", "capabilities": ["memory_read"],
+        "canonical_sources": ["ChatGPT Memory disabled by current account configuration"],
+        "live_status": ["disabled; not a continuity source and never current-state authority"], "supervisor": "ChatGPT",
+        "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history"],
+        "resources": [], "dependents": [],
+        "runbook": [],
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
@@ -456,9 +456,9 @@ COMPONENTS.update({
     },
     "chatgpt_session": {
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation", "ChatGPT Memory", "agent_rules", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
-        "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
-        "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
+        "canonical_sources": ["current conversation", "targeted Vault history", "agent_rules", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
+        "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation; targeted Vault history; Atlas on stack work"],
+        "resources": ["current task context"], "dependents": ["user"], "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
