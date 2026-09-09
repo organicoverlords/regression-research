@@ -63,6 +63,19 @@ class ReplayScoringTests(unittest.TestCase):
         self.assertFalse(late["passed"], late)
         self.assertIn("observed_action_matches_selected_mode", late["violations"])
 
+    def test_issue820_observed_yagni_trace_consumes_delivered_lesson(self):
+        path = ROOT / "03 Fixtures and Experiments" / "issue820-yagni-real-entry-action-trace-20260909.json"
+        fixture = validate_fixture(json.loads(path.read_text(encoding="utf-8")), root=ROOT, filename=path.name)
+
+        success = score_fixture(fixture, fixture["success_candidate"], candidate_name="observed-yagni-episode")
+        self.assertTrue(success["passed"], success)
+        self.assertEqual(fixture["evidence_provenance"]["memory_context_receipt"]["process_id"], "c8a20622-598c-41e3-a797-7f626b1ad5cf")
+        self.assertEqual(fixture["evidence_provenance"]["outcome"], "https://github.com/organicoverlords/regression-research/issues/861")
+
+        failure = score_fixture(fixture, fixture["failure_candidate"], candidate_name="lesson-ignored-counterfactual")
+        self.assertFalse(failure["passed"], failure)
+        self.assertIn("task_evidence_inspected_before_action", failure["violations"])
+
     def test_arbitrary_candidate_reports_the_failed_assertion(self):
         fixture = next(item for item in load_fixtures() if item["id"].startswith("temporal-authority"))
         result = score_fixture(fixture, {"action": "Treat the old title documentation as current and blame worker enforcement failure."})

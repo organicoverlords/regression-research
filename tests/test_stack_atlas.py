@@ -499,6 +499,34 @@ class StackAtlasTests(unittest.TestCase):
         self.assertLess(len(raw), 12000)
         self.assertEqual(json.loads(raw), glance)
 
+    def test_bootstrap_command_compaction_preserves_task_history_drilldown_in_emitted_bytes(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "commands": {
+                "bootstrap": "bootstrap",
+                "live_swarm": "live-swarm",
+                "fleet_watch": "fleet-watch",
+                "stack_owner": "lookup",
+                "stack_find": "find",
+                "memory_context": "python tools/memory_bank.py context <query>",
+                "drop_me_under_pressure": "x" * 16000,
+            },
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertIn("memory_context", fitted["commands"])
+        self.assertNotIn("drop_me_under_pressure", fitted["commands"])
+
+        output = io.StringIO()
+        with patch("sys.argv", ["stack_atlas.py", "bootstrap-glance"]), \
+                patch("tools.stack_atlas.build_live_bootstrap_glance", return_value=fitted), \
+                redirect_stdout(output):
+            self.assertEqual(stack_atlas_main(), 0)
+        raw = output.getvalue().encode("utf-8")
+        emitted = json.loads(raw)
+        self.assertLessEqual(len(raw), BOOTSTRAP_GLANCE_MAX_BYTES + 1)
+        self.assertIn("memory_context", emitted["commands"])
+
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
         glance = {
             "bootstrap": {"status": "OK"},
