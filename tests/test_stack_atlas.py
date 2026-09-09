@@ -8,6 +8,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from tools.cleanup_converger import Worktree, eligibility_reason, process_targets_path
+from tools.memory_recent_projection import write_recent_projection
 from tools.stack_atlas import (
     _bootstrap_fleet_watch,
     CANONICAL_RECURRING_WORKERS,
@@ -268,6 +269,43 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated-1"])
         size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+
+    def test_bootstrap_memory_overview_overlays_current_recent_projection_without_rebuilding_history(self):
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            timeline_path = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            timeline_path.parent.mkdir(parents=True)
+            timeline_path.write_text(json.dumps({
+                "schema": "vault.timeline.bootstrap.v1",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "overview": {
+                    "contract": "history only",
+                    "eligible_entries": 24,
+                    "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
+                    "incident_rollups": [],
+                    "recent": [{"id": "stale", "timestamp": "2026-09-09T20:00:00+03:00", "title": "stale timeline title"}],
+                    "projects": [],
+                    "recurring_tags": [],
+                },
+            }), encoding="utf-8")
+            seed = root / "memory" / "memory-bank.jsonl"
+            seed.parent.mkdir(parents=True)
+            seed.write_text("seed\n", encoding="utf-8")
+            overlay = root / "memory-bank.local.jsonl"
+            overlay.write_text("overlay\n", encoding="utf-8")
+            write_recent_projection(
+                seed_path=seed, overlay_path=overlay,
+                recent=[{"id": "fresh", "timestamp": "2026-09-10T01:00:00+03:00", "title": "fresh local memory"}],
+            )
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                    patch("tools.stack_atlas.default_local_bank_path", return_value=overlay), \
+                    patch("tools.memory_bank.build_overview", side_effect=AssertionError("bootstrap must not rebuild timeline")):
+                compact = _bootstrap_memory_overview()
+        self.assertEqual([item["id"] for item in compact["recent"]], ["fresh"])
+        self.assertEqual(compact["recent_source"]["authority"], "DIRECT_LOCAL_EFFECTIVE_MEMORY_PROJECTION")
+        self.assertEqual(compact["recent_source"]["status"], "CURRENT_FOR_EFFECTIVE_MEMORY_FILES")
+        self.assertEqual(compact["timeline_snapshots"]["authority"], "DERIVED_HISTORY_ONLY")
 
     def test_bootstrap_memory_overview_reports_missing_projection_without_source_scan(self):
         with tempfile.TemporaryDirectory() as d:
