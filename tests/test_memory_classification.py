@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import tools.memory_classification as memory_classification
+
 from tools.memory_classification import classify_entry, infer_single_project
 
 
@@ -88,6 +90,40 @@ class MemoryClassificationTests(unittest.TestCase):
         generic = classify_entry(self.entry(text="A connector credential failure is evidence about routing only."))
         self.assertEqual(generic["sensitivity"], "REVIEW")
         self.assertIn("sensitivity_pattern_requires_review", generic["review_reasons"])
+
+    def test_grouped_sensitivity_matchers_preserve_legacy_pattern_outcomes(self):
+        samples = [
+            "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+            "gho_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+            "sk-ABCDEFGHIJKLMN123456",
+            "password=CorrectHorseBatteryStaple123",
+            "password is CorrectHorse123!",
+            "access token is ABCDEFGHIJKLMNOPQRSTUV",
+            "Bearer abcdefghijklmnopqrstuvwxyz0123456789",
+            "-----BEGIN RSA PRIVATE KEY-----",
+            "123-45-6789",
+            "1234 5678 9012 3456",
+            "credentials are stored elsewhere",
+            "private key rotation policy",
+            "owner@example.com",
+            "Bearer authentication token",
+            "password is confidential",
+            "ordinary connector routing lesson",
+        ]
+
+        def legacy(text, patterns):
+            return any(pattern.search(text) for pattern in patterns)
+
+        for text in samples:
+            with self.subTest(text=text):
+                self.assertEqual(
+                    any(matcher.search(text) for matcher in memory_classification._STRONG_SENSITIVE_MATCHERS),
+                    legacy(text, memory_classification._STRONG_SENSITIVE_PATTERNS),
+                )
+                self.assertEqual(
+                    any(matcher.search(text) for matcher in memory_classification._REVIEW_SENSITIVE_MATCHERS),
+                    legacy(text, memory_classification._REVIEW_SENSITIVE_PATTERNS),
+                )
 
     def test_sensitivity_rejects_natural_language_password_and_bearer_token(self):
         password = classify_entry(self.entry(text="my password is CorrectHorseBatteryStaple123!"))
