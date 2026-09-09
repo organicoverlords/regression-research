@@ -1,12 +1,32 @@
 import importlib.util
 from pathlib import Path
-import tempfile, unittest
+import json, subprocess, tempfile, unittest
+from unittest import mock
 ROOT=Path(__file__).resolve().parents[1]
 SPEC=importlib.util.spec_from_file_location("swarm_route",ROOT/"tools"/"swarm_route.py")
 m=importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(m)
 def facts(omen=True,mem=12,disk=60,root_disk=None,nvme_disk=None,load1=1,cpus=12,lane1=False,lane2=False,vps=True):
     root_disk=disk if root_disk is None else root_disk; nvme_disk=disk if nvme_disk is None else nvme_disk
     return {"observed_at":"2026-09-07T20:00:00Z","omen":{"available":omen,"mem_available_gb":mem,"disk_free_gb":nvme_disk,"root_disk_free_gb":root_disk,"nvme_disk_free_gb":nvme_disk,"load1":load1,"cpu_count":cpus,"lane1_build_active":lane1,"lane2_build_active":lane2},"windows":{"available":True},"vps":{"available":vps}}
+class GitHubReadAccelerationTests(unittest.TestCase):
+    def test_github_read_cli_prefers_gh_swarm_on_path(self):
+        with mock.patch.object(m.shutil,"which",side_effect=lambda name: "C:/tools/gh-swarm.exe" if name=="gh-swarm" else "C:/tools/gh.exe"):
+            self.assertEqual(m._github_read_cli(),"C:/tools/gh-swarm.exe")
+
+    def test_github_read_cli_falls_back_to_real_gh(self):
+        with mock.patch.object(m.shutil,"which",side_effect=lambda name: None if name=="gh-swarm" else "C:/tools/gh.exe"), mock.patch.object(m.Path,"is_file",return_value=False):
+            self.assertEqual(m._github_read_cli(),"C:/tools/gh.exe")
+
+    def test_vps_probe_uses_selected_read_cli(self):
+        payload={"runners":[{"name":"P3-VPS-LIGHT","status":"online","busy":False,"labels":[{"name":m.VPS_RUNNER_LABEL}]}]}
+        completed=subprocess.CompletedProcess([],0,json.dumps(payload),"")
+        with mock.patch.object(m,"_github_read_cli",return_value="gh-swarm"), mock.patch.object(m,"_run",return_value=completed) as run, mock.patch.object(m,"_bind_node_identity",return_value={}):
+            result=m.probe_vps(timeout=1.25)
+        run.assert_called_once_with(["gh-swarm","api","repos/organicoverlords/p3/actions/runners"],1.25)
+        self.assertTrue(result["available"])
+        self.assertTrue(result["online"])
+        self.assertFalse(result["busy"])
+
 class TransportContractTests(unittest.TestCase):
     def test_omen_probe_uses_stable_lan_ip(self):
         self.assertEqual(m.OMEN_HOST, "192.168.0.128")
