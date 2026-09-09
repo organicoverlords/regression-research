@@ -2230,7 +2230,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
 
     live_swarm = bounded.get("live_swarm")
-    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and len(live_swarm["lanes"]) > 2:
+    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
         live_swarm["lanes"].pop()
         live_swarm["lanes_truncated"] = True
 
@@ -3128,7 +3128,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
 
 
 def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Legacy bootstrap MCP projection from the same live-swarm evidence; avoids a second transport scan."""
+    """Compatibility bootstrap MCP projection from the MCPv4-backed live-swarm evidence."""
     if not isinstance(snapshot, dict) or not snapshot.get("available"):
         return {"available": False, "status": "MISSING", "active_session_count": 0, "active_sessions": [], "workspace_counts": {}}
     evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
@@ -3154,6 +3154,8 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
         "available": True,
         "status": "LIVE" if float(evidence.get("source_age_seconds") or 0) <= 60 else "STALE",
         "source_age_seconds": evidence.get("source_age_seconds"),
+        "transport": evidence.get("transport"),
+        "transport_source_count": evidence.get("transport_source_count"),
         "service_health": {"available": None, "status": "NOT_PROBED_FRESH_TRANSPORT"},
         "activity_evidence_status": "FRESH" if complete else "BOUNDED",
         "active_session_count": int(summary.get("recent_callers") or 0),

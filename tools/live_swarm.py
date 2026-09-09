@@ -12,6 +12,10 @@ ACTIVITY_WINDOW_SECONDS = 300
 OBSERVATION_WINDOW_MINUTES = 30.0
 EXECUTION_REFERENCE_MINUTES = 27.0
 MAX_TRANSPORT_BYTES = 8 * 1024 * 1024
+MAX_TRANSPORT_SOURCE_CANDIDATES = 64
+MAX_TRANSPORT_SOURCES = 16
+TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
+TRANSPORT_KIND = "MCPv4"
 
 
 def _dt(value: Any) -> datetime | None:
@@ -21,15 +25,15 @@ def _dt(value: Any) -> datetime | None:
         return None
 
 
-def _read_window(path: Path, cutoff: datetime) -> tuple[list[dict[str, Any]], bool, int]:
+def _read_window(path: Path, cutoff: datetime, max_bytes: int = MAX_TRANSPORT_BYTES) -> tuple[list[dict[str, Any]], bool, int]:
     parts: list[bytes] = []
     size = path.stat().st_size
     pos = size
     read = 0
     complete = size == 0
     with path.open("rb") as handle:
-        while pos > 0 and read < MAX_TRANSPORT_BYTES:
-            take = min(256 * 1024, pos, MAX_TRANSPORT_BYTES - read)
+        while pos > 0 and read < max_bytes:
+            take = min(256 * 1024, pos, max_bytes - read)
             pos -= take
             handle.seek(pos)
             chunk = handle.read(take)
@@ -60,6 +64,58 @@ def _read_window(path: Path, cutoff: datetime) -> tuple[list[dict[str, Any]], bo
         if isinstance(row, dict) and (at is None or at >= cutoff):
             rows.append(row)
     return rows, complete, read
+
+
+def _latest_event_timestamp(path: Path, max_bytes: int = TRANSPORT_DISCOVERY_TAIL_BYTES) -> tuple[datetime | None, int]:
+    """Read only a small tail to identify whether a transport source is current."""
+    try:
+        size = path.stat().st_size
+        take = min(size, max_bytes)
+        with path.open("rb") as handle:
+            if take:
+                handle.seek(size - take)
+            data = handle.read(take)
+    except OSError:
+        return None, 0
+    for raw in reversed(data.splitlines()):
+        try:
+            row = json.loads(raw.decode("utf-8-sig"))
+        except Exception:
+            continue
+        if not isinstance(row, dict):
+            continue
+        at = _dt(row.get("at"))
+        if at is not None:
+            return at, take
+    return None, take
+
+
+def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> tuple[list[tuple[Path, datetime]], dict[str, Any]]:
+    """Discover bounded current MCPv4 transport sources without assuming one connector instance."""
+    try:
+        candidates = list(root.glob("*/transport.jsonl"))
+    except OSError:
+        candidates = []
+    candidate_truncated = len(candidates) > MAX_TRANSPORT_SOURCE_CANDIDATES
+    if candidate_truncated:
+        candidates = sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)[:MAX_TRANSPORT_SOURCE_CANDIDATES]
+    discovered: list[tuple[Path, datetime]] = []
+    discovery_bytes = 0
+    future_limit = now + timedelta(minutes=2)
+    for path in candidates:
+        latest, read_bytes = _latest_event_timestamp(path)
+        discovery_bytes += read_bytes
+        if latest is not None and cutoff <= latest <= future_limit:
+            discovered.append((path, latest))
+    discovered.sort(key=lambda item: item[1], reverse=True)
+    source_truncated = len(discovered) > MAX_TRANSPORT_SOURCES
+    selected = discovered[:MAX_TRANSPORT_SOURCES]
+    return selected, {
+        "candidate_count": len(candidates),
+        "candidate_truncated": candidate_truncated,
+        "source_truncated": source_truncated,
+        "discovery_bytes": discovery_bytes,
+    }
 
 
 def _workspace(path: str | None) -> str | None:
@@ -184,12 +240,33 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     now = now or datetime.now(timezone.utc)
     root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
-    logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not logs:
-        return {"schema":"live-swarm.v1","available":False,"lanes":[],"summary":{"recent_callers":0,"lanes":0}}
-    source = logs[0]
     cutoff = now - timedelta(minutes=OBSERVATION_WINDOW_MINUTES)
-    rows, complete, sample_bytes = _read_window(source, cutoff)
+    sources, discovery = _discover_transport_sources(root, cutoff, now)
+    if not sources and not discovery.get("candidate_count"):
+        return {
+            "schema":"live-swarm.v1", "available":False, "lanes":[],
+            "summary":{"recent_callers":0,"lanes":0},
+            "evidence":{"transport":TRANSPORT_KIND,"transport_source_count":0},
+        }
+
+    rows: list[dict[str, Any]] = []
+    complete = not bool(discovery.get("candidate_truncated") or discovery.get("source_truncated"))
+    sample_bytes = 0
+    per_source_budget = max(1, MAX_TRANSPORT_BYTES // max(1, len(sources)))
+    source_details: list[dict[str, Any]] = []
+    for source, latest in sources:
+        source_rows, source_complete, read_bytes = _read_window(source, cutoff, max_bytes=per_source_budget)
+        rows.extend(source_rows)
+        complete = complete and source_complete
+        sample_bytes += read_bytes
+        source_details.append({
+            "instance": source.parent.name,
+            "latest_event_at": latest.isoformat(),
+            "observation_window_complete": source_complete,
+            "sample_bytes": read_bytes,
+        })
+    rows.sort(key=lambda row: _dt(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc))
+    latest_transport_at = max((latest for _, latest in sources), default=None)
     active_cutoff = now - timedelta(seconds=ACTIVITY_WINDOW_SECONDS)
     callers: dict[str, dict[str, Any]] = {}
     processes: dict[str, dict[str, Any]] = {}
@@ -338,7 +415,9 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "busy_owners":len(owners),"busy_scopes":len(jobs),"workspace_counts":workspace_counts,
         },
         "evidence":{
-            "source_age_seconds":round(max(0.0,(now-datetime.fromtimestamp(source.stat().st_mtime,timezone.utc)).total_seconds()),1),
+            "transport":TRANSPORT_KIND,
+            "transport_source_count":len(sources),
+            "source_age_seconds":round(max(0.0,(now-latest_transport_at).total_seconds()),1) if latest_transport_at else None,
             "activity_window_seconds":ACTIVITY_WINDOW_SECONDS,"observation_window_minutes":OBSERVATION_WINDOW_MINUTES,
             "observation_window_complete":complete,"sample_bytes":sample_bytes,
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
@@ -346,6 +425,11 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "execution_reference_semantics":"orientation_only_not_remaining_time",
             "observer_callers_excluded":sorted(observer_callers),
             "activity_summary":{**activity_counts,"last_event_at":last_event_at.isoformat() if last_event_at else None},
+        },
+        "transport_sources":source_details,
+        "transport_source_discovery":{
+            "bytes":discovery.get("discovery_bytes"),
+            "truncated":bool(discovery.get("candidate_truncated") or discovery.get("source_truncated")),
         },
         "lanes":lane_list,
     }
