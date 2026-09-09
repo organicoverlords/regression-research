@@ -1274,6 +1274,45 @@ class WorkerReportHistoryTests(unittest.TestCase):
 
 
 
+    def test_timed_metrics_exclude_terminal_archives_without_machine_start_from_timing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_root = root / "history"
+            reports = history_root / "_reports"
+            reports.mkdir(parents=True)
+            now = datetime.now().astimezone()
+            measured = {
+                "schema": "worker-report-history.v6", "population": "timed", "report_sha256": "measured",
+                "automation_id": "a" * 32, "display_label": "Measured", "state": "RUN_FINISHED",
+                "observed_started_at": (now - timedelta(minutes=21)).isoformat(),
+                "started_at": (now - timedelta(minutes=21)).isoformat(),
+                "finished_at": (now - timedelta(minutes=1)).isoformat(), "archived_at": now.isoformat(),
+                "duration_minutes": 20.0, "target_utilization_pct": 83.3, "finding_tags": ["proof"],
+            }
+            blocked = {
+                "schema": "worker-report-history.v6", "population": "timed", "report_sha256": "blocked",
+                "automation_id": "b" * 32, "display_label": "Blocked", "state": "BLOCKED",
+                "started_at": (now - timedelta(minutes=2)).isoformat(),
+                "finished_at": (now - timedelta(minutes=2)).isoformat(), "archived_at": now.isoformat(),
+                "duration_minutes": 0.0, "target_utilization_pct": 0.0, "finding_tags": ["bug"],
+            }
+            (reports / "measured.json").write_text(json.dumps(measured), encoding="utf-8")
+            (reports / "blocked.json").write_text(json.dumps(blocked), encoding="utf-8")
+
+            metrics = build_metrics_projection(history_root)
+            self.assertEqual(metrics["reports"], 2)
+            self.assertEqual(metrics["runs_with_duration"], 1)
+            self.assertEqual(metrics["min_duration_minutes"], 20.0)
+            self.assertEqual(metrics["average_target_utilization_pct"], 83.3)
+            self.assertEqual(metrics["finding_tag_counts"], {"bug": 1, "proof": 1})
+            self.assertEqual(metrics["duration_filter"]["excluded_unmeasured_count"], 1)
+            by_sha = {row["report_sha256"]: row for row in metrics["latest_reports"]}
+            self.assertEqual(by_sha["measured"]["timing_evidence"], "MACHINE_OBSERVED_START")
+            self.assertEqual(by_sha["measured"]["duration_minutes"], 20.0)
+            self.assertEqual(by_sha["blocked"]["timing_evidence"], "UNMEASURED_NO_MACHINE_START")
+            self.assertIsNone(by_sha["blocked"]["duration_minutes"])
+            self.assertNotIn("target_utilization_pct", by_sha["blocked"])
+
     def test_manual_metrics_filter_three_hour_duration_outliers(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

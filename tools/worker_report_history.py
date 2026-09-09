@@ -921,6 +921,25 @@ def build_manual_sanity_projection(
     }
 
 
+def _timed_duration_is_measured(item: dict[str, Any]) -> bool:
+    """Return whether timed duration/utilization has machine-observed start evidence."""
+    if _metadata_population(item) != "timed":
+        return False
+    observed_started = _parse_time(item.get("observed_started_at"))
+    finished = _parse_time(item.get("finished_at"))
+    duration = item.get("duration_minutes")
+    utilization = item.get("target_utilization_pct")
+    return (
+        observed_started is not None
+        and finished is not None
+        and finished >= observed_started
+        and isinstance(duration, (int, float))
+        and float(duration) >= 0.0
+        and isinstance(utilization, (int, float))
+        and float(utilization) >= 0.0
+    )
+
+
 def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict[str, Any]:
     population = _report_population(history_root=history_root)
     now = datetime.now().astimezone()
@@ -936,12 +955,20 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
     if population == "manual":
         records = _dedupe_manual_run_records(records)
 
-    duration_values = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
+    if population == "manual":
+        duration_records = records
+    else:
+        duration_records = [item for item in records if _timed_duration_is_measured(item)]
+    duration_values = [
+        float(item["duration_minutes"])
+        for item in duration_records
+        if isinstance(item.get("duration_minutes"), (int, float))
+    ]
     if population == "manual":
         duration_outlier_count = sum(value >= MANUAL_DURATION_OUTLIER_MINUTES for value in duration_values)
         durations = [value for value in duration_values if value < MANUAL_DURATION_OUTLIER_MINUTES]
     else:
-        duration_outlier_count = 0
+        duration_outlier_count = len(records) - len(duration_records)
         durations = duration_values
     tag_counts: Counter[str] = Counter()
     for item in records:
@@ -968,7 +995,12 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
             "findings": item.get("findings"),
         }
         if population == "timed":
-            row["target_utilization_pct"] = item.get("target_utilization_pct")
+            if _timed_duration_is_measured(item):
+                row["target_utilization_pct"] = item.get("target_utilization_pct")
+                row["timing_evidence"] = "MACHINE_OBSERVED_START"
+            else:
+                row["duration_minutes"] = None
+                row["timing_evidence"] = "UNMEASURED_NO_MACHINE_START"
         latest.append(row)
 
     metrics: dict[str, Any] = {
@@ -994,7 +1026,16 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
         }
         metrics["sanity"] = build_manual_sanity_projection(history_root)
     if population == "timed":
-        utilizations = [float(item["target_utilization_pct"]) for item in records if isinstance(item.get("target_utilization_pct"), (int, float))]
+        metrics["duration_filter"] = {
+            "require_machine_observed_start": True,
+            "excluded_unmeasured_count": duration_outlier_count,
+            "semantics": "Timed terminal archives without machine-observed start evidence remain in report/outcome/finding counts but are excluded from duration and target-utilization aggregates.",
+        }
+        utilizations = [
+            float(item["target_utilization_pct"])
+            for item in duration_records
+            if isinstance(item.get("target_utilization_pct"), (int, float))
+        ]
         metrics["average_target_utilization_pct"] = round(statistics.mean(utilizations), 1) if utilizations else None
     return metrics
 
