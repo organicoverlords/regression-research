@@ -104,11 +104,60 @@ class SwarmExecTests(unittest.TestCase):
     def test_generated_remote_python_heredocs_compile(self):
         _workspace,script=m.remote_script("compile-proof","true",self.CACHE_ID)
         parts=script.split("<<'PY'\n")[1:]
-        self.assertEqual(len(parts),2)
+        self.assertEqual(len(parts),3)
         for part in parts:
             source=part.split("\nPY\n",1)[0]
             compile(source,"<remote-heredoc>","exec")
         self.assertIn("printf '%s\\n' 'SWARM_EXEC_CACHE_MANIFEST {}'",script)
+        self.assertIn("index-pack",script)
+        self.assertIn("update-index",script)
+        self.assertIn("symbolic-ref",script)
+        self.assertLess(script.index(m.OMEN_TOOL_ENV),script.index("index-pack"))
+
+    def test_git_provenance_payload_reconstructs_head_branch_and_dirty_status(self):
+        import base64, json, shutil
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); src=root/"src"; dst=root/"dst"; src.mkdir(); dst.mkdir()
+            subprocess.run(["git","-C",str(src),"init","-q","-b","topic/provenance"],check=True)
+            subprocess.run(["git","-C",str(src),"config","user.email","test@example.invalid"],check=True)
+            subprocess.run(["git","-C",str(src),"config","user.name","Test"],check=True)
+            subprocess.run(["git","-C",str(src),"config","core.autocrlf","true"],check=True)
+            subprocess.run(["git","-C",str(src),"config","core.filemode","false"],check=True)
+            (src/"sub").mkdir(); (src/"a.txt").write_text("base\n",encoding="utf-8"); (src/"sub"/"b.txt").write_text("bee\n",encoding="utf-8")
+            subprocess.run(["git","-C",str(src),"add","."],check=True)
+            subprocess.run(["git","-C",str(src),"commit","-qm","base"],check=True)
+            (src/"a.txt").write_text("second\n",encoding="utf-8")
+            subprocess.run(["git","-C",str(src),"commit","-qam","second"],check=True)
+            head=subprocess.check_output(["git","-C",str(src),"rev-parse","HEAD"],text=True).strip()
+            (src/"a.txt").write_text("dirty\n",encoding="utf-8"); (src/"new.txt").write_text("new\n",encoding="utf-8")
+
+            payload,size=m.git_provenance_payload(src)
+            self.assertEqual(payload["version"],m.GIT_PROVENANCE_VERSION)
+            self.assertEqual(payload["head"],head)
+            self.assertEqual(payload["branch"],"topic/provenance")
+            self.assertEqual(payload["config"]["core.autocrlf"],"true")
+            self.assertEqual(payload["config"]["core.filemode"],"false")
+            self.assertLess(size,m.MAX_GIT_PROVENANCE_BYTES)
+            self.assertNotIn(str(src),json.dumps(payload))
+
+            subprocess.run(["git","-C",str(dst),"init","-q"],check=True)
+            for key,value in payload["config"].items():
+                subprocess.run(["git","-C",str(dst),"config",key,value],check=True)
+            pack=base64.b64decode(payload["pack_b64"],validate=True)
+            subprocess.run(["git","-C",str(dst),"index-pack","--stdin","--fix-thin"],input=pack,stdout=subprocess.DEVNULL,check=True)
+            subprocess.run(["git","-C",str(dst),"update-index","-z","--index-info"],input=base64.b64decode(payload["index_b64"],validate=True),check=True)
+            ref="refs/heads/"+str(payload["branch"])
+            subprocess.run(["git","-C",str(dst),"update-ref",ref,head],check=True)
+            subprocess.run(["git","-C",str(dst),"symbolic-ref","HEAD",ref],check=True)
+            shutil.copy2(src/"a.txt",dst/"a.txt"); (dst/"sub").mkdir(); shutil.copy2(src/"sub"/"b.txt",dst/"sub"/"b.txt"); shutil.copy2(src/"new.txt",dst/"new.txt")
+
+            self.assertEqual(subprocess.check_output(["git","-C",str(dst),"rev-parse","HEAD"],text=True).strip(),head)
+            self.assertEqual(subprocess.check_output(["git","-C",str(dst),"symbolic-ref","--short","HEAD"],text=True).strip(),"topic/provenance")
+            status=subprocess.check_output(["git","-C",str(dst),"status","--short","--branch"],text=True).splitlines()
+            self.assertEqual(status[0],"## topic/provenance")
+            self.assertIn(" M a.txt",status)
+            self.assertIn("?? new.txt",status)
+            self.assertIn("second",subprocess.check_output(["git","-C",str(dst),"log","-1","--oneline"],text=True))
 
     def test_reserved_cache_metadata_name_is_rejected(self):
         with self.assertRaises(ValueError):

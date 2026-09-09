@@ -10,6 +10,7 @@ Linux-compatible command. The cache is never the command's writable workspace.
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import hashlib
 import io
@@ -34,6 +35,9 @@ OMEN_CACHE_ROOT = PurePosixPath("/mnt/ue/worker-cache")
 CACHE_MANIFEST_NAME = ".swarm-exec-manifest.json"
 CACHE_CONTROL_NAME = ".swarm-exec-control.json"
 CACHE_PROTOCOL_PREFIX = b"SWARM_EXEC_CACHE_MANIFEST "
+GIT_PROVENANCE_VERSION = 1
+GIT_PROVENANCE_COMMIT_LIMIT = 128
+MAX_GIT_PROVENANCE_BYTES = 16 * 1024 * 1024
 OMEN_TOOL_ENV = "/mnt/ue/worker-tools/env.sh"
 OMEN_PYTHON_PACKAGES = "/mnt/ue/worker-tools/python-packages"
 
@@ -103,6 +107,59 @@ def repo_cache_id(repo_root: Path) -> str:
     else:
         identity = "path\0" + str(repo_root.resolve()).casefold()
     return hashlib.sha256(identity.encode("utf-8", errors="surrogatepass")).hexdigest()[:24]
+
+
+def git_provenance_payload(repo_root: Path) -> tuple[dict[str, object], int]:
+    """Build bounded current-HEAD/tree/index metadata for native Git inspection on OMEN."""
+    head_cp = _run(["git", "-C", str(repo_root), "rev-parse", "--verify", "HEAD^{commit}"], timeout=8.0)
+    if head_cp.returncode != 0 or not re.fullmatch(r"[0-9a-fA-F]{40,64}", head_cp.stdout.strip()):
+        raise ValueError("SWARM_EXEC_GIT_HEAD_REQUIRED")
+    head = head_cp.stdout.strip().lower()
+    branch_cp = _run(["git", "-C", str(repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"], timeout=5.0)
+    branch = branch_cp.stdout.strip() if branch_cp.returncode == 0 and branch_cp.stdout.strip() else None
+    config: dict[str, str] = {}
+    for key in ("core.autocrlf", "core.filemode", "core.symlinks", "core.ignorecase"):
+        config_cp = _run(["git", "-C", str(repo_root), "config", "--get", key], timeout=5.0)
+        value = config_cp.stdout.strip() if config_cp.returncode == 0 else ""
+        if value:
+            config[key] = value
+    root_tree_cp = _run(["git", "-C", str(repo_root), "show", "-s", "--format=%T", "HEAD"], timeout=8.0)
+    subtree_cp = _run(["git", "-C", str(repo_root), "ls-tree", "-rd", "--format=%(objectname)", "HEAD"], timeout=20.0)
+    history_cp = _run([
+        "git", "-C", str(repo_root), "rev-list", f"--max-count={GIT_PROVENANCE_COMMIT_LIMIT}", "--parents", "HEAD"
+    ], timeout=20.0)
+    if root_tree_cp.returncode != 0 or not root_tree_cp.stdout.strip() or subtree_cp.returncode != 0 or history_cp.returncode != 0:
+        raise ValueError("SWARM_EXEC_GIT_TREE_FAILED")
+    history_rows = [line.split() for line in history_cp.stdout.splitlines() if line.strip()]
+    commits = [row[0] for row in history_rows if row]
+    commit_set = set(commits)
+    shallow = sorted({row[0] for row in history_rows if len(row) > 1 and any(parent not in commit_set for parent in row[1:])})
+    objects = list(dict.fromkeys([*commits, root_tree_cp.stdout.strip(), *subtree_cp.stdout.splitlines()]))
+    pack_proc = subprocess.run(
+        ["git", "-C", str(repo_root), "pack-objects", "--stdout"],
+        input=("\n".join(objects) + "\n").encode("ascii"), capture_output=True, timeout=30.0, check=False,
+    )
+    if pack_proc.returncode != 0 or not pack_proc.stdout:
+        raise ValueError("SWARM_EXEC_GIT_OBJECT_PACK_FAILED")
+    index_proc = subprocess.run(
+        ["git", "-C", str(repo_root), "ls-files", "-s", "-z"],
+        capture_output=True, timeout=30.0, check=False,
+    )
+    if index_proc.returncode != 0:
+        raise ValueError("SWARM_EXEC_GIT_INDEX_FAILED")
+    payload: dict[str, object] = {
+        "version": GIT_PROVENANCE_VERSION,
+        "head": head,
+        "branch": branch,
+        "config": config,
+        "shallow": shallow,
+        "pack_b64": base64.b64encode(pack_proc.stdout).decode("ascii"),
+        "index_b64": base64.b64encode(index_proc.stdout).decode("ascii"),
+    }
+    encoded_size = len(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    if encoded_size > MAX_GIT_PROVENANCE_BYTES:
+        raise ValueError(f"SWARM_EXEC_GIT_PROVENANCE_TOO_LARGE bytes={encoded_size} limit={MAX_GIT_PROVENANCE_BYTES}")
+    return payload, encoded_size
 
 
 def _safe_manifest_path(raw: str) -> PurePosixPath:
@@ -280,9 +337,12 @@ def manifest_delta(
     return changed, deleted
 
 
-def _add_control_member(tf: tarfile.TarFile, manifest: dict[str, dict[str, int | str]], changed: list[Path], deleted: list[str]) -> None:
+def _add_control_member(
+    tf: tarfile.TarFile, manifest: dict[str, dict[str, int | str]], changed: list[Path], deleted: list[str],
+    git_provenance: dict[str, object],
+) -> None:
     data = json.dumps(
-        {"manifest": manifest, "changed": [p.as_posix() for p in changed], "deleted": deleted},
+        {"manifest": manifest, "changed": [p.as_posix() for p in changed], "deleted": deleted, "git": git_provenance},
         separators=(",", ":"), sort_keys=True,
     ).encode("utf-8")
     info = tarfile.TarInfo(CACHE_CONTROL_NAME)
@@ -311,6 +371,7 @@ def remote_script(work_id: str, command: str, cache_id: str, *, keep_workspace: 
     cache_previous = cache + f".previous-{safe}-$$"
     cache_lock = cache + ".lock"
     payload = cache + f".payload-{safe}-$$.tar"
+    git_meta_dir = cache + f".git-meta-{safe}-$$"
     keep = 1 if keep_workspace else 0
     script = f"""set -eu
 final={shlex.quote(final)}
@@ -319,6 +380,7 @@ cache_incoming={shlex.quote(cache_incoming)}
 cache_previous={shlex.quote(cache_previous)}
 cache_lock={shlex.quote(cache_lock)}
 payload={shlex.quote(payload)}
+git_meta_dir={shlex.quote(git_meta_dir)}
 manifest_name={shlex.quote(CACHE_MANIFEST_NAME)}
 control_name={shlex.quote(CACHE_CONTROL_NAME)}
 keep_workspace={keep}
@@ -327,7 +389,7 @@ cleanup() {{
   rc=$?
   trap - EXIT
   rm -f -- \"$payload\"
-  rm -rf -- \"$cache_incoming\" \"$cache_previous\"
+  rm -rf -- \"$cache_incoming\" \"$cache_previous\" \"$git_meta_dir\"
   if [ \"$keep_workspace\" -eq 0 ] && [ \"$published\" -eq 1 ]; then
     rm -rf -- \"$final\"
   fi
@@ -348,12 +410,24 @@ mkdir -p -- \"$cache_incoming\"
 if [ -d \"$cache\" ]; then cp -a -- \"$cache/.\" \"$cache_incoming/\"; fi
 cat > \"$payload\"
 tar -xf \"$payload\" -C \"$cache_incoming\" \"$control_name\"
-python3 - \"$cache_incoming\" \"$control_name\" \"$manifest_name\" <<'PY'
-import json, shutil, sys
+python3 - \"$cache_incoming\" \"$control_name\" \"$manifest_name\" \"$git_meta_dir\" <<'PY'
+import base64, json, shutil, sys
 from pathlib import Path, PurePosixPath
-root=Path(sys.argv[1]); control_name=sys.argv[2]; manifest_name=sys.argv[3]
+root=Path(sys.argv[1]); control_name=sys.argv[2]; manifest_name=sys.argv[3]; git_meta_dir=Path(sys.argv[4])
 control=root/control_name
 meta=json.loads(control.read_text(encoding='utf-8'))
+git_meta=meta.get('git')
+if not isinstance(git_meta, dict) or git_meta.get('version') != 1 or not git_meta.get('head'):
+    raise SystemExit('SWARM_EXEC_REMOTE_GIT_PROVENANCE_INVALID')
+try:
+    pack=base64.b64decode(git_meta.get('pack_b64',''), validate=True)
+    index=base64.b64decode(git_meta.get('index_b64',''), validate=True)
+except Exception:
+    raise SystemExit('SWARM_EXEC_REMOTE_GIT_PROVENANCE_INVALID')
+shutil.rmtree(git_meta_dir, ignore_errors=True); git_meta_dir.mkdir(parents=True)
+(git_meta_dir/'meta.json').write_text(json.dumps({{'head':git_meta['head'],'branch':git_meta.get('branch'),'config':git_meta.get('config',{{}}),'shallow':git_meta.get('shallow',[])}},separators=(',',':')),encoding='utf-8')
+(git_meta_dir/'objects.pack').write_bytes(pack)
+(git_meta_dir/'index.bin').write_bytes(index)
 def safe(raw):
     rel=PurePosixPath(raw)
     if not raw or rel.is_absolute() or '..' in rel.parts or raw in (control_name, manifest_name):
@@ -400,10 +474,37 @@ fi
 rm -rf -- \"$final\"
 cp -a -- \"$cache\" \"$final\"
 rm -f -- \"$final/$manifest_name\"
-published=1
-flock -u 9
 . {shlex.quote(OMEN_TOOL_ENV)}
 export PYTHONPATH={shlex.quote(OMEN_PYTHON_PACKAGES)}:${{PYTHONPATH:-}}
+python3 - \"$final\" \"$git_meta_dir\" <<'PY'
+import json, shutil, subprocess, sys
+from pathlib import Path
+root=Path(sys.argv[1]); meta_dir=Path(sys.argv[2])
+meta=json.loads((meta_dir/'meta.json').read_text(encoding='utf-8'))
+head=str(meta.get('head') or ''); branch=meta.get('branch'); config=meta.get('config',{{}}); shallow=meta.get('shallow',[])
+if not head or not isinstance(config, dict) or not isinstance(shallow, list):
+    raise SystemExit('SWARM_EXEC_REMOTE_GIT_PROVENANCE_INVALID')
+subprocess.run(['git','-C',str(root),'init','-q'],check=True)
+allowed_config={{'core.autocrlf','core.filemode','core.symlinks','core.ignorecase'}}
+for key,value in config.items():
+    if key not in allowed_config or not isinstance(value, str):
+        raise SystemExit('SWARM_EXEC_REMOTE_GIT_PROVENANCE_INVALID')
+    subprocess.run(['git','-C',str(root),'config',key,value],check=True)
+if shallow:
+    (root/'.git'/'shallow').write_text('\\n'.join(str(value) for value in shallow)+'\\n',encoding='ascii')
+with (meta_dir/'objects.pack').open('rb') as fh:
+    subprocess.run(['git','-C',str(root),'index-pack','--stdin','--fix-thin'],stdin=fh,stdout=subprocess.DEVNULL,check=True)
+subprocess.run(['git','-C',str(root),'update-index','-z','--index-info'],input=(meta_dir/'index.bin').read_bytes(),check=True)
+if branch:
+    ref='refs/heads/'+str(branch)
+    subprocess.run(['git','-C',str(root),'update-ref',ref,head],check=True)
+    subprocess.run(['git','-C',str(root),'symbolic-ref','HEAD',ref],check=True)
+else:
+    subprocess.run(['git','-C',str(root),'update-ref','--no-deref','HEAD',head],check=True)
+shutil.rmtree(meta_dir)
+PY
+published=1
+flock -u 9
 cd -- \"$final\"
 set +e
 bash -c {shlex.quote(command)}
@@ -431,9 +532,11 @@ def _forward_stdout(stream) -> None:
 def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False) -> int:
     paths = snapshot_paths(repo_root)
     current_manifest, size, hash_hits, hash_misses = cached_snapshot_manifest(repo_root, paths)
+    git_provenance, git_provenance_bytes = git_provenance_payload(repo_root)
     limit = max_sync_mb * 1024 * 1024
-    if size > limit:
-        raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={size} limit={limit}")
+    bounded_size = size + git_provenance_bytes
+    if bounded_size > limit:
+        raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={bounded_size} limit={limit}")
     cache_id = repo_cache_id(repo_root)
     workspace, script = remote_script(work_id, command, cache_id, keep_workspace=keep_workspace)
     proc = subprocess.Popen(ssh_args() + [script], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -448,9 +551,10 @@ def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, 
             "snapshot_files": len(paths), "snapshot_bytes": size, "cache_id": cache_id,
             "cache_hit": bool(remote_manifest), "delta_files": len(changed), "delta_bytes": delta_size,
             "deleted_files": len(deleted), "hash_cache_hits": hash_hits, "hash_cache_misses": hash_misses,
+            "git_provenance_bytes": git_provenance_bytes,
         }, separators=(",", ":")), file=sys.stderr, flush=True)
         with tarfile.open(fileobj=proc.stdin, mode="w|") as tf:
-            _add_control_member(tf, current_manifest, changed, deleted)
+            _add_control_member(tf, current_manifest, changed, deleted, git_provenance)
             for rel in changed:
                 full = repo_root / rel
                 if full.exists() or full.is_symlink():
