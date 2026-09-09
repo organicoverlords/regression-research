@@ -190,6 +190,7 @@ def create_manual_run(
             f"last_activity_at: {started_at}",
             f"repo: {repo}",
             f"execution_cwd: {Path.cwd()}",
+            "start_evidence: CREATE_MANUAL_RUN",
         ]
         if display_label:
             lines.append(f"display_label: {str(display_label).strip()}")
@@ -530,15 +531,37 @@ def _validate_run_finished(fields: dict[str, str], *, report: Path | None = None
     )
 
 
-def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path, population: str, observed_started_at: datetime | None = None) -> dict[str, Any]:
+def _derived_metadata(
+    fields: dict[str, str],
+    *,
+    digest: str,
+    archive_path: Path,
+    population: str,
+    observed_started_at: datetime | None = None,
+    observed_finished_at: datetime | None = None,
+) -> dict[str, Any]:
     started_at = fields.get("started_at")
     finished_at = fields.get("finished_at") or fields.get("last_activity_at")
     reported_started = _parse_time(started_at)
     started = observed_started_at or reported_started
-    finished = _parse_time(finished_at)
+    reported_finished = _parse_time(finished_at)
+    duration_finished = reported_finished
+    duration_evidence = "REPORTED_ACTIVITY"
+    manual_start_evidence = str(fields.get("start_evidence") or "").strip().upper()
+    if (
+        population == "manual"
+        and manual_start_evidence == "CREATE_MANUAL_RUN"
+        and started is not None
+        and observed_finished_at is not None
+        and observed_finished_at >= started
+    ):
+        duration_finished = observed_finished_at
+        duration_evidence = "MACHINE_CREATED_START_TO_REPORT_FILE_MTIME"
+    elif population == "timed" and observed_started_at is not None:
+        duration_evidence = "MACHINE_OBSERVED_START_TO_REPORTED_ACTIVITY"
     duration_seconds = None
-    if started is not None and finished is not None:
-        seconds = (finished - started).total_seconds()
+    if started is not None and duration_finished is not None:
+        seconds = (duration_finished - started).total_seconds()
         if seconds >= 0:
             duration_seconds = round(seconds, 3)
     duration_minutes = round(duration_seconds / 60, 2) if duration_seconds is not None else None
@@ -558,8 +581,10 @@ def _derived_metadata(fields: dict[str, str], *, digest: str, archive_path: Path
         "started_at": started_at,
         "observed_started_at": observed_started_at.isoformat() if observed_started_at is not None else None,
         "finished_at": finished_at,
+        "observed_finished_at": observed_finished_at.isoformat() if observed_finished_at is not None else None,
         "duration_seconds": duration_seconds,
         "duration_minutes": duration_minutes,
+        "duration_evidence": duration_evidence,
         "repo": fields.get("repo"),
         "scope": fields.get("scope"),
         "outcome": fields.get("outcome"),
@@ -1256,6 +1281,11 @@ def archive_finalized_report(report: Path, history_root: Path, *, _skip_manual_r
     raw = report.read_bytes()
     fields = _fields(raw)
     _validate_current_report(report, fields, raw)
+    observed_finished_at: datetime | None = None
+    if population == "manual" and report.parent.name.casefold() == "current":
+        observed_finished_at = datetime.fromtimestamp(report.stat().st_mtime).astimezone()
+        if observed_finished_at > datetime.now().astimezone() + timedelta(seconds=MAX_FUTURE_ACTIVITY_SKEW_SECONDS):
+            raise ValueError("manual current report file write time is in the future")
     observed_started_at: datetime | None = None
     try:
         observed_started_at = _validate_run_finished(fields, report=report)
@@ -1308,7 +1338,12 @@ def archive_finalized_report(report: Path, history_root: Path, *, _skip_manual_r
     metadata_created = not metadata_path.exists()
     if metadata_created:
         metadata = _derived_metadata(
-            fields, digest=digest, archive_path=target, population=population, observed_started_at=observed_started_at
+            fields,
+            digest=digest,
+            archive_path=target,
+            population=population,
+            observed_started_at=observed_started_at,
+            observed_finished_at=observed_finished_at,
         )
         metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     else:
