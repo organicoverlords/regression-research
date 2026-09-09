@@ -3,7 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
-from contextlib import nullcontext, redirect_stdout
+from contextlib import nullcontext, redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -364,6 +364,53 @@ class MemoryBankValidationTests(unittest.TestCase):
             self.assertEqual([entry["id"] for entry in load_bank(overlay)], [saved["id"]])
             sync.assert_not_called()
 
+    def test_default_bank_local_record_refreshes_recent_projection(self):
+        from tools.memory_recent_projection import read_current_projection
+
+        seed_entry = self.valid()
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        values["text"] = "Immediately projected local memory"
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            seed = root / "repo" / "memory" / "memory-bank.jsonl"
+            overlay = root / "state" / "memory-bank.local.jsonl"
+            seed.parent.mkdir(parents=True)
+            seed.write_text(json.dumps(seed_entry) + "\n", encoding="utf-8")
+            with patch("tools.memory_bank.DEFAULT_BANK", seed), patch(
+                "tools.memory_bank.DEFAULT_LOCAL_BANK", overlay
+            ), patch("tools.memory_bank.sync_bank") as sync:
+                saved = append_entry(seed, values)
+                projection = read_current_projection(seed_path=seed, overlay_path=overlay)
+
+        self.assertIsNotNone(projection)
+        self.assertEqual(projection["authority"], "DERIVED_FROM_EFFECTIVE_LOCAL_MEMORY")
+        self.assertEqual(projection["recent"][0]["id"], saved["id"])
+        self.assertEqual(projection["recent"][0]["title"], "Immediately projected local memory")
+        sync.assert_not_called()
+
+    def test_projection_write_failure_does_not_fail_saved_memory(self):
+        values = self.valid()
+        values.pop("id")
+        values.pop("timestamp")
+        values["text"] = "Memory survives derived projection failure"
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            seed = root / "repo" / "memory" / "memory-bank.jsonl"
+            overlay = root / "state" / "memory-bank.local.jsonl"
+            seed.parent.mkdir(parents=True)
+            seed.write_text("", encoding="utf-8")
+            errors = io.StringIO()
+            with patch("tools.memory_bank.DEFAULT_BANK", seed), patch(
+                "tools.memory_bank.DEFAULT_LOCAL_BANK", overlay
+            ), patch("tools.memory_bank.write_recent_projection", side_effect=OSError("locked")), redirect_stderr(errors):
+                saved = append_entry(seed, values)
+                saved_overlay = load_bank(overlay)
+
+        self.assertEqual(saved_overlay[0]["id"], saved["id"])
+        self.assertIn("MEMORY_RECENT_PROJECTION NOT_PROVEN: locked", errors.getvalue())
+
     def test_default_bank_overlay_conflict_fails_closed_on_read(self):
         seed_entry = self.valid()
         conflicting = dict(seed_entry)
@@ -389,9 +436,14 @@ class MemoryBankValidationTests(unittest.TestCase):
         values.pop("timestamp")
         values["text"] = "Publish from overlay"
         calls = []
+        projected_ids_before_post_sync = []
 
         def fake_sync(staged, *, publish):
             calls.append((Path(staged), publish, Path(staged).read_bytes()))
+            if len(calls) == 2:
+                from tools.memory_recent_projection import read_current_projection
+                projection = read_current_projection(seed_path=seed, overlay_path=overlay)
+                projected_ids_before_post_sync.extend(item["id"] for item in projection["recent"])
             return {"status": "PROVEN", "pulled": 0, "pending_push": 0, "pushed": 1, "aligned_head": False}
 
         with tempfile.TemporaryDirectory() as d:
@@ -412,6 +464,7 @@ class MemoryBankValidationTests(unittest.TestCase):
             self.assertTrue(all(staged != seed for staged, _, _ in calls))
             self.assertNotIn(saved["id"].encode(), calls[0][2])
             self.assertIn(saved["id"].encode(), calls[1][2])
+            self.assertIn(saved["id"], projected_ids_before_post_sync)
             self.assertEqual([entry["id"] for entry in effective], [seed_entry["id"], saved["id"]])
 
 
