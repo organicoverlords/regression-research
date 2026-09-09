@@ -14,7 +14,12 @@ class P3VisualEvidenceAtlasTests(unittest.TestCase):
                 self.assertEqual(details["kind"], "feature_navigation")
                 self.assertEqual(details["index"], r"G:\Oma Drive\P3 Visual Evidence\p3\index-v1.json")
                 self.assertIn("ConvertFrom-Json", details["query"])
+                self.assertIn("Google Drive My Drive", details["boundary"])
+                self.assertIn("ChatGPT Library", details["boundary"])
+                self.assertIn("native Library file to open/render", details["boundary"])
+                self.assertIn("consumer gate unmet", details["boundary"])
                 self.assertIn("Do not recursively scan", details["boundary"])
+                self.assertIn("MCP media payloads/base64/custom HTTP/Git-LFS", details["boundary"])
                 self.assertIn("NOT_RECORDED", details["boundary"])
 
         self.assertEqual(find_features("lane war proof", limit=1)[0]["id"], "project.p3_visual_evidence")
