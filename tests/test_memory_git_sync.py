@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _ensure_remote_branch, _git, _memory_commit_message, _validate_sync_branch, _write_bank, merge_bank_entries
+from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _ensure_remote_branch, _git, _memory_commit_message, _remote_branch_exists, _validate_sync_branch, _write_bank, merge_bank_entries
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -32,7 +32,9 @@ class MemoryGitSyncTests(unittest.TestCase):
                 return subprocess.CompletedProcess(args, 1, "", "remote raced")
             raise AssertionError(args)
 
-        with patch("tools.memory_git_sync._git", side_effect=fake_git):
+        with patch("tools.memory_git_sync._ghbuf_bin", return_value=None), patch(
+            "tools.memory_git_sync._git", side_effect=fake_git
+        ):
             self.assertTrue(_ensure_remote_branch())
 
         self.assertIn(("push", "origin", "abc123:refs/heads/memory/live"), calls)
@@ -40,9 +42,49 @@ class MemoryGitSyncTests(unittest.TestCase):
 
     def test_existing_sync_branch_needs_no_seed_push(self):
         existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
-        with patch("tools.memory_git_sync._git", return_value=existing) as git:
+        with patch("tools.memory_git_sync._ghbuf_bin", return_value=None), patch(
+            "tools.memory_git_sync._git", return_value=existing
+        ) as git:
             self.assertFalse(_ensure_remote_branch())
         git.assert_called_once_with("ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False)
+
+
+    def test_remote_branch_probe_uses_ghbuf_when_available(self):
+        existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
+        with patch("tools.memory_git_sync._ghbuf_bin", return_value="C:/ghbuf.exe"), patch(
+            "tools.memory_git_sync.subprocess.run", return_value=existing
+        ) as run, patch("tools.memory_git_sync._git") as git:
+            self.assertTrue(_remote_branch_exists())
+        git.assert_not_called()
+        self.assertEqual(
+            run.call_args.args[0],
+            [
+                "C:/ghbuf.exe", "exec-git", "--", "git", "ls-remote", "--exit-code", "--heads",
+                "origin", "refs/heads/memory/live",
+            ],
+        )
+
+    def test_remote_branch_probe_falls_back_after_ghbuf_operational_error(self):
+        proxy_error = subprocess.CompletedProcess([], 1, "", "proxy unavailable")
+        existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
+        with patch("tools.memory_git_sync._ghbuf_bin", return_value="C:/ghbuf.exe"), patch(
+            "tools.memory_git_sync.subprocess.run", return_value=proxy_error
+        ), patch("tools.memory_git_sync._git", return_value=existing) as git:
+            self.assertTrue(_remote_branch_exists())
+        git.assert_called_once_with(
+            "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False
+        )
+
+    def test_authoritative_remote_branch_probe_skips_ghbuf(self):
+        existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
+        with patch("tools.memory_git_sync._ghbuf_bin") as ghbuf, patch(
+            "tools.memory_git_sync._git", return_value=existing
+        ) as git:
+            self.assertTrue(_remote_branch_exists(authoritative=True))
+        ghbuf.assert_not_called()
+        git.assert_called_once_with(
+            "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False
+        )
 
     def test_remote_order_is_preserved_and_local_only_entries_append(self):
         remote = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}]
