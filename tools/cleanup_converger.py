@@ -154,54 +154,35 @@ def recent_mcp_cwds(
     log_root: Path = MCP_LOG_ROOT,
     now: float | None = None,
 ) -> set[str]:
-    # Reuse Stack Atlas' bounded tail reader and the same canonical newest
-    # transport source. Recursive enumeration of every historical clone made a
-    # single cleanup round take tens of seconds and did not improve authority.
+    # Reuse the canonical live-swarm bounded transport discovery/reader so
+    # cleanup protects recent activity from every current MCP connector
+    # instance, including a newer rotated archive selected for that instance.
     try:
-        from tools.stack_atlas import _read_jsonl_window
+        from tools.live_swarm import _discover_transport_sources, _read_window
     except ModuleNotFoundError:  # direct `python tools\cleanup_converger.py` entrypoint
-        from stack_atlas import _read_jsonl_window
+        from live_swarm import _discover_transport_sources, _read_window
 
     now_ts = time.time() if now is None else now
-    cutoff_dt = datetime.fromtimestamp(now_ts, timezone.utc) - timedelta(seconds=window_seconds)
+    now_dt = datetime.fromtimestamp(now_ts, timezone.utc)
+    cutoff_dt = now_dt - timedelta(seconds=window_seconds)
     result: set[str] = set()
     if not log_root.exists():
         return result
     try:
-        logs = sorted(
-            log_root.glob("clone-*/transport.jsonl"),
-            key=lambda candidate: candidate.stat().st_mtime if candidate.exists() else 0,
-            reverse=True,
-        )
-    except OSError:
-        return result
-    if not logs:
-        return result
-    source = logs[0]
-    archive_dir = source.with_name(f"{source.name}.archive")
-    if archive_dir.is_dir():
-        try:
-            newest_archive = max(
-                (candidate for candidate in archive_dir.iterdir() if candidate.is_file() and candidate.suffix.lower() == ".jsonl"),
-                key=lambda candidate: candidate.stat().st_mtime,
-                default=None,
-            )
-            if newest_archive is not None and newest_archive.stat().st_mtime > source.stat().st_mtime:
-                source = newest_archive
-        except OSError:
-            pass
-    try:
-        rows, _complete, _sample_bytes = _read_jsonl_window(source, cutoff_dt)
+        sources, _discovery = _discover_transport_sources(log_root, cutoff_dt, now_dt)
     except OSError:
         return result
     cutoff_ts = cutoff_dt.timestamp()
-    for event in rows:
-        if not isinstance(event, dict):
+    for source, _latest in sources:
+        try:
+            rows, _complete, _sample_bytes = _read_window(source, cutoff_dt)
+        except OSError:
             continue
-        cwd = event.get("cwd")
-        at = _parse_timestamp(event.get("at"))
-        if cwd and at is not None and at >= cutoff_ts:
-            result.add(_norm_path(cwd))
+        for event in rows:
+            cwd = event.get("cwd")
+            at = _parse_timestamp(event.get("at"))
+            if cwd and at is not None and at >= cutoff_ts:
+                result.add(_norm_path(cwd))
     return result
 
 

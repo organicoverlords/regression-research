@@ -92,6 +92,54 @@ class CleanupConvergerTests(unittest.TestCase):
             self.assertTrue(cwd_targets_path(Path(r"C:\Temp\fresh"), rows))
             self.assertFalse(cwd_targets_path(Path(r"C:\Temp\old"), rows))
 
+    def test_recent_mcp_cwd_reads_all_current_instances_and_rotated_source(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            now = datetime(2026, 9, 6, 14, 0, tzinfo=timezone.utc).timestamp()
+
+            first = root / "clone-a" / "transport.jsonl"
+            first.parent.mkdir(parents=True)
+            first.write_text(
+                json.dumps(
+                    {
+                        "at": datetime.fromtimestamp(now - 30, tz=timezone.utc).isoformat(),
+                        "cwd": r"C:\Temp\first",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            second = root / "clone-b" / "transport.jsonl"
+            second.parent.mkdir(parents=True)
+            second.write_text(
+                json.dumps(
+                    {
+                        "at": datetime.fromtimestamp(now - 90, tz=timezone.utc).isoformat(),
+                        "cwd": r"C:\Temp\second-active",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            archive = second.with_name("transport.jsonl.archive") / "rotated.jsonl"
+            archive.parent.mkdir(parents=True)
+            archive.write_text(
+                json.dumps(
+                    {
+                        "at": datetime.fromtimestamp(now - 10, tz=timezone.utc).isoformat(),
+                        "cwd": r"C:\Temp\second-rotated",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            rows = recent_mcp_cwds(300, log_root=root, now=now)
+            self.assertTrue(cwd_targets_path(Path(r"C:\Temp\first"), rows))
+            self.assertTrue(cwd_targets_path(Path(r"C:\Temp\second-rotated"), rows))
+            self.assertFalse(cwd_targets_path(Path(r"C:\Temp\second-active"), rows))
+
     def test_eligibility_preserves_active_dirty_detached_and_ref_mismatch(self):
         lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False)
         detached = Worktree(Path(r"C:\Temp\detached"), "abcd", None, True)
