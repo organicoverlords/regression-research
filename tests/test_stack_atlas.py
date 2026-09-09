@@ -928,8 +928,32 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(topology["recurring_worker_partitions"], {"S1": 5, "S2": 5})
         self.assertEqual(topology["recurring_workers_total"], 10)
         self.assertEqual(topology["operator_handoff"]["primary_operator_subscription"], "S2")
+        self.assertEqual(topology["routine_recurring_recovery"]["scheduler_role"], "RECURRENCE_ONLY")
+        self.assertEqual(
+            topology["routine_recurring_recovery"]["authority"],
+            "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+        )
         self.assertFalse(topology["manual_workers"]["counts_against_recurring_slots"])
         self.assertIn("10 recurring workers plus", topology["manual_workers"]["total_swarm_semantics"])
+
+    def test_recurring_worker_recovery_is_peer_supervised_and_scheduler_is_recurrence_only(self):
+        topology = component_details("swarm_topology")
+        workers = component_details("execution_workers")
+        scheduler = component_details("chatgpt_automations")
+
+        self.assertIn("same-partition recurring workers", topology["supervisor"])
+        self.assertIn("peer", topology["self_heal"])
+        self.assertIn("BusyCoordinator is exact mutation collision control only", workers["supervisor"])
+        self.assertNotIn("BusyCoordinator ownership", workers["supervisor"])
+        self.assertIn("does not supervise worker health", scheduler["supervisor"])
+        self.assertEqual(scheduler["self_heal"], "not_swarm_supervision")
+        self.assertTrue(any("worker_recovery_guard.py" in route for route in topology["independent_recovery"]))
+        self.assertTrue(any("worker_recovery_guard" in route for route in scheduler["independent_recovery"]))
+
+        timed = find_features("timed runs", limit=5)
+        match = next(item for item in timed if item["id"] == "worker.swarm_topology")
+        self.assertIn("scheduler provides recurrence only", match["boundary"])
+        self.assertIn("user is not the worker supervisor", match["boundary"])
 
     def test_fleet_watch_models_two_five_worker_subscription_partitions_and_scopes_recovery(self):
         from datetime import datetime, timedelta, timezone
