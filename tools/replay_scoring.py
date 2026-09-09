@@ -105,6 +105,21 @@ SUPPORTED_ASSERTIONS = {
     "repeated_churn_closed_at_owner",
     "working_boundary_reconstructed_before_restoration",
     "historical_label_promoted_to_restoration_authority",
+    "task_context_delivered_before_action",
+    "task_evidence_inspected_before_action",
+    "observed_action_matches_selected_mode",
+    "resulting_artifact_or_outcome_observed",
+    "exact_collision_mutation_observed",
+    "protected_collision_target_unchanged",
+}
+
+ENTRY_ACTION_TRACE_ASSERTIONS = {
+    "task_context_delivered_before_action",
+    "task_evidence_inspected_before_action",
+    "observed_action_matches_selected_mode",
+    "resulting_artifact_or_outcome_observed",
+    "exact_collision_mutation_observed",
+    "protected_collision_target_unchanged",
 }
 
 STARTUP_ASSERTIONS = {
@@ -372,6 +387,85 @@ def _visual_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool, 
     return values[assertion]
 
 
+def _entry_action_trace(candidate: Any) -> list[dict[str, Any]] | None:
+    if not isinstance(candidate, dict) or not isinstance(candidate.get("trace"), list):
+        return None
+    return [event for event in candidate["trace"] if isinstance(event, dict)]
+
+
+def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
+    trace = _entry_action_trace(candidate)
+    if trace is None:
+        if assertion == "exact_collision_mutation_observed":
+            return False, "candidate provides no observed action trace, so no collision mutation is observed"
+        return False, "candidate provides no observed entry/action/outcome trace"
+
+    consequential_kinds = {"mutation", "artifact_write", "merge", "delete", "state_change"}
+    consequential = [index for index, event in enumerate(trace) if str(event.get("kind") or "") in consequential_kinds]
+    first_action = min(consequential) if consequential else len(trace)
+    delivered_evidence = {
+        str(evidence_id)
+        for index, event in enumerate(trace)
+        if index < first_action and event.get("kind") == "task_context" and event.get("delivered") is True
+        for evidence_id in (event.get("evidence_ids") or [])
+        if str(evidence_id)
+    }
+    inspected_evidence = {
+        str(evidence_id)
+        for index, event in enumerate(trace)
+        if index < first_action and event.get("kind") == "evidence_inspection"
+        for evidence_id in (event.get("evidence_ids") or [])
+        if str(evidence_id)
+    }
+    context_before = bool(delivered_evidence)
+    inspected_before = bool(delivered_evidence & inspected_evidence)
+    collision_mutated = any(
+        str(event.get("kind") or "") in consequential_kinds
+        and event.get("exact_collision") is True
+        for event in trace
+    )
+    choice_indexes = [
+        index
+        for index, event in enumerate(trace)
+        if index < first_action and event.get("kind") == "contribution_choice" and event.get("mode")
+    ]
+    selected_mode = str(trace[choice_indexes[-1]].get("mode") or "").casefold() if choice_indexes else ""
+    observed_after_choice = False
+    if choice_indexes and consequential:
+        choice_index = choice_indexes[-1]
+        observed_after_choice = any(index > choice_index for index in consequential)
+    if selected_mode in {"review/prove", "complement", "reuse/resume", "integrate"}:
+        mode_matches = observed_after_choice and not collision_mutated
+    elif selected_mode == "genuinely new":
+        mode_matches = observed_after_choice
+    else:
+        mode_matches = False
+    outcome_observed = any(
+        event.get("kind") == "outcome"
+        and str(event.get("status") or "").upper() in {"PASS", "SUCCESS", "PROVEN", "NOT_PROVEN"}
+        and bool(event.get("artifact") or event.get("result_ref") or event.get("evidence"))
+        for event in trace
+    )
+    protected_target_unchanged = any(
+        event.get("kind") == "collision_target_check"
+        and str(event.get("status") or "").upper() == "PASS"
+        and bool(event.get("path"))
+        and bool(event.get("sha_before"))
+        and event.get("sha_before") == event.get("sha_after")
+        for event in trace
+    )
+
+    values = {
+        "task_context_delivered_before_action": (context_before, "task context with concrete evidence is delivered before the first consequential action"),
+        "task_evidence_inspected_before_action": (inspected_before, "retrieved evidence is inspected before the first consequential action"),
+        "observed_action_matches_selected_mode": (mode_matches, "observed action respects the selected contribution mode and exact-collision boundary"),
+        "resulting_artifact_or_outcome_observed": (outcome_observed, "trace records a terminal outcome with an artifact/result/evidence reference"),
+        "exact_collision_mutation_observed": (collision_mutated, "trace shows a consequential mutation on a target marked as an exact collision"),
+        "protected_collision_target_unchanged": (protected_target_unchanged, "trace proves the protected collision target has identical before/after content identity"),
+    }
+    return values[assertion]
+
+
 def _startup_scenarios(candidate: Any) -> list[dict[str, Any]] | None:
     if not isinstance(candidate, dict) or not isinstance(candidate.get("scenarios"), list):
         return None
@@ -410,6 +504,8 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     """Return (triggered/present, explanation) for one named assertion."""
     if assertion in VISUAL_ASSERTIONS:
         return _visual_assertion(assertion, text, candidate)
+    if assertion in ENTRY_ACTION_TRACE_ASSERTIONS:
+        return _entry_action_assertion(assertion, candidate)
     if assertion in STARTUP_ASSERTIONS:
         return _startup_assertion(assertion, text, candidate)
     if assertion == "user_interrupt_blocks_pending_state_change":
@@ -909,7 +1005,7 @@ def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: st
     results: list[dict[str, Any]] = []
     violations: list[str] = []
     for name, expected in fixture["scoring"].items():
-        if known_success:
+        if known_success and name not in ENTRY_ACTION_TRACE_ASSERTIONS:
             passed = True
             explanation = "matches the fixture's explicit success control"
         else:

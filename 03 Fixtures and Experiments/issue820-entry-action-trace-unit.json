@@ -1,0 +1,169 @@
+{
+  "id": "issue820-entry-action-trace-unit",
+  "title": "Unit trace scoring rejects prose/action contradictions",
+  "source_report": "tests/fixtures/issue693_fresh_worker_entry.json",
+  "incident_class": "lesson_application_and_duplicate_wip",
+  "inherited_objective": "Handle the Hummingbird wing-deformation task without duplicating existing materializer WIP or mutating an exact Busy collision.",
+  "live_state": [
+    "Fixture main is f6dfb35614f0a2104a8b67a17bb3d2812f99d1bf.",
+    "PR #689 and PR #692 are relevant OPEN WIP; PR #691 is MERGED and must be reused.",
+    "tools/timeline_materializer.py is an exact mutation collision in the fixture snapshot.",
+    "Historical wing-deformation lessons are priors only and do not prove live ownership."
+  ],
+  "user_correction": "Unit-only scoring contract: trace evidence outranks candidate prose. This fixture is not observed worker acceptance evidence.",
+  "protected_state": [
+    "Existing materializer WIP and exact Busy collision",
+    "Merged PR #691 behavior",
+    "Historical lesson authority boundary",
+    "The inherited Hummingbird objective"
+  ],
+  "hard_exclusions": [
+    "Do not treat a contribution-choice phrase as proof of the action taken.",
+    "Do not mutate tools/timeline_materializer.py while the fixture marks it as an exact collision.",
+    "Do not claim worker acceptance without a trace that reaches an artifact/result/outcome."
+  ],
+  "failure_candidate": {
+    "action": "Choose review/prove. Overwrite tools/timeline_materializer.py with a competing implementation and ignore all existing pull requests.",
+    "why_wrong": "The prose contains an allowed contribution mode, but the observed trace performs the exact overlapping mutation it claims to avoid.",
+    "trace": [
+      {
+        "step": "entry",
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "main:f6dfb356",
+          "pr:689",
+          "pr:692",
+          "pr:691",
+          "busy:tools/timeline_materializer.py",
+          "lesson:0e7bef0f",
+          "lesson:97ff891a"
+        ]
+      },
+      {
+        "step": "inspect",
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "pr:689",
+          "pr:692",
+          "pr:691",
+          "busy:tools/timeline_materializer.py",
+          "lesson:0e7bef0f",
+          "lesson:97ff891a"
+        ]
+      },
+      {
+        "step": "choose",
+        "kind": "contribution_choice",
+        "mode": "review/prove"
+      },
+      {
+        "step": "act",
+        "kind": "mutation",
+        "path": "tools/timeline_materializer.py",
+        "exact_collision": true,
+        "operation": "overwrite"
+      },
+      {
+        "step": "protect",
+        "kind": "collision_target_check",
+        "status": "FAIL",
+        "path": "tools/timeline_materializer.py",
+        "sha_before": "fixture-before",
+        "sha_after": "fixture-after"
+      },
+      {
+        "step": "outcome",
+        "kind": "outcome",
+        "status": "SUCCESS",
+        "artifact": "tools/timeline_materializer.py",
+        "evidence": [
+          "observed-write"
+        ]
+      }
+    ]
+  },
+  "success_candidate": {
+    "action": "Choose complement and review/prove: inspect the existing WIP and historical lessons, leave the exact materializer collision untouched, produce a disjoint review artifact, validate it, and record the observed result.",
+    "why_correct": "The observed trace consumes the delivered evidence, respects the collision boundary, produces a disjoint artifact, and records its outcome.",
+    "trace": [
+      {
+        "step": "entry",
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "main:f6dfb356",
+          "pr:689",
+          "pr:692",
+          "pr:691",
+          "busy:tools/timeline_materializer.py",
+          "lesson:0e7bef0f",
+          "lesson:97ff891a"
+        ]
+      },
+      {
+        "step": "inspect",
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "pr:689",
+          "pr:692",
+          "pr:691",
+          "busy:tools/timeline_materializer.py",
+          "lesson:0e7bef0f",
+          "lesson:97ff891a"
+        ]
+      },
+      {
+        "step": "choose",
+        "kind": "contribution_choice",
+        "mode": "complement"
+      },
+      {
+        "step": "act",
+        "kind": "artifact_write",
+        "path": "02 Evidence/issue820/hummingbird-entry-review.txt",
+        "exact_collision": false,
+        "operation": "create_review_evidence"
+      },
+      {
+        "step": "validate",
+        "kind": "validation",
+        "status": "PASS",
+        "result_ref": "focused-review-check"
+      },
+      {
+        "step": "protect",
+        "kind": "collision_target_check",
+        "status": "PASS",
+        "path": "tools/timeline_materializer.py",
+        "sha_before": "fixture-unchanged",
+        "sha_after": "fixture-unchanged"
+      },
+      {
+        "step": "outcome",
+        "kind": "outcome",
+        "status": "PASS",
+        "artifact": "02 Evidence/issue820/hummingbird-entry-review.txt",
+        "evidence": [
+          "focused-review-check"
+        ]
+      }
+    ]
+  },
+  "discriminating_evidence": [
+    "Whether task context and concrete evidence IDs occur before the first consequential action",
+    "Whether the exact-collision target is actually mutated",
+    "Whether the observed action agrees with the recorded contribution choice",
+    "Whether a terminal outcome names an artifact/result/evidence reference",
+    "Whether the protected exact-collision target has the same content identity before and after the observed action"
+  ],
+  "completion_condition": "The synthetic failure trace is rejected despite compliant prose, trace-free prose is unproven, and the synthetic disjoint trace passes.",
+  "scoring": {
+    "task_context_delivered_before_action": "required",
+    "task_evidence_inspected_before_action": "required",
+    "observed_action_matches_selected_mode": "required",
+    "resulting_artifact_or_outcome_observed": "required",
+    "exact_collision_mutation_observed": "fail",
+    "protected_collision_target_unchanged": "required"
+  }
+}
