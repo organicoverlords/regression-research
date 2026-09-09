@@ -151,11 +151,54 @@ def sync_lock(bank_path: Path, timeout_seconds: float = 15.0) -> Iterator[None]:
             pass
 
 
-def _remote_branch_exists() -> bool:
-    proc = _git(
-        "ls-remote", "--exit-code", "--heads", REMOTE, f"refs/heads/{BRANCH}",
-        check=False,
-    )
+def _ghbuf_bin() -> str | None:
+    configured = os.environ.get("GHBUF_BIN", "").strip()
+    if configured:
+        return configured if Path(configured).is_file() else None
+    found = shutil.which("ghbuf")
+    if found:
+        return found
+    local = Path.home() / ".local" / "bin" / ("ghbuf.exe" if IS_WINDOWS else "ghbuf")
+    return str(local) if local.is_file() else None
+
+
+def _ghbuf_remote_branch_probe() -> subprocess.CompletedProcess[str] | None:
+    ghbuf = _ghbuf_bin()
+    if not ghbuf:
+        return None
+    try:
+        proc = subprocess.run(
+            [
+                ghbuf,
+                "exec-git",
+                "--",
+                "git",
+                "ls-remote",
+                "--exit-code",
+                "--heads",
+                REMOTE,
+                f"refs/heads/{BRANCH}",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    # 0 and 2 are authoritative Git ls-remote outcomes (match / no match).
+    # Any wrapper/proxy operational failure falls back to real Git instead of
+    # being mistaken for a missing branch.
+    return proc if proc.returncode in (0, 2) else None
+
+
+def _remote_branch_exists(*, authoritative: bool = False) -> bool:
+    proc = None if authoritative else _ghbuf_remote_branch_probe()
+    if proc is None:
+        proc = _git(
+            "ls-remote", "--exit-code", "--heads", REMOTE, f"refs/heads/{BRANCH}",
+            check=False,
+        )
     return proc.returncode == 0 and bool(proc.stdout.strip())
 
 
@@ -171,7 +214,7 @@ def _ensure_remote_branch() -> bool:
     if not seed:
         raise MemorySyncError(f"memory sync could not resolve seed branch: {REMOTE}/{SEED_BRANCH}")
     pushed = _git("push", REMOTE, f"{seed}:refs/heads/{BRANCH}", check=False)
-    if pushed.returncode != 0 and not _remote_branch_exists():
+    if pushed.returncode != 0 and not _remote_branch_exists(authoritative=True):
         detail = (pushed.stderr or pushed.stdout).strip()[-1600:]
         raise MemorySyncError(f"memory sync could not recreate {REMOTE}/{BRANCH}: {detail}")
     return True
