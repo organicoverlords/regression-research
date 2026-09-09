@@ -1,7 +1,7 @@
 {
   "schema": "mcp-current-topology.v1",
   "authority": "current_serving_topology",
-  "updated_at": "2026-09-09T16:30:48.206029+00:00",
+  "updated_at": "2026-09-09T20:21:07.658661+03:00",
   "tracking_issue": "organicoverlords/agents#287",
   "serving": {
     "connector_url": "https://91-159-12-133.sslip.io/mcp",
@@ -57,7 +57,9 @@
   "recovery": {
     "independent_local_control": "clone-a at 127.0.0.1:3011",
     "recovery_contract": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-recovery-state.json",
-    "recovery_contract_semantics": "historical rollback/recovery target only; never current GPT1 serving identity"
+    "recovery_contract_semantics": "current local-only recovery contract; restore current 91-159-12-133.sslip.io -> local Caddy -> 127.0.0.1:3022 topology only",
+    "legacy_snapshot": "C:\\Users\\Lauri\\Desktop\\vault\\02 Evidence\\mcp-recovery-state-legacy-20260906.json",
+    "legacy_snapshot_semantics": "historical evidence only; non-operational; never an automatic or preferred restore target"
   },
   "not_in_gpt1_path": [
     "5-61-91-127.sslip.io",
