@@ -14,9 +14,11 @@ from tools.cleanup_converger import (
     canonical_main_contains_head,
     converge,
     cwd_targets_path,
+    dirty_changes_match_origin_main,
     eligibility_reason,
     exact_anchor_refs,
     generated_cache_dirs,
+    hygiene_snapshot,
     _clean_generated_cache_one,
     _fresh_cache_guard,
     parse_worktrees,
@@ -434,6 +436,48 @@ class CleanupConvergerTests(unittest.TestCase):
         self.assertIsNone(
             eligibility_reason(lane, recent_cwds=set(), processes=[], clean=True, ref_matches=True)
         )
+
+
+    @patch("tools.cleanup_converger.canonical_main_contains_head", return_value=True)
+    @patch("tools.cleanup_converger._git")
+    def test_dirty_classifier_proves_only_paths_matching_origin_main(self, git, _contained):
+        with tempfile.TemporaryDirectory() as tmp:
+            lane_path = Path(tmp)
+            (lane_path / "same.txt").write_text("same", encoding="utf-8")
+            lane = Worktree(lane_path, "abcd", "topic", False)
+            git.side_effect = [
+                subprocess.CompletedProcess(["git"], 0, stdout="same.txt\0", stderr=""),
+                subprocess.CompletedProcess(["git"], 0, stdout="", stderr=""),
+                subprocess.CompletedProcess(["git"], 0, stdout="deadbeef\n", stderr=""),
+                subprocess.CompletedProcess(["git"], 0, stdout="deadbeef\n", stderr=""),
+            ]
+            self.assertTrue(dirty_changes_match_origin_main(Path(r"C:\repo"), lane))
+
+    @patch("tools.cleanup_converger.disk_free_gb", return_value=10.0)
+    @patch("tools.cleanup_converger.scan_repo", return_value=([], [], []))
+    @patch("tools.cleanup_converger._git")
+    def test_safe_auto_requires_contained_scan_and_is_not_operator_mode(self, git, scan, _disk):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            git.return_value = subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
+            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "regression-research:git-worktree-metadata"),)):
+                result = converge(apply=False, safe_auto=True, max_rounds=1, stable_rounds=1, settle_seconds=0, window_seconds=300, actor="scheduled-test")
+        scan.assert_called_once_with("Vault", repo, 300, require_contained=True)
+        self.assertEqual(result["mode"], "safe-auto")
+        self.assertFalse(result["operator_only"])
+
+    @patch("tools.cleanup_converger.scan_repo")
+    def test_hygiene_snapshot_counts_dirty_and_safe_reap(self, scan):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            lane = Worktree(repo / "reap", "abcd", "topic", False)
+            scan.return_value = ([lane], [], [Action("Vault", str(repo / "dirty"), "PRESERVE", "old", "beef", "dirty_unique_contained_in_origin_main")])
+            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "regression-research:git-worktree-metadata"),)):
+                result = hygiene_snapshot(300, repo_names={"Vault"})
+        self.assertEqual(result["auxiliary_count"], 2)
+        self.assertEqual(result["dirty_count"], 1)
+        self.assertEqual(result["contained_dirty_count"], 1)
+        self.assertEqual(result["safe_reap_count"], 1)
 
 
 if __name__ == "__main__":
