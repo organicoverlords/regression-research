@@ -90,32 +90,67 @@ def _latest_event_timestamp(path: Path, max_bytes: int = TRANSPORT_DISCOVERY_TAI
     return None, take
 
 
+def _transport_instance(path: Path) -> str:
+    if path.parent.name == "transport.jsonl.archive":
+        return path.parent.parent.name
+    return path.parent.name
+
+
 def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> tuple[list[tuple[Path, datetime]], dict[str, Any]]:
-    """Discover bounded current MCPv4 transport sources without assuming one connector instance."""
+    """Discover one bounded current MCPv4 transport source per connector instance."""
     try:
-        candidates = list(root.glob("*/transport.jsonl"))
+        active = list(root.glob("*/transport.jsonl"))
+        archive_dirs = list(root.glob("*/transport.jsonl.archive"))
     except OSError:
-        candidates = []
-    candidate_truncated = len(candidates) > MAX_TRANSPORT_SOURCE_CANDIDATES
+        active, archive_dirs = [], []
+
+    candidates = list(active)
+    for archive_dir in archive_dirs:
+        try:
+            newest = max(
+                (path for path in archive_dir.iterdir() if path.is_file() and path.suffix.lower() == ".jsonl"),
+                key=lambda path: path.stat().st_mtime,
+                default=None,
+            )
+        except OSError:
+            newest = None
+        if newest is not None:
+            candidates.append(newest)
+
+    candidate_count = len(candidates)
+    candidate_truncated = candidate_count > MAX_TRANSPORT_SOURCE_CANDIDATES
     if candidate_truncated:
         candidates = sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)[:MAX_TRANSPORT_SOURCE_CANDIDATES]
-    discovered: list[tuple[Path, datetime]] = []
+
+    by_instance: dict[str, tuple[Path, datetime]] = {}
     discovery_bytes = 0
     future_limit = now + timedelta(minutes=2)
     for path in candidates:
         latest, read_bytes = _latest_event_timestamp(path)
         discovery_bytes += read_bytes
-        if latest is not None and cutoff <= latest <= future_limit:
-            discovered.append((path, latest))
-    discovered.sort(key=lambda item: item[1], reverse=True)
+        if latest is None or not (cutoff <= latest <= future_limit):
+            continue
+        instance = _transport_instance(path)
+        current = by_instance.get(instance)
+        if current is None or latest > current[1]:
+            by_instance[instance] = (path, latest)
+
+    discovered = sorted(by_instance.values(), key=lambda item: item[1], reverse=True)
     source_truncated = len(discovered) > MAX_TRANSPORT_SOURCES
     selected = discovered[:MAX_TRANSPORT_SOURCES]
     return selected, {
-        "candidate_count": len(candidates),
+        "candidate_count": candidate_count,
         "candidate_truncated": candidate_truncated,
         "source_truncated": source_truncated,
         "discovery_bytes": discovery_bytes,
     }
+
+
+def _local_appdata_root() -> Path:
+    value = os.environ.get("LOCALAPPDATA")
+    if value:
+        return Path(value)
+    return Path(os.path.expandvars(r"%LOCALAPPDATA%"))
 
 
 def _workspace(path: str | None) -> str | None:
@@ -239,7 +274,7 @@ def _git_identity(candidate: str | None, cache: dict[str, Any]) -> dict[str, Any
 def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     started = time.perf_counter()
     now = now or datetime.now(timezone.utc)
-    root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
+    root = _local_appdata_root() / "ChatGPTMcpClean" / "minimal-connectors"
     cutoff = now - timedelta(minutes=OBSERVATION_WINDOW_MINUTES)
     sources, discovery = _discover_transport_sources(root, cutoff, now)
     if not sources and not discovery.get("candidate_count"):
@@ -260,7 +295,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         complete = complete and source_complete
         sample_bytes += read_bytes
         source_details.append({
-            "instance": source.parent.name,
+            "instance": _transport_instance(source),
             "latest_event_at": latest.isoformat(),
             "observation_window_complete": source_complete,
             "sample_bytes": read_bytes,
@@ -343,7 +378,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "command":" ".join(command.split())[:120],
         }
 
-    busy_path = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json"))
+    busy_path = _local_appdata_root() / "ChatGPTMcpClean" / ".state" / "busy-claims.json"
     try:
         busy = json.loads(busy_path.read_text(encoding="utf-8-sig")); jobs_raw = ((busy.get("coordinator") or {}).get("jobs") or {})
         busy_age = max(0.0,(now-datetime.fromtimestamp(busy_path.stat().st_mtime,timezone.utc)).total_seconds())

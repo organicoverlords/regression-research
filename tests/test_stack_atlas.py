@@ -40,7 +40,6 @@ from tools.stack_atlas import (
     _bootstrap_swarm_topology,
     _bootstrap_disk_trend,
     _read_jsonl_tail,
-    _read_jsonl_window,
     _remote_is_newer,
     _git_blob_sha_for_file,
     _git_remote_update_already_applied,
@@ -658,6 +657,34 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("active_mcp_dependents_present", gate["warnings"])
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count"], 20)
         self.assertEqual(gate["live_dependencies"]["mcp"]["active_session_count_semantics"], None)
+
+    def test_production_change_gate_reads_canonical_mcpv4_live_swarm_not_legacy_scanner(self):
+        snapshot = {
+            "available": True,
+            "summary": {"recent_callers": 3, "workspace_counts": {"Vault": 3}},
+            "evidence": {
+                "transport": "MCPv4", "transport_source_count": 2,
+                "source_age_seconds": 0.2, "observation_window_complete": True,
+                "activity_summary": {"starts": 3, "reads": 3},
+            },
+            "lanes": [],
+        }
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        with (
+            patch("tools.stack_atlas.build_live_swarm_snapshot", return_value=snapshot),
+            patch("tools.stack_atlas._bootstrap_mcp_status", side_effect=AssertionError("legacy status path must not run")),
+        ):
+            gate = production_change_gate(
+                "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
+                explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+                busy_status=busy,
+            )
+        self.assertEqual(gate["verdict"], "PASS")
+        dep = gate["live_dependencies"]["mcp"]
+        self.assertEqual(dep["authority"], "live_swarm_runtime_evidence")
+        self.assertEqual(dep["transport"], "MCPv4")
+        self.assertEqual(dep["transport_source_count"], 2)
+        self.assertEqual(dep["active_session_count"], 3)
 
     def test_fleet_watch_has_one_implementation(self):
         source = (ROOT / "tools" / "stack_atlas.py").read_text(encoding="utf-8")
@@ -1427,306 +1454,53 @@ class StackAtlasTests(unittest.TestCase):
             self.assertTrue(all(row["event"] == "recent" for row in rows))
             self.assertEqual(loads.call_count, 400)
 
-    def test_mcp_activity_window_marks_bounded_truncation_explicitly(self):
-        from datetime import datetime, timedelta, timezone
-
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "transport.jsonl"
-            now = datetime.now(timezone.utc)
-            old = {"event": "process_read", "at": (now - timedelta(minutes=10)).isoformat(), "caller_id": "caller_old"}
-            recent = [
-                {"event": "process_read", "at": now.isoformat(), "caller_id": f"caller_{i}", "padding": "x" * 200}
-                for i in range(40)
-            ]
-            path.write_text("\n".join(json.dumps(x) for x in [old, *recent]) + "\n", encoding="utf-8")
-            rows, complete, sample_bytes = _read_jsonl_window(
-                path,
-                now - timedelta(minutes=5),
-                max_bytes=1024,
-                chunk_bytes=256,
-            )
-            self.assertFalse(complete)
-            self.assertLessEqual(sample_bytes, 1024)
-            self.assertTrue(rows)
-            self.assertTrue(all(row["caller_id"] != "caller_old" for row in rows))
-
-    def test_mcp_status_reports_more_than_eight_callers_across_full_activity_window(self):
-        from datetime import datetime, timedelta, timezone
-        import os
-        import subprocess
+    def test_mcp_status_is_compatibility_projection_over_canonical_live_swarm(self):
         from tools.stack_atlas import _bootstrap_mcp_status
 
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            root = local / "ChatGPTMcpClean" / "minimal-connectors"
-            clone = root / "clone-a"
-            clone.mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            transport = []
-            for i in range(12):
-                transport.append({
-                    "event": "process_started",
-                    "at": (now - timedelta(seconds=240 - i)).isoformat().replace("+00:00", "Z"),
-                    "caller_id": f"caller_{i:02d}",
-                    "owner_caller_id": f"caller_{i:02d}",
-                    "process_id": f"process-{i:02d}",
-                    "pid": 1000 + i,
-                    "cwd": rf"C:\\work\\{i:02d}",
-                })
-            for i in range(600):
-                transport.append({
-                    "event": "process_read",
-                    "at": (now - timedelta(seconds=10) + timedelta(milliseconds=i)).isoformat().replace("+00:00", "Z"),
-                    "caller_id": "caller_00",
-                    "owner_caller_id": "caller_00",
-                    "process_id": "process-00",
-                    "pid": 1000,
-                    "running": True,
-                })
-            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in transport) + "\n", encoding="utf-8")
-            busy = subprocess.CompletedProcess([], 0, stdout=json.dumps({"claims": []}), stderr="")
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas.subprocess.run", return_value=busy):
-                status = _bootstrap_mcp_status()
-            self.assertEqual(status["active_session_count"], 12)
-            self.assertEqual(status["active_session_count_status"], "COMPLETE")
-            self.assertTrue(status["activity_summary"]["activity_window_complete"])
-            self.assertGreater(status["activity_summary"]["sample_rows"], 400)
-
-    def test_mcp_status_uses_latest_started_cwd_even_when_caller_returns_to_prior_workspace(self):
-        from datetime import datetime, timedelta, timezone
-        import os
-        from tools.stack_atlas import _bootstrap_mcp_status
-
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
-            clone.mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            vault_cwd = r"C:\Users\Lauri\Desktop\vault"
-            mcp_cwd = r"C:\Users\Lauri\AppData\Local\ChatGPTMcpMinimal"
-            rows = [
-                {
-                    "event": "process_started", "at": (now - timedelta(seconds=3)).isoformat().replace("+00:00", "Z"),
-                    "caller_id": "caller_repeat", "owner_caller_id": "caller_repeat", "process_id": "p1",
-                    "pid": 1001, "cwd": vault_cwd,
-                },
-                {
-                    "event": "process_started", "at": (now - timedelta(seconds=2)).isoformat().replace("+00:00", "Z"),
-                    "caller_id": "caller_repeat", "owner_caller_id": "caller_repeat", "process_id": "p2",
-                    "pid": 1002, "cwd": mcp_cwd,
-                },
-                {
-                    "event": "process_started", "at": (now - timedelta(seconds=1)).isoformat().replace("+00:00", "Z"),
-                    "caller_id": "caller_repeat", "owner_caller_id": "caller_repeat", "process_id": "p3",
-                    "pid": 1003, "cwd": vault_cwd,
-                },
-            ]
-            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas._bootstrap_busy_claims_direct", return_value=[]):
-                status = _bootstrap_mcp_status()
-
-        self.assertEqual(status["active_session_count"], 1)
-        self.assertEqual(status["active_sessions"][0]["cwd"], vault_cwd)
-        self.assertEqual(status["active_sessions"][0]["workspace"], "Vault")
-        self.assertEqual(status["workspace_counts"], {"Vault": 1})
-
-    def test_mcp_status_reads_only_tail_referenced_receipts(self):
-        from datetime import datetime, timezone
-        import os
-        import subprocess
-        from tools.stack_atlas import _bootstrap_mcp_status
-
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            root = local / "ChatGPTMcpClean" / "minimal-connectors"
-            clone = root / "clone-a"
-            receipts = root / "shared-process-receipts"
-            clone.mkdir(parents=True)
-            receipts.mkdir(parents=True)
-            busy_state = local / "ChatGPTMcpClean" / ".state"
-            busy_state.mkdir(parents=True)
-            (busy_state / "busy-claims.json").write_text(json.dumps({"claims": [{"actor": "actor-x"}]}), encoding="utf-8")
-            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-            process_id = "target-receipt"
-            transport = {
-                "event": "process_started", "at": now, "caller_id": "caller_test",
-                "owner_caller_id": "caller_test", "process_id": process_id,
-                "pid": 123, "cwd": r"C:\work",
-            }
-            (clone / "transport.jsonl").write_text(json.dumps(transport) + "\n", encoding="utf-8")
-            for i in range(50):
-                (receipts / f"historical-{i}.json").write_text(json.dumps({"caller_id": "old", "command": "noop"}), encoding="utf-8")
-            (receipts / f"{process_id}.json").write_text(
-                json.dumps({"caller_id": "caller_test", "command": "busy claim 'actor-x' scope"}), encoding="utf-8"
-            )
-            original_read_text = Path.read_text
-            receipt_reads = []
-
-            def counted_read_text(path, *args, **kwargs):
-                if path.parent == receipts:
-                    receipt_reads.append(path.name)
-                return original_read_text(path, *args, **kwargs)
-
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch.object(Path, "read_text", counted_read_text):
-                status = _bootstrap_mcp_status()
-            self.assertEqual(receipt_reads, [f"{process_id}.json"])
-            self.assertEqual(status["active_sessions"][0]["busy_titles"], ["actor-x"])
-
-    def test_mcp_bootstrap_samples_details_but_keeps_complete_count(self):
-        from datetime import datetime, timedelta, timezone
-        import os
-        from tools.stack_atlas import _bootstrap_mcp_status, BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
-            clone.mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            rows = []
-            for i in range(BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT + 7):
-                rows.append({
-                    "event": "process_started",
-                    "at": (now - timedelta(seconds=i)).isoformat().replace("+00:00", "Z"),
-                    "caller_id": f"caller_{i}", "process_id": f"p{i}", "cwd": rf"C:\work\{i}",
-                })
-            (clone / "transport.jsonl").write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
-                status = _bootstrap_mcp_status()
-        self.assertEqual(status["active_session_count"], BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT + 7)
-        self.assertEqual(len(status["active_sessions"]), BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT)
-        self.assertTrue(status["active_sessions_truncated"])
-
-    def test_mcp_bootstrap_backfills_semantics_on_legacy_live_cache(self):
-        import os
-        from tools.stack_atlas import _bootstrap_mcp_status, MCP_ACTIVE_SESSION_COUNT_SEMANTICS
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            cache = local / "StackAtlas" / "bootstrap-cache" / "mcp-status.json"
-            cache.parent.mkdir(parents=True)
-            cache.write_text(json.dumps({
-                "available": True, "status": "LIVE",
-                "active_session_count": 2, "active_session_count_status": "COMPLETE",
-                "active_sessions": [],
-            }), encoding="utf-8")
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas._read_jsonl_window", side_effect=AssertionError("legacy cache should remain reusable")):
-                status = _bootstrap_mcp_status()
-        self.assertTrue(status["cache"]["used"])
+        snapshot = {
+            "available": True,
+            "summary": {"recent_callers": 2, "workspace_counts": {"Vault": 2}},
+            "evidence": {
+                "transport": "MCPv4",
+                "transport_source_count": 2,
+                "source_age_seconds": 0.5,
+                "observation_window_complete": True,
+                "activity_summary": {"starts": 2, "reads": 2},
+            },
+            "lanes": [
+                {"worktree": {"path": r"C:\work"}, "busy": [], "callers": [
+                    {"caller_id": "c1", "last_activity_age_seconds": 1.0, "workspace": "Vault"},
+                    {"caller_id": "c2", "last_activity_age_seconds": 2.0, "workspace": "Vault"},
+                ]},
+            ],
+        }
+        with (
+            patch("tools.stack_atlas.build_live_swarm_snapshot", return_value=snapshot),
+            patch("tools.stack_atlas._bootstrap_mcp_backend_health", side_effect=AssertionError("fresh canonical evidence needs no health fallback")),
+        ):
+            status = _bootstrap_mcp_status()
+        self.assertEqual(status["authority"], "live_swarm_runtime_evidence")
+        self.assertEqual(status["transport"], "MCPv4")
+        self.assertEqual(status["transport_source_count"], 2)
         self.assertEqual(status["active_session_count"], 2)
-        self.assertEqual(status["active_session_count_semantics"], MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
-
-    def test_mcp_status_uses_newer_rotated_archive_when_live_writer_keeps_appending_there(self):
-        from datetime import datetime, timedelta, timezone
-        import os
-        from tools.stack_atlas import _bootstrap_mcp_status
-
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
-            archive = clone / "transport.jsonl.archive"
-            archive.mkdir(parents=True)
-            now = datetime.now(timezone.utc)
-            old = now - timedelta(minutes=10)
-            active = clone / "transport.jsonl"
-            active.write_text(json.dumps({
-                "event": "process_started", "at": old.isoformat().replace("+00:00", "Z"),
-                "caller_id": "caller_old", "process_id": "p-old", "cwd": r"C:\old",
-            }) + "\n", encoding="utf-8")
-            old_ts = old.timestamp()
-            os.utime(active, (old_ts, old_ts))
-
-            recent = now - timedelta(seconds=5)
-            rotated = archive / "transport.jsonl.2026-09-06T00-00-00Z.test.jsonl"
-            rotated.write_text("\n".join(json.dumps(row) for row in [
-                {"event": "process_started", "at": (now - timedelta(minutes=6)).isoformat().replace("+00:00", "Z"), "caller_id": "caller_before", "process_id": "p-before", "cwd": r"C:\before"},
-                {"event": "process_started", "at": recent.isoformat().replace("+00:00", "Z"), "caller_id": "caller_live", "process_id": "p-live", "cwd": r"C:\live"},
-            ]) + "\n", encoding="utf-8")
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas._bootstrap_mcp_backend_health", side_effect=AssertionError("fresh archive should prove liveness")), \
-                 patch("tools.stack_atlas._bootstrap_busy_claims_direct", return_value=[]):
-                status = _bootstrap_mcp_status()
-
-        self.assertEqual(status["status"], "LIVE")
-        self.assertEqual(status["activity_evidence_status"], "FRESH")
         self.assertEqual(status["active_session_count_status"], "COMPLETE")
-        self.assertEqual(status["active_session_count"], 1)
-        self.assertEqual(status["active_sessions"][0]["caller_id"], "caller_live")
-        self.assertLess(status["source_age_seconds"], 60)
 
-    def test_mcp_status_healthy_backend_keeps_service_live_when_activity_source_is_stale(self):
-        from datetime import datetime, timedelta, timezone
-        import os
+    def test_mcp_status_health_fallback_does_not_invent_caller_completeness(self):
         from tools.stack_atlas import _bootstrap_mcp_status
 
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
-            clone.mkdir(parents=True)
-            old = datetime.now(timezone.utc) - timedelta(minutes=10)
-            path = clone / "transport.jsonl"
-            path.write_text(json.dumps({
-                "event": "process_started", "at": old.isoformat().replace("+00:00", "Z"),
-                "caller_id": "caller_old", "process_id": "p-old", "cwd": r"C:\work",
-            }) + "\n", encoding="utf-8")
-            old_ts = old.timestamp()
-            os.utime(path, (old_ts, old_ts))
-            health = {
-                "available": True, "status": "LIVE", "http_status": 200,
-                "backend_generation": "backend-3011-test", "pid": 1234, "live_process_count": 2,
-            }
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health), \
-                 patch("tools.stack_atlas._bootstrap_busy_claims_direct", return_value=[]):
-                status = _bootstrap_mcp_status()
-
-        self.assertEqual(status["status"], "LIVE")
-        self.assertEqual(status["service_health"]["backend_generation"], "backend-3011-test")
-        self.assertEqual(status["activity_evidence_status"], "STALE")
-        self.assertEqual(status["active_session_count"], 0)
-        self.assertEqual(status["active_session_count_status"], "LOWER_BOUND")
-        self.assertFalse(status["activity_summary"]["activity_window_complete"])
-        self.assertTrue(status["activity_summary"]["source_window_complete"])
-
-    def test_mcp_status_missing_transport_can_prove_service_live_but_not_caller_count_complete(self):
-        import os
-        from tools.stack_atlas import _bootstrap_mcp_status
-
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            (local / "ChatGPTMcpClean" / "minimal-connectors").mkdir(parents=True)
-            health = {
-                "available": True, "status": "LIVE", "http_status": 200,
-                "backend_generation": "backend-3011-test", "pid": 1234, "live_process_count": 1,
-            }
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
-                 patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health):
-                status = _bootstrap_mcp_status()
-
+        snapshot = {"available": False, "summary": {"recent_callers": 0}, "evidence": {"transport": "MCPv4", "transport_source_count": 0}, "lanes": []}
+        health = {"available": True, "status": "LIVE", "backend_generation": "backend-test"}
+        with (
+            patch("tools.stack_atlas.build_live_swarm_snapshot", return_value=snapshot),
+            patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health),
+        ):
+            status = _bootstrap_mcp_status()
         self.assertTrue(status["available"])
         self.assertEqual(status["status"], "LIVE")
-        self.assertEqual(status["activity_evidence_status"], "MISSING")
-        self.assertEqual(status["active_session_count_status"], "LOWER_BOUND")
+        self.assertEqual(status["service_health"]["backend_generation"], "backend-test")
         self.assertEqual(status["active_session_count"], 0)
-
-    def test_mcp_bootstrap_reuses_five_second_live_summary(self):
-        from datetime import datetime, timezone
-        import os
-        from tools.stack_atlas import _bootstrap_mcp_status
-        with tempfile.TemporaryDirectory() as tmp:
-            local = Path(tmp)
-            clone = local / "ChatGPTMcpClean" / "minimal-connectors" / "clone-a"
-            clone.mkdir(parents=True)
-            now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-            (clone / "transport.jsonl").write_text(json.dumps({"event":"process_started","at":now,"caller_id":"c1","process_id":"p1","cwd":r"C:\work"}) + "\n", encoding="utf-8")
-            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
-                first = _bootstrap_mcp_status()
-                with patch("tools.stack_atlas._read_jsonl_window", side_effect=AssertionError("cache miss")):
-                    second = _bootstrap_mcp_status()
-        self.assertFalse(first["cache"]["used"])
-        self.assertTrue(second["cache"]["used"])
-        self.assertEqual(second["active_session_count"], 1)
+        self.assertEqual(status["active_session_count_status"], "LOWER_BOUND")
+        self.assertEqual(status["authority"], "live_swarm_runtime_evidence")
 
     def test_gpu_fast_path_uses_nvml_not_nvidia_smi_subprocess(self):
         import os

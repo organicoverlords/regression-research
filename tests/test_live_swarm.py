@@ -86,6 +86,34 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual({s["instance"] for s in snapshot["transport_sources"]},{"clone-a","home-direct-test"})
             self.assertNotIn("caller_stale",callers)
 
+    def test_snapshot_uses_newer_rotated_archive_for_same_mcpv4_instance(self):
+        now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            clone=root/"clone-a"
+            archive=clone/"transport.jsonl.archive"
+            archive.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+            (clone/"transport.jsonl").write_text(json.dumps({
+                "at":(now-timedelta(minutes=10)).isoformat(),"event":"process_started",
+                "caller_id":"caller_old","process_id":"old","pid":101,"cwd":r"C:\work\old",
+            })+"\n",encoding="utf-8")
+            rotated=archive/"transport.jsonl.2026-09-09T01-29-00Z.jsonl"
+            rotated.write_text(json.dumps({
+                "at":(now-timedelta(seconds=5)).isoformat(),"event":"process_started",
+                "caller_id":"caller_live","process_id":"live","pid":102,"cwd":r"C:\work\live",
+            })+"\n",encoding="utf-8")
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                snapshot=build_live_swarm_snapshot(now=now)
+            callers={c["caller_id"] for lane in snapshot["lanes"] for c in lane["callers"]}
+            self.assertEqual(callers,{"caller_live"})
+            self.assertEqual(snapshot["evidence"]["transport_source_count"],1)
+            self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
+
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
         snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
         compact=compact_for_bootstrap(snapshot)
