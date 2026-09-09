@@ -116,229 +116,119 @@ class StackAtlasTests(unittest.TestCase):
             eligibility_reason(locked, recent_cwds=set(), processes=[], clean=True, ref_matches=True),
             "git_worktree_locked:protected",
         )
-    def test_compact_memory_overview_replaces_duplicate_recent_titles_with_rollup(self):
+    def test_compact_memory_overview_is_shallow_orientation_not_memory_detail(self):
         report = {
             "contract": "history only",
             "eligible_entries": 21,
             "incident_rollups": [{
-                "thread_id": "evidence:github:organicoverlords/regression-research#125",
-                "thread_source": "EVIDENCE_ANCHOR",
-                "scope": "mcp",
+                "thread_id": "thread:regression",
+                "thread_source": "EXPLICIT_THREAD",
+                "scope": "assistant-stack/bootstrap-memory",
                 "observations": 20,
-                "latest_event_at": "2026-09-06T03:00:00+03:00",
+                "latest_event_at": "2026-09-09T10:41:08+03:00",
                 "latest_event_id": "mem-20",
-                "latest_title": "Latest regression",
+                "latest_title": "RED ALERT: bootstrap memory regression",
                 "latest_disposition": "CURRENT_DURABLE",
-                "summary": "Twenty observations compacted.",
+                "summary": "Detailed narrative that must never enter bootstrap.",
+                "projects": ["regression-research"],
+                "entities": ["bootstrap"],
                 "member_ids": [f"mem-{i}" for i in range(1, 21)],
-                "drilldown": "memory_bank timeline thread",
+                "drilldown": "python tools\\memory_bank.py timeline --thread thread:regression --limit 20 --no-workers",
             }],
             "recent": [
-                {"id": "mem-20", "timestamp": "2026-09-06T03:00:00+03:00", "title": "Latest regression"},
-                {"id": "mem-19", "timestamp": "2026-09-06T02:59:00+03:00", "title": "Previous regression"},
-                {"id": "unrelated", "timestamp": "2026-09-06T02:58:00+03:00", "title": "Unrelated"},
+                {"id": "mem-20", "timestamp": "2026-09-09T10:41:08+03:00", "title": "Covered"},
+                {"id": "other", "timestamp": "2026-09-09T10:40:00+03:00", "title": "Other"},
             ],
-            "projects": [],
-            "recurring_tags": [],
+            "timeline_snapshots": {
+                "authority": "DERIVED_HISTORY_ONLY",
+                "narrative_contract": {"primary_unit": "CONTINUITY_CASE"},
+                "windows": [{
+                    "window": "24h",
+                    "event_count": 42,
+                    "continuity_case_summary": {"total": 4, "red": 1, "regression": 3},
+                    "signal_observation_summary": {"total": 42, "red": 2, "regression": 21},
+                    "source_counts": {"VAULT_MEMORY": 20, "GIT_COMMIT": 22},
+                    "artifact_counts": {"report": 8},
+                    "highlights": [{"title": "detailed highlight that must not survive"}],
+                    "corroborated_anchors": [{"anchor": "github:repo#1", "role": "CONTEXT_ONLY"}],
+                    "continuity_case_examples": [{
+                        "case_id": "thread:regression", "severity": "RED", "traits": ["regression"],
+                        "observation_count": 20, "source_families": ["memory", "repo"],
+                        "evidence_forms": ["memory", "commit"], "classification_quality": "MIXED",
+                        "latest_signal_at": "2026-09-09T10:41:08+03:00",
+                        "latest_title": "RED ALERT: bootstrap memory regression",
+                    }],
+                }],
+            },
+            "projects": [{"name": "regression-research", "count": 20}],
+            "recurring_tags": [{"name": "regression", "count": 20}],
+            "worker_findings": {"detail": "never bootstrap this"},
         }
         compact = _compact_memory_overview(report, 3)
-        self.assertEqual(len(compact["incident_rollups"]), 1)
-        self.assertEqual(compact["incident_rollups"][0]["observations"], 20)
-        self.assertNotIn("member_ids", compact["incident_rollups"][0])
-        self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated"])
-
-    def test_bootstrap_memory_budget_allows_richer_canonical_timeline(self):
-        self.assertGreaterEqual(BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES, 3_800)
-
-    def test_compact_memory_overview_never_includes_worker_findings_as_bootstrap_context(self):
-        report = {
-            "contract": "memory", "eligible_entries": 0, "timeline_snapshots": {},
-            "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
-            "worker_findings": {"recent_findings": [{"finding": "do not become policy"}]},
-        }
-        compact = _compact_memory_overview(report, 3)
+        self.assertLessEqual(len(json.dumps(compact, separators=(",", ":")).encode("utf-8")), BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+        self.assertEqual(BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES, 5_500)
+        self.assertEqual([item["id"] for item in compact["recent"]], ["other"])
+        rollup = compact["incident_rollups"][0]
+        self.assertEqual(rollup["observations"], 20)
+        for forbidden in ("summary", "projects", "entities", "member_ids"):
+            self.assertNotIn(forbidden, rollup)
         self.assertNotIn("worker_findings", compact)
+        snapshots = compact["timeline_snapshots"]
+        self.assertNotIn("narrative", snapshots)
+        window = snapshots["windows"][0]
+        for forbidden in ("highlights", "sources", "artifacts", "context_only", "slice"):
+            self.assertNotIn(forbidden, window)
+        case = window["case_examples"][0]
+        self.assertEqual(case["severity"], "RED")
+        self.assertEqual(case["observations"], 20)
+        self.assertLessEqual(set(case), {"id", "severity", "traits", "observations", "at", "title"})
+        for forbidden in ("sources", "forms", "support", "summary"):
+            self.assertNotIn(forbidden, case)
 
-    def test_compact_memory_overview_enforces_hard_byte_budget_without_losing_primary_context(self):
+    def test_memory_glance_budget_drops_optional_index_items_not_detail_text(self):
         report = {
-            "contract": "history only",
             "eligible_entries": 99,
-            "incident_rollups": [
-                {
-                    "thread_id": f"thread:bug-{i}",
-                    "thread_source": "EXPLICIT_THREAD",
-                    "scope": f"memory/bug-{i}",
-                    "observations": 20,
-                    "latest_event_at": f"2026-09-06T03:0{i}:00+03:00",
-                    "latest_event_id": f"bug-{i}-20",
-                    "latest_title": f"Bug {i} latest",
-                    "latest_disposition": "CURRENT_DURABLE",
-                    "summary": (f"Bug {i} reusable investigation detail. " * 30),
-                    "member_ids": [f"bug-{i}-{n}" for n in range(20)],
-                    "drilldown": f"memory_bank timeline thread:bug-{i}",
-                }
-                for i in range(3)
-            ],
-            "recent": [
-                {"id": f"unrelated-{i}", "timestamp": f"2026-09-06T02:5{i}:00+03:00", "title": f"Unrelated {i}"}
-                for i in range(3)
-            ],
-            "projects": [{"name": f"project-{i}", "count": 10} for i in range(3)],
-            "recurring_tags": [{"name": f"tag-{i}", "count": 10} for i in range(3)],
-            "worker_findings": {"contract": "archived evidence", "detail": "x" * 1200},
+            "incident_rollups": [{
+                "thread_id": f"thread:bug-{i}", "scope": f"memory/bug-{i}", "observations": 20,
+                "latest_event_at": f"2026-09-09T10:0{i}:00+03:00", "latest_event_id": f"bug-{i}",
+                "latest_title": "x" * 400, "latest_disposition": "CURRENT_DURABLE",
+                "summary": "narrative " * 500, "projects": ["p" * 500], "entities": ["e" * 500],
+                "member_ids": [f"bug-{i}-{n}" for n in range(20)], "drilldown": "memory_bank timeline " + "z" * 500,
+            } for i in range(3)],
+            "recent": [{"id": f"r{i}", "timestamp": "2026-09-09", "title": "r" * 400} for i in range(3)],
+            "projects": [{"name": "p" * 300, "count": 10} for _ in range(3)],
+            "recurring_tags": [{"name": "t" * 300, "count": 10} for _ in range(3)],
+            "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
         }
         compact = _compact_memory_overview(report, 3)
-        size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
-        self.assertEqual(len(compact["incident_rollups"]), 3)
-        self.assertEqual(len(compact["recent"]), 3)
-        self.assertNotIn("worker_findings", compact)
-        self.assertTrue(all(len(item.get("summary", "")) <= 160 for item in compact["incident_rollups"]))
+        self.assertLessEqual(len(json.dumps(compact, separators=(",", ":")).encode("utf-8")), BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+        self.assertTrue(all("summary" not in item for item in compact["incident_rollups"]))
 
-    def test_compact_memory_overview_never_includes_worker_findings_as_bootstrap_context(self):
-        report = {
-            "contract": "memory",
-            "eligible_entries": 0,
-            "timeline_snapshots": {},
-            "incident_rollups": [],
-            "recent": [],
-            "projects": [],
-            "recurring_tags": [],
-            "worker_findings": {"contract": "archived evidence", "recent_findings": [{"finding": "do not become policy"}]},
-        }
-        compact = _compact_memory_overview(report, 3)
-        self.assertNotIn("worker_findings", compact)
-
-    def test_compact_memory_overview_keeps_24h_timeline_richer_than_older_windows_under_budget(self):
-        def window(label, count, highlights):
-            return {
-                "window": label,
-                "event_count": count,
-                "source_counts": {"VAULT_MEMORY": count // 4, "GIT_COMMIT": count // 4, "WORKER_REPORT": count // 4, "TRACKED_ARTIFACT": count // 4},
-                "artifact_counts": {"report": 3, "screenshot": 2, "evidence_log": 2},
-                "slice": label,
-                "slice_event_count": len(highlights),
-                "continuity_case_summary": {"total": 4, "incident": 2, "regression": 1},
-                "signal_observation_summary": {"total": count, "incident": count // 3, "regression": count // 2},
-                "corroborated_anchors": [
-                    {
-                        "anchor": f"github:example/repo#{i}", "source_families": ["memory", "repo"],
-                        "event_count": 3, "role": "CONTEXT_ONLY", "case_identity": False,
-                    }
-                    for i in range(6)
-                ],
-                "highlights": [
-                    {
-                        "id": f"{label}-{i}", "event_at": f"2026-09-06T0{i}:00:00+03:00",
-                        "source_type": ["VAULT_MEMORY", "GIT_COMMIT", "WORKER_REPORT", "TRACKED_ARTIFACT"][i % 4],
-                        "title": (f"{label} event {i} " + "x" * 180), "project": "regression-research",
-                        "artifact_type": "screenshot" if i % 4 == 3 else None,
-                    }
-                    for i in range(8)
-                ],
-            }
-        report = {
-            "contract": "history only",
-            "eligible_entries": 200,
-            "timeline_snapshots": {
-                "authority": "DERIVED_HISTORY_ONLY",
-                "narrative_contract": {
-                    "primary_unit": "CONTINUITY_CASE",
-                    "answer_order": ["CONTINUITY_CASES", "WORK_GRAPH", "EVIDENCE_DENSITY", "CONTEXT_ONLY_CORROBORATION"],
-                    "observation_counts": "EVIDENCE_DENSITY_NOT_CASE_COUNT",
-                    "broad_github_anchors": "CONTEXT_ONLY_NEVER_CASE_IDENTITY",
-                },
-                "windows": [window("24h", 40, list(range(8))), window("3d", 90, list(range(8))), window("7d", 160, list(range(8)))],
-            },
-            "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
-        }
-        compact = _compact_memory_overview(report, 3)
-        size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
-        windows = {item["window"]: item for item in compact["timeline_snapshots"]["windows"]}
-        self.assertEqual(set(windows), {"24h", "3d", "7d"})
-        self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["3d"].get("highlights", [])))
-        self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), len(windows["7d"].get("highlights", [])))
-        self.assertIn("sources", windows["24h"])
-        self.assertEqual(compact["timeline_snapshots"]["narrative"]["primary"], "cases")
-        self.assertEqual(compact["timeline_snapshots"]["narrative"]["read_order"], "cases>work_graph>evidence_density>context_only")
-        self.assertEqual(list(windows["24h"])[0:4], ["window", "cases", "evidence_density", "context_only"] if not windows["24h"].get("case_examples") else ["window", "cases", "case_examples", "evidence_density"])
-        self.assertIn("evidence_density", windows["24h"])
-        self.assertIn("observations", windows["24h"])
-        self.assertNotIn("signal_observations", windows["24h"])
-        self.assertNotIn("events", windows["24h"])
-        if windows["24h"].get("context_only"):
-            self.assertEqual(windows["24h"]["context_only"][0]["role"], "CONTEXT_ONLY")
-
-    def test_second_stage_materialized_metadata_preserves_24h_case_context_and_highlights(self):
-        def window(label, count):
-            return {
-                "window": label,
-                "event_count": count,
-                "source_counts": {
-                    "VAULT_MEMORY": count // 8, "GIT_COMMIT": count // 4, "WORKER_REPORT": count // 8,
-                    "TRACKED_ARTIFACT": count // 8, "GITHUB_ACTION": count // 4, "GITHUB_PR": count // 8,
-                },
-                "artifact_counts": {"report": 42, "screenshot": 3, "evidence": 11, "fixture": 41},
-                "slice": label,
-                "slice_event_count": count // 2,
-                "continuity_case_summary": {"total": 19, "red": 1, "incident": 12, "regression": 10},
-                "signal_observation_summary": {"total": 181, "red": 3, "incident": 17, "regression": 165},
+    def test_materialized_metadata_is_health_only_in_bootstrap_memory(self):
+        compact = _compact_memory_overview({
+            "eligible_entries": 218,
+            "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": [{
+                "window": "24h", "event_count": 100,
+                "continuity_case_summary": {"total": 3, "red": 1},
                 "continuity_case_examples": [{
-                    "case_id": "thread:mcp-security-reroute-causality", "severity": "RED",
-                    "traits": ["incident", "regression"], "observation_count": 2,
-                    "source_families": ["artifact", "memory"], "evidence_forms": ["memory", "report"],
-                    "latest_signal_at": "2026-09-06T05:52:00+03:00",
-                    "latest_title": "RED ALERT: unproven MCP batching-ban policy regression",
-                    "classification_quality": "MIXED",
+                    "case_id": "thread:red", "severity": "RED", "traits": ["regression"],
+                    "observation_count": 3, "latest_signal_at": "2026-09-09T10:00:00+03:00",
+                    "latest_title": "RED ALERT: recurrence",
                 }],
-                "corroborated_anchors": [{
-                    "anchor": "github:organicoverlords/regression-research#125",
-                    "source_families": ["artifact", "github", "memory", "repo"],
-                    "event_count": 75, "role": "CONTEXT_ONLY", "case_identity": False,
-                }],
-                "highlights": [{
-                    "id": f"{label}-{i}", "event_at": f"2026-09-06T0{i}:00:00+03:00",
-                    "source_type": "VAULT_MEMORY", "title": f"{label} evidence {i} " + "x" * 100,
-                    "project": "regression-research",
-                } for i in range(4)],
-            }
-        report = {
-            "contract": "history only", "eligible_entries": 218,
-            "timeline_snapshots": {
-                "authority": "DERIVED_HISTORY_ONLY",
-                "narrative_contract": {
-                    "primary_unit": "CONTINUITY_CASE",
-                    "answer_order": ["CONTINUITY_CASES", "WORK_GRAPH", "EVIDENCE_DENSITY", "CONTEXT_ONLY_CORROBORATION"],
-                },
-                "windows": [window("24h", 4805), window("3d", 6200), window("7d", 9000)],
-            },
+            }]},
             "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
-        }
-        compact = _compact_memory_overview(report, 3)
+        }, 3)
         compact["timeline_materialized"] = {
-            "status": "FRESH", "horizon_days": 30, "refresh_minutes": 5,
-            "backfill_incomplete_sources": ["github", "repos", "runner_logs"],
-            "coverage_status": "HISTORICAL_INCOMPLETE",
-            "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE", "live_truth_required": True,
-            "historical_evidence_events": 500,
-            "work_graph": {
-                "semantics": "IMPLEMENTATION_EQUIVALENCE_NOT_INCIDENT_IDENTITY",
-                "commit_groups": 2894, "equivalent_commit_groups": 307, "cross_branch_groups": 276,
-                "attached_observations": 4774, "workstreams": 2579,
-            },
+            "status": "FRESH", "coverage_status": "HISTORICAL_INCOMPLETE", "live_truth_required": True,
+            "backfill_incomplete_sources": ["github"], "historical_evidence_events": 500,
+            "work_graph": {"semantics": "detail", "cross_branch_groups": 276},
         }
         fitted = _fit_memory_overview_budget(compact)
-        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
-        windows = {item["window"]: item for item in fitted["timeline_snapshots"]["windows"]}
-        self.assertGreaterEqual(len(windows["24h"].get("highlights", [])), 1)
-        self.assertEqual(windows["24h"]["context_only"][0]["role"], "CONTEXT_ONLY")
-        self.assertEqual(windows["24h"]["cases"]["red"], 1)
-        self.assertIn("case_examples", windows["24h"])
-        self.assertEqual(windows["24h"]["case_examples"][0]["support"], "mixed")
-        self.assertNotIn("legacy", windows["24h"]["case_examples"][0])
-        self.assertEqual(fitted["timeline_snapshots"]["narrative"]["primary"], "cases")
+        self.assertEqual(fitted["timeline_materialized"]["status"], "FRESH")
+        self.assertEqual(fitted["timeline_materialized"]["coverage_status"], "HISTORICAL_INCOMPLETE")
+        self.assertNotIn("historical_evidence_events", fitted["timeline_materialized"])
+        self.assertNotIn("work_graph", fitted["timeline_materialized"])
+        self.assertEqual(fitted["timeline_snapshots"]["windows"][0]["case_examples"][0]["severity"], "RED")
 
     def test_bootstrap_memory_overview_reads_periodic_projection_without_rebuilding_sources(self):
         from datetime import datetime, timezone
@@ -370,7 +260,7 @@ class StackAtlasTests(unittest.TestCase):
                 compact = _bootstrap_memory_overview()
         self.assertEqual(compact["timeline_materialized"]["status"], "FRESH")
         self.assertEqual(compact["timeline_materialized"]["read_mode"], "MATERIALIZED_ONLY")
-        self.assertEqual(compact["timeline_materialized"]["work_graph"]["cross_branch_groups"], 7)
+        self.assertNotIn("work_graph", compact["timeline_materialized"])
         self.assertEqual(compact["timeline_materialized"]["coverage_status"], "HISTORICAL_INCOMPLETE")
         self.assertEqual(compact["timeline_materialized"]["backfill_incomplete_sources"], ["github", "runner_logs"])
         self.assertEqual(compact["timeline_materialized"]["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
@@ -443,7 +333,10 @@ class StackAtlasTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
         self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertLess(BOOTSTRAP_GLANCE_MAX_BYTES, 12000)
+        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 15_000)
+        self.assertEqual(next(iter(glance)), "bootstrap_warning")
+        self.assertEqual(next(reversed(glance)), "bootstrap_end")
+        self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
@@ -496,7 +389,8 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(stack_atlas_main(), 0)
         raw = output.getvalue().encode("utf-8")
         self.assertLessEqual(len(raw), BOOTSTRAP_GLANCE_MAX_BYTES + 1)
-        self.assertLess(len(raw), 12000)
+        self.assertTrue(raw.startswith(b'{"bootstrap_warning":'))
+        self.assertTrue(raw.rstrip().endswith(b'"bootstrap_end":{"status":"COMPLETE","schema":"bootstrap.v1"}}'))
         self.assertEqual(json.loads(raw), glance)
 
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
@@ -551,6 +445,7 @@ class StackAtlasTests(unittest.TestCase):
             "paths": {"mcp_recovery_state": r"C:\\vault\\mcp-recovery-state.json"},
             "commands": {"stack_owner": "python tools/stack_atlas.py lookup <id>"},
         }
+        memory_before = json.loads(json.dumps(glance["memory_overview"]))
         fitted = _fit_bootstrap_glance_budget(glance)
         size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
@@ -563,6 +458,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
         self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
         self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
+        self.assertEqual(fitted["memory_overview"], memory_before)
 
     def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
         glance = {

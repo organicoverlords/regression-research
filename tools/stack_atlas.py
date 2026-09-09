@@ -65,8 +65,14 @@ BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
-BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
-BOOTSTRAP_GLANCE_MAX_BYTES = 11_700  # keep headroom below the external <12 KB bootstrap contract
+BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
+BOOTSTRAP_GLANCE_MAX_BYTES = 15_000
+BOOTSTRAP_INTEGRITY_WARNING = (
+    "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
+    "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
+    "or incompleteness. If the end marker is missing, or any truncation/incompleteness is reported, "
+    "immediately tell the user after reading this bootstrap before relying on it as complete context."
+)
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
@@ -1865,8 +1871,7 @@ def _compact_incident_rollups(report: dict[str, Any], limit: int = 3) -> list[di
         return []
     fields = (
         "thread_id", "thread_source", "scope", "observations", "latest_event_at",
-        "latest_event_id", "latest_title", "latest_disposition", "summary", "projects",
-        "entities", "drilldown",
+        "latest_event_id", "latest_title", "latest_disposition", "drilldown",
     )
     return [
         {key: item.get(key) for key in fields if item.get(key) not in (None, [], "")}
@@ -1882,7 +1887,14 @@ def _compact_json_bytes(value: Any) -> int:
 def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES) -> dict[str, Any]:
     """Bound the whole bootstrap payload while preserving live truth and drill-down routes."""
     budget = max(2_048, int(max_bytes))
-    bounded = json.loads(json.dumps(glance, ensure_ascii=False))
+    source = json.loads(json.dumps(glance, ensure_ascii=False))
+    source.pop("bootstrap_warning", None)
+    source.pop("bootstrap_end", None)
+    bounded = {
+        "bootstrap_warning": BOOTSTRAP_INTEGRITY_WARNING,
+        **source,
+        "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
+    }
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {"max_bytes": budget, "compacted": False}
@@ -1916,8 +1928,6 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
                 if key in latest_restore
             }
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 2_400)
 
     if _compact_json_bytes(bounded) > budget:
         freshness = bounded.get("source_freshness")
@@ -1967,23 +1977,6 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             if isinstance(items, list) and len(items) > 1:
                 bounded["workers"][key] = items[:1]
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 1_800)
-
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        memory = bounded["memory_overview"]
-        materialized = memory.get("timeline_materialized") if isinstance(memory.get("timeline_materialized"), dict) else {}
-        snapshots = memory.get("timeline_snapshots") if isinstance(memory.get("timeline_snapshots"), dict) else {}
-        memory["timeline_materialized"] = {
-            key: materialized.get(key)
-            for key in ("status", "coverage_status", "age_seconds", "live_truth_required", "backfill_incomplete_sources", "retry_sources")
-            if key in materialized
-        }
-        memory["timeline_snapshots"] = {
-            key: snapshots.get(key)
-            for key in ("authority", "memory_history")
-            if key in snapshots
-        }
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
         workers = bounded["workers"]
         recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
@@ -2049,6 +2042,24 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         }
         bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
 
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("paths"), dict):
+        paths = bounded["paths"]
+        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault") if key in paths}
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("mcp_recovery_state"), dict):
+        recovery = bounded["mcp_recovery_state"]
+        bounded["mcp_recovery_state"] = {
+            key: recovery.get(key)
+            for key in ("status", "path", "selected_recovery_target")
+            if recovery.get(key) not in (None, "", [], {})
+        }
+
+    if _compact_json_bytes(bounded) > budget:
+        raise ValueError(
+            f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
+            f"bytes={_compact_json_bytes(bounded)} budget={budget}"
+        )
+
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"]["compacted"] = True
     return bounded
@@ -2063,27 +2074,20 @@ def _clip_bootstrap_text(value: Any, limit: int) -> Any:
 
 
 def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
+    """Project timeline history into shallow urgency/recurrence signals only."""
     raw = report.get("timeline_snapshots")
     if not isinstance(raw, dict):
         return {}
-    source_names = {
-        "VAULT_MEMORY": "memory",
-        "GIT_COMMIT": "repo",
-        "WORKER_REPORT": "worker",
-        "TRACKED_ARTIFACT": "artifact",
-    }
 
     def short_at(value: Any) -> Any:
-        text = str(value or "")
-        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", text)
+        value_text = str(value or "")
+        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", value_text)
         return f"{match.group(1)} {match.group(2)}" if match else value
 
-    def compact_signal_summary(value: Any, *, keep_total: bool = True) -> dict[str, Any]:
+    def compact_signal_summary(value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return {}
-        keys = ["red", "slopwall", "incident", "regression", "security_incident"]
-        if keep_total:
-            keys.insert(0, "total")
+        keys = ("total", "red", "slopwall", "asshole", "incident", "regression", "security_incident")
         return {key: value.get(key) for key in keys if value.get(key) not in (None, 0)}
 
     windows: list[dict[str, Any]] = []
@@ -2091,286 +2095,170 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(window, dict):
             continue
         label = str(window.get("window") or "")
-        highlight_limit = 6 if label == "24h" else 2
-        highlights: list[dict[str, Any]] = []
-        for item in window.get("highlights", []) if isinstance(window.get("highlights"), list) else []:
-            if not isinstance(item, dict):
-                continue
-            compact = {
-                "at": short_at(item.get("event_at")),
-                "source": source_names.get(str(item.get("source_type") or ""), str(item.get("source_type") or "other").casefold()),
-                "title": _clip_bootstrap_text(item.get("title"), 96),
-            }
-            if item.get("project") not in (None, "", []):
-                compact["project"] = item.get("project")
-            if item.get("artifact_type") not in (None, "", []):
-                compact["artifact"] = item.get("artifact_type")
-            if item.get("severity") == "RED":
-                compact["severity"] = "RED"
-            if item.get("traits"):
-                compact["traits"] = item.get("traits")
-            if item.get("legacy_inferred"):
-                compact["legacy"] = True
-            if item.get("short_sha") not in (None, "", []):
-                compact["sha"] = item.get("short_sha")
-            highlights.append(compact)
-            if len(highlights) >= highlight_limit:
-                break
-        context_only = []
-        for item in window.get("corroborated_anchors", []) if isinstance(window.get("corroborated_anchors"), list) else []:
-            if not isinstance(item, dict) or item.get("role") != "CONTEXT_ONLY":
-                continue
-            context_only.append({
-                "anchor": item.get("anchor"),
-                "sources": item.get("source_families"),
-                "observations": item.get("event_count"),
-                "role": "CONTEXT_ONLY",
-            })
-            if len(context_only) >= 2:
-                break
-        source_counts = {
-            source_names.get(str(name), str(name).casefold()): count
-            for name, count in (window.get("source_counts") or {}).items()
-        } if isinstance(window.get("source_counts"), dict) else {}
-        cases: list[dict[str, Any]] = []
-        case_limit = 3 if label == "24h" else 1
-        raw_case_examples = window.get("continuity_case_examples")
-        if not isinstance(raw_case_examples, list):
-            # Compatibility with materializations created before timeline schema v3.
-            raw_case_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
-        ordered_case_examples = sorted(
-            (case for case in raw_case_examples if isinstance(case, dict)),
+        case_counts = window.get("cases") if isinstance(window.get("cases"), dict) else window.get("continuity_case_summary")
+        density = window.get("evidence_density") if isinstance(window.get("evidence_density"), dict) else window.get("signal_observation_summary")
+        raw_examples = window.get("case_examples")
+        if not isinstance(raw_examples, list):
+            raw_examples = window.get("continuity_case_examples")
+        if not isinstance(raw_examples, list):
+            raw_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
+        ordered_examples = sorted(
+            (case for case in raw_examples if isinstance(case, dict)),
             key=lambda case: (
                 1 if case.get("severity") == "RED" else 0,
-                1 if str(case.get("case_id") or "").casefold().startswith("incident:") else 0,
-                str(case.get("latest_signal_at") or ""),
-                str(case.get("case_id") or ""),
+                1 if str(case.get("id") or case.get("case_id") or "").casefold().startswith("incident:") else 0,
+                str(case.get("at") or case.get("latest_signal_at") or ""),
+                str(case.get("id") or case.get("case_id") or ""),
             ),
             reverse=True,
         )
-        for case in ordered_case_examples:
-            cases.append({
-                key: value for key, value in {
-                    "id": _clip_bootstrap_text(case.get("case_id"), 120),
-                    "severity": case.get("severity") if case.get("severity") == "RED" else None,
-                    "traits": case.get("traits"),
-                    "observations": case.get("observation_count"),
-                    "sources": case.get("source_families"),
-                    "forms": case.get("evidence_forms"),
-                    "at": short_at(case.get("latest_signal_at")),
-                    "title": _clip_bootstrap_text(case.get("latest_title"), 96),
-                    "support": {
-                        "STRUCTURED": "structured",
-                        "MIXED": "mixed",
-                        "LEGACY_DEPENDENT": "legacy-dependent",
-                    }.get(str(case.get("classification_quality") or "")),
-                    "legacy": True if case.get("legacy_inferred") else None,
-                }.items() if value not in (None, {}, [], "")
-            })
-            if len(cases) >= case_limit:
-                break
+        examples = []
+        for case in ordered_examples[: (3 if label == "24h" else 1)]:
+            compact = {
+                "id": _clip_bootstrap_text(case.get("id") or case.get("case_id"), 120),
+                "severity": case.get("severity") if case.get("severity") == "RED" else None,
+                "traits": case.get("traits"),
+                "observations": case.get("observations") or case.get("observation_count"),
+                "at": short_at(case.get("at") or case.get("latest_signal_at")),
+                "title": _clip_bootstrap_text(case.get("title") or case.get("latest_title"), 96),
+            }
+            examples.append({key: value for key, value in compact.items() if value not in (None, {}, [], "")})
         windows.append({
             key: value for key, value in {
                 "window": label,
-                "cases": compact_signal_summary(window.get("continuity_case_summary")),
-                "case_examples": cases,
-                "evidence_density": compact_signal_summary(window.get("signal_observation_summary")),
-                "context_only": context_only,
-                "observations": window.get("event_count"),
-                "sources": source_counts,
-                "artifacts": window.get("artifact_counts"),
-                "slice": window.get("slice"),
-                "slice_observations": window.get("slice_event_count"),
-                "highlights": highlights,
+                "cases": compact_signal_summary(case_counts),
+                "evidence_density": compact_signal_summary(density),
+                "observations": window.get("observations") if window.get("observations") is not None else window.get("event_count"),
+                "case_examples": examples,
             }.items() if value not in (None, {}, [], "")
         })
-    coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
-    repo_coverage = coverage.get("repos") if isinstance(coverage.get("repos"), dict) else {}
-    compact_coverage = {
-        "repo_saturated": sorted(
-            name for name, item in repo_coverage.items()
-            if isinstance(item, dict) and item.get("saturated")
-        ),
-        "artifacts_saturated": bool(
-            isinstance(coverage.get("artifacts"), dict) and coverage["artifacts"].get("saturated")
-        ),
-        "workers_bounded": (coverage.get("workers") or {}).get("bounded") if isinstance(coverage.get("workers"), dict) else None,
-    }
-    compact_coverage = {key: value for key, value in compact_coverage.items() if value not in (None, [], {})}
-    memory_history = raw.get("preserved_memory_history") if isinstance(raw.get("preserved_memory_history"), dict) else {}
-    compact_memory_history = {
+
+    raw_coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
+    if any(key in raw_coverage for key in ("repo_saturated", "artifacts_saturated", "workers_bounded")):
+        coverage = {
+            key: raw_coverage.get(key)
+            for key in ("repo_saturated", "artifacts_saturated", "workers_bounded")
+            if raw_coverage.get(key) not in (None, [], {})
+        }
+    else:
+        repos = raw_coverage.get("repos") if isinstance(raw_coverage.get("repos"), dict) else {}
+        coverage = {
+            "repo_saturated": sorted(name for name, item in repos.items() if isinstance(item, dict) and item.get("saturated")),
+            "artifacts_saturated": bool(isinstance(raw_coverage.get("artifacts"), dict) and raw_coverage["artifacts"].get("saturated")),
+            "workers_bounded": (raw_coverage.get("workers") or {}).get("bounded") if isinstance(raw_coverage.get("workers"), dict) else None,
+        }
+        coverage = {key: value for key, value in coverage.items() if value not in (None, [], {})}
+
+    memory_history = raw.get("memory_history") if isinstance(raw.get("memory_history"), dict) else raw.get("preserved_memory_history")
+    memory_history = memory_history if isinstance(memory_history, dict) else {}
+    memory_history = {
         "red_observations": memory_history.get("red_observations"),
-        "cases": compact_signal_summary(memory_history.get("continuity_case_summary")),
+        "cases": compact_signal_summary(memory_history.get("cases") if isinstance(memory_history.get("cases"), dict) else memory_history.get("continuity_case_summary")),
     }
-    compact_memory_history = {key: value for key, value in compact_memory_history.items() if value not in (None, {}, [], "")}
-    narrative = raw.get("narrative_contract") if isinstance(raw.get("narrative_contract"), dict) else {}
-    compact_narrative = {
-        "primary": "cases",
-        "read_order": "cases>work_graph>evidence_density>context_only",
-        "observations": "density_not_cases",
-        "github_anchors": "context_only",
-    } if narrative else {}
+    memory_history = {key: value for key, value in memory_history.items() if value not in (None, {}, [], "")}
     return {
         "authority": raw.get("authority"),
-        "narrative": compact_narrative,
-        "memory_history": compact_memory_history,
-        "coverage": compact_coverage,
+        "memory_history": memory_history,
+        "coverage": coverage,
         "windows": windows,
     }
 
 
-def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int) -> None:
-    snapshots = overview.get("timeline_snapshots")
-    if not isinstance(snapshots, dict):
-        return
-    windows = snapshots.get("windows")
-    if not isinstance(windows, list):
-        return
-    by_label = {str(item.get("window") or ""): item for item in windows if isinstance(item, dict)}
-
-    # Corroboration counts/anchors matter more than long highlight lists. Trim older
-    # window examples first; the 24h window is deliberately the richest startup view.
-    for label, floor in (("7d", 1), ("3d", 1), ("24h", 5)):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and len(highlights) > floor and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
-        item = by_label.get(label)
-        anchors = item.get("context_only") if isinstance(item, dict) else None
-        while isinstance(anchors, list) and len(anchors) > floor and _compact_json_bytes(overview) > budget:
-            anchors.pop()
-    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
-        item = by_label.get(label)
-        cases = item.get("case_examples") if isinstance(item, dict) else None
-        while isinstance(cases, list) and len(cases) > floor and _compact_json_bytes(overview) > budget:
-            cases.pop()
-    # Older cumulative windows already retain canonical case counts. Their raw signal
-    # observation counters yield before concrete examples do.
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-            item.pop("evidence_density", None)
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and len(highlights) > 1 and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    item = by_label.get("24h")
-    highlights = item.get("highlights") if isinstance(item, dict) else None
-    while isinstance(highlights, list) and len(highlights) > 4 and _compact_json_bytes(overview) > budget:
-        highlights.pop()
-    # Pathological fallback: only after counters/case examples have yielded.
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and highlights and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    item = by_label.get("24h")
-    highlights = item.get("highlights") if isinstance(item, dict) else None
-    while isinstance(highlights, list) and len(highlights) > 2 and _compact_json_bytes(overview) > budget:
-        highlights.pop()
-
-    # Materialized health/work metadata is appended after the first snapshot compaction.
-    # Under that second-stage pressure, duplicated 3d/7d source/artifact breakdowns yield
-    # before the concrete 24h case/context/highlight evidence. Cumulative case counts and
-    # observation totals remain, so older orientation is not lost.
-    for key in ("sources", "artifacts", "slice_observations"):
-        for label in ("7d", "3d"):
-            item = by_label.get(label)
-            if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-                item.pop(key, None)
-
-
 def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES) -> dict[str, Any]:
-    """Bound bootstrap memory orientation by bytes, preserving highest-value lineage context first."""
-    budget = max(256, int(max_bytes))
-    bounded = json.loads(json.dumps(overview, ensure_ascii=False))
+    """Enforce the shallow startup-memory schema; detail requires explicit memory retrieval."""
+    budget = max(512, int(max_bytes))
+    raw = json.loads(json.dumps(overview, ensure_ascii=False))
+    materialized = raw.get("timeline_materialized") if isinstance(raw.get("timeline_materialized"), dict) else {}
+    correction_triggers = raw.get("correction_triggers") if isinstance(raw.get("correction_triggers"), dict) else {}
+    recent = []
+    for item in raw.get("recent", []) if isinstance(raw.get("recent"), list) else []:
+        if not isinstance(item, dict):
+            continue
+        recent.append({
+            key: value for key, value in {
+                "id": item.get("id"),
+                "timestamp": item.get("timestamp"),
+                "title": _clip_bootstrap_text(item.get("title"), 96),
+            }.items() if value not in (None, "")
+        })
+        if len(recent) >= 3:
+            break
+    projects = [
+        {key: item.get(key) for key in ("name", "count") if item.get(key) not in (None, "")}
+        for item in raw.get("projects", [])[:3]
+        if isinstance(item, dict)
+    ] if isinstance(raw.get("projects"), list) else []
+    recurring_tags = [
+        {key: item.get(key) for key in ("name", "count") if item.get(key) not in (None, "")}
+        for item in raw.get("recurring_tags", [])[:3]
+        if isinstance(item, dict)
+    ] if isinstance(raw.get("recurring_tags"), list) else []
+    bounded = {
+        "contract": "BOOTSTRAP_MEMORY_GLANCE_ONLY; shallow urgency/state/recurrence orientation; use memory context/timeline for detail",
+        "eligible_entries": raw.get("eligible_entries", 0),
+        "timeline_snapshots": _compact_timeline_snapshots(raw),
+        "incident_rollups": _compact_incident_rollups(raw, 3),
+        "recent": recent,
+        "projects": projects,
+        "recurring_tags": recurring_tags,
+    }
+    if correction_triggers:
+        bounded["correction_triggers"] = {
+            key: correction_triggers.get(key)
+            for key in ("authority", "status")
+            if correction_triggers.get(key) not in (None, "")
+        }
+    if materialized:
+        bounded["timeline_materialized"] = {
+            key: materialized.get(key)
+            for key in (
+                "status", "as_of", "coverage_status", "absence_semantics", "age_seconds", "backfill_incomplete_sources",
+                "retry_sources", "timeline_truncated", "live_truth_required", "read_mode", "refresh_command",
+            )
+            if materialized.get(key) not in (None, "", [], {})
+        }
+
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    # Worker findings are archived evidence and already have a dedicated worker projection;
-    # do not sacrifice memory lineage/recent context for this duplicate startup cost.
-    bounded.pop("worker_findings", None)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    rollups = bounded.get("incident_rollups") if isinstance(bounded.get("incident_rollups"), list) else []
-    for summary_limit in (160, 120, 80):
-        for rollup in rollups:
-            if isinstance(rollup, dict) and "summary" in rollup:
-                rollup["summary"] = _clip_bootstrap_text(rollup.get("summary"), summary_limit)
-        if _compact_json_bytes(bounded) <= budget:
-            return bounded
-
-    for rollup in rollups:
-        if isinstance(rollup, dict):
-            rollup.pop("summary", None)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    # Keep at least one item from each secondary orientation list before reducing rollups.
     for key in ("projects", "recurring_tags", "recent"):
         items = bounded.get(key)
-        if not isinstance(items, list):
-            continue
-        while len(items) > 1 and _compact_json_bytes(bounded) > budget:
-            items.pop()
+        if isinstance(items, list):
+            bounded[key] = items[:1]
+    snapshots = bounded.get("timeline_snapshots")
+    windows = snapshots.get("windows") if isinstance(snapshots, dict) else None
+    if isinstance(windows, list):
+        for window in windows:
+            if not isinstance(window, dict):
+                continue
+            if window.get("window") != "24h":
+                window.pop("case_examples", None)
+            elif isinstance(window.get("case_examples"), list):
+                window["case_examples"] = window["case_examples"][:1]
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    while len(rollups) > 1 and _compact_json_bytes(bounded) > budget:
-        rollups.pop()
+    rollups = bounded.get("incident_rollups")
+    if isinstance(rollups, list):
+        bounded["incident_rollups"] = rollups[:1]
+    if isinstance(windows, list):
+        for window in windows:
+            if isinstance(window, dict) and window.get("window") != "24h":
+                window.pop("evidence_density", None)
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    # Timeline snapshots are now the primary continuity surface. Generic project/tag
-    # summaries and duplicated recent titles yield before the emphasized 24h snapshot.
     for key in ("projects", "recurring_tags", "recent"):
-        if _compact_json_bytes(bounded) <= budget:
-            break
         bounded[key] = []
+    if isinstance(windows, list):
+        for window in windows:
+            if isinstance(window, dict):
+                window.pop("case_examples", None)
+                window.pop("evidence_density", None)
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    _shrink_timeline_snapshots_for_budget(bounded, budget)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    # Pathological long strings must not defeat the hard startup bound.
-    for rollup in rollups:
-        if not isinstance(rollup, dict):
-            continue
-        for key, limit in (("scope", 120), ("latest_title", 120), ("drilldown", 220), ("thread_id", 220)):
-            if key in rollup:
-                rollup[key] = _clip_bootstrap_text(rollup.get(key), limit)
-        rollup.pop("projects", None)
-        rollup.pop("entities", None)
-    for key in ("recent", "projects"):
-        for item in bounded.get(key, []) if isinstance(bounded.get(key), list) else []:
-            if isinstance(item, dict):
-                for field in ("title", "name"):
-                    if field in item:
-                        item[field] = _clip_bootstrap_text(item.get(field), 120)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    for key in ("projects", "recurring_tags", "recent", "incident_rollups"):
-        if _compact_json_bytes(bounded) <= budget:
-            break
-        bounded[key] = []
-    if _compact_json_bytes(bounded) > budget:
-        _shrink_timeline_snapshots_for_budget(bounded, budget)
-    if _compact_json_bytes(bounded) > budget:
-        snapshots = bounded.get("timeline_snapshots")
-        if isinstance(snapshots, dict):
-            for window in snapshots.get("windows", []) if isinstance(snapshots.get("windows"), list) else []:
-                if isinstance(window, dict):
-                    window.pop("highlights", None)
-                    window.pop("context_only", None)
-                    if _compact_json_bytes(bounded) <= budget:
-                        break
-    return bounded
+    raise ValueError(f"BOOTSTRAP_MEMORY_GLANCE_BUDGET_EXCEEDED bytes={_compact_json_bytes(bounded)} budget={budget}")
 
 
 def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -3864,7 +3752,7 @@ def main() -> int:
             processes, ports, resources = capture_windows_processes(), capture_windows_ports(), []
         value = blast_radius(args.pid, processes, ports=ports, resource_observations=resources)
     if args.command == "bootstrap-glance":
-        print(json.dumps(value, separators=(",", ":"), sort_keys=True, ensure_ascii=False))
+        print(json.dumps(value, separators=(",", ":"), ensure_ascii=False))
     else:
         print(json.dumps(value, indent=2, sort_keys=True))
     return 0
