@@ -67,11 +67,13 @@ class LiveSwarmTests(unittest.TestCase):
                 (folder/"transport.jsonl").write_text("\n".join(json.dumps(row) for row in rows)+"\n",encoding="utf-8")
 
             write_source("clone-a",[
-                {"at":(now-timedelta(seconds=20)).isoformat(),"event":"process_started","caller_id":"caller_a","process_id":"pa","pid":101,"cwd":r"C:\work\a"},
+                {"at":(now-timedelta(seconds=21)).isoformat(),"event":"connection_open","server_pid":201,"local_port":3011},
+                {"at":(now-timedelta(seconds=20)).isoformat(),"event":"process_started","caller_id":"caller_a","process_id":"pa","pid":101,"server_pid":201,"cwd":r"C:\work\a"},
                 {"at":(now-timedelta(seconds=19)).isoformat(),"event":"process_read","caller_id":"caller_a","owner_caller_id":"caller_a","process_id":"pa","pid":101},
             ])
             write_source("home-direct-test",[
-                {"at":(now-timedelta(seconds=10)).isoformat(),"event":"process_started","caller_id":"caller_b","process_id":"pb","pid":102,"cwd":r"C:\work\b"},
+                {"at":(now-timedelta(seconds=11)).isoformat(),"event":"connection_open","server_pid":202,"local_port":3022},
+                {"at":(now-timedelta(seconds=10)).isoformat(),"event":"process_started","caller_id":"caller_b","process_id":"pb","pid":102,"server_pid":202,"cwd":r"C:\work\b"},
                 {"at":(now-timedelta(seconds=9)).isoformat(),"event":"process_read","caller_id":"caller_b","owner_caller_id":"caller_b","process_id":"pb","pid":102},
             ])
             write_source("stale-replacement",[
@@ -84,6 +86,11 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["evidence"]["transport"],"MCPv4")
             self.assertEqual(snapshot["evidence"]["transport_source_count"],2)
             self.assertEqual({s["instance"] for s in snapshot["transport_sources"]},{"clone-a","home-direct-test"})
+            source_by_instance={s["instance"]:s for s in snapshot["transport_sources"]}
+            self.assertEqual(source_by_instance["clone-a"]["server_pid"],201)
+            self.assertEqual(source_by_instance["clone-a"]["local_port"],3011)
+            self.assertEqual(source_by_instance["home-direct-test"]["server_pid"],202)
+            self.assertEqual(source_by_instance["home-direct-test"]["local_port"],3022)
             self.assertNotIn("caller_stale",callers)
 
     def test_snapshot_uses_newer_rotated_archive_for_same_mcpv4_instance(self):

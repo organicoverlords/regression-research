@@ -8,7 +8,14 @@ import tools.stack_atlas as atlas
 
 
 class McpBootstrapIdentitySemanticsTests(unittest.TestCase):
-    def test_live_mcp_status_still_probes_canonical_backend_identity(self):
+    def test_live_mcp_status_binds_health_to_transport_observed_sources(self):
+        snapshot = {
+            "available": True,
+            "transport_sources": [
+                {"instance": "home-direct-test", "server_pid": 4242, "local_port": 3022},
+                {"instance": "clone-a", "server_pid": 5151, "local_port": 3011},
+            ],
+        }
         live_status = {
             "available": True,
             "status": "LIVE",
@@ -20,21 +27,47 @@ class McpBootstrapIdentitySemanticsTests(unittest.TestCase):
         backend_health = {
             "available": True,
             "status": "LIVE",
-            "backend_generation": "backend-current",
-            "pid": 4242,
-            "live_process_count": 0,
-            "latency_ms": 1.2,
+            "authority": "live_transport_source_health",
+            "source_count": 2,
+            "live_source_count": 2,
+            "sources": [
+                {"instance": "home-direct-test", "status": "LIVE", "port": 3022, "pid": 4242},
+                {"instance": "clone-a", "status": "LIVE", "port": 3011, "pid": 5151},
+            ],
         }
         with (
-            patch("tools.stack_atlas.build_live_swarm_snapshot", return_value={"available": True}),
+            patch("tools.stack_atlas.build_live_swarm_snapshot", return_value=snapshot),
             patch("tools.stack_atlas._bootstrap_mcp_from_live_swarm", return_value=live_status),
             patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=backend_health) as health_probe,
         ):
             status = atlas._bootstrap_mcp_status()
 
-        health_probe.assert_called_once_with()
-        self.assertEqual(status["service_health"]["backend_generation"], "backend-current")
-        self.assertEqual(status["service_health"]["pid"], 4242)
+        health_probe.assert_called_once_with(snapshot)
+        self.assertEqual(status["service_health"]["authority"], "live_transport_source_health")
+        self.assertEqual(status["service_health"]["live_source_count"], 2)
+        self.assertEqual(status["service_health"]["sources"][0]["port"], 3022)
+        self.assertEqual(status["service_health"]["sources"][1]["port"], 3011)
+
+    def test_backend_health_does_not_invent_canonical_port_without_source_identity(self):
+        health = atlas._bootstrap_mcp_backend_health({"available": True, "transport_sources": []})
+        self.assertFalse(health["available"])
+        self.assertEqual(health["status"], "IDENTITY_UNKNOWN")
+        self.assertEqual(health["source_count"], 0)
+
+    def test_backend_health_ignores_stale_transport_source(self):
+        stale_at = (atlas.datetime.now(atlas.timezone.utc) - atlas.timedelta(seconds=120)).isoformat()
+        health = atlas._bootstrap_mcp_backend_health({
+            "available": True,
+            "transport_sources": [{
+                "instance": "old-route",
+                "server_pid": 4242,
+                "local_port": 3011,
+                "latest_event_at": stale_at,
+            }],
+        })
+        self.assertFalse(health["available"])
+        self.assertEqual(health["status"], "IDENTITY_UNKNOWN")
+        self.assertEqual(health["source_count"], 0)
 
     def test_recovery_projection_cannot_masquerade_as_live_backend_identity(self):
         recovery = {

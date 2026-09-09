@@ -1491,7 +1491,7 @@ class StackAtlasTests(unittest.TestCase):
             patch("tools.stack_atlas._bootstrap_mcp_backend_health", return_value=health) as health_probe,
         ):
             status = _bootstrap_mcp_status()
-        health_probe.assert_called_once_with()
+        health_probe.assert_called_once_with(snapshot)
         self.assertEqual(status["authority"], "live_swarm_runtime_evidence")
         self.assertEqual(status["transport"], "MCPv4")
         self.assertEqual(status["transport_source_count"], 2)
@@ -2273,15 +2273,17 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         self.assertIn("mcp_recovery_state", glance)
         if glance["mcp_recovery_state"]["available"]:
-            self.assertEqual(glance["mcp_recovery_state"]["read_state"], "OK")
-            self.assertEqual(len(glance["mcp_recovery_state"]["recovery_invariants"]), 6)
-            self.assertEqual(glance["mcp_recovery_state"]["latest_topology_restore"]["after_transport"], "wireguard")
+            recovery = glance["mcp_recovery_state"]
+            self.assertEqual(recovery["read_state"], "OK")
+            self.assertEqual(recovery["authority"], "recovery_target_not_live_serving_identity")
+            self.assertEqual(recovery["scope"], "recovery_only_not_live_topology")
+            self.assertTrue(recovery["details_path"].endswith("mcp-recovery-state.json"))
+            self.assertNotIn("automatic_routing", recovery)
+            self.assertNotIn("recovery_invariants", recovery)
+            self.assertNotIn("latest_topology_restore", recovery)
+            self.assertNotIn("conditions", recovery)
             payload = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
             self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-            summary = {item["type"]: item["status"] for item in glance["mcp_recovery_state"]["conditions"]}
-            self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
-            self.assertEqual(summary["SecurityReroutesEliminated"], "False")
-            self.assertEqual(summary["LongRunStable"], "False")
         self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
         self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpMinimal"))

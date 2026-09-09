@@ -146,6 +146,34 @@ def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> 
     }
 
 
+def _transport_runtime_identity(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """Latest backend PID/listener port observed in one transport source."""
+    latest_server: tuple[datetime, int] | None = None
+    latest_port: tuple[datetime, int] | None = None
+    for row in rows:
+        at = _dt(row.get("at"))
+        if at is None:
+            continue
+        try:
+            server_pid = int(row.get("server_pid"))
+            if server_pid > 0 and (latest_server is None or at >= latest_server[0]):
+                latest_server = (at, server_pid)
+        except (TypeError, ValueError):
+            pass
+        try:
+            local_port = int(row.get("local_port"))
+            if 0 < local_port <= 65535 and (latest_port is None or at >= latest_port[0]):
+                latest_port = (at, local_port)
+        except (TypeError, ValueError):
+            pass
+    result: dict[str, int] = {}
+    if latest_server is not None:
+        result["server_pid"] = latest_server[1]
+    if latest_port is not None:
+        result["local_port"] = latest_port[1]
+    return result
+
+
 def _local_appdata_root() -> Path:
     value = os.environ.get("LOCALAPPDATA")
     if value:
@@ -299,6 +327,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "latest_event_at": latest.isoformat(),
             "observation_window_complete": source_complete,
             "sample_bytes": read_bytes,
+            **_transport_runtime_identity(source_rows),
         })
     rows.sort(key=lambda row: _dt(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc))
     latest_transport_at = max((latest for _, latest in sources), default=None)
