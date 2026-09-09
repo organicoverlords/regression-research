@@ -15,6 +15,7 @@ from tools.memory_timeline import build_continuity_graph
 from tools.repo_timeline import RepoSpec
 from tools.timeline_materializer import (
     BOOTSTRAP_SCHEMA,
+    DELTA_SCHEMA,
     DEFAULT_DELTA_REPO_EVENTS_PER_REPO,
     DEFAULT_GITHUB_EVENTS_PER_KIND,
     DEFAULT_MAX_EVENTS,
@@ -30,6 +31,7 @@ from tools.timeline_materializer import (
     github_events,
     install_task,
     library_artifact_events,
+    load_materialized,
     local_artifact_events,
     main,
     machine_observation_events,
@@ -777,6 +779,7 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "ingestion": {"backfill_incomplete_sources": ["github", "repos"]},
                 "timeline": {"events": [old_event]},
             }), encoding="utf-8")
+            base_store_before = (state / "timeline-store.json").read_text(encoding="utf-8")
             new_event = self.commit_event(new_sha, "New delta work", "2026-09-06T05:04:00+00:00")
             repaired_old = dict(old_event, body="Historical Hummingbird wing deformation lesson", changed_paths=["rigging/avian.py"], _search_text="Historical Hummingbird wing deformation lesson rigging/avian.py")
             minimal_overview = {"contract": "history only", "eligible_entries": 0, "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": []}
@@ -802,7 +805,9 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "tools.timeline_materializer.runner_log_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
             ), patch(
                 "tools.timeline_materializer.coordinator_events", return_value=([], {"events": 0, "errors": [], "current_only": True})
-            ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview):
+            ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview), patch(
+                "tools.timeline_materializer._atomic_pickle"
+            ) as atomic_pickle:
                 result = materialize(
                     root=root,
                     include_github=False,
@@ -821,7 +826,14 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(library_artifacts.call_args.kwargs["since"], expected_unbounded_source_since)
             self.assertEqual(machine_observations.call_args.kwargs["since"], expected_unbounded_source_since)
             self.assertEqual(mcp_history.call_args.kwargs["since"], expected_unbounded_source_since)
-            payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
+            self.assertEqual((state / "timeline-store.json").read_text(encoding="utf-8"), base_store_before)
+            self.assertFalse(atomic_pickle.called, "incremental refresh must not rewrite the full query index")
+            delta_payload = json.loads((state / "timeline-delta.json").read_text(encoding="utf-8"))
+            self.assertEqual(delta_payload["schema"], DELTA_SCHEMA)
+            self.assertEqual(delta_payload["base_generated_at"], prior_at.isoformat())
+            self.assertEqual(result["delta_materialization"]["publication_mode"], "DELTA_OVERLAY")
+            payload = load_materialized(root=root)
+            self.assertIsNotNone(payload)
             events_by_id = {event["id"]: event for event in payload["timeline"]["events"]}
             self.assertIn(old_event["id"], events_by_id)
             self.assertIn(new_event["id"], events_by_id)

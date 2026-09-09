@@ -394,6 +394,14 @@ def _apply_materialized_delta(base: dict[str, Any], delta: dict[str, Any] | None
         delta.get("historical_deletes", []) or [],
         key="id",
     )
+    for collection in (timeline["events"], timeline["historical_evidence_events"]):
+        collection.sort(
+            key=lambda event: (
+                _dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc),
+                str(event.get("id") or ""),
+            ),
+            reverse=True,
+        )
     previous_continuity = base_timeline.get("continuity_graph") if isinstance(base_timeline.get("continuity_graph"), dict) else {}
     continuity = dict(previous_continuity)
     continuity_cases = _apply_row_overlay(
@@ -442,11 +450,12 @@ def _apply_materialized_delta(base: dict[str, Any], delta: dict[str, Any] | None
     result["timeline"] = timeline
     result["_base_generated_at"] = str(base.get("generated_at") or "")
     result["_has_delta_overlay"] = True
-    result["_delta_event_ids"] = [
+    result["_delta_event_ids"] = sorted({
         str(event.get("id") or "")
-        for event in delta.get("event_upserts", []) or []
+        for collection in (delta.get("event_upserts", []) or [], delta.get("historical_upserts", []) or [])
+        for event in collection
         if isinstance(event, dict) and event.get("id")
-    ]
+    })
     return result
 
 
@@ -458,13 +467,148 @@ def _load_materialized_state_root(state_root: Path) -> dict[str, Any] | None:
     return _apply_materialized_delta(base, delta)
 
 
+def _build_cumulative_delta_payload(
+    *,
+    base_payload: dict[str, Any],
+    current_delta: dict[str, Any] | None,
+    previous_timeline: dict[str, Any],
+    final_timeline: dict[str, Any],
+    generated_at: str,
+    horizon_days: int | None,
+    source_watermarks: dict[str, str],
+    ingestion: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, int]]:
+    """Build the small cumulative overlay relative to the last explicit full store."""
+    base_generated_at = str(base_payload.get("generated_at") or "")
+    current = (
+        current_delta
+        if isinstance(current_delta, dict)
+        and current_delta.get("schema") == DELTA_SCHEMA
+        and str(current_delta.get("base_generated_at") or "") == base_generated_at
+        else {}
+    )
+    base_timeline = base_payload.get("timeline") if isinstance(base_payload.get("timeline"), dict) else {}
+
+    def cumulative(
+        *,
+        base_rows: Iterable[dict[str, Any]],
+        previous_rows: Iterable[dict[str, Any]],
+        final_rows: Iterable[dict[str, Any]],
+        upsert_key: str,
+        delete_key: str,
+        identity_key: str,
+    ) -> tuple[list[dict[str, Any]], list[str], int]:
+        changed_upserts, changed_deletes = _row_changes(previous_rows, final_rows, key=identity_key)
+        upserts, deletes = _update_cumulative_rows(
+            base_rows=base_rows,
+            current_upserts=current.get(upsert_key, []) or [],
+            current_deletes=current.get(delete_key, []) or [],
+            changed_upserts=changed_upserts,
+            changed_deletes=changed_deletes,
+            key=identity_key,
+        )
+        return upserts, deletes, len(changed_upserts) + len(changed_deletes)
+
+    event_upserts, event_deletes, changed_events = cumulative(
+        base_rows=base_timeline.get("events", []) or [],
+        previous_rows=previous_timeline.get("events", []) or [],
+        final_rows=final_timeline.get("events", []) or [],
+        upsert_key="event_upserts",
+        delete_key="event_deletes",
+        identity_key="id",
+    )
+    historical_upserts, historical_deletes, changed_historical = cumulative(
+        base_rows=base_timeline.get("historical_evidence_events", []) or [],
+        previous_rows=previous_timeline.get("historical_evidence_events", []) or [],
+        final_rows=final_timeline.get("historical_evidence_events", []) or [],
+        upsert_key="historical_upserts",
+        delete_key="historical_deletes",
+        identity_key="id",
+    )
+    base_continuity = base_timeline.get("continuity_graph") if isinstance(base_timeline.get("continuity_graph"), dict) else {}
+    previous_continuity = previous_timeline.get("continuity_graph") if isinstance(previous_timeline.get("continuity_graph"), dict) else {}
+    final_continuity = final_timeline.get("continuity_graph") if isinstance(final_timeline.get("continuity_graph"), dict) else {}
+    case_upserts, case_deletes, changed_cases = cumulative(
+        base_rows=base_continuity.get("cases", []) or [],
+        previous_rows=previous_continuity.get("cases", []) or [],
+        final_rows=final_continuity.get("cases", []) or [],
+        upsert_key="continuity_case_upserts",
+        delete_key="continuity_case_deletes",
+        identity_key="case_id",
+    )
+    base_work = base_timeline.get("work_graph") if isinstance(base_timeline.get("work_graph"), dict) else {}
+    previous_work = previous_timeline.get("work_graph") if isinstance(previous_timeline.get("work_graph"), dict) else {}
+    final_work = final_timeline.get("work_graph") if isinstance(final_timeline.get("work_graph"), dict) else {}
+    group_upserts, group_deletes, changed_groups = cumulative(
+        base_rows=base_work.get("commit_groups", []) or [],
+        previous_rows=previous_work.get("commit_groups", []) or [],
+        final_rows=final_work.get("commit_groups", []) or [],
+        upsert_key="work_group_upserts",
+        delete_key="work_group_deletes",
+        identity_key="work_id",
+    )
+    stream_upserts, stream_deletes, changed_streams = cumulative(
+        base_rows=base_work.get("workstreams", []) or [],
+        previous_rows=previous_work.get("workstreams", []) or [],
+        final_rows=final_work.get("workstreams", []) or [],
+        upsert_key="workstream_upserts",
+        delete_key="workstream_deletes",
+        identity_key="anchor",
+    )
+    timeline_meta = {
+        key: value
+        for key, value in final_timeline.items()
+        if key not in {"events", "historical_evidence_events", "continuity_graph", "work_graph"}
+    }
+    payload = {
+        "schema": DELTA_SCHEMA,
+        "base_generated_at": base_generated_at,
+        "generated_at": generated_at,
+        "horizon_days": horizon_days,
+        "source_watermarks": source_watermarks,
+        "ingestion": ingestion,
+        "event_upserts": event_upserts,
+        "event_deletes": event_deletes,
+        "historical_upserts": historical_upserts,
+        "historical_deletes": historical_deletes,
+        "continuity_case_upserts": case_upserts,
+        "continuity_case_deletes": case_deletes,
+        "work_group_upserts": group_upserts,
+        "work_group_deletes": group_deletes,
+        "workstream_upserts": stream_upserts,
+        "workstream_deletes": stream_deletes,
+        "timeline_meta": timeline_meta,
+    }
+    stats = {
+        "changed_event_rows": changed_events,
+        "changed_historical_rows": changed_historical,
+        "changed_case_rows": changed_cases,
+        "changed_work_groups": changed_groups,
+        "changed_workstreams": changed_streams,
+        "overlay_event_upserts": len(event_upserts),
+        "overlay_event_deletes": len(event_deletes),
+        "overlay_case_upserts": len(case_upserts),
+        "overlay_work_group_upserts": len(group_upserts),
+        "overlay_workstream_upserts": len(stream_upserts),
+    }
+    return payload, stats
+
+
 
 def _store_generation_token(root: Path) -> str | None:
+    state_root = root / ".state" / "timeline"
     try:
-        stat = (root / ".state" / "timeline" / STORE_PATH.name).stat()
+        base_stat = (state_root / STORE_PATH.name).stat()
     except OSError:
         return None
-    return f"{stat.st_mtime_ns}:{stat.st_size}"
+    parts = [f"base:{base_stat.st_mtime_ns}:{base_stat.st_size}"]
+    try:
+        delta_stat = (state_root / DELTA_PATH.name).stat()
+    except OSError:
+        pass
+    else:
+        parts.append(f"delta:{delta_stat.st_mtime_ns}:{delta_stat.st_size}")
+    return "|".join(parts)
 
 
 def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
@@ -2666,6 +2810,7 @@ def materialize(
     horizon_since = HISTORICAL_EVIDENCE_FLOOR if days is None else now - timedelta(days=max(1, int(days)))
     state_root = state_root or (root / ".state" / "timeline")
     store_path = state_root / STORE_PATH.name
+    delta_path = state_root / DELTA_PATH.name
     query_index_path = state_root / QUERY_INDEX_PATH.name
     bootstrap_path = state_root / BOOTSTRAP_PATH.name
     status_path = state_root / STATUS_PATH.name
@@ -2689,7 +2834,9 @@ def materialize(
         }
     try:
         os.write(lock_fd, f"{os.getpid()}\n".encode("ascii"))
-        previous = None if rebuild else _read_json(store_path)
+        base_payload = None if rebuild else _read_json(store_path)
+        existing_delta = None if rebuild else _read_json(delta_path)
+        previous = _apply_materialized_delta(base_payload, existing_delta) if isinstance(base_payload, dict) else None
         previous_timeline = previous.get("timeline") if isinstance(previous, dict) and isinstance(previous.get("timeline"), dict) else None
         incremental = bool(previous_timeline and isinstance(previous_timeline.get("events"), list))
         refresh_mode = "INCREMENTAL" if incremental else "BACKFILL"
@@ -3035,54 +3182,60 @@ def materialize(
             "delta_materialization": delta_runtime,
         }
 
+        ingestion_payload = {
+            "mode": refresh_mode,
+            "overlap_minutes": DEFAULT_OVERLAP_MINUTES,
+            "delta_events": len(all_delta),
+            "source_since": {name: value.isoformat() for name, value in source_since.items()},
+            "saturated_sources": saturated_sources,
+            "skipped_sources": skipped_sources,
+            "backfill_incomplete_sources": backfill_incomplete_sources,
+            "retry_sources": retry_sources,
+        }
         store_payload = {
             "schema": SCHEMA,
             "generated_at": now.isoformat(),
             "horizon_days": days,
             "source_watermarks": source_watermarks,
-            "ingestion": {
-                "mode": refresh_mode,
-                "overlap_minutes": DEFAULT_OVERLAP_MINUTES,
-                "delta_events": len(all_delta),
-                "source_since": {name: value.isoformat() for name, value in source_since.items()},
-                "saturated_sources": saturated_sources,
-                "skipped_sources": skipped_sources,
-                "backfill_incomplete_sources": backfill_incomplete_sources,
-                "retry_sources": retry_sources,
-            },
+            "ingestion": ingestion_payload,
             "timeline": timeline,
         }
-        _atomic_json(store_path, store_payload)
 
-        # Incremental refresh appends only changed event positions. Duplicate IDs are
-        # intentional: query readers resolve the newest position for a replaced event,
-        # while stale postings become unreachable without an O(corpus) delete pass.
-        if incremental:
-            previous_query_index = _read_query_index(query_index_path, generated_at=previous_generated_at)
-            if previous_query_index is not None:
-                query_index_payload, query_index_stats = _append_query_index_delta(
-                    previous_query_index,
-                    projected_upserts,
-                    generated_at=str(store_payload.get("generated_at") or ""),
-                )
-                _atomic_pickle(query_index_path, query_index_payload)
-                query_index_mode = "DELTA_APPEND"
-            else:
-                query_index_path.unlink(missing_ok=True)
-                query_index_stats = {"appended_positions": 0, "stored_positions": 0}
-                query_index_mode = "MISSING_UNTIL_EXPLICIT_REBUILD"
+        if incremental and isinstance(base_payload, dict) and isinstance(previous_timeline, dict):
+            delta_payload, overlay_stats = _build_cumulative_delta_payload(
+                base_payload=base_payload,
+                current_delta=existing_delta,
+                previous_timeline=previous_timeline,
+                final_timeline=timeline,
+                generated_at=now.isoformat(),
+                horizon_days=days,
+                source_watermarks=source_watermarks,
+                ingestion=ingestion_payload,
+            )
+            # The full query index is a compaction artifact. Incremental refreshes keep
+            # it immutable and queries scan only overlay-changed IDs in addition to
+            # indexed base candidates, so no 14+ MB sidecar rewrite occurs here.
+            delta_runtime["query_index"] = {
+                "mode": "BASE_IMMUTABLE_PLUS_DELTA_SCAN",
+                "base_index_available": query_index_path.is_file(),
+            }
+            delta_runtime["overlay"] = overlay_stats
+            _atomic_json(delta_path, delta_payload)
+            publication_mode = "DELTA_OVERLAY"
         else:
+            _atomic_json(store_path, store_payload)
+            delta_path.unlink(missing_ok=True)
             query_index_payload = _build_query_index_payload(
                 [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])],
                 generated_at=str(store_payload.get("generated_at") or ""),
             )
             _atomic_pickle(query_index_path, query_index_payload)
-            query_index_stats = {
-                "appended_positions": len(query_index_payload.get("ids", []) or []),
+            delta_runtime["query_index"] = {
+                "mode": "FULL_REBUILD",
                 "stored_positions": len(query_index_payload.get("ids", []) or []),
             }
-            query_index_mode = "FULL_REBUILD"
-        delta_runtime["query_index"] = {"mode": query_index_mode, **query_index_stats}
+            publication_mode = "FULL_COMPACTION"
+        delta_runtime["publication_mode"] = publication_mode
 
         overview = build_overview(entries, limit=20, include_timeline_snapshots=False, now=now)
         overview["timeline_snapshots"] = timeline["snapshots"]
@@ -3147,9 +3300,11 @@ def materialize(
             "work_graph": graph["summary"],
             "delta_materialization": delta_runtime,
             "store_path": str(store_path),
+            "delta_path": str(delta_path),
             "query_index_path": str(query_index_path),
             "bootstrap_path": str(bootstrap_path),
             "store_bytes": store_path.stat().st_size,
+            "delta_bytes": delta_path.stat().st_size if delta_path.is_file() else 0,
             "query_index_bytes": query_index_path.stat().st_size if query_index_path.is_file() else 0,
             "bootstrap_bytes": bootstrap_path.stat().st_size,
         }
@@ -3164,7 +3319,7 @@ def materialize(
 
 
 def load_materialized(*, root: Path = ROOT) -> dict[str, Any] | None:
-    return _read_json(root / ".state" / "timeline" / STORE_PATH.name)
+    return _load_materialized_state_root(root / ".state" / "timeline")
 
 
 def load_bootstrap_projection(*, root: Path = ROOT) -> dict[str, Any] | None:
@@ -4016,9 +4171,11 @@ def query_materialized(
     timeline = payload.get("timeline")
     if not isinstance(timeline, dict):
         return None
+    base_index_generated_at = str(payload.get("_base_generated_at") or payload.get("generated_at") or "")
+    delta_event_ids = {str(value) for value in payload.get("_delta_event_ids", []) or [] if str(value)}
     query_index = _read_query_index(
         root / ".state" / "timeline" / QUERY_INDEX_PATH.name,
-        generated_at=str(payload.get("generated_at") or ""),
+        generated_at=base_index_generated_at,
     )
     event_rows = [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])]
     by_id: dict[str, dict[str, Any]] = {}
@@ -4052,14 +4209,23 @@ def query_materialized(
         candidates.append(event)
     if query:
         rank_candidates = candidates
+        indexed_ids: set[str] | None = None
         if query_index is not None:
             indexed_ids = _query_index_candidate_ids(query_index, query)
             if indexed_ids is not None:
-                rank_candidates = [event for event in candidates if str(event.get("id") or "") in indexed_ids]
-        ranked_events = (
-            _rank_query_events_indexed(rank_candidates, query, query_index, corpus_size_override=len(candidates))
-            if query_index is not None else None
-        )
+                # Base postings are immutable between explicit compactions. Overlay IDs
+                # are always admitted to the exact ranker so new/changed terms cannot
+                # be hidden by stale base-token membership.
+                allowed_ids = indexed_ids | delta_event_ids
+                rank_candidates = [event for event in candidates if str(event.get("id") or "") in allowed_ids]
+        if query_index is not None and not delta_event_ids:
+            ranked_events = _rank_query_events_indexed(
+                rank_candidates, query, query_index, corpus_size_override=len(candidates)
+            )
+        else:
+            # Candidate narrowing still uses the immutable base index, but exact current
+            # event fields rank the base candidates plus the small overlay delta.
+            ranked_events = _rank_query_events(rank_candidates, query, corpus_size_override=len(candidates))
         if ranked_events is None:
             ranked_events = _rank_query_events(rank_candidates, query, corpus_size_override=len(candidates))
         selected = [event for _, event in ranked_events]
@@ -4070,7 +4236,10 @@ def query_materialized(
             reverse=True,
         )
     if query_index is not None:
-        _apply_query_index_anchors(selected, query_index)
+        _apply_query_index_anchors(
+            (event for event in selected if str(event.get("id") or "") not in delta_event_ids),
+            query_index,
+        )
     # Graphs are stored across the entire horizon. Enforce explicit event
     # filters before topical matching so an empty filtered result cannot
     # accidentally expand back into unrelated historical work.
