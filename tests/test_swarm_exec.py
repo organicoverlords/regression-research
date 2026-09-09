@@ -126,7 +126,9 @@ class SwarmExecTests(unittest.TestCase):
             (src/"sub").mkdir(); (src/"a.txt").write_text("base\n",encoding="utf-8"); (src/"sub"/"b.txt").write_text("bee\n",encoding="utf-8")
             subprocess.run(["git","-C",str(src),"add","."],check=True)
             subprocess.run(["git","-C",str(src),"commit","-qm","base"],check=True)
+            base=subprocess.check_output(["git","-C",str(src),"rev-parse","HEAD"],text=True).strip()
             (src/"a.txt").write_text("second\n",encoding="utf-8")
+            (src/"sub"/"b.txt").write_text("second bee\n",encoding="utf-8")
             subprocess.run(["git","-C",str(src),"commit","-qam","second"],check=True)
             head=subprocess.check_output(["git","-C",str(src),"rev-parse","HEAD"],text=True).strip()
             (src/"a.txt").write_text("dirty\n",encoding="utf-8"); (src/"new.txt").write_text("new\n",encoding="utf-8")
@@ -158,6 +160,10 @@ class SwarmExecTests(unittest.TestCase):
             self.assertIn(" M a.txt",status)
             self.assertIn("?? new.txt",status)
             self.assertIn("second",subprocess.check_output(["git","-C",str(dst),"log","-1","--oneline"],text=True))
+            changed=set(subprocess.check_output(["git","-C",str(dst),"diff","--name-only",f"{base}...{head}"],text=True).splitlines())
+            self.assertEqual(changed,{"a.txt","sub/b.txt"})
+            working_changed=set(subprocess.check_output(["git","-C",str(dst),"diff","--name-only","HEAD"],text=True).splitlines())
+            self.assertEqual(working_changed,{"a.txt"})
 
     def test_reserved_cache_metadata_name_is_rejected(self):
         with self.assertRaises(ValueError):

@@ -110,7 +110,7 @@ def repo_cache_id(repo_root: Path) -> str:
 
 
 def git_provenance_payload(repo_root: Path) -> tuple[dict[str, object], int]:
-    """Build bounded current-HEAD/tree/index metadata for native Git inspection on OMEN."""
+    """Build bounded ancestry/tree/index metadata for native Git inspection on OMEN."""
     head_cp = _run(["git", "-C", str(repo_root), "rev-parse", "--verify", "HEAD^{commit}"], timeout=8.0)
     if head_cp.returncode != 0 or not re.fullmatch(r"[0-9a-fA-F]{40,64}", head_cp.stdout.strip()):
         raise ValueError("SWARM_EXEC_GIT_HEAD_REQUIRED")
@@ -123,18 +123,33 @@ def git_provenance_payload(repo_root: Path) -> tuple[dict[str, object], int]:
         value = config_cp.stdout.strip() if config_cp.returncode == 0 else ""
         if value:
             config[key] = value
-    root_tree_cp = _run(["git", "-C", str(repo_root), "show", "-s", "--format=%T", "HEAD"], timeout=8.0)
-    subtree_cp = _run(["git", "-C", str(repo_root), "ls-tree", "-rd", "--format=%(objectname)", "HEAD"], timeout=20.0)
     history_cp = _run([
         "git", "-C", str(repo_root), "rev-list", f"--max-count={GIT_PROVENANCE_COMMIT_LIMIT}", "--parents", "HEAD"
     ], timeout=20.0)
-    if root_tree_cp.returncode != 0 or not root_tree_cp.stdout.strip() or subtree_cp.returncode != 0 or history_cp.returncode != 0:
+    objects_cp = _run([
+        "git", "-C", str(repo_root), "rev-list", "--objects", "--no-object-names", "--filter=blob:none",
+        f"--max-count={GIT_PROVENANCE_COMMIT_LIMIT}", "HEAD"
+    ], timeout=30.0)
+    head_objects_cp = _run([
+        "git", "-C", str(repo_root), "rev-list", "--objects", "--no-object-names", "--max-count=1", "HEAD"
+    ], timeout=30.0)
+    if (
+        history_cp.returncode != 0
+        or objects_cp.returncode != 0
+        or head_objects_cp.returncode != 0
+        or not objects_cp.stdout.strip()
+        or not head_objects_cp.stdout.strip()
+    ):
         raise ValueError("SWARM_EXEC_GIT_TREE_FAILED")
     history_rows = [line.split() for line in history_cp.stdout.splitlines() if line.strip()]
     commits = [row[0] for row in history_rows if row]
     commit_set = set(commits)
     shallow = sorted({row[0] for row in history_rows if len(row) > 1 and any(parent not in commit_set for parent in row[1:])})
-    objects = list(dict.fromkeys([*commits, root_tree_cp.stdout.strip(), *subtree_cp.stdout.splitlines()]))
+    objects = list(dict.fromkeys(
+        line.strip()
+        for line in [*objects_cp.stdout.splitlines(), *head_objects_cp.stdout.splitlines()]
+        if line.strip()
+    ))
     pack_proc = subprocess.run(
         ["git", "-C", str(repo_root), "pack-objects", "--stdout"],
         input=("\n".join(objects) + "\n").encode("ascii"), capture_output=True, timeout=30.0, check=False,
