@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+from difflib import SequenceMatcher
 from collections import Counter
 from datetime import datetime
 from typing import Any, Iterable
@@ -53,6 +54,12 @@ _STRICT_ADMISSION_GENERIC_TOKENS = {"display", "expose", "follow", "image", "lib
 _STRICT_QUERY_GLUE_TOKENS = {"again", "same"}
 _WORD_RE = re.compile(r"[\w]+", flags=re.UNICODE)
 _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
+_CAMEL_BOUNDARY_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+_QUERY_NOISE_TOKENS = {"thing", "things", "stuff", "something", "whatever", "somehow", "info", "information", "details"}
+FUZZY_QUERY_MIN_RATIO = 0.86
+FUZZY_QUERY_WEIGHT = 0.72
+COMPOUND_QUERY_WEIGHT = 0.84
+PREFIX_QUERY_WEIGHT = 0.78
 
 # Small domain-neutral concept normalization for natural paraphrases.  These
 # aliases affect relevance only; they never grant authority.  Keep groups broad
@@ -114,7 +121,8 @@ def _normalise_number_words(tokens: list[str]) -> list[str]:
 
 def _word_tokens(value: str) -> list[str]:
     out: list[str] = []
-    raw_tokens = _normalise_number_words(_WORD_RE.findall(value.casefold()))
+    surface = _CAMEL_BOUNDARY_RE.sub(" ", value).replace("_", " ")
+    raw_tokens = _normalise_number_words(_WORD_RE.findall(surface.casefold()))
     for token in raw_tokens:
         if token in _STOPWORDS:
             continue
@@ -266,6 +274,113 @@ def _rank_map(scores: list[float], allowed: set[int] | None = None) -> dict[int,
     return {idx: rank for rank, (_, idx) in enumerate(pairs, start=1)}
 
 
+def _compound_query_terms(term: str, vocabulary: set[str]) -> list[str]:
+    if len(term) < 6 or term.isdigit():
+        return []
+    by_initial: dict[str, list[str]] = {}
+    for candidate in vocabulary:
+        if len(candidate) < 3 or candidate.isdigit() or candidate == term:
+            continue
+        by_initial.setdefault(candidate[0], []).append(candidate)
+    for candidates in by_initial.values():
+        candidates.sort(key=lambda value: (-len(value), value))
+
+    memo: dict[int, list[str] | None] = {}
+
+    def solve(pos: int) -> list[str] | None:
+        if pos == len(term):
+            return []
+        if pos in memo:
+            return memo[pos]
+        options: list[list[str]] = []
+        for candidate in by_initial.get(term[pos], []):
+            if not term.startswith(candidate, pos):
+                continue
+            suffix = solve(pos + len(candidate))
+            if suffix is not None:
+                options.append([candidate, *suffix])
+        if not options:
+            memo[pos] = None
+            return None
+        best = min(options, key=lambda parts: (len(parts), -sum(len(part) ** 2 for part in parts), parts))
+        memo[pos] = best
+        return best
+
+    result = solve(0) or []
+    return result if len(result) >= 2 else []
+
+
+def _fuzzy_query_terms(term: str, vocabulary: set[str]) -> list[tuple[str, float]]:
+    if len(term) < 4 or term.isdigit():
+        return []
+    ranked: list[tuple[float, str]] = []
+    for candidate in vocabulary:
+        if len(candidate) < 3 or candidate.isdigit() or candidate == term:
+            continue
+        if abs(len(candidate) - len(term)) > max(3, len(term) // 3):
+            continue
+        if candidate[0] != term[0]:
+            continue
+        ratio = SequenceMatcher(None, term, candidate, autojunk=False).ratio()
+        threshold = 0.90 if min(len(term), len(candidate)) <= 4 else FUZZY_QUERY_MIN_RATIO
+        if ratio >= threshold:
+            ranked.append((ratio, candidate))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    return [(candidate, FUZZY_QUERY_WEIGHT * ratio) for ratio, candidate in ranked[:2]]
+
+
+def _prefix_query_terms(term: str, vocabulary: set[str]) -> list[str]:
+    if len(term) < 4 or term.isdigit():
+        return []
+    matches = [
+        candidate for candidate in vocabulary
+        if candidate != term
+        and len(candidate) >= 4
+        and (candidate.startswith(term) or term.startswith(candidate))
+        and min(len(candidate), len(term)) / max(len(candidate), len(term)) >= 0.80
+    ]
+    matches.sort(key=lambda value: (abs(len(value) - len(term)), value))
+    return matches[:2]
+
+
+def _expand_query_weights(
+    query_terms: list[str], df: Counter[str],
+) -> tuple[dict[str, float], set[str], list[tuple[str, dict[str, float], bool]]]:
+    """Expand query concepts only into terms present in the indexed corpus.
+
+    The returned concept list preserves unrecovered OOV terms for admission
+    coverage. That distinction is important: bad wording should be recoverable,
+    but unrelated extra concepts must still make the search abstain.
+    """
+    vocabulary = set(df)
+    weights: dict[str, float] = {}
+    direct: set[str] = set()
+    concepts: list[tuple[str, dict[str, float], bool]] = []
+    for term in dict.fromkeys(query_terms):
+        if term in _QUERY_NOISE_TOKENS:
+            continue
+        candidates: dict[str, float] = {}
+        require_all = False
+        if term in vocabulary:
+            candidates[term] = 1.0
+            direct.add(term)
+        else:
+            compounds = _compound_query_terms(term, vocabulary)
+            if compounds:
+                candidates = {candidate: COMPOUND_QUERY_WEIGHT for candidate in compounds}
+                require_all = True
+            else:
+                prefixes = _prefix_query_terms(term, vocabulary)
+                if prefixes:
+                    candidates = {candidate: PREFIX_QUERY_WEIGHT for candidate in prefixes}
+                else:
+                    candidates = dict(_fuzzy_query_terms(term, vocabulary))
+        for candidate, weight in candidates.items():
+            weights[candidate] = max(weights.get(candidate, 0.0), weight)
+        concepts.append((term, candidates, require_all))
+    return weights, direct, concepts
+
+
 def _rank_eligible_entries(
     eligible: list[dict[str, Any]],
     query: str,
@@ -278,7 +393,6 @@ def _rank_eligible_entries(
     query_terms = _query_word_tokens(query)
     if strict_admission:
         query_terms = [term for term in query_terms if term not in _STRICT_QUERY_GLUE_TOKENS]
-    query_unique = list(dict.fromkeys(query_terms))
     doc_tokens = [token_builder(entry) for entry in eligible]
     doc_counts = [Counter(tokens) for tokens in doc_tokens]
     doc_lengths = [len(tokens) for tokens in doc_tokens]
@@ -288,23 +402,38 @@ def _rank_eligible_entries(
         df.update(tokens)
 
     total_docs = len(eligible)
-    present_query_terms = {term for term in query_unique if df.get(term, 0) > 0}
-    if not present_query_terms:
+    query_weights, direct_terms, query_concepts = _expand_query_weights(query_terms, df)
+    if not query_weights or not query_concepts:
         return []
 
     oov_idf = _idf(total_docs, 0)
-    query_weight_total = sum(_idf(total_docs, df.get(term, 0)) if df.get(term, 0) else oov_idf for term in query_unique)
     admitted: set[int] = set()
     for idx, tokens in enumerate(doc_sets):
-        matched = present_query_terms & tokens
-        coverage = (
-            sum(_idf(total_docs, df[term]) for term in matched) / query_weight_total
-            if query_weight_total else 0.0
-        )
-        ordinary_admission = len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE
+        matched_terms = set(query_weights) & tokens
+        matched_concepts = 0
+        matched_concept_weight = 0.0
+        query_concept_weight = 0.0
+        for _original, candidates, require_all in query_concepts:
+            if not candidates:
+                query_concept_weight += oov_idf
+                continue
+            candidate_idfs = [_idf(total_docs, df[candidate]) for candidate in candidates]
+            concept_idf = sum(candidate_idfs) / len(candidate_idfs)
+            concept_weight = max(candidates.values())
+            weighted_idf = concept_weight * concept_idf
+            query_concept_weight += weighted_idf
+            present = set(candidates) & tokens
+            concept_matches = len(present) == len(candidates) if require_all else bool(present)
+            if concept_matches:
+                matched_concepts += 1
+                matched_concept_weight += weighted_idf
+        coverage = matched_concept_weight / query_concept_weight if query_concept_weight else 0.0
+        direct_matched = direct_terms & tokens
+        ordinary_admission = matched_concepts >= 2 or coverage >= MIN_QUERY_COVERAGE
         if strict_admission:
-            meaningful_matched = matched - _STRICT_ADMISSION_GENERIC_TOKENS
-            if ordinary_admission and meaningful_matched:
+            meaningful_matched = matched_terms - _STRICT_ADMISSION_GENERIC_TOKENS
+            meaningful_direct = direct_matched - _STRICT_ADMISSION_GENERIC_TOKENS
+            if ordinary_admission and meaningful_matched and (meaningful_direct or matched_concepts >= 2):
                 admitted.add(idx)
         elif ordinary_admission:
             admitted.add(idx)
@@ -312,9 +441,9 @@ def _rank_eligible_entries(
     if not admitted:
         return []
 
-    direct_weights = {term: 1.0 for term in query_unique}
-    bm25_scores = _bm25_scores(doc_counts, doc_lengths, df, direct_weights)
-    query_grams = _char_ngrams(query)
+    bm25_scores = _bm25_scores(doc_counts, doc_lengths, df, query_weights)
+    char_query = " ".join(term for term in query_terms if term not in _QUERY_NOISE_TOKENS) or query
+    query_grams = _char_ngrams(char_query)
     char_scores = [
         _dice(query_grams, _char_ngrams(descriptor_builder(entry))) if idx in admitted else 0.0
         for idx, entry in enumerate(eligible)
