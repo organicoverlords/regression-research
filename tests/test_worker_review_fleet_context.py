@@ -123,6 +123,57 @@ def test_fault_aggregation_detects_systemic_and_avoidable_signals():
     assert signals["routing_fault"]["authority"] == "report_derived_candidate_signal"
 
 
+def test_findings_only_command_shape_workaround_does_not_replace_durable_repair():
+    # Compact excerpts from immutable reports e7899acf (durable prevention),
+    # f12de6a3 (one-run normalized workaround), and 89e984d5 (later recurrence).
+    reports = [
+        {
+            "report_sha256": "e7899acf",
+            "population": "manual",
+            "display_label": "mcp-preflight-repair",
+            "started_at": "2026-09-07T21:40:22.732+03:00",
+            "repo": "ChatGPTMcpClean",
+            "scope": "mcp-preflight-repair",
+            "outcome": (
+                "Analyzed preflight rejects and chose rule-level prevention. "
+                "Shared AGENTS guidance now prevents recurring bad PowerShell command-shape failures."
+            ),
+        },
+        {
+            "report_sha256": "f12de6a3",
+            "population": "timed",
+            "display_label": "Repo Worker Alder",
+            "started_at": "2026-09-08T13:15:34.291062+03:00",
+            "repo": "p3",
+            "scope": "player-visible combat work",
+            "outcome": "Advanced five existing player-visible WIP heads.",
+            "mutation": "Five product commits; no command-shape owner mutation.",
+            "validation": "Focused product suites passed.",
+            "findings": (
+                "bootstrap command shape initially hit two transient MCP safety/preflight rejections; "
+                "binding refresh plus equivalent supported invocation succeeded and the run continued"
+            ),
+        },
+        {
+            "report_sha256": "89e984d5",
+            "population": "manual",
+            "display_label": "preflight recurrence",
+            "started_at": "2026-09-09T04:24:38.849093+03:00",
+            "repo": "agents",
+            "scope": "durable handling for recurring command-shape preflight rejections",
+            "outcome": "merged shared recurrence handling in agents PR #209",
+            "findings": (
+                "Bare local Python helper invocation was preflight-rejected while the quoted "
+                "PowerShell call-operator equivalent succeeded; recurrence required shared guidance."
+            ),
+        },
+    ]
+    candidates = regression_candidates(reports)
+    command_shape = next(item for item in candidates if item["signature"] == "command_shape")
+    assert command_shape["repair"]["report_sha256"] == "e7899acf"
+    assert command_shape["recurrence"]["report_sha256"] == "89e984d5"
+
+
 def test_regression_candidate_requires_earlier_repair_and_later_recurrence():
     reports = [
         {
