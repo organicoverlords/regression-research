@@ -9,6 +9,11 @@ import tools.process_duration_baselines as baselines
 
 
 class ProcessDurationBaselinesTests(unittest.TestCase):
+    def test_default_output_is_runtime_state_not_repo_checkout(self):
+        repo_root = Path(baselines.__file__).resolve().parents[1]
+        self.assertFalse(baselines.DEFAULT_OUTPUT.is_relative_to(repo_root))
+        self.assertEqual(baselines.DEFAULT_OUTPUT.name, "process-duration-baselines.json")
+
     def test_normalize_recognizes_supported_jobs_and_rejects_diagnostics(self):
         family, key = baselines.normalize("pytest tests/test_memory_bank.py -q", r"C:\\work\\vault")
         self.assertEqual(family, "pytest")
