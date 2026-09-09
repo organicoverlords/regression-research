@@ -1,0 +1,346 @@
+{
+  "schema": "process-duration-baselines.v1",
+  "generated_at": "2026-09-09T16:23:27.262364Z",
+  "authority": "DERIVED_EVIDENCE_NOT_PROCESS_OR_SCHEDULING_AUTHORITY",
+  "source": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\minimal-connectors\\shared-process-receipts",
+  "collection_mode": "incremental_hot_receipts_plus_explicit_imports",
+  "lookback_hours": 72.0,
+  "minimum_duration_seconds": 5.0,
+  "hot_receipts_seen": 435,
+  "new_hot_samples_added": 3,
+  "new_imported_samples_added": 0,
+  "malformed_receipts_skipped": 0,
+  "tracked_samples": 25,
+  "families": {
+    "unittest": {
+      "samples": 9,
+      "mean_seconds": 68.2,
+      "median_seconds": 96.4,
+      "p90_seconds": 138.2,
+      "min_seconds": 6.6,
+      "max_seconds": 138.2,
+      "latest_seconds": 8.5,
+      "recent_vs_older_median_pct": 67.9,
+      "trend": "rising",
+      "latest_finished_at": "2026-09-09T16:13:22.062Z"
+    },
+    "blender": {
+      "samples": 8,
+      "mean_seconds": 42.8,
+      "median_seconds": 26.4,
+      "p90_seconds": 119.6,
+      "min_seconds": 5.6,
+      "max_seconds": 119.6,
+      "latest_seconds": 9.5,
+      "recent_vs_older_median_pct": -75.6,
+      "trend": "falling",
+      "latest_finished_at": "2026-09-07T14:56:48.705Z"
+    },
+    "pytest": {
+      "samples": 4,
+      "mean_seconds": 9.2,
+      "median_seconds": 6.8,
+      "p90_seconds": 18.0,
+      "min_seconds": 5.3,
+      "max_seconds": 18.0,
+      "latest_seconds": 18.0,
+      "recent_vs_older_median_pct": 92.1,
+      "trend": "rising",
+      "latest_finished_at": "2026-09-09T15:56:24.692Z"
+    },
+    "ci_watch": {
+      "samples": 2,
+      "mean_seconds": 217.6,
+      "median_seconds": 217.6,
+      "p90_seconds": 269.1,
+      "min_seconds": 166.2,
+      "max_seconds": 269.1,
+      "latest_seconds": 269.1,
+      "recent_vs_older_median_pct": 61.9,
+      "trend": "insufficient_samples",
+      "latest_finished_at": "2026-09-07T13:59:22.678Z"
+    }
+  },
+  "jobs": {
+    "blender --cwd tiny3d-372-replay": {
+      "samples": 5,
+      "mean_seconds": 51.6,
+      "median_seconds": 12.9,
+      "p90_seconds": 119.6,
+      "min_seconds": 5.6,
+      "max_seconds": 119.6,
+      "latest_seconds": 9.5,
+      "recent_vs_older_median_pct": -91.7,
+      "trend": "falling",
+      "latest_finished_at": "2026-09-07T14:56:48.705Z"
+    },
+    "blender --cwd tiny3d-avian-review-8a5d776": {
+      "samples": 3,
+      "mean_seconds": 28.1,
+      "median_seconds": 28.4,
+      "p90_seconds": 31.4,
+      "min_seconds": 24.4,
+      "max_seconds": 31.4,
+      "latest_seconds": 24.4,
+      "recent_vs_older_median_pct": -1.8,
+      "trend": "insufficient_samples",
+      "latest_finished_at": "2026-09-07T14:48:53.292Z"
+    },
+    "unittest discover -s tests -p 'test_*.py' --cwd tiny3d-10-avian-boundary-anchor": {
+      "samples": 3,
+      "mean_seconds": 113.9,
+      "median_seconds": 107.2,
+      "p90_seconds": 138.2,
+      "min_seconds": 96.4,
+      "max_seconds": 138.2,
+      "latest_seconds": 138.2,
+      "recent_vs_older_median_pct": 9.4,
+      "trend": "insufficient_samples",
+      "latest_finished_at": "2026-09-07T14:52:28.457Z"
+    },
+    "pytest tests\\test_stack_atlas.py -q --cwd rr-atlas-doc-authority": {
+      "samples": 2,
+      "mean_seconds": 5.7,
+      "median_seconds": 5.7,
+      "p90_seconds": 6.2,
+      "min_seconds": 5.3,
+      "max_seconds": 6.2,
+      "latest_seconds": 6.2,
+      "recent_vs_older_median_pct": 17.2,
+      "trend": "insufficient_samples",
+      "latest_finished_at": "2026-09-07T14:45:01.060Z"
+    }
+  },
+  "polling_guidance": {
+    "rule": "Use a matching baseline only after the process is observed still running. Prefer median/p90; sparse or missing samples do not justify a long blind wait.",
+    "anomaly": "A materially longer-than-p90 run is a process/build anomaly candidate for one discriminating check, not a reason to poll faster.",
+    "security_boundary": "Never infer or adapt to platform security reroutes from tool-call symptoms. Tool-policy rejection, MCP/transport failure, process failure, and user-confirmed platform reroute remain separate classifications."
+  },
+  "sample_cache": [
+    {
+      "process_id": "d8a89ada-4fd3-4315-80e5-00fbadeea4c6",
+      "family": "ci_watch",
+      "job_key": "gh run watch --repo organicoverlords/tiny3d",
+      "duration_seconds": 166.208,
+      "exit_code": 0,
+      "started_at": "2026-09-07T13:50:00.828Z",
+      "finished_at": "2026-09-07T13:52:47.036Z"
+    },
+    {
+      "process_id": "a1e9518c-13ea-44f1-9ae0-e5afdf0bbcad",
+      "family": "ci_watch",
+      "job_key": "gh run watch --repo organicoverlords/p3",
+      "duration_seconds": 269.067,
+      "exit_code": 0,
+      "started_at": "2026-09-07T13:54:53.611Z",
+      "finished_at": "2026-09-07T13:59:22.678Z"
+    },
+    {
+      "process_id": "476c707a-b60b-41fc-9b72-c48610a33ccb",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-372-replay",
+      "duration_seconds": 119.633,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:30:16.400Z",
+      "finished_at": "2026-09-07T14:32:16.033Z"
+    },
+    {
+      "process_id": "3d519224-c3d8-42d6-9279-74c92dbc2d33",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-372-replay",
+      "duration_seconds": 110.454,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:30:25.747Z",
+      "finished_at": "2026-09-07T14:32:16.201Z"
+    },
+    {
+      "process_id": "b43bfd20-41d4-4978-998c-d422d7de9bac",
+      "family": "unittest",
+      "job_key": "unittest tests.test_avian.portableaviantests.test_avian_rigging_keeps_region_local_baseline_with_bounded_boundary_anchors tests.test_avian.portableaviantests.test_avian_worker_uses_bounded_ --cwd tiny3d-10-avian-boundary-anchor",
+      "duration_seconds": 7.583,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:33:31.837Z",
+      "finished_at": "2026-09-07T14:33:39.420Z"
+    },
+    {
+      "process_id": "c0ae8d3e-cefa-497e-bb4c-84b91bb77ed7",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-372-replay",
+      "duration_seconds": 12.886,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:34:03.103Z",
+      "finished_at": "2026-09-07T14:34:15.989Z"
+    },
+    {
+      "process_id": "ede56cd5-6801-4ac0-aa57-1b53f421f796",
+      "family": "pytest",
+      "job_key": "pytest -q scripts/v2/tests/test_lane_war_playability_workload.py scripts/v2/tests/test_lane_war_human_launch_path.py --cwd p3-hazel-2611-workload",
+      "duration_seconds": 7.327,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:36:17.282Z",
+      "finished_at": "2026-09-07T14:36:24.609Z"
+    },
+    {
+      "process_id": "0a74a991-69bc-45b1-9b53-4ddd7c184895",
+      "family": "unittest",
+      "job_key": "unittest discover -s tests -p 'test_*.py' --cwd tiny3d-10-avian-boundary-anchor",
+      "duration_seconds": 107.176,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:35:57.619Z",
+      "finished_at": "2026-09-07T14:37:44.795Z"
+    },
+    {
+      "process_id": "28b01a8f-bcaf-498d-8bda-39113d10ec2b",
+      "family": "unittest",
+      "job_key": "unittest discover -s tests -v --cwd tiny3d-current-main-analysis",
+      "duration_seconds": 107.403,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:36:20.770Z",
+      "finished_at": "2026-09-07T14:38:08.173Z"
+    },
+    {
+      "process_id": "6b8f1e4c-4783-4bcb-a335-8e946fe760ea",
+      "family": "unittest",
+      "job_key": "unittest tests.test_avian --cwd tiny3d-10-avian-boundary-anchor",
+      "duration_seconds": 6.559,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:38:32.371Z",
+      "finished_at": "2026-09-07T14:38:38.930Z"
+    },
+    {
+      "process_id": "4cea1654-072b-4480-9218-642a121ec6a6",
+      "family": "unittest",
+      "job_key": "unittest discover -s tests -p 'test_*.py' --cwd tiny3d-10-avian-boundary-anchor",
+      "duration_seconds": 96.368,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:40:00.847Z",
+      "finished_at": "2026-09-07T14:41:37.215Z"
+    },
+    {
+      "process_id": "05346af1-bda4-4839-bc05-7109cc2cdc06",
+      "family": "pytest",
+      "job_key": "pytest tests\\test_stack_atlas.py -q --cwd rr-atlas-doc-authority",
+      "duration_seconds": 5.292,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:44:35.359Z",
+      "finished_at": "2026-09-07T14:44:40.651Z"
+    },
+    {
+      "process_id": "62bbcb06-fbb5-43e2-b8f2-bb12d2e092e2",
+      "family": "unittest",
+      "job_key": "unittest tests.test_avian -v --cwd tiny3d-avian-review-8a5d776",
+      "duration_seconds": 8.015,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:44:49.697Z",
+      "finished_at": "2026-09-07T14:44:57.712Z"
+    },
+    {
+      "process_id": "a322f447-4c4e-4c4b-a335-22fa8696794e",
+      "family": "pytest",
+      "job_key": "pytest tests\\test_stack_atlas.py -q --cwd rr-atlas-doc-authority",
+      "duration_seconds": 6.201,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:44:54.859Z",
+      "finished_at": "2026-09-07T14:45:01.060Z"
+    },
+    {
+      "process_id": "cb55decd-1d71-40f3-85bf-8a4a4a83c87d",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-avian-review-8a5d776",
+      "duration_seconds": 28.436,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:46:32.626Z",
+      "finished_at": "2026-09-07T14:47:01.062Z"
+    },
+    {
+      "process_id": "68cb301a-bac4-48ff-8c3c-f2793fbd1c96",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-avian-review-8a5d776",
+      "duration_seconds": 31.45,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:47:43.066Z",
+      "finished_at": "2026-09-07T14:48:14.516Z"
+    },
+    {
+      "process_id": "e4a43090-ff1a-49a9-9074-a1fa4c20a769",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-avian-review-8a5d776",
+      "duration_seconds": 24.388,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:48:28.904Z",
+      "finished_at": "2026-09-07T14:48:53.292Z"
+    },
+    {
+      "process_id": "2e2eda64-572a-4b18-969f-805dfefdb08a",
+      "family": "unittest",
+      "job_key": "unittest discover -s tests -p 'test_*.py' --cwd tiny3d-10-avian-boundary-anchor",
+      "duration_seconds": 138.187,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:50:10.270Z",
+      "finished_at": "2026-09-07T14:52:28.457Z"
+    },
+    {
+      "process_id": "0147211d-d2d3-4077-aa39-d280baf63cb8",
+      "family": "unittest",
+      "job_key": "unittest discover -s tests -v --cwd tiny3d-avian-review-8a5d776",
+      "duration_seconds": 134.383,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:51:29.877Z",
+      "finished_at": "2026-09-07T14:53:44.260Z"
+    },
+    {
+      "process_id": "6b766b72-322c-4713-8322-39a1eaa404a0",
+      "family": "unreal_build",
+      "job_key": "unreal build --cwd p3-2441-chain-caster-flash",
+      "duration_seconds": 10.668,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:55:21.586Z",
+      "finished_at": "2026-09-07T14:55:32.254Z"
+    },
+    {
+      "process_id": "3590f42f-75e0-4e4a-b8fd-bae60c67038e",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-372-replay",
+      "duration_seconds": 5.606,
+      "exit_code": 1,
+      "started_at": "2026-09-07T14:56:21.782Z",
+      "finished_at": "2026-09-07T14:56:27.388Z"
+    },
+    {
+      "process_id": "115bee07-0036-41f8-a394-c3c6a998d9dc",
+      "family": "blender",
+      "job_key": "blender --cwd tiny3d-372-replay",
+      "duration_seconds": 9.511,
+      "exit_code": 0,
+      "started_at": "2026-09-07T14:56:39.194Z",
+      "finished_at": "2026-09-07T14:56:48.705Z"
+    },
+    {
+      "process_id": "e8077f53-215d-40bd-beb7-d796d95eb85a",
+      "family": "js_build_test",
+      "job_key": "js build/test --cwd lauri",
+      "duration_seconds": 9.284,
+      "exit_code": 0,
+      "started_at": "2026-09-09T15:37:40.623Z",
+      "finished_at": "2026-09-09T15:37:49.907Z"
+    },
+    {
+      "process_id": "805a8b20-02af-4f98-b343-c99ea8b40c40",
+      "family": "pytest",
+      "job_key": "pytest (join-path $wt 'scripts\\v2\\tests\\test_visual_proof_pie_session.py') -q --cwd vault",
+      "duration_seconds": 18.034,
+      "exit_code": 0,
+      "started_at": "2026-09-09T15:56:06.658Z",
+      "finished_at": "2026-09-09T15:56:24.692Z"
+    },
+    {
+      "process_id": "0aeb2a0a-0128-405d-98e5-f00259af95dd",
+      "family": "unittest",
+      "job_key": "unittest tests.test_timeline_materializer` => 39/39 pass. live task xml and first post-change scheduled run are recorded on #904. '@ --cwd vault",
+      "duration_seconds": 8.514,
+      "exit_code": 0,
+      "started_at": "2026-09-09T16:13:13.548Z",
+      "finished_at": "2026-09-09T16:13:22.062Z"
+    }
+  ]
+}
