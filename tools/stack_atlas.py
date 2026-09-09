@@ -2546,6 +2546,29 @@ def _bootstrap_vault_status() -> dict[str, Any]:
     return result
 
 
+def _gh_swarm_bin() -> str | None:
+    found = shutil.which("gh-swarm")
+    if found:
+        return found
+    local = Path.home() / ".local" / "bin" / ("gh-swarm.exe" if os.name == "nt" else "gh-swarm")
+    return str(local) if local.is_file() else None
+
+
+def _github_read_cli(real_gh: str, args: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
+    proxy = _gh_swarm_bin()
+    if proxy and os.path.normcase(os.path.abspath(proxy)) != os.path.normcase(os.path.abspath(real_gh)):
+        try:
+            proc = subprocess.run(
+                [proxy, *args], text=True, capture_output=True, timeout=timeout
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        else:
+            if proc.returncode == 0:
+                return proc
+    return subprocess.run([real_gh, *args], text=True, capture_output=True, timeout=timeout)
+
+
 def _bootstrap_github_status() -> dict[str, Any]:
     """Bounded cached GitHub health; never lists issues, PRs, checks, or workflows."""
     started = time.perf_counter()
@@ -2582,11 +2605,8 @@ def _bootstrap_github_status() -> dict[str, Any]:
     if gh:
         api: subprocess.CompletedProcess[str] | None = None
         try:
-            api = subprocess.run(
-                [gh, "api", "rate_limit"],
-                text=True,
-                capture_output=True,
-                timeout=BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS,
+            api = _github_read_cli(
+                gh, ["api", "rate_limit"], BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS
             )
         except (OSError, subprocess.TimeoutExpired):
             pass

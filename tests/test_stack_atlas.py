@@ -1562,6 +1562,40 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(second["cache"]["used"])
         self.assertEqual(second["rate_limit"]["remaining"], 4900)
 
+    def test_github_bootstrap_prefers_gh_swarm_for_rate_limit_read(self):
+        import subprocess
+        from tools.stack_atlas import _bootstrap_github_status
+        rate_limit = {"resources": {"core": {"limit": 5000, "remaining": 4800, "used": 200, "reset": 1788650000}}}
+        completed = subprocess.CompletedProcess([], 0, stdout=json.dumps(rate_limit), stderr="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas._gh_swarm_bin", return_value=r"C:\gh-swarm.exe"), \
+             patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
+            status = _bootstrap_github_status()
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0], [r"C:\gh-swarm.exe", "api", "rate_limit"])
+        self.assertTrue(status["available"])
+        self.assertEqual(status["rate_limit"]["remaining"], 4800)
+
+    def test_github_bootstrap_falls_back_to_real_gh_after_proxy_failure(self):
+        import subprocess
+        from tools.stack_atlas import _bootstrap_github_status
+        proxy_failure = subprocess.CompletedProcess([], 1, stdout="", stderr="proxy unavailable")
+        rate_limit = {"resources": {"core": {"limit": 5000, "remaining": 4700, "used": 300, "reset": 1788650000}}}
+        real_success = subprocess.CompletedProcess([], 0, stdout=json.dumps(rate_limit), stderr="")
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas._gh_swarm_bin", return_value=r"C:\gh-swarm.exe"), \
+             patch("tools.stack_atlas.subprocess.run", side_effect=[proxy_failure, real_success]) as run:
+            status = _bootstrap_github_status()
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[0].args[0][0], r"C:\gh-swarm.exe")
+        self.assertEqual(run.call_args_list[1].args[0], [r"C:\gh.exe", "api", "rate_limit"])
+        self.assertTrue(status["available"])
+        self.assertEqual(status["rate_limit"]["remaining"], 4700)
+
     def test_github_bootstrap_auth_probe_is_failure_only_and_failure_cache_is_short(self):
         import subprocess
         from tools.stack_atlas import (
