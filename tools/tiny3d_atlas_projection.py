@@ -96,14 +96,17 @@ def _signature_freshness(cache_entry: dict[str, Any], record: dict[str, Any]) ->
 
 def _matches(record: dict[str, Any], query: str) -> bool:
     source = record.get("source") if isinstance(record.get("source"), dict) else {}
-    values = (
+    values = [
         record.get("asset_id"),
         record.get("directory_name"),
         record.get("display_name"),
         record.get("profile"),
         source.get("name"),
         source.get("path"),
-    )
+    ]
+    aliases = record.get("search_aliases")
+    if isinstance(aliases, list):
+        values.extend(aliases)
     needle = query.casefold()
     return any(needle in str(value).casefold() for value in values if value is not None)
 
