@@ -92,6 +92,22 @@ The recovery model is changed from "historical target with warning" to **current
 9. Recovery-search triggers are biased toward the current local recovery contract; generic recovery wording must not elevate legacy edge monitoring.
 10. A new durable memory lesson supersedes the old selected-recovery-target semantics for GPT1.
 
+## Search-classification recurrence found during acceptance
+
+Acceptance testing found a second concrete reason the new lesson could have disappeared from future Vault searches even after being recorded correctly. The new GPT1 recovery lesson initially loaded from the canonical local memory overlay but `_ordinary_recall_eligible(...)` rejected it before ranking.
+
+The classifier result was `semantic_category=CHECKPOINT`, `durability=HISTORICAL`. The cause was deterministic: for `kind=lesson`, `memory_classification._semantic_category` checked checkpoint vocabulary before policy/authority vocabulary. Because the lesson necessarily discussed a **historical recovery snapshot**, the word `snapshot` won and demoted the durable recovery-authority lesson out of ordinary recall.
+
+This was repaired in branch commit `035c72b` (`[agents#287] Keep recovery authority lessons searchable`):
+
+- true `status` records still use the explicit checkpoint path;
+- for reusable `lesson` records, policy/contract/rule/authority semantics now outrank checkpoint vocabulary;
+- a regression test proves that a lesson explaining that a historical snapshot is evidence-only remains `WORKFLOW_POLICY / DURABLE`;
+- 47 focused memory classification/retrieval/context tests pass;
+- the exact failed query `MCP recovery stale recovery file wrong WireGuard GPT1 local 3022` now returns `mem-20260910-dc2d541b` first in plain search, hybrid search, and the CLI.
+
+This matters because recurrence prevention requires both sides: the obsolete route must be structurally absent from operational recovery authority, **and** the correction explaining why must remain eligible for ordinary recall.
+
 ## Retrieval invariant
 
 For queries such as:

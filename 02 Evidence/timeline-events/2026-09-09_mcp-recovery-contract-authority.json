@@ -36,6 +36,24 @@
       ],
       "symptom": "Correct lessons existed but contradicted an actionable obsolete recovery model.",
       "result": "Operational recovery and historical topology evidence are now separate data types with opposite authority."
+    },
+    {
+      "id": "fix:mcp-recovery-lesson-search-eligibility-20260910",
+      "event_at": "2026-09-10T01:35:35+03:00",
+      "title": "Recovery-authority lesson restored to ordinary Vault search eligibility",
+      "project": "regression-research",
+      "scope": "mcp/gpt1-home-direct/recovery-authority",
+      "epistemic_class": "REPRODUCED_FACT",
+      "epistemic_basis": "The new recovery lesson was loaded but ordinary recall rejected it as CHECKPOINT/HISTORICAL because its text mentioned a historical snapshot. Reordering lesson classification so policy/authority semantics precede checkpoint vocabulary made the same lesson WORKFLOW_POLICY/DURABLE and rank first for the failed recovery query.",
+      "evidence": [
+        "01 Reports/2026-09-09_2028_EEST_mcp-recovery-contract-obsolete-topology-authority_incident_report.md",
+        "mem-20260910-dc2d541b",
+        "git:regression-research:035c72b",
+        "tools/memory_classification.py",
+        "tests/test_memory_classification.py"
+      ],
+      "symptom": "A correctly recorded durable lesson could disappear from ordinary search merely because it discussed a historical snapshot.",
+      "result": "Policy/authority lessons remain durable and searchable; true status checkpoints retain checkpoint semantics."
     }
   ]
 }
