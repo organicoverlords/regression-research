@@ -109,7 +109,7 @@ def repo_cache_id(repo_root: Path) -> str:
     return hashlib.sha256(identity.encode("utf-8", errors="surrogatepass")).hexdigest()[:24]
 
 
-def git_provenance_payload(repo_root: Path) -> tuple[dict[str, object], int]:
+def git_provenance_payload(repo_root: Path, *, max_bytes: int = MAX_GIT_PROVENANCE_BYTES) -> tuple[dict[str, object], int]:
     """Build bounded ancestry/tree/index metadata for native Git inspection on OMEN."""
     head_cp = _run(["git", "-C", str(repo_root), "rev-parse", "--verify", "HEAD^{commit}"], timeout=8.0)
     if head_cp.returncode != 0 or not re.fullmatch(r"[0-9a-fA-F]{40,64}", head_cp.stdout.strip()):
@@ -172,8 +172,8 @@ def git_provenance_payload(repo_root: Path) -> tuple[dict[str, object], int]:
         "index_b64": base64.b64encode(index_proc.stdout).decode("ascii"),
     }
     encoded_size = len(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
-    if encoded_size > MAX_GIT_PROVENANCE_BYTES:
-        raise ValueError(f"SWARM_EXEC_GIT_PROVENANCE_TOO_LARGE bytes={encoded_size} limit={MAX_GIT_PROVENANCE_BYTES}")
+    if encoded_size > max_bytes:
+        raise ValueError(f"SWARM_EXEC_GIT_PROVENANCE_TOO_LARGE bytes={encoded_size} limit={max_bytes}")
     return payload, encoded_size
 
 
@@ -547,8 +547,8 @@ def _forward_stdout(stream) -> None:
 def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False) -> int:
     paths = snapshot_paths(repo_root)
     current_manifest, size, hash_hits, hash_misses = cached_snapshot_manifest(repo_root, paths)
-    git_provenance, git_provenance_bytes = git_provenance_payload(repo_root)
     limit = max_sync_mb * 1024 * 1024
+    git_provenance, git_provenance_bytes = git_provenance_payload(repo_root, max_bytes=limit)
     bounded_size = size + git_provenance_bytes
     if bounded_size > limit:
         raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={bounded_size} limit={limit}")

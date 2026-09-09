@@ -140,6 +140,15 @@ class SwarmExecTests(unittest.TestCase):
             self.assertEqual(payload["config"]["core.autocrlf"],"true")
             self.assertEqual(payload["config"]["core.filemode"],"false")
             self.assertLess(size,m.MAX_GIT_PROVENANCE_BYTES)
+            with self.assertRaisesRegex(
+                ValueError, r"SWARM_EXEC_GIT_PROVENANCE_TOO_LARGE bytes=.+ limit=1"
+            ):
+                m.git_provenance_payload(src, max_bytes=1)
+            payload_with_budget,size_with_budget=m.git_provenance_payload(
+                src, max_bytes=size + 1
+            )
+            self.assertEqual(payload_with_budget["head"],head)
+            self.assertEqual(size_with_budget,size)
             self.assertNotIn(str(src),json.dumps(payload))
 
             subprocess.run(["git","-C",str(dst),"init","-q"],check=True)
