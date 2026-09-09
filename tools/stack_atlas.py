@@ -33,6 +33,11 @@ except ModuleNotFoundError:
     from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
 
 try:
+    from tools.memory_recent_projection import default_local_bank_path, read_current_projection
+except ModuleNotFoundError:
+    from memory_recent_projection import default_local_bank_path, read_current_projection
+
+try:
     from tools.tiny3d_atlas_projection import project_current as project_tiny3d_current
 except ModuleNotFoundError:
     from tiny3d_atlas_projection import project_current as project_tiny3d_current
@@ -2327,6 +2332,7 @@ def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTS
     raw = json.loads(json.dumps(overview, ensure_ascii=False))
     materialized = raw.get("timeline_materialized") if isinstance(raw.get("timeline_materialized"), dict) else {}
     correction_triggers = raw.get("correction_triggers") if isinstance(raw.get("correction_triggers"), dict) else {}
+    recent_source = raw.get("recent_source") if isinstance(raw.get("recent_source"), dict) else {}
     recent = []
     for item in raw.get("recent", []) if isinstance(raw.get("recent"), list) else []:
         if not isinstance(item, dict):
@@ -2364,6 +2370,12 @@ def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTS
             key: correction_triggers.get(key)
             for key in ("authority", "status")
             if correction_triggers.get(key) not in (None, "")
+        }
+    if recent_source:
+        bounded["recent_source"] = {
+            key: recent_source.get(key)
+            for key in ("authority", "read_mode", "status", "generated_at")
+            if recent_source.get(key) not in (None, "")
         }
     if materialized:
         bounded["timeline_materialized"] = {
@@ -2495,6 +2507,20 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
     materialized.update(materialized_health(raw, now=datetime.now().astimezone()))
     materialized["projection_path"] = str(path)
     overview["timeline_materialized"] = materialized
+
+    # Recent memory has a separate immediate projection. Timeline/history stays on
+    # the periodic materializer, while fresh-chat orientation reads current titles.
+    seed_path = ATLAS_LIVE_ROOT / "memory" / "memory-bank.jsonl"
+    overlay_path = default_local_bank_path()
+    recent_projection = read_current_projection(seed_path=seed_path, overlay_path=overlay_path)
+    if isinstance(recent_projection, dict) and isinstance(recent_projection.get("recent"), list):
+        overview["recent"] = recent_projection["recent"]
+        overview["recent_source"] = {
+            "authority": "DIRECT_LOCAL_EFFECTIVE_MEMORY_PROJECTION",
+            "read_mode": "fingerprint_validated_recent_titles_projection",
+            "status": "CURRENT_FOR_EFFECTIVE_MEMORY_FILES",
+            "generated_at": recent_projection.get("generated_at"),
+        }
     return _fit_memory_overview_budget(overview)
 
 
