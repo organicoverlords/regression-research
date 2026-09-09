@@ -1596,6 +1596,47 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(status["available"])
         self.assertEqual(status["rate_limit"]["remaining"], 4700)
 
+    def test_source_freshness_routes_graphql_read_through_gh_buffer(self):
+        import subprocess
+        payload = {
+            "data": {
+                "agents": {
+                    "ref": {"target": {
+                        "oid": "remote-main",
+                        "agentsHistory": {"nodes": [{"oid": "agents-commit", "committedDate": "2026-09-09T00:00:00Z"}]},
+                        "rulesHistory": {"nodes": [{"oid": "rules-commit", "committedDate": "2026-09-09T00:00:00Z"}]},
+                    }},
+                    "agentsBlob": {"oid": "agents-blob"},
+                    "rulesBlob": {"oid": "rules-blob"},
+                },
+                "vault": {
+                    "ref": {"target": {
+                        "workerHistory": {"nodes": [{"oid": "worker-commit", "committedDate": "2026-09-09T00:00:00Z"}]}
+                    }},
+                    "workerBlob": {"oid": "worker-blob"},
+                },
+            }
+        }
+        completed = subprocess.CompletedProcess([], 0, stdout=json.dumps(payload), stderr="")
+        coherent_checkout = {"coherent": True, "available": True}
+        with patch("tools.stack_atlas._bootstrap_cache_read_any", return_value=(None, None)), \
+             patch("tools.stack_atlas._bootstrap_cache_refresh_view", return_value=(None, False)), \
+             patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
+             patch("tools.stack_atlas._github_read_cli", return_value=completed) as read_cli, \
+             patch("tools.stack_atlas._bootstrap_cache_write"), \
+             patch("tools.stack_atlas._git_checkout_state", return_value=coherent_checkout), \
+             patch("tools.stack_atlas._git_blob_sha_for_file", side_effect=["agents-blob", "rules-blob", "worker-blob"]), \
+             patch("tools.stack_atlas._git_last_committed_at", return_value="2026-09-09T00:00:00Z"):
+            result = _bootstrap_source_freshness()
+
+        self.assertTrue(result["available"])
+        self.assertFalse(result["updates_pending"])
+        self.assertEqual(read_cli.call_count, 1)
+        args = read_cli.call_args.args
+        self.assertEqual(args[0], r"C:\gh.exe")
+        self.assertEqual(args[1][:3], ["api", "graphql", "-f"])
+        self.assertTrue(args[1][3].startswith("query=query {"))
+
     def test_github_bootstrap_auth_probe_is_failure_only_and_failure_cache_is_short(self):
         import subprocess
         from tools.stack_atlas import (

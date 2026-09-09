@@ -2874,11 +2874,8 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
             '}'
         )
         try:
-            proc = subprocess.run(
-                [gh, "api", "graphql", "-f", f"query={query}"],
-                text=True,
-                capture_output=True,
-                timeout=BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS,
+            proc = _github_read_cli(
+                gh, ["api", "graphql", "-f", f"query={query}"], BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS
             )
         except (OSError, subprocess.TimeoutExpired):
             proc = None
