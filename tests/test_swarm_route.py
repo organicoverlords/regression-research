@@ -18,6 +18,59 @@ class TransportContractTests(unittest.TestCase):
         self.assertIn('argv_active("run-p3-linux-lane.sh",3)',code)
         self.assertIn('argv_active("run-p3-linux-light.sh")',code)
         self.assertIn('active("p3-linux-lane@2.service") or argv_active("run-p3-linux-lane.sh",2)',code)
+class GitHubProbeTests(unittest.TestCase):
+    def _runner_payload(self):
+        return '{"runners":[{"name":"p3-vps-light","status":"online","busy":false,"labels":[{"name":"p3-vps-light"}]}]}'
+
+    def test_vps_probe_prefers_gh_swarm(self):
+        calls=[]
+        def fake_run(args,timeout):
+            calls.append((args,timeout))
+            return m.subprocess.CompletedProcess(args,0,self._runner_payload(),"")
+        original_bin,original_run=m._gh_swarm_bin,m._run
+        try:
+            m._gh_swarm_bin=lambda: "C:/tools/gh-swarm.exe"
+            m._run=fake_run
+            probe=m.probe_vps(timeout=4.0)
+        finally:
+            m._gh_swarm_bin, m._run = original_bin, original_run
+        self.assertTrue(probe["available"])
+        self.assertEqual(calls,[(["C:/tools/gh-swarm.exe","api","repos/organicoverlords/p3/actions/runners"],4.0)])
+
+    def test_vps_probe_falls_back_to_real_gh_after_proxy_failure(self):
+        calls=[]
+        responses=iter([
+            m.subprocess.CompletedProcess([],1,"","proxy unavailable"),
+            m.subprocess.CompletedProcess([],0,self._runner_payload(),""),
+        ])
+        def fake_run(args,timeout):
+            calls.append((args,timeout)); return next(responses)
+        original_bin,original_run=m._gh_swarm_bin,m._run
+        try:
+            m._gh_swarm_bin=lambda: "C:/tools/gh-swarm.exe"
+            m._run=fake_run
+            probe=m.probe_vps(timeout=4.0)
+        finally:
+            m._gh_swarm_bin, m._run = original_bin, original_run
+        self.assertTrue(probe["available"])
+        self.assertEqual(calls[0][0][0],"C:/tools/gh-swarm.exe")
+        self.assertEqual(calls[1][0][0],"gh")
+        self.assertEqual(calls[0][0][1:],calls[1][0][1:])
+
+    def test_vps_probe_uses_real_gh_when_proxy_absent(self):
+        calls=[]
+        def fake_run(args,timeout):
+            calls.append((args,timeout)); return m.subprocess.CompletedProcess(args,0,self._runner_payload(),"")
+        original_bin,original_run=m._gh_swarm_bin,m._run
+        try:
+            m._gh_swarm_bin=lambda: None
+            m._run=fake_run
+            probe=m.probe_vps(timeout=4.0)
+        finally:
+            m._gh_swarm_bin, m._run = original_bin, original_run
+        self.assertTrue(probe["available"])
+        self.assertEqual(calls,[(["gh","api","repos/organicoverlords/p3/actions/runners"],4.0)])
+
 class RouteDecisionTests(unittest.TestCase):
     def test_pins(self):
         f=facts(); self.assertEqual(m.choose_route("lowvram",f,{})[0],"windows"); self.assertEqual(m.choose_route("windows-only",f,{})[0],"windows")
