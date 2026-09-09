@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -38,6 +39,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 STATE_ROOT = ROOT / ".state" / "timeline"
 STORE_PATH = STATE_ROOT / "timeline-store.json"
+DELTA_PATH = STATE_ROOT / "timeline-delta.json"
 QUERY_INDEX_PATH = STATE_ROOT / "timeline-query-index.pkl"
 QUERY_CACHE_ROOT = STATE_ROOT / "query-results"
 BOOTSTRAP_PATH = STATE_ROOT / "bootstrap-memory-overview.json"
@@ -48,6 +50,7 @@ QUERY_RESULT_CACHE_MAX_FILES = 128
 QUERY_INDEX_SCHEMA = "vault.timeline.query-index.v1"
 
 SCHEMA = "vault.timeline.materialized.v1"
+DELTA_SCHEMA = "vault.timeline.delta.v1"
 BOOTSTRAP_SCHEMA = "vault.timeline.bootstrap.v1"
 TASK_NAME = "Vault Timeline Materializer"
 DEFAULT_DAYS: int | None = None
@@ -59,6 +62,7 @@ TASK_EXECUTION_GUARD_SECONDS = 10
 DEFAULT_MAX_EVENTS = 50000
 DEFAULT_GITHUB_EVENTS_PER_KIND = 5000
 DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND = 200
+DEFAULT_GITHUB_REPO_WORKERS = 4
 DEFAULT_QUEUE_RUNS_PER_REPO = 50
 DEFAULT_RUNNER_LOG_EVENTS = 10000
 DEFAULT_DELTA_REPO_EVENTS_PER_REPO = 200
@@ -255,6 +259,206 @@ def _read_query_index(path: Path, *, generated_at: str) -> dict[str, Any] | None
     return value
 
 
+def _row_map(rows: Iterable[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
+    return {
+        str(row.get(key) or ""): dict(row)
+        for row in rows
+        if isinstance(row, dict) and str(row.get(key) or "").strip()
+    }
+
+
+def _apply_row_overlay(
+    base_rows: Iterable[dict[str, Any]],
+    upserts: Iterable[dict[str, Any]],
+    deletes: Iterable[str],
+    *,
+    key: str,
+) -> list[dict[str, Any]]:
+    rows = _row_map(base_rows, key)
+    for ident in deletes:
+        rows.pop(str(ident), None)
+    for row in upserts:
+        if isinstance(row, dict) and str(row.get(key) or "").strip():
+            rows[str(row[key])] = dict(row)
+    return list(rows.values())
+
+
+def _row_changes(
+    previous_rows: Iterable[dict[str, Any]],
+    final_rows: Iterable[dict[str, Any]],
+    *,
+    key: str,
+) -> tuple[list[dict[str, Any]], set[str]]:
+    previous = _row_map(previous_rows, key)
+    final = _row_map(final_rows, key)
+    upserts = [row for ident, row in final.items() if previous.get(ident) != row]
+    deletes = set(previous) - set(final)
+    return upserts, deletes
+
+
+def _update_cumulative_rows(
+    *,
+    base_rows: Iterable[dict[str, Any]],
+    current_upserts: Iterable[dict[str, Any]],
+    current_deletes: Iterable[str],
+    changed_upserts: Iterable[dict[str, Any]],
+    changed_deletes: Iterable[str],
+    key: str,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    base = _row_map(base_rows, key)
+    upserts = _row_map(current_upserts, key)
+    deletes = {str(value) for value in current_deletes if str(value).strip()}
+    for ident in changed_deletes:
+        ident = str(ident)
+        upserts.pop(ident, None)
+        if ident in base:
+            deletes.add(ident)
+        else:
+            deletes.discard(ident)
+    for row in changed_upserts:
+        if not isinstance(row, dict):
+            continue
+        ident = str(row.get(key) or "")
+        if not ident:
+            continue
+        deletes.discard(ident)
+        if base.get(ident) == row:
+            upserts.pop(ident, None)
+        else:
+            upserts[ident] = dict(row)
+    return list(upserts.values()), sorted(deletes)
+
+
+def _similar_group_projection(groups: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "work_id": row.get("work_id"),
+            "project": row.get("project"),
+            "title": row.get("title"),
+            "commit_count": row.get("commit_count"),
+            "branch_refs": row.get("branch_refs", []),
+            "cross_branch": row.get("cross_branch", False),
+            "workers": len(row.get("workers", []) or []),
+            "efficiency": row.get("efficiency", {}),
+        }
+        for row in groups
+        if isinstance(row, dict) and int(row.get("commit_count") or 0) > 1
+    ]
+
+
+def _work_graph_summary(groups: list[dict[str, Any]], streams: list[dict[str, Any]]) -> dict[str, int]:
+    similar = _similar_group_projection(groups)
+    attached = {
+        str(event_id)
+        for row in groups
+        for event_id in row.get("attached_event_ids", []) or []
+        if str(event_id)
+    }
+    return {
+        "commit_groups": len(groups),
+        "equivalent_commit_groups": len(similar),
+        "cross_branch_groups": sum(1 for row in similar if row.get("cross_branch")),
+        "attached_observations": len(attached),
+        "workstreams": len(streams),
+    }
+
+
+def _apply_materialized_delta(base: dict[str, Any], delta: dict[str, Any] | None) -> dict[str, Any]:
+    if not delta:
+        result = dict(base)
+        result["_base_generated_at"] = str(base.get("generated_at") or "")
+        result["_has_delta_overlay"] = False
+        result["_delta_event_ids"] = []
+        return result
+    if delta.get("schema") != DELTA_SCHEMA or str(delta.get("base_generated_at") or "") != str(base.get("generated_at") or ""):
+        result = dict(base)
+        result["_base_generated_at"] = str(base.get("generated_at") or "")
+        result["_has_delta_overlay"] = False
+        result["_delta_event_ids"] = []
+        return result
+    result = dict(base)
+    for key in ("generated_at", "horizon_days", "source_watermarks", "ingestion"):
+        if key in delta:
+            result[key] = delta[key]
+    base_timeline = base.get("timeline") if isinstance(base.get("timeline"), dict) else {}
+    timeline = dict(base_timeline)
+    timeline["events"] = _apply_row_overlay(
+        base_timeline.get("events", []) or [],
+        delta.get("event_upserts", []) or [],
+        delta.get("event_deletes", []) or [],
+        key="id",
+    )
+    timeline["historical_evidence_events"] = _apply_row_overlay(
+        base_timeline.get("historical_evidence_events", []) or [],
+        delta.get("historical_upserts", []) or [],
+        delta.get("historical_deletes", []) or [],
+        key="id",
+    )
+    previous_continuity = base_timeline.get("continuity_graph") if isinstance(base_timeline.get("continuity_graph"), dict) else {}
+    continuity = dict(previous_continuity)
+    continuity_cases = _apply_row_overlay(
+        previous_continuity.get("cases", []) or [],
+        delta.get("continuity_case_upserts", []) or [],
+        delta.get("continuity_case_deletes", []) or [],
+        key="case_id",
+    )
+    continuity_cases.sort(
+        key=lambda case: (
+            1 if case.get("severity") == "RED" else 0,
+            _dt(case.get("latest_signal_at")) or datetime.min.replace(tzinfo=timezone.utc),
+            str(case.get("case_id") or ""),
+        ),
+        reverse=True,
+    )
+    continuity["cases"] = continuity_cases
+    continuity["case_count"] = len(continuity_cases)
+    continuity["summary"] = _continuity_summary_from_cases(continuity_cases)
+    timeline["continuity_graph"] = continuity
+
+    previous_work = base_timeline.get("work_graph") if isinstance(base_timeline.get("work_graph"), dict) else {}
+    work = dict(previous_work)
+    groups = _apply_row_overlay(
+        previous_work.get("commit_groups", []) or [],
+        delta.get("work_group_upserts", []) or [],
+        delta.get("work_group_deletes", []) or [],
+        key="work_id",
+    )
+    groups.sort(key=lambda row: (_instant_key(row.get("latest_at")), str(row.get("work_id") or "")), reverse=True)
+    streams = _apply_row_overlay(
+        previous_work.get("workstreams", []) or [],
+        delta.get("workstream_upserts", []) or [],
+        delta.get("workstream_deletes", []) or [],
+        key="anchor",
+    )
+    streams.sort(key=lambda row: (_instant_key(row.get("latest_at")), str(row.get("anchor") or "")), reverse=True)
+    work["commit_groups"] = groups
+    work["similar_commit_groups"] = _similar_group_projection(groups)
+    work["workstreams"] = streams
+    work["summary"] = _work_graph_summary(groups, streams)
+    timeline["work_graph"] = work
+    timeline_meta = delta.get("timeline_meta") if isinstance(delta.get("timeline_meta"), dict) else {}
+    for key, value in timeline_meta.items():
+        timeline[key] = value
+    result["timeline"] = timeline
+    result["_base_generated_at"] = str(base.get("generated_at") or "")
+    result["_has_delta_overlay"] = True
+    result["_delta_event_ids"] = [
+        str(event.get("id") or "")
+        for event in delta.get("event_upserts", []) or []
+        if isinstance(event, dict) and event.get("id")
+    ]
+    return result
+
+
+def _load_materialized_state_root(state_root: Path) -> dict[str, Any] | None:
+    base = _read_json(state_root / STORE_PATH.name)
+    if not base:
+        return None
+    delta = _read_json(state_root / DELTA_PATH.name)
+    return _apply_materialized_delta(base, delta)
+
+
+
 def _store_generation_token(root: Path) -> str | None:
     try:
         stat = (root / ".state" / "timeline" / STORE_PATH.name).stat()
@@ -415,8 +619,37 @@ def github_events(
     limit_per_kind: int = DEFAULT_GITHUB_EVENTS_PER_KIND,
     snapshot_now: datetime | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    events: list[dict[str, Any]] = []
+    specs = list(specs)
     snapshot_now = snapshot_now or datetime.now().astimezone()
+    if len(specs) > 1:
+        workers = min(DEFAULT_GITHUB_REPO_WORKERS, len(specs))
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="timeline-gh") as executor:
+            parts = list(executor.map(
+                lambda spec: github_events(
+                    [spec],
+                    since=since,
+                    limit_per_kind=limit_per_kind,
+                    snapshot_now=snapshot_now,
+                ),
+                specs,
+            ))
+        events: list[dict[str, Any]] = []
+        coverage: dict[str, Any] = {"available": True, "repos": {}, "errors": [], "warnings": [], "snapshot_errors": []}
+        for part_events, part_coverage in parts:
+            events.extend(part_events)
+            for key in ("errors", "warnings", "snapshot_errors"):
+                coverage[key].extend(part_coverage.get(key, []))
+            repos = part_coverage.get("repos")
+            if isinstance(repos, dict):
+                coverage["repos"].update(repos)
+        coverage["events"] = len(events)
+        coverage["limit_per_kind"] = limit_per_kind
+        coverage["saturated"] = any(bool(row.get("saturated_kinds")) for row in coverage["repos"].values())
+        if coverage["errors"] and not events:
+            coverage["available"] = False
+        return events, coverage
+
+    events: list[dict[str, Any]] = []
     coverage: dict[str, Any] = {"available": True, "repos": {}, "errors": [], "warnings": [], "snapshot_errors": []}
     for spec in specs:
         slug = _github_slug(spec)
@@ -1067,18 +1300,26 @@ def runner_log_events(*, since: datetime, limit: int = DEFAULT_RUNNER_LOG_EVENTS
     events: list[dict[str, Any]] = []
     coverage = {"roots": [], "files": 0, "events": 0, "errors": [], "limit": limit, "candidates": 0, "saturated": False}
     candidates: list[tuple[float, Path, Path]] = []
+    since_timestamp = since.astimezone(timezone.utc).timestamp()
     for diag in _runner_diag_roots():
         coverage["roots"].append(str(diag))
         try:
-            for path in diag.glob("*.log"):
-                stamp = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-                if stamp >= since.astimezone(timezone.utc):
-                    candidates.append((path.stat().st_mtime, diag, path))
+            with os.scandir(diag) as rows:
+                for row in rows:
+                    try:
+                        if not row.is_file() or not row.name.casefold().endswith(".log"):
+                            continue
+                        stat = row.stat()
+                    except OSError as exc:
+                        coverage["errors"].append({"root": str(diag), "error": str(exc)[:160]})
+                        continue
+                    if stat.st_mtime >= since_timestamp:
+                        candidates.append((stat.st_mtime, diag, Path(row.path)))
         except OSError as exc:
             coverage["errors"].append({"root": str(diag), "error": str(exc)[:160]})
     coverage["candidates"] = len(candidates)
     coverage["saturated"] = len(candidates) > limit
-    for _, diag, path in sorted(candidates, reverse=True)[:limit]:
+    for mtime, diag, path in sorted(candidates, reverse=True)[:limit]:
         text = _read_tail(path, 256 * 1024).decode("utf-8", "replace")
         errors = 0
         warnings = 0
@@ -1095,12 +1336,12 @@ def runner_log_events(*, since: datetime, limit: int = DEFAULT_RUNNER_LOG_EVENTS
             if _SAFE_RUNNER_MARKER_RE.search(line):
                 markers += 1
                 sha_refs.update(match.group(0).casefold() for match in _SHA_RE.finditer(line))
-        event_at = datetime.fromtimestamp(path.stat().st_mtime).astimezone().isoformat()
+        event_at = datetime.fromtimestamp(mtime).astimezone().isoformat()
         runner_name = diag.parent.name
         anchors = [f"runner-log:{runner_name}:{path.name.casefold()}"]
         anchors.extend(f"gitsha:{sha}" for sha in sorted(sha_refs))
         events.append({
-            "id": f"runner-log:{runner_name}:{path.name}:{int(path.stat().st_mtime)}",
+            "id": f"runner-log:{runner_name}:{path.name}:{int(mtime)}",
             "source_type": "RUNNER_LOG",
             "authority": "LOCAL_RUNNER_DIAGNOSTIC_SUMMARY",
             "event_at": event_at,
@@ -2012,6 +2253,400 @@ def _coverage_saturated(source: str, coverage: dict[str, Any]) -> bool:
     return False
 
 
+def _project_delta_events(
+    *,
+    entries: list[dict[str, Any]],
+    previous_timeline: dict[str, Any],
+    repo_delta: list[dict[str, Any]],
+    worker_delta: list[dict[str, Any]],
+    artifact_delta: list[dict[str, Any]],
+    supplemental_delta: list[dict[str, Any]],
+    horizon_since: datetime,
+    now: datetime,
+) -> tuple[list[dict[str, Any]], set[str], dict[str, Any], dict[str, Any]]:
+    """Project only changed source rows while preserving unchanged rich events."""
+    memory_limit = max(1, len(entries))
+    memory_timeline = build_timeline(
+        entries,
+        limit=memory_limit,
+        max_limit=memory_limit,
+        since=horizon_since,
+        snapshot_now=now,
+    )
+    memory_events = [dict(event) for event in memory_timeline.get("events", []) if isinstance(event, dict)]
+    _enrich_memory_search_text(memory_events, entries)
+    previous_memory = {
+        str(event.get("id") or ""): event
+        for event in previous_timeline.get("events", []) or []
+        if isinstance(event, dict) and event.get("source_type") == "VAULT_MEMORY" and event.get("id")
+    }
+    current_memory = {str(event.get("id") or ""): event for event in memory_events if event.get("id")}
+    memory_upserts = [
+        event for event_id, event in current_memory.items()
+        if previous_memory.get(event_id) != event
+    ]
+    memory_deletes = set(previous_memory) - set(current_memory)
+
+    external_count = len(repo_delta) + len(worker_delta) + len(artifact_delta) + len(supplemental_delta)
+    if external_count:
+        delta_timeline = build_timeline(
+            [],
+            limit=external_count,
+            max_limit=external_count,
+            since=horizon_since,
+            repo_events=repo_delta,
+            worker_events=worker_delta,
+            artifact_events=artifact_delta,
+            supplemental_events=supplemental_delta,
+            snapshot_now=now,
+        )
+        external_upserts = [dict(event) for event in delta_timeline.get("events", []) if isinstance(event, dict)]
+    else:
+        delta_timeline = {"invalid_source_events": {}}
+        external_upserts = []
+    return [*memory_upserts, *external_upserts], memory_deletes, memory_timeline, delta_timeline
+
+
+def _merge_projected_events(
+    previous_timeline: dict[str, Any],
+    upserts: Iterable[dict[str, Any]],
+    *,
+    explicit_deletes: set[str],
+    max_events: int,
+) -> tuple[list[dict[str, Any]], set[str], int]:
+    upsert_rows = [dict(event) for event in upserts if isinstance(event, dict) and event.get("id")]
+    upsert_ids = {str(event["id"]) for event in upsert_rows}
+    deleted_ids = set(explicit_deletes)
+    by_id: dict[str, dict[str, Any]] = {}
+    for raw in previous_timeline.get("events", []) or []:
+        if not isinstance(raw, dict) or not raw.get("id"):
+            continue
+        event_id = str(raw["id"])
+        if event_id in deleted_ids:
+            continue
+        if raw.get("current_only") and event_id not in upsert_ids:
+            deleted_ids.add(event_id)
+            continue
+        by_id[event_id] = dict(raw)
+    for event in upsert_rows:
+        by_id[str(event["id"])] = event
+    ordered = list(by_id.values())
+    ordered.sort(
+        key=lambda event: (
+            _dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc),
+            str(event.get("id") or ""),
+        ),
+        reverse=True,
+    )
+    total = len(ordered)
+    return ordered[: max(1, int(max_events))], deleted_ids, total
+
+
+def _continuity_summary_from_cases(cases: Iterable[dict[str, Any]]) -> dict[str, int]:
+    items = list(cases)
+    summary = Counter({"total": len(items)})
+    for case in items:
+        if case.get("severity") == "RED":
+            summary["red"] += 1
+        if case.get("legacy_inferred"):
+            summary["legacy_inferred"] += 1
+        for trait in case.get("traits", []) or []:
+            if trait in {"incident", "regression", "slopwall", "asshole", "security_incident"}:
+                summary[str(trait)] += 1
+    return dict(summary)
+
+
+def _patch_continuity_graph(
+    previous_graph: dict[str, Any],
+    previous_events: dict[str, dict[str, Any]],
+    final_events: dict[str, dict[str, Any]],
+    changed_events: Iterable[dict[str, Any]],
+    deleted_ids: set[str],
+) -> tuple[dict[str, Any], dict[str, int]]:
+    previous_cases = [dict(case) for case in previous_graph.get("cases", []) or [] if isinstance(case, dict)]
+    changed = [dict(event) for event in changed_events if isinstance(event, dict) and event.get("id")]
+    changed_ids = {str(event["id"]) for event in changed}
+    changed_anchors = {
+        str(anchor).casefold()
+        for event in changed
+        for anchor in event.get("case_anchors", []) or []
+        if str(anchor).strip()
+    }
+    affected_case_ids: set[str] = set()
+    affected_member_ids: set[str] = set()
+    for case in previous_cases:
+        member_ids = {str(value) for value in case.get("event_ids", []) or []}
+        anchors = {str(value).casefold() for value in case.get("anchors", []) or []}
+        if member_ids & (changed_ids | deleted_ids) or anchors & changed_anchors:
+            case_id = str(case.get("case_id") or "")
+            if case_id:
+                affected_case_ids.add(case_id)
+            affected_member_ids.update(member_ids)
+    subset_by_id: dict[str, dict[str, Any]] = {}
+    for event_id in affected_member_ids:
+        event = final_events.get(event_id)
+        if event is not None:
+            subset_by_id[event_id] = event
+    for event in changed:
+        subset_by_id[str(event["id"])] = event
+    rebuilt = build_continuity_graph(subset_by_id.values()) if subset_by_id else {
+        "semantics": "STRONG_ANCHOR_CASE_IDENTITY; BROAD_GITHUB_ANCHORS_CONTEXT_ONLY",
+        "case_count": 0,
+        "summary": {},
+        "cases": [],
+    }
+    merged_cases = [
+        case for case in previous_cases
+        if str(case.get("case_id") or "") not in affected_case_ids
+    ]
+    merged_cases.extend(dict(case) for case in rebuilt.get("cases", []) or [] if isinstance(case, dict))
+    merged_cases.sort(
+        key=lambda case: (
+            1 if case.get("severity") == "RED" else 0,
+            _dt(case.get("latest_signal_at")) or datetime.min.replace(tzinfo=timezone.utc),
+            str(case.get("case_id") or ""),
+        ),
+        reverse=True,
+    )
+    graph = {
+        "semantics": previous_graph.get("semantics") or rebuilt.get("semantics") or "STRONG_ANCHOR_CASE_IDENTITY; BROAD_GITHUB_ANCHORS_CONTEXT_ONLY",
+        "case_count": len(merged_cases),
+        "summary": _continuity_summary_from_cases(merged_cases),
+        "cases": merged_cases,
+    }
+    return graph, {
+        "changed_events": len(changed),
+        "affected_previous_cases": len(affected_case_ids),
+        "rebuilt_member_events": len(subset_by_id),
+        "rebuilt_cases": len(rebuilt.get("cases", []) or []),
+    }
+
+
+def _sha_ref_matches(ref: str, sha: str) -> bool:
+    ref = str(ref or "").casefold()
+    sha = str(sha or "").casefold()
+    return bool(ref and sha and (sha.startswith(ref) or ref.startswith(sha)))
+
+
+def _patch_work_graph(
+    previous_graph: dict[str, Any],
+    previous_events: dict[str, dict[str, Any]],
+    final_events: dict[str, dict[str, Any]],
+    changed_events: Iterable[dict[str, Any]],
+    deleted_ids: set[str],
+) -> tuple[dict[str, Any], dict[str, int]]:
+    previous_groups = [dict(row) for row in previous_graph.get("commit_groups", []) or [] if isinstance(row, dict)]
+    previous_workstreams = [dict(row) for row in previous_graph.get("workstreams", []) or [] if isinstance(row, dict)]
+    changed = [dict(event) for event in changed_events if isinstance(event, dict) and event.get("id")]
+    changed_ids = {str(event["id"]) for event in changed}
+    delta_sha_refs = {ref for event in changed for ref in _event_sha_refs(event)}
+    delta_github = {anchor for event in changed for anchor in _event_github_anchors(event)}
+    delta_commits = [event for event in changed if event.get("source_type") == "GIT_COMMIT" and event.get("sha")]
+
+    affected_work_ids: set[str] = set()
+    affected_event_ids: set[str] = set()
+    affected_commit_keys: set[tuple[str, str]] = set()
+    affected_anchors: set[str] = set(delta_github)
+
+    for row in previous_groups:
+        attached = {str(value) for value in row.get("attached_event_ids", []) or []}
+        group_anchors = {str(value).casefold() for value in row.get("github_anchors", []) or []}
+        group_commits = [commit for commit in row.get("commits", []) or [] if isinstance(commit, dict)]
+        project = str(row.get("project") or "")
+        affected = bool(attached & (changed_ids | deleted_ids) or group_anchors & delta_github)
+        if not affected and delta_sha_refs:
+            affected = any(
+                _sha_ref_matches(ref, str(commit.get("sha") or ""))
+                for ref in delta_sha_refs
+                for commit in group_commits
+            )
+        if not affected and delta_commits:
+            for delta_commit in delta_commits:
+                if str(delta_commit.get("project") or "") != project:
+                    continue
+                delta_patch = str(delta_commit.get("patch_id") or "")
+                delta_subject = _subject_key(delta_commit.get("title"))
+                delta_at = _dt(delta_commit.get("event_at"))
+                delta_branches = _event_branch_refs(delta_commit)
+                for commit in group_commits:
+                    if str(delta_commit.get("sha") or "").casefold() == str(commit.get("sha") or "").casefold():
+                        affected = True
+                        break
+                    if delta_patch and delta_patch == str(commit.get("patch_id") or ""):
+                        affected = True
+                        break
+                    if delta_subject and delta_subject == str(row.get("subject_key") or ""):
+                        prior_at = _dt(commit.get("at"))
+                        nearby = bool(
+                            delta_at and prior_at
+                            and abs((delta_at - prior_at).total_seconds()) <= 48 * 3600
+                            and (delta_branches or commit.get("branch_refs"))
+                        )
+                        if group_anchors & _event_github_anchors(delta_commit) or (len(delta_subject.split()) >= 4 and nearby):
+                            affected = True
+                            break
+                if affected:
+                    break
+        if not affected:
+            continue
+        work_id = str(row.get("work_id") or "")
+        if work_id:
+            affected_work_ids.add(work_id)
+        affected_event_ids.update(attached)
+        affected_anchors.update(group_anchors)
+        for commit in group_commits:
+            sha = str(commit.get("sha") or "").casefold()
+            if sha:
+                affected_commit_keys.add((project, sha))
+
+    subset_by_id: dict[str, dict[str, Any]] = {}
+    for event_id in affected_event_ids:
+        event = final_events.get(event_id)
+        if event is not None:
+            subset_by_id[event_id] = event
+    for event in final_events.values():
+        if event.get("source_type") == "GIT_COMMIT":
+            key = (str(event.get("project") or ""), str(event.get("sha") or "").casefold())
+            if key in affected_commit_keys:
+                subset_by_id[str(event.get("id") or key[1])] = event
+        elif affected_anchors and (_event_github_anchors(event) & affected_anchors):
+            subset_by_id[str(event.get("id") or "")] = event
+    for event in changed:
+        subset_by_id[str(event["id"])] = event
+
+    rebuilt = build_work_graph(subset_by_id.values()) if subset_by_id else {
+        "schema": previous_graph.get("schema") or "vault.timeline.work-graph.v1",
+        "contract": previous_graph.get("contract"),
+        "commit_groups": [],
+        "similar_commit_groups": [],
+        "workstreams": [],
+        "summary": {},
+    }
+    merged_groups = [
+        row for row in previous_groups
+        if str(row.get("work_id") or "") not in affected_work_ids
+    ]
+    merged_groups.extend(dict(row) for row in rebuilt.get("commit_groups", []) or [] if isinstance(row, dict))
+    merged_groups.sort(key=lambda row: (_instant_key(row.get("latest_at")), str(row.get("work_id") or "")), reverse=True)
+    similar = [
+        {
+            "work_id": row.get("work_id"),
+            "project": row.get("project"),
+            "title": row.get("title"),
+            "commit_count": row.get("commit_count"),
+            "branch_refs": row.get("branch_refs", []),
+            "cross_branch": row.get("cross_branch", False),
+            "workers": len(row.get("workers", []) or []),
+            "efficiency": row.get("efficiency", {}),
+        }
+        for row in merged_groups
+        if int(row.get("commit_count") or 0) > 1
+    ]
+    replacement_streams = {
+        str(row.get("anchor") or ""): dict(row)
+        for row in rebuilt.get("workstreams", []) or []
+        if isinstance(row, dict) and row.get("anchor")
+    }
+    replaced_anchors = set(replacement_streams) | affected_anchors
+    merged_streams = [
+        row for row in previous_workstreams
+        if str(row.get("anchor") or "") not in replaced_anchors
+    ]
+    merged_streams.extend(replacement_streams.values())
+    merged_streams.sort(key=lambda row: (_instant_key(row.get("latest_at")), str(row.get("anchor") or "")), reverse=True)
+    attached_ids = {
+        str(event_id)
+        for row in merged_groups
+        for event_id in row.get("attached_event_ids", []) or []
+        if str(event_id)
+    }
+    summary = {
+        "commit_groups": len(merged_groups),
+        "equivalent_commit_groups": len(similar),
+        "cross_branch_groups": sum(1 for row in similar if row.get("cross_branch")),
+        "attached_observations": len(attached_ids),
+        "workstreams": len(merged_streams),
+    }
+    return {
+        "schema": previous_graph.get("schema") or rebuilt.get("schema") or "vault.timeline.work-graph.v1",
+        "contract": previous_graph.get("contract") or rebuilt.get("contract"),
+        "commit_groups": merged_groups,
+        "similar_commit_groups": similar,
+        "workstreams": merged_streams,
+        "summary": summary,
+    }, {
+        "changed_events": len(changed),
+        "affected_previous_groups": len(affected_work_ids),
+        "rebuilt_member_events": len(subset_by_id),
+        "rebuilt_groups": len(rebuilt.get("commit_groups", []) or []),
+    }
+
+
+def _build_query_index_payload(events: Iterable[dict[str, Any]], *, generated_at: str) -> dict[str, Any]:
+    query_events: dict[str, dict[str, Any]] = {}
+    for raw in events:
+        if isinstance(raw, dict) and raw.get("id"):
+            query_events[str(raw["id"])] = raw
+    query_ids = list(query_events)
+    postings: dict[str, list[int]] = defaultdict(list)
+    weight_codes: dict[str, bytearray] = defaultdict(bytearray)
+    query_anchors: list[list[str]] = []
+    for index, event in enumerate(query_events.values()):
+        best_weight_by_token: dict[str, float] = {}
+        for weight, tokens in _event_query_fields(event):
+            for token in tokens:
+                if weight > best_weight_by_token.get(token, 0.0):
+                    best_weight_by_token[token] = weight
+        for token, weight in best_weight_by_token.items():
+            postings[token].append(index)
+            weight_codes[token].append(_QUERY_WEIGHT_TO_CODE[weight])
+        query_anchors.append(_event_anchors(event))
+    return {
+        "schema": QUERY_INDEX_SCHEMA,
+        "generated_at": generated_at,
+        "ids": query_ids,
+        "postings": dict(postings),
+        "weight_codes": {token: bytes(codes) for token, codes in weight_codes.items()},
+        "anchors": query_anchors,
+    }
+
+
+def _append_query_index_delta(
+    previous_index: dict[str, Any],
+    changed_events: Iterable[dict[str, Any]],
+    *,
+    generated_at: str,
+) -> tuple[dict[str, Any], dict[str, int]]:
+    ids = list(previous_index.get("ids", []) or [])
+    postings = {str(token): list(values) for token, values in (previous_index.get("postings") or {}).items()}
+    weight_codes = {str(token): bytearray(values) for token, values in (previous_index.get("weight_codes") or {}).items()}
+    anchors = [list(values) for values in previous_index.get("anchors", []) or []]
+    appended = 0
+    for event in changed_events:
+        if not isinstance(event, dict) or not event.get("id"):
+            continue
+        position = len(ids)
+        ids.append(str(event["id"]))
+        best_weight_by_token: dict[str, float] = {}
+        for weight, tokens in _event_query_fields(event):
+            for token in tokens:
+                if weight > best_weight_by_token.get(token, 0.0):
+                    best_weight_by_token[token] = weight
+        for token, weight in best_weight_by_token.items():
+            postings.setdefault(token, []).append(position)
+            weight_codes.setdefault(token, bytearray()).append(_QUERY_WEIGHT_TO_CODE[weight])
+        anchors.append(_event_anchors(event))
+        appended += 1
+    return {
+        "schema": QUERY_INDEX_SCHEMA,
+        "generated_at": generated_at,
+        "ids": ids,
+        "postings": postings,
+        "weight_codes": {token: bytes(codes) for token, codes in weight_codes.items()},
+        "anchors": anchors,
+    }, {"appended_positions": appended, "stored_positions": len(ids)}
+
+
 def materialize(
     *,
     root: Path = ROOT,
@@ -2072,6 +2707,17 @@ def materialize(
             name: _materialized_source_since(previous if incremental else None, name, horizon_since=horizon_since)
             for name in source_names
         }
+        previous_generated_at = str(previous.get("generated_at") or "") if isinstance(previous, dict) else ""
+        previous_watermarks = (
+            dict(previous["source_watermarks"])
+            if isinstance(previous, dict) and isinstance(previous.get("source_watermarks"), dict)
+            else {}
+        )
+        previous_ingestion = (
+            dict(previous["ingestion"])
+            if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict)
+            else {}
+        )
 
         specs = discover_repo_specs(vault_root=root)
         project_to_slug, _ = _repo_maps(specs)
@@ -2151,24 +2797,40 @@ def materialize(
         ]
         all_delta = [*legacy_repo_repair_delta, *repo_delta, *worker_delta, *artifact_delta, *supplemental_delta]
 
-        merged_external = _merge_materialized_events(
-            previous_events, all_delta, since=horizon_since
-        )
-        active_external = [event for event in merged_external if _event_within_horizon(event, horizon_since)]
-        historical_evidence_events = [event for event in merged_external if event.get("retain_history")]
-        historical_evidence_events.sort(
-            key=lambda event: (_dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), str(event.get("id") or "")),
-            reverse=True,
-        )
-        historical_evidence_events = historical_evidence_events[:DEFAULT_HISTORICAL_EVIDENCE_EVENTS]
-        repo_events = [event for event in active_external if event.get("source_type") == "GIT_COMMIT"]
-        worker_events = [event for event in active_external if event.get("source_type") == "WORKER_REPORT"]
-        worker_archive = build_worker_archive_summary(worker_events, now=now, horizon_days=days)
-        artifact_events = [event for event in active_external if event.get("source_type") == "TRACKED_ARTIFACT"]
-        supplemental = [
-            event for event in active_external
-            if event.get("source_type") not in {"GIT_COMMIT", "WORKER_REPORT", "TRACKED_ARTIFACT"}
-        ]
+        if incremental:
+            external_ids = {
+                str(event.get("id") or "")
+                for event in previous_events
+                if event.get("id") and not event.get("current_only")
+            }
+            external_ids.update(str(event.get("id") or "") for event in all_delta if event.get("id"))
+            merged_external_count = len(external_ids)
+            merged_external = []
+            active_external = []
+            historical_evidence_events: list[dict[str, Any]] = []
+            repo_events: list[dict[str, Any]] = []
+            worker_events: list[dict[str, Any]] = []
+            artifact_events: list[dict[str, Any]] = []
+            supplemental: list[dict[str, Any]] = []
+        else:
+            merged_external = _merge_materialized_events(
+                previous_events, all_delta, since=horizon_since
+            )
+            merged_external_count = len(merged_external)
+            active_external = [event for event in merged_external if _event_within_horizon(event, horizon_since)]
+            historical_evidence_events = [event for event in merged_external if event.get("retain_history")]
+            historical_evidence_events.sort(
+                key=lambda event: (_dt(event.get("event_at")) or datetime.min.replace(tzinfo=timezone.utc), str(event.get("id") or "")),
+                reverse=True,
+            )
+            historical_evidence_events = historical_evidence_events[:DEFAULT_HISTORICAL_EVIDENCE_EVENTS]
+            repo_events = [event for event in active_external if event.get("source_type") == "GIT_COMMIT"]
+            worker_events = [event for event in active_external if event.get("source_type") == "WORKER_REPORT"]
+            artifact_events = [event for event in active_external if event.get("source_type") == "TRACKED_ARTIFACT"]
+            supplemental = [
+                event for event in active_external
+                if event.get("source_type") not in {"GIT_COMMIT", "WORKER_REPORT", "TRACKED_ARTIFACT"}
+            ]
 
         delta_coverage = {
             "repos": repo_report.get("coverage", {}),
@@ -2196,15 +2858,13 @@ def materialize(
             if isinstance(delta_coverage.get(name), dict) and delta_coverage[name].get("skipped") is True
         ]
 
-        previous_watermarks = previous.get("source_watermarks") if isinstance(previous, dict) and isinstance(previous.get("source_watermarks"), dict) else {}
         source_watermarks: dict[str, str] = {}
         for name in source_names:
             if name in skipped_sources or (refresh_mode == "INCREMENTAL" and name in saturated_sources):
-                source_watermarks[name] = str(previous_watermarks.get(name) or (previous or {}).get("generated_at") or source_since[name].isoformat())
+                source_watermarks[name] = str(previous_watermarks.get(name) or previous_generated_at or source_since[name].isoformat())
             else:
                 source_watermarks[name] = now.isoformat()
 
-        previous_ingestion = previous.get("ingestion") if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict) else {}
         previous_backfill_incomplete = set(str(value) for value in previous_ingestion.get("backfill_incomplete_sources", []) if str(value).strip())
         backfill_incomplete_sources = (
             sorted(set(saturated_sources) | set(skipped_sources))
@@ -2222,32 +2882,140 @@ def materialize(
                 "delta_events": len(all_delta),
                 "legacy_repo_events_reenriched": len(legacy_repo_repair_delta),
                 "retained_previous_external_events": len(previous_events),
-                "merged_external_events": len(merged_external),
+                "merged_external_events": merged_external_count,
                 "saturated_sources": saturated_sources,
                 "skipped_sources": skipped_sources,
                 "backfill_incomplete_sources": backfill_incomplete_sources,
                 "retry_sources": retry_sources,
             },
         }
-        timeline = build_timeline(
-            entries,
-            limit=max_events,
-            max_limit=max_events,
-            since=horizon_since,
-            repo_events=repo_events,
-            worker_events=worker_events,
-            artifact_events=artifact_events,
-            supplemental_events=supplemental,
-            snapshot_now=now,
-            source_coverage=source_coverage,
-        )
-        _enrich_memory_search_text(timeline.get("events", []), entries)
-        timeline["historical_evidence_events"] = historical_evidence_events
-        timeline["worker_archive"] = worker_archive
-        continuity_graph = build_continuity_graph(timeline["events"])
-        timeline["continuity_graph"] = continuity_graph
-        graph = build_work_graph(timeline["events"])
-        timeline["work_graph"] = graph
+        if incremental and isinstance(previous_timeline, dict):
+            projected_upserts, memory_deletes, memory_projection, delta_projection = _project_delta_events(
+                entries=entries,
+                previous_timeline=previous_timeline,
+                repo_delta=[*legacy_repo_repair_delta, *repo_delta],
+                worker_delta=worker_delta,
+                artifact_delta=artifact_delta,
+                supplemental_delta=supplemental_delta,
+                horizon_since=horizon_since,
+                now=now,
+            )
+            final_events, deleted_ids, projected_total = _merge_projected_events(
+                previous_timeline,
+                projected_upserts,
+                explicit_deletes=memory_deletes,
+                max_events=max_events,
+            )
+            previous_event_map = {
+                str(event.get("id") or ""): dict(event)
+                for event in [
+                    *(previous_timeline.get("events", []) or []),
+                    *(previous_timeline.get("historical_evidence_events", []) or []),
+                ]
+                if isinstance(event, dict) and event.get("id")
+            }
+            final_event_map = {
+                str(event.get("id") or ""): event
+                for event in final_events
+                if event.get("id")
+            }
+            previous_historical = [
+                dict(event) for event in previous_timeline.get("historical_evidence_events", []) or []
+                if isinstance(event, dict)
+            ]
+            historical_evidence_events = _merge_materialized_events(
+                previous_historical,
+                [event for event in projected_upserts if event.get("retain_history")],
+                since=horizon_since,
+            )[:DEFAULT_HISTORICAL_EVIDENCE_EVENTS]
+            worker_events = [event for event in final_events if event.get("source_type") == "WORKER_REPORT"]
+            worker_archive = build_worker_archive_summary(worker_events, now=now, horizon_days=days)
+            snapshots = build_timeline_snapshots(final_events, now=now)
+            snapshots["coverage"] = dict(source_coverage)
+            memory_snapshots = memory_projection.get("snapshots") if isinstance(memory_projection.get("snapshots"), dict) else {}
+            if isinstance(memory_snapshots.get("preserved_memory_history"), dict):
+                snapshots["preserved_memory_history"] = dict(memory_snapshots["preserved_memory_history"])
+            previous_continuity = previous_timeline.get("continuity_graph") if isinstance(previous_timeline.get("continuity_graph"), dict) else {}
+            continuity_graph, continuity_delta_stats = _patch_continuity_graph(
+                previous_continuity,
+                previous_event_map,
+                final_event_map,
+                projected_upserts,
+                deleted_ids,
+            )
+            previous_work_graph = previous_timeline.get("work_graph") if isinstance(previous_timeline.get("work_graph"), dict) else {}
+            graph, work_delta_stats = _patch_work_graph(
+                previous_work_graph,
+                previous_event_map,
+                final_event_map,
+                projected_upserts,
+                deleted_ids,
+            )
+            source_counts = _coverage_counts(final_events)
+            timeline = {
+                "schema_version": previous_timeline.get("schema_version") or memory_projection.get("schema_version") or 3,
+                "authority": previous_timeline.get("authority") or memory_projection.get("authority") or "DERIVED_HISTORY_ONLY",
+                "contract": previous_timeline.get("contract") or memory_projection.get("contract") or {},
+                "view": "general",
+                "project": None,
+                "query": "",
+                "thread": None,
+                "matching_events": len(final_events),
+                "memory_events": int(source_counts.get("VAULT_MEMORY", 0)),
+                "repo_events": int(source_counts.get("GIT_COMMIT", 0)),
+                "worker_events": int(source_counts.get("WORKER_REPORT", 0)),
+                "artifact_events": int(source_counts.get("TRACKED_ARTIFACT", 0)),
+                "supplemental_events": len(final_events) - sum(int(source_counts.get(name, 0)) for name in ("VAULT_MEMORY", "GIT_COMMIT", "WORKER_REPORT", "TRACKED_ARTIFACT")),
+                "invalid_source_events": dict(delta_projection.get("invalid_source_events") or {}),
+                "source_coverage": dict(source_coverage),
+                "matching_threads": int(memory_projection.get("matching_threads") or 0),
+                "events": final_events,
+                "threads": list(memory_projection.get("threads") or []),
+                "snapshots": snapshots,
+                "truncated": bool(previous_timeline.get("truncated") or projected_total > max_events),
+                "historical_evidence_events": historical_evidence_events,
+                "worker_archive": worker_archive,
+                "continuity_graph": continuity_graph,
+                "work_graph": graph,
+            }
+            delta_runtime = {
+                "projection_mode": "DELTA_ONLY",
+                "source_delta_events": len(all_delta),
+                "projected_upserts": len(projected_upserts),
+                "deleted_projected_events": len(deleted_ids),
+                "untouched_projected_events": max(0, len(final_events) - len({str(event.get('id') or '') for event in projected_upserts})),
+                "continuity": continuity_delta_stats,
+                "work_graph": work_delta_stats,
+            }
+        else:
+            timeline = build_timeline(
+                entries,
+                limit=max_events,
+                max_limit=max_events,
+                since=horizon_since,
+                repo_events=repo_events,
+                worker_events=worker_events,
+                artifact_events=artifact_events,
+                supplemental_events=supplemental,
+                snapshot_now=now,
+                source_coverage=source_coverage,
+            )
+            _enrich_memory_search_text(timeline.get("events", []), entries)
+            timeline["historical_evidence_events"] = historical_evidence_events
+            worker_archive = build_worker_archive_summary(worker_events, now=now, horizon_days=days)
+            timeline["worker_archive"] = worker_archive
+            continuity_graph = build_continuity_graph(timeline["events"])
+            timeline["continuity_graph"] = continuity_graph
+            graph = build_work_graph(timeline["events"])
+            timeline["work_graph"] = graph
+            projected_upserts = list(timeline.get("events", []) or [])
+            deleted_ids: set[str] = set()
+            delta_runtime = {
+                "projection_mode": "FULL_BACKFILL",
+                "source_delta_events": len(all_delta),
+                "projected_upserts": len(projected_upserts),
+                "deleted_projected_events": 0,
+            }
         timeline["materialized"] = {
             "schema": SCHEMA,
             "generated_at": now.isoformat(),
@@ -2264,6 +3032,7 @@ def materialize(
             "retry_sources": retry_sources,
             "historical_evidence_events": len(historical_evidence_events),
             "timeline_truncated": bool(timeline.get("truncated")),
+            "delta_materialization": delta_runtime,
         }
 
         store_payload = {
@@ -2285,35 +3054,35 @@ def materialize(
         }
         _atomic_json(store_path, store_payload)
 
-        # Compact multi-reader index: canonical JSON remains the complete source. The
-        # sidecar stores only token postings plus normalized lineage anchors so distinct
-        # queries can narrow/rank the full rich events without repeating work across agents.
-        query_events: dict[str, dict[str, Any]] = {}
-        for raw in [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])]:
-            if isinstance(raw, dict) and raw.get("id"):
-                query_events[str(raw["id"])] = raw
-        query_ids = list(query_events)
-        postings: dict[str, list[int]] = defaultdict(list)
-        weight_codes: dict[str, bytearray] = defaultdict(bytearray)
-        query_anchors: list[list[str]] = []
-        for index, event in enumerate(query_events.values()):
-            best_weight_by_token: dict[str, float] = {}
-            for weight, tokens in _event_query_fields(event):
-                for token in tokens:
-                    if weight > best_weight_by_token.get(token, 0.0):
-                        best_weight_by_token[token] = weight
-            for token, weight in best_weight_by_token.items():
-                postings[token].append(index)
-                weight_codes[token].append(_QUERY_WEIGHT_TO_CODE[weight])
-            query_anchors.append(_event_anchors(event))
-        _atomic_pickle(query_index_path, {
-            "schema": QUERY_INDEX_SCHEMA,
-            "generated_at": str(store_payload.get("generated_at") or ""),
-            "ids": query_ids,
-            "postings": dict(postings),
-            "weight_codes": {token: bytes(codes) for token, codes in weight_codes.items()},
-            "anchors": query_anchors,
-        })
+        # Incremental refresh appends only changed event positions. Duplicate IDs are
+        # intentional: query readers resolve the newest position for a replaced event,
+        # while stale postings become unreachable without an O(corpus) delete pass.
+        if incremental:
+            previous_query_index = _read_query_index(query_index_path, generated_at=previous_generated_at)
+            if previous_query_index is not None:
+                query_index_payload, query_index_stats = _append_query_index_delta(
+                    previous_query_index,
+                    projected_upserts,
+                    generated_at=str(store_payload.get("generated_at") or ""),
+                )
+                _atomic_pickle(query_index_path, query_index_payload)
+                query_index_mode = "DELTA_APPEND"
+            else:
+                query_index_path.unlink(missing_ok=True)
+                query_index_stats = {"appended_positions": 0, "stored_positions": 0}
+                query_index_mode = "MISSING_UNTIL_EXPLICIT_REBUILD"
+        else:
+            query_index_payload = _build_query_index_payload(
+                [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])],
+                generated_at=str(store_payload.get("generated_at") or ""),
+            )
+            _atomic_pickle(query_index_path, query_index_payload)
+            query_index_stats = {
+                "appended_positions": len(query_index_payload.get("ids", []) or []),
+                "stored_positions": len(query_index_payload.get("ids", []) or []),
+            }
+            query_index_mode = "FULL_REBUILD"
+        delta_runtime["query_index"] = {"mode": query_index_mode, **query_index_stats}
 
         overview = build_overview(entries, limit=20, include_timeline_snapshots=False, now=now)
         overview["timeline_snapshots"] = timeline["snapshots"]
@@ -2376,11 +3145,12 @@ def materialize(
             "continuity_graph": continuity_graph["summary"],
             "worker_archive": worker_archive["archive_sample"],
             "work_graph": graph["summary"],
+            "delta_materialization": delta_runtime,
             "store_path": str(store_path),
             "query_index_path": str(query_index_path),
             "bootstrap_path": str(bootstrap_path),
             "store_bytes": store_path.stat().st_size,
-            "query_index_bytes": query_index_path.stat().st_size,
+            "query_index_bytes": query_index_path.stat().st_size if query_index_path.is_file() else 0,
             "bootstrap_bytes": bootstrap_path.stat().st_size,
         }
         _atomic_json(status_path, status)

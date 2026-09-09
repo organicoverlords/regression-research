@@ -3,6 +3,8 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
+import time
 import unittest
 from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
@@ -466,6 +468,36 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("created >=2026-09-05T00:00:00Z", commands[2])
         self.assertNotIn("--created", commands[3])
 
+    def test_github_adapter_parallelizes_distinct_repos_and_preserves_repo_order(self):
+        specs = [RepoSpec("alpha", Path("C:/fake/alpha")), RepoSpec("beta", Path("C:/fake/beta"))]
+        lock = threading.Lock()
+        active = 0
+        max_active = 0
+
+        def fake_slug(spec):
+            return f"organicoverlords/{spec.project}"
+
+        def fake_run_json(_command, **_kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            try:
+                time.sleep(0.02)
+                return [], None
+            finally:
+                with lock:
+                    active -= 1
+
+        with patch("tools.timeline_materializer._github_slug", side_effect=fake_slug), patch(
+            "tools.timeline_materializer._run_json", side_effect=fake_run_json
+        ):
+            events, coverage = github_events(specs, since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+        self.assertGreaterEqual(max_active, 2)
+        self.assertEqual(list(coverage["repos"]), ["organicoverlords/alpha", "organicoverlords/beta"])
+        summaries = [event for event in events if event["source_type"] == "GITHUB_ACTION_SUMMARY"]
+        self.assertEqual([event["project"] for event in summaries], ["alpha", "beta"])
+
     def test_github_adapter_marks_per_kind_saturation_at_query_limit(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
         now = "2026-09-06T05:00:00Z"
@@ -674,8 +706,11 @@ class TimelineMaterializerTests(unittest.TestCase):
                 f"[INF] Running job for {sha}\n[WRN] warning\n[ERR] failure\nAuthorization: Bearer SECRET {sha}\n",
                 encoding="utf-8",
             )
-            with patch("tools.timeline_materializer._runner_diag_roots", return_value=[diag]):
+            with patch("tools.timeline_materializer._runner_diag_roots", return_value=[diag]), patch(
+                "tools.timeline_materializer.os.scandir", wraps=os.scandir
+            ) as scandir:
                 events, coverage = runner_log_events(since=datetime.now().astimezone() - timedelta(days=1))
+            self.assertEqual(scandir.call_count, 1)
             self.assertEqual(len(events), 1)
             event = events[0]
             self.assertIn(sha, event["refs"])
