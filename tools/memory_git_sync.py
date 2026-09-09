@@ -151,7 +151,46 @@ def sync_lock(bank_path: Path, timeout_seconds: float = 15.0) -> Iterator[None]:
             pass
 
 
-def _remote_branch_exists() -> bool:
+def _ghbuf_executable() -> str | None:
+    found = shutil.which("ghbuf")
+    if found:
+        return found
+    name = "ghbuf.exe" if IS_WINDOWS else "ghbuf"
+    candidate = Path.home() / ".local" / "bin" / name
+    return str(candidate) if candidate.is_file() else None
+
+
+def _accelerated_remote_branch_probe() -> subprocess.CompletedProcess[str] | None:
+    ghbuf = _ghbuf_executable()
+    if not ghbuf:
+        return None
+    try:
+        return subprocess.run(
+            [
+                ghbuf,
+                "exec-git",
+                "--",
+                "git",
+                "ls-remote",
+                "--exit-code",
+                "--heads",
+                REMOTE,
+                f"refs/heads/{BRANCH}",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+        )
+    except OSError:
+        return None
+
+
+def _remote_branch_exists(*, authoritative: bool = False) -> bool:
+    if not authoritative:
+        accelerated = _accelerated_remote_branch_probe()
+        if accelerated is not None and accelerated.returncode in (0, 2):
+            return accelerated.returncode == 0 and bool(accelerated.stdout.strip())
     proc = _git(
         "ls-remote", "--exit-code", "--heads", REMOTE, f"refs/heads/{BRANCH}",
         check=False,
@@ -171,7 +210,7 @@ def _ensure_remote_branch() -> bool:
     if not seed:
         raise MemorySyncError(f"memory sync could not resolve seed branch: {REMOTE}/{SEED_BRANCH}")
     pushed = _git("push", REMOTE, f"{seed}:refs/heads/{BRANCH}", check=False)
-    if pushed.returncode != 0 and not _remote_branch_exists():
+    if pushed.returncode != 0 and not _remote_branch_exists(authoritative=True):
         detail = (pushed.stderr or pushed.stdout).strip()[-1600:]
         raise MemorySyncError(f"memory sync could not recreate {REMOTE}/{BRANCH}: {detail}")
     return True

@@ -4,7 +4,20 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _ensure_remote_branch, _git, _memory_commit_message, _validate_sync_branch, _write_bank, merge_bank_entries
+from tools.memory_git_sync import (
+    BRANCH,
+    REPO_ROOT,
+    MemorySyncError,
+    _accelerated_remote_branch_probe,
+    _align_checkout,
+    _ensure_remote_branch,
+    _git,
+    _memory_commit_message,
+    _remote_branch_exists,
+    _validate_sync_branch,
+    _write_bank,
+    merge_bank_entries,
+)
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -17,13 +30,12 @@ class MemoryGitSyncTests(unittest.TestCase):
 
     def test_missing_sync_branch_is_recreated_from_main_without_pushing_main(self):
         calls = []
-        branch_checks = iter([False, True])
+        accelerated_missing = subprocess.CompletedProcess([], 2, "", "")
 
         def fake_git(*args, cwd=None, check=True):
             calls.append(args)
             if args[:3] == ("ls-remote", "--exit-code", "--heads"):
-                exists = next(branch_checks)
-                return subprocess.CompletedProcess(args, 0 if exists else 2, "deadbeef\trefs/heads/memory/live\n" if exists else "", "")
+                return subprocess.CompletedProcess(args, 0, "deadbeef\trefs/heads/memory/live\n", "")
             if args == ("fetch", "origin", "main"):
                 return subprocess.CompletedProcess(args, 0, "", "")
             if args == ("rev-parse", "origin/main"):
@@ -32,17 +44,58 @@ class MemoryGitSyncTests(unittest.TestCase):
                 return subprocess.CompletedProcess(args, 1, "", "remote raced")
             raise AssertionError(args)
 
-        with patch("tools.memory_git_sync._git", side_effect=fake_git):
+        with patch(
+            "tools.memory_git_sync._accelerated_remote_branch_probe", return_value=accelerated_missing
+        ) as accelerated, patch("tools.memory_git_sync._git", side_effect=fake_git):
             self.assertTrue(_ensure_remote_branch())
 
+        accelerated.assert_called_once_with()
         self.assertIn(("push", "origin", "abc123:refs/heads/memory/live"), calls)
+        self.assertIn(("ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live"), calls)
         self.assertFalse(any(args[:2] == ("push", "origin") and args[-1].endswith(":refs/heads/main") for args in calls))
 
-    def test_existing_sync_branch_needs_no_seed_push(self):
+    def test_existing_sync_branch_uses_accelerated_probe_without_direct_git(self):
         existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
-        with patch("tools.memory_git_sync._git", return_value=existing) as git:
+        with patch(
+            "tools.memory_git_sync._accelerated_remote_branch_probe", return_value=existing
+        ), patch("tools.memory_git_sync._git") as git:
             self.assertFalse(_ensure_remote_branch())
-        git.assert_called_once_with("ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False)
+        git.assert_not_called()
+
+    def test_accelerator_failure_falls_back_to_direct_git(self):
+        failed = subprocess.CompletedProcess([], 1, "", "proxy unavailable")
+        existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
+        with patch(
+            "tools.memory_git_sync._accelerated_remote_branch_probe", return_value=failed
+        ), patch("tools.memory_git_sync._git", return_value=existing) as git:
+            self.assertTrue(_remote_branch_exists())
+        git.assert_called_once_with(
+            "ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False
+        )
+
+    def test_accelerated_probe_invokes_git_only_rust_lane(self):
+        completed = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
+        with patch("tools.memory_git_sync._ghbuf_executable", return_value="ghbuf"), patch(
+            "tools.memory_git_sync.subprocess.run", return_value=completed
+        ) as run:
+            self.assertIs(_accelerated_remote_branch_probe(), completed)
+        run.assert_called_once_with(
+            [
+                "ghbuf",
+                "exec-git",
+                "--",
+                "git",
+                "ls-remote",
+                "--exit-code",
+                "--heads",
+                "origin",
+                "refs/heads/memory/live",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            encoding="utf-8",
+            capture_output=True,
+        )
 
     def test_remote_order_is_preserved_and_local_only_entries_append(self):
         remote = [{"id": "a", "text": "remote"}, {"id": "b", "text": "shared"}]
