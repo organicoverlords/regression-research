@@ -19,6 +19,9 @@ class HybridMemoryTests(unittest.TestCase):
         hits = search_entries_hybrid(entries, "when asked to refresh, reread before saying it is done")
         self.assertEqual(hits[0]["id"], "target")
 
+    def test_correction_plural_shares_correction_retrieval_concept(self):
+        self.assertEqual(_word_tokens("correction corrections"), ["correction", "correction"])
+
     def test_checkpoint_plural_matches_shared_checkpoint_memory(self):
         checkpoint = self.entry(
             "checkpoint",
