@@ -1027,17 +1027,37 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertIn("mem:falsifier", ids[:3])
 
     def test_install_task_schedules_only_periodic_materializer(self):
-        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="SUCCESS", stderr="")
-        with patch("tools.timeline_materializer.subprocess.run", return_value=completed) as run:
-            result = install_task(minutes=5)
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch("tools.timeline_materializer._scheduled_python_executable", return_value=r"C:\Python\pythonw.exe"), patch(
+            "tools.timeline_materializer.subprocess.run", return_value=completed
+        ) as run:
+            result = install_task(minutes=5, root=Path(r"C:\Users\Lauri\Desktop\vault"))
         command = run.call_args.args[0]
         rendered = " ".join(str(value) for value in command)
         self.assertTrue(result["ok"])
-        self.assertIn("/SC MINUTE", rendered)
-        self.assertIn("/MO 5", rendered)
+        self.assertEqual(result["execution_limit_seconds"], 240)
+        self.assertTrue(result["headless"])
+        self.assertIn("powershell", str(command[0]).casefold())
+        self.assertIn("New-ScheduledTaskTrigger", rendered)
+        self.assertIn("New-ScheduledTaskSettingsSet", rendered)
+        self.assertIn("New-TimeSpan -Minutes 5", rendered)
+        self.assertIn("New-TimeSpan -Seconds 240", rendered)
+        self.assertIn("MultipleInstances IgnoreNew", rendered)
+        self.assertIn("-Hidden", rendered)
+        self.assertIn("pythonw.exe", rendered)
         self.assertIn("timeline_materializer.py", rendered)
-        self.assertIn("refresh --quiet", rendered)
+        self.assertIn("refresh", rendered)
+        self.assertIn("--root", rendered)
+        self.assertIn("--quiet", rendered)
         self.assertNotIn("memory_bank.py timeline", rendered)
+
+    def test_install_task_runtime_limit_stays_below_one_minute_cadence(self):
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch("tools.timeline_materializer._scheduled_python_executable", return_value=r"C:\Python\pythonw.exe"), patch(
+            "tools.timeline_materializer.subprocess.run", return_value=completed
+        ):
+            result = install_task(minutes=1, root=Path(r"C:\Vault"))
+        self.assertEqual(result["execution_limit_seconds"], 50)
 
     def test_materialize_writes_deep_store_and_small_projection_and_query_is_read_only(self):
         with tempfile.TemporaryDirectory() as d:

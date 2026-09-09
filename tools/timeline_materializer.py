@@ -53,6 +53,8 @@ DEFAULT_DAYS: int | None = None
 DEFAULT_REPO_EVENTS = 5000
 DEFAULT_ARTIFACT_EVENTS = 2000
 DEFAULT_REFRESH_MINUTES = 5
+DEFAULT_TASK_EXECUTION_LIMIT_SECONDS = 240
+TASK_EXECUTION_GUARD_SECONDS = 10
 DEFAULT_MAX_EVENTS = 50000
 DEFAULT_GITHUB_EVENTS_PER_KIND = 5000
 DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND = 200
@@ -3528,15 +3530,69 @@ def _emit_json(payload: Any) -> None:
     print(json.dumps(payload, ensure_ascii=True))
 
 
-def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
+def _scheduled_python_executable() -> str | None:
+    """Return a windowless Python executable for the scheduled Windows action."""
+    if os.name != "nt":
+        return sys.executable
+    executable = Path(sys.executable).resolve()
+    if executable.name.casefold() == "pythonw.exe":
+        return str(executable)
+    sibling = executable.with_name("pythonw.exe")
+    if sibling.is_file():
+        return str(sibling)
+    return shutil.which("pythonw.exe")
+
+
+def _powershell_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES, root: Path = ROOT) -> dict[str, Any]:
     minutes = max(1, int(minutes))
-    action = f'"{sys.executable}" "{Path(__file__).resolve()}" refresh --quiet'
+    root = Path(root).resolve()
+    python_executable = _scheduled_python_executable()
+    if os.name == "nt" and not python_executable:
+        return {
+            "ok": False,
+            "status": "TASK_INSTALL_ERROR",
+            "task": TASK_NAME,
+            "error": "pythonw.exe is required for headless scheduled timeline materialization",
+        }
+
+    execution_limit_seconds = min(
+        DEFAULT_TASK_EXECUTION_LIMIT_SECONDS,
+        max(30, minutes * 60 - TASK_EXECUTION_GUARD_SECONDS),
+    )
+    action_args = subprocess.list2cmdline([
+        str(Path(__file__).resolve()),
+        "refresh",
+        "--root",
+        str(root),
+        "--quiet",
+    ])
+    script = "; ".join([
+        "$ErrorActionPreference='Stop'",
+        f"$action=New-ScheduledTaskAction -Execute {_powershell_literal(str(python_executable))} -Argument {_powershell_literal(action_args)}",
+        f"$trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes {minutes})",
+        f"$settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Seconds {execution_limit_seconds}) -MultipleInstances IgnoreNew -Hidden",
+        "$principal=New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited",
+        f"Register-ScheduledTask -TaskName {_powershell_literal(TASK_NAME)} -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null",
+    ])
     command = [
-        "schtasks.exe", "/Create", "/F", "/TN", TASK_NAME,
-        "/SC", "MINUTE", "/MO", str(minutes), "/TR", action,
+        shutil.which("powershell.exe") or "powershell.exe",
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-WindowStyle",
+        "Hidden",
+        "-Command",
+        script,
     ]
     try:
-        proc = _run_process(command, capture_output=True, text=True, encoding=_schtasks_encoding(), errors="replace", check=False, timeout=30)
+        proc = _run_process(
+            command, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False, timeout=30,
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "status": "TASK_INSTALL_ERROR", "error": str(exc)}
     return {
@@ -3544,6 +3600,10 @@ def install_task(*, minutes: int = DEFAULT_REFRESH_MINUTES) -> dict[str, Any]:
         "status": "TASK_INSTALLED" if proc.returncode == 0 else "TASK_INSTALL_ERROR",
         "task": TASK_NAME,
         "minutes": minutes,
+        "execution_limit_seconds": execution_limit_seconds,
+        "headless": True,
+        "python_executable": str(python_executable),
+        "root": str(root),
         "stdout": proc.stdout.strip()[:500],
         "stderr": proc.stderr.strip()[:500],
     }
@@ -3581,6 +3641,7 @@ def build_parser() -> argparse.ArgumentParser:
     refresh.add_argument("--quiet", action="store_true")
     install = sub.add_parser("install-task")
     install.add_argument("--minutes", type=int, default=DEFAULT_REFRESH_MINUTES)
+    install.add_argument("--root", type=Path, default=ROOT, help="Vault root the scheduled serving copy should materialize")
     sub.add_parser("task-status")
     query = sub.add_parser("query")
     query.add_argument("--root", type=Path, default=ROOT, help="Vault root containing .state/timeline")
@@ -3618,7 +3679,7 @@ def main() -> int:
             return 0
         return 0 if result.get("ok") else 1
     if args.command == "install-task":
-        result = install_task(minutes=args.minutes)
+        result = install_task(minutes=args.minutes, root=args.root)
         _emit_json(result)
         return 0 if result.get("ok") else 1
     if args.command == "task-status":
