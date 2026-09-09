@@ -2679,6 +2679,11 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         "local_head": None,
         "remote_main": remote_head,
         "head_matches_remote_main": False,
+        "local_tracking_main": None,
+        "head_matches_local_tracking_main": False,
+        "cached_remote_is_ancestor_of_local": False,
+        "remote_metadata_lags_local_tracking": False,
+        "coherence_basis": "unavailable",
         "dirty": None,
         "coherent": False,
     }
@@ -2705,18 +2710,64 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
             branch = value or None
         elif raw_line and not raw_line.startswith("# "):
             dirty = True
+
+    tracking_head = None
+    try:
+        tracking_proc = subprocess.run(
+            [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
+            text=True, capture_output=True, timeout=0.75,
+        )
+        if tracking_proc.returncode == 0:
+            tracking_head = tracking_proc.stdout.strip() or None
+    except (OSError, subprocess.TimeoutExpired):
+        tracking_head = None
+
     exact_head = bool(local_head and remote_head and local_head == remote_head)
-    coherent = bool(exact_head and branch == expected_branch and not dirty)
+    cached_remote_is_ancestor = exact_head
+    if local_head and remote_head and not exact_head:
+        try:
+            ancestor_proc = subprocess.run(
+                [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
+                text=True, capture_output=True, timeout=0.75,
+            )
+            cached_remote_is_ancestor = ancestor_proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            cached_remote_is_ancestor = False
+
+    tracking_matches = bool(local_head and tracking_head and local_head == tracking_head)
+    metadata_lags_tracking = bool(tracking_matches and cached_remote_is_ancestor and not exact_head)
+    if tracking_head:
+        coherent_head = bool(tracking_matches and cached_remote_is_ancestor)
+    else:
+        # Without a local canonical tracking ref, only exact cached metadata is enough evidence.
+        coherent_head = exact_head
+    coherent = bool(coherent_head and branch == expected_branch and not dirty)
+    if coherent:
+        coherence_basis = "cached_remote_exact" if exact_head else "local_tracking_descends_cached_remote"
+    elif branch != expected_branch:
+        coherence_basis = "wrong_branch"
+    elif dirty:
+        coherence_basis = "dirty"
+    elif tracking_head and not tracking_matches:
+        coherence_basis = "local_head_differs_tracking_main"
+    elif remote_head and not cached_remote_is_ancestor:
+        coherence_basis = "cached_remote_not_ancestor"
+    else:
+        coherence_basis = "remote_relation_unknown"
     result.update({
         "available": bool(local_head),
         "branch": branch,
         "local_head": local_head,
         "head_matches_remote_main": exact_head,
+        "local_tracking_main": tracking_head,
+        "head_matches_local_tracking_main": tracking_matches,
+        "cached_remote_is_ancestor_of_local": cached_remote_is_ancestor,
+        "remote_metadata_lags_local_tracking": metadata_lags_tracking,
+        "coherence_basis": coherence_basis,
         "dirty": dirty,
         "coherent": coherent,
     })
     return result
-
 
 def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remote_commit: Any) -> bool:
     """Detect a fetched remote file delta already present in a locally divergent working file."""
