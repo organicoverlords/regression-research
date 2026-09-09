@@ -17,6 +17,7 @@ try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
+    from .memory_recent_projection import write_recent_projection
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
     from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
@@ -25,6 +26,7 @@ except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
     from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
+    from memory_recent_projection import write_recent_projection
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
     from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
@@ -353,11 +355,16 @@ def append_entry(path: Path, values: dict[str, Any], *, publish: bool = False) -
             with sync_lock(DEFAULT_LOCAL_BANK):
                 if publish:
                     _sync_default_overlay_locked(path, strict=False)
+                    _refresh_recent_titles_projection(path)
                 if _bank_has_id(path, entry["id"]) or _bank_has_id(DEFAULT_LOCAL_BANK, entry["id"]):
                     raise BankError(f"duplicate id {entry['id']}")
                 saved = _append_entry_file(DEFAULT_LOCAL_BANK, entry)
+                _refresh_recent_titles_projection(path)
                 if publish:
-                    _sync_default_overlay_locked(path, strict=True)
+                    try:
+                        _sync_default_overlay_locked(path, strict=True)
+                    finally:
+                        _refresh_recent_titles_projection(path)
                 return saved
         with sync_lock(path):
             if publish:
@@ -425,6 +432,19 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
         for entry in current[:effective_limit]
     ]
 
+
+
+def _refresh_recent_titles_projection(path: Path) -> None:
+    if not _uses_default_local_overlay(path):
+        return
+    try:
+        write_recent_projection(
+            seed_path=path,
+            overlay_path=DEFAULT_LOCAL_BANK,
+            recent=recent_title_entries(_effective_bank_entries(path), limit=MAX_RECENT_TITLES_LIMIT),
+        )
+    except OSError as exc:
+        print(f"MEMORY_RECENT_PROJECTION NOT_PROVEN: {exc}", file=sys.stderr)
 
 
 def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str, Any]:

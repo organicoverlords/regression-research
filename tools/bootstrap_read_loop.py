@@ -7,8 +7,40 @@ import time
 import tempfile
 from pathlib import Path
 
+try:
+    from tools.memory_recent_projection import default_local_bank_path, read_current_projection
+except ImportError:
+    from memory_recent_projection import default_local_bank_path, read_current_projection
+
 HERE = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = HERE.parent
+MEMORY_RECENT_LIMIT = 3
+
+
+def _load_current_memory_projection(repo_root: Path) -> dict | None:
+    seed_path = repo_root / 'memory' / 'memory-bank.jsonl'
+    overlay_path = default_local_bank_path()
+    return read_current_projection(seed_path=seed_path, overlay_path=overlay_path)
+
+
+def _overlay_current_memory(payload: dict, repo_root: Path) -> dict:
+    projection = _load_current_memory_projection(repo_root)
+    if projection is None:
+        return payload
+    recent = projection.get('recent')
+    if not isinstance(recent, list):
+        return payload
+    view = dict(payload)
+    overview = dict(view.get('memory_overview') or {})
+    overview['recent'] = recent[:MEMORY_RECENT_LIMIT]
+    overview['recent_source'] = {
+        'authority': 'DIRECT_LOCAL_EFFECTIVE_MEMORY_PROJECTION',
+        'read_mode': 'fingerprint_validated_recent_titles_projection',
+        'status': 'CURRENT_FOR_EFFECTIVE_MEMORY_FILES',
+        'generated_at': projection.get('generated_at'),
+    }
+    view['memory_overview'] = overview
+    return view
 
 
 def _replace_snapshot(temporary: Path, destination: Path, *, retry_seconds: float = 0.5) -> None:
@@ -52,6 +84,7 @@ def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -
     if (payload.get('schema') != 'bootstrap.v1' or not payload.get('generated_at')
             or end.get('status') != 'COMPLETE' or end.get('schema') != 'bootstrap.v1'):
         raise RuntimeError('bootstrap-glance returned invalid bootstrap.v1 payload')
+    payload = _overlay_current_memory(payload, repo_root)
     encoded = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
     if len(encoded.encode('utf-8')) > 64 * 1024:
         raise RuntimeError('bootstrap snapshot exceeds 64 KiB producer limit')
