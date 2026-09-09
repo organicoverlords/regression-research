@@ -72,6 +72,7 @@ def _run(
         stderr=subprocess.PIPE,
         check=check,
         timeout=timeout,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
     )
 
 
