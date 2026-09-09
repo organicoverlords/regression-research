@@ -1687,6 +1687,70 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertGreater(scored["axes"]["reporting"]["descriptive_delta"], 0.0)
 
 
+    def test_manual_sanity_machine_lifecycle_is_matured_unscored_completeness_diagnostic(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v3",
+                "baseline_id": "machine-lifecycle-diagnostic",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "comparison_window_mode": "since_boundary",
+                "metrics": {"self_reported_lifecycle_anomaly_pct": 20.0},
+                "headline_axes": ["operational"],
+                "axes": {"operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 100.0}}},
+                "sample_gates": {"minimum_post_runs_for_provisional": 1, "minimum_post_runs_for_comparable": 2},
+                "score_semantics": {"direction_threshold": 10.0},
+                "machine_lifecycle_diagnostic": {
+                    "instrumented_at": "2026-09-07T04:00:00+03:00",
+                    "maturity_lag_hours": 6.0,
+                    "recent_window_hours": 24.0,
+                    "minimum_runs_for_comparable": 2,
+                    "scored": False,
+                },
+            }), encoding="utf-8")
+
+            def write_record(name, started, *, lifecycle=None, outcome="useful work"):
+                payload = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": name,
+                    "run_id": name, "started_at": started, "archived_at": "2026-09-08T12:00:00+03:00",
+                    "state": "RUNNING" if lifecycle else "RUN_FINISHED", "outcome": outcome,
+                    "reported_fields": {"run_id": name, "outcome": outcome},
+                    "report_bytes": 100, "manual_transcript_field_count": 1,
+                }
+                if lifecycle:
+                    payload.update({"lifecycle_status": lifecycle, "included_in_metrics": False})
+                (reports / f"{name}.json").write_text(json.dumps(payload), encoding="utf-8")
+
+            # Retrospective pre-boundary reference: visible but explicitly non-comparable.
+            write_record("pre-terminal", "2026-09-06T18:00:00+03:00")
+            write_record("pre-abandoned", "2026-09-06T19:00:00+03:00", lifecycle="ABANDONED_OPEN")
+            # Mature prospective records: one terminal and one machine-classified failure.
+            write_record("post-terminal", "2026-09-07T06:00:00+03:00")
+            write_record("post-abandoned", "2026-09-07T07:00:00+03:00", lifecycle="ABANDONED_OPEN")
+            # Too recent at now=12:00 with a six-hour maturity lag; excluded from failure denominator.
+            write_record("too-recent-open", "2026-09-08T10:00:00+03:00", lifecycle="ABANDONED_OPEN")
+
+            scored = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-08T12:00:00+03:00")
+            )
+            diagnostic = scored["machine_lifecycle"]
+            self.assertFalse(diagnostic["scored"])
+            self.assertEqual(diagnostic["reference_pre_boundary"]["coverage"], "RETROSPECTIVE_SURVIVOR_BIASED")
+            self.assertFalse(diagnostic["reference_pre_boundary"]["comparable_baseline"])
+            self.assertEqual(diagnostic["since_instrumentation"]["run_count"], 2)
+            self.assertEqual(diagnostic["since_instrumentation"]["terminal_count"], 1)
+            self.assertEqual(diagnostic["since_instrumentation"]["nonterminal_failure_count"], 1)
+            self.assertEqual(diagnostic["since_instrumentation"]["terminalization_success_pct"], 50.0)
+            self.assertEqual(diagnostic["since_instrumentation"]["excluded_too_recent_count"], 1)
+            self.assertFalse(diagnostic["headline_population_relationship"]["directly_comparable"])
+            # Headline still scores only terminalized revision-3 records; diagnostic cannot move it.
+            self.assertEqual(scored["score_delta"], 100.0)
+
     def test_continuation_projection_excludes_bounded_task_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
