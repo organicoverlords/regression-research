@@ -2850,7 +2850,7 @@ def _refresh_cached_query_result(result: dict[str, Any], cache_age: float | None
 _LESSON_GENERIC_TOKENS = {
     "after", "again", "already", "before", "branch", "commit", "current", "exact", "failed", "failure",
     "file", "files", "fixed", "issue", "later", "main", "only", "path", "paths", "project", "report",
-    "accepted", "correctly", "coverage", "result", "same", "source", "still", "test", "tests", "through", "tool", "using", "verified", "worker",
+    "accepted", "assistant", "correctly", "coverage", "orchestration", "presentation", "result", "same", "source", "still", "test", "tests", "through", "tool", "using", "verified", "worker",
 }
 
 
@@ -3032,6 +3032,7 @@ def _lesson_packet(
     direct_query_threshold = min(3, _minimum_query_matches(len(concepts)))
     seed_ids = {str(event.get("id") or "") for event in seeds}
     ranked: list[tuple[float, dict[str, Any], list[str]]] = []
+    direct_query_coverage: dict[str, int] = {}
     if direct_query_grounding:
         lesson_sources = {
             "GIT_COMMIT", "GITHUB_PR", "GITHUB_ISSUE",
@@ -3056,6 +3057,7 @@ def _lesson_packet(
         overlaps = [token for token in expansion if token in merged]
         query_hits = sum(1 for concept in concepts if merged & concept)
         direct_query_hits = sum(1 for concept in concepts if direct & concept)
+        direct_query_coverage[event_id] = direct_query_hits
         candidate_lesson_concepts = _lesson_concepts(candidate_text)
         direct_lesson_hits = len(query_lesson_concepts & candidate_lesson_concepts)
         bridge_lesson_hits = len(seed_lesson_concepts & candidate_lesson_concepts)
@@ -3107,7 +3109,10 @@ def _lesson_packet(
         score *= quality
         ranked.append((score, event, overlaps))
     ranked.sort(
-        key=lambda item: (item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or "")),
+        key=lambda item: (
+            direct_query_coverage.get(str(item[1].get("id") or ""), 0) if direct_query_grounding else 0,
+            item[0], str(item[1].get("event_at") or ""), str(item[1].get("id") or ""),
+        ),
         reverse=True,
     )
 
@@ -3128,14 +3133,10 @@ def _lesson_packet(
 
     items: list[dict[str, Any]] = []
     seen_subjects: set[tuple[str, str]] = set()
+    lineage_item_indexes: dict[tuple[str, str], int] = {}
     for score, event, overlaps in [*primary, *deferred]:
         project = str(event.get("project") or "")
         subject = _subject_key(event.get("title")) or str(event.get("title") or "").casefold()
-        subject_key = (project.casefold(), subject)
-        if subject and subject_key in seen_subjects:
-            continue
-        if subject:
-            seen_subjects.add(subject_key)
         anchors = list(event.get("anchors", []) or [])
         sha = str(event.get("sha") or "").strip()
         if sha:
@@ -3147,6 +3148,33 @@ def _lesson_packet(
             or _clip_query_value(event.get("outcome"), 440)
             or _clip_query_value(event.get("title"), 440)
         )
+        lineage_key = (subject, " ".join(str(conclusion or "").casefold().split()))
+        prior_index = lineage_item_indexes.get(lineage_key) if subject and conclusion else None
+        changed_paths = [str(value) for value in event.get("changed_paths", []) or [] if str(value).strip()]
+        if prior_index is not None:
+            prior = items[prior_index]
+            event_ids = list(prior.get("lineage_event_ids") or [prior.get("source_event_id")])
+            event_id = event.get("id")
+            if event_id and event_id not in event_ids:
+                event_ids.append(event_id)
+            projects = list(prior.get("lineage_projects") or ([prior.get("project")] if prior.get("project") else []))
+            if project and project not in projects:
+                projects.append(project)
+            prior["lineage_event_ids"] = event_ids[:8]
+            prior["lineage_projects"] = projects[:8]
+            prior["lineage_copy_count"] = len(event_ids)
+            prior["lineage_semantics"] = "COPIED_LINEAGE_NOT_INDEPENDENT_SUPPORT"
+            prior["evidence_anchors"] = list(dict.fromkeys([*prior.get("evidence_anchors", []), *anchors]))[:6]
+            if changed_paths:
+                prior["changed_paths"] = list(dict.fromkeys([*prior.get("changed_paths", []), *changed_paths]))[:6]
+            continue
+        subject_key = (project.casefold(), subject)
+        if subject and subject_key in seen_subjects:
+            continue
+        if subject:
+            seen_subjects.add(subject_key)
+        if len(items) >= packet_limit:
+            continue
         item = {
             "source_event_id": event.get("id"),
             "source_type": event.get("source_type"),
@@ -3157,12 +3185,11 @@ def _lesson_packet(
             "relevance_terms": overlaps[:6],
             "evidence_anchors": anchors[:6],
         }
-        changed_paths = [str(value) for value in event.get("changed_paths", []) or [] if str(value).strip()]
         if changed_paths:
             item["changed_paths"] = changed_paths[:6]
         items.append({key: value for key, value in item.items() if value not in (None, "", [], {})})
-        if len(items) >= packet_limit:
-            break
+        if subject and conclusion:
+            lineage_item_indexes[lineage_key] = len(items) - 1
 
     return {
         **base,

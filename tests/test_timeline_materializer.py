@@ -36,12 +36,69 @@ from tools.timeline_materializer import (
     query_materialized,
     runner_log_events,
     _bootstrap_correction_trigger_projection,
+    _lesson_packet,
     _merge_materialized_events,
     _run_process,
 )
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_lesson_packet_collapses_copied_lineage_and_preserves_provenance(self):
+        seed = {
+            "id": "seed", "source_type": "VAULT_MEMORY", "project": "vault",
+            "event_at": "2026-09-09T00:00:00+00:00",
+            "title": "camera framing output seed",
+            "summary": "camera framing output bridgealpha bridgebeta assistant presentation orchestration",
+            "scope": "camera framing output bridgealpha bridgebeta assistant presentation orchestration",
+            "anchors": ["memory:seed"],
+        }
+
+        def commit(event_id, project, title, body, sha):
+            return {
+                "id": event_id, "source_type": "GIT_COMMIT", "project": project,
+                "event_at": "2026-09-08T00:00:00+00:00", "title": title, "summary": title,
+                "body": body, "sha": sha, "changed_paths": ["AGENTS.md"],
+            }
+
+        copied_body = "bridgealpha bridgebeta assistant presentation orchestration camera framing shared fixed broken failure repair guard"
+        copied_title = "camera framing shared policy"
+        copy_a = commit("copy-a", "vault", copied_title, copied_body, "a" * 40)
+        copy_b = commit("copy-b", "tiny3d", copied_title, copied_body, "b" * 40)
+        unique = {
+            "id": "unique", "source_type": "GITHUB_PR", "project": "p3",
+            "event_at": "2026-09-08T01:00:00+00:00",
+            "title": "PR #778: camera framing output owner map",
+            "summary": "state=MERGED bridgealpha bridgebeta integration owner mapping",
+            "anchors": ["github:example/repo#778"],
+        }
+        filler = {
+            "id": "filler", "source_type": "GITHUB_PR", "project": "agents",
+            "event_at": "2026-09-08T02:00:00+00:00",
+            "title": "PR #779: camera framing output alternate owner map",
+            "summary": "state=MERGED bridgealpha bridgebeta integration alternate mapping",
+            "anchors": ["github:example/repo#779"],
+        }
+
+        packet = _lesson_packet(
+            "camera framing output", selected=[seed],
+            candidates=[seed, copy_a, copy_b, unique, filler], query_index=None, limit=3,
+        )
+
+        self.assertEqual(packet["status"], "READY")
+        self.assertEqual(len(packet["items"]), 3)
+        self.assertEqual({item["source_event_id"] for item in packet["items"][:2]}, {"unique", "filler"})
+        self.assertFalse({"assistant", "presentation", "orchestration"} & set(packet["expansion_terms"]))
+        copied = next(item for item in packet["items"] if item["title"] == copied_title)
+        self.assertEqual(set(copied["lineage_event_ids"]), {"copy-a", "copy-b"})
+        self.assertEqual(set(copied["lineage_projects"]), {"vault", "tiny3d"})
+        self.assertEqual(copied["lineage_copy_count"], 2)
+        self.assertEqual(copied["lineage_semantics"], "COPIED_LINEAGE_NOT_INDEPENDENT_SUPPORT")
+        self.assertEqual(
+            set(copied["evidence_anchors"]),
+            {"gitsha:" + "a" * 40, "gitsha:" + "b" * 40},
+        )
+        self.assertIn("PR #778: camera framing output owner map", {item["title"] for item in packet["items"]})
+
     def test_bootstrap_projects_canonical_slopwall_and_asshole_correction_triggers(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
