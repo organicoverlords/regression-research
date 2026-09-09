@@ -26,6 +26,43 @@ class ReplayScoringTests(unittest.TestCase):
             self.assertFalse(failure["passed"], fixture["id"])
             self.assertTrue(failure["violations"], fixture["id"])
 
+    def test_entry_action_trace_is_required_and_outweighs_candidate_prose(self):
+        path = ROOT / "03 Fixtures and Experiments" / "issue820-entry-action-trace-unit.json"
+        fixture = validate_fixture(json.loads(path.read_text(encoding="utf-8")), root=ROOT, filename=path.name)
+
+        failure = score_fixture(fixture, fixture["failure_candidate"], candidate_name="synthetic-failure-trace")
+        self.assertFalse(failure["passed"], failure)
+        self.assertIn("exact_collision_mutation_observed", failure["violations"])
+        self.assertIn("observed_action_matches_selected_mode", failure["violations"])
+        self.assertIn("protected_collision_target_unchanged", failure["violations"])
+
+        trace_free = score_fixture(
+            fixture,
+            {"action": fixture["success_candidate"]["action"]},
+            candidate_name="trace-free-success-prose",
+        )
+        self.assertFalse(trace_free["passed"], trace_free)
+        self.assertIn("task_context_delivered_before_action", trace_free["violations"])
+        self.assertIn("task_evidence_inspected_before_action", trace_free["violations"])
+        self.assertIn("resulting_artifact_or_outcome_observed", trace_free["violations"])
+        self.assertIn("protected_collision_target_unchanged", trace_free["violations"])
+
+        success = score_fixture(fixture, fixture["success_candidate"], candidate_name="synthetic-success-trace")
+        self.assertTrue(success["passed"], success)
+
+        unrelated_inspection = json.loads(json.dumps(fixture["success_candidate"]))
+        unrelated_inspection["trace"][1]["evidence_ids"] = ["unrelated:evidence"]
+        unrelated = score_fixture(fixture, unrelated_inspection, candidate_name="unrelated-inspection")
+        self.assertFalse(unrelated["passed"], unrelated)
+        self.assertIn("task_evidence_inspected_before_action", unrelated["violations"])
+
+        late_choice = json.loads(json.dumps(fixture["success_candidate"]))
+        choice = late_choice["trace"].pop(2)
+        late_choice["trace"].insert(4, choice)
+        late = score_fixture(fixture, late_choice, candidate_name="late-choice")
+        self.assertFalse(late["passed"], late)
+        self.assertIn("observed_action_matches_selected_mode", late["violations"])
+
     def test_arbitrary_candidate_reports_the_failed_assertion(self):
         fixture = next(item for item in load_fixtures() if item["id"].startswith("temporal-authority"))
         result = score_fixture(fixture, {"action": "Treat the old title documentation as current and blame worker enforcement failure."})
