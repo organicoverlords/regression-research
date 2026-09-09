@@ -27,6 +27,7 @@ STACK_PATHS = {
     "tests/fixtures/issue693_fresh_worker_entry.json",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
+    "tests/test_replay_scoring.py",
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
@@ -127,7 +128,10 @@ def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
         return ["stack", "memory", "conversation", "busy", "worker_reports"]
     selected = []
-    if changed & STACK_PATHS:
+    if changed & STACK_PATHS or any(
+        Path(path).parent.as_posix() == "03 Fixtures and Experiments" and path.endswith(".json")
+        for path in changed
+    ):
         selected.append("stack")
     if changed & MEMORY_PATHS:
         selected.append("memory")
@@ -173,6 +177,7 @@ def verify_stack() -> None:
             "-m",
             "unittest",
             "tests.test_stack_atlas",
+            "tests.test_replay_scoring",
             "tests.test_tiny3d_atlas_projection",
             "tests.test_issue693_fresh_worker_entry",
             "tests.test_issue122_acceptance_boundary_replay",

@@ -49,6 +49,16 @@ class VerifyTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(select_areas({path}), ["stack"])
 
+    def test_replay_owner_tests_and_fixture_changes_select_stack_verification(self):
+        for path in (
+            "tools/replay_scoring.py",
+            "tests/test_replay_scoring.py",
+            "03 Fixtures and Experiments/issue820-entry-action-trace-unit.json",
+            "03 Fixtures and Experiments/new-replay.json",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
+
     def test_issue123_current_boundary_selects_stack_verification(self):
         for path in (
             "03 Fixtures and Experiments/issue123-current-vault-history-boundary.json",
@@ -102,6 +112,7 @@ class VerifyTests(unittest.TestCase):
         verify_stack()
         unittest_command = run.call_args_list[1].args[0]
         self.assertIn("tests.test_issue693_fresh_worker_entry", unittest_command)
+        self.assertIn("tests.test_replay_scoring", unittest_command)
         self.assertIn("tests.test_tiny3d_atlas_projection", unittest_command)
         self.assertIn("tests.test_issue122_forensic_integrity", unittest_command)
         self.assertIn("tests.test_issue122_false_boundary_replay", unittest_command)

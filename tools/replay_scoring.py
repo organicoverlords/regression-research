@@ -403,20 +403,15 @@ def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
     consequential_kinds = {"mutation", "artifact_write", "merge", "delete", "state_change"}
     consequential = [index for index, event in enumerate(trace) if str(event.get("kind") or "") in consequential_kinds]
     first_action = min(consequential) if consequential else len(trace)
-    delivered_evidence = {
-        str(evidence_id)
-        for index, event in enumerate(trace)
-        if index < first_action and event.get("kind") == "task_context" and event.get("delivered") is True
-        for evidence_id in (event.get("evidence_ids") or [])
-        if str(evidence_id)
-    }
-    inspected_evidence = {
-        str(evidence_id)
-        for index, event in enumerate(trace)
-        if index < first_action and event.get("kind") == "evidence_inspection"
-        for evidence_id in (event.get("evidence_ids") or [])
-        if str(evidence_id)
-    }
+    last_action = max(consequential) if consequential else len(trace)
+    delivered_evidence: set[str] = set()
+    inspected_evidence: set[str] = set()
+    for event in trace[:first_action]:
+        evidence = {str(item) for item in (event.get("evidence_ids") or []) if str(item)}
+        if event.get("kind") == "task_context" and event.get("delivered") is True:
+            delivered_evidence.update(evidence)
+        elif event.get("kind") == "evidence_inspection":
+            inspected_evidence.update(evidence & delivered_evidence)
     context_before = bool(delivered_evidence)
     inspected_before = bool(delivered_evidence & inspected_evidence)
     collision_mutated = any(
@@ -441,18 +436,20 @@ def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
     else:
         mode_matches = False
     outcome_observed = any(
-        event.get("kind") == "outcome"
+        index > last_action
+        and event.get("kind") == "outcome"
         and str(event.get("status") or "").upper() in {"PASS", "SUCCESS", "PROVEN", "NOT_PROVEN"}
         and bool(event.get("artifact") or event.get("result_ref") or event.get("evidence"))
-        for event in trace
+        for index, event in enumerate(trace)
     )
     protected_target_unchanged = any(
-        event.get("kind") == "collision_target_check"
+        index > last_action
+        and event.get("kind") == "collision_target_check"
         and str(event.get("status") or "").upper() == "PASS"
         and bool(event.get("path"))
         and bool(event.get("sha_before"))
         and event.get("sha_before") == event.get("sha_after")
-        for event in trace
+        for index, event in enumerate(trace)
     )
 
     values = {
