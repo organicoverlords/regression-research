@@ -33,8 +33,39 @@ class WorkerReportHistoryTests(unittest.TestCase):
                 second = create_manual_run(current, repo="p3", stem="p3-1068-converge", now=fixed)
             self.assertNotEqual(first["run_id"], second["run_id"])
             self.assertEqual(first_path.read_bytes(), before)
+            self.assertIn(b"start_evidence: CREATE_MANUAL_RUN", before)
             self.assertTrue(Path(second["report_path"]).exists())
             self.assertEqual(len(list(current.glob("*.md"))), 2)
+
+    def test_manual_created_run_uses_observed_final_report_write_for_duration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current = root / "manual" / "current"
+            history = root / "manual" / "history"
+            started = datetime.now().astimezone() - timedelta(minutes=10)
+            created = create_manual_run(
+                current, repo="regression-research", stem="duration-evidence", run_mode="continuation", now=started
+            )
+            report = Path(created["report_path"])
+            text = report.read_text(encoding="utf-8")
+            report.write_text(
+                text.replace("state: RUNNING", "state: RUN_FINISHED").replace("outcome: in progress", "outcome: completed work"),
+                encoding="utf-8",
+            )
+            observed_finish = started + timedelta(minutes=7, seconds=30)
+            os.utime(report, (observed_finish.timestamp(), observed_finish.timestamp()))
+
+            result = archive_finalized_report(report, history)
+            metadata = json.loads(Path(result["metadata_path"]).read_text(encoding="utf-8"))
+            metrics = json.loads(Path(result["metrics_path"]).read_text(encoding="utf-8"))
+
+            self.assertEqual(metadata["finished_at"], started.isoformat())
+            self.assertEqual(metadata["reported_fields"]["last_activity_at"], started.isoformat())
+            self.assertEqual(metadata["duration_minutes"], 7.5)
+            self.assertEqual(metadata["duration_evidence"], "MACHINE_CREATED_START_TO_REPORT_FILE_MTIME")
+            observed = datetime.fromisoformat(metadata["observed_finished_at"])
+            self.assertLess(abs((observed - observed_finish).total_seconds()), 0.01)
+            self.assertEqual(metrics["average_duration_minutes"], 7.5)
 
     def test_manual_same_stem_concurrent_creates_archive_independently(self):
         with tempfile.TemporaryDirectory() as tmp:
