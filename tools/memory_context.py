@@ -60,6 +60,23 @@ def _clip(text: Any, limit: int) -> str:
     return value[: max(0, limit - 3)].rstrip() + "..."
 
 
+def context_memory_ineligibility(entry: dict[str, Any]) -> str | None:
+    """Return why a stored memory cannot enter durable task context, or None when eligible."""
+    if entry.get("state") != "PROVEN":
+        return "provisional"
+    if entry.get("kind") == "status":
+        return "status"
+    tags = {str(tag) for tag in entry.get("tags") or []}
+    source_anchored = "assistant-recorded" in tags and bool(entry.get("source_messages"))
+    if not entry.get("evidence") and not source_anchored:
+        return "unanchored"
+    return None
+
+
+def context_memory_eligible(entry: dict[str, Any]) -> bool:
+    return context_memory_ineligibility(entry) is None
+
+
 def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
     classification = dict(entry.get("classification") or {})
     out = {
@@ -178,11 +195,12 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         if query_roles and entry_roles and not (query_roles & entry_roles):
             omitted_role_mismatch += 1
             continue
-        if compact.get("state") != "PROVEN":
+        ineligible = context_memory_ineligibility(hit)
+        if ineligible == "provisional":
             omitted_provisional += 1
-        elif compact.get("kind") == "status":
+        elif ineligible == "status":
             omitted_status += 1
-        elif not compact.get("evidence") and not compact.get("source_messages"):
+        elif ineligible == "unanchored":
             omitted_unanchored += 1
         else:
             durable.append(compact)
