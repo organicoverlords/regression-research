@@ -59,6 +59,54 @@ class ManualWorkDispositionTests(unittest.TestCase):
             self.assertEqual(binding["binding_basis"], "mcp_process_receipt_create_manual_stdout_run_id")
             self.assertEqual(binding_summary(binding)["status"], "BOUND")
 
+    def test_capture_binding_recovers_from_day_sharded_archive_after_flat_eviction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipts = root / "receipts"
+            archived = receipts / "archive" / "2026-09-09"
+            manual = root / "manual"
+            archived.mkdir(parents=True)
+            self._write_receipt(archived, name="archived-create", pid=55, run_id="manual-archived")
+
+            result = capture_binding(
+                run_id="manual-archived", creator_child_pid=0, receipt_dir=receipts, manual_root=manual, timeout_seconds=0
+            )
+            self.assertTrue(result["ok"])
+            binding = load_binding(manual, "manual-archived")
+            assert binding is not None
+            self.assertEqual(binding["create_process_id"], "archived-create")
+            self.assertEqual(binding["receipt_source"], "archive")
+
+    def test_capture_binding_recovers_exact_legacy_manual_report_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipts = root / "receipts"
+            manual = root / "manual"
+            receipts.mkdir(parents=True)
+            run_id = "manual-20260909-015729-s2-worker-process-identity"
+            payload = {
+                "version": 1, "process_id": "legacy-create", "pid": 99,
+                "caller_id": "caller_legacy", "request_id": "request_legacy",
+                "command": (
+                    "$p='C:\\repo\\worker-reports\\manual\\current\\$id.md'; "
+                    "Set-Content -Encoding utf8 $p; Write-Output \"REPORT=$p\""
+                ),
+                "cwd": r"C:\repo",
+                "stdout": rf"REPORT=C:\repo\worker-reports\manual\current\{run_id}.md" + "\n",
+                "stderr": "", "exit_code": 0,
+                "started_at": "2026-09-08T22:57:28.832Z", "finished_at": "2026-09-08T22:57:29.336Z",
+            }
+            (receipts / "legacy-create.json").write_text(json.dumps(payload), encoding="utf-8")
+            result = capture_binding(
+                run_id=run_id, creator_child_pid=0, receipt_dir=receipts, manual_root=manual, timeout_seconds=0
+            )
+            self.assertTrue(result["ok"])
+            binding = load_binding(manual, run_id)
+            assert binding is not None
+            self.assertEqual(binding["caller_id"], "caller_legacy")
+            self.assertEqual(binding["create_process_id"], "legacy-create")
+            self.assertEqual(binding["binding_basis"], "mcp_process_receipt_legacy_manual_report_stdout_path")
+
     def test_capture_binding_fails_closed_when_run_id_does_not_match(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -152,6 +200,35 @@ class ManualWorkDispositionTests(unittest.TestCase):
             self.assertIn("route", process_ids)
             self.assertNotIn("next-create", process_ids)
 
+
+    def test_capture_trace_reads_archive_and_deduplicates_flat_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipts = root / "receipts"
+            archive = receipts / "archive" / "2026-09-09"
+            manual = root / "manual"
+            receipts.mkdir(parents=True)
+            archive.mkdir(parents=True)
+            run_id = "manual-archive-trace"
+            create = self._write_receipt(receipts, name="create-dupe", pid=71, run_id=run_id, caller="caller_archive")
+            (archive / create.name).write_bytes(create.read_bytes())
+            capture_binding(
+                run_id=run_id, creator_child_pid=0, receipt_dir=receipts, manual_root=manual, timeout_seconds=0
+            )
+            payload = {
+                "version": 1, "process_id": "work-archived", "pid": 72, "caller_id": "caller_archive",
+                "request_id": "req-work", "command": "python tools\\swarm_route.py route --work-id recovered --kind portable",
+                "cwd": r"C:\repo",
+                "stdout": json.dumps({"work_id": "recovered", "decision_id": "d-archive", "route": "omen"}) + "\n",
+                "stderr": "", "exit_code": 0,
+                "started_at": "2026-09-09T05:43:01Z", "finished_at": "2026-09-09T05:43:01Z",
+            }
+            (archive / "work-archived.json").write_text(json.dumps(payload), encoding="utf-8")
+
+            trace = capture_trace(run_id=run_id, receipt_dir=receipts, manual_root=manual)["trace"]
+            self.assertEqual(trace["work_ids"], ["recovered"])
+            self.assertEqual([p["process_id"] for p in trace["processes"]].count("create-dupe"), 1)
+            self.assertIn("work-archived", {p["process_id"] for p in trace["processes"]})
 
     def test_manual_current_audit_surfaces_exact_binding_without_claiming_liveness(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -94,7 +94,7 @@ def _capture_manual_trace(manual_root: Path, run_id: str) -> dict[str, Any]:
     return trace_summary(result.get("trace"))
 
 
-def _schedule_manual_binding_capture(current_root: Path, run_id: str) -> dict[str, Any]:
+def _schedule_manual_binding_capture(current_root: Path, run_id: str, started_at: str | None = None) -> dict[str, Any]:
     """Capture the MCP caller/process binding after this create-manual process exits."""
     receipt_dir = str(os.environ.get("MCP_PROCESS_RECEIPT_DIR") or "").strip()
     script = Path(__file__).resolve().with_name("manual_work_disposition.py")
@@ -111,6 +111,8 @@ def _schedule_manual_binding_capture(current_root: Path, run_id: str) -> dict[st
         "--manual-root", str(manual_root),
         "--timeout-seconds", "20",
     ]
+    if started_at:
+        command.extend(["--started-at", str(started_at)])
     kwargs: dict[str, Any] = {
         "cwd": str(Path(__file__).resolve().parents[1]),
         "stdin": subprocess.DEVNULL,
@@ -1470,7 +1472,7 @@ def main() -> int:
                 display_label=args.display_label,
                 outcome=args.outcome,
             )
-            result["identity_capture"] = _schedule_manual_binding_capture(args.current_root, str(result["run_id"]))
+            result["identity_capture"] = _schedule_manual_binding_capture(args.current_root, str(result["run_id"]), str(result.get("started_at") or ""))
         elif args.command == "audit-manual-current":
             result = audit_manual_current_reports(args.current_root, args.history_root)
         elif args.command == "sanity":

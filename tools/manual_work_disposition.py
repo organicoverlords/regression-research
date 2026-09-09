@@ -6,13 +6,14 @@ import json
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 BINDING_SCHEMA = "manual-run-binding.v1"
 BINDING_DIRNAME = "bindings"
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+TRACE_MAX_SPAN_HOURS = 2.0
 
 
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -36,6 +37,17 @@ def _stdout_run_id(stdout: Any) -> str | None:
             return str(value["run_id"])
     return None
 
+def _stdout_legacy_report_run_id(stdout: Any) -> str | None:
+    for line in str(stdout or "").splitlines():
+        line = line.strip()
+        if not line.upper().startswith("REPORT="):
+            continue
+        value = line.split("=", 1)[1].strip().strip('\"')
+        stem = Path(value).stem
+        if RUN_ID_RE.fullmatch(stem):
+            return stem
+    return None
+
 
 def binding_path(manual_root: Path, run_id: str) -> Path:
     if not RUN_ID_RE.fullmatch(str(run_id)):
@@ -54,20 +66,123 @@ def load_binding(manual_root: Path, run_id: str) -> dict[str, Any] | None:
     return value
 
 
-def _matching_receipt(receipt_dir: Path, run_id: str) -> tuple[Path, dict[str, Any], bytes] | None:
-    try:
-        candidates = list(Path(receipt_dir).glob("*.json"))
-    except OSError:
-        return None
-    # Newest first minimizes work on large receipt directories. Receipts may rotate
-    # concurrently, so a disappearing file sorts oldest instead of failing capture.
-    def mtime(path: Path) -> float:
-        try:
-            return path.stat().st_mtime
-        except OSError:
-            return 0.0
+def _receipt_candidates(
+    receipt_dir: Path,
+    *,
+    archive_days: set[str] | None = None,
+    mtime_floor: float | None = None,
+    mtime_ceiling: float | None = None,
+) -> list[Path]:
+    """Return bounded flat + selected day-sharded durable archive receipts."""
 
-    candidates.sort(key=mtime, reverse=True)
+    def collect(directory: Path) -> list[Path]:
+        found: list[Path] = []
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if not entry.is_file() or not entry.name.lower().endswith(".json"):
+                        continue
+                    if mtime_floor is not None or mtime_ceiling is not None:
+                        try:
+                            observed = entry.stat().st_mtime
+                        except OSError:
+                            continue
+                        if mtime_floor is not None and observed < mtime_floor:
+                            continue
+                        if mtime_ceiling is not None and observed > mtime_ceiling:
+                            continue
+                    found.append(Path(entry.path))
+        except OSError:
+            pass
+        return found
+
+    root = Path(receipt_dir)
+    candidates = collect(root)
+    archive = root / "archive"
+    try:
+        day_dirs = [
+            path for path in archive.iterdir()
+            if path.is_dir()
+            and re.fullmatch(r"\d{4}-\d{2}-\d{2}", path.name)
+            and (archive_days is None or path.name in archive_days)
+        ]
+        day_dirs = sorted(day_dirs, key=lambda path: path.name, reverse=True)[:8]
+    except OSError:
+        day_dirs = []
+    for day in day_dirs:
+        candidates.extend(collect(day))
+    return candidates
+
+
+def _receipt_caller_matches(path: Path, caller_id: str) -> bool:
+    """Cheaply reject foreign receipts before decoding retained command/output payloads."""
+    token = re.escape(json.dumps(str(caller_id), ensure_ascii=False))
+    pattern = re.compile(r'"caller_id"\s*:\s*' + token)
+    try:
+        with path.open("rb") as handle:
+            prefix = handle.read(2048).decode("utf-8", errors="ignore")
+    except OSError:
+        return False
+    return pattern.search(prefix) is not None
+
+
+def _caller_receipt_candidates(
+    receipt_dir: Path,
+    caller_id: str,
+    *,
+    archive_days: set[str],
+    mtime_floor: float,
+    mtime_ceiling: float,
+) -> list[Path]:
+    """Find one caller's receipts from a bounded mtime window without full payload scans."""
+    candidates = _receipt_candidates(
+        Path(receipt_dir),
+        archive_days=archive_days,
+        mtime_floor=mtime_floor,
+        mtime_ceiling=mtime_ceiling,
+    )
+    return [path for path in candidates if _receipt_caller_matches(path, caller_id)]
+
+
+def _archive_days_for_run_id(run_id: str) -> set[str] | None:
+    match = re.match(r"^manual-(\d{4})(\d{2})(\d{2})(?:-|T)", run_id)
+    if not match:
+        return None
+    try:
+        local_day = datetime(int(match.group(1)), int(match.group(2)), int(match.group(3)), tzinfo=timezone.utc).date()
+    except ValueError:
+        return None
+    # Manual IDs use local wall date while MCP archive shards use receipt time. A one-day
+    # pad in either direction covers timezone/date-boundary differences without a full scan.
+    return {(local_day + timedelta(days=offset)).isoformat() for offset in (-1, 0, 1)}
+
+
+def _archive_days_since(start_at: datetime) -> set[str]:
+    start_day = start_at.astimezone(timezone.utc).date()
+    today = datetime.now(timezone.utc).date()
+    end_day = min(today, start_day + timedelta(days=7))
+    if end_day < start_day:
+        end_day = start_day
+    return {(start_day + timedelta(days=offset)).isoformat() for offset in range((end_day - start_day).days + 1)}
+
+
+def _matching_receipt(
+    receipt_dir: Path, run_id: str, *, started_at: datetime | None = None
+) -> tuple[Path, dict[str, Any], bytes, str] | None:
+    if started_at is not None:
+        start_day = started_at.astimezone(timezone.utc).date()
+        archive_days = {start_day.isoformat(), (start_day + timedelta(days=1)).isoformat()}
+    else:
+        archive_days = _archive_days_for_run_id(run_id)
+    lower = started_at.timestamp() - 60.0 if started_at is not None else None
+    upper = started_at.timestamp() + 30.0 * 60.0 if started_at is not None else None
+    candidates = _receipt_candidates(
+        Path(receipt_dir), archive_days=archive_days, mtime_floor=lower, mtime_ceiling=upper
+    )
+    if not candidates:
+        return None
+    # Exact structured stdout run_id remains the identity proof. The timestamp window is
+    # only a bounded lookup key supplied from the report created by the same command.
     for path in candidates:
         try:
             raw = path.read_bytes()
@@ -77,13 +192,29 @@ def _matching_receipt(receipt_dir: Path, run_id: str) -> tuple[Path, dict[str, A
         if not isinstance(receipt, dict):
             continue
         command = str(receipt.get("command") or "")
-        if "worker_report_history.py" not in command or "create-manual" not in command:
-            continue
-        if _stdout_run_id(receipt.get("stdout")) != run_id:
+        low = command.casefold()
+        canonical = (
+            "worker_report_history.py" in low
+            and "create-manual" in low
+            and _stdout_run_id(receipt.get("stdout")) == run_id
+        )
+        legacy = (
+            "worker-reports" in low
+            and "manual" in low
+            and "current" in low
+            and "set-content" in low
+            and _stdout_legacy_report_run_id(receipt.get("stdout")) == run_id
+        )
+        if not canonical and not legacy:
             continue
         if not all(str(receipt.get(key) or "").strip() for key in ("process_id", "caller_id", "request_id")):
             continue
-        return path, receipt, raw
+        basis = (
+            "mcp_process_receipt_create_manual_stdout_run_id"
+            if canonical
+            else "mcp_process_receipt_legacy_manual_report_stdout_path"
+        )
+        return path, receipt, raw, basis
     return None
 
 
@@ -93,6 +224,7 @@ def capture_binding(
     creator_child_pid: int,
     receipt_dir: Path,
     manual_root: Path,
+    started_at: str | None = None,
     timeout_seconds: float = 15.0,
     poll_seconds: float = 0.10,
 ) -> dict[str, Any]:
@@ -108,15 +240,16 @@ def capture_binding(
     if existing is not None:
         return {"ok": True, "captured": False, "deduplicated": True, "path": str(destination), "binding": existing}
 
+    observed_start = _parse_time(started_at) if started_at else None
     deadline = time.monotonic() + max(0.0, float(timeout_seconds))
     while True:
-        matched = _matching_receipt(Path(receipt_dir), run_id)
+        matched = _matching_receipt(Path(receipt_dir), run_id, started_at=observed_start)
         if matched is not None:
-            source, receipt, raw = matched
+            source, receipt, raw, basis = matched
             payload = {
                 "schema": BINDING_SCHEMA,
                 "run_id": run_id,
-                "binding_basis": "mcp_process_receipt_create_manual_stdout_run_id",
+                "binding_basis": basis,
                 "caller_id": str(receipt["caller_id"]),
                 "create_process_id": str(receipt["process_id"]),
                 "create_request_id": str(receipt["request_id"]),
@@ -125,6 +258,7 @@ def capture_binding(
                 "create_started_at": receipt.get("started_at"),
                 "create_finished_at": receipt.get("finished_at"),
                 "receipt_file": source.name,
+                "receipt_source": "archive" if source.parent.parent.name == "archive" else "flat",
                 "receipt_sha256": hashlib.sha256(raw).hexdigest(),
                 "captured_at": datetime.now(timezone.utc).isoformat(),
                 "authority": "EXACT_MCP_IDENTITY_EVIDENCE_NOT_WORK_LIVENESS",
@@ -151,6 +285,7 @@ def binding_summary(binding: dict[str, Any] | None) -> dict[str, Any]:
         "caller_id": binding.get("caller_id"),
         "create_process_id": binding.get("create_process_id"),
         "create_request_id": binding.get("create_request_id"),
+        "receipt_source": binding.get("receipt_source"),
         "receipt_sha256": binding.get("receipt_sha256"),
     }
 
@@ -272,21 +407,17 @@ def capture_trace(*, run_id: str, receipt_dir: Path, manual_root: Path) -> dict[
         return {"ok": False, "run_id": run_id, "error": "manual run binding is incomplete"}
 
     receipts: list[tuple[datetime, Path, dict[str, Any], bytes]] = []
-    candidates: list[Path] = []
-    mtime_floor = start_at.timestamp() - 5.0
-    try:
-        with os.scandir(receipt_dir) as entries:
-            for entry in entries:
-                if not entry.is_file() or not entry.name.lower().endswith(".json"):
-                    continue
-                try:
-                    if entry.stat().st_mtime < mtime_floor:
-                        continue
-                except OSError:
-                    continue
-                candidates.append(Path(entry.path))
-    except OSError as exc:
-        return {"ok": False, "run_id": run_id, "error": f"receipt scan failed: {exc.__class__.__name__}"}
+    trace_ceiling = start_at.timestamp() + TRACE_MAX_SPAN_HOURS * 3600.0
+    candidates = _caller_receipt_candidates(
+        Path(receipt_dir),
+        caller_id,
+        archive_days=_archive_days_since(start_at),
+        mtime_floor=start_at.timestamp() - 5.0,
+        mtime_ceiling=trace_ceiling,
+    )
+    if not candidates:
+        return {"ok": False, "run_id": run_id, "error": "no MCP process receipts available"}
+    seen_process_ids: set[str] = set()
     for path in candidates:
         try:
             raw = path.read_bytes()
@@ -295,6 +426,10 @@ def capture_trace(*, run_id: str, receipt_dir: Path, manual_root: Path) -> dict[
             continue
         if not isinstance(item, dict) or str(item.get("caller_id") or "") != caller_id:
             continue
+        process_id = str(item.get("process_id") or "")
+        if not process_id or process_id in seen_process_ids:
+            continue
+        seen_process_ids.add(process_id)
         observed = _parse_time(item.get("started_at"))
         if observed is None or observed < start_at:
             continue
@@ -355,6 +490,10 @@ def capture_trace(*, run_id: str, receipt_dir: Path, manual_root: Path) -> dict[
         "create_process_id": create_process_id,
         "boundary": boundary,
         "complete_through_boundary": complete_through_boundary,
+        "trace_horizon_hours": TRACE_MAX_SPAN_HOURS,
+        "horizon_exhausted": (
+            not complete_through_boundary and datetime.now(timezone.utc).timestamp() >= trace_ceiling
+        ),
         "process_count": len(processes),
         "work_ids": sorted(work_ids),
         "github_refs": sorted(github_refs),
@@ -376,6 +515,8 @@ def trace_summary(trace: dict[str, Any] | None) -> dict[str, Any]:
         "authority": trace.get("authority"),
         "boundary": trace.get("boundary"),
         "complete_through_boundary": bool(trace.get("complete_through_boundary")),
+        "trace_horizon_hours": trace.get("trace_horizon_hours"),
+        "horizon_exhausted": bool(trace.get("horizon_exhausted")),
         "process_count": trace.get("process_count", 0),
         "work_ids": trace.get("work_ids") or [],
         "github_refs": trace.get("github_refs") or [],
@@ -402,6 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
     capture.add_argument("--creator-child-pid", type=int, required=True)
     capture.add_argument("--receipt-dir", type=Path, required=True)
     capture.add_argument("--manual-root", type=Path, required=True)
+    capture.add_argument("--started-at")
     capture.add_argument("--timeout-seconds", type=float, default=15.0)
     trace = sub.add_parser("capture-trace")
     trace.add_argument("--run-id", required=True)
@@ -418,6 +560,7 @@ def main() -> int:
             creator_child_pid=args.creator_child_pid,
             receipt_dir=args.receipt_dir,
             manual_root=args.manual_root,
+            started_at=args.started_at,
             timeout_seconds=args.timeout_seconds,
         )
         print(json.dumps(result))
