@@ -1,5 +1,5 @@
 {
-  "schema": "manual-worker-sanity-baseline.v2",
+  "schema": "manual-worker-sanity-baseline.v3",
   "baseline_id": "2026-09-06-insanity-point-pr658",
   "label": "2026-09-06 manual-worker insanity point",
   "boundary_at": "2026-09-06T21:26:41+03:00",
@@ -27,28 +27,31 @@
     "higher_is_better": true,
     "component_formula": "weight * clamp((baseline-current)/baseline, -1, 1); all scored components are lower-is-better",
     "direction_threshold": 10.0,
-    "important": "diagnostic trend only; mixed manual-task duration is not part of the headline. Go/continue duration is a separate continuation projection. Never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive.",
-    "headline_formula": "min(friction_delta, operational_lifecycle_delta); continuation run duration is separate and never folded into this score"
+    "important": "Diagnostic behavior trend only. Report size/verbosity is never scored. Go/continue duration stays a separate continuation projection. Never a worker target, completion gate, scheduler input, product acceptance signal, or run-length incentive.",
+    "headline_formula": "operational lifecycle delta only; reporting-shape diagnostics are excluded from the headline"
   },
   "guardrails": [
-    "General manual sanity scores reporting friction and lifecycle mistakes only; mixed task duration is not scored or used as a verdict guardrail.",
+    "General manual sanity headline scores lifecycle/process behavior only; report size and transcript-field count are diagnostic and cannot raise or lower the headline.",
+    "Reporting diagnostics remain visible to detect overhead regressions without turning brevity into an optimization target.",
     "Continuation/go duration and fragmentation are reported separately from bounded manual task durations; never use the mixed manual population to answer whether `go` runs are too short.",
     "Do not claim continuation improvement before the continuation sample gate is met.",
-    "The score measures manual-reporting/process behavior, not model intelligence, user wellbeing, product quality, or MCP health."
+    "The score measures manual execution/report lifecycle behavior, not model intelligence, user wellbeing, product quality, or MCP health."
   ],
   "axes": {
-    "friction": {
-      "metrics": {
-        "median_report_bytes": 50.0,
-        "mean_transcript_fields": 50.0
-      },
-      "semantics": "Measures reporting overhead directly changed by PR #658; useful as friction evidence but insufficient by itself to claim sanity improved."
-    },
     "operational": {
       "metrics": {
         "self_reported_lifecycle_anomaly_pct": 100.0
       },
-      "semantics": "Measures report/execution lifecycle mistakes across actual manual execution runs. Run duration/fragmentation is intentionally excluded and tracked only for continuation go/continue runs."
+      "semantics": "Measures explicit lifecycle mistakes across actual manual execution runs. This is the only current headline axis because it reflects behavior rather than report verbosity.",
+      "scored": true
+    },
+    "reporting": {
+      "metrics": {
+        "median_report_bytes": 50.0,
+        "mean_transcript_fields": 50.0
+      },
+      "semantics": "Diagnostic reporting overhead only. Report bytes and transcript-field count are retained for observability but have zero influence on the sanity headline.",
+      "scored": false
     }
   },
   "continuation_baseline": {
@@ -62,5 +65,9 @@
       "minimum_post_runs_for_comparable": 20
     },
     "important": "Separate from the general manual sanity score. Do not infer go/continue quality from bounded one-shot task or correction durations; user-interrupted continuation runs should be identified by stop_reason when available."
-  }
+  },
+  "score_revision": 3,
+  "headline_axes": [
+    "operational"
+  ]
 }
