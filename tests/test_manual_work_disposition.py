@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,6 +14,14 @@ from tools.worker_report_history import _archive_manual_nonterminal_snapshot, au
 
 
 class ManualWorkDispositionTests(unittest.TestCase):
+    def _write_payload(self, path: Path, payload: dict) -> Path:
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        observed = str(payload.get("finished_at") or payload.get("started_at") or "")
+        if observed:
+            timestamp = datetime.fromisoformat(observed.replace("Z", "+00:00")).timestamp()
+            os.utime(path, (timestamp, timestamp))
+        return path
+
     def _write_receipt(self, root: Path, *, name: str, pid: int, run_id: str, caller: str = "caller_exact") -> Path:
         receipt = {
             "version": 1,
@@ -27,9 +37,7 @@ class ManualWorkDispositionTests(unittest.TestCase):
             "started_at": "2026-09-09T05:42:56.987Z",
             "finished_at": "2026-09-09T05:42:57.415Z",
         }
-        path = root / f"{name}.json"
-        path.write_text(json.dumps(receipt), encoding="utf-8")
-        return path
+        return self._write_payload(root / f"{name}.json", receipt)
 
     def test_capture_binding_requires_pid_and_stdout_run_id(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -96,7 +104,7 @@ class ManualWorkDispositionTests(unittest.TestCase):
                 "stderr": "", "exit_code": 0,
                 "started_at": "2026-09-08T22:57:28.832Z", "finished_at": "2026-09-08T22:57:29.336Z",
             }
-            (receipts / "legacy-create.json").write_text(json.dumps(payload), encoding="utf-8")
+            self._write_payload(receipts / "legacy-create.json", payload)
             result = capture_binding(
                 run_id=run_id, creator_child_pid=0, receipt_dir=receipts, manual_root=manual, timeout_seconds=0
             )
@@ -143,7 +151,7 @@ class ManualWorkDispositionTests(unittest.TestCase):
                     "command": command, "cwd": r"C:\repo", "stdout": stdout, "stderr": stderr, "exit_code": 0,
                     "started_at": started, "finished_at": started,
                 }
-                (receipts / f"{name}.json").write_text(json.dumps(payload), encoding="utf-8")
+                self._write_payload(receipts / f"{name}.json", payload)
 
             write(
                 "route",
@@ -211,7 +219,7 @@ class ManualWorkDispositionTests(unittest.TestCase):
             archive.mkdir(parents=True)
             run_id = "manual-archive-trace"
             create = self._write_receipt(receipts, name="create-dupe", pid=71, run_id=run_id, caller="caller_archive")
-            (archive / create.name).write_bytes(create.read_bytes())
+            shutil.copy2(create, archive / create.name)
             capture_binding(
                 run_id=run_id, creator_child_pid=0, receipt_dir=receipts, manual_root=manual, timeout_seconds=0
             )
@@ -223,7 +231,7 @@ class ManualWorkDispositionTests(unittest.TestCase):
                 "stderr": "", "exit_code": 0,
                 "started_at": "2026-09-09T05:43:01Z", "finished_at": "2026-09-09T05:43:01Z",
             }
-            (archive / "work-archived.json").write_text(json.dumps(payload), encoding="utf-8")
+            self._write_payload(archive / "work-archived.json", payload)
 
             trace = capture_trace(run_id=run_id, receipt_dir=receipts, manual_root=manual)["trace"]
             self.assertEqual(trace["work_ids"], ["recovered"])
