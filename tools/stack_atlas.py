@@ -53,8 +53,8 @@ SWARM_ROUTING_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "swarm
 EXECUTION_NODE_TOPOLOGY_SCHEMA = "swarm.execution-node-topology.v1"
 EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH = Path("04 Operating Contracts") / "execution-node-topology.json"
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
-BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
+BOOTSTRAP_MCP_SOURCE_FRESH_SECONDS = 60.0
 BOOTSTRAP_GITHUB_CACHE_SECONDS = 60.0
 BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS = 60.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
@@ -1846,47 +1846,117 @@ def _parse_event_time(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def _bootstrap_mcp_backend_health() -> dict[str, Any]:
-    """Bounded direct health proof for the canonical local production backend."""
+def _bootstrap_mcp_source_health(source: dict[str, Any]) -> dict[str, Any]:
+    """Probe one backend using identity observed on that MCPv4 transport source."""
     started = time.perf_counter()
+    instance = str(source.get("instance") or "") or None
     try:
-        request = urllib.request.Request(BOOTSTRAP_MCP_HEALTH_URL, headers={"Accept": "application/json"})
+        observed_port = int(source.get("local_port"))
+    except (TypeError, ValueError):
+        observed_port = 0
+    try:
+        observed_pid = int(source.get("server_pid"))
+    except (TypeError, ValueError):
+        observed_pid = 0
+    base = {
+        "instance": instance,
+        "observed_local_port": observed_port or None,
+        "observed_server_pid": observed_pid or None,
+    }
+    if not (0 < observed_port <= 65535):
+        return {
+            **base,
+            "available": False,
+            "status": "IDENTITY_INCOMPLETE",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    url = f"http://127.0.0.1:{observed_port}/health"
+    try:
+        request = urllib.request.Request(url, headers={"Accept": "application/json"})
         with urllib.request.urlopen(request, timeout=BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS) as response:
             http_status = int(getattr(response, "status", response.getcode()))
             raw = response.read(8192)
         payload = json.loads(raw.decode("utf-8"))
+        runtime_identity = payload.get("runtime_identity") if isinstance(payload.get("runtime_identity"), dict) else {}
+        payload_port = int(payload.get("port") or 0)
+        payload_pid = int(payload.get("pid") or 0)
+        instance_matches = not instance or not runtime_identity.get("instance_id") or runtime_identity.get("instance_id") == instance
+        pid_matches = not observed_pid or payload_pid == observed_pid
         healthy = (
             http_status == 200
             and payload.get("status") == "ok"
             and payload.get("name") == "shell-mcp"
             and payload.get("role") == "backend"
-            and int(payload.get("port") or 0) == 3011
+            and payload_port == observed_port
+            and instance_matches
+            and pid_matches
         )
         return {
+            **base,
             "available": bool(healthy),
-            "status": "LIVE" if healthy else "UNHEALTHY",
+            "status": "LIVE" if healthy else "IDENTITY_MISMATCH",
             "http_status": http_status,
             "backend_generation": payload.get("backend_generation"),
             "pid": payload.get("pid"),
-            "live_process_count": payload.get("live_process_count"),
+            "port": payload.get("port"),
+            "runtime_identity": runtime_identity or None,
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
     except Exception as exc:
         return {
+            **base,
             "available": False,
             "status": "UNAVAILABLE",
             "error": str(exc),
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
 
+
+def _bootstrap_mcp_backend_health(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Bounded health proof for backends identified by current MCPv4 transport evidence."""
+    started = time.perf_counter()
+    sources = snapshot.get("transport_sources") if isinstance(snapshot, dict) else None
+    now = datetime.now(timezone.utc)
+    source_rows = []
+    for item in sources if isinstance(sources, list) else []:
+        if not isinstance(item, dict):
+            continue
+        event_at = _parse_event_time(item.get("latest_event_at"))
+        if event_at is None or (now - event_at).total_seconds() > BOOTSTRAP_MCP_SOURCE_FRESH_SECONDS:
+            continue
+        source_rows.append(item)
+    if not source_rows:
+        return {
+            "available": False,
+            "status": "IDENTITY_UNKNOWN",
+            "authority": "live_transport_source_health",
+            "source_count": 0,
+            "live_source_count": 0,
+            "sources": [],
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    with ThreadPoolExecutor(max_workers=min(4, len(source_rows))) as pool:
+        results = list(pool.map(_bootstrap_mcp_source_health, source_rows))
+    live = [item for item in results if item.get("status") == "LIVE"]
+    probed = [item for item in results if item.get("status") != "IDENTITY_INCOMPLETE"]
+    return {
+        "available": bool(live),
+        "status": "LIVE" if live else ("UNHEALTHY" if probed else "IDENTITY_UNKNOWN"),
+        "authority": "live_transport_source_health",
+        "source_count": len(source_rows),
+        "live_source_count": len(live),
+        "sources": results,
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+    }
+
 def _bootstrap_mcp_status_from_live_swarm(
     snapshot: dict[str, Any], service_health: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Combine transport activity with a fresh canonical 3011 service identity."""
+    """Combine transport activity with health bound to the observed MCPv4 sources."""
     status = _bootstrap_mcp_from_live_swarm(snapshot)
     had_live_swarm = bool(status.get("available"))
     if service_health is None:
-        service_health = _bootstrap_mcp_backend_health()
+        service_health = _bootstrap_mcp_backend_health(snapshot)
     status["service_health"] = service_health
     if status.get("status") != "LIVE" and service_health.get("status") == "LIVE":
         status["available"] = True
@@ -1902,8 +1972,9 @@ def _bootstrap_mcp_status_from_live_swarm(
 
 
 def _bootstrap_mcp_status() -> dict[str, Any]:
-    """Compatibility status with live activity plus a fresh canonical backend identity."""
-    return _bootstrap_mcp_status_from_live_swarm(build_live_swarm_snapshot())
+    """Compatibility status with live activity plus source-bound backend health."""
+    snapshot = build_live_swarm_snapshot()
+    return _bootstrap_mcp_status_from_live_swarm(snapshot)
 
 
 def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -2475,6 +2546,25 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
     }
 
+
+def _bootstrap_mcp_recovery_orientation(state: dict[str, Any]) -> dict[str, Any]:
+    """Keep recovery metadata visible without projecting historical topology as startup truth."""
+    if not isinstance(state, dict):
+        return {"available": False, "read_state": "ERROR", "scope": "recovery_only_not_live_topology"}
+    result = {
+        key: state.get(key)
+        for key in (
+            "available", "read_state", "authority", "recovery_target_deployment_id",
+            "recovery_target_generation", "recovery_selected_at",
+        )
+        if key in state
+    }
+    result["scope"] = "recovery_only_not_live_topology"
+    result["details_path"] = str(MCP_RECOVERY_STATE_PATH)
+    if state.get("error"):
+        result["error"] = state.get("error")
+    return result
+
 def _bootstrap_vault_status() -> dict[str, Any]:
     """Bounded local Vault health; no fetches, history scans, or repo-wide status walk."""
     started = time.perf_counter()
@@ -3011,18 +3101,17 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=9) as pool:
+    with ThreadPoolExecutor(max_workers=8) as pool:
         f_execution_nodes = pool.submit(_bootstrap_execution_node_topology)
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_live_swarm = pool.submit(build_live_swarm_snapshot)
-        f_mcp_backend_health = pool.submit(_bootstrap_mcp_backend_health)
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        execution_nodes, pc, workers, live_swarm, mcp_backend_health, memory_overview, vault, github, source_freshness = (
-            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_mcp_backend_health.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
+        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
     pc = _bind_pc_node_identity(pc, execution_nodes)
     bootstrap_now = datetime.now(timezone.utc)
@@ -3030,8 +3119,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     swarm_topology = _bootstrap_swarm_topology(bootstrap_now, manual_current=manual_current)
     if isinstance(swarm_topology, dict):
         swarm_topology["execution_nodes"] = execution_nodes
-    mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm, mcp_backend_health)
-    mcp_recovery_state = _bootstrap_mcp_recovery_state()
+    mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm)
+    mcp_recovery_state = _bootstrap_mcp_recovery_orientation(_bootstrap_mcp_recovery_state())
     agent_contract = _bootstrap_agent_contract_version()
     notable_conditions: list[str] = []
     if agent_contract["status"] != "COHERENT":
