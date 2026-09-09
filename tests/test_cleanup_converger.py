@@ -488,5 +488,32 @@ class CleanupConvergerTests(unittest.TestCase):
         self.assertEqual(result["safe_reap_count"], 1)
 
 
+    @patch("tools.cleanup_converger.generated_cache_dirs", return_value=[])
+    @patch("tools.cleanup_converger.canonical_main_contains_head", return_value=False)
+    @patch("tools.cleanup_converger.worktree_anchor_matches", return_value=True)
+    @patch("tools.cleanup_converger.worktree_is_clean", return_value=True)
+    @patch("tools.cleanup_converger.windows_processes", return_value=[])
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger._git")
+    def test_safe_auto_reaps_clean_idle_unmerged_branch(self, git, *_mocks):
+        git.return_value = subprocess.CompletedProcess(["git"], 0, stdout=("worktree C:/repo\nHEAD root\nbranch refs/heads/main\n\nworktree C:/lane\nHEAD abcd\nbranch refs/heads/topic\n\n"), stderr="")
+        candidates, _, observations = scan_repo("Vault", Path(r"C:\repo"), 300, require_contained=True)
+        self.assertEqual([item.branch for item in candidates], ["topic"])
+        self.assertEqual(observations, [])
+
+    @patch("tools.cleanup_converger.generated_cache_dirs", return_value=[])
+    @patch("tools.cleanup_converger.canonical_main_contains_head", return_value=False)
+    @patch("tools.cleanup_converger.worktree_anchor_matches", return_value=True)
+    @patch("tools.cleanup_converger.worktree_is_clean", return_value=True)
+    @patch("tools.cleanup_converger.windows_processes", return_value=[])
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger._git")
+    def test_safe_auto_preserves_clean_uncontained_detached(self, git, *_mocks):
+        git.return_value = subprocess.CompletedProcess(["git"], 0, stdout=("worktree C:/repo\nHEAD root\nbranch refs/heads/main\n\nworktree C:/lane\nHEAD abcd\ndetached\n\n"), stderr="")
+        candidates, _, observations = scan_repo("Vault", Path(r"C:\repo"), 300, require_contained=True)
+        self.assertEqual(candidates, [])
+        self.assertEqual(observations[0].reason, "detached_not_contained_in_origin_main")
+
+
 if __name__ == "__main__":
     unittest.main()
