@@ -1,0 +1,265 @@
+{
+  "schema": "regression-research.issue-861.cohort-run-outcome-classification.v1",
+  "captured_date": "2026-09-09",
+  "scope": "40 integration-cohort run IDs recorded in one S1 visual-proof convergence episode",
+  "sampling_warning": "This is the recorded episode sample, not all P3 cohort history. workflow_dispatch is an event type; do not infer actor identity from event type alone.",
+  "classification_method": "GitHub run/job step outcomes; for 18 SUCCESS/no-receipt runs, job logs were inspected for P3_CPP_COHORT_STALE/STALE_SKIP markers and P3_BUILD_END build_seconds.",
+  "counts": {
+    "total_runs": 40,
+    "full_receipt_success": 3,
+    "stale_skip_success_no_receipt": 18,
+    "cancelled_coalesced": 12,
+    "plan_only_no_build": 6,
+    "failure": 1,
+    "workflow_dispatch": 10,
+    "workflow_run": 30,
+    "stale_base_moved": 15,
+    "stale_head_moved": 3,
+    "stale_pre_build": 2,
+    "stale_between_modules": 2,
+    "stale_during_module": 14,
+    "stale_native_module_invocations": 61
+  },
+  "shares_percent": {
+    "full_receipt_success": 7.5,
+    "stale_skip_success_no_receipt": 45.0,
+    "cancelled_coalesced": 30.0,
+    "plan_only_no_build": 15.0,
+    "failure": 2.5,
+    "workflow_dispatch": 25.0,
+    "workflow_run": 75.0
+  },
+  "native_time_in_stale_runs": {
+    "build_seconds": 7423.34,
+    "minutes": 123.72,
+    "hours": 2.062,
+    "interpretation": "Sum of P3_BUILD_END build_seconds in stale-skip runs. This is native module build time that did not culminate in a durable receipt for that run; it is not necessarily pure wasted CPU because warm artifacts may be reused."
+  },
+  "workflow_dispatch_sample": {
+    "runs": 10,
+    "full_receipt_success": 0,
+    "stale_skip": 7,
+    "cancelled_coalesced": 2,
+    "plan_only": 1,
+    "stale_native_module_invocations": 29,
+    "stale_build_seconds": 2565.9,
+    "stale_build_minutes": 42.76,
+    "warning": "Do not generalize this episode sample to all manual dispatches."
+  },
+  "automatic_workflow_run_sample": {
+    "runs": 30,
+    "full_receipt_success": 3
+  },
+  "classes": {
+    "full-receipt-success": [
+      34303485451,
+      34307696232,
+      34315165556
+    ],
+    "stale-skip-success-no-receipt": [
+      34283469871,
+      34285108182,
+      34286555209,
+      34287513624,
+      34291610571,
+      34308856066,
+      34310267451,
+      34310470391,
+      34311516313,
+      34312407532,
+      34312592379,
+      34314176990,
+      34314594684,
+      34317219078,
+      34318192847,
+      34318704971,
+      34319366844,
+      34321200572
+    ],
+    "cancelled-coalesced": [
+      34290372778,
+      34291609758,
+      34305376509,
+      34305772361,
+      34309627584,
+      34311370943,
+      34311411469,
+      34311636202,
+      34312041092,
+      34313165318,
+      34315327679,
+      34315442480
+    ],
+    "plan-only-no-build": [
+      34306084748,
+      34317800240,
+      34317872695,
+      34318494715,
+      34319083004,
+      34320052327
+    ],
+    "failure": [
+      34305967565
+    ]
+  },
+  "stale_run_details": [
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 5,
+      "event": "workflow_run",
+      "build_seconds": 1481.11,
+      "id": 34283469871,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 0,
+      "event": "workflow_run",
+      "build_seconds": 0.0,
+      "id": 34285108182,
+      "stage": "pre-build"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_run",
+      "build_seconds": 609.47,
+      "id": 34286555209,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 15,
+      "event": "workflow_run",
+      "build_seconds": 1350.09,
+      "id": 34287513624,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_run",
+      "build_seconds": 37.68,
+      "id": 34291610571,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 17,
+      "event": "workflow_dispatch",
+      "build_seconds": 1091.03,
+      "id": 34308856066,
+      "stage": "during-module"
+    },
+    {
+      "cause": "HEAD_MOVED",
+      "module_invocations": 0,
+      "event": "workflow_run",
+      "build_seconds": 0.0,
+      "id": 34310267451,
+      "stage": "pre-build"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 5,
+      "event": "workflow_dispatch",
+      "build_seconds": 582.31,
+      "id": 34310470391,
+      "stage": "between-modules"
+    },
+    {
+      "cause": "HEAD_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_run",
+      "build_seconds": 46.18,
+      "id": 34311516313,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_dispatch",
+      "build_seconds": 137.72,
+      "id": 34312407532,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 6,
+      "event": "workflow_run",
+      "build_seconds": 715.45,
+      "id": 34312592379,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_dispatch",
+      "build_seconds": 7.26,
+      "id": 34314176990,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_run",
+      "build_seconds": 350.64,
+      "id": 34314594684,
+      "stage": "between-modules"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_run",
+      "build_seconds": 259.5,
+      "id": 34317219078,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_run",
+      "build_seconds": 7.32,
+      "id": 34318192847,
+      "stage": "during-module"
+    },
+    {
+      "cause": "BASE_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_dispatch",
+      "build_seconds": 265.64,
+      "id": 34318704971,
+      "stage": "during-module"
+    },
+    {
+      "cause": "HEAD_MOVED",
+      "module_invocations": 3,
+      "event": "workflow_dispatch",
+      "build_seconds": 405.96,
+      "id": 34319366844,
+      "stage": "during-module"
+    },
+    {
+      "cause": "HEAD_MOVED",
+      "module_invocations": 1,
+      "event": "workflow_dispatch",
+      "build_seconds": 75.98,
+      "id": 34321200572,
+      "stage": "during-module"
+    }
+  ],
+  "candidate_yagni_finding": {
+    "tag": "reuse/shrink",
+    "owner": "repo-owned integration cohort + auto-merge + merge guard",
+    "duplicate": "manual/run-by-run convergence steering when repo automation is in a normal nonterminal state",
+    "evidence": "In this 40-run episode, only 3 runs produced durable receipts. All 3 were workflow_run; 10 workflow_dispatch runs produced no durable receipt, and 7 stale-dispatch runs consumed 29 native module invocations / 42.77 minutes before retiring.",
+    "replacement": "Default to repo-owned convergence for normal states. Human/assistant intervention is reserved for terminal/anomalous states, product failures, missing automation, or explicit user override.",
+    "safety_boundary": [
+      "do not weaken exact-head/current-main checks",
+      "do not reuse prefix-mismatched receipts",
+      "do not overlap scarce native lane",
+      "do not suppress diagnosis of real failure"
+    ],
+    "proof": "Replay same frozen events with steering disabled in normal states; require identical stop/merge decisions and fewer manual dispatch/monitor actions."
+  }
+}

@@ -30,9 +30,9 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `coordination.ownership` | busy_coordinator | C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd inspect <scope>; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd claim; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd heartbeat; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd release; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd recover; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd snapshot | Exact mutation collision/ownership only; never infer backlog, liveness, priority, capacity, or progress. |
 | `coordination.checkpoint_context` | busy_coordinator | C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd inspect <scope>; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd claim --checkpoint; C:\Users\Lauri\AppData\Local\BusyCoordinator\busy-python.cmd heartbeat --checkpoint | Live exact-scope ownership context only; never retained after release/recovery/expiry and never backlog, priority, handoff scheduling, liveness, or reassignment. Durable continuation belongs in the project issue/PR. |
 | `worker.reports` | worker_reports | C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md; C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json | Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence. |
-| `worker.swarm_topology` | swarm_topology | C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance | User-declared swarm membership and operator-handoff topology: two ChatGPT subscription scheduler partitions with five recurring workers each, plus a separate manual/on-demand population. Current activity/liveness remains live MCP/runtime evidence, and scheduler administration never crosses subscription partitions. |
-| `execution.linux_omen_node` | linux_omen_node | python tools\stack_atlas.py lookup linux_omen_node; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md | Preferred LAN compute/build node for portable compute-intensive work behind the existing Windows MCP transport when its live SSH/resource probe passes and the owning repo has a compatible Linux/offload path. LowVRAM, Windows-only workflows, editor/UI-bound work, and MCP/control transport remain on Windows. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route; preserve user data and do not expose TCP 22 publicly. |
-| `execution.transport` | vps_edge_ingress, mcp_minimal_clone, mcp_front_door | preferred MCPv3 binding when healthy and exposed; Remote Desktop Commander approved standby break-glass fallback whenever preferred MCPv3 is unavailable; fallback-only/not primary, not forbidden; retry failed routes only on changed state or new evidence | Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. MCPv3 health does not retire, obsolete, or authorize deletion of the Commander fallback; preserve its recovery path unless current user/live authority explicitly changes that contract. |
+| `worker.swarm_topology` | swarm_topology | C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>; python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance | Two ChatGPT subscription partitions contain five recurring workers each. The scheduler provides recurrence only. Routine health recovery is distributed: each recurring worker checks same-partition siblings from local reports/start receipts and may perform one guard-authorized idempotent re-enable; a supervising/manual ChatGPT session may perform the same bounded recovery. Operator handoff is an administrative fallback/control surface, not routine supervision, and the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence; recovery never crosses subscription partitions. |
+| `execution.linux_omen_node` | linux_omen_node | python tools\stack_atlas.py lookup linux_omen_node; python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable-task-id> --kind <work-kind>; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\swarm-routing-cohort.md | Default execution node under the shared swarm routing cohort for substantive work that is not LowVRAM or genuinely Windows-only. Windows remains MCP/control transport and takes ordinary execution only after fresh cohort evidence that OMEN is saturated/unavailable for that work class; the VPS may take supported portable-light overflow. OMEN is not an MCP endpoint, worker scheduler, repository queue, product authority, or public route; preserve user data and do not expose TCP 22 publicly. |
+| `execution.transport` | vps_edge_ingress, mcp_minimal_clone, mcp_front_door | preferred MCPv4 binding when healthy and exposed; after one bounded refresh/re-discovery attempt fails, fall back in order to MCPv3, then Remote Desktop Commander approved standby break-glass fallback for machine operations, then direct GitHub connector for GitHub-only operations when available; MCPv3, Commander, and direct GitHub are fallback-only/not primary, not forbidden; retry failed routes only on changed state or new evidence | Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. MCPv4 health does not retire, obsolete, or authorize deletion of the MCPv3/Commander/GitHub fallback paths; preserve their recovery paths unless current user/live authority explicitly changes that contract. |
 
 ## Components
 
@@ -116,16 +116,16 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 ### `linux_omen_node`
 
-- Role: `lan_ssh_execution_node`
+- Role: `primary_lan_execution_node`
 - Capabilities: source_read, repository_mutate, runtime_validate, artifact_transfer, build_compute
-- Canonical sources: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md
+- Canonical sources: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\swarm-routing-cohort.md
 - Live status: bounded SSH probe through the documented Windows MCP -> LAN SSH route; mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass; current disk/RAM/GPU state must be re-read before heavy UE work; historical capability snapshots are not liveness proof; sudo -n /usr/local/sbin/omen-agent-admin verify-storage validates /mnt/ue and /boot/efi without exposing a general root shell
 - Independent recovery: local laptop console remains independent of SSH; existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this preferred execution node
 - Resources: HP OMEN by HP Laptop 15-dc0xxx; Linux user aatuska; mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local; C:\Users\Lauri\.ssh\chatgpt-linux-aatuska-ed25519 (private key path only; never read/report contents); LAN SSH TCP 22; Intel i7-8750H / 15 GiB RAM / GeForce GTX 1070 Mobile; NVMe UE_FAST /dev/nvme0n1p5 ext4 UUID a6c05af1-0ede-4327-9fec-0411ac6628ee mounted at /mnt/ue; /usr/local/sbin/omen-agent-admin fixed-action storage helper (status, verify-storage, mount-ue, restart-ready)
 - Dependents: chatgpt_session; execution_workers
-- Runbook: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md
+- Runbook: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\linux-omen-execution-node.md; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\swarm-routing-cohort.md; python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status --refresh-probe
 - Supervisor: user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only
-- Self-heal: none; do not add a scheduler/daemon/control plane merely because the node exists
+- Self-heal: machine admission is owned by the shared swarm routing cohort; repository lanes supervise their own execution; do not add a second scheduler/control plane on OMEN
 
 ### `file_transfer`
 
@@ -246,14 +246,14 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 ### `chatgpt_memory`
 
-- Role: `context:chatgpt-continuity`
+- Role: `context:disabled-product-memory`
 - Capabilities: memory_read
-- Canonical sources: current conversation; ChatGPT Memory
-- Live status: current conversation and delivered ChatGPT Memory
-- Independent recovery: current conversation; targeted Vault history when useful
-- Resources: ChatGPT Memory
-- Dependents: chatgpt_session
-- Runbook: 04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt
+- Canonical sources: ChatGPT Memory disabled by current account configuration
+- Live status: disabled; not a continuity source and never current-state authority
+- Independent recovery: current conversation; targeted Vault history
+- Resources: none
+- Dependents: none
+- Runbook: none
 - Supervisor: ChatGPT
 - Self-heal: product_managed
 
@@ -289,23 +289,23 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Capabilities: source_read
 - Canonical sources: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json; C:\Users\Lauri\.agents\RULES.md; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md
 - Live status: python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>
-- Independent recovery: read the topology contract, canonical shared rules, local worker reports/start receipts, and the controlling subscription's scheduler state only when an authorized exact scheduler mutation is required
+- Independent recovery: python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>; python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>; perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions
 - Resources: S1 five recurring slots; S2 five recurring slots; manual/on-demand worker population
 - Dependents: chatgpt_session; execution_workers; scheduler
 - Runbook: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md
-- Supervisor: user-designated ChatGPT subscription operator; current primary operator is read from chatgpt-swarm-topology.json
-- Self-heal: not_applicable
+- Supervisor: distributed same-partition recurring workers; supervising/manual ChatGPT session may perform the same guarded recovery; operator handoff is administrative fallback only
+- Self-heal: bounded_same_partition_peer_recovery
 
 ### `chatgpt_session`
 
 - Role: `session:user-facing`
 - Capabilities: source_read, repository_mutate, runtime_validate
-- Canonical sources: current conversation; ChatGPT Memory; agent_rules; Atlas; current authorities
+- Canonical sources: current conversation; targeted Vault history; agent_rules; Atlas; current authorities
 - Live status: current task + relevant live-source refresh
-- Independent recovery: current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional
+- Independent recovery: current conversation; targeted Vault history; Atlas on stack work
 - Resources: current task context
 - Dependents: user
-- Runbook: 04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt
+- Runbook: C:\Users\Lauri\.agents\RULES.md
 - Supervisor: current ChatGPT session
 - Self-heal: session_specific
 
@@ -315,25 +315,25 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Capabilities: source_read, repository_mutate, runtime_validate
 - Canonical sources: fresh-worker launch contract; agent_rules
 - Live status: independent execution/activity evidence
-- Independent recovery: preserve task/checkpoint; use another proven execution route
+- Independent recovery: python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>; python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>; preserve task/checkpoint and use another proven execution route for execution-path failures
 - Resources: claimed scope; worktree; execution route
 - Dependents: chatgpt_session
 - Runbook: 04 Operating Contracts/fresh-worker-generation-launch.md
-- Supervisor: ChatGPT + BusyCoordinator ownership
-- Self-heal: worker_specific
+- Supervisor: distributed peer supervision for recurring workers; supervising/manual ChatGPT session may assist; BusyCoordinator is exact mutation collision control only
+- Self-heal: same_partition_sibling_recovery_for_recurring_workers
 
 ### `chatgpt_automations`
 
 - Role: `scheduler:recurrence`
 - Capabilities: schedule
 - Canonical sources: ChatGPT Automations state
-- Live status: current automation list/run state
-- Independent recovery: present-turn work continues without scheduler
-- Resources: timed recurrence only
+- Live status: current automation enabled/schedule state only; not worker liveness, supervision, or recovery authority
+- Independent recovery: same-partition recurring siblings or a supervising/manual ChatGPT session use fleet-watch plus worker_recovery_guard and may issue one targeted is_enabled=true write; scheduler listing is not the discovery path; present-turn work continues without recurrence
+- Resources: timed recurrence and enabled state only
 - Dependents: execution_workers
 - Runbook: 04 Operating Contracts/fresh-worker-generation-launch.md
-- Supervisor: ChatGPT scheduler
-- Self-heal: service_specific
+- Supervisor: platform recurrence service only; it does not supervise worker health or own swarm recovery
+- Self-heal: not_swarm_supervision
 
 ### `github_actions`
 

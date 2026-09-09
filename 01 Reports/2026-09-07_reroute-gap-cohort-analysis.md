@@ -185,7 +185,7 @@ The best current explanation for the recurring **gap subtype** is:
 2. An MCP tool returns successfully (often with the target process already complete).
 3. Control returns to the platform/model side.
 4. The next model action is delayed or absent while the UI remains in the visible reroute/thinking state.
-5. `stop -> go` creates a new execution continuation and immediately restores MCP activity under the same logical caller/session.
+5. `stop -> go` is followed by fresh MCP activity under the same observed connector fingerprint. The fingerprint does not prove backend-worker, inference-request, or app-turn continuity.
 6. Because the underlying chat/caller state is still large, a single additional tool call can enter the same reroute state again.
 
 This fits the user's key correction that **one `go` + one tool call can be enough**. The relevant accumulation is not necessarily the new turn; it is the already-large worker/chat state that the new continuation inherits.
@@ -224,3 +224,21 @@ Related preserved incidents and reports include:
 - `02 Evidence/2026-09-07_1750_EEST_security-reroute-recurrence/`
 - `01 Reports/2026-09-07_security-reroute-worker-continuity-stop-go.md`
 - `01 Reports/2026-09-07_security-reroute-build-status-observations.md`
+
+
+## Additional identity correction — `caller_id` is a connector pseudonym, not a worker identity
+
+The transport cohort groups events by the connector's pseudonymous `caller_id`; it must not be read as a cohort of backend model workers. The production connector hashes request headers to create `caller_id`, and its `session_id` is another hash of session-header material. Across 325,745 sampled `request_start` events, every one of the 111,047 rows with both IDs present had the same 12-hex suffix for caller and session, so those two fields are not independent continuity evidence in this deployment.
+
+Therefore accumulated “caller state” in this report means **accumulated MCP traffic grouped under a connector pseudonym**. It does not establish that one backend worker, one inference request, or one uninterrupted app turn accumulated all of that state. The report's already-withdrawn causal conclusions remain withdrawn.
+
+## Upstream trace-context addendum for the Owl Stop -> `go` incident
+
+The Owl incident now has stronger continuity evidence than this generic cohort originally had. Preserved edge telemetry shows that the final pre-gap MCP request and first post-`go` request share exact upstream distributed trace ID `7894687964776873105` across the ~113-second silent interval. A second trace ID then overlaps the first for 67.306 seconds and launches a separate external process 49 ms apart from the first trace's launch.
+
+This does **not** rescue the generic inactivity-gap cohort as a reroute cohort, and it does not prove same-model-worker continuity. It only upgrades the specifically labeled Owl incident: its Stop -> `go` boundary preserves one upstream tracing lineage, and the resumed phase later contains overlapping upstream trace contexts under one connector session. Generic same-caller gaps without independent edge/UI/turn evidence must still remain unlabeled transport gaps.
+
+Evidence: `02 Evidence/2026-09-08_owl_edge_trace_overlap.json`.
+
+Updated: 2026-09-08T04:19:20.877103+03:00
+

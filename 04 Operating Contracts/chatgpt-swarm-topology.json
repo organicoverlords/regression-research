@@ -1,7 +1,7 @@
 {
   "schema": "chatgpt-swarm-topology.v1",
   "recorded_at": "2026-09-07T19:31:00+03:00",
-  "authority": "USER_EXPLICIT_TOPOLOGY_AND_OPERATOR_HANDOFF",
+  "authority": "USER_EXPLICIT_TOPOLOGY_AND_OPERATOR_HANDOFF; GPT_WORK_OR_OTHER_PAID_ALTERNATE_EXECUTION_HANDOFF_REQUIRES_EXPLICIT_USER_REQUEST",
   "subscriptions": {
     "S1": {
       "recurring_worker_slots": 5,
@@ -67,6 +67,13 @@
   },
   "recurring_worker_total": 10,
   "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; no cross-partition sibling administration.",
+  "routine_recurring_recovery": {
+    "authority": "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+    "scheduler_role": "RECURRENCE_ONLY",
+    "peer_recovery": "Each recurring worker runs fleet-watch once after its own start evidence and may re-enable only an exact same-partition sibling authorized by worker_recovery_guard.py; workers never administer themselves or the other partition.",
+    "operator_handoff_role": "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+    "user_role": "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION"
+  },
   "manual_workers": {
     "population": "SEPARATE_ON_DEMAND",
     "counts_against_recurring_slots": false,
@@ -77,6 +84,10 @@
     "primary_operator_subscription": "S2",
     "s1_expected_thinking_recovery_date": "2026-09-09",
     "automatic_scheduler_mutation_on_date": false,
-    "note": "S1's recurring worker partition remains part of the swarm; only operator/control emphasis shifts to S2 until the user changes or confirms the handoff state."
+    "note": "S1's recurring worker partition remains part of the swarm; only operator/control emphasis shifts to S2 until the user changes or confirms the handoff state.",
+    "external_execution_handoff_policy": "EXPLICIT_USER_REQUEST_ONLY",
+    "external_execution_handoff_requires_explicit_user_request": true,
+    "external_execution_handoff_rule": "Never hand work off to GPT Work, ChatGPT Work, Work mode, or any paid/alternate execution service unless the user explicitly asks for that service.",
+    "external_execution_handoff_contract": "04 Operating Contracts/chatgpt-execution-handoff-policy.md"
   }
 }

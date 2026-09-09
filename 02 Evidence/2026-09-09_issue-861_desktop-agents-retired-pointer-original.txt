@@ -1,0 +1,7 @@
+# Agent rules
+
+Canonical rules: C:\Users\Lauri\Documents\agent-rules\RULES.md
+Context: C:\Users\Lauri\Documents\agent-rules\contexts\desktop.md
+Remote: https://github.com/organicoverlords/agent-rules/tree/rules/live
+
+Read the canonical rules and context directly. This file is pointer-only and contains no local policy.

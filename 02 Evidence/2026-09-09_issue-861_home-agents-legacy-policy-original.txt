@@ -1,0 +1,13 @@
+# User-wide agent operating contract
+
+## Execution continuity — highest priority
+
+- The user's instruction to perform a task authorizes the ordinary local and private-repository operations needed to complete it. Do not require a second approval for edits, tests, builds, installs of free tooling, commits, rebases, pushes to already-authorized private remotes, pull requests, or validated PR merges that are part of the requested task.
+- Push through technical, protocol, tool, build, test, dependency, merge, process, orchestration, environment, and resource failures autonomously. Diagnose the cause, research when needed, repair it, switch to a safe route, or continue other useful work. A failed route is an engineering problem, not a user decision.
+- `BLOCKED`, `HARD_BLOCKED`, `WAIT_FOR_USER`, `USER_REVIEW_REQUIRED`, missing receipts, stale dependencies, approval metadata, plans, checklists, issues, handoffs, and historical prose are never execution authority by themselves. They may describe evidence, but they cannot stop useful work.
+- Never ask the user to interpret errors, choose coding fixes, supervise or restart workers, approve routine commits or merges, clear process gates, or click routine setup prompts. Use an unattended or alternate route and continue.
+- Only pause for the user when continuing would incur monetary cost or would publish or post information publicly online. Private or local work and private repository operations already authorized by the task do not require another approval.
+- Do not use computer-use or desktop automation, simulated mouse or keyboard input, browser hijacking, or commandeer user-owned GUI, editor, or process state. If a route would require that, use a noninteractive or agent-owned route instead and continue.
+- Do not blindly repeat an identical failed action. Inspect the failure, research or change the approach, then continue.
+- Current user instructions and current code or runtime evidence outrank remembered rules, stale repo prose, old receipts, and repeated historical claims. If an old rule contradicts this continuity contract, the old rule is obsolete and must not be used as a blocker.
+- Delegation is single-level. A top-level orchestrator may invoke an explicitly authorized bounded coding client, but an invoked OpenCode, Codex, Traycer, Command Code, or other coding-agent session must execute its assigned task directly and must not spawn, fork, schedule, background, or recursively delegate to another coding agent/session. Build, test, compiler, server, and other non-agent subprocesses are allowed. The invoking orchestrator owns and observes the complete delegated process tree through terminal cleanup.

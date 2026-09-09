@@ -1,0 +1,393 @@
+{
+  "schema": "safety-buffering-product-artifact-evidence.v1",
+  "observed_at": "2026-09-08T02:20:51.657328+03:00",
+  "package": {
+    "path": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.901.4073.0_x64__2p2nqsd0c76g0\\app\\resources\\app.asar",
+    "package_version": "26.901.4073.0",
+    "bytes": 299073250,
+    "last_write_local": "2026-09-04T19:21:13.2777110+03:00",
+    "sha256": "689A59ECCD6B4D38F3DDAF202DAC05B7CF5CA9CBA93B2703F7AA8A44BE90B23E"
+  },
+  "distinct_notifications": {
+    "model/safetyBuffering/updated": {
+      "byte_offset": 28324030,
+      "frontend_effect": "destructures threadId, turnId, model; stores the remaining notification payload on the turn as safetyBuffering state"
+    },
+    "model/rerouted": {
+      "byte_offset": 28324532,
+      "frontend_effect": "destructures threadId, turnId, fromModel, toModel, reason; appends a modelRerouted timeline item"
+    },
+    "interpretation": "Safety-buffering state and actual model-reroute events are separate app-server notification methods and separate frontend state paths."
+  },
+  "banner_surface": {
+    "selector": "finds a turn whose safetyBuffering.showBufferingUi is true; banner visibility additionally requires that turn status is inProgress",
+    "fields_consumed": [
+      "fasterModel",
+      "reasons",
+      "useCases",
+      "showBufferingUi"
+    ],
+    "default_title": "Giving this request a little extra thought",
+    "default_description": "If you'd rather not wait, retry with a faster model. It may be less capable of handling complex requests.",
+    "retry_button": "Retry",
+    "retry_confirmation_title": "Stop this attempt and retry?",
+    "retry_confirmation_buttons": [
+      "Keep waiting",
+      "Stop and retry"
+    ],
+    "retry_history_warning": "Replacing the current conversation attempt does not undo file changes or other actions already taken.",
+    "frontend_telemetry_flags_observed": {
+      "useCases_contains": [
+        "bio",
+        "cyber"
+      ],
+      "reasons_contains": [
+        "user_risk"
+      ],
+      "note": "These are frontend telemetry checks and are not evidence that any particular observed turn had one of these values."
+    }
+  },
+  "retry_implementation": {
+    "method": "retrySafetyBufferedTurn",
+    "ascii_occurrences": [
+      28553380,
+      34695928
+    ],
+    "active_turn_behavior": [
+      "locates the buffered turn and validates it is latest",
+      "selects a compatible reasoning effort for the target faster model",
+      "interrupts the specific active turn using system interrupt",
+      "reverts or rolls back one conversation turn depending app-server capability/history mode",
+      "starts a replacement turn with the same buffered input, target model, and turnTrigger=safety_buffer_retry"
+    ],
+    "non_active_turn_behavior": "if the buffered turn is no longer inProgress, updates thread settings for the next turn to the target model/reasoning effort and returns",
+    "external_effect_note": "The packaged UI explicitly says file changes and other already-taken actions remain; this is conversation-turn replacement, not filesystem rollback."
+  },
+  "manual_stop_go_distinction": {
+    "fact": "The built-in safety-buffer retry path is not the same operation as the user manually pressing Stop and then sending go.",
+    "empirical_manual_stop_go": "Owl manual Stop -> go now has stronger edge evidence: the final pre-gap request and first post-go request share exact upstream distributed trace ID 7894687964776873105. This proves continuity of that tracing lineage across the boundary. It still does not establish backend-worker/app-turn identity. A separate stronger case independently proves an exact pre-existing external MCP child can survive a pause boundary.",
+    "bounded_inference": "The observed stop/go recovery behavior should not be attributed to retrySafetyBufferedTurn unless the user actually invokes the banner Retry/Stop-and-retry action."
+  },
+  "local_persistence_check": {
+    "database": "C:\\Users\\Lauri\\.codex\\logs_2.sqlite",
+    "bytes_at_check": 970121216,
+    "search_terms": [
+      "safetyBuffering",
+      "model/safetyBuffering/updated",
+      "model/rerouted",
+      "CODEX_SAFETY_UX_SURFACE_BUFFERING",
+      "user_risk"
+    ],
+    "matches": 0,
+    "interpretation": "The current local logs database does not provide retrospective per-turn safety-buffering labels for these events."
+  },
+  "nomenclature_correction": "Use visible safety-buffering/thinking banner for this UI family. Do not use reroute as a synonym for the banner. Reserve model reroute for evidence of the separate model/rerouted notification.",
+  "codex_binary": {
+    "path": "C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.901.4073.0_x64__2p2nqsd0c76g0\\app\\resources\\codex.exe",
+    "bytes": 295352624,
+    "sha256": "56A84DE2B617AF6B95B0C5C5D8AE120D3C2FB69008AB330C7E7DF3945B98B782",
+    "ascii_evidence": {
+      "SafetyBufferingEvent_offset": 227104723,
+      "adjacent_field_names": [
+        "use_cases",
+        "reasons",
+        "show_buffering_ui",
+        "faster_model",
+        "started",
+        "interacted"
+      ],
+      "model/rerouted_offset": 227209040,
+      "model/safetyBuffering/updated_offset": 227209384
+    }
+  },
+  "banner_lifecycle": {
+    "notification_assignment": "model/safetyBuffering/updated stores the payload on the addressed turn as turn.safetyBuffering",
+    "explicit_clear_search": {
+      "safetyBuffering_null_occurrences": 0,
+      "delete_safetyBuffering_occurrences": 0,
+      "assignment_occurrences": 2,
+      "note": "Only the notification assignment and an unrelated minified UI occurrence were found for direct .safetyBuffering= assignment."
+    },
+    "visibility_gate": "the banner selector requires safetyBuffering.showBufferingUi===true; rendered visibility additionally requires turn status inProgress",
+    "turn_completion": "turn/completed updates the same turn state status from the app-server completion payload; no explicit safetyBuffering clear is needed for the banner to disappear because isVisible becomes false",
+    "implication": "A safety-buffering banner can remain visible through an MCP-silent period without receiving repeated buffering notifications, provided the turn itself remains inProgress."
+  },
+  "manual_stop_implementation": {
+    "function": "ptn / interruptConversation",
+    "active_turn_path": [
+      "locates the latest inProgress turn",
+      "sends app-server turn/interrupt for that turn",
+      "marks local turn state interrupted",
+      "kills active node_repl executions associated with the conversation/session/turn",
+      "interrupts descendant subagent turns through separate descendant cleanup"
+    ],
+    "fallback_path": "if there is no active turn, invokes background-terminal cleanup and returns null",
+    "important_scope": "The inspected cleanup code explicitly targets node_repl executions and descendant subagents. It does not demonstrate ownership of connector-managed MCP subprocesses started outside the app-server command execution subsystem.",
+    "empirical_confirmation": "Existing pause/stop-go evidence is stronger: an exact MCP child has survived a pause/go boundary, so external MCP child survival is demonstrably possible."
+  },
+  "exact_public_release_source": {
+    "tag": "rust-v0.153.1",
+    "commit": "985641272869835d01d025ed2a218fbbce35fa9f",
+    "installed_cli_version": "0.153.1",
+    "safety_event_forwarding": {
+      "file": "codex-rs/core/src/session/turn.rs",
+      "lines": "2562-2574",
+      "fact": "SafetyBuffering response events are forwarded to the app as metadata/UI events without a pause/cancel/tool-blocking action."
+    },
+    "safety_interleaving_test": {
+      "file": "codex-rs/codex-api/src/sse/responses.rs",
+      "lines": "1704-1762",
+      "test": "process_sse_emits_all_safety_buffering_notifications_without_dropping_response_events",
+      "fact": "Safety-buffering events can appear between normal output text deltas and response completion without dropping those response events."
+    },
+    "remote_inference_wait": {
+      "file": "codex-rs/core/src/session/turn.rs",
+      "lines": "2259-2272, 2302-2328",
+      "fact": "The logical turn may await the next remote Responses stream event while making no MCP call and owning no connector child."
+    },
+    "stream_idle_timeout": {
+      "default_ms": 300000,
+      "source": "codex-rs/model-provider-info/src/lib.rs line 27 and stream_idle_timeout() lines 372-375",
+      "openai_builtin_uses_default": true,
+      "user_config_override_present": false,
+      "transport_semantics": "SSE and WebSocket both wrap each next-event wait in the provider idle timeout.",
+      "owl_113_366s_below_default": true
+    },
+    "x_codex_turn_state": "Sticky routing/continuation token captured from Responses transport; not a pause-state indicator."
+  },
+  "tool_plane_vs_backend_classification": {
+    "tool_plane_silence": "zero MCP calls + zero live connector child processes during a still-open logical run",
+    "does_not_prove": "backend/model inactivity or server-side stall",
+    "normal_compatible_state": "client awaiting a Responses stream event while the turn remains inProgress",
+    "owl_reclassification": "113.366-second interval = confirmed tool-plane silence; backend state unknown"
+  },
+  "server_side_trigger_boundary": {
+    "exact_source_tag": "rust-v0.153.1",
+    "sse_response_header_read": {
+      "file": "codex-rs/codex-api/src/sse/responses.rs",
+      "lines": "48-70",
+      "fact": "Safety-buffering treatment is read from the server response headers (`stream_response.headers`), not computed from the local prompt/tool history."
+    },
+    "event_payload_extraction": {
+      "file": "codex-rs/codex-api/src/sse/responses.rs",
+      "lines": "252-273",
+      "fact": "The client only emits SafetyBuffering when the server stream carries a top-level `safety_buffering` object or a `response.metadata` event whose type is `safety_buffering`; when present, the client sets show_buffering_ui=true."
+    },
+    "header_role": {
+      "file": "codex-rs/codex-api/src/safety_buffering.rs",
+      "fact": "`x-codex-safety-buffering-faster-model` supplies a retry-model fallback. Presence/value of the `enabled` response header does not locally gate event visibility."
+    },
+    "visibility_test": {
+      "file": "codex-rs/codex-api/src/endpoint/responses_websocket.rs",
+      "lines": "1214-1245",
+      "fact": "Exact release test proves a safety_buffering event still produces show_buffering_ui=true even when response header x-codex-safety-buffering-enabled is `false`."
+    },
+    "local_user_risk_predicate_search": "No production `user_risk` classifier/predicate was found in the exact client source; `user_risk` occurrences are test/protocol fixture values.",
+    "conclusion": "The decision to attach the safety_buffering payload/use_cases/reasons is upstream/server-side in this release. The local client transports and presents that decision; it does not calculate the trigger predicate."
+  },
+  "local_log_retention_and_gap": {
+    "source": {
+      "retention_days": 10,
+      "per_thread_or_process_size_limit_bytes": 10485760,
+      "per_thread_or_process_row_limit": 1000,
+      "files": [
+        "codex-rs/state/src/runtime/logs.rs line 3",
+        "codex-rs/state/src/runtime.rs lines 84-85"
+      ]
+    },
+    "owl_window_utc": "2026-09-07T19:08:00Z..2026-09-07T19:19:00Z",
+    "rows_in_current_logs_db_for_window": 0,
+    "nearest_observed_log_before": "2026-09-07T17:48:06Z",
+    "nearest_observed_log_after": "2026-09-07T19:22:17Z",
+    "interpretation": "Current logs_2.sqlite cannot reconstruct Owl’s Responses-channel state during the observed banner/tool-plane-silent episode. The database has no rows at all in that time window; the reason for that local logging gap is not established."
+  },
+  "ui_lifecycle_exact_release": {
+    "release": "rust-v0.153.1",
+    "banner_semantics": "display/lifecycle state for an in-progress turn; not an execution-state signal",
+    "implementation": {
+      "safety_buffering_file": "codex-rs/tui/src/chatwidget/safety_buffering.rs",
+      "active_fields": [
+        "turn_id",
+        "last_prompt_had_retry",
+        "agent_message_started"
+      ],
+      "notification_fields_used_for_ui_control": [
+        "turn_id",
+        "show_buffering_ui",
+        "faster_model"
+      ],
+      "notification_fields_not_used_for_execution_control": [
+        "use_cases",
+        "reasons"
+      ]
+    },
+    "reasoning_behavior": {
+      "file": "codex-rs/tui/src/chatwidget/streaming.rs",
+      "fact": "reasoning deltas continue accumulating while safety_buffering_is_waiting(); only reasoning-derived status-header updates return early"
+    },
+    "assistant_output_test": {
+      "file": "codex-rs/tui/src/chatwidget/tests/app_server.rs",
+      "lines": "193-215",
+      "test": "safety_buffering_remains_visible_until_turn_completes",
+      "sequence": [
+        "buffering shown",
+        "retry initially available",
+        "assistant text delta Visible response",
+        "retry becomes unavailable",
+        "banner remains rendered",
+        "turn completes",
+        "banner disappears"
+      ],
+      "conclusion": "banner visibility can outlive actual assistant response progress"
+    },
+    "operational_correction": "Do not use the visible banner start/end as worker-, tool-, or backend-stall boundaries.",
+    "upstream_intent": {
+      "pr_30490": {
+        "title": "fix(tui): clear completed safety buffering prompt",
+        "merge_commit": "850da19dc4e12827b6dbe991d59cffafd4d032ec",
+        "intent": "keep safety notice visible while turn is active, remove when turn becomes terminal",
+        "test_instruction": "let the turn continue and confirm prompt remains visible while active"
+      },
+      "pr_32286": {
+        "title": "Clarify waiting behavior in safety buffering prompts",
+        "merge_commit": "b5314aea1110fa2c114d57b17f1cabbf6f512f02",
+        "intent": "explicitly tell user no action is required and waiting continues"
+      },
+      "conclusion": "banner persistence during ongoing reasoning/tool/assistant progress is an intended UI lifecycle, not by itself a stale-widget bug"
+    }
+  },
+  "cyber_state_taxonomy_exact_release": {
+    "release": "rust-v0.153.1",
+    "states": {
+      "safety_buffering": {
+        "notification": "model/safetyBuffering/updated",
+        "origin": "server Responses stream safety_buffering payload",
+        "server_originated_fields": [
+          "use_cases",
+          "reasons",
+          "retry_model when present"
+        ],
+        "client_synthesized_fields": [
+          "show_buffering_ui=true when payload is object-valued"
+        ],
+        "causal_weight": "direct evidence server attached safety-buffering metadata; not evidence of execution stall"
+      },
+      "model_rerouted": {
+        "notification": "model/rerouted",
+        "origin": "client comparison of requested model vs server-reported model",
+        "reason": "HighRiskCyberActivity",
+        "reason_origin": "client-synthesized unconditionally on any model mismatch in maybe_warn_on_server_model_mismatch",
+        "source": "codex-rs/core/src/session/mod.rs:3681-3718",
+        "causal_weight": "proves model mismatch; reason is not a separately parsed server reason in this release"
+      },
+      "model_verification": {
+        "notification": "model/verification",
+        "origin": "response.metadata.openai_verification_recommendation",
+        "known_value": "trustedAccessForCyber",
+        "source": "codex-rs/codex-api/src/sse/responses.rs:229-237,300-329",
+        "causal_weight": "direct server recommendation for additional verification; separate from buffering/reroute"
+      },
+      "turn_moderation_metadata": {
+        "notification": "turn/moderationMetadata",
+        "origin": "response.metadata.openai_chatgpt_moderation_metadata",
+        "causal_weight": "moderation presentation metadata; separate channel"
+      },
+      "cyber_policy": {
+        "notification_or_error": "typed fatal CyberPolicy error",
+        "origin": "server error code cyber_policy",
+        "source": "codex-rs/codex-api/src/sse/responses.rs:425-427,715-731",
+        "causal_weight": "direct hard policy failure; not safety buffering"
+      }
+    },
+    "operational_rule": "Do not treat safety buffering, model rerouting, verification, moderation metadata, and cyber_policy as interchangeable signals."
+  },
+  "banner_reason_visibility": {
+    "package_sha256": "689A59ECCD6B4D38F3DDAF202DAC05B7CF5CA9CBA93B2703F7AA8A44BE90B23E",
+    "selector": "find turn where safetyBuffering.showBufferingUi===true; isVisible requires turn status inProgress",
+    "payload_fields_forwarded_to_component": [
+      "useCases",
+      "reasons",
+      "fasterModel",
+      "turnId"
+    ],
+    "reason_checks": {
+      "useCases": [
+        "bio",
+        "cyber"
+      ],
+      "reasons": [
+        "user_risk"
+      ]
+    },
+    "use_of_reason_checks": "safety UX telemetry booleans (hasBioUseCase, hasCyberUseCase, hasUserRisk) in inspected banner component",
+    "visible_copy": "generic; inspected title/description do not expose use-case/reason",
+    "evidentiary_rule": "generic banner screenshot establishes safety-buffering UI only; specific useCase/reason requires payload/runtime capture",
+    "owl_correction": "Do not retroactively label Owl cyber/user_risk from its generic banner screenshots alone."
+  },
+  "banner_dismissal_overlay": {
+    "package_sha256": "689A59ECCD6B4D38F3DDAF202DAC05B7CF5CA9CBA93B2703F7AA8A44BE90B23E",
+    "per_turn_state": "per-turn atom initialized false; dismiss This time sets true for conversationId+turnKey",
+    "persistent_state": "safety-buffering-banner-dismissed-v1 persistent preference; Don’t show again sets true",
+    "render_predicate": "underlying isVisible && !dismissed_for_turn && persistent_dismissed===false",
+    "underlying_payload_clear": "dismiss handlers do not clear turn.safetyBuffering in inspected component",
+    "correction": "Banner absence cannot be used to infer absence of safety-buffering state, just as banner presence cannot infer execution stall."
+  },
+  "rust_tui_retry_semantics_exact_release": {
+    "file": "codex-rs/tui/src/app/safety_buffering.rs",
+    "sequence": [
+      "verify source/active/primary thread identity",
+      "interrupt buffered turn",
+      "read/hydrate source thread",
+      "require buffered turn to be latest and no relevant in-progress predecessor",
+      "fork source thread before buffered turn",
+      "obtain new retry thread id",
+      "shutdown current thread",
+      "replace chat widget with fork",
+      "restore input state",
+      "resubmit original turn"
+    ],
+    "retry_model": "server-selected faster model",
+    "reasoning_effort": "low",
+    "new_thread": true,
+    "distinction_from_owl_manual_stop_go": "Owl manual Stop -> go is empirically distinct from built-in Retry. Edge telemetry preserves one upstream distributed trace lineage across the manual boundary, but that does not establish app-thread/backend-worker identity. Rust TUI built-in Retry intentionally forks to a new app-server thread.",
+    "surface": "Rust TUI",
+    "scope_note": "Do not project this fork behavior onto the installed Windows Desktop JS surface."
+  },
+  "installed_desktop_retry_semantics": {
+    "surface": "Windows Desktop app.asar",
+    "package_version": "26.901.4073.0",
+    "package_sha256": "689A59ECCD6B4D38F3DDAF202DAC05B7CF5CA9CBA93B2703F7AA8A44BE90B23E",
+    "function": "Rln / retrySafetyBufferedTurn",
+    "active_turn_sequence": [
+      "find buffered turn",
+      "choose compatible existing effort or low",
+      "interrupt exact active turn",
+      "verify buffered turn remains latest",
+      "thread/revert beforeTurnId when supported, else thread/rollback numTurns=1",
+      "start replacement on same threadId with turnTrigger=safety_buffer_retry"
+    ],
+    "replacement_thread_identity": "same conversation/thread id",
+    "terminal_turn_behavior": "if buffered turn is not inProgress, only update next-turn model/reasoning settings and return",
+    "filesystem_actions": "conversation revert/rollback does not imply reversal of external file/tool side effects",
+    "distinction": "Rust TUI uses a forked-thread retry path; Desktop and TUI retry semantics are surface-specific."
+  },
+  "connector_identity_semantics": {
+    "caller_session_are_not_worker_identity": true,
+    "caller_id": "connector pseudonym from hashed header identity",
+    "session_id": "hashed session header material",
+    "empirical_note": "111047/111047 sampled requests with both IDs had identical suffixes, so the fields are not independent continuity evidence in this deployment.",
+    "owl_manual_stop_go": "connector fingerprint continuity is now supplemented by exact upstream trace-id continuity across the Owl Stop -> go boundary; the trace proves tracing lineage, not backend worker/turn identity. Exact surviving process_id/PID remains direct child-process continuity evidence.",
+    "evidence": "02 Evidence/2026-09-08_mcp-caller-session-identity-semantics.json"
+  },
+  "updated_at": "2026-09-08T04:21:32.684242+03:00",
+  "owl_upstream_trace_context_evidence": {
+    "artifact": "02 Evidence/2026-09-08_owl_edge_trace_overlap.json",
+    "stop_go_trace_id": "7894687964776873105",
+    "same_trace_across_boundary": true,
+    "edge_gap_seconds": 113.367,
+    "second_overlapping_trace_id": "7050226915736017071",
+    "trace_overlap_seconds": 67.306,
+    "near_simultaneous_process_launch_separation_ms": 49.0,
+    "interpretation": "Manual Stop -> go preserved one upstream tracing lineage; afterward two distinct upstream trace contexts overlapped under one connector session. Neither fact alone identifies backend model workers or app turns."
+  }
+}

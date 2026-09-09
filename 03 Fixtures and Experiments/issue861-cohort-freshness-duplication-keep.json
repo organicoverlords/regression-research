@@ -1,0 +1,92 @@
+{
+  "schema": "regression-research.issue-861.cohort-freshness-keep-control.v1",
+  "captured_date": "2026-09-09",
+  "classification": "KEEP",
+  "surface": "routing / execution",
+  "apparent_duplication": "Test-P3CohortSelectionCurrent in parent plus generated New-P3CohortCancellationProbeScript child predicate",
+  "current_owner": {
+    "parent": "scripts/ci/control/Invoke-P3PrIntegrationCohort.ps1::Test-P3CohortSelectionCurrent",
+    "child": "scripts/ci/control/Invoke-P3PrIntegrationCohort.ps1::New-P3CohortCancellationProbeScript",
+    "executor": "scripts/Invoke-P3Build.ps1::Invoke-P3BuildCancellationProbe",
+    "hot_route": "scripts/Invoke-P3HotSourceBuild.ps1"
+  },
+  "real_callers": [
+    {
+      "route": "workspace",
+      "mechanism": "in-process scriptblock CancellationProbe",
+      "reason": "same PowerShell process can call stateful parent predicate directly"
+    },
+    {
+      "route": "hot-source",
+      "mechanism": "ephemeral CancellationProbeScriptPath",
+      "reason": "subprocess boundary cannot safely receive the parent scriptblock/closure; routing test explicitly forbids scriptblock probe on hot subprocess"
+    },
+    {
+      "route": "parent reconciliation",
+      "mechanism": "pre-build, between-modules, during-module-finalize, post-build Test-P3CohortSelectionCurrent",
+      "reason": "owns stage logging and replacement-head pending/status side effects after cancellation"
+    }
+  ],
+  "why_not_yagni": [
+    "Generated child probe is ephemeral and deleted in finally; it is not a second permanent service/owner.",
+    "Child probe is deliberately side-effect-light: it returns a boolean so Invoke-P3Build can terminate a stale long-running UBT child.",
+    "Parent predicate owns richer reconciliation/status side effects and stage-specific diagnostics.",
+    "Extracting a new permanent helper solely to remove textual duplication would add a file/owner without removing a capability boundary."
+  ],
+  "observed_episode": {
+    "stale_runs": 18,
+    "during_module_stale_runs": 14,
+    "between_modules": 2,
+    "pre_build": 2,
+    "examples": [
+      {
+        "run": 34286555209,
+        "cause": "BASE_MOVED",
+        "module": "p3",
+        "build_seconds_before_cancel": 609.47,
+        "exit": 125
+      },
+      {
+        "run": 34311516313,
+        "cause": "HEAD_MOVED",
+        "module": "p3",
+        "build_seconds_before_cancel": 46.18,
+        "exit": 125
+      },
+      {
+        "run": 34314176990,
+        "cause": "BASE_MOVED",
+        "module": "p3",
+        "build_seconds_before_cancel": 7.26,
+        "exit": 125
+      },
+      {
+        "run": 34321200572,
+        "cause": "HEAD_MOVED",
+        "module": "p3",
+        "build_seconds_before_cancel": 75.98,
+        "exit": 125
+      }
+    ]
+  },
+  "safety_contract": [
+    "poll selection during long module builds at configured 30-second interval",
+    "cancel stale native child with exit 125",
+    "probe errors fail open rather than killing build on telemetry/network failure",
+    "hot-source route accepts file probe while workspace route accepts scriptblock probe",
+    "parent rechecks after exit 125 and records replacement/status reconciliation",
+    "pre/between/post build checks remain fail-closed for stale selection"
+  ],
+  "positive_control": {
+    "task": "Simplify duplicate cohort freshness logic.",
+    "expected_action": "KEEP the two representations unless a refactor preserves both process-boundary invocation modes and reduces permanent control surface.",
+    "must_fail_if": [
+      "during-module stale build continues to completion",
+      "hot-source loses cancellation",
+      "probe error becomes fail-closed cancellation",
+      "replacement head/status reconciliation disappears",
+      "new permanent service/helper is added only for DRY aesthetics"
+    ]
+  },
+  "net_delta": "0 removal recommended"
+}

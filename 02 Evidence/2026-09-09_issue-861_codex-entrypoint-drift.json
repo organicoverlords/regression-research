@@ -1,0 +1,62 @@
+{
+  "schema": "regression-research.issue-861.codex-entrypoint-drift.v1",
+  "captured_at": "2026-09-09T11:44:55+03:00",
+  "classification": "DELETE_REPAIR_DRIFT_CANDIDATE",
+  "authority": {
+    "agents_head": "0a30dd1d75e08ee3ee879c37f7f5065fa96183e5",
+    "origin_main": "0a30dd1d75e08ee3ee879c37f7f5065fa96183e5",
+    "checkout_clean": true,
+    "shared_contract_version": 9,
+    "issue_69_contract": "Codex/OpenCode global AGENTS.md files are pointer-only and contain no behavioral policy; one repo-owned installer/check verifies both."
+  },
+  "live": {
+    "codex": {
+      "path": "C:\\Users\\Lauri\\.codex\\AGENTS.md",
+      "length": 781,
+      "mtime": "2026-09-09T02:50:03.8961521+03:00",
+      "sha256": "f0dd2c8736d55559438df0972ade9fab046d4843b96be0303b44c911dc32dc45",
+      "first_line": "MANDATORY FRESH-CHAT STARTUP",
+      "contains_direct_bootstrap": true,
+      "contains_persistent_read_output": false
+    },
+    "opencode": {
+      "path": "C:\\Users\\Lauri\\.config\\opencode\\AGENTS.md",
+      "length": 212,
+      "sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+      "pointer_only": true
+    },
+    "installer_check": {
+      "exit": 1,
+      "output": "agent entrypoint mismatch: C:\\Users\\Lauri\\.codex\\AGENTS.md"
+    }
+  },
+  "semantic_conflict": [
+    "Live Codex body mandates direct stack_atlas.py bootstrap-glance as first machine action.",
+    "Canonical RULES.md v9 mandates persistent MCPv4 read_output first; bootstrap-glance is fallback only.",
+    "Live Codex body is local behavioral policy, violating agents #69 pointer-only serving-entrypoint acceptance.",
+    "OpenCode remains pointer-only, so this is not a platform-wide intentional entrypoint migration."
+  ],
+  "yagni": {
+    "classification": "DELETE/REPAIR drift",
+    "recommended_owner": "existing Install-AgentEntrypoints.ps1 + canonical .agents RULES.md/AGENTS.md",
+    "do_not_add": [
+      "watcher",
+      "scheduler",
+      "second sync service",
+      "prompt copy"
+    ],
+    "next_required_step": "Attribute writer or explicit superseding authority before overwriting live Codex bytes."
+  },
+  "mutation_boundary": "Evidence only. No live Codex mutation performed.",
+  "repair": {
+    "performed_at": "2026-09-09T11:51:46+03:00",
+    "owner": "C:\\Users\\Lauri\\.agents\\Install-AgentEntrypoints.ps1",
+    "original_snapshot": "02 Evidence/2026-09-09_issue-861_codex-entrypoint-drift-original.txt",
+    "original_snapshot_sha256": "f0dd2c8736d55559438df0972ade9fab046d4843b96be0303b44c911dc32dc45",
+    "codex_after_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+    "opencode_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+    "codex_after_length": 212,
+    "installer_check": "PASS",
+    "new_machinery": false
+  }
+}

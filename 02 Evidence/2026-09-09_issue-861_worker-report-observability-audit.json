@@ -1,0 +1,62 @@
+{
+  "schema": "regression-research.issue-861.worker-report-observability-audit.v1",
+  "captured_date": "2026-09-09",
+  "prerequisite_820_state": "OPEN",
+  "canonical_owner": {
+    "worker_report_history": "tools/worker_report_history.py",
+    "timed_metrics": "worker-reports/metrics.json",
+    "manual_metrics": "worker-reports/manual/metrics.json",
+    "atlas_component": "worker_reports"
+  },
+  "keep": [
+    {
+      "surface": "worker_report_history lifecycle + metrics projections",
+      "reason": "canonical immutable history owner; metrics are consumed directly by stack_atlas and memory_bank"
+    },
+    {
+      "surface": "timeline_materializer worker-quality projection",
+      "reason": "historical/materialized horizon semantics are intentionally distinct from current live metrics and current liveness"
+    },
+    {
+      "surface": "tools/worker_findings_summary.py",
+      "reason": "no automatic caller observed, but closed issue #532 explicitly requires a direct read-only aggregate across archived + RUNNING timed/manual reports; memory overview intentionally uses archived metrics only, so deleting it would remove a distinct user-requested capability",
+      "tracked": true,
+      "source_lines": 177,
+      "test_lines": 110,
+      "introduced_commit": "6f6e9429697974e0ad21e85f07bc47ee131d6369",
+      "issue": 532
+    }
+  ],
+  "do_not_promote_without_consumer": {
+    "path": "tools/worker_review_fleet_context.py",
+    "tracked": false,
+    "bytes": 32586,
+    "source_lines": 735,
+    "mtime_local": "2026-09-09T05:44:05+03:00",
+    "default_output": "worker-reports/reviews/fleet-context.json",
+    "default_output_exists": false,
+    "observed_repo_contract_references": 0,
+    "observed_github_issue_references": 0,
+    "observed_scheduled_task_references": 0,
+    "observed_live_process_references_excluding_inspection": 0,
+    "overlap": "re-reads timed/manual history and introduces its own regex fault-family/signature taxonomy plus another persisted projection",
+    "decision": "preserve untouched as foreign untracked WIP; do not land/promote as canonical unless a current owner demonstrates a unique consumer/requirement. If still ownerless at #820 closure, prefer deleting the sidecar over creating a new reporting ontology/projection."
+  },
+  "current_consumer_trace": {
+    "stack_atlas": "reads worker-reports/metrics.json directly for archived timed-run quality and separately reads current reports/start receipts for fleet watch",
+    "memory_bank": "reads timed/manual metrics.json for archived finding counts/examples",
+    "worker_findings_summary": "direct on-demand current+archived finding aggregate from #532; not a scheduler/control plane"
+  },
+  "classification": {
+    "keep": [
+      "canonical lifecycle/history",
+      "metrics.json projections",
+      "Atlas live/current-vs-archive separation",
+      "memory archived findings",
+      "direct #532 current+archive findings CLI"
+    ],
+    "reuse_shrink": "do not add a second persisted fleet-context ontology unless a unique current consumer appears",
+    "delete_now": [],
+    "mutation_now": "none; #820 remains open and foreign WIP is preserved"
+  }
+}

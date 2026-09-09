@@ -1,0 +1,923 @@
+{
+  "schema": "owl-edge-trace-overlap.v1",
+  "generated_at": "2026-09-08T03:35:41.226874+03:00",
+  "source": {
+    "edge_log": "/var/log/caddy/mcp-edge-access-2026-09-07T19-22-31.980.log.gz",
+    "edge_window_utc": [
+      "2026-09-07T19:08:00Z",
+      "2026-09-07T19:18:30Z"
+    ],
+    "local_transport": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\minimal-connectors\\clone-a\\transport.jsonl.archive\\transport.jsonl.2026-09-07T20-09-08-562Z.decf4992-49e7-43cb-bd80-41ee75ddc48f.jsonl",
+    "connector_caller_fingerprint": "caller_e89dd7b969dd"
+  },
+  "privacy": {
+    "raw_x_openai_session_emitted": false,
+    "raw_x_openai_subject_emitted": false,
+    "raw_remote_addresses_emitted": false
+  },
+  "edge_identity": {
+    "matching_request_count": 42,
+    "unique_raw_x_openai_session_values": 1,
+    "unique_subject_values": 1,
+    "unique_remote_ip_count": 16,
+    "unique_remote_socket_count": 41,
+    "unique_trace_ids": 2
+  },
+  "trace_summary": {
+    "7894687964776873105": {
+      "request_count": 23,
+      "first_edge_response": "2026-09-07T19:08:43.340336Z",
+      "last_edge_response": "2026-09-07T19:15:15.184978Z",
+      "first_local_request_start": "2026-09-07T19:08:46.270Z",
+      "last_local_request_start": "2026-09-07T19:15:08.971Z",
+      "tools": {
+        "read_output": 17,
+        "start_process": 6
+      },
+      "processes": {
+        "ff9e9017-91d0-4baf-98f4-bf48ed501917": {
+          "pid": 29164,
+          "started_at": "2026-09-07T19:08:46.274Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "5d910efa-ce4d-45b0-b72e-545319fc86e9": {
+          "pid": 40408,
+          "started_at": "2026-09-07T19:08:52.772Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "2e399936-f4cc-4f1b-8927-80cd4ef5080c": {
+          "pid": 16284,
+          "started_at": "2026-09-07T19:09:01.473Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "231e5941-42ea-4034-8517-b908447284db": {
+          "pid": 26796,
+          "started_at": "2026-09-07T19:09:54.075Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "bee76a43-7ceb-4db7-9f20-9fdb13b60f46": {
+          "pid": 11944,
+          "started_at": "2026-09-07T19:13:34.683Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "b9486459-7bee-402e-8265-2fdca44a4dae": {
+          "pid": 44328,
+          "started_at": "2026-09-07T19:14:10.729Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      }
+    },
+    "7050226915736017071": {
+      "request_count": 19,
+      "first_edge_response": "2026-09-07T19:14:07.879155Z",
+      "last_edge_response": "2026-09-07T19:18:24.886662Z",
+      "first_local_request_start": "2026-09-07T19:14:10.677Z",
+      "last_local_request_start": "2026-09-07T19:18:28.684Z",
+      "tools": {
+        "read_output": 12,
+        "start_process": 7
+      },
+      "processes": {
+        "24ecba3c-7417-47ea-8404-d44b4c1993d4": {
+          "pid": 35760,
+          "started_at": "2026-09-07T19:14:10.680Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "86afdf23-92b0-489a-861e-108e124bbe5a": {
+          "pid": 36260,
+          "started_at": "2026-09-07T19:14:18.353Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "7262b5ab-9904-441f-9f56-5293d88fb268": {
+          "pid": 33588,
+          "started_at": "2026-09-07T19:15:31.235Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "79920f31-6061-4e3f-9a2a-dd6955af43f5": {
+          "pid": 42556,
+          "started_at": "2026-09-07T19:16:26.495Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "00bf3ca2-3ade-4611-a56f-b97cd884510c": {
+          "pid": 35752,
+          "started_at": "2026-09-07T19:16:35.305Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "0471f991-e8ec-42fe-a712-0731720f7747": {
+          "pid": 9416,
+          "started_at": "2026-09-07T19:17:35.289Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        },
+        "daf3b885-e2f1-4339-a697-56a548244e79": {
+          "pid": 32440,
+          "started_at": "2026-09-07T19:18:28.689Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      }
+    }
+  },
+  "critical_continuity": {
+    "pre_gap_request": {
+      "edge_response_iso": "2026-09-07T19:11:37.522363Z",
+      "edge_duration_ms": 7.756,
+      "request_id": "c566d5d3-1089-46d4-bb4e-b888ad4bc61a",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "14185675383595593893",
+      "local_request_start": "2026-09-07T19:11:41.310Z",
+      "local_connection_id": "connection_760c145f0d75",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "231e5941-42ea-4034-8517-b908447284db",
+          "pid": 26796,
+          "running": false
+        }
+      ]
+    },
+    "post_go_first_request": {
+      "edge_response_iso": "2026-09-07T19:13:30.889306Z",
+      "edge_duration_ms": 10.286,
+      "request_id": "44cb0e97-30a5-463b-997b-a4987271f6f7",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "7014061531314022319",
+      "local_request_start": "2026-09-07T19:13:34.679Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "bee76a43-7ceb-4db7-9f20-9fdb13b60f46",
+          "pid": 11944,
+          "started_at": "2026-09-07T19:13:34.683Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    "same_trace_id": true,
+    "edge_gap_seconds": 113.367,
+    "local_request_start_gap_seconds": 113.369,
+    "interpretation": "The final pre-gap MCP request and first post-go MCP request share the exact upstream distributed trace id. This is stronger than connector caller/session continuity, but trace identity alone is not a backend model-worker identifier."
+  },
+  "concurrent_trace_branch_evidence": {
+    "trace_a_process_start_request": {
+      "edge_response_iso": "2026-09-07T19:14:06.934736Z",
+      "edge_duration_ms": 7.439,
+      "request_id": "52f43128-29a7-4efc-8828-916e36e5d2c2",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "2995318568849309826",
+      "local_request_start": "2026-09-07T19:14:10.726Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "b9486459-7bee-402e-8265-2fdca44a4dae",
+          "pid": 44328,
+          "started_at": "2026-09-07T19:14:10.729Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    "trace_b_process_start_request": {
+      "edge_response_iso": "2026-09-07T19:14:07.879155Z",
+      "edge_duration_ms": 1000.306,
+      "request_id": "b312e4ac-eb7e-4688-aa1f-cb9a7960b2ad",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "8659423208287227119",
+      "local_request_start": "2026-09-07T19:14:10.677Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "24ecba3c-7417-47ea-8404-d44b4c1993d4",
+          "pid": 35760,
+          "started_at": "2026-09-07T19:14:10.680Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": [
+        {
+          "process_id": "24ecba3c-7417-47ea-8404-d44b4c1993d4",
+          "pid": 35760,
+          "running": false
+        }
+      ]
+    },
+    "distinct_trace_ids": true,
+    "local_request_start_separation_ms": 49.0,
+    "edge_trace_overlap_seconds": 67.306,
+    "interpretation": "Two distinct upstream trace contexts interleaved MCP work under one X-OpenAI-Session and launched separate external processes nearly simultaneously. This proves overlapping upstream execution/tracing contexts, not necessarily separate model workers."
+  },
+  "joined_requests": [
+    {
+      "edge_response_iso": "2026-09-07T19:08:43.340336Z",
+      "edge_duration_ms": 860.408,
+      "request_id": "65f49359-bcb1-47c1-bbd0-1a0484c3cf19",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "3037425359228288431",
+      "local_request_start": "2026-09-07T19:08:46.270Z",
+      "local_connection_id": "connection_dbdda3bb8d22",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "ff9e9017-91d0-4baf-98f4-bf48ed501917",
+          "pid": 29164,
+          "started_at": "2026-09-07T19:08:46.274Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": [
+        {
+          "process_id": "ff9e9017-91d0-4baf-98f4-bf48ed501917",
+          "pid": 29164,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:08:49.482504Z",
+      "edge_duration_ms": 502.378,
+      "request_id": "f52f51ba-eca8-4ada-9692-3768dec2dea8",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "17899707975182209566",
+      "local_request_start": "2026-09-07T19:08:52.770Z",
+      "local_connection_id": "connection_e0e37154a8e9",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "5d910efa-ce4d-45b0-b72e-545319fc86e9",
+          "pid": 40408,
+          "started_at": "2026-09-07T19:08:52.772Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": [
+        {
+          "process_id": "5d910efa-ce4d-45b0-b72e-545319fc86e9",
+          "pid": 40408,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:08:59.787079Z",
+      "edge_duration_ms": 2107.527,
+      "request_id": "b752a030-53f8-4f32-9a61-caff691e1cb8",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "7736206819529608991",
+      "local_request_start": "2026-09-07T19:09:01.470Z",
+      "local_connection_id": "connection_11b5d1c38e9b",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "2e399936-f4cc-4f1b-8927-80cd4ef5080c",
+          "pid": 16284,
+          "started_at": "2026-09-07T19:09:01.473Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": [
+        {
+          "process_id": "2e399936-f4cc-4f1b-8927-80cd4ef5080c",
+          "pid": 16284,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:09:50.286471Z",
+      "edge_duration_ms": 33.051,
+      "request_id": "e33f9742-9cf7-4b94-9ff0-cca292e78fa1",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "3225085770062698507",
+      "local_request_start": "2026-09-07T19:09:54.047Z",
+      "local_connection_id": "connection_3a34c12071aa",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "231e5941-42ea-4034-8517-b908447284db",
+          "pid": 26796,
+          "started_at": "2026-09-07T19:09:54.075Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:10:04.190859Z",
+      "edge_duration_ms": 10011.113,
+      "request_id": "cd0604da-263c-4db2-953a-8dd2351f57b2",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "1467476544739330513",
+      "local_request_start": "2026-09-07T19:09:57.973Z",
+      "local_connection_id": "connection_3a34c12071aa",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:10:19.192513Z",
+      "edge_duration_ms": 10026.121,
+      "request_id": "8d20a17a-8c08-4a5a-bf30-df6927613852",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "3534463676847572867",
+      "local_request_start": "2026-09-07T19:10:12.968Z",
+      "local_connection_id": "connection_e0e37154a8e9",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:10:33.698347Z",
+      "edge_duration_ms": 10022.978,
+      "request_id": "13e09ed6-d2fa-4d78-aa6a-e3efa740efd5",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "4661153116510388878",
+      "local_request_start": "2026-09-07T19:10:27.469Z",
+      "local_connection_id": "connection_e0e37154a8e9",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:10:46.180104Z",
+      "edge_duration_ms": 10100.536,
+      "request_id": "c92be216-0ebc-4644-a8dc-fb36bf9764b7",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "2195975893725306607",
+      "local_request_start": "2026-09-07T19:10:39.875Z",
+      "local_connection_id": "connection_e0e37154a8e9",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:10:59.692906Z",
+      "edge_duration_ms": 10013.536,
+      "request_id": "557532d7-4a6b-4aa6-8ec0-8b228ae1247a",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "3375128050952472853",
+      "local_request_start": "2026-09-07T19:10:53.474Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:11:12.780638Z",
+      "edge_duration_ms": 10050.74,
+      "request_id": "f47a4164-8897-4eee-8f4b-2b98b4cd3e30",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "5454483071838327116",
+      "local_request_start": "2026-09-07T19:11:06.524Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:11:26.095506Z",
+      "edge_duration_ms": 10016.218,
+      "request_id": "9b63b68f-395a-4c38-8e02-f70b35d73eee",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "9605373313048314453",
+      "local_request_start": "2026-09-07T19:11:19.874Z",
+      "local_connection_id": "connection_760c145f0d75",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:11:31.786425Z",
+      "edge_duration_ms": 2659.228,
+      "request_id": "447780b2-af15-46dc-a65d-eb72f65c35ec",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "10219088779258472297",
+      "local_request_start": "2026-09-07T19:11:32.923Z",
+      "local_connection_id": "connection_760c145f0d75",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "231e5941-42ea-4034-8517-b908447284db",
+          "pid": 26796,
+          "running": true
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:11:37.522363Z",
+      "edge_duration_ms": 7.756,
+      "request_id": "c566d5d3-1089-46d4-bb4e-b888ad4bc61a",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "14185675383595593893",
+      "local_request_start": "2026-09-07T19:11:41.310Z",
+      "local_connection_id": "connection_760c145f0d75",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "231e5941-42ea-4034-8517-b908447284db",
+          "pid": 26796,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:13:30.889306Z",
+      "edge_duration_ms": 10.286,
+      "request_id": "44cb0e97-30a5-463b-997b-a4987271f6f7",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "7014061531314022319",
+      "local_request_start": "2026-09-07T19:13:34.679Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "bee76a43-7ceb-4db7-9f20-9fdb13b60f46",
+          "pid": 11944,
+          "started_at": "2026-09-07T19:13:34.683Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:13:45.445804Z",
+      "edge_duration_ms": 10018.866,
+      "request_id": "7c102a74-5cf2-4ad1-80a4-2692375436a6",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "16591488856763268840",
+      "local_request_start": "2026-09-07T19:13:39.225Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:13:55.066219Z",
+      "edge_duration_ms": 5663.634,
+      "request_id": "dc538ce2-e073-42c9-ab70-be67dc3c5748",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "7722936714692668238",
+      "local_request_start": "2026-09-07T19:13:53.277Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "bee76a43-7ceb-4db7-9f20-9fdb13b60f46",
+          "pid": 11944,
+          "running": true
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:13:58.033434Z",
+      "edge_duration_ms": 6.851,
+      "request_id": "992efe4c-460a-4bd2-9d67-c1534e1daf4f",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "16737206113137955017",
+      "local_request_start": "2026-09-07T19:14:01.825Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "bee76a43-7ceb-4db7-9f20-9fdb13b60f46",
+          "pid": 11944,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:06.934736Z",
+      "edge_duration_ms": 7.439,
+      "request_id": "52f43128-29a7-4efc-8828-916e36e5d2c2",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "2995318568849309826",
+      "local_request_start": "2026-09-07T19:14:10.726Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "b9486459-7bee-402e-8265-2fdca44a4dae",
+          "pid": 44328,
+          "started_at": "2026-09-07T19:14:10.729Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:07.879155Z",
+      "edge_duration_ms": 1000.306,
+      "request_id": "b312e4ac-eb7e-4688-aa1f-cb9a7960b2ad",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "8659423208287227119",
+      "local_request_start": "2026-09-07T19:14:10.677Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "24ecba3c-7417-47ea-8404-d44b4c1993d4",
+          "pid": 35760,
+          "started_at": "2026-09-07T19:14:10.680Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": [
+        {
+          "process_id": "24ecba3c-7417-47ea-8404-d44b4c1993d4",
+          "pid": 35760,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:14.558017Z",
+      "edge_duration_ms": 8.504,
+      "request_id": "df86cd9c-cdb1-4bc6-9f83-a5964c54b2bd",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "8168890145856207309",
+      "local_request_start": "2026-09-07T19:14:18.350Z",
+      "local_connection_id": "connection_b25ef58cfa34",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "86afdf23-92b0-489a-861e-108e124bbe5a",
+          "pid": 36260,
+          "started_at": "2026-09-07T19:14:18.353Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:20.689020Z",
+      "edge_duration_ms": 10010.036,
+      "request_id": "0468addf-0e1a-40ca-86e4-88771c669349",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "13435978813704231824",
+      "local_request_start": "2026-09-07T19:14:14.478Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:26.778840Z",
+      "edge_duration_ms": 10052.277,
+      "request_id": "b43d1f70-2d44-40ee-9bf5-13484d338cdc",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "13275441432521396036",
+      "local_request_start": "2026-09-07T19:14:20.526Z",
+      "local_connection_id": "connection_d06b5962a935",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:33.779263Z",
+      "edge_duration_ms": 10029.411,
+      "request_id": "945aa228-9a6b-4316-ae06-934fd448e742",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "846396714027170591",
+      "local_request_start": "2026-09-07T19:14:27.550Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:39.034993Z",
+      "edge_duration_ms": 10023.188,
+      "request_id": "aa07108b-a80c-499c-85cf-e46008f4b639",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "3858175873559812000",
+      "local_request_start": "2026-09-07T19:14:32.812Z",
+      "local_connection_id": "connection_d06b5962a935",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:44.981877Z",
+      "edge_duration_ms": 1301.444,
+      "request_id": "3b5646ba-f2d1-4dc2-b5c8-deb968d43039",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "15589520249904556002",
+      "local_request_start": "2026-09-07T19:14:47.481Z",
+      "local_connection_id": "connection_0458c7703acf",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "86afdf23-92b0-489a-861e-108e124bbe5a",
+          "pid": 36260,
+          "running": true
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:14:47.516407Z",
+      "edge_duration_ms": 10016.942,
+      "request_id": "0259a9f0-e395-4ed7-a2f9-a44a4fd96c17",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "10473224041965487225",
+      "local_request_start": "2026-09-07T19:14:41.300Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:00.290701Z",
+      "edge_duration_ms": 11.189,
+      "request_id": "8245bdb9-8719-4fd2-b418-70c900e1c712",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "14029547492991634021",
+      "local_request_start": "2026-09-07T19:15:04.080Z",
+      "local_connection_id": "connection_1ee96fe9d352",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "86afdf23-92b0-489a-861e-108e124bbe5a",
+          "pid": 36260,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:00.400647Z",
+      "edge_duration_ms": 10021.49,
+      "request_id": "205d70d3-1e3b-466c-867d-1fd1cf5ef360",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "9644320051166293398",
+      "local_request_start": "2026-09-07T19:14:54.185Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:15.184978Z",
+      "edge_duration_ms": 10015.281,
+      "request_id": "879ec834-83dd-4263-a502-258fca21f1ee",
+      "trace_id": "7894687964776873105",
+      "trace_parent_id": "12434489948652511597",
+      "local_request_start": "2026-09-07T19:15:08.971Z",
+      "local_connection_id": "connection_172b9f54f833",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:27.438726Z",
+      "edge_duration_ms": 8.999,
+      "request_id": "30c2c980-0ba2-4dfa-ab0f-b5da65cc4c1b",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "7852507147119267426",
+      "local_request_start": "2026-09-07T19:15:31.231Z",
+      "local_connection_id": "connection_bfb8c8073656",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "7262b5ab-9904-441f-9f56-5293d88fb268",
+          "pid": 33588,
+          "started_at": "2026-09-07T19:15:31.235Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:39.481555Z",
+      "edge_duration_ms": 10092.503,
+      "request_id": "c6eba059-c331-4b20-afe4-ca8987c2a87a",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "10487972154577862453",
+      "local_request_start": "2026-09-07T19:15:33.191Z",
+      "local_connection_id": "connection_1ee96fe9d352",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:53.062398Z",
+      "edge_duration_ms": 10021.001,
+      "request_id": "973352e4-a2aa-464a-885f-5d8c91d742b9",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "12320277793605622145",
+      "local_request_start": "2026-09-07T19:15:46.844Z",
+      "local_connection_id": "connection_1ee96fe9d352",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:15:56.635266Z",
+      "edge_duration_ms": 9.286,
+      "request_id": "c1d153f1-c9bc-40ea-bde8-0a1e37918058",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "2471477804599525656",
+      "local_request_start": "2026-09-07T19:16:00.428Z",
+      "local_connection_id": "connection_bfb8c8073656",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "7262b5ab-9904-441f-9f56-5293d88fb268",
+          "pid": 33588,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:16:23.116047Z",
+      "edge_duration_ms": 435.169,
+      "request_id": "f31532e9-a945-4d10-906b-9f42b4270bcb",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "7514344891961032608",
+      "local_request_start": "2026-09-07T19:16:26.491Z",
+      "local_connection_id": "connection_11419258d001",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "79920f31-6061-4e3f-9a2a-dd6955af43f5",
+          "pid": 42556,
+          "started_at": "2026-09-07T19:16:26.495Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": [
+        {
+          "process_id": "79920f31-6061-4e3f-9a2a-dd6955af43f5",
+          "pid": 42556,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:16:31.680524Z",
+      "edge_duration_ms": 200.859,
+      "request_id": "860e6213-c5cc-4b53-9955-12e83db9f8f1",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "7307146303354546177",
+      "local_request_start": "2026-09-07T19:16:35.294Z",
+      "local_connection_id": "connection_1ee96fe9d352",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "00bf3ca2-3ade-4611-a56f-b97cd884510c",
+          "pid": 35752,
+          "started_at": "2026-09-07T19:16:35.305Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:16:43.613578Z",
+      "edge_duration_ms": 10014.461,
+      "request_id": "654ca4e2-8ca1-44c4-ae14-dc83ee922d25",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "9664853796121325205",
+      "local_request_start": "2026-09-07T19:16:37.403Z",
+      "local_connection_id": "connection_bfb8c8073656",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:16:57.478958Z",
+      "edge_duration_ms": 9205.344,
+      "request_id": "ef14cebe-9db2-46c3-8b68-6191ec428642",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "9775254488846322421",
+      "local_request_start": "2026-09-07T19:16:52.081Z",
+      "local_connection_id": "connection_ce34d7af6c92",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "00bf3ca2-3ade-4611-a56f-b97cd884510c",
+          "pid": 35752,
+          "running": true
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:17:31.488332Z",
+      "edge_duration_ms": 9.463,
+      "request_id": "3c3b4761-752c-48b1-bcf3-015ce82ab098",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "10872469116448547862",
+      "local_request_start": "2026-09-07T19:17:35.283Z",
+      "local_connection_id": "connection_11419258d001",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "0471f991-e8ec-42fe-a712-0731720f7747",
+          "pid": 9416,
+          "started_at": "2026-09-07T19:17:35.289Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:17:45.979739Z",
+      "edge_duration_ms": 10010.735,
+      "request_id": "eb894863-fa3d-49f3-a99a-9f07f58f5d2e",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "3123155521743098922",
+      "local_request_start": "2026-09-07T19:17:39.774Z",
+      "local_connection_id": "connection_5c6ff8af8d9c",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": []
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:17:56.927156Z",
+      "edge_duration_ms": 8248.194,
+      "request_id": "50365b7c-34e7-4419-a8aa-9db655bf16ad",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "4595533600498151321",
+      "local_request_start": "2026-09-07T19:17:52.484Z",
+      "local_connection_id": "connection_1ee96fe9d352",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "0471f991-e8ec-42fe-a712-0731720f7747",
+          "pid": 9416,
+          "running": true
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:18:05.034015Z",
+      "edge_duration_ms": 7.728,
+      "request_id": "341d682d-4d1b-4f9c-89ae-21e58fc6c63e",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "4174977391068621033",
+      "local_request_start": "2026-09-07T19:18:08.832Z",
+      "local_connection_id": "connection_5c6ff8af8d9c",
+      "mcp_tool": "read_output",
+      "process_started": [],
+      "process_reads": [
+        {
+          "process_id": "0471f991-e8ec-42fe-a712-0731720f7747",
+          "pid": 9416,
+          "running": false
+        }
+      ]
+    },
+    {
+      "edge_response_iso": "2026-09-07T19:18:24.886662Z",
+      "edge_duration_ms": 7.891,
+      "request_id": "ca42f771-3ee1-4f39-bd3e-9a684289a1a1",
+      "trace_id": "7050226915736017071",
+      "trace_parent_id": "631727058624377580",
+      "local_request_start": "2026-09-07T19:18:28.684Z",
+      "local_connection_id": "connection_412362ad09fe",
+      "mcp_tool": "start_process",
+      "process_started": [
+        {
+          "process_id": "daf3b885-e2f1-4339-a697-56a548244e79",
+          "pid": 32440,
+          "started_at": "2026-09-07T19:18:28.689Z",
+          "cwd": "C:\\Users\\Lauri\\AppData\\Local\\Temp\\tiny3d-10-eagle-stretch-20260907"
+        }
+      ],
+      "process_reads": []
+    }
+  ],
+  "updated_at": "2026-09-08T04:19:20.877103+03:00",
+  "later_activity_after_22_17_snapshot": {
+    "snapshot_exit_at": "2026-09-07T19:17:01.575Z",
+    "snapshot_note": "No live target-owned process was observed at the immediate check after this exit, but later requests resumed; this timestamp is not a final-work boundary.",
+    "later_processes": [
+      {
+        "trace_id": "7050226915736017071",
+        "process_id": "0471f991-e8ec-42fe-a712-0731720f7747",
+        "pid": 9416,
+        "started_at": "2026-09-07T19:17:35.289Z",
+        "finished_at": "2026-09-07T19:18:01.071Z",
+        "exit_code": 0
+      },
+      {
+        "trace_id": "7050226915736017071",
+        "process_id": "daf3b885-e2f1-4339-a697-56a548244e79",
+        "pid": 32440,
+        "started_at": "2026-09-07T19:18:28.689Z",
+        "finished_at": "2026-09-07T19:18:56.993Z",
+        "exit_code": 0
+      }
+    ],
+    "corrected_final_observed_child_finish": "2026-09-07T19:18:56.993Z"
+  }
+}

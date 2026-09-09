@@ -1,0 +1,414 @@
+{
+  "schema": "regression-research.issue-861.p3-cohort-classification.v1",
+  "counts": {
+    "base_move_invalidation": 14,
+    "build_job_cancelled_before_steps": 5,
+    "planner_cancelled_coalesced": 7,
+    "durable_receipt_success": 3,
+    "real_build_or_acceptance_failure": 1,
+    "plan_only_no_native": 6,
+    "required_head_move_invalidation": 4
+  },
+  "rows": [
+    {
+      "run_id": 34283469871,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-08T21:59:59Z",
+      "cohort_completed_at": "2026-09-08T22:26:58Z"
+    },
+    {
+      "run_id": 34285108182,
+      "category": "base_move_invalidation",
+      "stage": "pre-build",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-08T22:27:22Z",
+      "cohort_completed_at": "2026-09-08T22:28:18Z"
+    },
+    {
+      "run_id": 34286555209,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-08T22:34:52Z",
+      "cohort_completed_at": "2026-09-08T22:47:54Z"
+    },
+    {
+      "run_id": 34287513624,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-08T22:48:44Z",
+      "cohort_completed_at": "2026-09-08T23:28:57Z"
+    },
+    {
+      "run_id": 34290372778,
+      "category": "build_job_cancelled_before_steps",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "cancelled",
+      "cohort_started_at": "2026-09-08T23:23:43Z",
+      "cohort_completed_at": "2026-09-08T23:25:38Z"
+    },
+    {
+      "run_id": 34291609758,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-08T23:39:23Z",
+      "cohort_completed_at": "2026-09-08T23:39:23Z"
+    },
+    {
+      "run_id": 34291610571,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-08T23:40:15Z",
+      "cohort_completed_at": "2026-09-08T23:42:18Z"
+    },
+    {
+      "run_id": 34303485451,
+      "category": "durable_receipt_success",
+      "stage": "receipt",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T02:34:49Z",
+      "cohort_completed_at": "2026-09-09T02:54:03Z"
+    },
+    {
+      "run_id": 34305376509,
+      "category": "build_job_cancelled_before_steps",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "cancelled",
+      "cohort_started_at": "2026-09-09T03:00:30Z",
+      "cohort_completed_at": "2026-09-09T03:09:25Z"
+    },
+    {
+      "run_id": 34305772361,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T03:06:28Z",
+      "cohort_completed_at": "2026-09-09T03:06:27Z"
+    },
+    {
+      "run_id": 34305967565,
+      "category": "real_build_or_acceptance_failure",
+      "stage": "focused-acceptance",
+      "run_conclusion": "failure",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "failure",
+      "cohort_started_at": "2026-09-09T03:11:07Z",
+      "cohort_completed_at": "2026-09-09T03:26:57Z"
+    },
+    {
+      "run_id": 34306084748,
+      "category": "plan_only_no_native",
+      "stage": "",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T03:11:09Z",
+      "cohort_completed_at": "2026-09-09T03:11:09Z"
+    },
+    {
+      "run_id": 34307696232,
+      "category": "durable_receipt_success",
+      "stage": "receipt",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T03:36:00Z",
+      "cohort_completed_at": "2026-09-09T03:55:40Z"
+    },
+    {
+      "run_id": 34308856066,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T03:55:59Z",
+      "cohort_completed_at": "2026-09-09T04:17:57Z"
+    },
+    {
+      "run_id": 34309627584,
+      "category": "build_job_cancelled_before_steps",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "cancelled",
+      "cohort_started_at": "2026-09-09T04:06:29Z",
+      "cohort_completed_at": "2026-09-09T04:14:44Z"
+    },
+    {
+      "run_id": 34310267451,
+      "category": "required_head_move_invalidation",
+      "stage": "pre-build",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T04:18:15Z",
+      "cohort_completed_at": "2026-09-09T04:19:12Z"
+    },
+    {
+      "run_id": 34310470391,
+      "category": "base_move_invalidation",
+      "stage": "between-modules",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T04:19:14Z",
+      "cohort_completed_at": "2026-09-09T04:31:20Z"
+    },
+    {
+      "run_id": 34311370943,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T04:33:17Z",
+      "cohort_completed_at": "2026-09-09T04:33:17Z"
+    },
+    {
+      "run_id": 34311411469,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T04:33:50Z",
+      "cohort_completed_at": "2026-09-09T04:33:50Z"
+    },
+    {
+      "run_id": 34311516313,
+      "category": "required_head_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T04:35:40Z",
+      "cohort_completed_at": "2026-09-09T04:37:51Z"
+    },
+    {
+      "run_id": 34311636202,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "cancelled",
+      "cohort_started_at": "2026-09-09T04:46:41Z",
+      "cohort_completed_at": "2026-09-09T04:46:40Z"
+    },
+    {
+      "run_id": 34312041092,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T04:48:42Z",
+      "cohort_completed_at": "2026-09-09T04:48:41Z"
+    },
+    {
+      "run_id": 34312407532,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T04:49:45Z",
+      "cohort_completed_at": "2026-09-09T04:53:36Z"
+    },
+    {
+      "run_id": 34312592379,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T04:54:05Z",
+      "cohort_completed_at": "2026-09-09T05:08:47Z"
+    },
+    {
+      "run_id": 34313165318,
+      "category": "planner_cancelled_coalesced",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "cancelled",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T05:01:17Z",
+      "cohort_completed_at": "2026-09-09T05:01:17Z"
+    },
+    {
+      "run_id": 34314176990,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T05:16:05Z",
+      "cohort_completed_at": "2026-09-09T05:20:25Z"
+    },
+    {
+      "run_id": 34314594684,
+      "category": "base_move_invalidation",
+      "stage": "between-modules",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T05:25:00Z",
+      "cohort_completed_at": "2026-09-09T05:32:19Z"
+    },
+    {
+      "run_id": 34315165556,
+      "category": "durable_receipt_success",
+      "stage": "receipt",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T05:32:37Z",
+      "cohort_completed_at": "2026-09-09T06:03:12Z"
+    },
+    {
+      "run_id": 34315327679,
+      "category": "build_job_cancelled_before_steps",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "cancelled",
+      "cohort_started_at": "2026-09-09T05:33:17Z",
+      "cohort_completed_at": "2026-09-09T05:35:26Z"
+    },
+    {
+      "run_id": 34315442480,
+      "category": "build_job_cancelled_before_steps",
+      "stage": "",
+      "run_conclusion": "cancelled",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "cancelled",
+      "cohort_started_at": "2026-09-09T05:35:26Z",
+      "cohort_completed_at": "2026-09-09T06:01:56Z"
+    },
+    {
+      "run_id": 34317219078,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T06:03:42Z",
+      "cohort_completed_at": "2026-09-09T06:09:52Z"
+    },
+    {
+      "run_id": 34317800240,
+      "category": "plan_only_no_native",
+      "stage": "",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T06:09:42Z",
+      "cohort_completed_at": "2026-09-09T06:09:41Z"
+    },
+    {
+      "run_id": 34317872695,
+      "category": "plan_only_no_native",
+      "stage": "",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T06:10:43Z",
+      "cohort_completed_at": "2026-09-09T06:10:43Z"
+    },
+    {
+      "run_id": 34318192847,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T06:15:16Z",
+      "cohort_completed_at": "2026-09-09T06:16:38Z"
+    },
+    {
+      "run_id": 34318494715,
+      "category": "plan_only_no_native",
+      "stage": "",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T06:19:01Z",
+      "cohort_completed_at": "2026-09-09T06:19:01Z"
+    },
+    {
+      "run_id": 34318704971,
+      "category": "base_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T06:22:00Z",
+      "cohort_completed_at": "2026-09-09T06:27:47Z"
+    },
+    {
+      "run_id": 34319083004,
+      "category": "plan_only_no_native",
+      "stage": "",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T06:28:30Z",
+      "cohort_completed_at": "2026-09-09T06:28:30Z"
+    },
+    {
+      "run_id": 34319366844,
+      "category": "required_head_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T06:30:46Z",
+      "cohort_completed_at": "2026-09-09T06:39:10Z"
+    },
+    {
+      "run_id": 34320052327,
+      "category": "plan_only_no_native",
+      "stage": "",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "skipped",
+      "cohort_started_at": "2026-09-09T06:41:15Z",
+      "cohort_completed_at": "2026-09-09T06:41:15Z"
+    },
+    {
+      "run_id": 34321200572,
+      "category": "required_head_move_invalidation",
+      "stage": "during-module",
+      "run_conclusion": "success",
+      "plan_conclusion": "success",
+      "cohort_conclusion": "success",
+      "cohort_started_at": "2026-09-09T06:54:53Z",
+      "cohort_completed_at": "2026-09-09T06:57:44Z"
+    }
+  ]
+}

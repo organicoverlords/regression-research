@@ -16,7 +16,7 @@ try:
         search_entries,
         source_relevance,
     )
-    from .memory_lifecycle import is_expired
+    from .memory_lifecycle import is_expired, parse_iso_datetime
     from .memory_classification import classify_entry
 except ImportError:
     from memory_bank import (
@@ -28,7 +28,7 @@ except ImportError:
         search_entries,
         source_relevance,
     )
-    from memory_lifecycle import is_expired
+    from memory_lifecycle import is_expired, parse_iso_datetime
     from memory_classification import classify_entry
 
 BM25_K1 = 1.2
@@ -49,6 +49,8 @@ _STOPWORDS = {
     "them", "then", "there", "these", "they", "this", "those", "to", "too", "us", "was", "we", "were",
     "what", "when", "where", "which", "who", "why", "will", "with", "without", "would", "you", "your",
 }
+_STRICT_ADMISSION_GENERIC_TOKENS = {"display", "expose", "follow", "image", "library", "route", "share", "show", "transport", "use"}
+_STRICT_QUERY_GLUE_TOKENS = {"again", "same"}
 _WORD_RE = re.compile(r"[\w]+", flags=re.UNICODE)
 _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
 
@@ -59,19 +61,22 @@ _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
 _CONCEPT_GROUPS = (
     ("execution", "command", "commands", "job", "jobs", "task", "tasks", "process", "processes", "request", "requests", "turn", "turns"),
     ("loss", "lost", "lose", "losing", "disappear", "disappeared", "disappears", "died", "dead", "drop", "dropped", "disconnect", "disconnected"),
-    ("proof", "prove", "proven", "evidence", "demonstrate", "demonstrated", "establish", "established", "verify", "verified"),
+    ("proof", "prove", "proven", "evidence", "demonstrate", "demonstrated", "establish", "verify", "verified"),
     ("retrieve", "retrieval", "reread", "rereading", "reload", "refresh", "refreshing"),
     ("scope", "area", "areas", "unrelated", "adjacent"),
     ("expand", "spread", "widen", "widened", "expansion", "expanded"),
     ("complete", "completed", "completion", "finish", "finished", "done", "ends", "ended"),
+    ("continue", "continues", "continued", "continuing", "continuation", "continuations"),
     ("persist", "persistence", "store", "stored", "save", "saved", "preserve", "preserved"),
     ("concurrency", "simultaneous", "simultaneously", "parallel", "concurrent"),
     ("worker", "workers", "runner", "runners", "agent", "agents"),
+    ("handoff", "handoffs"),
+    ("checkpoint", "checkpoints"),
     ("prune", "trim", "trimming", "pruned", "pruning"),
     ("isolate", "isolated", "isolating", "experiment", "experimental", "experimentally"),
     ("investigation", "diagnostic", "diagnostics", "debug", "debugging", "investigate", "investigating"),
     ("route", "routing", "path", "paths"),
-    ("correction", "correct", "corrects", "corrected", "correcting"),
+    ("correction", "corrections", "correct", "corrects", "corrected", "correcting"),
     ("continuity", "intact", "unchanged", "unaffected", "remainder", "rest"),
     ("presentation", "wording", "format", "formatting", "phrasing"),
     ("define", "defined", "defines", "dictate", "dictated", "govern", "governed"),
@@ -85,6 +90,8 @@ _CONCEPT_GROUPS = (
     ("report", "reports", "reporting"),
     ("hypothesis", "hypotheses", "theory", "theories"),
     ("agreement", "agree", "agreed", "agreeing", "accept", "accepted", "mirror"),
+    ("reset", "resets", "resetting", "restart", "restarts", "restarted", "restarting"),
+    ("dimension", "size", "sized", "scale", "scaled", "scaling", "height", "heights", "dimensions"),
 )
 _CONCEPT_ALIAS = {alias: group[0] for group in _CONCEPT_GROUPS for alias in group}
 _NUMBER_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
@@ -117,6 +124,43 @@ def _word_tokens(value: str) -> list[str]:
     return out
 
 
+_PROOF_VISUAL_QUERY_ALIASES = {
+    "picture": "image",
+    "pictures": "image",
+    "photo": "image",
+    "photos": "image",
+    "screenshot": "image",
+    "screenshots": "image",
+}
+_PROOF_HISTORY_QUERY_ALIASES = {
+    "previous": "prior",
+    "earlier": "prior",
+    "last": "prior",
+    "past": "prior",
+}
+_PROOF_HISTORY_QUERY_MARKERS = {"prior", *_PROOF_HISTORY_QUERY_ALIASES}
+_PROOF_HISTORY_SURFACE_TOKENS = {
+    "archive", "display", "image", "images", "integrated", "integration", "library",
+    "persist", "route", "setup", "share", "show", "transport", "visual",
+}
+
+
+def _query_word_tokens(value: str) -> list[str]:
+    tokens = _word_tokens(value)
+    if "proof" not in tokens:
+        return tokens
+    tokens = [_PROOF_VISUAL_QUERY_ALIASES.get(token, token) for token in tokens]
+    token_set = set(tokens)
+    if not (_PROOF_HISTORY_QUERY_MARKERS & token_set):
+        return tokens
+    if not (_PROOF_HISTORY_SURFACE_TOKENS & token_set):
+        return tokens
+    tokens = [_PROOF_HISTORY_QUERY_ALIASES.get(token, token) for token in tokens]
+    if "history" not in tokens:
+        tokens.append("history")
+    return tokens
+
+
 def _entry_descriptor(entry: dict[str, Any]) -> str:
     return " ".join([
         str(entry.get("title") or ""),
@@ -132,6 +176,21 @@ def _weighted_document_tokens(entry: dict[str, Any]) -> list[str]:
     tokens.extend(_word_tokens(str(entry.get("scope") or "")) * SCOPE_WEIGHT)
     tokens.extend(_word_tokens(str(entry.get("text") or "")) * BODY_WEIGHT)
     return tokens
+
+
+def _source_evidence_text(entry: dict[str, Any]) -> str:
+    parts = [
+        str(entry.get("turn_task") or ""),
+        str(entry.get("interpretation") or ""),
+        " ".join(str(message) for message in entry.get("source_messages") or []),
+    ]
+    return " ".join(part for part in parts if part).strip()
+
+
+def _source_evidence_tokens(entry: dict[str, Any]) -> list[str]:
+    # Preserved task/correction wording is searchable evidence, but it must not
+    # perturb the canonical lesson corpus or its established BM25 ranking.
+    return _word_tokens(_source_evidence_text(entry))
 
 
 def _eligible_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -204,36 +263,20 @@ def _rank_map(scores: list[float], allowed: set[int] | None = None) -> dict[int,
     return {idx: rank for rank, (_, idx) in enumerate(pairs, start=1)}
 
 
-def search_entries_hybrid(
-    entries: list[dict[str, Any]],
+def _rank_eligible_entries(
+    eligible: list[dict[str, Any]],
     query: str,
     *,
-    scope: str | None = None,
-    tags: list[str] | None = None,
-    limit: int | None = None,
-    history: bool = False,
+    token_builder,
+    descriptor_builder,
     source_registry: dict[str, Any] | None = None,
+    strict_admission: bool = False,
 ) -> list[dict[str, Any]]:
-    tags = list(tags or [])
-    # Preserve history and metadata-only semantics exactly; hybridization is for textual recall.
-    if history or not _word_tokens(query):
-        return search_entries(
-            entries, query, scope=scope, tags=tags, limit=limit, history=history,
-            source_registry=source_registry,
-        )
-
-    default_limit = DEFAULT_RECALL_LIMIT
-    effective_limit = min(MAX_RECALL_LIMIT, max(0, default_limit if limit is None else limit))
-    if effective_limit == 0:
-        return []
-
-    eligible = _eligible_entries(entries)
-    if not eligible:
-        return []
-
-    query_terms = _word_tokens(query)
+    query_terms = _query_word_tokens(query)
+    if strict_admission:
+        query_terms = [term for term in query_terms if term not in _STRICT_QUERY_GLUE_TOKENS]
     query_unique = list(dict.fromkeys(query_terms))
-    doc_tokens = [_weighted_document_tokens(entry) for entry in eligible]
+    doc_tokens = [token_builder(entry) for entry in eligible]
     doc_counts = [Counter(tokens) for tokens in doc_tokens]
     doc_lengths = [len(tokens) for tokens in doc_tokens]
     doc_sets = [set(tokens) for tokens in doc_tokens]
@@ -255,28 +298,31 @@ def search_entries_hybrid(
             sum(_idf(total_docs, df[term]) for term in matched) / query_weight_total
             if query_weight_total else 0.0
         )
-        if len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE:
+        ordinary_admission = len(matched) >= 2 or coverage >= MIN_QUERY_COVERAGE
+        if strict_admission:
+            meaningful_matched = matched - _STRICT_ADMISSION_GENERIC_TOKENS
+            if ordinary_admission and meaningful_matched:
+                admitted.add(idx)
+        elif ordinary_admission:
             admitted.add(idx)
+
+    if not admitted:
+        return []
 
     direct_weights = {term: 1.0 for term in query_unique}
     bm25_scores = _bm25_scores(doc_counts, doc_lengths, df, direct_weights)
     query_grams = _char_ngrams(query)
     char_scores = [
-        _dice(query_grams, _char_ngrams(_entry_descriptor(entry))) if idx in admitted else 0.0
+        _dice(query_grams, _char_ngrams(descriptor_builder(entry))) if idx in admitted else 0.0
         for idx, entry in enumerate(eligible)
     ]
-
-    candidates = admitted
-    if not candidates:
-        return []
-
     ranks = {
         "bm25": _rank_map(bm25_scores, admitted),
         "char": _rank_map(char_scores, admitted),
     }
     registry = source_registry or load_source_registry()
     ranked: list[tuple[float, int, datetime, str, dict[str, Any]]] = []
-    for idx in candidates:
+    for idx in admitted:
         score = 0.0
         for component, weight in RRF_WEIGHTS.items():
             rank = ranks[component].get(idx)
@@ -286,8 +332,66 @@ def search_entries_hybrid(
             continue
         entry = eligible[idx]
         source_score = source_relevance(entry, registry)
-        stamp = datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00"))
+        stamp = parse_iso_datetime(entry["timestamp"])
         ranked.append((score, source_score, stamp, str(entry["id"]), entry))
 
     ranked.sort(key=lambda item: (-item[0], -item[1], -item[2].timestamp(), item[3]))
-    return [entry for _, _, _, _, entry in ranked[:effective_limit]]
+    return [entry for _, _, _, _, entry in ranked]
+
+
+def search_entries_hybrid(
+    entries: list[dict[str, Any]],
+    query: str,
+    *,
+    scope: str | None = None,
+    tags: list[str] | None = None,
+    limit: int | None = None,
+    history: bool = False,
+    source_registry: dict[str, Any] | None = None,
+    strict_admission: bool = False,
+) -> list[dict[str, Any]]:
+    tags = list(tags or [])
+    # Preserve history and metadata-only semantics exactly; hybridization is for textual recall.
+    if history or not _word_tokens(query):
+        return search_entries(
+            entries, query, scope=scope, tags=tags, limit=limit, history=history,
+            source_registry=source_registry,
+        )
+
+    default_limit = DEFAULT_RECALL_LIMIT
+    effective_limit = min(MAX_RECALL_LIMIT, max(0, default_limit if limit is None else limit))
+    if effective_limit == 0:
+        return []
+
+    eligible = _eligible_entries(entries)
+    if not eligible:
+        return []
+
+    registry = source_registry or load_source_registry()
+    canonical = _rank_eligible_entries(
+        eligible,
+        query,
+        token_builder=_weighted_document_tokens,
+        descriptor_builder=_entry_descriptor,
+        source_registry=registry,
+        strict_admission=strict_admission,
+    )
+    evidence = _rank_eligible_entries(
+        eligible,
+        query,
+        token_builder=_source_evidence_tokens,
+        descriptor_builder=_source_evidence_text,
+        source_registry=registry,
+        strict_admission=strict_admission,
+    )
+
+    # Canonical lesson wording keeps its established ordering. Preserve one
+    # bounded source-evidence slot when canonical matches would otherwise consume
+    # the whole result cap; this keeps exact correction wording discoverable.
+    seen = {str(entry["id"]) for entry in canonical}
+    source_only = [entry for entry in evidence if str(entry["id"]) not in seen]
+    if source_only and effective_limit > 1 and len(canonical) >= effective_limit:
+        return [*canonical[: effective_limit - 1], source_only[0]]
+    merged = list(canonical)
+    merged.extend(source_only)
+    return merged[:effective_limit]

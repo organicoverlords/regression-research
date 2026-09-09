@@ -1,0 +1,85 @@
+{
+  "schema": "regression-research.issue-861.visual-proof-surface-audit.v1",
+  "captured_at": "2026-09-09T10:39:00+03:00",
+  "prerequisite_820_state": "OPEN",
+  "current_revisions": {
+    "p3_main": "48c38850eb320c6f89a3cd5fccb5548b07ef3592",
+    "chatgpt_mcp_clean_master": "149db004b33334b53022f3bb03880735f080ceba"
+  },
+  "canonical_boundaries": {
+    "shared_chat_archived_proof": "Google Drive / ChatGPT Library using deterministic durable identity; P3 #2809 closed on exact original-pixel Drive fetch and independent review",
+    "chatgpt_plugin_surface": [
+      "start_process",
+      "read_output",
+      "kill_process"
+    ],
+    "generic_local_file_handoff": "CHATGPT_LIBRARY_UPLOAD marker on existing process results, implemented by chatgpt-mcp-clean PR #184 and iterated through #190/#194/#195",
+    "review_authority": "P3 scripts/Publish-P3ReviewedVisualEvidence.ps1",
+    "staging_role": "C:\\P3Proofs is capture/review staging, not durable browse authority"
+  },
+  "keep": [
+    {
+      "surface": "P3 write-once staging + canonical review writer",
+      "reason": "load-bearing capture/review lifecycle; Drive remains non-blocking archive/consumer projection rather than capture dependency"
+    },
+    {
+      "surface": "bounded P3 Drive index and Tiny3D durable library",
+      "reason": "cross-session durable lookup and exact-byte identity"
+    },
+    {
+      "surface": "process-tool CHATGPT_LIBRARY_UPLOAD handoff",
+      "reason": "current three-tool surface can expose exact requested local image bytes without adding another public tool"
+    }
+  ],
+  "delete_shrink_candidate": {
+    "repo": "organicoverlords/chatgpt-mcp-clean",
+    "source_files": [
+      {
+        "path": "src/lib/visual-proof-app.ts",
+        "lines": 414,
+        "bytes": 25866
+      },
+      {
+        "path": "src/lib/visual-proof-review.ts",
+        "lines": 260,
+        "bytes": 14020
+      }
+    ],
+    "test_files": [
+      {
+        "path": "scripts/test-visual-proof-app.mjs",
+        "lines": 130,
+        "bytes": 10999
+      },
+      {
+        "path": "scripts/test-visual-proof-review.mjs",
+        "lines": 108,
+        "bytes": 7339
+      }
+    ],
+    "total_file_lines": 912,
+    "additional_hooks": [
+      "2 imports in src/index.ts",
+      "conditional MCP_VISUAL_PROOF_UI registration block in src/index.ts",
+      "conditional MCP_VISUAL_PROOF_REVIEW registration in src/index.ts",
+      "2 npm test invocations in package.json",
+      "stale local control env flags MCP_VISUAL_PROOF_UI=1 and MCP_VISUAL_PROOF_REVIEW=1 if no internal consumer remains"
+    ],
+    "current_open_issue_dependencies": 0,
+    "current_open_pr_dependencies": 0,
+    "why_candidate": "P3 #2809 explicitly superseded MCP/base64/custom-HTTP as the ordinary shared-chat proof consumer route and closed on first-party Google Drive/ChatGPT Library. Current Stack Atlas/process-tool-contract define the ChatGPT plugin as three process tools only. PR #195 preserves that three-tool surface while carrying exact local image bytes through CHATGPT_LIBRARY_UPLOAD. Dedicated visual tools remain conditional source machinery outside the canonical plugin contract.",
+    "replacement_mapping": {
+      "archived/indexed proof open": "Google Drive -> ChatGPT Library by durable identity",
+      "known local/staging image handoff": "existing process result with CHATGPT_LIBRARY_UPLOAD=<absolute file>",
+      "review writeback": "existing start_process -> P3 Publish-P3ReviewedVisualEvidence.ps1 canonical writer"
+    },
+    "safety_boundary": "Do not remove until post-#820 convergence proves no supported internal/local-test consumer requires the dedicated tool names and verifies the generic process upload + canonical review writer controls. Do not change live serving flags/topology without the production change gate.",
+    "expected_net_delta": "at least 4 files / 912 source+test lines plus index/package hooks; no new owner or replacement service"
+  },
+  "important_corrections": [
+    "chatgpt-mcp-clean #156/#157 are not current authority; #156 was superseded by regression-research #768 and #157 was duplicate",
+    "P3 legacy primary_mcp_json_base64_jpeg helper is already absent from current GitHub main; local dirty checkout references were stale/foreign and were not treated as current authority",
+    "exact-run staging review was originally load-bearing under #167, but ordinary shared-chat consumer architecture was later corrected by P3 #2809 to Drive/Library"
+  ],
+  "mutation_now": "none; #820 remains open"
+}

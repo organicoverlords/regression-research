@@ -1,23 +1,23 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Iterable
 
-DEFAULT_CONTEXT_CHARS = 6000
+DEFAULT_CONTEXT_CHARS = 12000
 MIN_CONTEXT_CHARS = 2000
 MAX_CONTEXT_CHARS = 12000
-MAX_ENTRY_TEXT = 450
 MAX_HISTORY_TEXT = 350
 
 try:
     from .memory_classification import (
-        PROJECT_MARKERS, ROLE_MARKERS, token_words as _words,
+        PROJECT_MARKERS, ROLE_MARKERS,
         projects_from_text as _projects_from_text, entry_projects as _entry_projects,
         roles_from_text as _roles_from_text, entry_roles as _entry_roles,
     )
 except ImportError:
     from memory_classification import (
-        PROJECT_MARKERS, ROLE_MARKERS, token_words as _words,
+        PROJECT_MARKERS, ROLE_MARKERS,
         projects_from_text as _projects_from_text, entry_projects as _entry_projects,
         roles_from_text as _roles_from_text, entry_roles as _entry_roles,
     )
@@ -26,6 +26,16 @@ GENERIC_TASK_WORDS = {
     "a", "an", "are", "current", "do", "doing", "go", "how", "look", "looking",
     "on", "please", "status", "the", "things", "work",
 }
+_FOLLOWUP_GO_META_WORDS = {"ambiguous", "short", "terse", "typo", "typos", "word"}
+
+
+def _preserve_followup_go(ordered_words: list[str]) -> bool:
+    if not ordered_words or ordered_words[-1] != "go":
+        return False
+    terms = set(ordered_words)
+    followup = bool({"followup", "followups"} & terms) or ("follow" in terms and "up" in terms)
+    return followup and bool(_FOLLOWUP_GO_META_WORDS & terms)
+
 
 def context_selectors(query: str) -> dict[str, set[str]]:
     return {"projects": _projects_from_text(query), "roles": _roles_from_text(query)}
@@ -34,8 +44,14 @@ def context_selectors(query: str) -> dict[str, set[str]]:
 def context_residual_query(query: str) -> str:
     selector_words = {marker for markers in PROJECT_MARKERS.values() for marker in markers}
     selector_words.update(marker for markers in ROLE_MARKERS.values() for marker in markers)
-    words = [word for word in _words(query) if word not in selector_words and word not in GENERIC_TASK_WORDS]
-    return " ".join(sorted(words))
+    ordered_words = re.findall(r"[a-z0-9]+", str(query or "").casefold())
+    preserve_go = _preserve_followup_go(ordered_words)
+    words = [
+        word for word in ordered_words
+        if word not in selector_words
+        and (word not in GENERIC_TASK_WORDS or (word == "go" and preserve_go))
+    ]
+    return " ".join(words)
 
 
 def entry_context_labels(entry: dict[str, Any]) -> dict[str, set[str]]:
@@ -59,6 +75,23 @@ def _clip(text: Any, limit: int) -> str:
     return value[: max(0, limit - 3)].rstrip() + "..."
 
 
+def context_memory_ineligibility(entry: dict[str, Any]) -> str | None:
+    """Return why a stored memory cannot enter durable task context, or None when eligible."""
+    if entry.get("state") != "PROVEN":
+        return "provisional"
+    if entry.get("kind") == "status":
+        return "status"
+    tags = {str(tag) for tag in entry.get("tags") or []}
+    source_anchored = "assistant-recorded" in tags and bool(entry.get("source_messages"))
+    if not entry.get("evidence") and not source_anchored:
+        return "unanchored"
+    return None
+
+
+def context_memory_eligible(entry: dict[str, Any]) -> bool:
+    return context_memory_ineligibility(entry) is None
+
+
 def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
     classification = dict(entry.get("classification") or {})
     out = {
@@ -67,9 +100,15 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
         "kind": entry.get("kind"),
         "scope": entry.get("scope"),
         "state": entry.get("state"),
-        "text": _clip(entry.get("text"), MAX_ENTRY_TEXT),
+        "text": str(entry.get("text") or ""),
         "evidence": list(entry.get("evidence") or [])[:4],
     }
+    if entry.get("interpretation"):
+        out["interpretation"] = str(entry["interpretation"])
+    tags = {str(tag) for tag in entry.get("tags") or []}
+    source_messages = list(entry.get("source_messages") or [])
+    if "assistant-recorded" in tags and source_messages:
+        out["source_messages"] = [_clip(message, 240) for message in source_messages[:2]]
     if classification:
         out["semantic_category"] = classification.get("semantic_category")
         out["primary_domain"] = classification.get("primary_domain")
@@ -83,6 +122,29 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
     return out
 
 def _compact_history(entry: dict[str, Any]) -> dict[str, Any]:
+    if entry.get("retrieval_role") == "LESSON_PRIOR":
+        prior = {
+            "kind": "lesson-prior",
+            "source_event_id": entry.get("source_event_id"),
+            "source_type": entry.get("source_type"),
+            "project": entry.get("project"),
+            "event_at": entry.get("event_at"),
+            "title": _clip(entry.get("title"), 220),
+            "conclusion": _clip(entry.get("conclusion"), 440),
+            "evidence_anchors": list(entry.get("evidence_anchors") or [])[:6],
+            "relevance_terms": list(entry.get("relevance_terms") or [])[:6],
+            "changed_paths": list(entry.get("changed_paths") or [])[:6],
+            "lineage_event_ids": list(entry.get("lineage_event_ids") or [])[:8],
+            "lineage_projects": list(entry.get("lineage_projects") or [])[:8],
+            "lineage_copy_count": entry.get("lineage_copy_count"),
+            "lineage_semantics": entry.get("lineage_semantics"),
+            "authority": entry.get("authority"),
+            "validation": entry.get("validation"),
+            "live_truth_required": bool(entry.get("live_truth_required")),
+            "materialized_status": entry.get("materialized_status"),
+            "materialized_as_of": entry.get("materialized_as_of"),
+        }
+        return {key: value for key, value in prior.items() if value not in (None, "", [], {})}
     if entry.get("retrieval_role") == "AGGREGATE_SIGNAL":
         return {
             "kind": "corpus-summary",
@@ -131,7 +193,9 @@ def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
         for key in order:
             values = pack[key]
             if values:
-                values.pop()
+                removed_record = values.pop()
+                if key == "durable_memory" and removed_record.get("id"):
+                    pack.setdefault("omitted_memory_ids", []).append(removed_record["id"])
                 pack["truncated"] = True
                 removed = True
                 break
@@ -169,11 +233,12 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         if query_roles and entry_roles and not (query_roles & entry_roles):
             omitted_role_mismatch += 1
             continue
-        if compact.get("state") != "PROVEN":
+        ineligible = context_memory_ineligibility(hit)
+        if ineligible == "provisional":
             omitted_provisional += 1
-        elif compact.get("kind") == "status":
+        elif ineligible == "status":
             omitted_status += 1
-        elif not compact.get("evidence"):
+        elif ineligible == "unanchored":
             omitted_unanchored += 1
         else:
             durable.append(compact)
@@ -182,8 +247,8 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         "query": query,
         "selectors": {"projects": sorted(query_projects), "roles": sorted(query_roles)},
         "contract": {
-            "durable_memory": "proven anchored historical evidence, never runtime policy or live machine/repo truth",
-            "historical_evidence": "historical evidence only; never authority by retrieval frequency or recency",
+            "durable_memory": "proven anchored historical evidence; anchors are evidence refs or validated assistant-recorded verbatim source provenance, never runtime policy or live machine/repo truth",
+            "historical_evidence": "bounded conversation evidence and materialized lesson priors; derived historical evidence only, never runtime authority or live truth",
             "timeline": "derived chronology only; thread membership and recency do not prove causality or current truth",
         },
         "durable_memory": durable,

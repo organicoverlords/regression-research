@@ -1,0 +1,95 @@
+{
+  "schema": "regression-research.issue-861.policy-entrypoint-cluster.v1",
+  "captured_at": "2026-09-09T12:02:18+03:00",
+  "canonical": {
+    "agents_head": "0a30dd1d75e08ee3ee879c37f7f5065fa96183e5",
+    "shared_contract_version": 9,
+    "pointer_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784"
+  },
+  "surfaces": [
+    {
+      "path": "C:\\Users\\Lauri\\.codex\\AGENTS.md",
+      "before": "781-byte local behavioral policy",
+      "before_sha256": "f0dd2c8736d55559438df0972ade9fab046d4843b96be0303b44c911dc32dc45",
+      "classification": "DELETE_REPAIR_DRIFT",
+      "action": "repaired via existing Install-AgentEntrypoints.ps1",
+      "after_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+      "snapshot": "02 Evidence/2026-09-09_issue-861_codex-entrypoint-drift-original.txt"
+    },
+    {
+      "path": "C:\\Users\\Lauri\\Desktop\\AGENTS.md",
+      "before": "320-byte pointer to retired Documents\\agent-rules RULES/context",
+      "before_sha256": "b4b38cbd0652d1897ac78be0f82991154d6e3ac6fc10210845298ab06287ac7a",
+      "retired_rules_exists": false,
+      "retired_desktop_context_exists": false,
+      "classification": "DELETE_REPAIR_STALE_POINTER",
+      "action": "rewritten to existing canonical pointer body",
+      "after_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+      "snapshot": "02 Evidence/2026-09-09_issue-861_desktop-agents-retired-pointer-original.txt"
+    },
+    {
+      "path": "C:\\Users\\Lauri\\AGENTS.md",
+      "length": 2691,
+      "classification": "DELETE_REPAIR_LEGACY_POLICY",
+      "action": "preserved original, then rewritten to canonical pointer body",
+      "reason": "seven themes were already canonical; monetary/public-only pause clause is superseded by current explicit authorization/safety boundaries; single-level delegation had no present canonical requirement and was not promoted solely from historical local policy",
+      "canonical_overlap": [
+        "routine task authorization",
+        "push through failures / continue useful work",
+        "blocker prose not execution authority",
+        "do not ask user for routine fixes/approvals",
+        "no GUI commandeering",
+        "do not repeat unchanged failed route",
+        "current user/live evidence outrank stale rules"
+      ],
+      "potentially_unique": [
+        "pause only for monetary cost or public publication",
+        "delegation is single-level / delegated coding agent must not recursively delegate"
+      ],
+      "safety": "original bytes preserved in Vault before convergence",
+      "before_sha256": "077eac64c308cf3a5f3ed149084c2eb0e4dc8e65af6d0bea72fa6bb5edd583e9",
+      "after_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+      "snapshot": "02 Evidence/2026-09-09_issue-861_home-agents-legacy-policy-original.txt"
+    },
+    {
+      "path": "C:\\Users\\Lauri\\Desktop\\AGENTS.md consumer",
+      "classification": "PROVEN_CONSUMER",
+      "evidence": "Codex session 01a08335... injected the Desktop project-doc as agents_md.instructions; stale pointer was therefore not dead text"
+    }
+  ],
+  "codex_writer_attribution": {
+    "status": "NOT_ATTRIBUTED",
+    "evidence": [
+      "Retained Codex sessions show the 781-byte body as host-injected agents_md.instructions.",
+      "No September 8-9 retained custom tool-call input was found that wrote ~/.codex/AGENTS.md; five write-like AGENTS calls were current #861 canonical-agents worktree edits, not the Codex entrypoint.",
+      "Body appears in an earlier Codex session, so the 02:50 mtime was not proven to be initial creation."
+    ],
+    "next": "Do not add monitoring solely to identify historical writer; recurrence prevention should prefer existing pointer checks/owners."
+  },
+  "yagni": {
+    "finding": "Policy serving drift can create extra behavioral owners even after repo policy is canonicalized.",
+    "keep": "canonical .agents owner and pointer serving surfaces",
+    "delete_repair": "stale/local policy bodies and broken pointers once behavior is owned canonically",
+    "migrate_then_delete": "unique clauses still present only in a stale local body",
+    "do_not_add": [
+      "watcher",
+      "scheduler",
+      "generated policy copy",
+      "second rules repo",
+      "new sync daemon"
+    ]
+  },
+  "mutation_boundary": "Only serving-pointer convergence was performed. Canonical agents source was not changed.",
+  "convergence": {
+    "verified_at": "2026-09-09T12:06:13+03:00",
+    "surfaces": [
+      "C:\\Users\\Lauri\\AGENTS.md",
+      "C:\\Users\\Lauri\\Desktop\\AGENTS.md",
+      "C:\\Users\\Lauri\\.codex\\AGENTS.md",
+      "C:\\Users\\Lauri\\.config\\opencode\\AGENTS.md"
+    ],
+    "unique_hashes": 1,
+    "pointer_sha256": "39222135b036ab249998be2361985cd22ae6692d410a159d502cabadffc4a784",
+    "codex_opencode_installer_check": "PASS"
+  }
+}

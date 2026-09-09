@@ -1,0 +1,104 @@
+{
+  "schema": "regression-research.issue-861.receipt-source-order-experiment.v1",
+  "captured_date": "2026-09-09",
+  "scope": "read-only/temp-script experiment against P3 #2802 on stable main",
+  "source_main": "48c38850eb320c6f89a3cd5fccb5548b07ef3592",
+  "target_pr": 2802,
+  "target_head": "7266df50519eec2dd237fcad095405450cf052b5",
+  "history_boundary": {
+    "issue_2740": "Preserve existing Actions artifact receipt path when uploads work; add hash-bound non-artifact channel for quota failures; resolver validates same invariants from either channel.",
+    "classification": "artifact channel itself is KEEP unless current-consumer/recovery evidence changes"
+  },
+  "observed_full_receipt_runs": [
+    {
+      "run": 34303485451,
+      "actions_artifact_count": 0
+    },
+    {
+      "run": 34307696232,
+      "actions_artifact_count": 0
+    },
+    {
+      "run": 34315165556,
+      "actions_artifact_count": 0
+    }
+  ],
+  "observed_check_payloads_on_target": [
+    {
+      "run": 34315165556,
+      "receipt_id": "ca16e328e7504819a69849d577d875e930c0f593e868f42d82467e639155bf89",
+      "text_bytes": 2556
+    },
+    {
+      "run": 34307696232,
+      "receipt_id": "3a4c53577b24a24128887bce5636d9985ae8652a7c927769272064187174e7e0",
+      "text_bytes": 2548
+    }
+  ],
+  "current_behavior": "Resolve-P3CohortReceipt attempts gh run download for each receipt marker, then calls Get-P3ReceiptCheckPayload only if artifact download/parse yields no receipt.",
+  "candidate_behavior": "Call Get-P3ReceiptCheckPayload first; only attempt artifact download if no valid successful check payload is present. Keep identical Test-P3ReceiptCandidate validation and artifact fallback.",
+  "ab_trials": [
+    {
+      "variant": "artifact-first",
+      "elapsed_ms": 8441,
+      "decision": "NOT_REUSABLE",
+      "reason": "PREFIX_TREE_MISMATCH:5"
+    },
+    {
+      "variant": "check-first",
+      "elapsed_ms": 6807,
+      "decision": "NOT_REUSABLE",
+      "reason": "PREFIX_TREE_MISMATCH:5"
+    },
+    {
+      "variant": "artifact-first",
+      "elapsed_ms": 8850,
+      "decision": "NOT_REUSABLE",
+      "reason": "PREFIX_TREE_MISMATCH:5"
+    },
+    {
+      "variant": "check-first",
+      "elapsed_ms": 8162,
+      "decision": "NOT_REUSABLE",
+      "reason": "PREFIX_TREE_MISMATCH:5"
+    }
+  ],
+  "ab_summary": {
+    "artifact_first_mean_ms": 8645.5,
+    "check_first_mean_ms": 7484.5,
+    "delta_ms": 1161.0,
+    "note": "Only two trials per variant; latency is directional, not acceptance proof."
+  },
+  "instrumented_pair": {
+    "artifact_first": {
+      "artifact_attempts": 2,
+      "elapsed_ms": 8584,
+      "decision": "NOT_REUSABLE",
+      "reason": "PREFIX_TREE_MISMATCH:5"
+    },
+    "check_first": {
+      "artifact_attempts": 0,
+      "elapsed_ms": 7084,
+      "decision": "NOT_REUSABLE",
+      "reason": "PREFIX_TREE_MISMATCH:5"
+    },
+    "base_stable": true,
+    "head_stable": true
+  },
+  "yagni_classification": {
+    "artifact_storage": "KEEP",
+    "resolver_preference_order": "SHRINK candidate",
+    "priority": "lower than normal-state manual convergence steering",
+    "net_owner_delta": 0,
+    "net_layer_delta": 0,
+    "control_action_delta": "avoids one gh run download per candidate when a valid hash-bound check payload already exists",
+    "safety": [
+      "same receipt schema/hash validation",
+      "same source-run validation",
+      "same exact-prefix validation",
+      "artifact remains fallback when check payload missing"
+    ],
+    "required_positive_control": "Fixture/mock where check payload is absent and valid artifact exists must still resolve via artifact."
+  },
+  "mutation_boundary": "No P3 repo files were changed; candidate existed only in local temp scripts because regression-research #820 remains open and #861 is prework."
+}
