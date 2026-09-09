@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.worker_findings_summary import build_summary
 
@@ -108,6 +109,30 @@ class WorkerFindingsSummaryTests(unittest.TestCase):
             self.assertEqual(summary["populations"]["manual"]["archived_runs"], 0)
             self.assertEqual(summary["findings"]["tag_counts"], {})
             self.assertEqual(summary["findings"]["recent"], [])
+
+    def test_delegates_history_window_to_canonical_metadata_loader(self):
+        now = datetime.now().astimezone()
+        recent = {
+            "schema": "worker-report-history.v6",
+            "population": "timed",
+            "report_sha256": "recent",
+            "display_label": "timed-recent",
+            "archived_at": now.isoformat(),
+            "finished_at": now.isoformat(),
+            "duration_minutes": 20.0,
+            "target_utilization_pct": 83.3,
+            "finding_tags": ["performance"],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch(
+            "tools.worker_findings_summary.load_history_metadata", side_effect=[[recent], []]
+        ) as loader:
+            summary = build_summary(Path(tmp), hours=24)
+        self.assertEqual(loader.call_count, 2)
+        for call in loader.call_args_list:
+            self.assertIn("since", call.kwargs)
+            self.assertLess(abs((call.kwargs["since"] - (now - timedelta(hours=24))).total_seconds()), 5)
+        self.assertEqual(summary["populations"]["timed"]["archived_runs"], 1)
+        self.assertEqual(summary["findings"]["tag_counts"], {"performance": 1})
 
     def test_ignores_old_history_outside_window(self):
         with tempfile.TemporaryDirectory() as tmp:

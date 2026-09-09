@@ -8,6 +8,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+try:
+    from .worker_report_history import load_history_metadata
+except ImportError:
+    from worker_report_history import load_history_metadata
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORTS_ROOT = ROOT / "worker-reports"
 
@@ -56,14 +61,7 @@ def _normalize_tags(value: Any) -> list[str]:
 
 def _history_records(history_root: Path, *, population: str, cutoff: datetime) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    root = history_root / "_reports"
-    if not root.exists():
-        return records
-    for path in root.glob("*.json"):
-        try:
-            item = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
+    for item in load_history_metadata(history_root, since=cutoff):
         recorded_population = str(item.get("population") or "timed").casefold()
         if recorded_population != population:
             continue
