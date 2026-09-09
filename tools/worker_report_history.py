@@ -788,20 +788,31 @@ def _manual_terminalization_observation(
             continue
         eligible.append(item)
 
-    failures = [item for item in eligible if not _history_record_is_terminal(item)]
-    abandoned = sum(str(item.get("lifecycle_status") or "").strip().upper() == "ABANDONED_OPEN" for item in failures)
-    invalid = sum(str(item.get("lifecycle_status") or "").strip().upper() == "INVALID_CURRENT_SNAPSHOT" for item in failures)
     total = len(eligible)
-    failure_count = len(failures)
-    terminal_count = total - failure_count
+    terminal_count = sum(_history_record_is_terminal(item) for item in eligible)
+    censored_count = sum(
+        str(item.get("lifecycle_status") or "").strip().upper() == "ABANDONED_OPEN"
+        for item in eligible
+    )
+    invalid_count = sum(
+        str(item.get("lifecycle_status") or "").strip().upper() == "INVALID_CURRENT_SNAPSHOT"
+        for item in eligible
+    )
+    other_nonterminal_count = total - terminal_count - censored_count - invalid_count
+
+    def pct(count: int) -> float | None:
+        return round(100.0 * count / total, 2) if total else None
+
     return {
         "run_count": total,
         "terminal_count": terminal_count,
-        "nonterminal_failure_count": failure_count,
-        "terminalization_success_pct": round(100.0 * terminal_count / total, 2) if total else None,
-        "terminalization_failure_pct": round(100.0 * failure_count / total, 2) if total else None,
-        "abandoned_open_count": abandoned,
-        "invalid_current_snapshot_count": invalid,
+        "terminalized_pct": pct(terminal_count),
+        "censored_count": censored_count,
+        "censored_pct": pct(censored_count),
+        "invalid_observation_count": invalid_count,
+        "invalid_observation_pct": pct(invalid_count),
+        "other_nonterminal_count": other_nonterminal_count,
+        "other_nonterminal_pct": pct(other_nonterminal_count),
         "excluded_too_recent_count": too_recent,
         "window_start": start.isoformat(),
         "window_end": end.isoformat(),
@@ -876,9 +887,9 @@ def _manual_machine_lifecycle_diagnostic(
             "headline_population": "terminal_history_records_only",
             "machine_lifecycle_population": "terminal_and_machine_classified_nonterminal_manual_runs",
             "directly_comparable": False,
-            "warning": "The revision-3 headline excludes ABANDONED_OPEN and INVALID_CURRENT_SNAPSHOT runs; machine lifecycle is therefore a completeness diagnostic, not another estimate of the same rate.",
+            "warning": "The revision-3 headline excludes ABANDONED_OPEN and INVALID_CURRENT_SNAPSHOT runs. ABANDONED_OPEN is right-censored observation, not task failure; INVALID_CURRENT_SNAPSHOT is invalid measurement evidence, not task failure.",
         },
-        "semantics": "Machine-classified terminalization reliability. A run is eligible only after the maturity lag; ABANDONED_OPEN and INVALID_CURRENT_SNAPSHOT count as lifecycle failures. Pre-instrumentation history is survivor-biased and must not calibrate the headline.",
+        "semantics": "Machine lifecycle observation completeness, not task reliability. A run is eligible only after the maturity lag. ABANDONED_OPEN is right-censored because the conversation/run may simply have ended without later finalization; INVALID_CURRENT_SNAPSHOT is invalid measurement evidence. Neither class is a task failure. Pre-instrumentation history is survivor-biased and must not calibrate the headline.",
     }
 
 
