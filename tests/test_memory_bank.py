@@ -1,11 +1,93 @@
+import io
 import json
+import sys
 import tempfile
 import unittest
-from contextlib import nullcontext
+from contextlib import nullcontext, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_bank import BankError, append_entry, attach_materialized_orientation, load_bank, validate_entry
+import tools.memory_bank as memory_bank
+from tools.memory_bank import BankError, _materialized_context_query_eligible, _materialized_lesson_history, append_entry, attach_materialized_orientation, load_bank, validate_entry
+
+
+class MaterializedContextPriorTests(unittest.TestCase):
+    def test_query_gate_skips_trivial_context_and_accepts_substantive_task_wording(self):
+        self.assertFalse(_materialized_context_query_eligible("go"))
+        self.assertFalse(_materialized_context_query_eligible("status"))
+        self.assertFalse(_materialized_context_query_eligible("mem-20260909-deadbeef"))
+        self.assertTrue(_materialized_context_query_eligible("shared visual library"))
+        self.assertTrue(_materialized_context_query_eligible("p3 rigging"))
+
+    def test_materialized_packet_becomes_two_labeled_historical_priors(self):
+        report = {
+            "materialized": {"status": "FRESH", "as_of": "2026-09-09T02:00:00Z"},
+            "lesson_packet": {
+                "status": "READY", "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+                "validation": "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED", "live_truth_required": True,
+                "items": [
+                    {
+                        "source_event_id": "github-pr:repo#778", "source_type": "GITHUB_PR", "project": "vault",
+                        "event_at": "2026-09-08T21:43:17Z", "title": "Owner map", "conclusion": "Reuse owner map",
+                        "evidence_anchors": ["github:repo#778"],
+                    },
+                    {
+                        "source_event_id": "git:repo:abc", "source_type": "GIT_COMMIT", "project": "vault",
+                        "event_at": "2026-09-08T20:00:00Z", "title": "Prior fix", "conclusion": "Keep the supported path",
+                        "evidence_anchors": ["gitsha:abc"], "lineage_event_ids": ["a", "b"],
+                        "lineage_projects": ["vault", "tiny3d"], "lineage_copy_count": 2,
+                        "lineage_semantics": "COPIED_LINEAGE_NOT_INDEPENDENT_SUPPORT",
+                    },
+                    {"source_event_id": "third", "source_type": "GIT_COMMIT", "title": "Third", "conclusion": "Third"},
+                ],
+            },
+        }
+        with tempfile.TemporaryDirectory() as d, patch("tools.timeline_materializer.query_materialized", return_value=report) as query:
+            priors = _materialized_lesson_history("shared visual library", root=Path(d), limit=2)
+
+        self.assertEqual([item["source_event_id"] for item in priors], ["github-pr:repo#778", "git:repo:abc"])
+        self.assertTrue(all(item["source_class"] == "HISTORICAL_CONTEXT" for item in priors))
+        self.assertTrue(all(item["retrieval_role"] == "LESSON_PRIOR" for item in priors))
+        self.assertEqual(priors[1]["lineage_copy_count"], 2)
+        self.assertEqual(priors[0]["materialized_status"], "FRESH")
+        query.assert_called_once()
+
+    def test_default_bank_context_cli_includes_labeled_materialized_prior(self):
+        prior = {
+            "source_class": "HISTORICAL_CONTEXT", "retrieval_role": "LESSON_PRIOR",
+            "source_event_id": "github-pr:repo#778", "source_type": "GITHUB_PR",
+            "title": "Owner map", "conclusion": "Reuse owner map",
+            "evidence_anchors": ["github:repo#778"],
+            "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+            "validation": "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED", "live_truth_required": True,
+        }
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            bank = root / "memory-bank.jsonl"
+            overlay = root / "memory-bank.local.jsonl"
+            bank.write_text("", encoding="utf-8")
+            overlay.write_text("", encoding="utf-8")
+            output = io.StringIO()
+            with (
+                patch.object(memory_bank, "DEFAULT_BANK", bank),
+                patch.object(memory_bank, "DEFAULT_LOCAL_BANK", overlay),
+                patch.object(memory_bank, "_materialized_lesson_history", return_value=[prior]) as materialized,
+                patch.object(sys, "argv", ["memory_bank.py", "context", "shared visual library"]),
+                redirect_stdout(output),
+            ):
+                rc = memory_bank._main()
+
+        self.assertEqual(rc, 0)
+        pack = json.loads(output.getvalue())
+        self.assertEqual(pack["durable_memory"], [])
+        self.assertEqual(pack["historical_evidence"][0]["kind"], "lesson-prior")
+        self.assertEqual(pack["historical_evidence"][0]["source_event_id"], "github-pr:repo#778")
+        materialized.assert_called_once()
+
+    def test_trivial_context_does_not_open_materialized_reader(self):
+        with tempfile.TemporaryDirectory() as d, patch("tools.timeline_materializer.query_materialized") as query:
+            self.assertEqual(_materialized_lesson_history("go", root=Path(d), limit=2), [])
+        query.assert_not_called()
 
 
 class MemoryBankValidationTests(unittest.TestCase):

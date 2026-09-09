@@ -921,6 +921,63 @@ def search_context_memory(
         )
     return [*project_hits, *ambient_hits][:effective_limit]
 
+def _materialized_context_query_eligible(query: str) -> bool:
+    if _is_entry_id(query):
+        return False
+    selectors = context_selectors(query)
+    residual_tokens = _tokens(context_residual_query(query))
+    return len(residual_tokens) >= 2 or (bool(selectors.get("projects")) and len(residual_tokens) >= 1)
+
+
+def _materialized_lesson_history(query: str, *, root: Path, limit: int = 2) -> list[dict[str, Any]]:
+    """Return bounded labeled lesson priors from the existing materialized timeline only."""
+    effective_limit = min(2, max(0, int(limit)))
+    if effective_limit == 0 or not _materialized_context_query_eligible(query):
+        return []
+    try:
+        from .timeline_materializer import query_materialized
+    except ImportError:
+        from timeline_materializer import query_materialized
+    try:
+        report = query_materialized(root=root, query=query, limit=max(3, effective_limit))
+    except (OSError, TypeError, ValueError):
+        return []
+    if not isinstance(report, dict):
+        return []
+    packet = report.get("lesson_packet")
+    if not isinstance(packet, dict) or packet.get("status") != "READY":
+        return []
+    materialized = report.get("materialized") if isinstance(report.get("materialized"), dict) else {}
+    out: list[dict[str, Any]] = []
+    for item in list(packet.get("items") or [])[:effective_limit]:
+        if not isinstance(item, dict):
+            continue
+        prior = {
+            "source_class": "HISTORICAL_CONTEXT",
+            "retrieval_role": "LESSON_PRIOR",
+            "source_event_id": item.get("source_event_id"),
+            "source_type": item.get("source_type"),
+            "project": item.get("project"),
+            "event_at": item.get("event_at"),
+            "title": item.get("title"),
+            "conclusion": item.get("conclusion"),
+            "evidence_anchors": list(item.get("evidence_anchors") or [])[:6],
+            "relevance_terms": list(item.get("relevance_terms") or [])[:6],
+            "changed_paths": list(item.get("changed_paths") or [])[:6],
+            "lineage_event_ids": list(item.get("lineage_event_ids") or [])[:8],
+            "lineage_projects": list(item.get("lineage_projects") or [])[:8],
+            "lineage_copy_count": item.get("lineage_copy_count"),
+            "lineage_semantics": item.get("lineage_semantics"),
+            "authority": packet.get("authority"),
+            "validation": packet.get("validation"),
+            "live_truth_required": bool(packet.get("live_truth_required")),
+            "materialized_status": materialized.get("status"),
+            "materialized_as_of": materialized.get("as_of"),
+        }
+        out.append({key: value for key, value in prior.items() if value not in (None, "", [], {})})
+    return out
+
+
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int | None = None, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
     default_limit = DEFAULT_HISTORY_LIMIT if history else DEFAULT_RECALL_LIMIT
     hard_cap = MAX_HISTORY_LIMIT if history else MAX_RECALL_LIMIT
@@ -1197,6 +1254,9 @@ def _main() -> int:
         if args.command == "context":
             selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
             hits = [annotate_memory(entry) for entry in selected]
+            if args.bank.resolve() == DEFAULT_BANK.resolve() and not _is_entry_id(args.query):
+                vault_root = Path(__file__).resolve().parents[1]
+                hits.extend(_materialized_lesson_history(args.query, root=vault_root, limit=min(2, args.limit)))
             if args.with_history and not _is_entry_id(args.query):
                 report = conversation_history_report(args.query, limit=min(3, args.limit))
                 summary = _conversation_summary_entry(args.query, report.get("summary") or {})

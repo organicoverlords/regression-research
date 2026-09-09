@@ -107,6 +107,29 @@ def _compact_memory(entry: dict[str, Any]) -> dict[str, Any]:
     return out
 
 def _compact_history(entry: dict[str, Any]) -> dict[str, Any]:
+    if entry.get("retrieval_role") == "LESSON_PRIOR":
+        prior = {
+            "kind": "lesson-prior",
+            "source_event_id": entry.get("source_event_id"),
+            "source_type": entry.get("source_type"),
+            "project": entry.get("project"),
+            "event_at": entry.get("event_at"),
+            "title": _clip(entry.get("title"), 220),
+            "conclusion": _clip(entry.get("conclusion"), 440),
+            "evidence_anchors": list(entry.get("evidence_anchors") or [])[:6],
+            "relevance_terms": list(entry.get("relevance_terms") or [])[:6],
+            "changed_paths": list(entry.get("changed_paths") or [])[:6],
+            "lineage_event_ids": list(entry.get("lineage_event_ids") or [])[:8],
+            "lineage_projects": list(entry.get("lineage_projects") or [])[:8],
+            "lineage_copy_count": entry.get("lineage_copy_count"),
+            "lineage_semantics": entry.get("lineage_semantics"),
+            "authority": entry.get("authority"),
+            "validation": entry.get("validation"),
+            "live_truth_required": bool(entry.get("live_truth_required")),
+            "materialized_status": entry.get("materialized_status"),
+            "materialized_as_of": entry.get("materialized_as_of"),
+        }
+        return {key: value for key, value in prior.items() if value not in (None, "", [], {})}
     if entry.get("retrieval_role") == "AGGREGATE_SIGNAL":
         return {
             "kind": "corpus-summary",
@@ -210,7 +233,7 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         "selectors": {"projects": sorted(query_projects), "roles": sorted(query_roles)},
         "contract": {
             "durable_memory": "proven anchored historical evidence; anchors are evidence refs or validated assistant-recorded verbatim source provenance, never runtime policy or live machine/repo truth",
-            "historical_evidence": "historical evidence only; never authority by retrieval frequency or recency",
+            "historical_evidence": "bounded conversation evidence and materialized lesson priors; derived historical evidence only, never runtime authority or live truth",
             "timeline": "derived chronology only; thread membership and recency do not prove causality or current truth",
         },
         "durable_memory": durable,
