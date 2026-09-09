@@ -13,6 +13,8 @@ Make one machine-routing decision for a stable work identity and reuse it across
 - `portable-light`: OMEN first; the existing `p3-vps-light` runner may take overflow when it is freshly proven online and idle.
 - Windows is the general fallback only after the cohort has fresh evidence that OMEN is unavailable or saturated for the requested class.
 - A valid assignment is sticky for its `work-id`. Another worker joining the same work reuses it rather than choosing a machine independently.
+- Physical/session ownership is stronger than fungible compute fallback. For work that belongs to an exact machine or its visible desktop/session, pass `--owner-node-id <node-id>`. An explicit owner never falls back to another node when its transport is unavailable; it stays owner-bound and fails closed. An explicit owner correction supersedes a stale sticky decision for that work ID.
+- Laptop-desktop/UI work (for example an editor already open on the laptop desktop) must use `--owner-node-id omen-linux-laptop`; never substitute KONE merely because the OMEN SSH probe is unavailable. KONE remains `kone-gpu-desktop`.
 - Release the assignment when the work leaves that machine. Expiry is a crash/stale-worker backstop, not a normal handoff mechanism.
 
 The cohort is machine admission only. It does not own task priority, GitHub issues, repository ownership, BusyCoordinator claims, heavy-flight identity, CI acceptance, merge authority, or proof semantics.
@@ -31,6 +33,8 @@ Route labels are not machine identities. The canonical node registry is `executi
 
 ```powershell
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable-task-id> --kind <lowvram|windows-only|portable|portable-light|heavy|p3-runtime>
+# Exact physical/session ownership; never cross-node fallback:
+python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable-task-id> --kind <work-kind> --owner-node-id omen-linux-laptop
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py release --work-id <stable-task-id>
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status
 python C:\\Users\\Lauri\\Desktop\\vault\\tools\\swarm_exec.py --work-id <stable-task-id> --kind portable --repo-root <repo> -- python -m pytest <tests>

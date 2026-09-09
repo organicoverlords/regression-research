@@ -150,3 +150,36 @@ def test_assignment_preserves_hostname_mismatch_instead_of_guessing_node():
     assert result["node_id"] is None
     assert result["expected_node_id"] == "kone-gpu-desktop"
     assert result["node_identity_status"] == "HOSTNAME_MISMATCH"
+
+
+def test_explicit_laptop_owner_never_falls_back_to_kone_when_omen_unavailable():
+    probe={"observed_at":"2026-09-09T00:00:00Z","omen":{"available":False,**m._bind_node_identity("omen")},"windows":{"available":True,**m._bind_node_identity("windows","KONE")},"vps":{"available":True,**m._bind_node_identity("vps")}}
+    with mock.patch.object(m,"probe_all",return_value=probe):
+        with tempfile.TemporaryDirectory() as td:
+            result=m.route_work(Path(td)/"state.json","laptop-notepad-owner","portable",600,False,owner_node_id="omen-linux-laptop")
+    assert result["route"]=="omen"
+    assert result["owner_node_id"]=="omen-linux-laptop"
+    assert result["node_id"] is None
+    assert result["expected_node_id"]=="omen-linux-laptop"
+    assert result["machine_class"]=="laptop"
+    assert result["reason"]=="OWNER_PINNED_UNAVAILABLE_FAIL_CLOSED"
+
+def test_explicit_owner_correction_supersedes_sticky_wrong_machine_assignment():
+    probe={"observed_at":"2026-09-09T00:00:00Z","omen":{"available":False,**m._bind_node_identity("omen")},"windows":{"available":True,**m._bind_node_identity("windows","KONE")},"vps":{"available":False,**m._bind_node_identity("vps")}}
+    with mock.patch.object(m,"probe_all",return_value=probe):
+        with tempfile.TemporaryDirectory() as td:
+            state=Path(td)/"state.json"
+            first=m.route_work(state,"desktop-owner-correction","portable",600,False)
+            corrected=m.route_work(state,"desktop-owner-correction","portable",600,False,owner_node_id="omen-linux-laptop")
+    assert first["node_id"]=="kone-gpu-desktop"
+    assert corrected["route"]=="omen"
+    assert corrected["owner_node_id"]=="omen-linux-laptop"
+    assert corrected["expected_node_id"]=="omen-linux-laptop"
+    assert corrected["decision_id"]!=first["decision_id"]
+    assert corrected["ownership_override_previous_decision_id"]==first["decision_id"]
+
+def test_unknown_explicit_owner_is_rejected():
+    with tempfile.TemporaryDirectory() as td:
+        try: m.route_work(Path(td)/"state.json","bad-owner","portable",600,False,owner_node_id="not-a-node")
+        except ValueError as exc: assert str(exc)=="SWARM_ROUTE_BAD_OWNER_NODE"
+        else: raise AssertionError("unknown owner node must fail closed")
