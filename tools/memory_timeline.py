@@ -845,7 +845,7 @@ def build_event(entry: dict[str, Any], superseded_by: dict[str, list[str]]) -> d
     event_at = str(entry.get("event_at") or entry["timestamp"])
     explicit_event_at = "event_at" in entry
     thread_id, thread_source = _thread_identity(entry, classification)
-    return {
+    event = {
         "id": entry["id"],
         "source_type": "VAULT_MEMORY",
         "authority": "DERIVED_MEMORY_HISTORY",
@@ -872,6 +872,10 @@ def build_event(entry: dict[str, Any], superseded_by: dict[str, list[str]]) -> d
         "supersedes": list(entry.get("supersedes") or []),
         "superseded_by": list(superseded_by.get(str(entry["id"]), [])),
     }
+    if entry.get("positive_milestone") is True:
+        event["positive_milestone"] = True
+        event["milestone_sticker"] = str(entry.get("milestone_sticker") or "★")
+    return event
 
 
 def _matches_query(event: dict[str, Any], query_tokens: set[str]) -> bool:

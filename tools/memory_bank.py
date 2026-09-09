@@ -58,6 +58,7 @@ MAX_HISTORY_LIMIT = 20
 DEFAULT_RECENT_TITLES_LIMIT = 10
 MAX_RECENT_TITLES_LIMIT = 20
 MAX_TITLE_CHARS = 100
+POSITIVE_MILESTONE_STICKER = "★"
 MAX_DERIVED_TITLE_CHARS = 80
 MAX_TEXT_CHARS = 2000
 MAX_TAGS = 12
@@ -95,6 +96,14 @@ def validate_entry(entry: dict[str, Any]) -> None:
         raise BankError(f"invalid state: {entry['state']}")
     if "behavior_rule" in entry and not isinstance(entry["behavior_rule"], bool):
         raise BankError("behavior_rule must be a boolean when present")
+    if "positive_milestone" in entry and not isinstance(entry["positive_milestone"], bool):
+        raise BankError("positive_milestone must be a boolean when present")
+    milestone = bool(entry.get("positive_milestone"))
+    sticker = entry.get("milestone_sticker")
+    if milestone and sticker != POSITIVE_MILESTONE_STICKER:
+        raise BankError(f"positive milestone requires milestone_sticker {POSITIVE_MILESTONE_STICKER!r}")
+    if not milestone and sticker is not None:
+        raise BankError("milestone_sticker requires positive_milestone=true")
     if "project" in entry and (not isinstance(entry["project"], str) or not entry["project"].strip()):
         raise BankError("project must be a non-empty string when present")
     if "thread" in entry and (not isinstance(entry["thread"], str) or not entry["thread"].strip()):
@@ -1090,6 +1099,7 @@ def _main() -> int:
     record.add_argument("--evidence", action="append", default=[])
     record.add_argument("--supersedes", action="append", default=[])
     record.add_argument("--standalone-correction", action="store_true", help="allow a correction that intentionally does not replace an existing memory")
+    record.add_argument("--positive-milestone", action="store_true", help="mark an explicitly user-rewarded positive milestone with the canonical tiny star sticker")
     record.add_argument("--publish", action="store_true", help="explicitly reconcile/publish the canonical bank through Git; default record is local-only")
 
     search = sub.add_parser("search")
@@ -1148,14 +1158,20 @@ def _main() -> int:
             missing_supersedes = [memory_id for memory_id in args.supersedes if memory_id not in known_ids]
             if missing_supersedes:
                 raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
+            record_tags = [*args.tag, "assistant-recorded", "verbatim-source"]
+            if args.positive_milestone:
+                record_tags.append("positive-milestone")
             values = {
                 "kind": args.kind, "scope": args.scope,
-                "tags": [*args.tag, "assistant-recorded", "verbatim-source"],
+                "tags": list(dict.fromkeys(record_tags)),
                 "title": args.title, "text": args.text, "state": args.state,
                 "evidence": args.evidence, "supersedes": args.supersedes,
                 "source_messages": args.source_message, "interpretation": args.interpretation,
                 "confidence": args.confidence, "confidence_reason": args.confidence_reason,
             }
+            if args.positive_milestone:
+                values["positive_milestone"] = True
+                values["milestone_sticker"] = POSITIVE_MILESTONE_STICKER
             if args.project:
                 values["project"] = args.project
             if args.expires_at:

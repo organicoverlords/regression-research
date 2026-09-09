@@ -29,6 +29,14 @@ class MemoryTimelineTests(unittest.TestCase):
             out["thread"] = thread
         return out
 
+    def test_positive_milestone_projects_tiny_sticker_to_timeline(self):
+        entry = self.e("reward", "2026-09-09T12:00:00+03:00", "Useful measured recall improvement")
+        entry["positive_milestone"] = True
+        entry["milestone_sticker"] = "★"
+        event = build_timeline([entry], limit=5)["events"][0]
+        self.assertTrue(event["positive_milestone"])
+        self.assertEqual(event["milestone_sticker"], "★")
+
     def test_event_time_is_distinct_from_record_time_when_explicit(self):
         entry = self.e("x", "2026-08-29T03:00:00+03:00", "Observed earlier", event_at="2026-08-28T20:00:00+03:00")
         event = build_timeline([entry], limit=5)["events"][0]
