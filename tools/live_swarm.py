@@ -213,6 +213,7 @@ def _command_target(command: str) -> tuple[str | None, str | None]:
     for pattern, basis in (
         (r"(?i)\b(?:Set-Location|cd)(?:\s+-LiteralPath)?\s+['\"]([A-Za-z]:\\[^'\"]+)['\"]", "command_cwd"),
         (r"(?i)\bgit\s+-C\s+['\"]([A-Za-z]:\\[^'\"]+)['\"]", "command_git_c"),
+        (r"(?i)(?:^|\s)--repo-root(?:=|\s+)['\"]([A-Za-z]:\\[^'\"]+)['\"]", "command_repo_root"),
     ):
         match = re.search(pattern, command)
         if match:

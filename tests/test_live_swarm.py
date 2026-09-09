@@ -17,6 +17,9 @@ class LiveSwarmTests(unittest.TestCase):
         path,basis=_command_target("git -C 'C:\\repo\\p3' status")
         self.assertEqual(path, r"C:\repo\p3")
         self.assertEqual(basis, "command_git_c")
+        path,basis=_command_target("python swarm_exec.py --work-id dev-board --kind portable-light --repo-root 'C:\\work\\dev-progress-board-mobile' -- git status")
+        self.assertEqual(path, r"C:\work\dev-progress-board-mobile")
+        self.assertEqual(basis, "command_repo_root")
 
     def test_workspace_is_orientation_not_identity(self):
         self.assertEqual(_workspace(r"C:\Users\Lauri\Desktop\tiny3d-x"), "Tiny3D")
