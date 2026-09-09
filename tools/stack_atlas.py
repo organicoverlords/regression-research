@@ -649,7 +649,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
-        "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
+        "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime", "nexus", "devboard"],
         "entrypoints": ["shared .agents RULES.md + AGENTS.md", "organicoverlords/agents@main docs/repos/<repo>/ product direction", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
     },
@@ -3372,6 +3372,8 @@ def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, 
 
 
 FEATURE_LOOKUP_ALIASES = {
+    "nexus": "project.current_truth",
+    "devboard": "project.current_truth",
     "tiny3d_library": "project.tiny3d_asset_library",
     "tiny3d library": "project.tiny3d_asset_library",
     "asset_catalogue": "project.tiny3d_asset_library",
