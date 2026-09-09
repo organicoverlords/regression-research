@@ -2307,7 +2307,7 @@ class Issue394StackVisibilityTests(unittest.TestCase):
         self.assertEqual(component_details("workers")["id"], "execution_workers")
 
 class McpRecoveryStateVisibilityTests(unittest.TestCase):
-    def test_bootstrap_surfaces_canonical_mcp_freeze_and_reroute_log_paths(self):
+    def test_bootstrap_surfaces_current_local_mcp_recovery_contract(self):
         import tools.stack_atlas as atlas
         recovery_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
         with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", recovery_path):
@@ -2320,77 +2320,84 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertEqual(current["tool_count"], 3)
         self.assertEqual(current["tools"], ["start_process", "read_output", "kill_process"])
         self.assertFalse(current["image_delivery_adds_tool"])
-        self.assertIn("mcp_recovery_state", glance)
-        if glance["mcp_recovery_state"]["available"]:
-            recovery = glance["mcp_recovery_state"]
-            self.assertEqual(recovery["read_state"], "OK")
-            self.assertEqual(recovery["authority"], "recovery_target_not_live_serving_identity")
-            self.assertEqual(recovery["scope"], "recovery_only_not_live_topology")
-            self.assertTrue(recovery["details_path"].endswith("mcp-recovery-state.json"))
-            self.assertNotIn("automatic_routing", recovery)
-            self.assertNotIn("recovery_invariants", recovery)
-            self.assertNotIn("latest_topology_restore", recovery)
-            self.assertNotIn("conditions", recovery)
-            payload = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-            self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertTrue(glance["paths"]["mcp_current_topology"].endswith("mcp-current-topology.json"))
-        self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
-        self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
-        self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpV4HomeDirectStable"))
 
-    def test_freeze_contract_exposes_restore_first_policy(self):
+        recovery = glance["mcp_recovery_state"]
+        self.assertTrue(recovery["available"])
+        self.assertEqual(recovery["read_state"], "OK")
+        self.assertEqual(recovery["authority"], "current_recovery_contract")
+        self.assertEqual(recovery["scope"], "current_local_recovery_contract")
+        self.assertEqual(recovery["current_connector_url"], "https://91-159-12-133.sslip.io/mcp")
+        self.assertEqual(recovery["current_backend"], "127.0.0.1:3022")
+        self.assertEqual(recovery["allowed_automatic_restore_target"], "current_serving_topology only")
+        self.assertFalse(recovery["legacy_topology_restore_allowed"])
+        self.assertTrue(recovery["details_path"].endswith("mcp-recovery-state.json"))
+        self.assertNotIn("automatic_routing", recovery)
+        self.assertNotIn("recovery_target_deployment_id", recovery)
+        self.assertNotIn("latest_topology_restore", recovery)
+        payload = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
+
+    def test_recovery_contract_v2_quarantines_legacy_topology(self):
         import tools.stack_atlas as atlas
-        freeze_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
-        raw_contract = json.loads(freeze_path.read_text(encoding="utf-8"))
-        self.assertEqual(raw_contract["scope"], "recovery_only_not_live_topology")
-        self.assertTrue(raw_contract["current_serving_topology_reference"].endswith("mcp-current-topology.json"))
-        self.assertIn("not the current GPT1 serving topology", raw_contract["warning"])
-        with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", freeze_path):
+        recovery_path = ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
+        raw = json.loads(recovery_path.read_text(encoding="utf-8"))
+        self.assertEqual(raw["schema"], "mcp-recovery-state.v2")
+        self.assertEqual(raw["authority"], "current_recovery_contract")
+        self.assertEqual(raw["current_serving_topology"]["connector_url"], "https://91-159-12-133.sslip.io/mcp")
+        self.assertEqual(raw["current_serving_topology"]["backend"], "127.0.0.1:3022")
+        self.assertEqual(raw["recovery"]["allowed_automatic_restore_target"], "current_serving_topology only")
+        self.assertFalse(raw["recovery"]["legacy_topology_restore_allowed"])
+        self.assertNotIn("WireGuard", json.dumps(raw["current_serving_topology"]))
+        self.assertNotIn("5-61-91-127", json.dumps(raw["current_serving_topology"]))
+        self.assertTrue(any("explicit user authorization" in item for item in raw["recovery"]["rules"]))
+        with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", recovery_path):
             state = atlas._bootstrap_mcp_recovery_state()
-        self.assertTrue(state["restore_first_on_regression"])
-        self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
-        self.assertEqual(state["automatic_routing"], "WireGuard only")
-        self.assertIn("explicit recovery only", state["ssh_role"])
-        self.assertTrue(any("keep the selected recovery target fixed" in item for item in state["recovery_invariants"]))
-        self.assertTrue(any("502" in item and "Node/backend" in item for item in state["recovery_invariants"]))
-        self.assertIn("preserve unique work", state["preservation_rule"])
-        self.assertIn("authorized by go/continue", state["authorization_rule"])
-        self.assertIn("do not ask for redundant per-cutover approval", state["authorization_rule"])
-        self.assertIn("scope-widening", state["authorization_rule"])
-        self.assertTrue(any("2026-09-05 replacement procedure" in item for item in state["replacement_safety_rules"]))
-        latest = state["latest_topology_restore"]
-        self.assertEqual(latest["incident_id"], "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence")
-        self.assertEqual(latest["before_transport"], "reverse_ssh")
-        self.assertEqual(latest["after_transport"], "wireguard")
-        self.assertTrue(latest["backend_artifact_matches_selected_recovery"])
-        self.assertEqual(latest["failed_replacement_status"], "ROLLED_BACK_CANDIDATE_DRAIN_PENDING")
-        self.assertEqual(latest["public_health_statuses"], [200, 200, 200, 200, 200])
-        self.assertEqual(latest["fresh_mcp_process_call"], "PASS")
-        summary = {item["type"]: item["status"] for item in state["conditions"]}
-        self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
-        self.assertEqual(summary["SecurityReroutesEliminated"], "False")
-        raw = json.loads(freeze_path.read_text(encoding="utf-8"))
-        first_step = raw["recovery_target"]["policy"]["required_order"][0]
-        self.assertIn("user explicitly asks", first_step)
-        self.assertIn("do not persist them", first_step)
+        self.assertEqual(state["authority"], "current_recovery_contract")
+        self.assertFalse(state["legacy_topology_restore_allowed"])
+        self.assertEqual(state["allowed_automatic_restore_target"], "current_serving_topology only")
+        self.assertIn("5-61-91-127.sslip.io", " ".join(state["forbidden_operational_targets"]))
 
-    def test_freeze_and_security_reroute_features_are_discoverable(self):
+        legacy_path = ROOT / "02 Evidence" / "mcp-recovery-state-legacy-20260906.json"
+        legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
+        self.assertEqual(legacy["schema"], "mcp-recovery-history.v1")
+        self.assertEqual(legacy["authority"], "historical_evidence_only")
+        self.assertTrue(legacy["non_operational"])
+        self.assertEqual(legacy["snapshot"]["schema"], "mcp-recovery-state.v1")
+        self.assertIn("DO NOT USE AS A RECOVERY TARGET", legacy["warning"])
+
+    def test_recovery_features_are_local_only_and_legacy_edge_is_not_authority(self):
         freeze = find_features("known good refreeze")[0]
         self.assertEqual(freeze["id"], "mcp.recovery_state")
-        self.assertIn("True/False/Unknown", freeze["boundary"])
-        self.assertNotIn("CANDIDATE_KNOWN_GOOD", freeze["boundary"])
-        self.assertNotIn("PROVEN_KNOWN_GOOD", freeze["boundary"])
+        self.assertIn("Current local-only GPT1 recovery contract", freeze["boundary"])
+        self.assertIn("never automatic or preferred recovery targets", freeze["boundary"])
+        recovery = find_features("restore working MCP")[0]
+        self.assertEqual(recovery["id"], "mcp.regression_recovery")
+        self.assertIn("current local GPT1 topology", recovery["boundary"])
+        self.assertIn("requires separate explicit user authorization", recovery["boundary"])
+        self.assertFalse(any("replace-wireguard-production" in item for item in recovery["entrypoints"]))
+        self.assertFalse(any("production-backend-3011" in item for item in recovery["entrypoints"]))
+        vps = component_details("vps_edge_ingress")
+        self.assertIn("never use this component as GPT1 serving or recovery authority", " ".join(vps["live_status"]))
+        tailscale = component_details("tailscale_ingress")
+        self.assertIn("never use as GPT1 serving/auth/recovery authority", " ".join(tailscale["live_status"]))
+
+    def test_failed_recovery_query_prioritizes_current_local_authority(self):
+        results = find_features("MCP recovery stale recovery file wrong WireGuard GPT1 local 3022", limit=8)
+        ids = [item["id"] for item in results]
+        self.assertGreaterEqual(len(ids), 3)
+        self.assertEqual(ids[0], "mcp.current_topology")
+        self.assertEqual(ids[1], "mcp.recovery_state")
+        self.assertEqual(ids[2], "mcp.regression_recovery")
+        self.assertNotIn("mcp.edge_monitoring", ids[:3])
+        self.assertIn("current local-only gpt1 recovery contract", results[1]["boundary"].casefold())
+
+    def test_security_reroute_feature_remains_discoverable_as_separate_analysis(self):
         reroute = find_features("security reroute")[0]
         self.assertEqual(reroute["id"], "mcp.security_reroute_log")
         self.assertIn("must be logged", reroute["boundary"])
         self.assertIn("user explicitly asks", reroute["boundary"])
         self.assertIn("do not persist them", reroute["boundary"])
-        recovery = find_features("restore working MCP")[0]
-        self.assertEqual(recovery["id"], "mcp.regression_recovery")
-        self.assertIn("Restore-first", recovery["boundary"])
-        self.assertIn("user explicitly asks", recovery["boundary"])
-        self.assertIn("source SHA alone is insufficient", recovery["boundary"])
-        self.assertIn("no MCP request in flight", recovery["boundary"])
+
 
 class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
     def test_chatgpt_plugin_surface_search_routes_to_exact_three_tool_contract(self):

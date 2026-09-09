@@ -220,10 +220,14 @@ def _semantic_category(entry: dict[str, Any], projects: set[str]) -> str:
         return "HYPOTHESIS"
     if _contains_any(joined, _INCIDENT_WORDS):
         return "INCIDENT"
-    if _contains_any(joined, _CHECKPOINT_WORDS):
-        return "CHECKPOINT"
+    # Lessons encode reusable interpretation/guidance. Policy/authority language must
+    # win over checkpoint vocabulary so a lesson *about* a historical snapshot is
+    # not demoted to HISTORICAL and silently removed from ordinary recall. Actual
+    # status records still take the explicit checkpoint path above.
     if _contains_any(joined, _POLICY_WORDS):
         return "WORKFLOW_POLICY"
+    if _contains_any(joined, _CHECKPOINT_WORDS):
+        return "CHECKPOINT"
     if projects:
         return "PROJECT_LESSON"
     return "LESSON"

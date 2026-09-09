@@ -78,6 +78,20 @@ class MemoryClassificationTests(unittest.TestCase):
         self.assertEqual(checkpoint["semantic_category"], "CHECKPOINT")
         self.assertEqual(checkpoint["durability"], "EPHEMERAL")
 
+    def test_policy_lesson_about_historical_snapshot_remains_durable(self):
+        entry = self.entry(
+            project="regression-research",
+            scope="mcp/gpt1-home-direct/recovery-authority",
+            title="GPT1 recovery authority",
+            text=(
+                "A historical recovery snapshot is evidence only. The current recovery contract "
+                "must remain the operational authority and legacy routing must never be selected."
+            ),
+        )
+        result = classify_entry(entry)
+        self.assertEqual(result["semantic_category"], "WORKFLOW_POLICY")
+        self.assertEqual(result["durability"], "DURABLE")
+
     def test_provisional_is_review_not_silently_promoted(self):
         result = classify_entry(self.entry(state="PROVISIONAL", scope="mcp", text="Possible routing explanation."))
         self.assertEqual(result["durability"], "REVIEW")

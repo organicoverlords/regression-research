@@ -37,6 +37,28 @@ class MemoryTimelineTests(unittest.TestCase):
         self.assertTrue(event["positive_milestone"])
         self.assertEqual(event["milestone_sticker"], "★")
 
+    def test_recovery_authority_lesson_about_snapshot_remains_current_in_timeline_query(self):
+        entry = self.e(
+            "recovery-authority",
+            "2026-09-10T01:29:37+03:00",
+            (
+                "GPT1 MCP recovery uses the current local recovery contract. "
+                "A historical WireGuard recovery snapshot is evidence only and never an operational authority."
+            ),
+            scope="mcp/gpt1-home-direct/recovery-authority",
+            title="GPT1 recovery authority",
+            project="regression-research",
+        )
+        report = build_timeline(
+            [entry],
+            query="MCP recovery stale recovery snapshot wrong WireGuard GPT1 local 3022",
+            limit=10,
+        )
+        self.assertEqual(report["events"][0]["id"], "recovery-authority")
+        self.assertEqual(report["events"][0]["semantic_category"], "WORKFLOW_POLICY")
+        self.assertEqual(report["events"][0]["durability"], "DURABLE")
+        self.assertEqual(report["events"][0]["disposition"], "CURRENT_DURABLE")
+
     def test_event_time_is_distinct_from_record_time_when_explicit(self):
         entry = self.e("x", "2026-08-29T03:00:00+03:00", "Observed earlier", event_at="2026-08-28T20:00:00+03:00")
         event = build_timeline([entry], limit=5)["events"][0]

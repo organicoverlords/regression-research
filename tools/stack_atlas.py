@@ -196,7 +196,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "canonical_sources": [r"%LOCALAPPDATA%\ChatGPTMcpClean\keepalive.ps1", "chatgpt-mcp-clean/src/front-door.ts"],
         "live_status": [
             "root front-door health plus exact tool contract/semantic call",
-            "root / may remain on 3003 as a separate legacy/fallback surface; current production bypasses it through VPS Caddy -> WireGuard 10.203.0.2:3011, and SSH 3101-3104 are explicit recovery only, not automatic Caddy upstreams",
+            "root / on 3003 is a separate legacy/fallback surface; canonical GPT1 bypasses it through local HTTPS Caddy -> 127.0.0.1:3022. VPS/WireGuard/reverse-SSH paths remain separate infrastructure and are not GPT1 recovery targets",
             "ordered static-array clone fallback is bounded experiment/fallback infrastructure, not proof of production clone continuity",
         ],
         "supervisor": "ChatGPTMcpClean keepalive FrontDoor role",
@@ -245,7 +245,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "backend_task": "McpV4HomeDirect3022",
             "caddy_task": "McpV4HomeDirectCaddy",
             "independent_local_control": "clone-a at 127.0.0.1:3011",
-            "excluded_from_gpt1_path": ["5-61-91-127.sslip.io", "VPS Caddy", "WireGuard", "Tailscale owner authorization"],
+            "excluded_from_gpt1_path": ["5-61-91-127.sslip.io", "VPS Caddy", "WireGuard", "reverse SSH", "Tailscale owner authorization"],
         },
         "chatgpt_plugin_surface": {
             "profile": "process",
@@ -276,14 +276,14 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "OAuth authorization endpoint: https://91-159-12-133.sslip.io/authorize with local-edge owner authorization",
             "worker-visible contract is exactly start_process, read_output, kill_process; image delivery remains process-result metadata/resource output and does not add an action",
             "default visual retrieval for all workers/projects is CHATGPT_LIBRARY_UPLOAD metadata on the normal process route, followed by native pixel inspection",
-            "5-61-91-127.sslip.io, VPS Caddy, WireGuard, and Tailscale owner authorization are not in the GPT1 path",
-            "mcp-recovery-state.json is historical recovery/rollback state, not current serving topology",
+            "5-61-91-127.sslip.io, VPS Caddy, WireGuard, reverse SSH, and Tailscale owner authorization are not in the GPT1 path",
+            "mcp-recovery-state.json is the current local-only recovery contract; the obsolete Sept 6 VPS/WireGuard/reverse-SSH snapshot exists only under 02 Evidence and is non-operational",
         ],
         "supervisor": "McpV4HomeDirect3022 scheduled task -> pinned home-direct stable runtime",
         "self_heal": "generation_specific",
         "independent_recovery": [
             "clone-a at 127.0.0.1:3011 is the independent local control/recovery route for the home-direct 3022 service",
-            "mcp-recovery-state.json preserves historical rollback targets but must not be projected as current GPT1 topology",
+            "mcp-recovery-state.json restores only the current local 91-159-12-133.sslip.io -> 3022 topology; the legacy VPS/WireGuard/reverse-SSH snapshot is evidence-only and cannot be selected as recovery",
             "client-visible stale connector metadata does not authorize VPS/WireGuard/Tailscale repair or backend/OAuth churn",
             "authentication repair must preserve the three-tool process profile and local 91-159-12-133.sslip.io -> 3022 serving topology",
         ],
@@ -296,7 +296,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "capabilities": ["source_read", "runtime_validate", "artifact_transfer"],
         "canonical_sources": [VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", VPS_EDGE_ROOT + r"\provision_edge_extras.py", VPS_EDGE_ROOT + r"\publish-artifact.ps1", "5.61.91.127:/etc/caddy/Caddyfile"],
         "live_status": [
-            "https://5-61-91-127.sslip.io/edge-status is the deployed observer snapshot; healthy is automatic-edge health and requires primary_healthy plus metadata_http=200 plus caddy=active",
+            "separate MCPv3/legacy edge observer only; never use this component as GPT1 serving or recovery authority; https://5-61-91-127.sslip.io/edge-status is the deployed observer snapshot for that separate edge",
             "primary_healthy is the automatic WireGuard primary only: primary_backend_http=200 plus wireguard_peer_fresh=true; SSH recovery lanes never contribute to primary_healthy or healthy",
             "WireGuard freshness fields are wireguard_interface, wireguard_handshake_age_seconds, and wireguard_peer_fresh; the deployed observer treats handshake age 0-180 seconds as fresh",
             "recovery_available and fallback_healthy_count describe explicit-recovery SSH lanes 3101-3104 only; fallback_3101_http through fallback_3104_http represent recovery availability, and Caddy does not select them automatically",
@@ -319,7 +319,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "role": "secondary_network_ingress_fallback",
         "capabilities": ["source_read", "runtime_validate"],
         "canonical_sources": [r"C:\Program Files\Tailscale\tailscale.exe", MCP_ROOT + r"\keepalive.ps1"],
-        "live_status": ["secondary public ingress after the 2026-09-03 VPS cutover", "MCP_PUBLIC_ORIGIN host", "tailscale funnel status --json", "stable front door 127.0.0.1:3003", "if fallback is used, require a fresh full MCP handshake before relying on it"],
+        "live_status": ["secondary ingress for separate legacy/MCPv3 paths; never use as GPT1 serving/auth/recovery authority", "MCP_PUBLIC_ORIGIN host", "tailscale funnel status --json", "stable front door 127.0.0.1:3003", "any deliberate GPT1 reactivation is a topology redesign requiring explicit authorization"],
         "supervisor": "Tailscale service; Funnel configuration owner is ChatGPTMcpClean keepalive.ps1",
         "self_heal": "service_specific; route edits require explicit verification",
         "independent_recovery": ["production MCPv3/VPS remains independent; the stable front door can be tested locally without Tailscale ingress"],
@@ -575,7 +575,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "mcp.edge_monitoring": {
         "owner_components": ["vps_edge_ingress"],
-        "triggers": ["monitoring", "edge monitoring", "edge health", "vps observer", "vps health", "wireguard health", "recovery health"],
+        "triggers": ["edge monitoring", "edge health", "vps observer", "vps health", "wireguard edge health", "legacy wireguard health", "legacy edge recovery health"],
         "entrypoints": [
             "https://5-61-91-127.sslip.io/edge-status",
             "python tools\\stack_atlas.py lookup vps_edge_ingress",
@@ -607,9 +607,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "mcp.current_topology": {
         "owner_components": ["mcp_minimal_clone"],
-        "triggers": ["gpt1 mcp topology", "mcp current topology", "91-159-12-133", "mcp 3022", "mcp connector url", "mcp local edge"],
+        "triggers": ["gpt1 mcp topology", "mcp current topology", "91-159-12-133", "mcp 3022", "mcp connector url", "mcp local edge", "wrong wireguard", "stale recovery", "obsolete recovery", "legacy recovery"],
         "entrypoints": [str(MCP_CURRENT_TOPOLOGY_PATH), "python tools\\stack_atlas.py lookup mcp_minimal_clone"],
-        "boundary": "Current GPT1 serving authority: https://91-159-12-133.sslip.io/mcp -> local HTTPS Caddy -> 127.0.0.1:3022. The old 5-61-91-127.sslip.io/VPS/WireGuard/Tailscale path is not the GPT1 serving or authorization path. mcp-recovery-state.json is historical rollback/recovery state only.",
+        "boundary": "Current GPT1 serving authority: https://91-159-12-133.sslip.io/mcp -> local HTTPS Caddy -> 127.0.0.1:3022. The old 5-61-91-127.sslip.io/VPS/WireGuard/reverse-SSH/Tailscale path is not the GPT1 serving, authorization, or recovery path. mcp-recovery-state.json is the current local-only recovery contract; legacy recovery snapshots are evidence-only.",
     },
     "mcp.chatgpt_plugin_surface": {
         "owner_components": ["mcp_minimal_clone"],
@@ -618,16 +618,16 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "The GPT1 ChatGPT connector exposes exactly start_process, read_output, and kill_process. CHATGPT_LIBRARY_UPLOAD image/file handling is process-result metadata/resource output through ui://process/library-upload-v2.html and does not create another tool. busy_*, view_image, and visual-proof actions are excluded. More than three discovered actions indicates stale/wrong client connector metadata before it indicates a server topology defect.",
     },
     "mcp.recovery_state": {
-        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
-        "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline"],
-        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
-        "boundary": "Canonical MCP recovery state. Deployment identity, selected recovery target, and observed health/effect conditions are separate facts. Conditions use True/False/Unknown and are tied to the observed generation; never infer global health from recovery-target selection or recreate candidate/proven promotion labels.",
+        "owner_components": ["agent_rules", "mcp_minimal_clone"],
+        "triggers": ["known good", "known-good", "freeze", "refreeze", "working boundary", "recovery baseline", "mcp recovery", "mcp recovery state", "recovery file", "stale recovery file", "wrong wireguard", "wireguard recovery", "legacy recovery", "obsolete recovery target", "selected recovery target", "recovery topology"],
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_CURRENT_TOPOLOGY_PATH), r"python tools\stack_atlas.py bootstrap-glance", r"C:\Users\Lauri\.agents\RULES.md"],
+        "boundary": "Current local-only GPT1 recovery contract. Restore only https://91-159-12-133.sslip.io/mcp -> local Caddy -> 127.0.0.1:3022, using clone-a 127.0.0.1:3011 only as independent local control. Legacy VPS/WireGuard/reverse-SSH/Tailscale snapshots are historical evidence and are never automatic or preferred recovery targets.",
     },
     "mcp.regression_recovery": {
-        "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "busy_coordinator"],
-        "triggers": ["restore working MCP", "rollback working MCP", "MCP regression after change", "restore last working", "regression recovery"],
-        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_SECURITY_ROUTING_LOG_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope mcp_minimal_clone:production-backend-3011 --routine-scoped-advance --independent-rollback-verified --offpath-proof-verified", r"%LOCALAPPDATA%\ChatGPTMcpClean\scripts\replace-wireguard-production.ps1"],
-        "boundary": "Restore-first for severe regressions caused by our production MCP change: preserve rollback evidence and active work, then restore the canonical known-working production behavior and topology before speculative fixes. Persist platform-reroute/security event details only when the user explicitly asks for that analysis or incident tracking. A source SHA alone is insufficient when topology differs; only minimal proven replacement compatibility may be layered onto the frozen behavior. After restore, a reroute observed between successful MCP calls with no MCP request in flight is above-MCP/platform evidence and must not trigger more MCP/edge mutation without new MCP-local evidence. When restoration is already the established scoped objective, use the routine-scoped production-change gate path and do not request redundant per-cutover approval; scope-widening or destructive/topology changes still require explicit authorization.",
+        "owner_components": ["agent_rules", "mcp_minimal_clone", "busy_coordinator"],
+        "triggers": ["restore working MCP", "rollback working MCP", "MCP regression after change", "restore last working", "regression recovery", "recover GPT1", "repair MCP recovery", "local MCP recovery"],
+        "entrypoints": [str(MCP_RECOVERY_STATE_PATH), str(MCP_CURRENT_TOPOLOGY_PATH), "python tools\\stack_atlas.py production-change-gate mcp_minimal_clone --actor <actor> --busy-scope <exact-home-direct-3022-scope> --routine-scoped-advance --independent-rollback-verified --offpath-proof-verified"],
+        "boundary": "Restore-first means restore the current local GPT1 topology and three-tool behavior, not an obsolete historical transport. Preserve active work and use clone-a 127.0.0.1:3011 as independent control when 3022 requires repair. The legacy 5-61-91-127.sslip.io/VPS/WireGuard/reverse-SSH/Tailscale designs are not recovery targets. Returning to one of them is a topology/control-plane redesign and requires separate explicit user authorization.",
     },
     "mcp.security_reroute_log": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
@@ -2212,7 +2212,10 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         recovery = bounded["mcp_recovery_state"]
         bounded["mcp_recovery_state"] = {
             key: recovery.get(key)
-            for key in ("status", "path", "selected_recovery_target")
+            for key in (
+                "available", "read_state", "authority", "current_connector_url", "current_backend",
+                "allowed_automatic_restore_target", "legacy_topology_restore_allowed", "scope",
+            )
             if recovery.get(key) not in (None, "", [], {})
         }
 
@@ -2569,85 +2572,48 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
         raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
         return {"available": False, "read_state": "ERROR", "path": str(path), "error": str(exc)}
-    if not isinstance(raw, dict):
-        return {"available": False, "read_state": "ERROR", "path": str(path), "error": "recovery state is not an object"}
-    deployment = raw.get("deployment", {}) if isinstance(raw.get("deployment"), dict) else {}
-    recovery_target = raw.get("recovery_target", {}) if isinstance(raw.get("recovery_target"), dict) else {}
-    policy = recovery_target.get("policy", {}) if isinstance(recovery_target.get("policy"), dict) else {}
-    evidence = raw.get("evidence", {}) if isinstance(raw.get("evidence"), dict) else {}
-    observation = evidence.get("latest_restore_observation", {}) if isinstance(evidence.get("latest_restore_observation"), dict) else {}
-    topology_restore = evidence.get("latest_topology_restore_observation", {}) if isinstance(evidence.get("latest_topology_restore_observation"), dict) else {}
-    known_transients = evidence.get("known_transients", []) if isinstance(evidence.get("known_transients"), list) else []
-    replacement_safety_rules = [
-        str(item.get("rule"))
-        for item in known_transients
-        if isinstance(item, dict) and str(item.get("rule") or "").strip()
-    ]
-    recovery_lanes = recovery_target.get("recovery_lanes", {}) if isinstance(recovery_target.get("recovery_lanes"), dict) else {}
-    recovery_invariants = [
-        str(item) for item in policy.get("recovery_invariants", [])
-        if str(item or "").strip()
-    ] if isinstance(policy.get("recovery_invariants"), list) else []
-    before_restore = topology_restore.get("before_restore", {}) if isinstance(topology_restore.get("before_restore"), dict) else {}
-    failed_replacement = topology_restore.get("failed_replacement_attempt", {}) if isinstance(topology_restore.get("failed_replacement_attempt"), dict) else {}
-    restore = topology_restore.get("restore", {}) if isinstance(topology_restore.get("restore"), dict) else {}
-    conditions = raw.get("conditions", []) if isinstance(raw.get("conditions"), list) else []
-    bounded_conditions = [
-        {
-            key: condition.get(key)
-            for key in ("type", "status", "last_transition_at")
-            if key in condition
-        }
-        for condition in conditions
-        if isinstance(condition, dict)
-    ]
+    if not isinstance(raw, dict) or raw.get("schema") != "mcp-recovery-state.v2":
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": "invalid mcp-recovery-state.v2 contract"}
+    current = raw.get("current_serving_topology", {}) if isinstance(raw.get("current_serving_topology"), dict) else {}
+    recovery = raw.get("recovery", {}) if isinstance(raw.get("recovery"), dict) else {}
+    historical = raw.get("historical_evidence", {}) if isinstance(raw.get("historical_evidence"), dict) else {}
     return {
         "available": True,
         "read_state": "OK",
-        "authority": "recovery_target_not_live_serving_identity",
-        "recovery_target_deployment_id": recovery_target.get("deployment_id") or deployment.get("id"),
-        "recovery_target_generation": deployment.get("generation"),
-        "recovery_selected_at": recovery_target.get("selected_at"),
-        "automatic_routing": recovery_lanes.get("automatic_routing"),
-        "ssh_role": recovery_lanes.get("ssh_role"),
-        "conditions": bounded_conditions,
-        "restore_first_on_regression": bool(policy.get("restore_first_on_regression")),
-        "recovery_invariants": recovery_invariants,
-        "preservation_rule": policy.get("preservation_rule"),
-        "authorization_rule": policy.get("authorization_rule"),
-        "replacement_safety_rules": replacement_safety_rules,
-        "latest_topology_restore": {
-            "observed_at": topology_restore.get("observed_at"),
-            "incident_id": topology_restore.get("incident_id"),
-            "before_transport": before_restore.get("caddy_transport"),
-            "after_transport": "wireguard" if restore else None,
-            "backend_generation": restore.get("backend_generation") or before_restore.get("backend_generation"),
-            "backend_artifact_matches_selected_recovery": before_restore.get("backend_artifact_matches_selected_recovery"),
-            "failed_replacement_status": failed_replacement.get("status"),
-            "public_health_statuses": restore.get("public_health_statuses"),
-            "fresh_mcp_process_call": restore.get("fresh_mcp_process_call"),
-        } if topology_restore else None,
-        "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
+        "authority": raw.get("authority"),
+        "current_connector_url": current.get("connector_url"),
+        "current_public_origin": current.get("public_origin"),
+        "current_authorization_endpoint": current.get("authorization_endpoint"),
+        "current_serving_path": current.get("serving_path"),
+        "current_backend": current.get("backend"),
+        "independent_control": recovery.get("independent_control"),
+        "allowed_automatic_restore_target": recovery.get("allowed_automatic_restore_target"),
+        "legacy_topology_restore_allowed": bool(recovery.get("legacy_topology_restore_allowed")),
+        "recovery_rules": [str(item) for item in recovery.get("rules", []) if str(item).strip()] if isinstance(recovery.get("rules"), list) else [],
+        "historical_legacy_snapshot": historical.get("legacy_snapshot"),
+        "historical_semantics": historical.get("semantics"),
+        "forbidden_operational_targets": raw.get("forbidden_operational_targets", []),
     }
 
 
 def _bootstrap_mcp_recovery_orientation(state: dict[str, Any]) -> dict[str, Any]:
-    """Keep recovery metadata visible without projecting historical topology as startup truth."""
+    """Expose only the current local recovery contract in startup orientation."""
     if not isinstance(state, dict):
-        return {"available": False, "read_state": "ERROR", "scope": "recovery_only_not_live_topology"}
+        return {"available": False, "read_state": "ERROR", "scope": "current_local_recovery_contract"}
     result = {
         key: state.get(key)
         for key in (
-            "available", "read_state", "authority", "recovery_target_deployment_id",
-            "recovery_target_generation", "recovery_selected_at",
+            "available", "read_state", "authority", "current_connector_url", "current_backend",
+            "independent_control", "allowed_automatic_restore_target", "legacy_topology_restore_allowed",
         )
         if key in state
     }
-    result["scope"] = "recovery_only_not_live_topology"
+    result["scope"] = "current_local_recovery_contract"
     result["details_path"] = str(MCP_RECOVERY_STATE_PATH)
     if state.get("error"):
         result["error"] = state.get("error")
     return result
+
 
 def _bootstrap_vault_status() -> dict[str, Any]:
     """Bounded local Vault health; no fetches, history scans, or repo-wide status walk."""
@@ -3959,7 +3925,7 @@ def main() -> int:
     elif args.command == "inventory":
         value = full_inventory()
     elif args.command == "manual":
-        text = render_manual()
+        text = render_manual().replace(str(ROOT), str(ATLAS_LIVE_ROOT))
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(text + "\n", encoding="utf-8")

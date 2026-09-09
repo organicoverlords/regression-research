@@ -1,7 +1,7 @@
 {
   "schema": "mcp-current-topology.v1",
   "authority": "current_serving_topology",
-  "updated_at": "2026-09-09T22:17:30+00:00",
+  "updated_at": "2026-09-10T01:48:41.6743939+03:00",
   "tracking_issue": "organicoverlords/agents#287",
   "serving": {
     "connector_url": "https://91-159-12-133.sslip.io/mcp",
@@ -66,19 +66,22 @@
   "recovery": {
     "independent_local_control": "clone-a at 127.0.0.1:3011",
     "recovery_contract": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-recovery-state.json",
-    "recovery_contract_semantics": "historical rollback/recovery target only; never current GPT1 serving identity"
+    "recovery_contract_semantics": "current local-only recovery contract; restore current 91-159-12-133.sslip.io -> local Caddy -> 127.0.0.1:3022 topology only",
+    "legacy_snapshot": "C:\\Users\\Lauri\\Desktop\\vault\\02 Evidence\\mcp-recovery-state-legacy-20260906.json",
+    "legacy_snapshot_semantics": "historical evidence only; non-operational; never an automatic or preferred restore target"
   },
   "not_in_gpt1_path": [
     "5-61-91-127.sslip.io",
     "VPS Caddy",
     "WireGuard",
+    "reverse SSH",
     "Tailscale owner authorization"
   ],
   "diagnostic_invariants": [
     "If ChatGPT reports anything other than exactly three MCP actions for this connector, treat the client connector binding/schema as stale or wrong before changing the server.",
     "If an authorization browser opens 5-61-91-127.sslip.io, GPT1 is using stale connector metadata; do not repair the VPS route for this connector.",
     "Authentication repair must not widen the worker-visible tool surface or introduce a second GPT1 serving topology.",
-    "mcp-recovery-state.json is historical rollback/recovery metadata and must never be projected as current GPT1 topology.",
+    "mcp-recovery-state.json is the current local-only recovery contract; the obsolete VPS/WireGuard/reverse-SSH/Tailscale recovery snapshot is historical evidence only and must never be selected as GPT1 serving or recovery topology.",
     "The default visual retrieval path for every worker/project is process-result metadata upload via CHATGPT_LIBRARY_UPLOAD followed by native pixel inspection whenever the exact supported image is reachable and not already exposed."
   ]
 }

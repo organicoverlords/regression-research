@@ -1,0 +1,59 @@
+{
+  "schema": "full-stack-timeline-events.v1",
+  "events": [
+    {
+      "id": "incident:mcp-recovery-contract-obsolete-authority-20260909",
+      "event_at": "2026-09-09T20:17:00+03:00",
+      "title": "Obsolete VPS/WireGuard topology remained machine-actionable inside the GPT1 recovery contract",
+      "project": "regression-research",
+      "scope": "mcp/gpt1-home-direct/recovery-authority",
+      "epistemic_class": "REPRODUCED_FACT",
+      "epistemic_basis": "Direct inspection showed mcp-recovery-state.v1 still carried 5-61-91-127.sslip.io, WireGuard automatic routing, a selected recovery topology and WireGuard restore actions after PR #915 had already declared GPT1 local on 3022.",
+      "evidence": [
+        "01 Reports/2026-09-09_2028_EEST_mcp-recovery-contract-obsolete-topology-authority_incident_report.md",
+        "04 Operating Contracts/mcp-recovery-state.json",
+        "04 Operating Contracts/mcp-current-topology.json",
+        "github:organicoverlords/regression-research#915",
+        "github:organicoverlords/regression-research#867"
+      ],
+      "symptom": "Recovery/search reasoning could still select the obsolete VPS/WireGuard path despite a correct current-topology warning.",
+      "result": "Treat the v1 recovery document as the causal stale-authority artifact; warnings alone are insufficient."
+    },
+    {
+      "id": "lesson:mcp-recovery-current-local-only-20260909",
+      "event_at": "2026-09-10T01:29:37+03:00",
+      "title": "GPT1 recovery authority changed to current-local-only; legacy transport snapshot quarantined as evidence",
+      "project": "regression-research",
+      "scope": "mcp/gpt1-home-direct/recovery-authority",
+      "epistemic_class": "CORRECTION",
+      "epistemic_basis": "The recurrence showed that an obsolete target must be removed structurally from operational recovery state, not merely labeled historical. The replacement contract permits only current 91-159-12-133.sslip.io -> local Caddy -> 127.0.0.1:3022 recovery and forbids legacy topology restoration.",
+      "evidence": [
+        "01 Reports/2026-09-09_2028_EEST_mcp-recovery-contract-obsolete-topology-authority_incident_report.md",
+        "02 Evidence/mcp-recovery-state-legacy-20260906.json",
+        "04 Operating Contracts/mcp-recovery-state.json",
+        "mem-20260910-dc2d541b",
+        "github:organicoverlords/agents#287"
+      ],
+      "symptom": "Correct lessons existed but contradicted an actionable obsolete recovery model.",
+      "result": "Operational recovery and historical topology evidence are now separate data types with opposite authority."
+    },
+    {
+      "id": "fix:mcp-recovery-lesson-search-eligibility-20260910",
+      "event_at": "2026-09-10T01:35:35+03:00",
+      "title": "Recovery-authority lesson restored to ordinary Vault search eligibility",
+      "project": "regression-research",
+      "scope": "mcp/gpt1-home-direct/recovery-authority",
+      "epistemic_class": "REPRODUCED_FACT",
+      "epistemic_basis": "The new recovery lesson was loaded but ordinary recall rejected it as CHECKPOINT/HISTORICAL because its text mentioned a historical snapshot. Reordering lesson classification so policy/authority semantics precede checkpoint vocabulary made the same lesson WORKFLOW_POLICY/DURABLE and rank first for the failed recovery query.",
+      "evidence": [
+        "01 Reports/2026-09-09_2028_EEST_mcp-recovery-contract-obsolete-topology-authority_incident_report.md",
+        "mem-20260910-dc2d541b",
+        "git:regression-research:035c72b",
+        "tools/memory_classification.py",
+        "tests/test_memory_classification.py"
+      ],
+      "symptom": "A correctly recorded durable lesson could disappear from ordinary search merely because it discussed a historical snapshot.",
+      "result": "Policy/authority lessons remain durable and searchable; true status checkpoints retain checkpoint semantics."
+    }
+  ]
+}
