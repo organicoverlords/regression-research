@@ -16,6 +16,8 @@ MAX_TRANSPORT_SOURCE_CANDIDATES = 64
 MAX_TRANSPORT_SOURCES = 16
 TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
 TRANSPORT_KIND = "MCPv4"
+LIVE_SWARM_CACHE_SECONDS = 30.0
+LIVE_SWARM_CACHE_PATH = Path(os.path.expandvars(r"%LOCALAPPDATA%\StackAtlas\bootstrap-cache\live-swarm.json"))
 
 
 def _dt(value: Any) -> datetime | None:
@@ -23,6 +25,29 @@ def _dt(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def _read_snapshot_cache(now: datetime) -> tuple[dict[str, Any] | None, float | None]:
+    try:
+        age = max(0.0, now.timestamp() - LIVE_SWARM_CACHE_PATH.stat().st_mtime)
+        if age > LIVE_SWARM_CACHE_SECONDS:
+            return None, age
+        payload = json.loads(LIVE_SWARM_CACHE_PATH.read_text(encoding="utf-8-sig"))
+        if isinstance(payload, dict) and payload.get("schema") == "live-swarm.v1":
+            return payload, age
+    except (OSError, json.JSONDecodeError):
+        pass
+    return None, None
+
+
+def _write_snapshot_cache(payload: dict[str, Any]) -> None:
+    try:
+        LIVE_SWARM_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = LIVE_SWARM_CACHE_PATH.with_name(f"{LIVE_SWARM_CACHE_PATH.name}.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+        os.replace(tmp, LIVE_SWARM_CACHE_PATH)
+    except OSError:
+        pass
 
 
 def _read_window(path: Path, cutoff: datetime, max_bytes: int = MAX_TRANSPORT_BYTES) -> tuple[list[dict[str, Any]], bool, int]:
@@ -273,7 +298,16 @@ def _git_identity(candidate: str | None, cache: dict[str, Any]) -> dict[str, Any
 
 def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     started = time.perf_counter()
+    explicit_now = now is not None
     now = now or datetime.now(timezone.utc)
+    if not explicit_now:
+        cached, cache_age = _read_snapshot_cache(now)
+        if cached is not None:
+            result = dict(cached)
+            result["materialized_elapsed_ms"] = result.get("elapsed_ms")
+            result["elapsed_ms"] = round((time.perf_counter() - started) * 1000, 1)
+            result["cache"] = {"used": True, "age_seconds": round(float(cache_age or 0.0), 3), "max_age_seconds": LIVE_SWARM_CACHE_SECONDS}
+            return result
     root = _local_appdata_root() / "ChatGPTMcpClean" / "minimal-connectors"
     cutoff = now - timedelta(minutes=OBSERVATION_WINDOW_MINUTES)
     sources, discovery = _discover_transport_sources(root, cutoff, now)
@@ -469,6 +503,9 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         "lanes":lane_list,
     }
     result["elapsed_ms"]=round((time.perf_counter()-started)*1000,1)
+    if not explicit_now:
+        result["cache"] = {"used": False, "age_seconds": 0.0, "max_age_seconds": LIVE_SWARM_CACHE_SECONDS}
+        _write_snapshot_cache(result)
     return result
 
 
