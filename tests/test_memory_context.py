@@ -32,6 +32,35 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertNotIn("context_before", pack["historical_evidence"][0])
         self.assertNotIn("context_after", pack["historical_evidence"][0])
 
+    def test_materialized_lesson_prior_stays_labeled_historical_evidence(self):
+        prior = {
+            "source_class": "HISTORICAL_CONTEXT", "retrieval_role": "LESSON_PRIOR",
+            "source_event_id": "github-pr:repo#778", "source_type": "GITHUB_PR",
+            "project": "vault", "event_at": "2026-09-08T21:43:17Z",
+            "title": "Map shared visual-library integration owners",
+            "conclusion": "Reuse the existing shared visual-library owner map.",
+            "evidence_anchors": ["github:repo#778", "gitsha:abc"],
+            "lineage_event_ids": ["a", "b"], "lineage_projects": ["vault"],
+            "lineage_copy_count": 2, "lineage_semantics": "COPIED_LINEAGE_NOT_INDEPENDENT_SUPPORT",
+            "authority": "DERIVED_HISTORICAL_PRIORS_ONLY",
+            "validation": "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED",
+            "live_truth_required": True, "materialized_status": "FRESH",
+        }
+
+        pack = build_context_pack("shared visual library", [prior])
+
+        self.assertEqual(pack["durable_memory"], [])
+        self.assertEqual(len(pack["historical_evidence"]), 1)
+        item = pack["historical_evidence"][0]
+        self.assertEqual(item["kind"], "lesson-prior")
+        self.assertEqual(item["source_event_id"], "github-pr:repo#778")
+        self.assertEqual(item["authority"], "DERIVED_HISTORICAL_PRIORS_ONLY")
+        self.assertEqual(item["validation"], "SLICE1_RETRIEVAL_ONLY_NOT_VALIDATED")
+        self.assertTrue(item["live_truth_required"] )
+        self.assertEqual(item["lineage_semantics"], "COPIED_LINEAGE_NOT_INDEPENDENT_SUPPORT")
+        self.assertIn("materialized lesson priors", pack["contract"]["historical_evidence"])
+        self.assertNotIn("behavior_authority", pack)
+
     def test_provisional_and_status_do_not_enter_default_durable_context(self):
         hits = [
             self.memory("p", state="PROVISIONAL", text="maybe", evidence=[]),
