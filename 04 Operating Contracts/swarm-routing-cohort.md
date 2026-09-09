@@ -36,7 +36,7 @@ python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status
 python C:\\Users\\Lauri\\Desktop\\vault\\tools\\swarm_exec.py --work-id <stable-task-id> --kind portable --repo-root <repo> -- python -m pytest <tests>
 ```
 
-State is atomically stored under `%LOCALAPPDATA%\SwarmRouting\cohort-v1.json` behind a cross-process lock. One capacity probe is shared for 45 seconds so the swarm does not independently probe the same machines.
+State is atomically stored under `%LOCALAPPDATA%\SwarmRouting\cohort-v1.json` behind a cross-process lock. One capacity probe is shared for 45 seconds so distinct worker invocations do not independently open fresh OMEN SSH sessions. `route` and `status` expose `probe_cache_reused`, `probe_age_seconds`, and `probe_cache_ttl_seconds` so callers can prove whether the warm path avoided remote probing. `--refresh-probe` intentionally bypasses that cache; the standalone `probe` command is likewise a fresh diagnostic and should not be used as the routine warm routing path.
 
 ## OMEN saturation and scratch recovery
 
