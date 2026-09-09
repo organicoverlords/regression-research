@@ -49,7 +49,7 @@ _STOPWORDS = {
     "them", "then", "there", "these", "they", "this", "those", "to", "too", "us", "was", "we", "were",
     "what", "when", "where", "which", "who", "why", "will", "with", "without", "would", "you", "your",
 }
-_STRICT_ADMISSION_GENERIC_TOKENS = {"display", "expose", "image", "library", "route", "share", "show", "transport", "use"}
+_STRICT_ADMISSION_GENERIC_TOKENS = {"display", "expose", "follow", "image", "library", "route", "share", "show", "transport", "use"}
 _STRICT_QUERY_GLUE_TOKENS = {"again", "same"}
 _WORD_RE = re.compile(r"[\w]+", flags=re.UNICODE)
 _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
@@ -61,7 +61,7 @@ _NON_ALNUM_RE = re.compile(r"[^\w]+", flags=re.UNICODE)
 _CONCEPT_GROUPS = (
     ("execution", "command", "commands", "job", "jobs", "task", "tasks", "process", "processes", "request", "requests", "turn", "turns"),
     ("loss", "lost", "lose", "losing", "disappear", "disappeared", "disappears", "died", "dead", "drop", "dropped", "disconnect", "disconnected"),
-    ("proof", "prove", "proven", "evidence", "demonstrate", "demonstrated", "establish", "established", "verify", "verified"),
+    ("proof", "prove", "proven", "evidence", "demonstrate", "demonstrated", "establish", "verify", "verified"),
     ("retrieve", "retrieval", "reread", "rereading", "reload", "refresh", "refreshing"),
     ("scope", "area", "areas", "unrelated", "adjacent"),
     ("expand", "spread", "widen", "widened", "expansion", "expanded"),
