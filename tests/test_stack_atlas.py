@@ -1251,6 +1251,71 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(manual["malformed_running_reports_in_scan"], 1)
         self.assertIn("not_process_liveness", manual["evidence_semantics"])
 
+    def test_manual_current_diagnostic_surfaces_exact_binding_without_promoting_report_to_liveness(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manual_root = root / "worker-reports" / "manual"
+            current = manual_root / "current"
+            bindings = manual_root / "bindings"
+            current.mkdir(parents=True)
+            bindings.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            run_id = "manual-bound"
+            report = current / f"{run_id}.md"
+            report.write_text(
+                "\n".join([
+                    f"run_id: {run_id}",
+                    f"started_at: {(now - timedelta(minutes=2)).isoformat()}",
+                    f"last_activity_at: {(now - timedelta(minutes=1)).isoformat()}",
+                    r"repo: C:\repo",
+                    "scope: exact binding bootstrap test",
+                    "state: RUNNING",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            bindings.joinpath(f"{run_id}.json").write_text(json.dumps({
+                "schema": "manual-run-binding.v1",
+                "run_id": run_id,
+                "authority": "EXACT_MCP_IDENTITY_EVIDENCE_NOT_WORK_LIVENESS",
+                "caller_id": "caller-bound",
+                "create_process_id": "process-create",
+                "create_started_at": (now - timedelta(minutes=2)).isoformat(),
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                manual = _bootstrap_manual_current_status(now)
+
+        item = manual["recent_running_reports"][0]
+        self.assertEqual(item["identity"]["caller_id"], "caller-bound")
+        self.assertEqual(item["identity"]["create_process_id"], "process-create")
+        self.assertIn("not_process_liveness", manual["evidence_semantics"])
+
+    def test_exact_manual_identity_requires_live_caller_and_newest_bound_run_wins(self):
+        from tools.stack_atlas import _bootstrap_active_manual_run_identities
+        manual = {
+            "recent_running_reports": [
+                {"run_id": "manual-old", "identity": {"caller_id": "caller-live", "create_process_id": "proc-old", "create_started_at": "2026-09-09T06:00:00+00:00"}},
+                {"run_id": "manual-new", "identity": {"caller_id": "caller-live", "create_process_id": "proc-new", "create_started_at": "2026-09-09T06:05:00+00:00"}},
+                {"run_id": "manual-report-only", "identity": {"caller_id": "caller-not-live", "create_process_id": "proc-stale", "create_started_at": "2026-09-09T06:06:00+00:00"}},
+            ]
+        }
+        live = {
+            "lanes": [{
+                "callers": [{
+                    "caller_id": "caller-live",
+                    "last_activity_age_seconds": 2.0,
+                    "latest_process": {"end_observed": False, "elapsed_seconds": 12.0, "semantics": "since_start_no_end_observed"},
+                }]
+            }]
+        }
+        result = _bootstrap_active_manual_run_identities(manual, live)
+        self.assertEqual(len(result["runs"]), 1)
+        self.assertEqual(result["runs"][0]["run_id"], "manual-new")
+        self.assertEqual(result["runs"][0]["create_process_id"], "proc-new")
+        self.assertNotIn("manual-report-only", json.dumps(result))
+        self.assertNotIn("manual-old", json.dumps(result))
+
     def test_manual_recent_count_is_complete_when_scan_cap_reaches_stale_mtime(self):
         from datetime import datetime, timedelta, timezone
         from tools.stack_atlas import BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT, _bootstrap_manual_current_status
