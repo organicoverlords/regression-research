@@ -42,7 +42,16 @@
         "structuredContent",
         "_meta.chatgpt_library_upload"
       ],
-      "source": "%LOCALAPPDATA%\\ChatGPTMcpV4HomeDirectStable\\src\\lib\\process-library-upload.ts"
+      "source": "%LOCALAPPDATA%\\ChatGPTMcpV4HomeDirectStable\\src\\lib\\process-library-upload.ts",
+      "default_visual_retrieval": true,
+      "default_scope": "all workers/projects when exact image pixels are not already exposed and the original supported image file is reachable through the normal machine route",
+      "sequence": [
+        "resolve the exact original image path without changing proof identity",
+        "emit CHATGPT_LIBRARY_UPLOAD=<absolute path> from start_process/read_output",
+        "consume resource_link/structuredContent/_meta.chatgpt_library_upload in chat",
+        "inspect the exposed pixels with native vision before any visual verdict"
+      ],
+      "fallback": "only when the metadata bridge cannot carry or reach the exact media, use the smallest faithful project-owned retrieval path"
     },
     "excluded_actions": [
       "view_image",
@@ -72,6 +81,7 @@
     "If ChatGPT reports anything other than exactly three MCP actions for this connector, treat the client connector binding/schema as stale or wrong before changing the server.",
     "If an authorization browser opens 5-61-91-127.sslip.io, GPT1 is using stale connector metadata; do not repair the VPS route for this connector.",
     "Authentication repair must not widen the worker-visible tool surface or introduce a second GPT1 serving topology.",
-    "mcp-recovery-state.json is the current local-only recovery contract; the obsolete VPS/WireGuard/reverse-SSH/Tailscale recovery snapshot is historical evidence only and must never be selected as GPT1 serving or recovery topology."
+    "mcp-recovery-state.json is the current local-only recovery contract; the obsolete VPS/WireGuard/reverse-SSH/Tailscale recovery snapshot is historical evidence only and must never be selected as GPT1 serving or recovery topology.",
+    "The default visual retrieval path for every worker/project is process-result metadata upload via CHATGPT_LIBRARY_UPLOAD followed by native pixel inspection whenever the exact supported image is reachable and not already exposed."
   ]
 }

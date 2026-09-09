@@ -8,6 +8,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from tools.cleanup_converger import Worktree, eligibility_reason, process_targets_path
+from tools.memory_recent_projection import write_recent_projection
 from tools.stack_atlas import (
     _bootstrap_fleet_watch,
     CANONICAL_RECURRING_WORKERS,
@@ -268,6 +269,43 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in compact["recent"]], ["unrelated-1"])
         size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
+
+    def test_bootstrap_memory_overview_overlays_current_recent_projection_without_rebuilding_history(self):
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            timeline_path = root / ".state" / "timeline" / "bootstrap-memory-overview.json"
+            timeline_path.parent.mkdir(parents=True)
+            timeline_path.write_text(json.dumps({
+                "schema": "vault.timeline.bootstrap.v1",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "overview": {
+                    "contract": "history only",
+                    "eligible_entries": 24,
+                    "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
+                    "incident_rollups": [],
+                    "recent": [{"id": "stale", "timestamp": "2026-09-09T20:00:00+03:00", "title": "stale timeline title"}],
+                    "projects": [],
+                    "recurring_tags": [],
+                },
+            }), encoding="utf-8")
+            seed = root / "memory" / "memory-bank.jsonl"
+            seed.parent.mkdir(parents=True)
+            seed.write_text("seed\n", encoding="utf-8")
+            overlay = root / "memory-bank.local.jsonl"
+            overlay.write_text("overlay\n", encoding="utf-8")
+            write_recent_projection(
+                seed_path=seed, overlay_path=overlay,
+                recent=[{"id": "fresh", "timestamp": "2026-09-10T01:00:00+03:00", "title": "fresh local memory"}],
+            )
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                    patch("tools.stack_atlas.default_local_bank_path", return_value=overlay), \
+                    patch("tools.memory_bank.build_overview", side_effect=AssertionError("bootstrap must not rebuild timeline")):
+                compact = _bootstrap_memory_overview()
+        self.assertEqual([item["id"] for item in compact["recent"]], ["fresh"])
+        self.assertEqual(compact["recent_source"]["authority"], "DIRECT_LOCAL_EFFECTIVE_MEMORY_PROJECTION")
+        self.assertEqual(compact["recent_source"]["status"], "CURRENT_FOR_EFFECTIVE_MEMORY_FILES")
+        self.assertEqual(compact["timeline_snapshots"]["authority"], "DERIVED_HISTORY_ONLY")
 
     def test_bootstrap_memory_overview_reports_missing_projection_without_source_scan(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1925,6 +1963,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertFalse(surface["image_delivery"]["adds_tool"])
         self.assertEqual(surface["image_delivery"]["trigger_prefix"], "CHATGPT_LIBRARY_UPLOAD=")
         self.assertEqual(surface["image_delivery"]["widget_resource"], "ui://process/library-upload-v2.html")
+        self.assertTrue(surface["image_delivery"]["default_visual_retrieval"])
+        self.assertIn("all workers/projects", surface["image_delivery"]["default_scope"])
+        self.assertTrue(any("CHATGPT_LIBRARY_UPLOAD" in step for step in surface["image_delivery"]["sequence"]))
+        self.assertTrue(any("native vision" in step for step in surface["image_delivery"]["sequence"]))
         for excluded in ("busy_list", "view_image", "open_visual_proof"):
             self.assertIn(excluded, surface["excluded_actions"])
         self.assertNotIn("conditional_ui", surface)
@@ -2079,19 +2121,18 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertEqual(details["related_features"]["task_history"], "vault.history")
                 self.assertEqual(details["related_features"]["tiny3d_library"], "project.tiny3d_asset_library")
                 self.assertEqual(details["related_features"]["p3_visual_evidence"], "project.p3_visual_evidence")
-                self.assertEqual(details["related_features"]["chatgpt_library_consumer"], "first_party_google_drive_library")
-                self.assertNotIn("chatgpt_plugin_surface", details["related_features"])
-                self.assertEqual(details["shared_chat_display_state"], "NATIVE_GOOGLE_DRIVE_LIBRARY_OPEN_REQUIRED")
+                self.assertEqual(details["related_features"]["chatgpt_visual_transport"], "mcp.chatgpt_plugin_surface")
+                self.assertEqual(details["shared_chat_display_state"], "MCP_PROCESS_METADATA_UPLOAD_THEN_NATIVE_INSPECTION")
                 self.assertTrue(any("memory_bank.py context" in item for item in details["entrypoints"]))
                 self.assertTrue(any("lookup tiny3d_library" in item for item in details["entrypoints"]))
-                self.assertTrue(any("ChatGPT Library -> connected Google Drive My Drive" in item for item in details["entrypoints"]))
+                self.assertTrue(any("CHATGPT_LIBRARY_UPLOAD" in item for item in details["entrypoints"]))
                 self.assertTrue(any("historical/non-canonical review lineage only" in item for item in details["entrypoints"]))
-                self.assertIn("Google Drive My Drive root index", details["boundary"])
-                self.assertIn("first-party connected Google Drive surface in ChatGPT Library", details["boundary"])
-                self.assertIn("native Library file to open/render", details["boundary"])
-                self.assertIn("consumer gate unmet", details["boundary"])
-                self.assertIn("Do not substitute MCP media payloads, base64, custom HTTP, Git/LFS", details["boundary"])
-                self.assertIn("historical/non-canonical transport work, not the #2809 route", details["boundary"])
+                self.assertIn("every worker/project", details["boundary"])
+                self.assertIn("process-result metadata bridge", details["boundary"])
+                self.assertIn("native vision", details["boundary"])
+                self.assertIn("not a fourth MCP action", details["boundary"])
+                self.assertIn("Do not prefer Drive/Library", details["boundary"])
+                self.assertNotIn("first-party connected Google Drive", details["boundary"])
 
         result = find_features(
             "make the library integrated so I can inspect a stored proof picture and show the same picture here",
@@ -2159,7 +2200,8 @@ class StackAtlasTests(unittest.TestCase):
 
     def test_generated_operational_manual_matches_atlas(self):
         manual = ROOT / "docs" / "assistant-stack-operational-atlas.md"
-        self.assertEqual(manual.read_text(encoding="utf-8"), render_manual() + "\n")
+        expected = render_manual().replace(str(ROOT), r"C:\Users\Lauri\Desktop\vault") + "\n"
+        self.assertEqual(manual.read_text(encoding="utf-8"), expected)
         text = manual.read_text(encoding="utf-8")
         self.assertNotIn("desktop_commander", text.casefold())
         self.assertIn("### `mcp_front_door`", text)
@@ -2373,6 +2415,9 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         self.assertEqual(contract["chatgpt_surface"]["tool_count"], 3)
         self.assertEqual(contract["chatgpt_surface"]["tools"], details["chatgpt_plugin_surface"]["tools"])
         self.assertFalse(contract["chatgpt_surface"]["image_delivery"]["adds_tool"])
+        self.assertTrue(contract["chatgpt_surface"]["image_delivery"]["default_visual_retrieval"])
+        self.assertIn("all workers/projects", contract["chatgpt_surface"]["image_delivery"]["default_scope"])
+        self.assertTrue(any("CHATGPT_LIBRARY_UPLOAD" in step for step in contract["chatgpt_surface"]["image_delivery"]["sequence"]))
         self.assertIn("5-61-91-127.sslip.io", contract["not_in_gpt1_path"])
         current = find_features("gpt1 mcp topology 91-159-12-133")[0]
         self.assertEqual(current["id"], "mcp.current_topology")

@@ -1573,6 +1573,120 @@ class WorkerReportHistoryTests(unittest.TestCase):
 
 
 
+    def test_manual_sanity_behavior_headline_ignores_report_verbosity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v3",
+                "baseline_id": "behavior-headline",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 100.0,
+                    "mean_transcript_fields": 1.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0,
+                },
+                "headline_axes": ["operational"],
+                "axes": {
+                    "operational": {
+                        "scored": True,
+                        "metrics": {"self_reported_lifecycle_anomaly_pct": 100.0},
+                    },
+                    "reporting": {
+                        "scored": False,
+                        "metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0},
+                    },
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            for index in range(5):
+                archive = reports / f"verbose{index}.md"
+                archive.write_text(
+                    f"run_id: verbose{index}\nstate: RUN_FINISHED\noutcome: useful work\n" + ("detail " * 200),
+                    encoding="utf-8",
+                )
+                fields = {"scope": "x", "mutation": "x", "validation": "x", "remaining_gate": "x"}
+                fields.update({"run_id": f"verbose{index}", "outcome": "useful work"})
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"verbose{index}",
+                    "run_id": f"verbose{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{15+index:02d}:00+03:00", "duration_minutes": 5.0,
+                    "archived_at": f"2026-09-06T21:{16+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": fields, "outcome": "useful work",
+                    "report_bytes": 5000, "manual_transcript_field_count": 14,
+                }
+                (reports / f"verbose{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+
+            scored = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            self.assertEqual(scored["headline_axes"], ["operational"])
+            self.assertEqual(scored["diagnostic_axes"], ["reporting"])
+            self.assertEqual(scored["score_delta"], 100.0)
+            self.assertEqual(scored["axes"]["operational"]["score_delta"], 100.0)
+            self.assertFalse(scored["axes"]["reporting"]["scored"])
+            self.assertIsNone(scored["axes"]["reporting"]["score_delta"])
+            self.assertLess(scored["axes"]["reporting"]["descriptive_delta"], 0.0)
+            self.assertEqual(scored["direction"], "IMPROVED")
+
+    def test_manual_sanity_behavior_headline_penalizes_lifecycle_mistakes_even_with_short_reports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v3",
+                "baseline_id": "behavior-headline-regression",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "metrics": {
+                    "median_report_bytes": 1000.0,
+                    "mean_transcript_fields": 5.0,
+                    "self_reported_lifecycle_anomaly_pct": 20.0,
+                },
+                "headline_axes": ["operational"],
+                "axes": {
+                    "operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 100.0}},
+                    "reporting": {
+                        "scored": False,
+                        "metrics": {"median_report_bytes": 50.0, "mean_transcript_fields": 50.0},
+                    },
+                },
+                "sample_gates": {"minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20},
+                "score_semantics": {"direction_threshold": 10.0},
+            }), encoding="utf-8")
+            for index in range(5):
+                archive = reports / f"badshort{index}.md"
+                archive.write_text(
+                    f"run_id: badshort{index}\nstate: RUN_FINISHED\noutcome: report opened late after tool work\n",
+                    encoding="utf-8",
+                )
+                meta = {
+                    "schema": "worker-report-history.v6", "population": "manual", "report_sha256": f"badshort{index}",
+                    "run_id": f"badshort{index}", "started_at": f"2026-09-06T21:{10+index:02d}:00+03:00",
+                    "finished_at": f"2026-09-06T21:{15+index:02d}:00+03:00", "duration_minutes": 5.0,
+                    "archived_at": f"2026-09-06T21:{16+index:02d}:00+03:00", "archive_path": str(archive),
+                    "reported_fields": {"run_id": f"badshort{index}", "outcome": "report opened late after tool work"},
+                    "outcome": "report opened late after tool work",
+                    "report_bytes": 50, "manual_transcript_field_count": 1,
+                }
+                (reports / f"badshort{index}.json").write_text(json.dumps(meta), encoding="utf-8")
+
+            scored = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-06T22:00:00+03:00")
+            )
+            self.assertEqual(scored["score_delta"], -100.0)
+            self.assertEqual(scored["direction"], "WORSE")
+            self.assertGreater(scored["axes"]["reporting"]["descriptive_delta"], 0.0)
+
+
     def test_continuation_projection_excludes_bounded_task_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

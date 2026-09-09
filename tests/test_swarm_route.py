@@ -26,8 +26,11 @@ class RouteDecisionTests(unittest.TestCase):
     def test_windows_fallback(self):
         f=facts(omen=False,vps=False); route,reason=m.choose_route("portable",f,{})
         self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
-    def test_vps_light_only(self):
-        f=facts(mem=1,vps=True); self.assertEqual(m.choose_route("portable-light",f,{})[0],"vps"); self.assertEqual(m.choose_route("heavy",f,{})[0],"windows")
+    def test_vps_light_requires_explicit_execution_capability(self):
+        f=facts(mem=1,vps=True)
+        self.assertEqual(m.choose_route("portable-light",f,{})[0],"windows")
+        self.assertEqual(m.choose_route("portable-light",f,{},allow_vps=True)[0],"vps")
+        self.assertEqual(m.choose_route("heavy",f,{},allow_vps=True)[0],"windows")
     def test_leases_are_observability_not_capacity(self):
         leases={str(i):{"route":"omen","kind":"heavy" if i==0 else "portable-light"} for i in range(12)}
         self.assertEqual(m.choose_route("heavy",facts(),leases)[0],"omen")
@@ -65,16 +68,27 @@ class RouteDecisionTests(unittest.TestCase):
             self.assertEqual(calls,["portable"])
             self.assertEqual(result["route"],"omen")
             self.assertTrue(result["capacity_recovery"]["ok"])
-    def test_legacy_assignment_drains_without_renewing(self):
+    def test_legacy_vps_assignment_requires_explicit_capability_to_reuse(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"; s=m.empty_state()
             original_expiry="2099-01-01T00:00:00Z"
             s["assignments"]["legacy"]={"work_id":"legacy","route":"vps","kind":"portable-light","reason":"OMEN_LIGHT_CAPACITY_FULL_VPS_LIGHT_OVERFLOW","expires_at":original_expiry}
             m.save_state(p,s)
-            reused=m.route_work(p,"legacy","portable-light",600,False)
+            reused=m.route_work(p,"legacy","portable-light",600,False,allow_vps=True)
             self.assertTrue(reused["reused"])
             self.assertTrue(reused["policy_migration_pending"])
             self.assertEqual(reused["expires_at"],original_expiry)
+
+    def test_default_caller_replaces_unexecutable_vps_assignment(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"; s=m.empty_state()
+            s["assignments"]["legacy"]={"work_id":"legacy","route":"vps","kind":"portable-light","reason":"OMEN_UNAVAILABLE_VPS_LIGHT_OVERFLOW","expires_at":"2099-01-01T00:00:00Z"}
+            s["probe"]={**facts(omen=False,vps=True),"observed_at":m.iso(m.utc_now())}
+            m.save_state(p,s)
+            rerouted=m.route_work(p,"legacy","portable-light",600,False)
+            self.assertFalse(rerouted["reused"])
+            self.assertEqual(rerouted["route"],"windows")
+            self.assertIn("WINDOWS_FALLBACK",rerouted["reason"])
     def test_current_epoch_assignment_renews(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"

@@ -17,7 +17,8 @@ from pathlib import Path
 from statistics import mean, median
 
 DEFAULT_RECEIPT_ROOT = Path(os.environ.get("LOCALAPPDATA", "")) / "ChatGPTMcpClean" / "minimal-connectors" / "shared-process-receipts"
-DEFAULT_OUTPUT = Path(__file__).resolve().parents[1] / "02 Evidence" / "process-duration-baselines.json"
+DEFAULT_STATE_ROOT = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / ".local" / "state")) / "VaultProcessDurationBaselines"
+DEFAULT_OUTPUT = DEFAULT_STATE_ROOT / "process-duration-baselines.json"
 MAX_SAMPLES_PER_JOB = 64
 
 
