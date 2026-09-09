@@ -12,6 +12,7 @@ from tools.cleanup_converger import (
     CLEANLINESS_PROBE_TIMEOUT_SECONDS,
     Worktree,
     busy_claim,
+    compact_cli_result,
     converge,
     cwd_targets_path,
     eligibility_reason,
@@ -302,6 +303,27 @@ class CleanupConvergerTests(unittest.TestCase):
                 ),
             )
             self.assertEqual(call.kwargs, {"check": False, "timeout": CLEANLINESS_PROBE_TIMEOUT_SECONDS})
+
+    def test_cli_result_summarizes_non_actionable_rows(self):
+        result = {
+            "actions": [
+                {"repo": "P3", "path": "a", "action": "PRESERVE", "reason": "dirty"},
+                {"repo": "P3", "path": "b", "action": "PRESERVE", "reason": "dirty"},
+                {"repo": "P3", "path": "c", "action": "SKIP", "reason": "no_generated_cache"},
+                {"repo": "P3", "path": "d", "action": "WOULD_REMOVE", "reason": None},
+                {"repo": "P3", "path": "e", "action": "BLOCKED", "reason": "busy"},
+            ]
+        }
+
+        compact = compact_cli_result(result)
+
+        self.assertEqual([row["action"] for row in compact["actions"]], ["WOULD_REMOVE", "BLOCKED"])
+        self.assertEqual(compact["non_actionable_count"], 3)
+        self.assertEqual(
+            compact["non_actionable_reason_counts"],
+            {"PRESERVE:dirty": 2, "SKIP:no_generated_cache": 1},
+        )
+        self.assertEqual(len(result["actions"]), 5)
 
     def test_busy_claim_uses_atomic_claim_without_preinspect(self):
         with tempfile.TemporaryDirectory() as temp_dir:

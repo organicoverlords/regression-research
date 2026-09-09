@@ -618,6 +618,30 @@ def summarize_actions(actions: list[Action]) -> dict[str, Any]:
     }
 
 
+def compact_cli_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Bound human/operator JSON without changing the in-process result contract."""
+    actions = result.get("actions")
+    if not isinstance(actions, list):
+        return result
+
+    actionable: list[Any] = []
+    non_actionable_reason_counts: dict[str, int] = {}
+    for row in actions:
+        action = row.get("action") if isinstance(row, dict) else None
+        if action not in {"PRESERVE", "SKIP"}:
+            actionable.append(row)
+            continue
+        reason = row.get("reason") if isinstance(row, dict) else None
+        key = f"{action}:{reason or 'unspecified'}"
+        non_actionable_reason_counts[key] = non_actionable_reason_counts.get(key, 0) + 1
+
+    compact = dict(result)
+    compact["non_actionable_count"] = sum(non_actionable_reason_counts.values())
+    compact["non_actionable_reason_counts"] = dict(sorted(non_actionable_reason_counts.items()))
+    compact["actions"] = actionable
+    return compact
+
+
 def converge(
     *,
     apply: bool,
@@ -778,7 +802,7 @@ def main() -> int:
         window_seconds=args.activity_window_seconds,
         actor=args.actor,
     )
-    print(json.dumps(result, indent=2))
+    print(json.dumps(compact_cli_result(result), indent=2))
     return 0
 
 
