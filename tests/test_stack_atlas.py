@@ -2370,7 +2370,12 @@ class StackAtlasTests(unittest.TestCase):
                     self.assertIsNotNone(details[field])
                 self.assertTrue(details["live_status"])
                 self.assertTrue(details["canonical_sources"])
-                self.assertTrue(details["runbook"])
+                if not details["runbook"]:
+                    self.assertTrue(str(details.get("role") or "").startswith("context:disabled-"))
+                    self.assertFalse(details["resources"])
+                    self.assertFalse(details["dependents"])
+                else:
+                    self.assertTrue(details["runbook"])
 
     def test_bootstrap_case_sample_prioritizes_canonical_red_incident_over_scope_only_red_cases(self):
         report = {
