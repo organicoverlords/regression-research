@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import Any
+
+
+_EXCESS_FRACTION_RE = re.compile(r"(\.\d{6})\d+(?=(?:[+-]\d{2}:\d{2})?$)")
+
+
+def parse_iso_datetime(value: Any) -> datetime:
+    normalized = str(value).strip().replace("Z", "+00:00")
+    normalized = _EXCESS_FRACTION_RE.sub(r"\1", normalized)
+    return datetime.fromisoformat(normalized)
 
 
 def parse_expiry(entry: dict[str, Any]) -> datetime | None:
@@ -11,7 +21,7 @@ def parse_expiry(entry: dict[str, Any]) -> datetime | None:
     value = str(raw).strip()
     if not value:
         return None
-    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    parsed = parse_iso_datetime(value)
     if parsed.tzinfo is None:
         raise ValueError("expires_at must include a timezone offset")
     return parsed

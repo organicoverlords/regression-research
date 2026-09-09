@@ -1,0 +1,298 @@
+{
+  "schema": "regression-research.issue-861.base-move-attribution.v1",
+  "rows": [
+    {
+      "run_id": 34283469871,
+      "stage": "during-module",
+      "selected_base": "a5561594b9baa587b14dbdca4707071120918996",
+      "current_base": "9f315b76ae1ae8c569baf99e1da7596d2c672a0f",
+      "included_prs": [
+        2668,
+        2669,
+        2672,
+        2679,
+        2728,
+        2730,
+        2751,
+        2771
+      ],
+      "current_base_associated_prs": [
+        2803
+      ],
+      "current_base_commit_message": "Merge pull request #2803 from organicoverlords/chatgpt/aspen-2437-proof-gate-20260909\n\n[#2437] Reject monochrome milestone proof artifacts",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34285108182,
+      "stage": "pre-build",
+      "selected_base": "9f315b76ae1ae8c569baf99e1da7596d2c672a0f",
+      "current_base": "3340066d7e704f7bcedc58726ba60143904070f6",
+      "included_prs": [
+        2668,
+        2730,
+        2751,
+        2756,
+        2771,
+        2777,
+        2801
+      ],
+      "current_base_associated_prs": [
+        2804
+      ],
+      "current_base_commit_message": "Merge pull request #2804 from organicoverlords/chatgpt/aspen-2437-corrected-creep-20260909\n\n[#2437] Publish corrected qualified creep packages",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34286555209,
+      "stage": "during-module",
+      "selected_base": "3340066d7e704f7bcedc58726ba60143904070f6",
+      "current_base": "0ef823221edae50668fb57c5537280fb3654526d",
+      "included_prs": [
+        2668,
+        2669,
+        2672,
+        2728,
+        2730,
+        2756,
+        2777,
+        2801
+      ],
+      "current_base_associated_prs": [
+        2808
+      ],
+      "current_base_commit_message": "Merge pull request #2808 from organicoverlords/chatgpt/s2-394-omen-animation-passthrough-20260909\n\nfix: forward animation proof through OMEN facade (#394)",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34287513624,
+      "stage": "during-module",
+      "selected_base": "0ef823221edae50668fb57c5537280fb3654526d",
+      "current_base": "88791590b9d786f8484f45959b565576c9100e16",
+      "included_prs": [
+        2669,
+        2672,
+        2679,
+        2728,
+        2751,
+        2756,
+        2771,
+        2801
+      ],
+      "current_base_associated_prs": [
+        2811
+      ],
+      "current_base_commit_message": "Merge pull request #2811 from organicoverlords/chatgpt/s2-2809-proof-unification-20260909\n\nProof: publish visual evidence into durable indexed library (#2809)",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34291610571,
+      "stage": "during-module",
+      "selected_base": "88791590b9d786f8484f45959b565576c9100e16",
+      "current_base": "dc1eb72a96bf11b855419e4b5f7a4cd1442b8d7e",
+      "included_prs": [
+        2668,
+        2669,
+        2672,
+        2728,
+        2756,
+        2777,
+        2801,
+        2810
+      ],
+      "current_base_associated_prs": [
+        2810
+      ],
+      "current_base_commit_message": "Merge pull request #2810 from organicoverlords/chatgpt/s1-2610-state-machine-entry-20260909\n\nfix(animation): allow repairing state machine entry",
+      "same_selected_cohort_predecessor": true
+    },
+    {
+      "run_id": 34308856066,
+      "stage": "during-module",
+      "selected_base": "59a50e36f34e6608892b4eb7393619e629b50710",
+      "current_base": "06471d1072f3d6dce98c7511d56b3b3d15aa765b",
+      "included_prs": [
+        2668,
+        2669,
+        2672,
+        2756,
+        2807,
+        2815,
+        2820,
+        2823
+      ],
+      "current_base_associated_prs": [
+        2826
+      ],
+      "current_base_commit_message": "Merge pull request #2826 from organicoverlords/chatgpt/spruce-2440-fortification-lock-contract-20260909\n\n[#2440] Align fortification match-over contract wording",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34310470391,
+      "stage": "between-modules",
+      "selected_base": "06471d1072f3d6dce98c7511d56b3b3d15aa765b",
+      "current_base": "8e8d14b2d5ddf81db746db80e1fb2eecaea4c4c5",
+      "included_prs": [
+        2669,
+        2672,
+        2679,
+        2728,
+        2730,
+        2751,
+        2802,
+        2807
+      ],
+      "current_base_associated_prs": [
+        2830
+      ],
+      "current_base_commit_message": "Merge pull request #2830 from organicoverlords/chatgpt/s2-13-raincoat-fbx-profile-20260909\n\n[#394] Persist and sync Raincoat contract-primary FBX closure",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34312407532,
+      "stage": "during-module",
+      "selected_base": "7fc8fcd9a5b1a21cc1be6ecfe2951c5522b35be8",
+      "current_base": "9e2653c94c38ed152dbbb7ab63a17ac790fc2372",
+      "included_prs": [
+        2669,
+        2672,
+        2728,
+        2777,
+        2802,
+        2807,
+        2815,
+        2823
+      ],
+      "current_base_associated_prs": [
+        2831
+      ],
+      "current_base_commit_message": "Merge pull request #2831 from organicoverlords/chatgpt/2791-inherited-build-drain-20260909\n\n[#2791] Drain inherited OMEN build before runtime retarget",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34312592379,
+      "stage": "during-module",
+      "selected_base": "9e2653c94c38ed152dbbb7ab63a17ac790fc2372",
+      "current_base": "bab4c6c0c7a4de1821550a8ad54851725bd5466b",
+      "included_prs": [
+        2668,
+        2679,
+        2730,
+        2751,
+        2802,
+        2820,
+        2823,
+        2833
+      ],
+      "current_base_associated_prs": [
+        2835
+      ],
+      "current_base_commit_message": "Merge pull request #2835 from organicoverlords/chatgpt/omen-build-routed-address-20260909\n\n[infra] Route OMEN builds by explicit address",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34314176990,
+      "stage": "during-module",
+      "selected_base": "36fdb3201191f178435c0d2171e4e37c68f35a4f",
+      "current_base": "a9544b75f908f336eceaa7dfc5373c469c01b5d0",
+      "included_prs": [
+        2668,
+        2679,
+        2730,
+        2751,
+        2802,
+        2820,
+        2823,
+        2834
+      ],
+      "current_base_associated_prs": [
+        2805
+      ],
+      "current_base_commit_message": "Merge pull request #2805 from organicoverlords/chatgpt/s2-1773-omen-showroom-hot-profile-20260909\n\n[#1773] Add legacy Showroom OMEN hot-content profile",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34314594684,
+      "stage": "between-modules",
+      "selected_base": "a9544b75f908f336eceaa7dfc5373c469c01b5d0",
+      "current_base": "997e966569b1c9760bb7c12b4a24a2f07dc3888d",
+      "included_prs": [
+        2669,
+        2672,
+        2728,
+        2777,
+        2807,
+        2815,
+        2833,
+        2836
+      ],
+      "current_base_associated_prs": [
+        2837
+      ],
+      "current_base_commit_message": "Merge pull request #2837 from organicoverlords/chatgpt/s2-2782-auto-merge-shallow-20260909\n\n[#2782] Shallow trusted auto-merge object fetches",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34317219078,
+      "stage": "during-module",
+      "selected_base": "997e966569b1c9760bb7c12b4a24a2f07dc3888d",
+      "current_base": "ceae2a2133f330765f79f8aca81353abcdae0189",
+      "included_prs": [
+        2669,
+        2672,
+        2728,
+        2777,
+        2807,
+        2815,
+        2833,
+        2836
+      ],
+      "current_base_associated_prs": [
+        2820
+      ],
+      "current_base_commit_message": "Merge pull request #2820 from organicoverlords/chatgpt/s2-2772-quarantine-invalid-sealdiver-20260909\n\n[#2772] Quarantine invalid Sealdiver V2 binding",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34318192847,
+      "stage": "during-module",
+      "selected_base": "a32bb011401994a92bd810a6583b709575ee1822",
+      "current_base": "33a12bb867580c6fb561c85ab0562b420dde2e80",
+      "included_prs": [
+        2668,
+        2679,
+        2730,
+        2751,
+        2802,
+        2823,
+        2834,
+        2836
+      ],
+      "current_base_associated_prs": [
+        2840
+      ],
+      "current_base_commit_message": "Merge pull request #2840 from organicoverlords/chatgpt/2838-omen-lfs-reuse-20260909\n\n[#2838] Reuse hydrated OMEN content before LFS fetch",
+      "same_selected_cohort_predecessor": false
+    },
+    {
+      "run_id": 34318704971,
+      "stage": "during-module",
+      "selected_base": "33a12bb867580c6fb561c85ab0562b420dde2e80",
+      "current_base": "15d4286762ecc8901e8414c9edc941abba03fd9d",
+      "included_prs": [
+        2668,
+        2669,
+        2672,
+        2728,
+        2777,
+        2807,
+        2815,
+        2833
+      ],
+      "current_base_associated_prs": [
+        2841
+      ],
+      "current_base_commit_message": "Merge pull request #2841 from organicoverlords/chatgpt/2838-hot-content-resume-20260909\n\n[#2838] Resume interrupted OMEN hot-content streams",
+      "same_selected_cohort_predecessor": false
+    }
+  ]
+}

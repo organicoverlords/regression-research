@@ -1,0 +1,330 @@
+{
+  "schema": "reroute-worker-report-filtered-analysis.v1",
+  "generated_at": "2026-09-08T01:07:35.171091+03:00",
+  "method": {
+    "stop_marker": "successful worker_report_history.py archive with terminal state RUN_FINISHED|COMPLETE|WAITING|BLOCKED|DONE mapped back to exact MCP caller",
+    "invalid_stop_example": "Owl state=COMPLETED archive rejected at 2026-09-07T21:00:36.855+03:00; same caller state=DONE archive ok:true at 2026-09-07T21:00:50.956+03:00",
+    "mapped_finalized_runs": 261,
+    "mapped_callers": 86,
+    "manual_runs": 179,
+    "timed_runs": 82,
+    "in_run_transitions_analyzed": 19214,
+    "runs_with_transitions": 250,
+    "finalization_gaps_excluded": 260
+  },
+  "in_run_gap_cohort": {
+    "gap_30_180_seconds_cases": 734,
+    "same_run_tool_state_bytebin_matched_pairs": 278,
+    "matched_runs": 100,
+    "gap_ge30_counts_prior_pass": 752,
+    "gap_ge60_counts_prior_pass": 181,
+    "gap_ge90_counts_prior_pass": 72,
+    "gap_ge120_counts_prior_pass": 43
+  },
+  "response_size_hazard_all_transitions": [
+    {
+      "response_bytes": "<1000",
+      "p_gap_ge30_pct": 1.11
+    },
+    {
+      "response_bytes": "1000-3999",
+      "p_gap_ge30_pct": 2.57
+    },
+    {
+      "response_bytes": "4000-7999",
+      "p_gap_ge30_pct": 5.23
+    },
+    {
+      "response_bytes": "8000-15999",
+      "p_gap_ge30_pct": 8.57
+    },
+    {
+      "response_bytes": "16000-31999",
+      "p_gap_ge30_pct": 10.19
+    },
+    {
+      "response_bytes": ">=32000",
+      "p_gap_ge30_pct": 11.74
+    }
+  ],
+  "conditional_hazard": {
+    "start_process_running_false": [
+      [
+        "1000-3999",
+        2.85
+      ],
+      [
+        "4000-7999",
+        5.69
+      ],
+      [
+        "8000-15999",
+        8.61
+      ],
+      [
+        "16000-31999",
+        10.26
+      ],
+      [
+        ">=32000",
+        11.81
+      ]
+    ],
+    "read_output_running_false": [
+      [
+        "1000-3999",
+        2.89
+      ],
+      [
+        "4000-7999",
+        9.93
+      ],
+      [
+        "8000-15999",
+        16.67
+      ],
+      [
+        "16000-31999",
+        16.67
+      ],
+      [
+        ">=32000",
+        20.69
+      ]
+    ],
+    "read_output_running_true": [
+      [
+        "1000-3999",
+        0.19
+      ],
+      [
+        "4000-7999",
+        0.75
+      ],
+      [
+        "8000-15999",
+        3.6
+      ],
+      [
+        ">=32000",
+        5.0
+      ]
+    ]
+  },
+  "run_age_result": {
+    "p_gap_ge30_by_run_quartile_pct": [
+      4.48,
+      4.47,
+      3.68,
+      3.5
+    ],
+    "p_gap_ge30_by_cumulative_calls": [
+      [
+        "<25",
+        8.3
+      ],
+      [
+        "25-49",
+        6.09
+      ],
+      [
+        "50-99",
+        2.32
+      ],
+      [
+        "100-199",
+        0.7
+      ],
+      [
+        "200-399",
+        0.77
+      ],
+      [
+        "400-799",
+        0.65
+      ]
+    ],
+    "matched_runs_case_minus_control_median_position": -0.041666666666666685,
+    "matched_runs_case_minus_control_median_calls": -2.5,
+    "matched_runs_case_minus_control_median_bytes": -11885,
+    "interpretation": "Prior old/tool-heavy-state correlation from the generic gap cohort does not survive worker-stop filtering; it was substantially contaminated by ordinary post-stop/user-wait gaps."
+  },
+  "matched_command_features_discordance_ratio": {
+    "worker_report": 0.41,
+    "log_probe": 1.49,
+    "process_probe": 0.61,
+    "busy": 0.96,
+    "github": 1.29,
+    "git_status": 1.27,
+    "build_test": 1.16,
+    "ssh": 1.0,
+    "cmd_gt2k": 1.06,
+    "receipt_out_gt8k": 1.43,
+    "nonzero_exit": 0.57
+  },
+  "connection_semantics": {
+    "connections_seen": 161103,
+    "shared_by_multiple_callers_pct": 3.5,
+    "max_callers_per_connection": 32,
+    "confirmed_owl_connections": {
+      "connection_760c145f0d75": 7,
+      "connection_b25ef58cfa34": 9,
+      "connection_172b9f54f833": 8
+    },
+    "interpretation": "connection_id is transport plumbing and may be shared across unrelated callers; connection replacement is not evidence of backend-worker replacement."
+  },
+  "confirmed_reroute_constraints": [
+    "Visible reroute can begin while MCP work is still active.",
+    "Visible reroute can occur during a 10-second no-change read_output wait with a ~365-byte response, so large output is not necessary for banner onset.",
+    "Owl visible safety-buffering banner later overlapped a 113.366-second zero-MCP/zero-live-child tool-plane-silent interval, then fresh MCP activity appeared under the same observed connector fingerprint after stop/go; exact v0.153.1 code means this does not establish backend inactivity.",
+    "Large completed tool results strongly predict intra-run silent gaps, but they are not sufficient or necessary to identify a visible reroute."
+  ],
+  "classification_rule": {
+    "confirmed_tool_plane_silence": "no successful matching stop archive + zero new MCP calls + zero live connector child processes for the affected caller over the interval",
+    "ui_overlap_label": "independent screenshot/banner evidence may establish that visible safety buffering overlapped the tool-plane-silent interval",
+    "backend_stall_not_inferable_from_mcp_alone": "zero MCP plus zero connector child is compatible with the client awaiting remote Responses stream events while the turn remains inProgress",
+    "backend_stall_requires": "additional Responses/inference-channel evidence such as an idle-timeout/error or server-side timing evidence",
+    "historical_candidate_only": "gap inside a mapped still-open worker run that resumes before successful archive; without independent UI evidence do not call it a safety-buffering interval"
+  },
+  "clean_labeled_positive_2026_09_06_2144": {
+    "caller_id": "caller_86efff37c610",
+    "session_id": "session_86efff37c610",
+    "run_id": "p3-convergence-20260906-go2-sol",
+    "worker": "P3 convergence manual go",
+    "run_started_at": "2026-09-06T18:24:13.202990Z",
+    "valid_archive_finished_at": "2026-09-06T18:47:40.152Z",
+    "terminal_state": "RUN_FINISHED",
+    "screenshot_times_local": [
+      "2026-09-06T21:44:39.301064+03:00",
+      "2026-09-06T21:44:46.2906095+03:00"
+    ],
+    "polled_process_id": "208be867-907a-407f-9923-b1d2cd326af6",
+    "polled_process_pid": 37456,
+    "polled_process_started_at": "2026-09-06T18:42:23.912Z",
+    "polled_process_finished_at": "2026-09-06T18:45:32.712Z",
+    "polled_process_exit_code": 1,
+    "bounded_timeout_seconds": 180,
+    "read_covering_first_screenshot": {
+      "request_start": "2026-09-06T18:44:35.790Z",
+      "response_finish": "2026-09-06T18:44:45.802Z",
+      "tool": "read_output",
+      "status": 200,
+      "response_bytes": 365,
+      "requested_wait_ms": 10000
+    },
+    "post_first_screenshot_until_valid_archive": {
+      "request_count": 14,
+      "read_output_responses": 7,
+      "start_process_responses": 7,
+      "processes_started": 8
+    },
+    "interpretation": "Confirmed visible reroute occurred mid-run during normal active polling; same caller continued substantial work and later emitted a valid RUN_FINISHED archive. Banner onset is not equivalent to MCP stall or worker stop."
+  },
+  "product_artifact_distinction": {
+    "visible_ui_family": "safety buffering",
+    "notification_method": "model/safetyBuffering/updated",
+    "separate_actual_reroute_notification": "model/rerouted",
+    "banner_gate": "safetyBuffering.showBufferingUi == true on an in-progress turn",
+    "retry_method": "retrySafetyBufferedTurn",
+    "manual_stop_go_is_same_as_builtin_retry": false,
+    "artifact_evidence": "02 Evidence/2026-09-08_safety-buffering-product-artifact.json"
+  },
+  "exact_release_execution_path_correction": {
+    "source_tag": "rust-v0.153.1",
+    "commit": "985641272869835d01d025ed2a218fbbce35fa9f",
+    "matches_installed_cli_version": "0.153.1",
+    "safety_handler": {
+      "file": "codex-rs/core/src/session/turn.rs",
+      "lines": "2562-2574",
+      "behavior": "ResponseEvent::SafetyBuffering only forwards EventMsg::SafetyBuffering; no pause, cancellation, or tool-blocking action occurs in this branch."
+    },
+    "remote_wait_path": {
+      "file": "codex-rs/core/src/session/turn.rs",
+      "sampling_setup_lines": "2259-2272",
+      "stream_wait_lines": "2302-2328",
+      "behavior": "try_run_sampling_request opens the remote Responses stream and awaits stream.next() under the turn cancellation token."
+    },
+    "safety_parser_test": {
+      "file": "codex-rs/codex-api/src/sse/responses.rs",
+      "lines": "1704-1762",
+      "test": "process_sse_emits_all_safety_buffering_notifications_without_dropping_response_events",
+      "result": "SafetyBuffering events interleave with ordinary OutputTextDelta events and Completed; response events are not dropped."
+    },
+    "stream_idle_timeout": {
+      "file": "codex-rs/model-provider-info/src/lib.rs",
+      "default_ms": 300000,
+      "default_seconds": 300,
+      "openai_provider_override": null,
+      "user_config_override_present": false,
+      "owl_tool_plane_silence_seconds": 113.366,
+      "fraction_of_default_timeout": 0.377887,
+      "sse_behavior": "timeout(idle_timeout, stream.next()) -> idle timeout waiting for SSE only after expiration",
+      "websocket_behavior": "timeout(idle_timeout, ws_stream.next()) -> idle timeout waiting for websocket only after expiration"
+    },
+    "classification_correction": "The 113.366-second Owl interval is confirmed tool-plane silence with backend/model state unknown, not a confirmed machine-side/backend stall.",
+    "x_codex_turn_state_correction": "x-codex-turn-state is sticky routing/continuation state; it is not evidence of pause semantics."
+  },
+  "connector_identity_semantics": {
+    "caller_id": "pseudonymous connector identity derived from request header material; not named/backend worker identity",
+    "session_id": "fingerprint of MCP/OpenAI session header material; not app-turn/model-worker identity",
+    "empirical_redundancy": {
+      "request_start_total": 325745,
+      "both_present": 111047,
+      "same_suffix": 111047,
+      "different_suffix": 0
+    },
+    "owl": {
+      "caller": "caller_e89dd7b969dd",
+      "request_starts_in_archive": 699,
+      "all_session": "session_e89dd7b969dd"
+    },
+    "correction": "Replace same logical worker/caller-session continuity claims with same observed connector fingerprint unless stronger evidence is present. For Owl, preserved edge telemetry now supplies exact upstream distributed trace-id continuity across Stop -> go; that proves tracing lineage, not backend model-worker/app-turn identity.",
+    "evidence": "02 Evidence/2026-09-08_mcp-caller-session-identity-semantics.json"
+  },
+  "updated_at": "2026-09-08T04:21:32.684242+03:00",
+  "upstream_trace_context_evidence": {
+    "artifact": "02 Evidence/2026-09-08_owl_edge_trace_overlap.json",
+    "edge_matching_requests": 42,
+    "unique_raw_x_openai_session_values": 1,
+    "unique_subject_values": 1,
+    "unique_trace_ids": 2,
+    "unique_remote_ip_count": 16,
+    "unique_remote_socket_count": 41,
+    "stop_go_continuity": {
+      "pre_gap_request_id": "c566d5d3-1089-46d4-bb4e-b888ad4bc61a",
+      "post_go_request_id": "44cb0e97-30a5-463b-997b-a4987271f6f7",
+      "trace_id": "7894687964776873105",
+      "same_trace_id": true,
+      "edge_gap_seconds": 113.367,
+      "local_request_start_gap_seconds": 113.369,
+      "interpretation": "Exact upstream distributed tracing lineage spans the manual Stop -> go boundary; this is stronger than connector fingerprint continuity but does not identify a model worker, inference request, or exact app turn."
+    },
+    "overlap": {
+      "trace_a": "7894687964776873105",
+      "trace_b": "7050226915736017071",
+      "local_process_launch_separation_ms": 49.0,
+      "trace_overlap_seconds": 67.306,
+      "trace_a_process": "b9486459-7bee-402e-8265-2fdca44a4dae",
+      "trace_b_process": "24ecba3c-7417-47ea-8404-d44b4c1993d4",
+      "interpretation": "Distinct upstream trace contexts interleaved MCP work and launched separate external processes under one connector session; separate model workers are not proven."
+    },
+    "later_activity_correction": {
+      "old_snapshot_last_exit": "2026-09-07T19:17:01.575Z",
+      "later_processes": [
+        {
+          "process_id": "0471f991-e8ec-42fe-a712-0731720f7747",
+          "pid": 9416,
+          "started_at": "2026-09-07T19:17:35.289Z",
+          "finished_at": "2026-09-07T19:18:01.071Z"
+        },
+        {
+          "process_id": "daf3b885-e2f1-4339-a697-56a548244e79",
+          "pid": 32440,
+          "started_at": "2026-09-07T19:18:28.689Z",
+          "finished_at": "2026-09-07T19:18:56.993Z"
+        }
+      ],
+      "correction": "22:17:01.575 was a point-in-time latest-work boundary, not the final Owl work boundary."
+    }
+  }
+}

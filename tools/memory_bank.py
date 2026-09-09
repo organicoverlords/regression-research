@@ -15,16 +15,16 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
-    from .memory_lifecycle import is_expired, parse_expiry
+    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from .memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from .memory_classification import classify_entry, infer_single_project
     from .memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
     from .repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
-    from memory_lifecycle import is_expired, parse_expiry
+    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from memory_classification import classify_entry, infer_single_project
     from memory_timeline import build_incident_rollups, build_recurrence_context, build_timeline
     from repo_timeline import collect_repo_history, discover_repo_specs, parse_repo_arg, tracked_artifact_events
@@ -110,13 +110,13 @@ def validate_entry(entry: dict[str, Any]) -> None:
         if not isinstance(entry["event_at"], str) or not entry["event_at"].strip():
             raise BankError("event_at must be a non-empty ISO-8601 string when present")
         try:
-            event_at = datetime.fromisoformat(entry["event_at"].replace("Z", "+00:00"))
+            event_at = parse_iso_datetime(entry["event_at"])
         except ValueError as exc:
             raise BankError("event_at must be ISO-8601") from exc
         if event_at.tzinfo is None:
             raise BankError("event_at must include a timezone offset")
     try:
-        parsed = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+        parsed = parse_iso_datetime(entry["timestamp"])
     except ValueError as exc:
         raise BankError("timestamp must be ISO-8601") from exc
     if parsed.tzinfo is None:
@@ -400,7 +400,7 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
     current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
     current.sort(
         key=lambda entry: (
-            datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
+            parse_iso_datetime(entry["timestamp"]),
             entry["id"],
         ),
         reverse=True,
@@ -425,7 +425,7 @@ def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str,
     current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
     current.sort(
         key=lambda entry: (
-            datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00")),
+            parse_iso_datetime(entry["timestamp"]),
             entry["id"],
         ),
         reverse=True,
@@ -500,7 +500,7 @@ def _metrics_generated_at(value: Any) -> datetime | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = parse_iso_datetime(value)
     except ValueError:
         return None
     if parsed.tzinfo is None:
@@ -699,6 +699,10 @@ def source_relevance(entry: dict[str, Any], registry: dict[str, Any] | None = No
     return best
 
 
+def _is_entry_id(query: str) -> bool:
+    return re.fullmatch(r"mem-[A-Za-z0-9_-]+", query.strip()) is not None
+
+
 def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
                    tags: list[str] | None = None, limit: int | None = None, history: bool = False,
                    source_registry: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -714,8 +718,11 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
     ranked: list[tuple[float, int, datetime, dict[str, Any]]] = []
     registry = source_registry or load_source_registry()
+    exact_id = query.strip() if _is_entry_id(query) else None
     for entry in entries:
         if not history and not _ordinary_recall_eligible(entry, superseded):
+            continue
+        if exact_id is not None and entry["id"] != exact_id:
             continue
         searchable_text = "\n".join([
             entry["text"],
@@ -726,7 +733,7 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
         ])
         text_tokens = _tokens(searchable_text)
         tag_tokens = {tag.casefold() for tag in entry["tags"]}
-        relevance = 0.0
+        relevance = 1.0 if exact_id is not None else 0.0
         if scope and entry["scope"].casefold() == scope.casefold():
             relevance += 4
         relevance += 4 * sum(tag in tag_tokens for tag in tags)
@@ -734,7 +741,7 @@ def search_entries(entries: list[dict[str, Any]], query: str, *, scope: str | No
         if (query_tokens or scope or tags) and relevance == 0:
             continue
         source_score = source_relevance(entry, registry)
-        stamp = datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+        stamp = parse_iso_datetime(entry["timestamp"])
         ranked.append((relevance, source_score, stamp, entry))
     ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
     return [entry for _, _, _, entry in ranked[:effective_limit]]
@@ -821,14 +828,17 @@ def _conversation_summary_entry(query: str, summary: dict[str, Any]) -> dict[str
     }
 
 
-def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False) -> list[dict[str, Any]]:
-    if history:
-        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=True)
+def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int = DEFAULT_RECALL_LIMIT, history: bool = False, strict_admission: bool = False) -> list[dict[str, Any]]:
+    if history or _is_entry_id(query):
+        return search_entries(entries, query, scope=scope, tags=tags, limit=limit, history=history)
     try:
         from .memory_hybrid import search_entries_hybrid
     except ImportError:
         from memory_hybrid import search_entries_hybrid
-    return search_entries_hybrid(entries, query, scope=scope, tags=tags, limit=limit, history=False)
+    return search_entries_hybrid(
+        entries, query, scope=scope, tags=tags, limit=limit, history=False,
+        strict_admission=strict_admission,
+    )
 
 
 def search_context_memory(
@@ -837,8 +847,13 @@ def search_context_memory(
 ) -> list[dict[str, Any]]:
     """Return bounded evidence context without promoting stored memory into behavior authority."""
     effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
+    if _is_entry_id(query):
+        return search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit)
     selectors = context_selectors(query)
-    filtered = [entry for entry in entries if entry_matches_selectors(entry, selectors)]
+    filtered = [
+        entry for entry in entries
+        if entry_matches_selectors(entry, selectors) and context_memory_eligible(entry)
+    ]
     projects = selectors.get("projects") or set()
     residual = context_residual_query(query)
 
@@ -847,7 +862,8 @@ def search_context_memory(
         if len(residual_tokens) < 2:
             return []
         return search_memory_entries(
-            filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False
+            filtered, residual, scope=scope, tags=tags, limit=effective_limit, history=False,
+            strict_admission=True,
         )
 
     project_entries: list[dict[str, Any]] = []
@@ -867,13 +883,14 @@ def search_context_memory(
     project_target = max(1, (effective_limit * 3 + 3) // 4)
     if len(_tokens(residual)) >= 1:
         project_hits = search_memory_entries(
-            project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False
+            project_entries, residual, scope=scope, tags=tags, limit=project_target, history=False,
+            strict_admission=True,
         )
         remaining_project = project_target - len(project_hits)
         if remaining_project > 0:
             project_hits.extend(search_memory_entries(
                 entity_project_entries, residual, scope=scope, tags=tags,
-                limit=remaining_project, history=False
+                limit=remaining_project, history=False, strict_admission=True
             ))
     else:
         candidates = [*project_entries, *entity_project_entries]
@@ -889,7 +906,7 @@ def search_context_memory(
         project_hits.sort(
             key=lambda entry: (
                 1 if (entry_context_labels(entry)["projects"] & projects) else 0,
-                datetime.fromisoformat(str(entry["timestamp"]).replace("Z", "+00:00")),
+                parse_iso_datetime(entry["timestamp"]),
             ),
             reverse=True,
         )
@@ -899,16 +916,74 @@ def search_context_memory(
     ambient_hits: list[dict[str, Any]] = []
     if remaining > 0 and len(_tokens(residual)) >= 2:
         ambient_hits = search_memory_entries(
-            ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False
+            ambient_entries, residual, scope=scope, tags=tags, limit=remaining, history=False,
+            strict_admission=True,
         )
     return [*project_hits, *ambient_hits][:effective_limit]
+
+def _materialized_context_query_eligible(query: str) -> bool:
+    if _is_entry_id(query):
+        return False
+    selectors = context_selectors(query)
+    residual_tokens = _tokens(context_residual_query(query))
+    return len(residual_tokens) >= 2 or (bool(selectors.get("projects")) and len(residual_tokens) >= 1)
+
+
+def _materialized_lesson_history(query: str, *, root: Path, limit: int = 2) -> list[dict[str, Any]]:
+    """Return bounded labeled lesson priors from the existing materialized timeline only."""
+    effective_limit = min(2, max(0, int(limit)))
+    if effective_limit == 0 or not _materialized_context_query_eligible(query):
+        return []
+    try:
+        from .timeline_materializer import query_materialized
+    except ImportError:
+        from timeline_materializer import query_materialized
+    try:
+        report = query_materialized(root=root, query=query, limit=max(3, effective_limit))
+    except (OSError, TypeError, ValueError):
+        return []
+    if not isinstance(report, dict):
+        return []
+    packet = report.get("lesson_packet")
+    if not isinstance(packet, dict) or packet.get("status") != "READY":
+        return []
+    materialized = report.get("materialized") if isinstance(report.get("materialized"), dict) else {}
+    out: list[dict[str, Any]] = []
+    for item in list(packet.get("items") or [])[:effective_limit]:
+        if not isinstance(item, dict):
+            continue
+        prior = {
+            "source_class": "HISTORICAL_CONTEXT",
+            "retrieval_role": "LESSON_PRIOR",
+            "source_event_id": item.get("source_event_id"),
+            "source_type": item.get("source_type"),
+            "project": item.get("project"),
+            "event_at": item.get("event_at"),
+            "title": item.get("title"),
+            "conclusion": item.get("conclusion"),
+            "evidence_anchors": list(item.get("evidence_anchors") or [])[:6],
+            "relevance_terms": list(item.get("relevance_terms") or [])[:6],
+            "changed_paths": list(item.get("changed_paths") or [])[:6],
+            "lineage_event_ids": list(item.get("lineage_event_ids") or [])[:8],
+            "lineage_projects": list(item.get("lineage_projects") or [])[:8],
+            "lineage_copy_count": item.get("lineage_copy_count"),
+            "lineage_semantics": item.get("lineage_semantics"),
+            "authority": packet.get("authority"),
+            "validation": packet.get("validation"),
+            "live_truth_required": bool(packet.get("live_truth_required")),
+            "materialized_status": materialized.get("status"),
+            "materialized_as_of": materialized.get("as_of"),
+        }
+        out.append({key: value for key, value in prior.items() if value not in (None, "", [], {})})
+    return out
+
 
 def search_all_memory(entries: list[dict[str, Any]], query: str, *, scope: str | None = None, tags: list[str] | None = None, limit: int | None = None, history: bool = False, conversation_db: Path | None = None) -> list[dict[str, Any]]:
     default_limit = DEFAULT_HISTORY_LIMIT if history else DEFAULT_RECALL_LIMIT
     hard_cap = MAX_HISTORY_LIMIT if history else MAX_RECALL_LIMIT
     effective_limit = min(hard_cap, max(0, default_limit if limit is None else int(limit)))
     manual = search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit, history=history)
-    if history or not query.strip() or effective_limit == 0:
+    if history or _is_entry_id(query) or not query.strip() or effective_limit == 0:
         return manual
 
     corpus = conversation_history_report(query, limit=effective_limit, db=conversation_db)
@@ -1018,14 +1093,14 @@ def _main() -> int:
     record.add_argument("--publish", action="store_true", help="explicitly reconcile/publish the canonical bank through Git; default record is local-only")
 
     search = sub.add_parser("search")
-    search.add_argument("query", nargs="?", default="")
+    search.add_argument("query", nargs="?", default="", help="words to match, or an exact mem-... ID; --history can read superseded/rejected records")
     search.add_argument("--scope")
     search.add_argument("--tag", action="append", default=[])
     search.add_argument("--limit", type=int)
     search.add_argument("--history", action="store_true")
 
     context = sub.add_parser("context", help="build a compact task-scoped context pack from curated memory and historical corpus")
-    context.add_argument("query")
+    context.add_argument("query", help="task wording with project, or an exact mem-... ID; oversized records are listed in omitted_memory_ids")
     context.add_argument("--scope")
     context.add_argument("--tag", action="append", default=[])
     context.add_argument("--limit", type=int, default=MAX_RECALL_LIMIT)
@@ -1179,7 +1254,10 @@ def _main() -> int:
         if args.command == "context":
             selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
             hits = [annotate_memory(entry) for entry in selected]
-            if args.with_history:
+            if args.bank.resolve() == DEFAULT_BANK.resolve() and not _is_entry_id(args.query):
+                vault_root = Path(__file__).resolve().parents[1]
+                hits.extend(_materialized_lesson_history(args.query, root=vault_root, limit=min(2, args.limit)))
+            if args.with_history and not _is_entry_id(args.query):
                 report = conversation_history_report(args.query, limit=min(3, args.limit))
                 summary = _conversation_summary_entry(args.query, report.get("summary") or {})
                 if summary is not None:

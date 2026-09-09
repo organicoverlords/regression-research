@@ -1,0 +1,118 @@
+{
+  "schema": "regression-research.issue-861.routing-convergence-replay.v1",
+  "issue": "organicoverlords/regression-research#861",
+  "captured_date": "2026-09-09",
+  "purpose": "Frozen routing/execution minimality benchmark. Candidate simplifications should reduce orchestration actions without changing these expected safety decisions.",
+  "source_evidence": "02 Evidence/2026-09-09_issue-861_orchestration-overhead-baseline.json",
+  "controls": [
+    {
+      "id": "head-moves-during-module",
+      "kind": "negative",
+      "observed_run_id": 34319366844,
+      "setup": "Selected cohort member #2836 head changes while P3AvatarHumanoid native module is building.",
+      "expected": [
+        "mark selected cohort superseded/stale",
+        "stop native continuation at bounded module boundary",
+        "do not produce durable success receipt",
+        "do not treat workflow-level success as merge authority",
+        "queue/replan replacement head"
+      ]
+    },
+    {
+      "id": "main-moves-during-cohort",
+      "kind": "negative",
+      "observed_run_id": 34310470391,
+      "setup": "main advances while an exact-head cohort is compiling.",
+      "expected": [
+        "invalidate cohort for current-base merge authority",
+        "do not reuse current-base status as if base were unchanged",
+        "replan on new main",
+        "preserve any useful diagnostic compile evidence without calling it merge authority"
+      ]
+    },
+    {
+      "id": "plan-only-success",
+      "kind": "negative",
+      "observed_run_id": 34320052327,
+      "setup": "Planner workflow completes SUCCESS but integration-cohort build job does not execute.",
+      "expected": [
+        "do not count workflow SUCCESS as native validation",
+        "do not synthesize a receipt",
+        "do not merge C++ PR from planner-only success"
+      ]
+    },
+    {
+      "id": "receipt-prefix-mismatch",
+      "kind": "negative",
+      "setup": "A successful older cohort receipt exists, but current main does not equal the receipt base plus the exact validated predecessor prefix.",
+      "observed_signal": "PREFIX_TREE_MISMATCH",
+      "expected": [
+        "merge guard blocks",
+        "no direct merge bypass",
+        "request/reuse only evidence whose prefix tree matches current main"
+      ]
+    },
+    {
+      "id": "serialized-native-lane-owned",
+      "kind": "negative",
+      "setup": "Another proof worker owns an active UnrealBuildTool/P3Testing build on the Windows native lane.",
+      "expected": [
+        "do not launch duplicate heavy native work",
+        "continue disjoint non-heavy work or wait for lane release",
+        "launch at most one cohort after lane becomes free"
+      ]
+    },
+    {
+      "id": "fair-batch-predecessors",
+      "kind": "negative",
+      "setup": "Target PR is eligible but outside the first fair batch because earlier heads require validation.",
+      "expected": [
+        "do not bypass fairness/priority",
+        "allow earlier batch to drain",
+        "recompute target eligibility afterward"
+      ]
+    },
+    {
+      "id": "current-base-full-success",
+      "kind": "positive",
+      "observed_run_id": 34315165556,
+      "setup": "Exact target head is in a cohort on unchanged current main; native UE_MCP_Bridge compile/link and required focused/runtime acceptance pass; durable receipt is published.",
+      "observed_receipt": "ca16e328e7504819a69849d577d875e930c0f593e868f42d82467e639155bf89",
+      "expected": [
+        "accept native/acceptance evidence for that exact base/head",
+        "allow receipt reuse only according to validated member prefix order",
+        "merge through canonical guard when READY"
+      ]
+    },
+    {
+      "id": "minimal-new-mechanism-positive-control",
+      "kind": "positive",
+      "setup": "No existing owner can produce exact-head native validation or fail-closed stale-evidence rejection.",
+      "expected": [
+        "allow the minimum new mechanism needed to satisfy the missing safety property",
+        "reject a blanket delete/reuse answer when it would remove required correctness"
+      ]
+    }
+  ],
+  "metrics": [
+    "planner_invocations",
+    "cohort_workflow_runs",
+    "native_ubt_starts",
+    "native_module_builds",
+    "stale_or_superseded_runs",
+    "receipt_publications",
+    "merge_guard_invocations",
+    "guarded_merges",
+    "product_changes_delivered"
+  ],
+  "acceptance": {
+    "primary": "Candidate produces identical expected safety decisions for every frozen control while strictly reducing orchestration/control actions on the replay.",
+    "fail_if": [
+      "stale evidence becomes merge-authoritative",
+      "exact-head or current-main identity is weakened",
+      "native lane overlaps another owner",
+      "fairness is bypassed merely to improve the metric",
+      "new permanent scheduler/registry/gate is added without proving the existing owner cannot satisfy the outcome"
+    ]
+  }
+}

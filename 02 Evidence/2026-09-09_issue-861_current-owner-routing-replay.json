@@ -1,0 +1,78 @@
+{
+  "schema": "regression-research.issue-861.current-owner-routing-replay.v1",
+  "captured_date": "2026-09-09",
+  "p3_main_sha": "48c38850eb320c6f89a3cd5fccb5548b07ef3592",
+  "prerequisite_820_state": "OPEN",
+  "baseline": {
+    "workflow_runs": 40,
+    "automatic_workflow_run": 30,
+    "manual_workflow_dispatch": 10,
+    "native_executions": 22,
+    "no_native_runs": 18,
+    "durable_receipt_successes": 3,
+    "base_move_invalidations": 14,
+    "head_move_invalidations": 4,
+    "real_build_or_acceptance_failures": 1
+  },
+  "manual_dispatch_replay": {
+    "manual_dispatches_removed": 10,
+    "manual_native_executions_removed": 7,
+    "manual_receipts_removed": 0,
+    "automatic_receipts_retained": 3,
+    "automatic_base_move_controls_retained": 9,
+    "automatic_head_move_controls_retained": 2,
+    "real_failure_retained": 1,
+    "workflow_launch_reduction_pct": 25.0,
+    "native_execution_reduction_pct": 31.8,
+    "manual_run_ids": [
+      34291609758,
+      34308856066,
+      34310470391,
+      34312407532,
+      34314176990,
+      34315327679,
+      34318494715,
+      34318704971,
+      34319366844,
+      34321200572
+    ],
+    "manual_native_run_ids": [
+      34308856066,
+      34310470391,
+      34312407532,
+      34314176990,
+      34318704971,
+      34319366844,
+      34321200572
+    ]
+  },
+  "base_move_attribution": {
+    "total": 14,
+    "same_selected_cohort_predecessor": 1,
+    "unrelated_main_movement": 13,
+    "same_chain_run_ids": [
+      34291610571
+    ]
+  },
+  "classification_counts": {
+    "base_move_invalidation": 14,
+    "build_job_cancelled_before_steps": 5,
+    "planner_cancelled_coalesced": 7,
+    "durable_receipt_success": 3,
+    "real_build_or_acceptance_failure": 1,
+    "plan_only_no_native": 6,
+    "required_head_move_invalidation": 4
+  },
+  "decision": {
+    "reuse_shrink": "Remove assistant/manual run-by-run convergence steering from the normal path; let p3 integration cohort + merge guard + p3 PR auto merge own normal convergence.",
+    "keep": [
+      "exact-head validation",
+      "current-main/base freshness",
+      "fail-closed stale receipt/prefix-tree rejection",
+      "serialized native lane",
+      "real product/build failure handling"
+    ],
+    "do_not_infer": "13/14 base moves were unrelated main merges, so receipt-chain reuse alone cannot safely erase most historical base invalidations.",
+    "code_change_now": "none; #820 remains open and current P3 already owns debounce, serialized builds, exact freshness, receipt-chain auto-merge and refresh dispatch"
+  }
+}

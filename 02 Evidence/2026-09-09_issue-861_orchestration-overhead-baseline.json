@@ -1,0 +1,147 @@
+{
+  "schema": "regression-research.issue-861.orchestration-overhead-baseline.v1",
+  "captured_date": "2026-09-09",
+  "source": "single S1 visual-proof assistance sequence",
+  "classification": "activity-count baseline, not wall-clock timing",
+  "counts": {
+    "integration_cohort_runs_handled": 40,
+    "explicit_main_base_states": 21,
+    "explicit_main_base_transitions": 20,
+    "pr_level_engineering_changes": 5,
+    "merged_engineering_changes": 4,
+    "superseded_engineering_changes": 1,
+    "repository_wide_tests_observed_pass": 932,
+    "focused_p3_camera_contracts_pass": 6,
+    "focused_p3_2802_contracts_pass": 13
+  },
+  "derived": {
+    "coordination_events_lower_bound": 60,
+    "substantive_event_denominator_example": 75,
+    "coordination_share_lower_bound_example": 80.0,
+    "note": "The 10 substantive validation packages is a bounded approximate count used only to show why the 80-90% estimate is plausible; do not interpret as wall-clock share."
+  },
+  "cohort_run_ids": [
+    34283469871,
+    34285108182,
+    34286555209,
+    34287513624,
+    34290372778,
+    34291609758,
+    34291610571,
+    34303485451,
+    34305376509,
+    34305772361,
+    34305967565,
+    34306084748,
+    34307696232,
+    34308856066,
+    34309627584,
+    34310267451,
+    34310470391,
+    34311370943,
+    34311411469,
+    34311516313,
+    34311636202,
+    34312041092,
+    34312407532,
+    34312592379,
+    34313165318,
+    34314176990,
+    34314594684,
+    34315165556,
+    34315327679,
+    34315442480,
+    34317219078,
+    34317800240,
+    34317872695,
+    34318192847,
+    34318494715,
+    34318704971,
+    34319083004,
+    34319366844,
+    34320052327,
+    34321200572
+  ],
+  "main_base_sequence": [
+    "3340066d",
+    "0ef82322",
+    "88791590",
+    "dc1eb72a",
+    "43d7e689",
+    "8bffcb3c",
+    "59a50e36",
+    "06471d10",
+    "8e8d14b2",
+    "7fc8fcd9",
+    "9e2653c9",
+    "bab4c6c0",
+    "956696c3",
+    "36fdb320",
+    "a9544b75",
+    "997e9665",
+    "ceae2a21",
+    "a32bb011",
+    "33a12bb8",
+    "15d428676",
+    "48c38850"
+  ],
+  "engineering_changes": [
+    {
+      "outcome": "merged",
+      "pr": "tiny3d#423",
+      "sha": "1dc406a9",
+      "work": "showcase semantic source-name / Raincoat rediscovery"
+    },
+    {
+      "outcome": "merged",
+      "pr": "tiny3d#425",
+      "sha": "c0d67d5e",
+      "work": "generic semantic metadata indexing"
+    },
+    {
+      "outcome": "merged",
+      "pr": "tiny3d#427",
+      "sha": "9c56b6d6",
+      "work": "accepted P3 reconciliation projection into library view"
+    },
+    {
+      "outcome": "superseded",
+      "pr": "p3#2801",
+      "sha": "c9701a6aa",
+      "work": "SceneCapture player-view ownership semantics"
+    },
+    {
+      "outcome": "merged",
+      "pr": "p3#2829",
+      "sha": "59a50e36",
+      "work": "P3Testing exact-head cohort closure"
+    }
+  ],
+  "safety_outcomes": [
+    "stale/current-base cohort evidence was repeatedly rejected rather than reused",
+    "PREFIX_TREE_MISMATCH blocked stale receipt reuse",
+    "native runner remained serialized",
+    "exact PR head and current main were rechecked before merge",
+    "no direct merge bypass was used"
+  ],
+  "candidate_861_finding": {
+    "area": "routing / execution",
+    "tag": "shrink/reuse",
+    "finding": "The convergence path spent most observable actions on planner/cohort/receipt/base-freshness/merge-order orchestration rather than product mutation. The audit should determine which routing layers are strictly load-bearing and which duplicate the same identity/freshness decision.",
+    "keep": [
+      "exact-head validation",
+      "fail-closed stale receipt rejection",
+      "serialized scarce native runner",
+      "trust/security/data-loss boundaries"
+    ],
+    "measure": [
+      "planner/cohort launches",
+      "native UBT starts",
+      "superseded/stale-skipped runs",
+      "receipt publications",
+      "merge-guard invocations",
+      "successful merges",
+      "product changes delivered"
+    ]
+  }
+}

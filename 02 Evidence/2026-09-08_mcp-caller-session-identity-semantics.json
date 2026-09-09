@@ -1,0 +1,84 @@
+{
+  "schema": "mcp-caller-session-identity-semantics.v1",
+  "observed_at": "2026-09-08T03:15:21.902766+03:00",
+  "production_connector": {
+    "root": "%LOCALAPPDATA%\\\\ChatGPTMcpMinimal",
+    "caller_id_source": "src/lib/caller-id.ts",
+    "caller_id_comment": "Stable pseudonymous ID for live tool cards and transport logs.",
+    "caller_id_derivation_priority": [
+      "x-openai-session",
+      "mcp-session-id",
+      "authorization",
+      "request ip",
+      "unknown"
+    ],
+    "caller_id_hash": "sha256(raw identity) first 12 hex, prefixed caller_",
+    "session_id_source": "src/index.ts + src/lib/transport-telemetry.ts",
+    "session_id_input": "mcp-session-id || x-openai-session",
+    "session_id_hash": "sha256(raw session material) first 12 hex, prefixed session_",
+    "server_mode": "stateless StreamableHTTPServerTransport",
+    "sessionIdGenerator": null
+  },
+  "transport_snapshot": {
+    "sources": "clone-a/transport.jsonl plus all then-present transport.jsonl.archive/*.jsonl files",
+    "request_start_total": 325745,
+    "session_id_null": 214698,
+    "caller_and_session_present": 111047,
+    "same_12hex_suffix": 111047,
+    "different_12hex_suffix": 0,
+    "interpretation": "When both fields are present in this deployment they are empirically redundant as continuity signals, not independent corroboration."
+  },
+  "owl": {
+    "caller_id": "caller_e89dd7b969dd",
+    "archive": "transport.jsonl.2026-09-07T20-09-08-562Z.decf4992-49e7-43cb-bd80-41ee75ddc48f.jsonl",
+    "request_start_count": 699,
+    "session_ids": {
+      "session_e89dd7b969dd": 699
+    },
+    "boundary": "This establishes stable connector association across those requests only."
+  },
+  "identity_claims": {
+    "supported": [
+      "same connector pseudonymous identity material",
+      "same exact external process when process_id/PID is identical"
+    ],
+    "not_supported_by_caller_session_alone": [
+      "same backend model worker",
+      "same inference request",
+      "same app-server turn",
+      "same Responses stream",
+      "same logical worker"
+    ],
+    "connection_id": "transport plumbing; weaker than caller/session and not worker identity"
+  },
+  "evidence_order": [
+    "exact external MCP process_id/PID (child-process identity)",
+    "direct app-server thread/turn ID",
+    "Responses request/response ID",
+    "upstream distributed trace ID (tracing-lineage continuity; not model-worker identity)",
+    "MCP session/caller fingerprint",
+    "connection ID"
+  ],
+  "public_codex_context": {
+    "exact_release": "rust-v0.153.1",
+    "rmcp_client_behavior": "An initialized streamable-HTTP RmcpClient reuses its running service/session; on explicit session-expired 404 it builds a new transport and reinitializes.",
+    "important_boundary": "This describes MCP client-session lifetime, not model-worker lifetime."
+  },
+  "updated_at": "2026-09-08T04:51:02.394636+03:00",
+  "upstream_trace_context": {
+    "artifact": "02 Evidence/2026-09-08_owl_edge_trace_overlap.json",
+    "stop_go_same_trace_id": true,
+    "trace_id": "7894687964776873105",
+    "edge_gap_seconds": 113.367,
+    "local_request_start_gap_seconds": 113.369,
+    "distinct_overlapping_trace_ids": [
+      "7894687964776873105",
+      "7050226915736017071"
+    ],
+    "trace_overlap_seconds": 67.306,
+    "near_simultaneous_process_launch_separation_ms": 49.0,
+    "supported": "Continuity of one upstream distributed tracing lineage across Stop -> go, plus overlapping upstream trace contexts after resume.",
+    "not_supported": "A Datadog trace ID is not established as a model-worker, inference-request, or app-turn identifier; distinct trace IDs do not prove distinct model workers."
+  },
+  "cross_incident_trace_context_evidence": "02 Evidence/2026-09-08_cross_incident_upstream_trace_context_comparison.json"
+}

@@ -200,5 +200,24 @@
       "claim that accumulated tool state is a reroute-specific cause"
     ],
     "required_future_filter": "independent UI/turn-state evidence that the assistant response remained open during the gap, plus exclusion of gaps crossing user-wait/end-of-turn boundaries"
+  },
+  "caller_identity_semantics": {
+    "caller_id": "connector pseudonym, not backend worker identity",
+    "session_id": "connector session-header fingerprint, not an independent worker marker",
+    "empirical_redundancy": "111047 of 111047 sampled request_start rows with both IDs had identical 12-hex suffixes",
+    "impact": "all accumulated caller-state results are transport grouping statistics only and must not be interpreted as one backend worker/model turn accumulating the state",
+    "evidence": "02 Evidence/2026-09-08_mcp-caller-session-identity-semantics.json"
+  },
+  "updated_at": "2026-09-08T04:21:32.684242+03:00",
+  "owl_upstream_trace_context_addendum": {
+    "artifact": "02 Evidence/2026-09-08_owl_edge_trace_overlap.json",
+    "scope": "specific labeled Owl incident only; does not relabel the generic gap cohort",
+    "stop_go_same_trace_id": true,
+    "trace_id": "7894687964776873105",
+    "edge_gap_seconds": 113.367,
+    "overlapping_trace_id": "7050226915736017071",
+    "overlap_seconds": 67.306,
+    "process_launch_separation_ms": 49.0,
+    "interpretation": "Owl has upstream tracing-lineage continuity across Stop -> go and overlapping trace contexts afterward. Generic same-caller inactivity gaps remain unlabeled without independent edge/UI/turn evidence, and distinct trace IDs do not prove distinct model workers."
   }
 }

@@ -1,0 +1,147 @@
+{
+  "schema": "regression-research.issue-861.busy-dual-runtime-yagni-audit.v1",
+  "captured_at_local": "2026-09-09T11:59:00+03:00",
+  "issue": 861,
+  "prerequisite_820": "OPEN",
+  "source_revision": {
+    "repo": "organicoverlords/regression-research",
+    "origin_main": "6f840a48c0683696618713d3bc26dc3dac65ab6f",
+    "local_head": "2373983c55b7fdacc0d2e4fda5a89e8c508193ab",
+    "installed_matches_origin_main_modulo_crlf": true
+  },
+  "canonical_owner": {
+    "authority": "standalone BusyCoordinator canonical claims store",
+    "store": "%LOCALAPPDATA%\\ChatGPTMcpClean\\.state\\busy-claims.json",
+    "normal_serving_entrypoint": "%LOCALAPPDATA%\\BusyCoordinator\\busy-python.cmd",
+    "current_navigation_consumers": [
+      ".agents/AGENTS.md",
+      ".agents/RULES.md",
+      "vault/tools/stack_atlas.py",
+      "vault/tools/cleanup_converger.py",
+      "00_NAVIGATION_MANUAL.md",
+      "docs/assistant-stack-operational-atlas.md"
+    ],
+    "rust_normal_serving_consumer_observed": false,
+    "rust_running_or_scheduled_consumer_observed": false
+  },
+  "dual_runtime_contract": {
+    "readme": "Two interchangeable core implementations are deliberately retained for redundancy and parity",
+    "contract_invariant": "python and rust cores expose the same required ownership commands",
+    "recent_explicit_preservation": "regression-research#400 merged 2026-09-03 and explicitly preserved dual Python/Rust implementations",
+    "bounded_fallback_search_result": "No issue/report match found for busy-rust fallback/recovery from Python failure; this is negative bounded evidence, not proof of absence."
+  },
+  "origin_main_footprint": {
+    "python_core": {
+      "lines": 630,
+      "bytes": 24977
+    },
+    "rust_core": {
+      "lines": 1176,
+      "bytes": 39676
+    },
+    "rust_cargo_toml": {
+      "lines": 10,
+      "bytes": 359
+    },
+    "rust_cargo_lock": {
+      "lines": 403,
+      "bytes": 10609
+    },
+    "audit_wrapper": {
+      "lines": 499,
+      "bytes": 19193
+    },
+    "tests": {
+      "audit_wrapper_best_effort.py": {
+        "lines": 52,
+        "bytes": 1890
+      },
+      "contract_guard.py": {
+        "lines": 235,
+        "bytes": 10389
+      },
+      "coordinator_parity.py": {
+        "lines": 209,
+        "bytes": 11830
+      },
+      "install_compatibility.py": {
+        "lines": 122,
+        "bytes": 6502
+      },
+      "mixed_contention.py": {
+        "lines": 34,
+        "bytes": 1521
+      }
+    },
+    "installer": {
+      "lines": 56,
+      "bytes": 2929
+    },
+    "contract": {
+      "lines": 69,
+      "bytes": 2241
+    }
+  },
+  "maintenance_history": {
+    "python_core_commits_on_origin_main": 19,
+    "rust_core_commits_on_origin_main": 19,
+    "shared_commit_set": 19,
+    "python_only_commits": 0,
+    "rust_only_commits": 0,
+    "interpretation": "Every current-history core change was implemented in both languages; duplicated maintenance is contract-enforced rather than occasional."
+  },
+  "live_parity_control": {
+    "operation": "snapshot --limit 32 against the same canonical store",
+    "python_ok": true,
+    "rust_ok": true,
+    "semantic_diff_count": 0,
+    "note": "A first sequential 8-item byte comparison differed because the store changed between reads; a subsequent structural comparison at limit 32 returned zero semantic differences."
+  },
+  "installed_footprint": {
+    "rust_all_files": 288,
+    "rust_all_bytes": 102242772,
+    "rust_target_cache_files": 283,
+    "rust_target_cache_bytes": 101475654,
+    "rust_non_target_files": 5,
+    "rust_non_target_bytes": 767118,
+    "rust_executable_bytes": 673792,
+    "python_files": 6,
+    "python_bytes": 156435,
+    "interpretation": "~101.5 MB is Cargo target/build cache and is not required runtime payload; do not count it as architectural savings. The installed Rust runtime/source payload itself is ~767 KB."
+  },
+  "verifier_cost": {
+    "busy_area_runs_cargo_test_release": true,
+    "busy_area_runs_python_install_compatibility": true,
+    "parity_and_mixed_contention_tests_exist": true
+  },
+  "classification": {
+    "current": "SHRINK/DELETE_CANDIDATE_NOT_AUTHORIZED_YET",
+    "keep": [
+      "single canonical claims store",
+      "exact-scope ownership semantics",
+      "CAS recovery",
+      "lease/checkpoint behavior",
+      "safe temp sweep",
+      "actor/path validation"
+    ],
+    "candidate_remove": [
+      "Rust core",
+      "Rust wrapper",
+      "Cargo build/install step",
+      "dual-runtime parity invariant and parity-only verification after replacement acceptance"
+    ],
+    "candidate_replacement": "One Python Busy core remains the single coordinator implementation; retain the same store/schema/safety behavior. Do not add another fallback service.",
+    "required_before_mutation": [
+      "#820 acceptance prerequisite clears",
+      "verify no current production consumer depends on busy-rust entrypoint",
+      "explicitly resolve #400 recent redundancy decision",
+      "positive safety replay covering claim/heartbeat/release/recover/sweep and Windows store contention with Python-only install"
+    ],
+    "mutation_now": "none"
+  },
+  "caveats": [
+    "Current structured MCP timeline does not retain launched command strings, so it cannot prove zero recent rust invocations.",
+    "No running/scheduled rust consumer and no bounded fallback/recovery documentation were observed; absence is not universal proof.",
+    "The local Vault checkout HEAD is behind origin/main; serving install matches origin/main modulo CRLF, so measurements use origin/main for source counts."
+  ]
+}

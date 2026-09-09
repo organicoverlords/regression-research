@@ -1,0 +1,58 @@
+diff --git a/scripts/v2/verification/p3_visual_evidence_index.py b/scripts/v2/verification/p3_visual_evidence_index.py
+index 5f2472223..d6c4ebff1 100644
+--- a/scripts/v2/verification/p3_visual_evidence_index.py
++++ b/scripts/v2/verification/p3_visual_evidence_index.py
+@@ -336,11 +336,21 @@ def write_index(index: dict[str, Any], output: str | Path) -> Path:
+ 
+ def query_index(index: dict[str, Any], query: str, limit: int = DEFAULT_LIMIT) -> dict[str, Any]:
+     terms = [term.casefold() for term in re.findall(r"[A-Za-z0-9_]+", query) if term]
++    latest_requested = "latest" in terms
++    search_terms = [term for term in terms if term != "latest"] if latest_requested else terms
+     if not terms:
+         matches = []
++    elif search_terms:
++        matches = [
++            entry
++            for entry in index.get("entries", [])
++            if all(term in entry.get("search_text", "") for term in search_terms)
++        ]
+     else:
+-        matches = [entry for entry in index.get("entries", []) if all(term in entry.get("search_text", "") for term in terms)]
+-    matches = sorted(matches, key=lambda item: (item.get("date", ""), item.get("run_id", "")), reverse=True)[:limit]
++        matches = list(index.get("entries", []))
++    matches = sorted(matches, key=lambda item: (item.get("date", ""), item.get("run_id", "")), reverse=True)
++    effective_limit = 1 if latest_requested else limit
++    matches = matches[:effective_limit]
+     return {
+         "schema": "p3.visual-evidence-index-query.v1",
+         "catalogue_id": index.get("catalogue_id"),
+diff --git a/scripts/v2/verification/tests/test_p3_visual_evidence_index.py b/scripts/v2/verification/tests/test_p3_visual_evidence_index.py
+index d2b378923..1d6464d7a 100644
+--- a/scripts/v2/verification/tests/test_p3_visual_evidence_index.py
++++ b/scripts/v2/verification/tests/test_p3_visual_evidence_index.py
+@@ -84,6 +84,25 @@ class P3VisualEvidenceIndexTests(unittest.TestCase):
+             self.assertIn("meteor", result["entries"][0]["run_id"])
+             self.assertEqual(query_index(index, "not-present")["entries"], [])
+ 
++    def test_latest_is_a_recency_modifier_not_a_literal_search_token(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            root = Path(tmp)
++            older = root / "2026-09-01" / "issue414-battlefield-latest"
++            older.mkdir(parents=True)
++            (older / "old.png").write_bytes(b"OLD")
++            (older / "capture.manifest.json").write_text(json.dumps({"schema": "p3.visual-evidence.v1"}), encoding="utf-8")
++            newer = root / "2026-09-09" / "maple-2772-fennec-livecamera-current"
++            newer.mkdir(parents=True)
++            (newer / "new.png").write_bytes(b"NEW")
++            (newer / "capture.manifest.json").write_text(json.dumps({
++                "schema": "p3.visual-evidence.v1",
++                "claim": "Fennec third-person current baseline",
++            }), encoding="utf-8")
++            index = build_index(root)
++            self.assertEqual(query_index(index, "latest")["entries"][0]["run_id"], newer.name)
++            self.assertEqual(query_index(index, "latest fennec")["entries"][0]["run_id"], newer.name)
++            self.assertEqual(query_index(index, "latest")["count"], 1)
++
+     def test_explicit_root_annotations_make_legacy_semantics_searchable(self):
+         with tempfile.TemporaryDirectory() as tmp:
+             root = Path(tmp)

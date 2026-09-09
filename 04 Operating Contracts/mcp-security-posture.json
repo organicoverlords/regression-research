@@ -1,0 +1,79 @@
+{
+  "schema": "mcp-security-posture.v1",
+  "assessed_at": "2026-09-09T11:50:39.7892169+03:00",
+  "authority": "2026-09-09 live MCP runtime/security reconciliation against merged issues #168 and #173 plus active issue #196",
+  "status": "NOT_SECURITY_CLEARED",
+  "security_cleared": false,
+  "operational_use": "USABLE_WITH_SECURITY_BLOCKERS",
+  "highest_severity": "HIGH",
+  "summary": "MCP is operationally usable and the OAuth sandbox-write boundary from issue #168 remains remediated, but MCP is not security-cleared because authenticated process execution still has host-user shell blast radius.",
+  "blocking_findings": [
+    {
+      "id": "shell_execution_blast_radius",
+      "severity": "HIGH",
+      "status": "ARCHITECTURAL",
+      "detail": "Authenticated start_process executes arbitrary PowerShell 7 as the normal Lauri user with inherited environment; command preflight is policy control, not an adversarial sandbox."
+    }
+  ],
+  "hardening_findings": [
+    {
+      "id": "explicit_origin_validation",
+      "severity": "MEDIUM",
+      "status": "OPEN",
+      "detail": "Streamable HTTP enables Host/DNS-rebinding protection but does not configure allowedOrigins; invalid Origin was not explicitly rejected with 403."
+    },
+    {
+      "id": "sdk_patch_level",
+      "severity": "MEDIUM",
+      "status": "OPEN",
+      "detail": "Deployed @modelcontextprotocol/sdk is 1.24.3. The current per-request server/transport construction matches the documented workaround for the affected cross-client response-leak advisory, but the dependency should still be upgraded."
+    },
+    {
+      "id": "home_test_8443_surface",
+      "severity": "MEDIUM",
+      "status": "FOREIGN_LIVE_LANE",
+      "detail": "A separate mcp-home-test Caddy listens on all interfaces:8443 with an Any-remote firewall rule and proxies to active backend 3022. Old public-IP reachability failed, but LAN/WireGuard/Tailscale-interface reachability was confirmed. Do not terminate while foreign work remains."
+    },
+    {
+      "id": "public_health_metadata",
+      "severity": "LOW",
+      "status": "OPEN",
+      "detail": "Public /health exposes backend generation, PID, request counts, and live process count."
+    }
+  ],
+  "confirmed_controls": [
+    "Production backend 3011 binds loopback; WireGuard portproxy ingress is restricted by firewall to peer 10.203.0.1.",
+    "Public /mcp requires bearer authentication and public origin is HTTPS.",
+    "Host is allowlisted and OAuth redirect URIs are constrained.",
+    "Public Caddy strips caller-supplied Tailscale-User-Login and Tailscale-Funnel-Request; a forged owner-header probe through public ingress returned 403.",
+    "Access tokens expire after one hour and per-caller process concurrency is capped.",
+    "Production task runs as Lauri at normal integrity rather than elevated administrator integrity.",
+    "Active clone-a OAuth state is protected from CodexSandboxUsers: the directory and oauth.json currently expose only Lauri, SYSTEM, and Administrators; launcher hardening reapplies this boundary.",
+    "Public OAuth refresh tokens rotate with bounded retry grace and replay/family revocation handling (issue #173 / PR #178)."
+  ],
+  "remediation_order": [
+    "Reduce shell blast radius with a dedicated lower-privilege service identity/workspace/egress policy where practical.",
+    "Add explicit Origin allowlisting/rejection for Streamable HTTP.",
+    "Upgrade @modelcontextprotocol/sdk to a patched maintained release and rerun conformance/security tests.",
+    "Narrow or retire the 8443 home-test lane only after its foreign work is safely migrated or drained."
+  ],
+  "related_issues": {
+    "primary": "https://github.com/organicoverlords/chatgpt-mcp-clean/issues/196",
+    "bootstrap_projection": "https://github.com/organicoverlords/regression-research/issues/810",
+    "oauth_acl_remediation": "https://github.com/organicoverlords/chatgpt-mcp-clean/issues/168",
+    "refresh_rotation_remediation": "https://github.com/organicoverlords/chatgpt-mcp-clean/issues/173"
+  },
+  "evidence": {
+    "audit_report": "C:\\Users\\Lauri\\Desktop\\vault\\worker-reports\\manual\\archive\\2026-09-09\\manual-20260909-s2-mcp-security-audit.md",
+    "audited_backend_generation": "backend-3011-14360-1788899551179",
+    "sdk_version": "1.24.3",
+    "oauth_store_acl_observation": "Current clone-a directory/oauth.json ACL has Lauri/SYSTEM/Administrators only; zero CodexSandboxUsers ACEs observed on 2026-09-09.",
+    "isolated_oauth_store_proof": "chosen access-token record accepted by verifyAccessToken in isolated temporary store",
+    "public_owner_header_spoof_probe": "403 Owner authorization required",
+    "secrets_recorded": false,
+    "oauth_sandbox_write_boundary": "REMEDIATED via PR #170 / issue #168; current ACL reverified live on 2026-09-09",
+    "remediation_issue": "https://github.com/organicoverlords/chatgpt-mcp-clean/issues/168",
+    "live_backend_generation": "backend-3011-41396-1788942875490",
+    "refresh_token_rotation": "REMEDIATED via issue #173 / PR #178; current source includes bounded retry grace and replay detection"
+  }
+}

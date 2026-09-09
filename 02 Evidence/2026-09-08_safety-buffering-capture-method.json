@@ -1,0 +1,136 @@
+{
+  "schema": "safety-buffering-capture-method.v1",
+  "generated_at": "2026-09-08T01:18:12.169552+03:00",
+  "probe": "tools/safety_buffering_probe.py",
+  "read_only": true,
+  "inputs": {
+    "mcp_transport": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\clone-a\\transport.jsonl",
+    "process_receipts": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\shared-process-receipts",
+    "codex_logs_db": "%USERPROFILE%\\.codex\\logs_2.sqlite"
+  },
+  "layers": [
+    {
+      "name": "MCP/tool plane",
+      "observes": [
+        "caller/session events",
+        "last request/event",
+        "process_started/process_exit/process_killed",
+        "live connector child count",
+        "process receipt command/cwd/times"
+      ]
+    },
+    {
+      "name": "Codex Responses trace",
+      "observes": [
+        "run_sampling_request",
+        "try_run_sampling_request",
+        "receiving_stream",
+        "handle_responses",
+        "otel.name response-event context",
+        "idle timeout log rows",
+        "safety_buffering log rows when materialized"
+      ]
+    },
+    {
+      "name": "UI/app-server evidence",
+      "observes": [
+        "requires independent screenshot or direct model/safetyBuffering/updated capture; not inferred from MCP"
+      ]
+    }
+  ],
+  "classification_contract": {
+    "tool_active": "fresh MCP traffic and/or live connector child",
+    "tool_plane_silent": "no fresh MCP traffic and zero live connector children; backend/model state remains unknown",
+    "remote_responses_wait_evidence": "matching thread trace contains run_sampling_request/try_run_sampling_request/receiving_stream/handle_responses context",
+    "stronger_transport_stall_evidence": "matching turn/thread emits `idle timeout waiting for SSE` or websocket idle-timeout/error; still inspect retry/recovery before causal claim",
+    "safety_buffering": "must be established from visible UI or app-server/Responses safety-buffering evidence",
+    "model_reroute": "must be established separately from model/rerouted evidence"
+  },
+  "auto_mapping": {
+    "method": "Use latest target process receipt start time plus distinctive command tokens to search retained Codex feedback logs for a unique thread_id candidate.",
+    "owl_latest_test": "no_match",
+    "reason": "No retained local Codex rows matched the Owl receipt terms in its +/-20 second window.",
+    "warning": "A no-match is not evidence that the MCP caller lacked a model turn; the MCP caller may belong to a different client/runtime or the relevant logs may be absent/pruned."
+  },
+  "retention": {
+    "age_days": 10,
+    "partition_size_bytes": 10485760,
+    "partition_row_limit": 1000
+  },
+  "owl_historical_limit": {
+    "window_utc": "2026-09-07T19:08:00Z..2026-09-07T19:19:00Z",
+    "logs_rows": 0,
+    "backend_reconstruction_possible": false
+  },
+  "observed_at": "2026-09-08T02:19:33.256040+03:00",
+  "banner_lifecycle_rule": {
+    "rule": "Banner visibility is not a stall clock.",
+    "source_basis": "Exact v0.153.1 test keeps banner visible after assistant text output and clears it only on turn completion.",
+    "capture_requirement": "Record UI banner state, MCP activity, live-child state, assistant-output onset, Responses events, and turn completion as separate timestamps."
+  },
+  "ui_visibility_caveat": {
+    "presence": "proves the generic banner was rendered at that instant; does not prove stall or specific reason/useCase",
+    "absence": "does not prove no underlying safetyBuffering payload because per-turn/permanent dismissal can hide it",
+    "recommended_capture": "record whether banner-dismiss controls/preferences were used when relying on visual negative evidence"
+  },
+  "watcher": {
+    "path": "tools/safety_buffering_watch.py",
+    "schema": "safety-buffering-watch.v1",
+    "mode": "read-only",
+    "default_start": "current transport EOF and, if thread-id supplied, current max thread log id",
+    "captures": [
+      "matching MCP transport events",
+      "optional exact-thread logs_2.sqlite rows",
+      "operator/UI markers",
+      "periodic tool-plane heartbeats"
+    ],
+    "operator_markers": [
+      "banner_on",
+      "banner_off",
+      "stop",
+      "go",
+      "arbitrary label/note"
+    ],
+    "safety_properties": [
+      "does not mutate target worker",
+      "does not infer backend stall",
+      "does not consume incomplete final transport line",
+      "records transport truncation/rotation"
+    ],
+    "tests": {
+      "file": "tests/test_safety_buffering_watch.py",
+      "result": "5 passed in 0.10s"
+    }
+  },
+  "probe_v2": {
+    "path": "tools/safety_buffering_probe.py",
+    "schema": "safety-buffering-probe.v2",
+    "new_fields": [
+      "last_process_event",
+      "seconds_since_last_request_start",
+      "seconds_since_last_process_event",
+      "codex_log_window_coverage",
+      "tool_plane_observable"
+    ],
+    "observable_states": [
+      "fresh_mcp_with_live_connector_child",
+      "live_connector_child_without_fresh_mcp",
+      "recent_mcp_event_no_live_connector_child",
+      "tool_plane_quiet_no_live_connector_child"
+    ],
+    "backend_model_state": "always unknown absent independent Responses evidence"
+  },
+  "identity_semantics": {
+    "caller_id": "stable pseudonymous connector identity; not model-worker identity",
+    "session_id": "session-header fingerprint; not app-turn identity",
+    "same_caller_session": "classify as same connector fingerprint only unless direct thread/turn/Responses/process evidence supplies stronger continuity",
+    "evidence_order": [
+      "exact process_id/PID",
+      "app-server thread/turn ID",
+      "Responses request/response ID",
+      "MCP session/caller fingerprint",
+      "connection ID"
+    ],
+    "evidence": "02 Evidence/2026-09-08_mcp-caller-session-identity-semantics.json"
+  }
+}

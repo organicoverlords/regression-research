@@ -1,5 +1,7 @@
+import io
 import json
 import os
+from contextlib import redirect_stdout
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -25,6 +27,7 @@ from tools.stack_atlas import (
     atlas_lookup,
     find_features,
     full_inventory,
+    main as stack_atlas_main,
     production_change_gate,
     render_manual,
     _bootstrap_pc_status,
@@ -39,6 +42,8 @@ from tools.stack_atlas import (
     _remote_is_newer,
     _git_blob_sha_for_file,
     _git_remote_update_already_applied,
+    _git_checkout_state,
+    _bootstrap_source_freshness,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
@@ -433,6 +438,22 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("lookup tiny3d_library", glance["commands"]["tiny3d_asset_library"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
 
+    def test_bootstrap_cli_emits_the_budgeted_compact_utf8_representation(self):
+        glance = _fit_bootstrap_glance_budget({
+            "bootstrap": {"status": "OK"},
+            "non_ascii_probe": "ä" * 4000,
+        })
+        output = io.StringIO()
+        with (
+            patch("sys.argv", ["stack_atlas.py", "bootstrap-glance"]),
+            patch("tools.stack_atlas.build_live_bootstrap_glance", return_value=glance),
+            redirect_stdout(output),
+        ):
+            self.assertEqual(stack_atlas_main(), 0)
+        raw = output.getvalue().encode("utf-8")
+        self.assertLessEqual(len(raw), BOOTSTRAP_GLANCE_MAX_BYTES + 1)
+        self.assertLess(len(raw), 12000)
+        self.assertEqual(json.loads(raw), glance)
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
         glance = {
             "bootstrap": {"status": "OK"},
@@ -667,6 +688,12 @@ class StackAtlasTests(unittest.TestCase):
                     "S2": {"recurring_worker_slots": 5, "operator_control": "PRIMARY"},
                 },
                 "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; no cross-partition sibling administration.",
+                "routine_recurring_recovery": {
+                    "authority": "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+                    "scheduler_role": "RECURRENCE_ONLY",
+                    "operator_handoff_role": "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+                    "user_role": "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
+                },
                 "manual_workers": {
                     "population": "SEPARATE_ON_DEMAND",
                     "counts_against_recurring_slots": False,
@@ -684,6 +711,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(topology["recurring_worker_partitions"], {"S1": 5, "S2": 5})
         self.assertEqual(topology["recurring_workers_total"], 10)
         self.assertEqual(topology["operator_handoff"]["primary_operator_subscription"], "S2")
+        self.assertEqual(topology["routine_recurring_recovery"]["scheduler_role"], "RECURRENCE_ONLY")
+        self.assertEqual(topology["routine_recurring_recovery"]["authority"], "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT")
+        self.assertIn("NOT_ROUTINE_SUPERVISION", topology["routine_recurring_recovery"]["operator_handoff_role"])
+        self.assertIn("NOT_ROUTINE_WORKER_SUPERVISION", topology["routine_recurring_recovery"]["user_role"])
         self.assertFalse(topology["manual_workers"]["counts_against_recurring_slots"])
         self.assertIn("10 recurring workers plus", topology["manual_workers"]["total_swarm_semantics"])
 
@@ -1633,6 +1664,101 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
 
+    def test_git_checkout_state_detects_current_dirty_and_stale_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess = __import__("subprocess")
+            subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+            path = repo / "AGENTS.md"
+            path.write_text("base\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "AGENTS.md"], check=True)
+            subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "base"], check=True)
+            base = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+
+            current = _git_checkout_state(repo, base)
+            self.assertTrue(current["coherent"])
+            self.assertTrue(current["head_matches_remote_main"])
+            self.assertFalse(current["dirty"])
+            self.assertEqual(current["branch"], "main")
+
+            path.write_text("dirty\n", encoding="utf-8")
+            dirty = _git_checkout_state(repo, base)
+            self.assertFalse(dirty["coherent"])
+            self.assertTrue(dirty["head_matches_remote_main"])
+            self.assertTrue(dirty["dirty"])
+
+            subprocess.run(["git", "-C", str(repo), "restore", "AGENTS.md"], check=True)
+            path.write_text("remote\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "commit", "-qam", "remote"], check=True)
+            remote = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+            subprocess.run(["git", "-C", str(repo), "reset", "--hard", "-q", base], check=True)
+            stale = _git_checkout_state(repo, remote)
+            self.assertFalse(stale["coherent"])
+            self.assertFalse(stale["head_matches_remote_main"])
+            self.assertFalse(stale["dirty"])
+            self.assertEqual(stale["local_head"], base)
+            self.assertEqual(stale["remote_main"], remote)
+
+    def test_source_freshness_marks_hybrid_agents_checkout_pending_even_when_policy_blobs_match(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            agents = root / "agents"
+            vault = root / "vault"
+            subprocess = __import__("subprocess")
+            for repo in (agents, vault):
+                subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+                subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+                subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+
+            for name in ("AGENTS.md", "RULES.md"):
+                (agents / name).write_text(f"base-{name}\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(agents), "add", "AGENTS.md", "RULES.md"], check=True)
+            subprocess.run(["git", "-C", str(agents), "commit", "-q", "-m", "base"], check=True)
+            base = subprocess.check_output(["git", "-C", str(agents), "rev-parse", "HEAD"], text=True).strip()
+            for name in ("AGENTS.md", "RULES.md"):
+                (agents / name).write_text(f"remote-{name}\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(agents), "commit", "-qam", "remote policy"], check=True)
+            remote = subprocess.check_output(["git", "-C", str(agents), "rev-parse", "HEAD"], text=True).strip()
+            agents_blob = subprocess.check_output(["git", "-C", str(agents), "rev-parse", f"{remote}:AGENTS.md"], text=True).strip()
+            rules_blob = subprocess.check_output(["git", "-C", str(agents), "rev-parse", f"{remote}:RULES.md"], text=True).strip()
+            subprocess.run(["git", "-C", str(agents), "reset", "--hard", "-q", base], check=True)
+            (agents / "AGENTS.md").write_text("remote-AGENTS.md\n", encoding="utf-8")
+            (agents / "RULES.md").write_text("remote-RULES.md\n", encoding="utf-8")
+
+            contract = vault / "04 Operating Contracts" / "fresh-worker-generation-launch.md"
+            contract.parent.mkdir(parents=True)
+            contract.write_text("worker contract\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(vault), "add", str(contract.relative_to(vault))], check=True)
+            subprocess.run(["git", "-C", str(vault), "commit", "-q", "-m", "worker contract"], check=True)
+            worker_blob = subprocess.check_output(
+                ["git", "-C", str(vault), "rev-parse", "HEAD:04 Operating Contracts/fresh-worker-generation-launch.md"],
+                text=True,
+            ).strip()
+
+            remote_metadata = {
+                "canonical_agents_checkout": {"remote_main": remote},
+                "AGENTS.md": {"remote_blob": agents_blob, "last_updated_at": "2026-09-09T00:00:00Z", "last_update_commit": remote},
+                "RULES.md": {"remote_blob": rules_blob, "last_updated_at": "2026-09-09T00:00:00Z", "last_update_commit": remote},
+                "worker_report_contract": {"remote_blob": worker_blob, "last_updated_at": "2026-09-09T00:00:00Z", "last_update_commit": None},
+            }
+            with patch("tools.stack_atlas.AGENT_RULES_ROOT", str(agents)), \
+                 patch("tools.stack_atlas.ROOT", vault), \
+                 patch("tools.stack_atlas._bootstrap_cache_read_any", return_value=(remote_metadata, 0.1)), \
+                 patch("tools.stack_atlas._bootstrap_cache_refresh_view", return_value=(remote_metadata, False)):
+                result = _bootstrap_source_freshness()
+
+            self.assertTrue(result["available"])
+            self.assertTrue(result["attention_required"])
+            self.assertTrue(result["updates_pending"])
+            self.assertFalse(result["canonical_checkout"]["coherent"])
+            self.assertFalse(result["canonical_checkout"]["head_matches_remote_main"])
+            self.assertTrue(result["canonical_checkout"]["dirty"])
+            self.assertEqual(result["canonical_checkout"]["local_head"], base)
+            self.assertEqual(result["canonical_checkout"]["remote_main"], remote)
+            self.assertFalse(result["sources"]["AGENTS.md"]["updates_pending"])
+            self.assertFalse(result["sources"]["RULES.md"]["updates_pending"])
     def test_source_freshness_pending_means_remote_is_newer(self):
         self.assertTrue(_remote_is_newer("2026-09-06T18:16:33Z", "2026-09-05T09:50:28+03:00"))
         self.assertFalse(_remote_is_newer("2026-09-05T12:36:29Z", "2026-09-06T09:50:28+03:00"))
@@ -1715,16 +1841,26 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("never retained after release/recovery/expiry", checkpoint["boundary"])
         self.assertIn("never backlog", checkpoint["boundary"])
 
+        mcpv4 = find_features("mcpv4")[0]
+        self.assertEqual(mcpv4["id"], "execution.transport")
+
         commander = find_features("commander fallback")[0]
         self.assertEqual(commander["id"], "execution.transport")
         commander_routes = " ".join(commander["entrypoints"])
+        self.assertIn("preferred MCPv4 binding", commander_routes)
+        self.assertIn("bounded refresh/re-discovery", commander_routes)
+        self.assertIn("fall back in order to MCPv3", commander_routes)
         self.assertIn("Remote Desktop Commander", commander_routes)
+        self.assertIn("direct GitHub connector", commander_routes)
+        self.assertLess(commander_routes.index("preferred MCPv4 binding"), commander_routes.index("MCPv3"))
+        self.assertLess(commander_routes.index("MCPv3"), commander_routes.index("Remote Desktop Commander"))
+        self.assertLess(commander_routes.index("Remote Desktop Commander"), commander_routes.index("direct GitHub connector"))
         self.assertIn("approved standby break-glass fallback", commander_routes)
         self.assertIn("fallback-only/not primary, not forbidden", commander_routes)
         self.assertNotIn("retired Remote Desktop Commander", commander_routes)
         self.assertIn("changed state or new evidence", commander_routes)
         self.assertIn("does not retire, obsolete, or authorize deletion", commander["boundary"])
-        self.assertIn("preserve its recovery path", commander["boundary"])
+        self.assertIn("preserve their recovery paths", commander["boundary"])
 
         reports = find_features("worker reports")[0]
         self.assertEqual(reports["id"], "worker.reports")
@@ -1923,6 +2059,25 @@ class StackAtlasTests(unittest.TestCase):
         }
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
         self.assertNotIn("operator_live", ids)
+
+    def test_recurring_worker_recovery_is_peer_supervised_and_scheduler_is_recurrence_only(self):
+        topology = component_details("swarm_topology")
+        workers = component_details("execution_workers")
+        scheduler = component_details("chatgpt_automations")
+
+        self.assertIn("same-partition recurring workers", topology["supervisor"])
+        self.assertIn("peer", topology["self_heal"])
+        self.assertIn("BusyCoordinator is exact mutation collision control only", workers["supervisor"])
+        self.assertNotIn("BusyCoordinator ownership", workers["supervisor"])
+        self.assertIn("does not supervise worker health", scheduler["supervisor"])
+        self.assertEqual(scheduler["self_heal"], "not_swarm_supervision")
+        self.assertTrue(any("worker_recovery_guard.py" in route for route in topology["independent_recovery"]))
+        self.assertTrue(any("worker_recovery_guard" in route for route in scheduler["independent_recovery"]))
+
+        timed = find_features("timed runs", limit=5)
+        match = next(item for item in timed if item["id"] == "worker.swarm_topology")
+        self.assertIn("scheduler provides recurrence only", match["boundary"])
+        self.assertIn("user is not the worker supervisor", match["boundary"])
 
     def test_tiny3d_library_navigation_exposes_showroom_and_durable_visual_proof(self):
         for alias in ("tiny3d_library", "asset_catalogue", "showroom", "visual_proof_library"):

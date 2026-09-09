@@ -3,6 +3,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import subprocess
+import sys
 import re
 import secrets
 import statistics
@@ -24,6 +27,7 @@ MAX_FUTURE_ACTIVITY_SKEW_SECONDS = 60.0
 MANUAL_CURRENT_TERMINAL_GRACE_MINUTES = 10.0
 MANUAL_CURRENT_STALE_OPEN_HOURS = 6.0
 MANUAL_CURRENT_INVALID_GRACE_HOURS = 1.0
+MANUAL_DURATION_OUTLIER_MINUTES = 180.0
 NONTERMINAL_HISTORY_LIFECYCLE_STATUSES = frozenset({"ABANDONED_OPEN", "INVALID_CURRENT_SNAPSHOT"})
 START_RECEIPT_SCHEMA = "worker-run-start.v1"
 START_RECEIPT_DIRNAME = ".supervision"
@@ -108,6 +112,7 @@ def create_manual_run(
             f"started_at: {started_at}",
             f"last_activity_at: {started_at}",
             f"repo: {repo}",
+            f"execution_cwd: {Path.cwd()}",
         ]
         if display_label:
             lines.append(f"display_label: {str(display_label).strip()}")
@@ -280,6 +285,7 @@ def begin_timed_run(report: Path) -> dict[str, Any]:
         "automation_id": fields.get("automation_id"),
         "observed_started_at": now.isoformat(),
         "reported_started_at": fields.get("started_at"),
+        "execution_cwd": str(Path.cwd()),
         "initial_report_sha256": hashlib.sha256(raw).hexdigest(),
     }
     tmp = receipt_path.with_name(receipt_path.name + ".tmp")
@@ -606,7 +612,10 @@ def _manual_sanity_observation(records: list[dict[str, Any]]) -> dict[str, Any]:
     shapes = [_manual_report_shape(item) for item in records]
     report_bytes = [item["report_bytes"] for item in shapes if item["report_bytes"] is not None]
     transcript_fields = [item["transcript_field_count"] for item in shapes]
-    durations = [item["duration_minutes"] for item in shapes if item["duration_minutes"] is not None]
+    durations = [
+        item["duration_minutes"] for item in shapes
+        if item["duration_minutes"] is not None and item["duration_minutes"] < MANUAL_DURATION_OUTLIER_MINUTES
+    ]
     return {
         "run_count": len(records),
         "median_report_bytes": round(statistics.median(report_bytes), 2) if report_bytes else None,
@@ -642,7 +651,11 @@ def _manual_continuation_observation(records: list[dict[str, Any]]) -> dict[str,
             interrupted += 1
             continue
         completed.append(item)
-    durations = [float(item["duration_minutes"]) for item in completed if isinstance(item.get("duration_minutes"), (int, float))]
+    durations = [
+        float(item["duration_minutes"]) for item in completed
+        if isinstance(item.get("duration_minutes"), (int, float))
+        and float(item["duration_minutes"]) < MANUAL_DURATION_OUTLIER_MINUTES
+    ]
     return {
         "identified_run_count": len(selected),
         "eligible_run_count": len(completed),
@@ -676,7 +689,8 @@ def build_manual_sanity_projection(
         current_now = current_now.replace(tzinfo=timezone.utc)
     boundary = boundary.astimezone(current_now.tzinfo)
     window_hours = float(baseline.get("comparison_window_hours") or 6.0)
-    window_start = max(boundary, current_now - timedelta(hours=window_hours))
+    window_mode = str(baseline.get("comparison_window_mode") or "rolling").strip().casefold()
+    window_start = boundary if window_mode == "since_boundary" else max(boundary, current_now - timedelta(hours=window_hours))
     records = [
         item for item in load_history_metadata(history_root)
         if _metadata_population(item) == "manual" and _history_chronology_is_plausible(item) and _history_record_is_terminal(item)
@@ -811,6 +825,7 @@ def build_manual_sanity_projection(
         "baseline_path": str(baseline_path),
         "boundary_at": baseline.get("boundary_at"),
         "comparison_window_hours": window_hours,
+        "comparison_window_mode": window_mode,
         "comparison_window_start": window_start.isoformat(),
         "generated_at": current_now.isoformat(),
         "status": status,
@@ -844,7 +859,13 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
     if population == "manual":
         records = _dedupe_manual_run_records(records)
 
-    durations = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
+    duration_values = [float(item["duration_minutes"]) for item in records if isinstance(item.get("duration_minutes"), (int, float))]
+    if population == "manual":
+        duration_outlier_count = sum(value >= MANUAL_DURATION_OUTLIER_MINUTES for value in duration_values)
+        durations = [value for value in duration_values if value < MANUAL_DURATION_OUTLIER_MINUTES]
+    else:
+        duration_outlier_count = 0
+        durations = duration_values
     tag_counts: Counter[str] = Counter()
     for item in records:
         for tag in item.get("finding_tags") or []:
@@ -889,6 +910,11 @@ def build_metrics_projection(history_root: Path, *, hours: float = 24.0) -> dict
         "latest_reports": latest,
     }
     if population == "manual":
+        metrics["duration_filter"] = {
+            "exclude_at_or_above_minutes": MANUAL_DURATION_OUTLIER_MINUTES,
+            "excluded_count": duration_outlier_count,
+            "semantics": "Long-lived/stale manual report intervals are excluded from duration aggregates but the reports remain in outcome/finding counts.",
+        }
         metrics["sanity"] = build_manual_sanity_projection(history_root)
     if population == "timed":
         utilizations = [float(item["target_utilization_pct"]) for item in records if isinstance(item.get("target_utilization_pct"), (int, float))]
@@ -1278,6 +1304,52 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _archive_execution_cwd(report: Path) -> Path:
+    """Return machine-observed run CWD when available, else the archive call CWD."""
+    try:
+        fields = _fields(report.read_bytes())
+    except OSError:
+        return Path.cwd()
+    if _report_population(report=report) == "timed":
+        receipt = _timed_start_receipt_path(report)
+        try:
+            payload = json.loads(receipt.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        value = str(payload.get("execution_cwd") or "").strip()
+        if value:
+            return Path(value)
+    value = str(fields.get("execution_cwd") or "").strip()
+    return Path(value) if value else Path.cwd()
+
+
+def _schedule_own_worktree_reap(launch_cwd: Path) -> dict[str, Any]:
+    """Launch own-lane cleanup out-of-band; never make archive success depend on it."""
+    script = Path(__file__).resolve().with_name("worker_worktree_reaper.py")
+    if not script.is_file():
+        return {"scheduled": False, "reason": "reaper_missing"}
+    command = [sys.executable, str(script), "--path", str(launch_cwd), "--quiet"]
+    kwargs: dict[str, Any] = {
+        "cwd": str(Path(__file__).resolve().parents[1]),
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if os.name == "nt":
+        kwargs["creationflags"] = (
+            getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        )
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        child = subprocess.Popen(command, **kwargs)
+    except OSError as exc:
+        return {"scheduled": False, "reason": f"launch_error:{exc.__class__.__name__}"}
+    return {"scheduled": True, "path": str(launch_cwd), "pid": child.pid}
+
+
 def _default_history_root(report: Path) -> Path:
     parent = report.parent
     if parent.name.casefold() == "current":
@@ -1305,8 +1377,10 @@ def main() -> int:
         elif args.command == "sanity":
             result = build_manual_sanity_projection(args.history_root, baseline_path=args.baseline)
         else:
+            launch_cwd = _archive_execution_cwd(args.report)
             history_root = args.history_root or _default_history_root(args.report)
             result = archive_finalized_report(args.report, history_root)
+            result["own_worktree_reap"] = _schedule_own_worktree_reap(launch_cwd)
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}))
         return 1

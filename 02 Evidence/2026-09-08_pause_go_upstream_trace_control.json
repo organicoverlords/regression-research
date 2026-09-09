@@ -1,0 +1,42 @@
+{
+  "schema": "pause-go-upstream-trace-control.v1",
+  "generated_at": "2026-09-08T04:57:58.452183+03:00",
+  "case": "2026-09-06 pause/go same-child continuity control",
+  "caller_fingerprint": "caller_963063535760",
+  "process_id": "7c029a8c-5298-4710-8485-d748a3429ba4",
+  "pid": 41176,
+  "local": {
+    "pre_pause_response_finish": "2026-09-06T00:08:05.669Z",
+    "post_go_first_request_start": "2026-09-06T00:08:17.814Z",
+    "gap_seconds": 12.145,
+    "same_external_process_survived": true
+  },
+  "edge_requests": [
+    {
+      "request_id": "85f35d87-5b6a-4d87-92bf-32ac08f44805",
+      "role": "last read before pause",
+      "trace_id": "15663332817498453395",
+      "parent_id": "15696254906344091925",
+      "edge_ts": 1788653289.3285701
+    },
+    {
+      "request_id": "ccdf5738-db78-4c35-8702-fb470c3d0996",
+      "role": "first request after go",
+      "trace_id": "15663332817498453395",
+      "parent_id": "1110706718299218556",
+      "edge_ts": 1788653301.9912214
+    },
+    {
+      "request_id": "3e783a44-9ad4-4007-827b-acfa8e3bc697",
+      "role": "later read of surviving process",
+      "trace_id": "15663332817498453395",
+      "parent_id": "4819817004179761422",
+      "edge_ts": 1788653322.3863986
+    }
+  ],
+  "interpretation": {
+    "observed_fact": "The same upstream distributed trace ID spans an ordinary pause/go boundary while the exact same external MCP process survives and is read afterward.",
+    "correction": "Same trace ID across Stop/pause -> go is therefore not specific to safety buffering and must not be used as a reroute/buffering diagnostic.",
+    "remaining_value": "It still proves continuity of tracing lineage for those requests, while exact process_id/PID independently proves child-process continuity."
+  }
+}

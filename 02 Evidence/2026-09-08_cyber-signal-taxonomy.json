@@ -1,0 +1,52 @@
+{
+  "schema": "cyber-signal-taxonomy.v1",
+  "generated_at": "2026-09-08T02:13:59.181263+03:00",
+  "exact_release": {
+    "tag": "rust-v0.153.1",
+    "commit": "985641272869835d01d025ed2a218fbbce35fa9f"
+  },
+  "signals": {
+    "safety_buffering": {
+      "notification": "model/safetyBuffering/updated",
+      "origin": "server Responses stream safety_buffering payload",
+      "server_originated_fields": [
+        "use_cases",
+        "reasons",
+        "retry_model when present"
+      ],
+      "client_synthesized_fields": [
+        "show_buffering_ui=true when payload is object-valued"
+      ],
+      "causal_weight": "direct evidence server attached safety-buffering metadata; not evidence of execution stall"
+    },
+    "model_rerouted": {
+      "notification": "model/rerouted",
+      "origin": "client comparison of requested model vs server-reported model",
+      "reason": "HighRiskCyberActivity",
+      "reason_origin": "client-synthesized unconditionally on any model mismatch in maybe_warn_on_server_model_mismatch",
+      "source": "codex-rs/core/src/session/mod.rs:3681-3718",
+      "causal_weight": "proves model mismatch; reason is not a separately parsed server reason in this release"
+    },
+    "model_verification": {
+      "notification": "model/verification",
+      "origin": "response.metadata.openai_verification_recommendation",
+      "known_value": "trustedAccessForCyber",
+      "source": "codex-rs/codex-api/src/sse/responses.rs:229-237,300-329",
+      "causal_weight": "direct server recommendation for additional verification; separate from buffering/reroute"
+    },
+    "turn_moderation_metadata": {
+      "notification": "turn/moderationMetadata",
+      "origin": "response.metadata.openai_chatgpt_moderation_metadata",
+      "causal_weight": "moderation presentation metadata; separate channel"
+    },
+    "cyber_policy": {
+      "notification_or_error": "typed fatal CyberPolicy error",
+      "origin": "server error code cyber_policy",
+      "source": "codex-rs/codex-api/src/sse/responses.rs:425-427,715-731",
+      "causal_weight": "direct hard policy failure; not safety buffering"
+    }
+  },
+  "key_correction": "HighRiskCyberActivity on model/rerouted is synthesized by the client from requested/server model mismatch in this release; safety-buffering use_cases/reasons are parsed from server Responses metadata.",
+  "owl_implication": "Historical Owl screenshots establish visible safety-buffering UI, not model/rerouted, verification, hard cyber_policy, or a specific safety-buffering reason unless an independent captured payload shows it.",
+  "screenshot_limit": "Generic safety-buffering banner does not expose use_cases/reasons; Owl screenshots alone cannot prove cyber/user_risk."
+}

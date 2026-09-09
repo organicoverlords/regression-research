@@ -5,6 +5,7 @@ import ctypes
 import hashlib
 import json
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -42,7 +43,11 @@ P3_VISUAL_EVIDENCE_INDEX = P3_VISUAL_EVIDENCE_ROOT + r"\index-v1.json"
 P3_VISUAL_EVIDENCE_QUERY = r"$i=Get-Content 'G:\Oma Drive\P3 Visual Evidence\p3\index-v1.json' -Raw | ConvertFrom-Json; $i.entries | Where-Object { $_.search_text -match '<query>' } | Select-Object -First 10"
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
+MCP_SECURITY_POSTURE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-security-posture.json"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
+SWARM_ROUTING_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "swarm-routing-cohort.md")
+EXECUTION_NODE_TOPOLOGY_SCHEMA = "swarm.execution-node-topology.v1"
+EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH = Path("04 Operating Contracts") / "execution-node-topology.json"
 BOOTSTRAP_MCP_CACHE_SECONDS = 5.0
 BOOTSTRAP_MCP_HEALTH_URL = "http://127.0.0.1:3011/health"
 BOOTSTRAP_MCP_HEALTH_TIMEOUT_SECONDS = 0.75
@@ -56,8 +61,14 @@ BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
-BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 3_800
-BOOTSTRAP_GLANCE_MAX_BYTES = 11_700  # keep headroom below the external <12 KB bootstrap contract
+BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
+BOOTSTRAP_GLANCE_MAX_BYTES = 15_000
+BOOTSTRAP_INTEGRITY_WARNING = (
+    "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
+    "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
+    "or incompleteness. If the end marker is missing, or any truncation/incompleteness is reported, "
+    "immediately tell the user after reading this bootstrap before relying on it as complete context."
+)
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
 BOOTSTRAP_MANUAL_RUNNING_DETAIL_LIMIT = 4
@@ -263,9 +274,9 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "runbook": [MCP_ROOT + r"\keepalive.ps1"],
     },
     "linux_omen_node": {
-        "role": "lan_ssh_execution_node",
+        "role": "primary_lan_execution_node",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate", "artifact_transfer", "build_compute"],
-        "canonical_sources": [LINUX_OMEN_CONTRACT],
+        "canonical_sources": [LINUX_OMEN_CONTRACT, SWARM_ROUTING_CONTRACT],
         "live_status": [
             "bounded SSH probe through the documented Windows MCP -> LAN SSH route",
             "mDNS aatuska-OMEN-by-HP-Laptop-15-dc0xxx.local must resolve to the intended host and host-key verification must pass",
@@ -273,7 +284,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "sudo -n /usr/local/sbin/omen-agent-admin verify-storage validates /mnt/ue and /boot/efi without exposing a general root shell",
         ],
         "supervisor": "user-owned Linux Mint laptop; sshd on laptop; Windows MCP is transport only",
-        "self_heal": "none; do not add a scheduler/daemon/control plane merely because the node exists",
+        "self_heal": "machine admission is owned by the shared swarm routing cohort; repository lanes supervise their own execution; do not add a second scheduler/control plane on OMEN",
         "independent_recovery": [
             "local laptop console remains independent of SSH",
             "existing Windows MCP/VPS/WireGuard serving topology is independent and must not be changed to recover this preferred execution node",
@@ -289,7 +300,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             "/usr/local/sbin/omen-agent-admin fixed-action storage helper (status, verify-storage, mount-ue, restart-ready)",
         ],
         "dependents": ["chatgpt_session", "execution_workers"],
-        "runbook": [LINUX_OMEN_CONTRACT],
+        "runbook": [LINUX_OMEN_CONTRACT, SWARM_ROUTING_CONTRACT, r"python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status --refresh-probe"],
     },
     "file_transfer": {
         "role": "artifact_transfer_bridge",
@@ -403,12 +414,12 @@ COMPONENTS.update({
         "runbook": ["organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md"],
     },
     "chatgpt_memory": {
-        "role": "context:chatgpt-continuity", "capabilities": ["memory_read"],
-        "canonical_sources": ["current conversation", "ChatGPT Memory"],
-        "live_status": ["current conversation and delivered ChatGPT Memory"], "supervisor": "ChatGPT",
-        "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history when useful"],
-        "resources": ["ChatGPT Memory"], "dependents": ["chatgpt_session"],
-        "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
+        "role": "context:disabled-product-memory", "capabilities": ["memory_read"],
+        "canonical_sources": ["ChatGPT Memory disabled by current account configuration"],
+        "live_status": ["disabled; not a continuity source and never current-state authority"], "supervisor": "ChatGPT",
+        "self_heal": "product_managed", "independent_recovery": ["current conversation; targeted Vault history"],
+        "resources": [], "dependents": [],
+        "runbook": [],
     },
     "memory_bank": {
         "role": "context:bounded-history", "capabilities": ["memory_read", "memory_write"],
@@ -431,31 +442,43 @@ COMPONENTS.update({
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
         "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
-        "supervisor": "user-designated ChatGPT subscription operator; current primary operator is read from chatgpt-swarm-topology.json",
-        "self_heal": "not_applicable",
-        "independent_recovery": ["read the topology contract, canonical shared rules, local worker reports/start receipts, and the controlling subscription's scheduler state only when an authorized exact scheduler mutation is required"],
+        "supervisor": "distributed same-partition recurring workers; supervising/manual ChatGPT session may perform the same guarded recovery; operator handoff is administrative fallback only",
+        "self_heal": "bounded_same_partition_peer_recovery",
+        "independent_recovery": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
+            "perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions",
+        ],
         "resources": ["S1 five recurring slots", "S2 five recurring slots", "manual/on-demand worker population"],
         "dependents": ["chatgpt_session", "execution_workers", "scheduler"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
     },
     "chatgpt_session": {
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": ["current conversation", "ChatGPT Memory", "agent_rules", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
-        "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation/ChatGPT Memory; Atlas on stack work; Vault history optional"],
-        "resources": ["current task context"], "dependents": ["user"], "runbook": ["04 Operating Contracts/chatgpt-personal-instructions-bootstrap.txt"],
+        "canonical_sources": ["current conversation", "targeted Vault history", "agent_rules", "Atlas", "current authorities"], "live_status": ["current task + relevant live-source refresh"],
+        "supervisor": "current ChatGPT session", "self_heal": "session_specific", "independent_recovery": ["current conversation; targeted Vault history; Atlas on stack work"],
+        "resources": ["current task context"], "dependents": ["user"], "runbook": [AGENT_RULES_ROOT + r"\RULES.md"],
     },
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
-        "supervisor": "ChatGPT + BusyCoordinator ownership", "self_heal": "worker_specific",
-        "independent_recovery": ["preserve task/checkpoint; use another proven execution route"],
+        "supervisor": "distributed peer supervision for recurring workers; supervising/manual ChatGPT session may assist; BusyCoordinator is exact mutation collision control only", "self_heal": "same_partition_sibling_recovery_for_recurring_workers",
+        "independent_recovery": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
+            "preserve task/checkpoint and use another proven execution route for execution-path failures",
+        ],
         "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
         "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "chatgpt_automations": {
         "role": "scheduler:recurrence", "capabilities": ["schedule"], "canonical_sources": ["ChatGPT Automations state"],
-        "live_status": ["current automation list/run state"], "supervisor": "ChatGPT scheduler", "self_heal": "service_specific",
-        "independent_recovery": ["present-turn work continues without scheduler"], "resources": ["timed recurrence only"],
+        "live_status": ["current automation enabled/schedule state only; not worker liveness, supervision, or recovery authority"],
+        "supervisor": "platform recurrence service only; it does not supervise worker health or own swarm recovery", "self_heal": "not_swarm_supervision",
+        "independent_recovery": [
+            "same-partition recurring siblings or a supervising/manual ChatGPT session use fleet-watch plus worker_recovery_guard and may issue one targeted is_enabled=true write; scheduler listing is not the discovery path",
+            "present-turn work continues without recurrence",
+        ], "resources": ["timed recurrence and enabled state only"],
         "dependents": ["execution_workers"], "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
     },
     "github_actions": {
@@ -646,27 +669,29 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
-        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "User-declared swarm membership and operator-handoff topology: two ChatGPT subscription scheduler partitions with five recurring workers each, plus a separate manual/on-demand population. Current activity/liveness remains live MCP/runtime evidence, and scheduler administration never crosses subscription partitions.",
+        "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
+        "boundary": "Two ChatGPT subscription partitions contain five recurring workers each. The scheduler provides recurrence only. Routine health recovery is distributed: each recurring worker checks same-partition siblings from local reports/start receipts and may perform one guard-authorized idempotent re-enable; a supervising/manual ChatGPT session may perform the same bounded recovery. Operator handoff is an administrative fallback/control surface, not routine supervision, and the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence; recovery never crosses subscription partitions.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
         "triggers": ["linux omen", "omen laptop", "linux laptop", "linux execution node", "remote linux", "ssh linux", "ue linux", "linux build node"],
         "entrypoints": [
             "python tools\\stack_atlas.py lookup linux_omen_node",
+            r"python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable-task-id> --kind <work-kind>",
             LINUX_OMEN_CONTRACT,
+            SWARM_ROUTING_CONTRACT,
         ],
-        "boundary": "Preferred LAN compute/build node for portable compute-intensive work behind the existing Windows MCP transport when its live SSH/resource probe passes and the owning repo has a compatible Linux/offload path. LowVRAM, Windows-only workflows, editor/UI-bound work, and MCP/control transport remain on Windows. It is not an MCP endpoint, scheduler, queue, product authority, or shared-production route; preserve user data and do not expose TCP 22 publicly.",
+        "boundary": "Default execution node under the shared swarm routing cohort for substantive work that is not LowVRAM or genuinely Windows-only. Windows remains MCP/control transport and takes ordinary execution only after fresh cohort evidence that OMEN is saturated/unavailable for that work class; the VPS may take supported portable-light overflow. OMEN is not an MCP endpoint, worker scheduler, repository queue, product authority, or public route; preserve user data and do not expose TCP 22 publicly.",
     },
     "execution.transport": {
         "owner_components": ["vps_edge_ingress", "mcp_minimal_clone", "mcp_front_door"],
-        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv3", "vps", "commander", "desktop commander", "fallback", "tool route"],
+        "triggers": ["process execution", "shell", "file access", "mcp", "mcpv4", "mcpv3", "vps", "commander", "desktop commander", "fallback", "tool route"],
         "entrypoints": [
-            "preferred MCPv3 binding when healthy and exposed",
-            "Remote Desktop Commander approved standby break-glass fallback whenever preferred MCPv3 is unavailable; fallback-only/not primary, not forbidden; retry failed routes only on changed state or new evidence",
+            "preferred MCPv4 binding when healthy and exposed",
+            "after one bounded refresh/re-discovery attempt fails, fall back in order to MCPv3, then Remote Desktop Commander approved standby break-glass fallback for machine operations, then direct GitHub connector for GitHub-only operations when available; MCPv3, Commander, and direct GitHub are fallback-only/not primary, not forbidden; retry failed routes only on changed state or new evidence",
         ],
-        "boundary": "Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. MCPv3 health does not retire, obsolete, or authorize deletion of the Commander fallback; preserve its recovery path unless current user/live authority explicitly changes that contract.",
+        "boundary": "Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. MCPv4 health does not retire, obsolete, or authorize deletion of the MCPv3/Commander/GitHub fallback paths; preserve their recovery paths unless current user/live authority explicitly changes that contract.",
     },
 }
 
@@ -757,6 +782,74 @@ def _cwd_uses_worktree(cwd: str | os.PathLike[str] | None, worktree: str | os.Pa
     except (OSError, ValueError):
         return False
     return True
+
+
+def _bootstrap_execution_node_topology() -> dict[str, Any]:
+    """Canonical execution-machine identity for bootstrap; routing labels are not identity."""
+    path = ATLAS_LIVE_ROOT / EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH
+    observed_hostname = (platform.node() or os.environ.get("COMPUTERNAME") or "").strip() or None
+    base = {
+        "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+        "path": str(path),
+        "local_observed_hostname": observed_hostname,
+        "local_node_id": None,
+    }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return {**base, "available": False, "status": "MISSING", "nodes": {}}
+    except (OSError, json.JSONDecodeError):
+        return {**base, "available": False, "status": "INVALID", "nodes": {}}
+    nodes = payload.get("nodes") if isinstance(payload, dict) else None
+    if payload.get("schema") != EXECUTION_NODE_TOPOLOGY_SCHEMA or not isinstance(nodes, dict):
+        return {**base, "available": False, "status": "INVALID", "nodes": {}}
+    projected: dict[str, dict[str, Any]] = {}
+    local_matches: list[str] = []
+    for raw_node_id, raw_node in nodes.items():
+        if not isinstance(raw_node_id, str) or not isinstance(raw_node, dict):
+            continue
+        hostnames = [str(value) for value in raw_node.get("hostnames", []) if str(value).strip()]
+        projected[raw_node_id] = {
+            key: raw_node.get(key)
+            for key in (
+                "display_name", "user_alias", "route_label", "machine_class", "os_family",
+                "system_model", "gpu", "roles",
+            )
+            if raw_node.get(key) is not None
+        }
+        projected[raw_node_id]["hostnames"] = hostnames
+        if observed_hostname and observed_hostname.casefold() in {value.casefold() for value in hostnames}:
+            local_matches.append(raw_node_id)
+    if len(local_matches) == 1:
+        status = "OK"; local_node_id = local_matches[0]
+    elif len(local_matches) > 1:
+        status = "LOCAL_NODE_AMBIGUOUS"; local_node_id = None
+    else:
+        status = "LOCAL_NODE_UNRESOLVED"; local_node_id = None
+    return {
+        **base, "available": True, "status": status, "schema": EXECUTION_NODE_TOPOLOGY_SCHEMA,
+        "contract": payload.get("contract"), "local_node_id": local_node_id, "nodes": projected,
+    }
+
+
+def _bind_pc_node_identity(pc: dict[str, Any], topology: dict[str, Any]) -> dict[str, Any]:
+    """Wrap local PC telemetry with its canonical physical-node identity."""
+    result = dict(pc)
+    node_id = topology.get("local_node_id") if isinstance(topology, dict) else None
+    nodes = topology.get("nodes") if isinstance(topology, dict) and isinstance(topology.get("nodes"), dict) else {}
+    node = nodes.get(node_id) if isinstance(node_id, str) and isinstance(nodes.get(node_id), dict) else {}
+    topology_status = str(topology.get("status") or "UNAVAILABLE") if isinstance(topology, dict) else "UNAVAILABLE"
+    identity = {
+        "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
+        "status": "VERIFIED_CANONICAL" if node_id and topology_status == "OK" else f"UNRESOLVED_{topology_status}",
+        "node_id": node_id,
+        "observed_hostname": topology.get("local_observed_hostname") if isinstance(topology, dict) else None,
+    }
+    for key in ("display_name", "user_alias", "route_label", "machine_class", "os_family", "system_model", "gpu"):
+        if node.get(key) is not None:
+            identity[key] = node.get(key)
+    result["node_identity"] = identity
+    return result
 
 
 def _bootstrap_session_workspace(cwd: str | None) -> str | None:
@@ -1013,292 +1106,6 @@ def _bootstrap_manual_current_status(now: datetime) -> dict[str, Any]:
         "malformed_running_reports_truncated": malformed_running_reports > len(malformed_running_sample),
     }
 
-def _bootstrap_fleet_watch(
-    now: datetime | None = None,
-    *,
-    partition: str | None = None,
-    worker_id: str | None = None,
-) -> dict[str, Any]:
-    """Compact fleet-cadence signal from local reports/start receipts only.
-
-    Unscoped callers get the global 5+5 view. Timed workers pass their own automation id
-    so recovery candidates are restricted to siblings in that subscription partition.
-    """
-    current_time = now or datetime.now(timezone.utc)
-    if current_time.tzinfo is None:
-        current_time = current_time.replace(tzinfo=timezone.utc)
-
-    requested_partition = str(partition or "").strip().upper() or None
-    worker_key = str(worker_id or "").strip().lower() or None
-    if worker_key is not None:
-        worker_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_key)
-        if worker_partition is None:
-            return {
-                "status": "INVALID_WORKER_ID",
-                "authority": "canonical_recurring_worker_partition_map",
-                "worker_id": worker_key,
-                "scheduler_probe": "not_performed",
-            }
-        if requested_partition is not None and requested_partition != worker_partition:
-            return {
-                "status": "PARTITION_MISMATCH",
-                "authority": "canonical_recurring_worker_partition_map",
-                "worker_id": worker_key,
-                "requested_partition": requested_partition,
-                "worker_partition": worker_partition,
-                "scheduler_probe": "not_performed",
-            }
-        requested_partition = worker_partition
-    if requested_partition is not None and requested_partition not in CANONICAL_RECURRING_WORKER_PARTITIONS:
-        return {
-            "status": "INVALID_PARTITION",
-            "authority": "canonical_recurring_worker_partition_map",
-            "requested_partition": requested_partition,
-            "scheduler_probe": "not_performed",
-        }
-
-    selected_workers = (
-        CANONICAL_RECURRING_WORKER_PARTITIONS[requested_partition]
-        if requested_partition is not None
-        else CANONICAL_RECURRING_WORKERS
-    )
-    current_root = ATLAS_LIVE_ROOT / "worker-reports" / "current"
-    supervision_root = ATLAS_LIVE_ROOT / "worker-reports" / ".supervision"
-    first_expected_start_by_id: dict[str, str] = {}
-    try:
-        topology_payload = json.loads(
-            (ATLAS_LIVE_ROOT / "04 Operating Contracts" / "chatgpt-swarm-topology.json").read_text(encoding="utf-8-sig")
-        )
-        topology_subscriptions = topology_payload.get("subscriptions") if isinstance(topology_payload, dict) else {}
-        if isinstance(topology_subscriptions, dict):
-            for subscription in topology_subscriptions.values():
-                if not isinstance(subscription, dict):
-                    continue
-                for worker in subscription.get("workers", []) if isinstance(subscription.get("workers"), list) else []:
-                    if not isinstance(worker, dict):
-                        continue
-                    candidate_id = str(worker.get("automation_id") or "").strip().lower()
-                    candidate_start = str(worker.get("first_expected_start_at") or "").strip()
-                    if candidate_id and candidate_start:
-                        first_expected_start_by_id[candidate_id] = candidate_start
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
-        pass
-    partition_summary = {
-        name: {
-            "expected_recurring_workers": len(partition_workers),
-            "observed_worker_reports": sum(
-                1 for candidate_id, _ in partition_workers
-                if (current_root / f"{candidate_id}.md").is_file()
-            ) if current_root.is_dir() else 0,
-        }
-        for name, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
-    }
-    if not current_root.is_dir():
-        return {
-            "status": "UNAVAILABLE",
-            "authority": "local_worker_reports_and_machine_start_receipts",
-            "subscription_scope": requested_partition or "ALL",
-            "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
-            "worker_partitions": partition_summary,
-            "expected_recurring_workers": len(selected_workers),
-            "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
-            "scheduler_probe": "not_performed",
-        }
-
-    canonical_ids = {worker_id for worker_id, _ in selected_workers}
-    report_cache: dict[str, str] = {}
-    recent_recoveries: dict[str, dict[str, Any]] = {}
-    recovery_pattern = re.compile(
-        r"Peer recovery:\s*sibling=(?P<sibling>[0-9a-f]{32})\s+"
-        r"action=is_enabled=true\s+result=success\s+at=(?P<at>[^\s;,]+)",
-        re.IGNORECASE,
-    )
-    legacy_recovery_pattern = re.compile(
-        r"Peer recovery:\s*re-enabled canonical sibling .*?"
-        r"\((?P<sibling>[0-9a-f]{32})\).*?targeted is_enabled=true succeeded",
-        re.IGNORECASE,
-    )
-
-    def remember_recovery(sibling_id: str, recovered_at: datetime, actor_id: str, actor_label: str) -> None:
-        if sibling_id not in canonical_ids or sibling_id == actor_id:
-            return
-        if CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(sibling_id) != CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(actor_id):
-            return
-        recovery_age_minutes = max(0.0, (current_time - recovered_at).total_seconds() / 60.0)
-        existing = recent_recoveries.get(sibling_id)
-        existing_at = _parse_event_time(existing.get("recovered_at")) if isinstance(existing, dict) else None
-        if existing_at is not None and existing_at >= recovered_at:
-            return
-        recent_recoveries[sibling_id] = {
-            "actor": actor_label,
-            "actor_id": actor_id,
-            "recovered_at": recovered_at.isoformat(),
-            "age_minutes": round(recovery_age_minutes, 1),
-        }
-    for actor_id, actor_label in selected_workers:
-        report_path = current_root / f"{actor_id}.md"
-        if not report_path.is_file():
-            continue
-        try:
-            raw = report_path.read_text(encoding="utf-8-sig", errors="replace")[:16 * 1024]
-        except OSError:
-            continue
-        report_cache[actor_id] = raw
-        for match in recovery_pattern.finditer(raw):
-            recovered_at = _parse_event_time(match.group("at"))
-            if recovered_at is not None:
-                remember_recovery(match.group("sibling").lower(), recovered_at, actor_id, actor_label)
-
-        actor_started_at = None
-        for line in raw.splitlines():
-            if line.startswith("started_at:"):
-                actor_started_at = _parse_event_time(line.split(":", 1)[1].strip())
-                break
-        if actor_started_at is not None:
-            for match in legacy_recovery_pattern.finditer(raw):
-                # Legacy findings have no explicit recovery timestamp. Use the acting run's
-                # immutable start as a conservative lower bound; last_activity moves and
-                # would otherwise extend recovery suppression every time the report updates.
-                remember_recovery(match.group("sibling").lower(), actor_started_at, actor_id, actor_label)
-
-    workers: list[dict[str, Any]] = []
-    suspects: list[dict[str, Any]] = []
-    for worker_id, label in selected_workers:
-        report_path = current_root / f"{worker_id}.md"
-        fields: dict[str, str] = {}
-        raw = report_cache.get(worker_id, "")
-        if raw:
-            for line in raw.splitlines():
-                if ":" not in line:
-                    continue
-                key, value = line.split(":", 1)
-                key = key.strip()
-                if key in {"state", "started_at", "last_activity_at"}:
-                    fields[key] = value.strip()
-
-        started = _parse_event_time(fields.get("started_at"))
-        last_activity = _parse_event_time(fields.get("last_activity_at"))
-        state = str(fields.get("state") or "").upper() or None
-        receipt_present = (supervision_root / f"{worker_id}.start.json").is_file()
-        age_minutes = None
-        if started is not None:
-            age_minutes = max(0.0, (current_time - started).total_seconds() / 60.0)
-
-        first_expected_start = _parse_event_time(first_expected_start_by_id.get(worker_id))
-        if started is None:
-            if first_expected_start is not None and current_time <= first_expected_start + timedelta(
-                minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
-            ):
-                cadence_state = "FIRST_START_PENDING"
-            else:
-                cadence_state = "NO_LOCAL_START_EVIDENCE"
-        elif state == "RUNNING" and not receipt_present:
-            cadence_state = (
-                "RUNNING_WITHOUT_START_RECEIPT"
-                if age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES
-                else "START_RECEIPT_PENDING"
-            )
-        elif age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES:
-            cadence_state = "MISSED_EXPECTED_HOURLY_CADENCE"
-        elif state == "RUNNING" and receipt_present:
-            cadence_state = "RUNNING_WITH_START_RECEIPT"
-        else:
-            cadence_state = "RECENT_START_EVIDENCE"
-
-        row = {
-            "worker": label,
-            "automation_id": worker_id,
-            "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
-            "report_present": report_path.is_file(),
-            "state": state,
-            "started_at": started.isoformat() if started is not None else None,
-            "first_expected_start_at": first_expected_start.isoformat() if first_expected_start is not None else None,
-            "last_activity_at": last_activity.isoformat() if last_activity is not None else None,
-            "start_age_minutes": round(age_minutes, 1) if age_minutes is not None else None,
-            "cadence_state": cadence_state,
-            "start_receipt_present": receipt_present,
-        }
-        workers.append(row)
-        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_WITHOUT_START_RECEIPT"}:
-            recent_recovery = recent_recoveries.get(worker_id)
-            recovery_actionable = recent_recovery is None
-            recovery_status = "RECOVERY_NEEDED" if recovery_actionable else "RECOVERY_PENDING"
-            pending_until = None
-            if recent_recovery is not None:
-                recovered_at = _parse_event_time(recent_recovery.get("recovered_at"))
-                if recovered_at is not None and started is not None and started > recovered_at:
-                    # A newer local start consumed the older recovery; a later missed cadence
-                    # is a fresh failure and must be actionable again.
-                    recent_recovery = None
-                    recovery_actionable = True
-                    recovery_status = "RECOVERY_NEEDED"
-                elif recovered_at is not None and started is not None:
-                    elapsed = max(0.0, (recovered_at - started).total_seconds())
-                    hourly_steps = int(elapsed // 3600.0) + 1
-                    expected_after_recovery = started + timedelta(hours=hourly_steps)
-                    pending_until = expected_after_recovery + timedelta(
-                        minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
-                    )
-                    if current_time > pending_until:
-                        recovery_actionable = True
-                        recovery_status = "RECOVERY_RETRY_NEEDED"
-                elif recovered_at is not None:
-                    pending_until = recovered_at + timedelta(
-                        minutes=BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES
-                    )
-                    if current_time > pending_until:
-                        recovery_actionable = True
-                        recovery_status = "RECOVERY_RETRY_NEEDED"
-
-            suspect = {
-                "worker": label,
-                "automation_id": worker_id,
-                "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
-                "started_at": row["started_at"],
-                "start_age_minutes": row["start_age_minutes"],
-                "reason": cadence_state,
-                "recovery_status": recovery_status,
-                "recovery_actionable": recovery_actionable,
-            }
-            if recent_recovery is not None:
-                suspect["last_recovery"] = recent_recovery
-            if pending_until is not None:
-                suspect["recovery_pending_until"] = pending_until.isoformat()
-            suspects.append(suspect)
-    recovery_candidates = [
-        {
-            "worker": item["worker"],
-            "automation_id": item["automation_id"],
-            "subscription_partition": item.get("subscription_partition") or CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(item["automation_id"]),
-            "reason": item["reason"],
-        }
-        for item in suspects
-        if item.get("recovery_actionable")
-    ]
-    return {
-        "status": "SUSPECT_DEGRADED" if suspects else "CURRENT_LOCAL_EVIDENCE",
-        "authority": "local_worker_reports_and_machine_start_receipts",
-        "subscription_scope": requested_partition or "ALL",
-        "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
-        "worker_partitions": partition_summary,
-        "expected_recurring_workers": len(selected_workers),
-        "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
-        "observed_worker_reports": sum(1 for row in workers if row.get("report_present")),
-        "running_with_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITH_START_RECEIPT"),
-        "recent_start_evidence": sum(1 for row in workers if row.get("cadence_state") == "RECENT_START_EVIDENCE"),
-        "first_start_pending": sum(1 for row in workers if row.get("cadence_state") == "FIRST_START_PENDING"),
-        "start_receipt_pending": sum(1 for row in workers if row.get("cadence_state") == "START_RECEIPT_PENDING"),
-        "running_without_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITHOUT_START_RECEIPT"),
-        "suspect_count": len(suspects),
-        "suspect_workers": suspects,
-        "recovery_candidate_count": len(recovery_candidates),
-        "recovery_candidates": recovery_candidates,
-        "recovery_cooldown_minutes": BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES,
-        "recovery_start_grace_minutes": BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES,
-        "start_receipt_grace_minutes": BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES,
-        "recovery_retry_basis": "next_observed_hourly_phase_plus_grace_then_fallback_cooldown",
-        "scheduler_probe": "not_performed",
-    }
 
 
 def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
@@ -1324,6 +1131,7 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
     manual = _bootstrap_manual_current_status(current_time)
     subscriptions = payload.get("subscriptions") if isinstance(payload.get("subscriptions"), dict) else {}
     handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
+    routine_recovery = payload.get("routine_recurring_recovery") if isinstance(payload.get("routine_recurring_recovery"), dict) else {}
     manual_contract = payload.get("manual_workers") if isinstance(payload.get("manual_workers"), dict) else {}
     return {
         "authority": payload.get("authority") or "canonical_recurring_worker_partition_map",
@@ -1338,6 +1146,12 @@ def _bootstrap_swarm_topology(now: datetime | None = None) -> dict[str, Any]:
         "recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
         "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five recurring workers per ChatGPT subscription partition",
         "subscriptions": subscriptions,
+        "routine_recurring_recovery": {
+            "authority": routine_recovery.get("authority") or "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+            "scheduler_role": routine_recovery.get("scheduler_role") or "RECURRENCE_ONLY",
+            "operator_handoff_role": routine_recovery.get("operator_handoff_role") or "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+            "user_role": routine_recovery.get("user_role") or "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
+        },
         "operator_handoff": handoff,
         "manual_workers": {
             "population": manual_contract.get("population") or "SEPARATE_ON_DEMAND",
@@ -1555,6 +1369,9 @@ def _bootstrap_fleet_watch(
         age_minutes = None
         if started is not None:
             age_minutes = max(0.0, (current_time - started).total_seconds() / 60.0)
+        activity_age_minutes = None
+        if last_activity is not None:
+            activity_age_minutes = max(0.0, (current_time - last_activity).total_seconds() / 60.0)
 
         first_expected_start = _parse_event_time(first_expected_start_by_id.get(worker_id))
         if started is None:
@@ -1570,10 +1387,15 @@ def _bootstrap_fleet_watch(
                 if age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES
                 else "START_RECEIPT_PENDING"
             )
+        elif state == "RUNNING" and receipt_present:
+            freshness_age = activity_age_minutes if activity_age_minutes is not None else age_minutes
+            cadence_state = (
+                "RUNNING_WITH_START_RECEIPT"
+                if freshness_age is not None and freshness_age <= BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES
+                else "STALE_RUNNING_ACTIVITY"
+            )
         elif age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES:
             cadence_state = "MISSED_EXPECTED_HOURLY_CADENCE"
-        elif state == "RUNNING" and receipt_present:
-            cadence_state = "RUNNING_WITH_START_RECEIPT"
         else:
             cadence_state = "RECENT_START_EVIDENCE"
 
@@ -1587,11 +1409,12 @@ def _bootstrap_fleet_watch(
             "first_expected_start_at": first_expected_start.isoformat() if first_expected_start is not None else None,
             "last_activity_at": last_activity.isoformat() if last_activity is not None else None,
             "start_age_minutes": round(age_minutes, 1) if age_minutes is not None else None,
+            "activity_age_minutes": round(activity_age_minutes, 1) if activity_age_minutes is not None else None,
             "cadence_state": cadence_state,
             "start_receipt_present": receipt_present,
         }
         workers.append(row)
-        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_WITHOUT_START_RECEIPT"}:
+        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_WITHOUT_START_RECEIPT", "STALE_RUNNING_ACTIVITY"}:
             recent_recovery = recent_recoveries.get(worker_id)
             recovery_actionable = recent_recovery is None
             recovery_status = "RECOVERY_NEEDED" if recovery_actionable else "RECOVERY_PENDING"
@@ -1628,6 +1451,7 @@ def _bootstrap_fleet_watch(
                 "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
                 "started_at": row["started_at"],
                 "start_age_minutes": row["start_age_minutes"],
+                "activity_age_minutes": row["activity_age_minutes"],
                 "reason": cadence_state,
                 "recovery_status": recovery_status,
                 "recovery_actionable": recovery_actionable,
@@ -1906,62 +1730,6 @@ def _parse_event_time(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def _read_jsonl_window(
-    path: Path,
-    cutoff: datetime,
-    *,
-    max_bytes: int = 8 * 1024 * 1024,
-    chunk_bytes: int = 256 * 1024,
-) -> tuple[list[Any], bool, int]:
-    """Read a bounded JSONL tail until the requested time window is covered."""
-    parts: list[bytes] = []
-    size = path.stat().st_size
-    position = size
-    bytes_read = 0
-    coverage_complete = size == 0
-    with path.open("rb") as handle:
-        while position > 0 and bytes_read < max_bytes:
-            take = min(chunk_bytes, position, max_bytes - bytes_read)
-            if take <= 0:
-                break
-            position -= take
-            handle.seek(position)
-            chunk = handle.read(take)
-            parts.append(chunk)
-            bytes_read += len(chunk)
-
-            probe_lines = chunk.splitlines()
-            if position > 0 and probe_lines:
-                probe_lines = probe_lines[1:]
-            oldest_at = None
-            for raw in probe_lines:
-                try:
-                    row = json.loads(raw.decode("utf-8-sig"))
-                except (UnicodeDecodeError, json.JSONDecodeError):
-                    continue
-                oldest_at = _parse_event_time(row.get("at")) if isinstance(row, dict) else None
-                if oldest_at is not None:
-                    break
-            if oldest_at is not None and oldest_at <= cutoff:
-                coverage_complete = True
-                break
-
-    if position == 0:
-        coverage_complete = True
-
-    rows: list[Any] = []
-    for raw in b"".join(reversed(parts)).splitlines():
-        try:
-            row = json.loads(raw.decode("utf-8-sig"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            continue
-        at = _parse_event_time(row.get("at")) if isinstance(row, dict) else None
-        if at is None or at >= cutoff:
-            rows.append(row)
-    return rows, coverage_complete, bytes_read
-
-
-
 def _bootstrap_mcp_backend_health() -> dict[str, Any]:
     """Bounded direct health proof for the canonical local production backend."""
     started = time.perf_counter()
@@ -1995,199 +1763,31 @@ def _bootstrap_mcp_backend_health() -> dict[str, Any]:
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
 
-def _bootstrap_mcp_status() -> dict[str, Any]:
-    cached_raw, cache_age = _bootstrap_cache_read_any("mcp-status.json")
-    cached, stale_while_refresh = _bootstrap_cache_refresh_view(
-        "mcp-status.json", cached_raw, cache_age, max_age_seconds=BOOTSTRAP_MCP_CACHE_SECONDS, lease_seconds=2.0
-    )
-    if cached is not None:
-        cached = dict(cached)
-        cached.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
-        cached["cache"] = {
-            "used": True,
-            "age_seconds": round(cache_age or 0.0, 3),
-            "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS,
-            **({"stale_while_refresh": True} if stale_while_refresh else {}),
-        }
-        return cached
-
-    root = Path(os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\minimal-connectors"))
-    logs = sorted(root.glob("clone-*/transport.jsonl"), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
-    now = datetime.now(timezone.utc)
-    activity_window_seconds = 300
-    if not logs:
+def _bootstrap_mcp_status_from_live_swarm(
+    snapshot: dict[str, Any], service_health: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Combine transport activity with a fresh canonical 3011 service identity."""
+    status = _bootstrap_mcp_from_live_swarm(snapshot)
+    had_live_swarm = bool(status.get("available"))
+    if service_health is None:
         service_health = _bootstrap_mcp_backend_health()
-        result = {
-            "available": bool(service_health.get("available")),
-            "status": "LIVE" if service_health.get("status") == "LIVE" else "MISSING",
-            "source_age_seconds": None,
-            "service_health": service_health,
-            "activity_evidence_status": "MISSING",
-            "active_session_count": 0,
-            "active_session_count_status": "LOWER_BOUND",
-            "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
-            "active_sessions": [],
-            "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
-            "active_sessions_truncated": False,
-            "workspace_counts": {},
-            "activity_summary": {
-                "starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0,
-                "sample_rows": 0, "sample_bytes": 0,
-                "activity_window_seconds": activity_window_seconds,
-                "activity_window_complete": False,
-                "source_window_complete": False,
-                "busy_receipts_per_sampled_session_limit": 4,
-                "last_event_at": None, "last_kill": None,
-            },
-            "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
-        }
-        cache_payload = dict(result)
-        cache_payload.pop("cache", None)
-        _bootstrap_cache_write("mcp-status.json", cache_payload)
-        return result
-    source = logs[0]
-    archive_dir = source.with_name(f"{source.name}.archive")
-    if archive_dir.is_dir():
-        newest_archive = max(
-            (candidate for candidate in archive_dir.iterdir() if candidate.is_file() and candidate.suffix.lower() == ".jsonl"),
-            key=lambda candidate: candidate.stat().st_mtime,
-            default=None,
-        )
-        if newest_archive is not None and newest_archive.stat().st_mtime > source.stat().st_mtime:
-            source = newest_archive
-    source_age = max(0.0, (now - datetime.fromtimestamp(source.stat().st_mtime, timezone.utc)).total_seconds())
-    source_liveness_fresh = source_age <= 60
-    source_activity_fresh = source_age <= activity_window_seconds
-    service_health = (
-        {"available": None, "status": "NOT_PROBED_FRESH_TRANSPORT"}
-        if source_liveness_fresh
-        else _bootstrap_mcp_backend_health()
-    )
-    cutoff = now - timedelta(seconds=activity_window_seconds)
-    try:
-        rows, activity_window_complete, sample_bytes = _read_jsonl_window(source, cutoff)
-    except OSError as exc:
-        return {"available": False, "status": "ERROR", "active_sessions": [], "active_session_count": 0, "error": str(exc)}
+    status["service_health"] = service_health
+    if status.get("status") != "LIVE" and service_health.get("status") == "LIVE":
+        status["available"] = True
+        status["status"] = "LIVE"
+    status.setdefault("activity_evidence_status", "BOUNDED" if had_live_swarm else "MISSING")
+    status.setdefault("active_session_count_status", "LOWER_BOUND")
+    status.setdefault("active_session_count_semantics", MCP_ACTIVE_SESSION_COUNT_SEMANTICS)
+    status.setdefault("active_session_count", 0)
+    status.setdefault("active_sessions", [])
+    status.setdefault("workspace_counts", {})
+    status["authority"] = "live_swarm_runtime_evidence"
+    return status
 
-    callers: dict[str, dict[str, Any]] = {}
-    counts = {"starts": 0, "reads": 0, "exits": 0, "kills": 0, "nonzero_exits": 0}
-    last_kill = None
-    last_event_at = None
-    for row in rows:
-        event = row.get("event")
-        at = row.get("at")
-        if at and (last_event_at is None or at > last_event_at):
-            last_event_at = at
-        if event == "process_started": counts["starts"] += 1
-        elif event == "process_read": counts["reads"] += 1
-        elif event == "process_exit_observed":
-            counts["exits"] += 1
-            if row.get("exit_code") not in (None, 0): counts["nonzero_exits"] += 1
-        elif event == "process_killed":
-            counts["kills"] += 1
-            last_kill = {k: row.get(k) for k in ("at", "caller_id", "owner_caller_id", "pid") if row.get(k) is not None}
-        caller = row.get("caller_id") or row.get("owner_caller_id")
-        if not caller:
-            continue
-        item = callers.setdefault(caller, {"caller_id": caller, "last_at": None, "process_starts": 0, "reads": 0, "cwds": [], "process_ids": []})
-        if at and (item["last_at"] is None or at > item["last_at"]): item["last_at"] = at
-        if event == "process_started":
-            item["process_starts"] += 1
-            cwd = row.get("cwd")
-            if cwd: item["cwds"].append(cwd)
-            process_id = row.get("process_id")
-            if process_id and process_id not in item["process_ids"]: item["process_ids"].append(process_id)
-        elif event == "process_read":
-            item["reads"] += 1
 
-    caller_list = [x for x in sorted(callers.values(), key=lambda x: x.get("last_at") or "", reverse=True) if x.get("process_starts") or x.get("reads")]
-    active_items = []
-    for item in caller_list:
-        last_dt = _parse_event_time(item.get("last_at"))
-        item["activity_age_seconds"] = round(max(0.0, (now - last_dt).total_seconds()), 1) if last_dt is not None else None
-        if item["activity_age_seconds"] is not None and item["activity_age_seconds"] <= activity_window_seconds:
-            active_items.append(item)
-
-    workspace_counts: dict[str, int] = {}
-    for item in active_items:
-        cwds = item.get("cwds", [])
-        workspace = _bootstrap_session_workspace(cwds[-1] if cwds else None)
-        workspace_counts[workspace or "Unknown"] = workspace_counts.get(workspace or "Unknown", 0) + 1
-
-    sampled_items = active_items[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT]
-    recent_ids = {item["caller_id"] for item in sampled_items}
-    busy_titles: dict[str, list[str]] = {cid: [] for cid in recent_ids}
-    try:
-        claims = _bootstrap_busy_claims_direct()
-        active = {str(c.get("actor") or ""): c for c in claims if c.get("actor")}
-        remaining = set(active)
-        receipts = root / "shared-process-receipts"
-        busy_receipts_per_session_limit = 4
-        receipt_refs = [
-            (item["caller_id"], receipts / f"{process_id}.json")
-            for item in sampled_items
-            for process_id in item.get("process_ids", [])[-busy_receipts_per_session_limit:]
-        ]
-        for caller, rp in reversed(receipt_refs):
-            if not remaining:
-                break
-            try:
-                receipt = json.loads(rp.read_text(encoding="utf-8-sig"))
-            except Exception:
-                continue
-            command = str(receipt.get("command") or "")
-            for actor in list(remaining):
-                if (f"claim '{actor}'" in command) or (f'claim "{actor}"' in command) or (f"claim {actor} " in command):
-                    busy_titles[caller].append(actor)
-                    remaining.discard(actor)
-    except Exception:
-        pass
-
-    active_sessions = []
-    for original in sampled_items:
-        item = dict(original)
-        cwds = item.pop("cwds", [])
-        item.pop("process_ids", None)
-        item["cwd"] = cwds[-1] if cwds else None
-        item["workspace"] = _bootstrap_session_workspace(item["cwd"])
-        item["busy_titles"] = busy_titles.get(item["caller_id"], [])
-        item = {k: item.get(k) for k in ("caller_id", "activity_age_seconds", "cwd", "workspace", "busy_titles")}
-        active_sessions.append(item)
-    activity_evidence_complete = bool(activity_window_complete and source_activity_fresh)
-    service_live = service_health.get("status") == "LIVE"
-    result = {
-        "available": True,
-        "status": "LIVE" if source_liveness_fresh or service_live else "STALE",
-        "source_age_seconds": round(source_age,1),
-        "service_health": service_health,
-        "activity_evidence_status": (
-            "FRESH" if activity_evidence_complete
-            else ("BOUNDED" if source_activity_fresh else "STALE")
-        ),
-        "active_session_count": len(active_items),
-        "active_session_count_status": "COMPLETE" if activity_evidence_complete else "LOWER_BOUND",
-        "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
-        "active_sessions": active_sessions,
-        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
-        "active_sessions_truncated": len(active_items) > len(active_sessions),
-        "workspace_counts": workspace_counts,
-        "activity_summary": {
-            **counts,
-            "sample_rows": len(rows),
-            "sample_bytes": sample_bytes,
-            "activity_window_seconds": activity_window_seconds,
-            "activity_window_complete": activity_evidence_complete,
-            "source_window_complete": activity_window_complete,
-            "busy_receipts_per_sampled_session_limit": 4,
-            "last_event_at": last_event_at,
-            "last_kill": last_kill,
-        },
-        "cache": {"used": False, "age_seconds": 0.0, "max_age_seconds": BOOTSTRAP_MCP_CACHE_SECONDS},
-    }
-    cache_payload = dict(result)
-    cache_payload.pop("cache", None)
-    _bootstrap_cache_write("mcp-status.json", cache_payload)
-    return result
+def _bootstrap_mcp_status() -> dict[str, Any]:
+    """Compatibility status with live activity plus a fresh canonical backend identity."""
+    return _bootstrap_mcp_status_from_live_swarm(build_live_swarm_snapshot())
 
 
 def _compact_worker_findings(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -2215,8 +1815,7 @@ def _compact_incident_rollups(report: dict[str, Any], limit: int = 3) -> list[di
         return []
     fields = (
         "thread_id", "thread_source", "scope", "observations", "latest_event_at",
-        "latest_event_id", "latest_title", "latest_disposition", "summary", "projects",
-        "entities", "drilldown",
+        "latest_event_id", "latest_title", "latest_disposition", "drilldown",
     )
     return [
         {key: item.get(key) for key in fields if item.get(key) not in (None, [], "")}
@@ -2232,7 +1831,14 @@ def _compact_json_bytes(value: Any) -> int:
 def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES) -> dict[str, Any]:
     """Bound the whole bootstrap payload while preserving live truth and drill-down routes."""
     budget = max(2_048, int(max_bytes))
-    bounded = json.loads(json.dumps(glance, ensure_ascii=False))
+    source = json.loads(json.dumps(glance, ensure_ascii=False))
+    source.pop("bootstrap_warning", None)
+    source.pop("bootstrap_end", None)
+    bounded = {
+        "bootstrap_warning": BOOTSTRAP_INTEGRITY_WARNING,
+        **source,
+        "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
+    }
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {"max_bytes": budget, "compacted": False}
@@ -2266,8 +1872,6 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
                 if key in latest_restore
             }
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 2_400)
 
     if _compact_json_bytes(bounded) > budget:
         freshness = bounded.get("source_freshness")
@@ -2317,30 +1921,13 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             if isinstance(items, list) and len(items) > 1:
                 bounded["workers"][key] = items[:1]
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        bounded["memory_overview"] = _fit_memory_overview_budget(bounded["memory_overview"], 1_800)
-
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("memory_overview"), dict):
-        memory = bounded["memory_overview"]
-        materialized = memory.get("timeline_materialized") if isinstance(memory.get("timeline_materialized"), dict) else {}
-        snapshots = memory.get("timeline_snapshots") if isinstance(memory.get("timeline_snapshots"), dict) else {}
-        memory["timeline_materialized"] = {
-            key: materialized.get(key)
-            for key in ("status", "coverage_status", "age_seconds", "live_truth_required")
-            if key in materialized
-        }
-        memory["timeline_snapshots"] = {
-            key: snapshots.get(key)
-            for key in ("authority", "memory_history")
-            if key in snapshots
-        }
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
         workers = bounded["workers"]
-        fleet = workers.get("fleet_watch") if isinstance(workers.get("fleet_watch"), dict) else {}
-        workers["fleet_watch"] = {key: fleet.get(key) for key in (
-            "status", "expected_recurring_workers", "observed_worker_reports", "recent_start_evidence",
+        recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
+        workers["recurring_scheduler_recovery"] = {key: recovery.get(key) for key in (
+            "status", "authority", "expected_recurring_workers", "observed_worker_reports", "recent_start_evidence",
             "running_with_start_receipt", "running_without_start_receipt", "suspect_count", "recovery_candidate_count",
-        ) if key in fleet}
+        ) if key in recovery}
         workers.pop("archive_sample", None)
         workers.pop("attention", None)
         workers.pop("stale_reports", None)
@@ -2348,21 +1935,62 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("swarm_topology"), dict):
         topo = bounded["swarm_topology"]
         handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
+        routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
         manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
+        execution_nodes = topo.get("execution_nodes") if isinstance(topo.get("execution_nodes"), dict) else {}
+        raw_nodes = execution_nodes.get("nodes") if isinstance(execution_nodes.get("nodes"), dict) else {}
+        compact_nodes = {node_id: {key: node.get(key) for key in ("display_name", "user_alias", "route_label", "machine_class", "gpu") if node.get(key) is not None} for node_id, node in raw_nodes.items() if isinstance(node_id, str) and isinstance(node, dict)}
+        compact_execution_nodes = {key: execution_nodes.get(key) for key in ("authority", "available", "status", "local_node_id", "local_observed_hostname") if key in execution_nodes}
+        if compact_nodes:
+            compact_execution_nodes["nodes"] = compact_nodes
         bounded["swarm_topology"] = {
             key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
         }
+        bounded["swarm_topology"]["routine_recurring_recovery"] = {
+            key: routine_recovery.get(key)
+            for key in ("authority", "scheduler_role", "operator_handoff_role", "user_role")
+            if key in routine_recovery
+        }
         bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
         bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
+        bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
 
     live_swarm = bounded.get("live_swarm")
-    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and len(live_swarm["lanes"]) > 2:
+    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
         live_swarm["lanes"].pop()
         live_swarm["lanes_truncated"] = True
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
-        bounded["commands"] = {key: commands.get(key) for key in ("bootstrap", "live_swarm", "fleet_watch", "stack_owner", "stack_find") if key in commands}
+        compact_commands = {
+            "bootstrap": "stack_atlas.py bootstrap-glance",
+            "live_swarm": "stack_atlas.py live-swarm",
+            "fleet_watch": "stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            "stack_owner": "stack_atlas.py lookup <id-or-alias>",
+            "stack_find": "stack_atlas.py find <query>",
+            "production_change_gate": "stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": "memory_bank.py overview",
+            "tiny3d_asset_library": "lookup tiny3d_library",
+        }
+        bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("paths"), dict):
+        paths = bounded["paths"]
+        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault") if key in paths}
+
+    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("mcp_recovery_state"), dict):
+        recovery = bounded["mcp_recovery_state"]
+        bounded["mcp_recovery_state"] = {
+            key: recovery.get(key)
+            for key in ("status", "path", "selected_recovery_target")
+            if recovery.get(key) not in (None, "", [], {})
+        }
+
+    if _compact_json_bytes(bounded) > budget:
+        raise ValueError(
+            f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
+            f"bytes={_compact_json_bytes(bounded)} budget={budget}"
+        )
 
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"]["compacted"] = True
@@ -2378,27 +2006,20 @@ def _clip_bootstrap_text(value: Any, limit: int) -> Any:
 
 
 def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
+    """Project timeline history into shallow urgency/recurrence signals only."""
     raw = report.get("timeline_snapshots")
     if not isinstance(raw, dict):
         return {}
-    source_names = {
-        "VAULT_MEMORY": "memory",
-        "GIT_COMMIT": "repo",
-        "WORKER_REPORT": "worker",
-        "TRACKED_ARTIFACT": "artifact",
-    }
 
     def short_at(value: Any) -> Any:
-        text = str(value or "")
-        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", text)
+        value_text = str(value or "")
+        match = re.match(r"^\d{4}-(\d{2}-\d{2})T(\d{2}:\d{2})", value_text)
         return f"{match.group(1)} {match.group(2)}" if match else value
 
-    def compact_signal_summary(value: Any, *, keep_total: bool = True) -> dict[str, Any]:
+    def compact_signal_summary(value: Any) -> dict[str, Any]:
         if not isinstance(value, dict):
             return {}
-        keys = ["red", "slopwall", "incident", "regression", "security_incident"]
-        if keep_total:
-            keys.insert(0, "total")
+        keys = ("total", "red", "slopwall", "asshole", "incident", "regression", "security_incident")
         return {key: value.get(key) for key in keys if value.get(key) not in (None, 0)}
 
     windows: list[dict[str, Any]] = []
@@ -2406,286 +2027,170 @@ def _compact_timeline_snapshots(report: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(window, dict):
             continue
         label = str(window.get("window") or "")
-        highlight_limit = 6 if label == "24h" else 2
-        highlights: list[dict[str, Any]] = []
-        for item in window.get("highlights", []) if isinstance(window.get("highlights"), list) else []:
-            if not isinstance(item, dict):
-                continue
-            compact = {
-                "at": short_at(item.get("event_at")),
-                "source": source_names.get(str(item.get("source_type") or ""), str(item.get("source_type") or "other").casefold()),
-                "title": _clip_bootstrap_text(item.get("title"), 96),
-            }
-            if item.get("project") not in (None, "", []):
-                compact["project"] = item.get("project")
-            if item.get("artifact_type") not in (None, "", []):
-                compact["artifact"] = item.get("artifact_type")
-            if item.get("severity") == "RED":
-                compact["severity"] = "RED"
-            if item.get("traits"):
-                compact["traits"] = item.get("traits")
-            if item.get("legacy_inferred"):
-                compact["legacy"] = True
-            if item.get("short_sha") not in (None, "", []):
-                compact["sha"] = item.get("short_sha")
-            highlights.append(compact)
-            if len(highlights) >= highlight_limit:
-                break
-        context_only = []
-        for item in window.get("corroborated_anchors", []) if isinstance(window.get("corroborated_anchors"), list) else []:
-            if not isinstance(item, dict) or item.get("role") != "CONTEXT_ONLY":
-                continue
-            context_only.append({
-                "anchor": item.get("anchor"),
-                "sources": item.get("source_families"),
-                "observations": item.get("event_count"),
-                "role": "CONTEXT_ONLY",
-            })
-            if len(context_only) >= 2:
-                break
-        source_counts = {
-            source_names.get(str(name), str(name).casefold()): count
-            for name, count in (window.get("source_counts") or {}).items()
-        } if isinstance(window.get("source_counts"), dict) else {}
-        cases: list[dict[str, Any]] = []
-        case_limit = 3 if label == "24h" else 1
-        raw_case_examples = window.get("continuity_case_examples")
-        if not isinstance(raw_case_examples, list):
-            # Compatibility with materializations created before timeline schema v3.
-            raw_case_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
-        ordered_case_examples = sorted(
-            (case for case in raw_case_examples if isinstance(case, dict)),
+        case_counts = window.get("cases") if isinstance(window.get("cases"), dict) else window.get("continuity_case_summary")
+        density = window.get("evidence_density") if isinstance(window.get("evidence_density"), dict) else window.get("signal_observation_summary")
+        raw_examples = window.get("case_examples")
+        if not isinstance(raw_examples, list):
+            raw_examples = window.get("continuity_case_examples")
+        if not isinstance(raw_examples, list):
+            raw_examples = window.get("continuity_cases") if isinstance(window.get("continuity_cases"), list) else []
+        ordered_examples = sorted(
+            (case for case in raw_examples if isinstance(case, dict)),
             key=lambda case: (
                 1 if case.get("severity") == "RED" else 0,
-                1 if str(case.get("case_id") or "").casefold().startswith("incident:") else 0,
-                str(case.get("latest_signal_at") or ""),
-                str(case.get("case_id") or ""),
+                1 if str(case.get("id") or case.get("case_id") or "").casefold().startswith("incident:") else 0,
+                str(case.get("at") or case.get("latest_signal_at") or ""),
+                str(case.get("id") or case.get("case_id") or ""),
             ),
             reverse=True,
         )
-        for case in ordered_case_examples:
-            cases.append({
-                key: value for key, value in {
-                    "id": _clip_bootstrap_text(case.get("case_id"), 120),
-                    "severity": case.get("severity") if case.get("severity") == "RED" else None,
-                    "traits": case.get("traits"),
-                    "observations": case.get("observation_count"),
-                    "sources": case.get("source_families"),
-                    "forms": case.get("evidence_forms"),
-                    "at": short_at(case.get("latest_signal_at")),
-                    "title": _clip_bootstrap_text(case.get("latest_title"), 96),
-                    "support": {
-                        "STRUCTURED": "structured",
-                        "MIXED": "mixed",
-                        "LEGACY_DEPENDENT": "legacy-dependent",
-                    }.get(str(case.get("classification_quality") or "")),
-                    "legacy": True if case.get("legacy_inferred") else None,
-                }.items() if value not in (None, {}, [], "")
-            })
-            if len(cases) >= case_limit:
-                break
+        examples = []
+        for case in ordered_examples[: (3 if label == "24h" else 1)]:
+            compact = {
+                "id": _clip_bootstrap_text(case.get("id") or case.get("case_id"), 120),
+                "severity": case.get("severity") if case.get("severity") == "RED" else None,
+                "traits": case.get("traits"),
+                "observations": case.get("observations") or case.get("observation_count"),
+                "at": short_at(case.get("at") or case.get("latest_signal_at")),
+                "title": _clip_bootstrap_text(case.get("title") or case.get("latest_title"), 96),
+            }
+            examples.append({key: value for key, value in compact.items() if value not in (None, {}, [], "")})
         windows.append({
             key: value for key, value in {
                 "window": label,
-                "cases": compact_signal_summary(window.get("continuity_case_summary")),
-                "case_examples": cases,
-                "evidence_density": compact_signal_summary(window.get("signal_observation_summary")),
-                "context_only": context_only,
-                "observations": window.get("event_count"),
-                "sources": source_counts,
-                "artifacts": window.get("artifact_counts"),
-                "slice": window.get("slice"),
-                "slice_observations": window.get("slice_event_count"),
-                "highlights": highlights,
+                "cases": compact_signal_summary(case_counts),
+                "evidence_density": compact_signal_summary(density),
+                "observations": window.get("observations") if window.get("observations") is not None else window.get("event_count"),
+                "case_examples": examples,
             }.items() if value not in (None, {}, [], "")
         })
-    coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
-    repo_coverage = coverage.get("repos") if isinstance(coverage.get("repos"), dict) else {}
-    compact_coverage = {
-        "repo_saturated": sorted(
-            name for name, item in repo_coverage.items()
-            if isinstance(item, dict) and item.get("saturated")
-        ),
-        "artifacts_saturated": bool(
-            isinstance(coverage.get("artifacts"), dict) and coverage["artifacts"].get("saturated")
-        ),
-        "workers_bounded": (coverage.get("workers") or {}).get("bounded") if isinstance(coverage.get("workers"), dict) else None,
-    }
-    compact_coverage = {key: value for key, value in compact_coverage.items() if value not in (None, [], {})}
-    memory_history = raw.get("preserved_memory_history") if isinstance(raw.get("preserved_memory_history"), dict) else {}
-    compact_memory_history = {
+
+    raw_coverage = raw.get("coverage") if isinstance(raw.get("coverage"), dict) else {}
+    if any(key in raw_coverage for key in ("repo_saturated", "artifacts_saturated", "workers_bounded")):
+        coverage = {
+            key: raw_coverage.get(key)
+            for key in ("repo_saturated", "artifacts_saturated", "workers_bounded")
+            if raw_coverage.get(key) not in (None, [], {})
+        }
+    else:
+        repos = raw_coverage.get("repos") if isinstance(raw_coverage.get("repos"), dict) else {}
+        coverage = {
+            "repo_saturated": sorted(name for name, item in repos.items() if isinstance(item, dict) and item.get("saturated")),
+            "artifacts_saturated": bool(isinstance(raw_coverage.get("artifacts"), dict) and raw_coverage["artifacts"].get("saturated")),
+            "workers_bounded": (raw_coverage.get("workers") or {}).get("bounded") if isinstance(raw_coverage.get("workers"), dict) else None,
+        }
+        coverage = {key: value for key, value in coverage.items() if value not in (None, [], {})}
+
+    memory_history = raw.get("memory_history") if isinstance(raw.get("memory_history"), dict) else raw.get("preserved_memory_history")
+    memory_history = memory_history if isinstance(memory_history, dict) else {}
+    memory_history = {
         "red_observations": memory_history.get("red_observations"),
-        "cases": compact_signal_summary(memory_history.get("continuity_case_summary")),
+        "cases": compact_signal_summary(memory_history.get("cases") if isinstance(memory_history.get("cases"), dict) else memory_history.get("continuity_case_summary")),
     }
-    compact_memory_history = {key: value for key, value in compact_memory_history.items() if value not in (None, {}, [], "")}
-    narrative = raw.get("narrative_contract") if isinstance(raw.get("narrative_contract"), dict) else {}
-    compact_narrative = {
-        "primary": "cases",
-        "read_order": "cases>work_graph>evidence_density>context_only",
-        "observations": "density_not_cases",
-        "github_anchors": "context_only",
-    } if narrative else {}
+    memory_history = {key: value for key, value in memory_history.items() if value not in (None, {}, [], "")}
     return {
         "authority": raw.get("authority"),
-        "narrative": compact_narrative,
-        "memory_history": compact_memory_history,
-        "coverage": compact_coverage,
+        "memory_history": memory_history,
+        "coverage": coverage,
         "windows": windows,
     }
 
 
-def _shrink_timeline_snapshots_for_budget(overview: dict[str, Any], budget: int) -> None:
-    snapshots = overview.get("timeline_snapshots")
-    if not isinstance(snapshots, dict):
-        return
-    windows = snapshots.get("windows")
-    if not isinstance(windows, list):
-        return
-    by_label = {str(item.get("window") or ""): item for item in windows if isinstance(item, dict)}
-
-    # Corroboration counts/anchors matter more than long highlight lists. Trim older
-    # window examples first; the 24h window is deliberately the richest startup view.
-    for label, floor in (("7d", 1), ("3d", 1), ("24h", 5)):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and len(highlights) > floor and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
-        item = by_label.get(label)
-        anchors = item.get("context_only") if isinstance(item, dict) else None
-        while isinstance(anchors, list) and len(anchors) > floor and _compact_json_bytes(overview) > budget:
-            anchors.pop()
-    for label, floor in (("7d", 0), ("3d", 0), ("24h", 1)):
-        item = by_label.get(label)
-        cases = item.get("case_examples") if isinstance(item, dict) else None
-        while isinstance(cases, list) and len(cases) > floor and _compact_json_bytes(overview) > budget:
-            cases.pop()
-    # Older cumulative windows already retain canonical case counts. Their raw signal
-    # observation counters yield before concrete examples do.
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-            item.pop("evidence_density", None)
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and len(highlights) > 1 and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    item = by_label.get("24h")
-    highlights = item.get("highlights") if isinstance(item, dict) else None
-    while isinstance(highlights, list) and len(highlights) > 4 and _compact_json_bytes(overview) > budget:
-        highlights.pop()
-    # Pathological fallback: only after counters/case examples have yielded.
-    for label in ("7d", "3d"):
-        item = by_label.get(label)
-        highlights = item.get("highlights") if isinstance(item, dict) else None
-        while isinstance(highlights, list) and highlights and _compact_json_bytes(overview) > budget:
-            highlights.pop()
-    item = by_label.get("24h")
-    highlights = item.get("highlights") if isinstance(item, dict) else None
-    while isinstance(highlights, list) and len(highlights) > 2 and _compact_json_bytes(overview) > budget:
-        highlights.pop()
-
-    # Materialized health/work metadata is appended after the first snapshot compaction.
-    # Under that second-stage pressure, duplicated 3d/7d source/artifact breakdowns yield
-    # before the concrete 24h case/context/highlight evidence. Cumulative case counts and
-    # observation totals remain, so older orientation is not lost.
-    for key in ("sources", "artifacts", "slice_observations"):
-        for label in ("7d", "3d"):
-            item = by_label.get(label)
-            if isinstance(item, dict) and _compact_json_bytes(overview) > budget:
-                item.pop(key, None)
-
-
 def _fit_memory_overview_budget(overview: dict[str, Any], max_bytes: int = BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES) -> dict[str, Any]:
-    """Bound bootstrap memory orientation by bytes, preserving highest-value lineage context first."""
-    budget = max(256, int(max_bytes))
-    bounded = json.loads(json.dumps(overview, ensure_ascii=False))
+    """Enforce the shallow startup-memory schema; detail requires explicit memory retrieval."""
+    budget = max(512, int(max_bytes))
+    raw = json.loads(json.dumps(overview, ensure_ascii=False))
+    materialized = raw.get("timeline_materialized") if isinstance(raw.get("timeline_materialized"), dict) else {}
+    correction_triggers = raw.get("correction_triggers") if isinstance(raw.get("correction_triggers"), dict) else {}
+    recent = []
+    for item in raw.get("recent", []) if isinstance(raw.get("recent"), list) else []:
+        if not isinstance(item, dict):
+            continue
+        recent.append({
+            key: value for key, value in {
+                "id": item.get("id"),
+                "timestamp": item.get("timestamp"),
+                "title": _clip_bootstrap_text(item.get("title"), 96),
+            }.items() if value not in (None, "")
+        })
+        if len(recent) >= 3:
+            break
+    projects = [
+        {key: item.get(key) for key in ("name", "count") if item.get(key) not in (None, "")}
+        for item in raw.get("projects", [])[:3]
+        if isinstance(item, dict)
+    ] if isinstance(raw.get("projects"), list) else []
+    recurring_tags = [
+        {key: item.get(key) for key in ("name", "count") if item.get(key) not in (None, "")}
+        for item in raw.get("recurring_tags", [])[:3]
+        if isinstance(item, dict)
+    ] if isinstance(raw.get("recurring_tags"), list) else []
+    bounded = {
+        "contract": "BOOTSTRAP_MEMORY_GLANCE_ONLY; shallow urgency/state/recurrence orientation; use memory context/timeline for detail",
+        "eligible_entries": raw.get("eligible_entries", 0),
+        "timeline_snapshots": _compact_timeline_snapshots(raw),
+        "incident_rollups": _compact_incident_rollups(raw, 3),
+        "recent": recent,
+        "projects": projects,
+        "recurring_tags": recurring_tags,
+    }
+    if correction_triggers:
+        bounded["correction_triggers"] = {
+            key: correction_triggers.get(key)
+            for key in ("authority", "status")
+            if correction_triggers.get(key) not in (None, "")
+        }
+    if materialized:
+        bounded["timeline_materialized"] = {
+            key: materialized.get(key)
+            for key in (
+                "status", "as_of", "coverage_status", "absence_semantics", "age_seconds", "backfill_incomplete_sources",
+                "retry_sources", "timeline_truncated", "live_truth_required", "read_mode", "refresh_command",
+            )
+            if materialized.get(key) not in (None, "", [], {})
+        }
+
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    # Worker findings are archived evidence and already have a dedicated worker projection;
-    # do not sacrifice memory lineage/recent context for this duplicate startup cost.
-    bounded.pop("worker_findings", None)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    rollups = bounded.get("incident_rollups") if isinstance(bounded.get("incident_rollups"), list) else []
-    for summary_limit in (160, 120, 80):
-        for rollup in rollups:
-            if isinstance(rollup, dict) and "summary" in rollup:
-                rollup["summary"] = _clip_bootstrap_text(rollup.get("summary"), summary_limit)
-        if _compact_json_bytes(bounded) <= budget:
-            return bounded
-
-    for rollup in rollups:
-        if isinstance(rollup, dict):
-            rollup.pop("summary", None)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    # Keep at least one item from each secondary orientation list before reducing rollups.
     for key in ("projects", "recurring_tags", "recent"):
         items = bounded.get(key)
-        if not isinstance(items, list):
-            continue
-        while len(items) > 1 and _compact_json_bytes(bounded) > budget:
-            items.pop()
+        if isinstance(items, list):
+            bounded[key] = items[:1]
+    snapshots = bounded.get("timeline_snapshots")
+    windows = snapshots.get("windows") if isinstance(snapshots, dict) else None
+    if isinstance(windows, list):
+        for window in windows:
+            if not isinstance(window, dict):
+                continue
+            if window.get("window") != "24h":
+                window.pop("case_examples", None)
+            elif isinstance(window.get("case_examples"), list):
+                window["case_examples"] = window["case_examples"][:1]
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    while len(rollups) > 1 and _compact_json_bytes(bounded) > budget:
-        rollups.pop()
+    rollups = bounded.get("incident_rollups")
+    if isinstance(rollups, list):
+        bounded["incident_rollups"] = rollups[:1]
+    if isinstance(windows, list):
+        for window in windows:
+            if isinstance(window, dict) and window.get("window") != "24h":
+                window.pop("evidence_density", None)
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    # Timeline snapshots are now the primary continuity surface. Generic project/tag
-    # summaries and duplicated recent titles yield before the emphasized 24h snapshot.
     for key in ("projects", "recurring_tags", "recent"):
-        if _compact_json_bytes(bounded) <= budget:
-            break
         bounded[key] = []
+    if isinstance(windows, list):
+        for window in windows:
+            if isinstance(window, dict):
+                window.pop("case_examples", None)
+                window.pop("evidence_density", None)
     if _compact_json_bytes(bounded) <= budget:
         return bounded
 
-    _shrink_timeline_snapshots_for_budget(bounded, budget)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    # Pathological long strings must not defeat the hard startup bound.
-    for rollup in rollups:
-        if not isinstance(rollup, dict):
-            continue
-        for key, limit in (("scope", 120), ("latest_title", 120), ("drilldown", 220), ("thread_id", 220)):
-            if key in rollup:
-                rollup[key] = _clip_bootstrap_text(rollup.get(key), limit)
-        rollup.pop("projects", None)
-        rollup.pop("entities", None)
-    for key in ("recent", "projects"):
-        for item in bounded.get(key, []) if isinstance(bounded.get(key), list) else []:
-            if isinstance(item, dict):
-                for field in ("title", "name"):
-                    if field in item:
-                        item[field] = _clip_bootstrap_text(item.get(field), 120)
-    if _compact_json_bytes(bounded) <= budget:
-        return bounded
-
-    for key in ("projects", "recurring_tags", "recent", "incident_rollups"):
-        if _compact_json_bytes(bounded) <= budget:
-            break
-        bounded[key] = []
-    if _compact_json_bytes(bounded) > budget:
-        _shrink_timeline_snapshots_for_budget(bounded, budget)
-    if _compact_json_bytes(bounded) > budget:
-        snapshots = bounded.get("timeline_snapshots")
-        if isinstance(snapshots, dict):
-            for window in snapshots.get("windows", []) if isinstance(snapshots.get("windows"), list) else []:
-                if isinstance(window, dict):
-                    window.pop("highlights", None)
-                    window.pop("context_only", None)
-                    if _compact_json_bytes(bounded) <= budget:
-                        break
-    return bounded
+    raise ValueError(f"BOOTSTRAP_MEMORY_GLANCE_BUDGET_EXCEEDED bytes={_compact_json_bytes(bounded)} budget={budget}")
 
 
 def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str, Any]:
@@ -2816,8 +2321,9 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     return {
         "available": True,
         "read_state": "OK",
-        "deployment_id": deployment.get("id"),
-        "backend_generation": deployment.get("generation"),
+        "authority": "recovery_target_not_live_serving_identity",
+        "recovery_target_deployment_id": recovery_target.get("deployment_id") or deployment.get("id"),
+        "recovery_target_generation": deployment.get("generation"),
         "recovery_selected_at": recovery_target.get("selected_at"),
         "automatic_routing": recovery_lanes.get("automatic_routing"),
         "ssh_role": recovery_lanes.get("ssh_role"),
@@ -2839,6 +2345,35 @@ def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
             "fresh_mcp_process_call": restore.get("fresh_mcp_process_call"),
         } if topology_restore else None,
         "post_restore_no_mcp_request_in_flight": bool(observation.get("post_restore_no_mcp_request_in_flight")),
+    }
+
+def _bootstrap_mcp_security_posture() -> dict[str, Any]:
+    path = MCP_SECURITY_POSTURE_PATH
+    if not path.exists():
+        return {"available": False, "read_state": "MISSING", "path": str(path), "status": "UNKNOWN", "security_cleared": False}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "read_state": "ERROR", "path": str(path), "status": "UNKNOWN", "security_cleared": False, "error": str(exc)}
+    if not isinstance(raw, dict):
+        return {"available": False, "read_state": "ERROR", "path": str(path), "status": "UNKNOWN", "security_cleared": False, "error": "security posture is not an object"}
+    findings = raw.get("blocking_findings", []) if isinstance(raw.get("blocking_findings"), list) else []
+    blockers = [
+        {key: item.get(key) for key in ("id", "severity", "status") if key in item}
+        for item in findings[:3] if isinstance(item, dict)
+    ]
+    remediation = raw.get("remediation_order", []) if isinstance(raw.get("remediation_order"), list) else []
+    related = raw.get("related_issues", {}) if isinstance(raw.get("related_issues"), dict) else {}
+    return {
+        "available": True,
+        "read_state": "OK",
+        "status": raw.get("status") or "UNKNOWN",
+        "security_cleared": raw.get("security_cleared") is True,
+        "operational_use": raw.get("operational_use"),
+        "highest_severity": raw.get("highest_severity"),
+        "blocking_findings": blockers,
+        "next_action": _clip_bootstrap_text(remediation[0], 180) if remediation else None,
+        "primary_issue": related.get("primary"),
     }
 
 def _bootstrap_vault_status() -> dict[str, Any]:
@@ -3025,6 +2560,107 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
     return value or None
 
 
+def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str = "main") -> dict[str, Any]:
+    """Bounded local serving-checkout coherence; never fetches or reads policy bodies."""
+    git = shutil.which("git")
+    remote_head = str(remote_main or "").strip() or None
+    result: dict[str, Any] = {
+        "available": False,
+        "branch": None,
+        "local_head": None,
+        "remote_main": remote_head,
+        "head_matches_remote_main": False,
+        "local_tracking_main": None,
+        "head_matches_local_tracking_main": False,
+        "cached_remote_is_ancestor_of_local": False,
+        "remote_metadata_lags_local_tracking": False,
+        "coherence_basis": "unavailable",
+        "dirty": None,
+        "coherent": False,
+    }
+    if not git:
+        return result
+    try:
+        proc = subprocess.run(
+            [git, "-C", str(repo_root), "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
+            text=True, capture_output=True, timeout=1.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return result
+    if proc.returncode != 0:
+        return result
+    branch = None
+    local_head = None
+    dirty = False
+    for raw_line in proc.stdout.splitlines():
+        if raw_line.startswith("# branch.oid "):
+            value = raw_line[len("# branch.oid "):].strip()
+            local_head = value if value and value != "(initial)" else None
+        elif raw_line.startswith("# branch.head "):
+            value = raw_line[len("# branch.head "):].strip()
+            branch = value or None
+        elif raw_line and not raw_line.startswith("# "):
+            dirty = True
+
+    tracking_head = None
+    try:
+        tracking_proc = subprocess.run(
+            [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
+            text=True, capture_output=True, timeout=0.75,
+        )
+        if tracking_proc.returncode == 0:
+            tracking_head = tracking_proc.stdout.strip() or None
+    except (OSError, subprocess.TimeoutExpired):
+        tracking_head = None
+
+    exact_head = bool(local_head and remote_head and local_head == remote_head)
+    cached_remote_is_ancestor = exact_head
+    if local_head and remote_head and not exact_head:
+        try:
+            ancestor_proc = subprocess.run(
+                [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
+                text=True, capture_output=True, timeout=0.75,
+            )
+            cached_remote_is_ancestor = ancestor_proc.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            cached_remote_is_ancestor = False
+
+    tracking_matches = bool(local_head and tracking_head and local_head == tracking_head)
+    metadata_lags_tracking = bool(tracking_matches and cached_remote_is_ancestor and not exact_head)
+    if tracking_head:
+        coherent_head = bool(tracking_matches and cached_remote_is_ancestor)
+    else:
+        # Without a local canonical tracking ref, only exact cached metadata is enough evidence.
+        coherent_head = exact_head
+    coherent = bool(coherent_head and branch == expected_branch and not dirty)
+    if coherent:
+        coherence_basis = "cached_remote_exact" if exact_head else "local_tracking_descends_cached_remote"
+    elif branch != expected_branch:
+        coherence_basis = "wrong_branch"
+    elif dirty:
+        coherence_basis = "dirty"
+    elif tracking_head and not tracking_matches:
+        coherence_basis = "local_head_differs_tracking_main"
+    elif remote_head and not cached_remote_is_ancestor:
+        coherence_basis = "cached_remote_not_ancestor"
+    else:
+        coherence_basis = "remote_relation_unknown"
+    result.update({
+        "available": bool(local_head),
+        "branch": branch,
+        "local_head": local_head,
+        "remote_main": remote_head,
+        "head_matches_remote_main": exact_head,
+        "local_tracking_main": tracking_head,
+        "head_matches_local_tracking_main": tracking_matches,
+        "cached_remote_is_ancestor_of_local": cached_remote_is_ancestor,
+        "remote_metadata_lags_local_tracking": metadata_lags_tracking,
+        "coherence_basis": coherence_basis,
+        "dirty": dirty,
+        "coherent": coherent,
+    })
+    return result
+
 def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remote_commit: Any) -> bool:
     """Detect a fetched remote file delta already present in a locally divergent working file."""
     git = shutil.which("git")
@@ -3080,8 +2716,12 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         "source-freshness.json", cached_raw, cache_age,
         max_age_seconds=BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS, lease_seconds=4.0,
     )
-    remote: dict[str, Any] | None = cached
-    cache_used = cached is not None
+    remote: dict[str, Any] | None = cached if isinstance(cached, dict) else None
+    if remote is not None:
+        checkout_meta = remote.get("canonical_agents_checkout")
+        if not isinstance(checkout_meta, dict) or not str(checkout_meta.get("remote_main") or "").strip():
+            remote = None
+    cache_used = remote is not None
     if remote is None:
         gh = shutil.which("gh")
         if not gh:
@@ -3090,6 +2730,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
             'query {'
             ' agents: repository(owner:"organicoverlords", name:"agents") {'
             '  ref(qualifiedName:"refs/heads/main") { target { ... on Commit {'
+            '   oid'
             '   agentsHistory: history(first:1, path:"AGENTS.md") { nodes { oid committedDate } }'
             '   rulesHistory: history(first:1, path:"RULES.md") { nodes { oid committedDate } }'
             '  } } }'
@@ -3128,6 +2769,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
                 return nodes[0] if nodes and isinstance(nodes[0], dict) else {}
 
             remote = {
+                "canonical_agents_checkout": {"remote_main": agent_target.get("oid")},
                 "AGENTS.md": {
                     "remote_blob": (agents.get("agentsBlob") or {}).get("oid"),
                     "last_updated_at": first_history(agent_target, "agentsHistory").get("committedDate"),
@@ -3149,6 +2791,9 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         except (json.JSONDecodeError, AttributeError, TypeError):
             return {"available": False, "attention_required": True, "reason": "github_metadata_invalid"}
 
+    checkout_remote = dict((remote or {}).get("canonical_agents_checkout") or {})
+    canonical_checkout = _git_checkout_state(Path(AGENT_RULES_ROOT), checkout_remote.get("remote_main"))
+
     local_sources = {
         "AGENTS.md": (Path(AGENT_RULES_ROOT) / "AGENTS.md", Path(AGENT_RULES_ROOT), "AGENTS.md"),
         "RULES.md": (Path(AGENT_RULES_ROOT) / "RULES.md", Path(AGENT_RULES_ROOT), "RULES.md"),
@@ -3159,8 +2804,9 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         ),
     }
     sources: dict[str, Any] = {}
-    attention = False
-    any_updates_pending = False
+    checkout_incoherent = not bool(canonical_checkout.get("coherent"))
+    attention = checkout_incoherent
+    any_updates_pending = checkout_incoherent
     for key, (path, repo_root, relative_path) in local_sources.items():
         item = dict((remote or {}).get(key) or {})
         local_blob = _git_blob_sha_for_file(path)
@@ -3183,6 +2829,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         "available": True,
         "attention_required": attention,
         "updates_pending": any_updates_pending,
+        "canonical_checkout": canonical_checkout,
         "sources": sources,
         "cache": {
             "used": cache_used,
@@ -3194,7 +2841,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
 
 
 def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Legacy bootstrap MCP projection from the same live-swarm evidence; avoids a second transport scan."""
+    """Compatibility bootstrap MCP projection from the MCPv4-backed live-swarm evidence."""
     if not isinstance(snapshot, dict) or not snapshot.get("available"):
         return {"available": False, "status": "MISSING", "active_session_count": 0, "active_sessions": [], "workspace_counts": {}}
     evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
@@ -3220,6 +2867,8 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
         "available": True,
         "status": "LIVE" if float(evidence.get("source_age_seconds") or 0) <= 60 else "STALE",
         "source_age_seconds": evidence.get("source_age_seconds"),
+        "transport": evidence.get("transport"),
+        "transport_source_count": evidence.get("transport_source_count"),
         "service_health": {"available": None, "status": "NOT_PROBED_FRESH_TRANSPORT"},
         "activity_evidence_status": "FRESH" if complete else "BOUNDED",
         "active_session_count": int(summary.get("recent_callers") or 0),
@@ -3237,23 +2886,58 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_SHARED_CONTRACT_VERSION_RE = re.compile(r"(?m)^Shared contract version:\s*([1-9][0-9]*)\s*$")
+
+
+def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
+    """Read the logical shared-contract version from the serving RULES/AGENTS pair."""
+    root = Path(agent_rules_root)
+
+    def read_one(name: str) -> int | None:
+        path = root / name
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        matches = _SHARED_CONTRACT_VERSION_RE.findall(text)
+        return int(matches[0]) if len(matches) == 1 else None
+
+    rules_version = read_one("RULES.md")
+    agents_version = read_one("AGENTS.md")
+    if rules_version is not None and agents_version is not None and rules_version == agents_version:
+        return {"status": "COHERENT", "version": rules_version, "rules_version": rules_version, "agents_version": agents_version}
+    if rules_version is None or agents_version is None:
+        return {"status": "MISSING", "version": None, "rules_version": rules_version, "agents_version": agents_version}
+    return {"status": "MISMATCH", "version": None, "rules_version": rules_version, "agents_version": agents_version}
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=7) as pool:
+    with ThreadPoolExecutor(max_workers=9) as pool:
+        f_execution_nodes = pool.submit(_bootstrap_execution_node_topology)
         f_pc = pool.submit(_bootstrap_pc_status)
         f_workers = pool.submit(_bootstrap_worker_status)
         f_live_swarm = pool.submit(build_live_swarm_snapshot)
+        f_mcp_backend_health = pool.submit(_bootstrap_mcp_backend_health)
         f_memory = pool.submit(_bootstrap_memory_overview)
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        pc, workers, live_swarm, memory_overview, vault, github, source_freshness = (
-            f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
+        execution_nodes, pc, workers, live_swarm, mcp_backend_health, memory_overview, vault, github, source_freshness = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_mcp_backend_health.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result()
         )
-    mcp = _bootstrap_mcp_from_live_swarm(live_swarm)
+    pc = _bind_pc_node_identity(pc, execution_nodes)
+    swarm_topology = _bootstrap_swarm_topology()
+    if isinstance(swarm_topology, dict):
+        swarm_topology["execution_nodes"] = execution_nodes
+    mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm, mcp_backend_health)
     mcp_recovery_state = _bootstrap_mcp_recovery_state()
+    mcp_security_posture = _bootstrap_mcp_security_posture()
+    agent_contract = _bootstrap_agent_contract_version()
     notable_conditions: list[str] = []
+    if agent_contract["status"] != "COHERENT":
+        notable_conditions.append(f"agent_contract_version_{str(agent_contract['status']).casefold()}")
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
         notable_conditions.append(f"disk_{str(disk.get('status')).casefold()}_free_{disk.get('free_gb')}gb")
@@ -3270,7 +2954,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     worker_glance = {
         key: workers.get(key) for key in (
             "available", "generated_at", "read_mode", "population_scope", "evidence_semantics",
-            "archive_sample", "attention", "stale_reports", "fleet_watch", "manual_sanity",
+            "archive_sample", "attention", "stale_reports", "manual_sanity",
         ) if key in workers
     } if isinstance(workers, dict) else workers
     if isinstance(worker_glance, dict):
@@ -3281,7 +2965,24 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
                 for key in ("available", "status", "score_delta", "direction", "post_run_count")
                 if key in sanity
             }
-        worker_glance["current_activity"] = {"authority": "live_mcp_runtime_evidence"}
+        live_summary = live_swarm.get("summary") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("summary"), dict) else {}
+        live_evidence = live_swarm.get("evidence") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("evidence"), dict) else {}
+        worker_glance["current_activity"] = {
+            "authority": "live_swarm_runtime_evidence",
+            "population_scope": "unified_recurring_and_manual_on_demand_activity",
+            "recent_callers": live_summary.get("recent_callers"),
+            "lanes": live_summary.get("lanes"),
+            "busy_owners": live_summary.get("busy_owners"),
+            "activity_window_seconds": live_evidence.get("activity_window_seconds"),
+            "observation_window_complete": live_evidence.get("observation_window_complete"),
+            "source_age_seconds": live_evidence.get("source_age_seconds"),
+        }
+        scheduler_recovery = workers.get("fleet_watch") if isinstance(workers, dict) and isinstance(workers.get("fleet_watch"), dict) else None
+        if scheduler_recovery is not None:
+            worker_glance["recurring_scheduler_recovery"] = {
+                **scheduler_recovery,
+                "authority": "partition_local_reports_and_start_receipts_not_swarm_liveness",
+            }
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
     vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
@@ -3292,14 +2993,14 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"vault_{vault_health.casefold()}")
     if github_health != "OK":
         notable_conditions.append(f"github_{github_health.casefold()}")
-    fleet_watch = worker_glance.get("fleet_watch") if isinstance(worker_glance, dict) else None
-    if isinstance(fleet_watch, dict) and fleet_watch.get("status") == "SUSPECT_DEGRADED":
+    scheduler_recovery = worker_glance.get("recurring_scheduler_recovery") if isinstance(worker_glance, dict) else None
+    if isinstance(scheduler_recovery, dict) and scheduler_recovery.get("status") == "SUSPECT_DEGRADED":
         labels = [
             str(item.get("worker") or "").replace("Repo Worker ", "").casefold()
-            for item in fleet_watch.get("suspect_workers", [])
+            for item in scheduler_recovery.get("suspect_workers", [])
             if isinstance(item, dict) and str(item.get("worker") or "").strip()
         ]
-        notable_conditions.append("recurring_fleet_local_evidence_suspect" + ("_" + "_".join(labels) if labels else ""))
+        notable_conditions.append("recurring_scheduler_recovery_suspect" + ("_" + "_".join(labels) if labels else ""))
     timeline_materialized = memory_overview.get("timeline_materialized", {}) if isinstance(memory_overview, dict) else {}
     if isinstance(timeline_materialized, dict):
         timeline_status = str(timeline_materialized.get("status") or "").upper()
@@ -3315,7 +3016,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             notable_conditions.append("timeline_materialized_event_cap_truncated")
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-    bootstrap_status = "OK" if mcp_health == vault_health == github_health == "OK" else "DEGRADED"
+    bootstrap_status = "OK" if (mcp_health == vault_health == github_health == "OK" and agent_contract["status"] == "COHERENT") else "DEGRADED"
     if elapsed_ms >= 5000:
         notable_conditions.append(f"bootstrap_slow_{round(elapsed_ms)}ms")
     bootstrap = {
@@ -3323,6 +3024,8 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "self_check": "OK" if (ROOT / "tools" / "stack_atlas.py").is_file() else "DEGRADED",
         "elapsed_ms": elapsed_ms,
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
+        "mcp_security": mcp_security_posture.get("status") if isinstance(mcp_security_posture, dict) else "UNKNOWN",
+        "agent_contract": agent_contract,
     }
     glance = {
         "schema": "bootstrap.v1",
@@ -3342,8 +3045,10 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "mcp_source_repo": r"%LOCALAPPDATA%\ChatGPTMcpClean",
             "mcp_recovery_state": str(MCP_RECOVERY_STATE_PATH),
             "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
+            "mcp_security_posture": str(MCP_SECURITY_POSTURE_PATH),
+            "execution_node_topology": str(ATLAS_LIVE_ROOT / EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH),
         },
-        "swarm_topology": _bootstrap_swarm_topology(),
+        "swarm_topology": swarm_topology,
         "commands": {
             "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
             "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
@@ -3369,6 +3074,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "pc": pc,
         "workers": worker_glance,
         "mcp_recovery_state": mcp_recovery_state,
+        "mcp_security_posture": mcp_security_posture,
         "memory_overview": memory_overview,
     }
     return _fit_bootstrap_glance_budget(glance)
@@ -3492,7 +3198,7 @@ def production_change_gate(
 
     dependencies: dict[str, Any] = {}
     if component in MCP_SHARED_PRODUCTION_COMPONENTS:
-        mcp = mcp_status if mcp_status is not None else _bootstrap_mcp_status()
+        mcp = mcp_status if mcp_status is not None else _bootstrap_mcp_from_live_swarm(build_live_swarm_snapshot())
         dependencies["mcp"] = {
             "available": bool(mcp.get("available")),
             "status": mcp.get("status"),
@@ -3500,6 +3206,9 @@ def production_change_gate(
             "active_session_count_status": mcp.get("active_session_count_status"),
             "active_session_count_semantics": mcp.get("active_session_count_semantics"),
             "active_sessions": mcp.get("active_sessions", []),
+            "authority": "live_swarm_runtime_evidence" if mcp_status is None else mcp.get("authority"),
+            "transport": mcp.get("transport"),
+            "transport_source_count": mcp.get("transport_source_count"),
         }
         if not mcp.get("available") or mcp.get("status") != "LIVE" or mcp.get("active_session_count_status") != "COMPLETE":
             reasons.append("mcp_dependency_evidence_incomplete")
@@ -3812,13 +3521,14 @@ LIVE_PROBE_TIMEOUT_SECONDS = 5
 def _powershell_json(script: str) -> Any:
     try:
         result = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
             check=True,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=LIVE_PROBE_TIMEOUT_SECONDS,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0,
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(
@@ -3976,7 +3686,10 @@ def main() -> int:
         else:
             processes, ports, resources = capture_windows_processes(), capture_windows_ports(), []
         value = blast_radius(args.pid, processes, ports=ports, resource_observations=resources)
-    print(json.dumps(value, indent=2, sort_keys=True))
+    if args.command == "bootstrap-glance":
+        print(json.dumps(value, separators=(",", ":"), ensure_ascii=False))
+    else:
+        print(json.dumps(value, indent=2, sort_keys=True))
     return 0
 
 

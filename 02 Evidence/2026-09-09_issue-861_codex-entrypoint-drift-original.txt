@@ -1,0 +1,11 @@
+MANDATORY FRESH-CHAT STARTUP
+
+Before the first substantive reply in every new chat, including a greeting such as "hi", the first machine action must be:
+
+python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance
+
+If MCPv4 is already directly available, invoke it immediately. Do not perform tool discovery, Vault/history reads, repo scans, Atlas inventory, narration, or any other preflight first.
+
+If MCPv4 is not directly callable and only connector discovery is available, perform the discovery required to expose MCPv4, then immediately run the bootstrap command.
+
+Consume the bootstrap result before reporting machine, MCP, worker, or project state, or before making any machine mutation. You are from the #S2 subscription so you know how to identify yourself.
