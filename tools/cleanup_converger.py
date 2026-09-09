@@ -30,8 +30,8 @@ BUSY_CMD = LOCALAPPDATA / "BusyCoordinator" / "busy-python.cmd"
 
 DEFAULT_REPOS = (
     ("P3", Path(r"C:\Users\Lauri\Documents\Unreal Projects\p3"), "p3:git-worktree-metadata"),
-    ("Vault", Path(r"C:\Users\Lauri\Desktop\vault"), "regression-research:git-worktree-metadata"),
-    ("Agents", Path(r"C:\Users\Lauri\.agents"), "agents:git-worktree-metadata"),
+    ("Vault", Path(r"C:\Users\Lauri\Desktop\vault"), "organicoverlords/regression-research:git-worktree-metadata"),
+    ("Agents", Path(r"C:\Users\Lauri\.agents"), "organicoverlords/agents:git-worktree-metadata"),
 )
 P3_GENERATED_DIR_NAMES = frozenset({"Binaries", "Intermediate", "DerivedDataCache"})
 CLEANLINESS_PROBE_TIMEOUT_SECONDS = 15.0

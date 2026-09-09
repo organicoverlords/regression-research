@@ -410,7 +410,7 @@ class CleanupConvergerTests(unittest.TestCase):
 
             with patch(
                 "tools.cleanup_converger.DEFAULT_REPOS",
-                (("Vault", repo, "regression-research:git-worktree-metadata"),),
+                (("Vault", repo, "organicoverlords/regression-research:git-worktree-metadata"),),
             ):
                 result = converge(
                     apply=True,
@@ -424,11 +424,19 @@ class CleanupConvergerTests(unittest.TestCase):
             remove_one.assert_not_called()
             self.assertEqual(
                 busy_claim.call_args_list[1].args,
-                ("test-operator", "regression-research:git-ref:refs/heads/topic"),
+                ("test-operator", "organicoverlords/regression-research:git-ref:refs/heads/topic"),
             )
             blocked = [action for action in result["actions"] if action["action"] == "BLOCKED"]
             self.assertEqual(len(blocked), 1)
             self.assertEqual(blocked[0]["reason"], "branch_busy_claim_failed:scope_already_claimed")
+
+    def test_default_repo_scopes_use_canonical_github_owner_names(self):
+        from tools.cleanup_converger import DEFAULT_REPOS, _branch_ref_scope
+        scopes = {name: scope for name, _path, scope in DEFAULT_REPOS}
+        self.assertEqual(scopes["Vault"], "organicoverlords/regression-research:git-worktree-metadata")
+        self.assertEqual(scopes["Agents"], "organicoverlords/agents:git-worktree-metadata")
+        lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False)
+        self.assertEqual(_branch_ref_scope(scopes["Agents"], lane), "organicoverlords/agents:git-ref:refs/heads/topic")
 
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):
@@ -460,7 +468,7 @@ class CleanupConvergerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             git.return_value = subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
-            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "regression-research:git-worktree-metadata"),)):
+            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "organicoverlords/regression-research:git-worktree-metadata"),)):
                 result = converge(apply=False, safe_auto=True, max_rounds=1, stable_rounds=1, settle_seconds=0, window_seconds=300, actor="scheduled-test")
         scan.assert_called_once_with("Vault", repo, 300, require_contained=True)
         self.assertEqual(result["mode"], "safe-auto")
@@ -472,7 +480,7 @@ class CleanupConvergerTests(unittest.TestCase):
             repo = Path(tmp)
             lane = Worktree(repo / "reap", "abcd", "topic", False)
             scan.return_value = ([lane], [], [Action("Vault", str(repo / "dirty"), "PRESERVE", "old", "beef", "dirty_unique_contained_in_origin_main")])
-            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "regression-research:git-worktree-metadata"),)):
+            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "organicoverlords/regression-research:git-worktree-metadata"),)):
                 result = hygiene_snapshot(300, repo_names={"Vault"})
         self.assertEqual(result["auxiliary_count"], 2)
         self.assertEqual(result["dirty_count"], 1)
