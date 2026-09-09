@@ -97,6 +97,22 @@ _REVIEW_SENSITIVE_PATTERNS = (
 )
 
 
+def _grouped_matchers(patterns: tuple[re.Pattern[str], ...]) -> tuple[re.Pattern[str], ...]:
+    """Combine equivalent regex sources by case-sensitivity without changing match semantics."""
+    groups: list[re.Pattern[str]] = []
+    for ignore_case in (False, True):
+        sources = [pattern.pattern for pattern in patterns if bool(pattern.flags & re.IGNORECASE) is ignore_case]
+        if not sources:
+            continue
+        combined = "|".join(f"(?:{source})" for source in sources)
+        groups.append(re.compile(combined, re.IGNORECASE if ignore_case else 0))
+    return tuple(groups)
+
+
+_STRONG_SENSITIVE_MATCHERS = _grouped_matchers(_STRONG_SENSITIVE_PATTERNS)
+_REVIEW_SENSITIVE_MATCHERS = _grouped_matchers(_REVIEW_SENSITIVE_PATTERNS)
+
+
 def token_words(value: Any) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", str(value or "").casefold()))
 
@@ -229,9 +245,9 @@ def _sensitivity(entry: dict[str, Any]) -> tuple[str, list[str]]:
     if tags & {"sensitive", "private", "secret", "pii"} or entry.get("sensitive") is True or entry.get("private") is True:
         return "EXCLUDE", ["explicit_sensitive_marker"]
     persisted = list(_persisted_strings(entry))
-    if any(pattern.search(text) for text in persisted for pattern in _STRONG_SENSITIVE_PATTERNS):
+    if any(matcher.search(text) for text in persisted for matcher in _STRONG_SENSITIVE_MATCHERS):
         return "EXCLUDE", ["secret_like_value"]
-    if any(pattern.search(text) for text in persisted for pattern in _REVIEW_SENSITIVE_PATTERNS):
+    if any(matcher.search(text) for text in persisted for matcher in _REVIEW_SENSITIVE_MATCHERS):
         return "REVIEW", ["sensitivity_pattern_requires_review"]
     return "CLEAR", []
 
