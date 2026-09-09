@@ -197,7 +197,14 @@ REPAIR_SIGNATURE_PATTERNS: dict[str, tuple[str, ...]] = {
 }
 
 
-def _repair_near_signature(text: str, signature: str, *, window: int = 320) -> bool:
+def _repair_near_signature(report: dict[str, Any], signature: str, *, window: int = 320) -> bool:
+    # A report can describe a transient workaround in findings while the owned defect
+    # remains unchanged. Only repair-bearing result fields may establish the historical
+    # repair boundary used for regression-after-fix candidates.
+    text = " ".join(
+        str(report.get(field) or "")
+        for field in ("outcome", "mutation", "validation")
+    )
     explicit = REPAIR_SIGNATURE_PATTERNS.get(signature, ())
     if explicit:
         return any(re.search(pattern, text, re.IGNORECASE | re.DOTALL) for pattern in explicit)
@@ -495,7 +502,7 @@ def regression_candidates(
         ]
         for signature in signatures:
             earlier = latest_repair.get(signature)
-            is_repair = _repair_near_signature(text, signature)
+            is_repair = _repair_near_signature(report, signature)
             explicit_recurrence = bool(RECURRENCE_RE.search(text))
             if (
                 earlier is not None
