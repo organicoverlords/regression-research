@@ -1,8 +1,10 @@
+import io
 import json
 import os
 import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -868,6 +870,39 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(retry["status"], "FRESH")
         self.assertEqual(retry["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
         self.assertIn("DELTA_RETRY_PENDING", retry["absence_unsafe_reasons"])
+
+    def test_query_cli_defaults_to_compact_projection_and_preserves_full_detail_escape_hatch(self):
+        parsed = build_parser().parse_args(["query", "needle"])
+        self.assertFalse(parsed.full_detail)
+        parsed_full = build_parser().parse_args(["query", "needle", "--full-detail"])
+        self.assertTrue(parsed_full.full_detail)
+
+        base_args = {
+            "command": "query", "root": Path("."), "query": "needle", "view": "general", "project": None,
+            "thread": None, "days": None, "limit": 20, "no_workers": False,
+        }
+        rich = {"events": [{"id": "one", "summary": "x" * 2000}]}
+        compact = {"events": [{"id": "one"}], "detail": "COMPACT_AGENT_FACING; use --full-detail for forensic projection"}
+
+        with patch("tools.timeline_materializer.build_parser") as parser, patch(
+            "tools.timeline_materializer.query_materialized", return_value=rich
+        ), patch("tools.timeline_materializer._compact_timeline_report", return_value=compact) as compact_call:
+            parser.return_value.parse_args.return_value = type("Args", (), {**base_args, "full_detail": False})()
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(), 0)
+            self.assertEqual(json.loads(stdout.getvalue()), compact)
+            compact_call.assert_called_once_with(rich, limit=20)
+
+        with patch("tools.timeline_materializer.build_parser") as parser, patch(
+            "tools.timeline_materializer.query_materialized", return_value=rich
+        ), patch("tools.timeline_materializer._compact_timeline_report") as compact_call:
+            parser.return_value.parse_args.return_value = type("Args", (), {**base_args, "full_detail": True})()
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(), 0)
+            self.assertEqual(json.loads(stdout.getvalue()), rich)
+            compact_call.assert_not_called()
 
     def test_refresh_cli_treats_existing_refresh_lock_as_successful_noop(self):
         with patch("tools.timeline_materializer.build_parser") as build_parser, patch(

@@ -22,6 +22,7 @@ try:
     from .memory_bank import (
         DEFAULT_MANUAL_WORKER_HISTORY,
         DEFAULT_WORKER_HISTORY,
+        _compact_timeline_report,
         build_overview,
         load_bank,
     )
@@ -29,7 +30,7 @@ try:
     from .repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
-    from memory_bank import DEFAULT_MANUAL_WORKER_HISTORY, DEFAULT_WORKER_HISTORY, build_overview, load_bank
+    from memory_bank import DEFAULT_MANUAL_WORKER_HISTORY, DEFAULT_WORKER_HISTORY, _compact_timeline_report, build_overview, load_bank
     from memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from worker_report_history import worker_history_events
@@ -3652,6 +3653,7 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument("--days", type=int)
     query.add_argument("--limit", type=int, default=20)
     query.add_argument("--no-workers", action="store_true")
+    query.add_argument("--full-detail", action="store_true", help="emit the full forensic query projection instead of the compact agent-facing default")
     return parser
 
 
@@ -3699,7 +3701,7 @@ def main() -> int:
     if result is None:
         print(json.dumps({"status": "MISSING", "error": "materialized timeline not available"}))
         return 2
-    _emit_json(result)
+    _emit_json(result if args.full_detail else _compact_timeline_report(result, limit=args.limit))
     return 0
 
 
