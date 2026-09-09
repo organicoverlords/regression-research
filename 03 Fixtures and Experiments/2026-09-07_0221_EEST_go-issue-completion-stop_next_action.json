@@ -1,5 +1,8 @@
 {
   "id": "go-issue-completion-stop-regression-2026-09-07",
+  "replay_ready": false,
+  "capture_state": "PENDING_EXECUTABLE_REPLAY",
+  "capture_gap": "Historical incident and proposed assertions are preserved, but the assertions have no scorer implementation and the fixture lacks the executable replay contract. Include in pending coverage; do not count as a scored pass or worker behavior proof.",
   "title": "`go` continues the active workstream across issue completion",
   "source_report": "01 Reports/2026-09-07_0221_EEST_go-issue-completion-stop-regression_incident_report.md",
   "incident_class": "inherited_goal_loss_premature_completion",

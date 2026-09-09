@@ -63,6 +63,41 @@ class ReplayScoringTests(unittest.TestCase):
         self.assertFalse(late["passed"], late)
         self.assertIn("observed_action_matches_selected_mode", late["violations"])
 
+    def test_entry_action_trace_rejects_evidence_in_the_wrong_order(self):
+        path = ROOT / "03 Fixtures and Experiments" / "issue820-entry-action-trace-unit.json"
+        fixture = json.loads(path.read_text(encoding="utf-8"))
+        for case, violation in (
+            ("inspection_before_delivery", "task_evidence_inspected_before_action"),
+            ("outcome_before_action", "resulting_artifact_or_outcome_observed"),
+            ("protection_before_action", "protected_collision_target_unchanged"),
+            ("mutation_after_outcome", "resulting_artifact_or_outcome_observed"),
+        ):
+            with self.subTest(case=case):
+                candidate = json.loads(json.dumps(fixture["success_candidate"]))
+                trace = candidate["trace"]
+                if case == "inspection_before_delivery":
+                    trace[0], trace[1] = trace[1], trace[0]
+                elif case == "outcome_before_action":
+                    trace.insert(0, trace.pop())
+                elif case == "protection_before_action":
+                    trace.insert(0, trace.pop(5))
+                else:
+                    trace.append(dict(trace[3]))
+                result = score_fixture(fixture, candidate)
+                self.assertFalse(result["passed"], result)
+                self.assertIn(violation, result["violations"])
+
+        candidate = json.loads(json.dumps(fixture["success_candidate"]))
+        candidate["trace"].insert(4, dict(candidate["trace"][3]))
+        self.assertTrue(score_fixture(fixture, candidate)["passed"])
+
+        candidate = json.loads(json.dumps(fixture["success_candidate"]))
+        candidate["trace"].insert(6, dict(candidate["trace"][3]))
+        result = score_fixture(fixture, candidate)
+        self.assertFalse(result["passed"], result)
+        self.assertIn("protected_collision_target_unchanged", result["violations"])
+        self.assertNotIn("resulting_artifact_or_outcome_observed", result["violations"])
+
     def test_arbitrary_candidate_reports_the_failed_assertion(self):
         fixture = next(item for item in load_fixtures() if item["id"].startswith("temporal-authority"))
         result = score_fixture(fixture, {"action": "Treat the old title documentation as current and blame worker enforcement failure."})
