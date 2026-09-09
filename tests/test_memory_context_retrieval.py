@@ -63,8 +63,11 @@ class MemoryContextRetrievalTests(unittest.TestCase):
 
         for label, distractors in cases.items():
             with self.subTest(label=label):
-                hits = search_context_memory([*distractors, proven], "camera framing", limit=8)
+                diagnostics = {}
+                hits = search_context_memory([*distractors, proven], "camera framing", limit=8, diagnostics=diagnostics)
                 self.assertEqual([hit["id"] for hit in hits], ["proven"])
+                self.assertEqual(diagnostics[f"{label}_matches"], 8)
+                self.assertFalse(diagnostics["diagnostic_scan_truncated"])
 
     def test_named_project_gets_reserved_recall_budget(self):
         globals_ = [self.entry(f"g{i}", f"build routing generic note {i}") for i in range(12)]
