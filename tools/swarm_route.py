@@ -37,6 +37,16 @@ def _declared_node(route):
         "route_label":route,
     }
 
+def _declared_node_by_id(node_id):
+    node=_load_node_topology()["nodes"].get(str(node_id or ""))
+    if not isinstance(node,dict): return None
+    return {"node_identity_schema":NODE_IDENTITY_SCHEMA,"node_id":str(node_id),"node_name":node.get("display_name"),"node_alias":node.get("user_alias"),"machine_class":node.get("machine_class"),"route_label":node.get("route_label")}
+
+def _owner_route(owner_node_id):
+    declared=_declared_node_by_id(owner_node_id)
+    if declared is None or not declared.get("route_label"): raise ValueError("SWARM_ROUTE_BAD_OWNER_NODE")
+    return declared["route_label"]
+
 def _bind_node_identity(route, observed_hostname=None):
     declared=_declared_node(route)
     observed=str(observed_hostname or "").strip()
@@ -279,15 +289,24 @@ def choose_route(kind,facts,assignments):
     if kind=="portable-light" and facts.get("vps",{}).get("available"): return "vps",reason+"_VPS_LIGHT_OVERFLOW"
     return "windows",reason+"_WINDOWS_FALLBACK"
 
-def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
+def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_node_id=None):
     if kind not in KINDS: raise ValueError("SWARM_ROUTE_BAD_KIND")
     if not WORK_ID_RE.fullmatch(work_id): raise ValueError("SWARM_ROUTE_BAD_WORK_ID")
+    owner_route=_owner_route(owner_node_id) if owner_node_id else None
     now=utc_now()
     with state_lock(state_path):
         state=load_state(state_path); prune_assignments(state,now)
         current=state["assignments"].get(work_id)
+        ownership_override_previous_decision_id=None
+        if current and owner_node_id:
+            current_owner=current.get("owner_node_id") or current.get("expected_node_id") or current.get("node_id")
+            if current_owner!=owner_node_id:
+                ownership_override_previous_decision_id=current.get("decision_id")
+                state["assignments"].pop(work_id,None)
+                current=None
         if current:
             current["last_reused_at"]=iso(now)
+            if owner_node_id: current["owner_node_id"]=owner_node_id
             identity=_identity_from_probe(current.get("route"),state.get("probe") or {})
             for key,value in identity.items():
                 if current.get(key) is None and value is not None: current[key]=value
@@ -301,9 +320,14 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
         probe_cache_reused=bool(not refresh_probe and probe_age is not None and probe_age<=PROBE_TTL_SECONDS)
         if not probe_cache_reused:
             probe=probe_all(); state["probe"]=probe; probe_age=probe_age_seconds(probe,now)
-        route,reason=choose_route(kind,probe,state["assignments"])
+        if owner_node_id:
+            route=owner_route
+            bucket=probe.get(route,{}) if isinstance(probe,dict) else {}
+            reason="OWNER_PINNED_AVAILABLE" if isinstance(bucket,dict) and bucket.get("available") else "OWNER_PINNED_UNAVAILABLE_FAIL_CLOSED"
+        else:
+            route,reason=choose_route(kind,probe,state["assignments"])
         recovery=None
-        if route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
+        if not owner_node_id and route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
             recovery=reclaim_omen_scratch(kind)
             if recovery.get("ok"):
                 refreshed=probe_omen()
@@ -312,6 +336,8 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False):
                 route,reason=choose_route(kind,probe,state["assignments"])
         identity=_identity_from_probe(route,probe)
         a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at"),**identity}
+        if owner_node_id: a["owner_node_id"]=owner_node_id
+        if ownership_override_previous_decision_id: a["ownership_override_previous_decision_id"]=ownership_override_previous_decision_id
         if recovery is not None: a["capacity_recovery"]=recovery
         state["assignments"][work_id]=a; save_state(state_path,state)
         return {
@@ -351,7 +377,7 @@ def build_parser():
     p=argparse.ArgumentParser(description="Shared OMEN-first swarm machine routing cohort")
     p.add_argument("--state",type=Path,default=default_state_path())
     sub=p.add_subparsers(dest="command",required=True)
-    r=sub.add_parser("route"); r.add_argument("--work-id",required=True); r.add_argument("--kind",required=True,choices=KINDS); r.add_argument("--ttl-seconds",type=int,default=DEFAULT_TTL_SECONDS); r.add_argument("--refresh-probe",action="store_true")
+    r=sub.add_parser("route"); r.add_argument("--work-id",required=True); r.add_argument("--kind",required=True,choices=KINDS); r.add_argument("--ttl-seconds",type=int,default=DEFAULT_TTL_SECONDS); r.add_argument("--refresh-probe",action="store_true"); r.add_argument("--owner-node-id")
     rel=sub.add_parser("release"); rel.add_argument("--work-id",required=True)
     st=sub.add_parser("status"); st.add_argument("--refresh-probe",action="store_true")
     sub.add_parser("probe"); return p
@@ -361,7 +387,7 @@ def main(argv=None):
     try:
         if args.command=="route":
             if not 60<=args.ttl_seconds<=7200: raise ValueError("SWARM_ROUTE_BAD_TTL")
-            out=route_work(args.state,args.work_id,args.kind,args.ttl_seconds,args.refresh_probe)
+            out=route_work(args.state,args.work_id,args.kind,args.ttl_seconds,args.refresh_probe,args.owner_node_id)
         elif args.command=="release": out=release_work(args.state,args.work_id)
         elif args.command=="status": out=status(args.state,args.refresh_probe)
         else: out=probe_all()
