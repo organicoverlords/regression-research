@@ -1066,6 +1066,15 @@ def build_manual_sanity_projection(
         direction = "IMPROVED"
     else:
         direction = "NO_CLEAR_CHANGE"
+    headline_eligible = bool(baseline.get("headline_eligible", True))
+    legacy_report_score_delta = score_delta
+    legacy_report_descriptive_delta = descriptive_headline
+    legacy_report_direction = direction
+    if not headline_eligible:
+        score_delta = None
+        descriptive_headline = None
+        direction = "UNAVAILABLE_TRUTH_SCORE"
+
     return {
         "available": True,
         "schema": "manual-worker-sanity.v1",
@@ -1079,11 +1088,22 @@ def build_manual_sanity_projection(
         "comparison_window_start": window_start.isoformat(),
         "generated_at": current_now.isoformat(),
         "status": status,
+        "headline_eligible": headline_eligible,
+        "truth_score_status": ("LEGACY_COMPATIBILITY_MODE" if headline_eligible else "UNAVAILABLE_MCP_GITHUB_EVAL_NOT_CALIBRATED"),
         "score_delta": score_delta,
         "descriptive_delta": descriptive_headline,
+        "direction": direction,
+        "legacy_report_score_delta": legacy_report_score_delta,
+        "legacy_report_descriptive_delta": legacy_report_descriptive_delta,
+        "legacy_report_direction": legacy_report_direction,
+        "authority": {
+            "execution": "MCP_DURABLE_PROCESS_RUNTIME_RECEIPTS",
+            "repository_acceptance": "GITHUB_COMMIT_REF_PR_CHECK_CI_ARTIFACT_STATE",
+            "github_issue_prose": "INTENT_COORDINATION_ONLY",
+            "worker_reports": "AUXILIARY_METADATA_ONLY",
+        },
         "headline_axes": headline_axis_names,
         "diagnostic_axes": [name for name, item in axes.items() if not item.get("headline_included")],
-        "direction": direction,
         "post_run_count": run_count,
         "minimum_post_runs_for_provisional": provisional_min,
         "minimum_post_runs_for_comparable": comparable_min,
@@ -1093,7 +1113,12 @@ def build_manual_sanity_projection(
         "continuation": continuation,
         "machine_lifecycle": machine_lifecycle,
         "components": components,
-        "semantics": "0 is the fixed pre-#658 insanity baseline. The revision-3 headline uses selected behavior axes over terminalized runs only; reporting-shape and machine-lifecycle projections remain unscored diagnostics. Go/continue duration and fragmentation stay separate. Diagnostic only, never a worker target or gate.",
+        "semantics": (
+            "Worker-report-derived revision-3 values are auxiliary historical diagnostics only, not authoritative sanity. "
+            "When headline_eligible is false, score_delta/descriptive_delta are intentionally null and the historical value is exposed only as legacy_report_* fields. "
+            "MCP durable process/runtime receipts own execution truth; GitHub commit/ref/PR/check/CI/artifact state owns repository convergence and automated acceptance. "
+            "GitHub issue prose is intent/coordination evidence only. Worker reports may annotate/link evidence but never establish pass/fail."
+        ),
     }
 
 

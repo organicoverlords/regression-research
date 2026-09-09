@@ -1799,6 +1799,52 @@ class WorkerReportHistoryTests(unittest.TestCase):
             self.assertNotIn("terminalization_success_pct", result)
             self.assertNotIn("terminalization_failure_pct", result)
 
+    def test_manual_sanity_can_demote_report_score_when_truth_authority_is_external(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "manual" / "history"
+            reports = history / "_reports"
+            reports.mkdir(parents=True)
+            baseline_path = root / "baseline.json"
+            baseline_path.write_text(json.dumps({
+                "schema": "manual-worker-sanity-baseline.v3",
+                "baseline_id": "legacy-report-baseline",
+                "boundary_at": "2026-09-06T21:00:00+03:00",
+                "comparison_window_hours": 6.0,
+                "comparison_window_mode": "since_boundary",
+                "metrics": {"self_reported_lifecycle_anomaly_pct": 20.0},
+                "headline_axes": ["operational"],
+                "axes": {"operational": {"metrics": {"self_reported_lifecycle_anomaly_pct": 100.0}}},
+                "sample_gates": {"minimum_post_runs_for_provisional": 1, "minimum_post_runs_for_comparable": 1},
+                "score_semantics": {"direction_threshold": 10.0},
+                "headline_eligible": False,
+                "score_role": "LEGACY_REPORT_DIAGNOSTIC_ONLY",
+            }), encoding="utf-8")
+            payload = {
+                "schema": "worker-report-history.v4",
+                "population": "manual",
+                "run_id": "post-terminal",
+                "started_at": "2026-09-07T06:00:00+03:00",
+                "archived_at": "2026-09-07T06:05:00+03:00",
+                "reported_fields": {"scope": "clean run", "mutation": "none", "validation": "ok", "remaining_gate": "none"},
+                "report_bytes": 100,
+                "manual_transcript_field_count": 4,
+            }
+            (reports / "post-terminal.json").write_text(json.dumps(payload), encoding="utf-8")
+
+            result = build_manual_sanity_projection(
+                history, baseline_path=baseline_path, now=datetime.fromisoformat("2026-09-07T12:00:00+03:00")
+            )
+            self.assertFalse(result["headline_eligible"])
+            self.assertIsNone(result["score_delta"])
+            self.assertIsNone(result["descriptive_delta"])
+            self.assertEqual(result["direction"], "UNAVAILABLE_TRUTH_SCORE")
+            self.assertEqual(result["truth_score_status"], "UNAVAILABLE_MCP_GITHUB_EVAL_NOT_CALIBRATED")
+            self.assertEqual(result["legacy_report_score_delta"], 100.0)
+            self.assertEqual(result["legacy_report_direction"], "IMPROVED")
+            self.assertEqual(result["authority"]["worker_reports"], "AUXILIARY_METADATA_ONLY")
+            self.assertEqual(result["authority"]["execution"], "MCP_DURABLE_PROCESS_RUNTIME_RECEIPTS")
+
     def test_continuation_projection_excludes_bounded_task_runs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
