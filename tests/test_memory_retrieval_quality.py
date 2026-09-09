@@ -69,6 +69,49 @@ class MemoryRetrievalQualityTests(unittest.TestCase):
         hits = search_context_memory(entries, "preserve inherited", limit=8)
         self.assertEqual([entry["id"] for entry in hits], ["relevant"])
 
+    def test_weak_noisy_joined_keywords_recover_target(self):
+        entries = [
+            {"id": "target", "timestamp": "2026-09-09T10:00:00+03:00", "kind": "lesson", "scope": "global", "tags": ["canvas", "stats"],
+             "title": "Dev Progress Board stats integration", "text": "Infinite canvas developer progress board with live statistics", "state": "PROVEN",
+             "evidence": ["github:test"], "supersedes": []},
+            {"id": "distractor", "timestamp": "2026-09-09T10:01:00+03:00", "kind": "lesson", "scope": "global", "tags": ["stats"],
+             "title": "GPU performance statistics", "text": "Frame timing counters and utilization", "state": "PROVEN",
+             "evidence": ["github:test"], "supersedes": []},
+        ]
+        hits = search_entries_hybrid(entries, "new devboard thing with stats", limit=5)
+        self.assertTrue(hits)
+        self.assertEqual(hits[0]["id"], "target")
+
+    def test_typo_heavy_query_recovers_corpus_vocabulary(self):
+        entries = [
+            {"id": "target", "timestamp": "2026-09-09T10:00:00+03:00", "kind": "lesson", "scope": "global", "tags": ["identity"],
+             "title": "Subscription identity authority", "text": "Subscription identity comes from explicit product instruction", "state": "PROVEN",
+             "evidence": ["user-instruction:test"], "supersedes": []},
+            {"id": "other", "timestamp": "2026-09-09T10:01:00+03:00", "kind": "lesson", "scope": "global", "tags": ["billing"],
+             "title": "Subscription billing", "text": "Billing account history", "state": "PROVEN",
+             "evidence": ["github:test"], "supersedes": []},
+        ]
+        hits = search_entries_hybrid(entries, "subscripton identty autority", limit=5)
+        self.assertTrue(hits)
+        self.assertEqual(hits[0]["id"], "target")
+
+    def test_camel_and_snake_case_query_is_split_before_retrieval(self):
+        entries = [
+            {"id": "target", "timestamp": "2026-09-09T10:00:00+03:00", "kind": "lesson", "scope": "global", "tags": ["rust", "canvas"],
+             "title": "Rust stats canvas integration", "text": "Developer progress board integration", "state": "PROVEN",
+             "evidence": ["github:test"], "supersedes": []},
+        ]
+        hits = search_entries_hybrid(entries, "RustStats_canvasIntegration", limit=5)
+        self.assertEqual([hit["id"] for hit in hits], ["target"])
+
+    def test_noise_only_query_still_abstains(self):
+        entries = [
+            {"id": "target", "timestamp": "2026-09-09T10:00:00+03:00", "kind": "lesson", "scope": "global", "tags": [],
+             "title": "Unrelated operational note", "text": "Specific deterministic evidence", "state": "PROVEN",
+             "evidence": ["github:test"], "supersedes": []},
+        ]
+        self.assertEqual(search_entries_hybrid(entries, "thing stuff whatever", limit=5), [])
+
 
 if __name__ == "__main__":
     unittest.main()
