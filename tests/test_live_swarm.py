@@ -114,6 +114,31 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["evidence"]["transport_source_count"],1)
             self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
 
+    def test_snapshot_reuses_warm_cache_without_rescanning_transport(self):
+        now=datetime.now(timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            clone=root/"clone-a"
+            clone.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+            (clone/"transport.jsonl").write_text(json.dumps({
+                "at":(now-timedelta(seconds=1)).isoformat(),"event":"process_started",
+                "caller_id":"caller_cache","process_id":"p","pid":101,"cwd":r"C:\work\cache",
+            })+"\n",encoding="utf-8")
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                first=build_live_swarm_snapshot()
+                with patch("tools.live_swarm._discover_transport_sources", side_effect=AssertionError("warm cache must not rescan transport")):
+                    second=build_live_swarm_snapshot()
+            self.assertFalse(first["cache"]["used"])
+            self.assertTrue(second["cache"]["used"])
+            self.assertEqual(second["summary"],first["summary"])
+            self.assertEqual(second["evidence"]["sample_bytes"],first["evidence"]["sample_bytes"])
+            self.assertLessEqual(second["cache"]["age_seconds"],30.0)
+
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
         snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
         compact=compact_for_bootstrap(snapshot)
