@@ -21,14 +21,15 @@ class NorthStarEntryTests(unittest.TestCase):
         self.assertIn("Vault history are evidence only", rules)
         self.assertIn("Stack Atlas", rules)
 
-    def test_shared_contract_keeps_go_scoped_and_stop_immediate(self):
+    def test_shared_contract_keeps_go_goal_directed_and_stop_immediate(self):
         rules = (RULES_ROOT / "RULES.md").read_text(encoding="utf-8")
         agents = (RULES_ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn(
-            "For an ongoing manual/on-demand swarm `go`/`continue`, however, the inherited scope is the user's established project/product engineering goal",
+            "For an ongoing manual/on-demand swarm `go`/`continue`, keep advancing the user's established goal",
             rules,
         )
-        self.assertIn("not the currently open issue/PR/branch/worktree", rules)
+        self.assertIn('repository, project, or any inferred "scope" as a lane or stop boundary', rules)
+        self.assertIn("Absence of ready work inside any chosen issue/repo/project/scope is never a stop condition by itself", rules)
         self.assertIn("`stop` means stop immediately", rules)
         self.assertIn("follow the `go`/`continue` completion and yield semantics in `RULES.md`", agents)
 
