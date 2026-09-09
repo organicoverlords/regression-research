@@ -1,10 +1,10 @@
 ﻿param(
     [string]$TaskName = 'VaultWorktreeHygiene',
-    [int]$IntervalMinutes = 15
+    [int]$IntervalMinutes = 1
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-if ($IntervalMinutes -lt 5) { throw 'IntervalMinutes must be at least 5' }
+if ($IntervalMinutes -lt 1) { throw 'IntervalMinutes must be at least 1' }
 $repo = Split-Path -Parent $PSScriptRoot
 $script = Join-Path $repo 'tools\worktree_hygiene_task.py'
 if (-not (Test-Path -LiteralPath $script)) { throw "Missing hygiene task: $script" }

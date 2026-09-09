@@ -19,6 +19,12 @@ class WorktreeHygieneTaskTests(unittest.TestCase):
             "degraded",
         )
 
+    def test_installer_default_cadence_is_one_minute(self):
+        installer = (__import__("pathlib").Path(__file__).resolve().parents[1] / "tools" / "Install-WorktreeHygieneTask.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("[int]$IntervalMinutes = 1", installer)
+        self.assertIn("if ($IntervalMinutes -lt 1)", installer)
+        self.assertNotIn("[int]$IntervalMinutes = 15", installer)
+
 
 if __name__ == "__main__":
     unittest.main()
