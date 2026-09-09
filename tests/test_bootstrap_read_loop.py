@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -72,7 +73,7 @@ def test_once_missing_repo_root_fails_closed(tmp_path: Path) -> None:
     assert payload["repo_root"] == str(missing.resolve())
 
 
-def test_repeated_mode_reuses_snapshot_until_refresh_due(tmp_path: Path) -> None:
+def test_repeated_mode_does_not_recompute_or_reemit_before_refresh_due(tmp_path: Path) -> None:
     alternate = tmp_path / "alternate"
     counter = tmp_path / "atlas-count.txt"
     _write_fake_atlas(alternate, counter)
@@ -94,12 +95,13 @@ def test_repeated_mode_reuses_snapshot_until_refresh_due(tmp_path: Path) -> None
     try:
         assert proc.stdout is not None
         first = json.loads(proc.stdout.readline().lstrip("\ufeff"))
-        second = json.loads(proc.stdout.readline().lstrip("\ufeff"))
+        time.sleep(5.5)
     finally:
         proc.terminate()
-        proc.wait(timeout=10)
+        stdout_tail, _ = proc.communicate(timeout=10)
 
     assert counter.read_text() == "1"
     assert first["stream_cache"]["used"] is False
-    assert second["stream_cache"]["used"] is True
-    assert second["source_marker"] == "alternate-root"
+    assert first["stream_cache"]["refresh_seconds"] == 60.0
+    assert first["source_marker"] == "alternate-root"
+    assert not stdout_tail.strip(), "cached bootstrap must not be duplicated between refreshes"

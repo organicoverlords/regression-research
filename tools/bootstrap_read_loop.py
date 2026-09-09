@@ -48,7 +48,7 @@ def emit_payload(payload: dict, *, cache_used: bool, cache_age_seconds: float, r
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--interval-seconds', type=float, default=30.0)
-    ap.add_argument('--refresh-seconds', type=float, default=300.0, help='Minimum seconds between full bootstrap recomputations in repeated mode.')
+    ap.add_argument('--refresh-seconds', type=float, default=60.0, help='Minimum seconds between full bootstrap recomputations in repeated mode.')
     ap.add_argument(
         '--repo-root',
         type=Path,
@@ -87,9 +87,9 @@ def main() -> int:
                     }
                 print(json.dumps(parsed, separators=(',', ':')), flush=True)
                 ok = cached_payload is not None
-        if cached_payload is not None:
+        if cached_payload is not None and (refreshed or args.once):
             age = max(0.0, time.monotonic() - (cached_at or started))
-            emit_payload(cached_payload, cache_used=not refreshed, cache_age_seconds=age, refresh_seconds=refresh_seconds)
+            emit_payload(cached_payload, cache_used=False, cache_age_seconds=age, refresh_seconds=refresh_seconds)
         if args.once:
             return 0 if ok else 1
         elapsed = time.monotonic() - started
