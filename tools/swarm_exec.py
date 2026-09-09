@@ -626,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("SWARM_EXEC_BAD_SYNC_LIMIT")
         command = command_from_args(args)
         root = git_root(args.repo_root)
-        assignment = swarm_route.route_work(args.state, args.work_id, args.kind, swarm_route.DEFAULT_TTL_SECONDS, args.refresh_probe)
+        assignment = swarm_route.route_work(args.state, args.work_id, args.kind, swarm_route.DEFAULT_TTL_SECONDS, args.refresh_probe, allow_vps=False)
         print(json.dumps({
             "event": "SWARM_EXEC_ROUTE", "work_id": args.work_id, "kind": args.kind,
             "route": assignment.get("route"), "reason": assignment.get("reason"),

@@ -10,7 +10,7 @@ Make one machine-routing decision for a stable work identity and reuse it across
 
 - `lowvram` and `windows-only`: Windows.
 - `portable`, `heavy`, and `p3-runtime`: OMEN first.
-- `portable-light`: OMEN first; the existing `p3-vps-light` runner may take overflow when it is freshly proven online and idle.
+- `portable-light`: OMEN first. The `p3-vps-light` runner may take overflow only for a caller that explicitly opts in with `--allow-vps` and owns a supported execution adapter. Generic routing and `swarm_exec.py` do not opt in, so they fall back to Windows rather than emit an unexecutable VPS assignment.
 - Windows is the general fallback only after the cohort has fresh evidence that OMEN is unavailable or saturated for the requested class.
 - A valid assignment is sticky for its `work-id`. Another worker joining the same work reuses it rather than choosing a machine independently.
 - Physical/session ownership is stronger than fungible compute fallback. For work that belongs to an exact machine or its visible desktop/session, pass `--owner-node-id <node-id>`. An explicit owner never falls back to another node when its transport is unavailable; it stays owner-bound and fails closed. An explicit owner correction supersedes a stale sticky decision for that work ID.
@@ -38,6 +38,8 @@ python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py route --work-id <stable
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py release --work-id <stable-task-id>
 python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status
 python C:\\Users\\Lauri\\Desktop\\vault\\tools\\swarm_exec.py --work-id <stable-task-id> --kind portable --repo-root <repo> -- python -m pytest <tests>
+# Adapter owners only; do not use for generic swarm_exec work:
+python C:\\Users\\Lauri\\Desktop\\vault\\tools\\swarm_route.py route --work-id <stable-task-id> --kind portable-light --allow-vps
 ```
 
 State is atomically stored under `%LOCALAPPDATA%\SwarmRouting\cohort-v1.json` behind a cross-process lock. One capacity probe is shared for 45 seconds so distinct worker invocations do not independently open fresh OMEN SSH sessions. `route` and `status` expose `probe_cache_reused`, `probe_age_seconds`, and `probe_cache_ttl_seconds` so callers can prove whether the warm path avoided remote probing. `--refresh-probe` intentionally bypasses that cache; the standalone `probe` command is likewise a fresh diagnostic and should not be used as the routine warm routing path.
@@ -54,7 +56,7 @@ Routing policy carries an explicit epoch. Assignments from an older epoch remain
 
 ## VPS role
 
-The VPS remains the persistent edge/coordination machine. Its current supported swarm compute surface is the `p3-vps-light` GitHub runner; the router checks that runner is online and idle before assigning portable-light overflow. No heavy Unreal workload is routed to the VPS.
+The VPS remains the persistent edge/coordination machine. Its compute surface is the repo-scoped `p3-vps-light` GitHub runner. Because generic `swarm_exec.py` has no GitHub-Runner execution adapter, VPS assignment is capability-gated and disabled by default. Only a caller that owns a supported runner handoff may pass `--allow-vps`; the router still checks that runner is online and idle before such an assignment. No heavy Unreal workload is routed to the VPS.
 
 ## Windows role
 
