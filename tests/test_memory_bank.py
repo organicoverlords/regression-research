@@ -159,6 +159,23 @@ class MemoryBankValidationTests(unittest.TestCase):
     def test_valid_entry_and_utf8(self):
         validate_entry(self.valid())
 
+    def test_positive_milestone_uses_canonical_tiny_star_sticker(self):
+        entry = self.valid()
+        entry["positive_milestone"] = True
+        entry["milestone_sticker"] = "★"
+        validate_entry(entry)
+
+        wrong = self.valid()
+        wrong["positive_milestone"] = True
+        wrong["milestone_sticker"] = "🏆"
+        with self.assertRaisesRegex(BankError, "positive milestone requires milestone_sticker"):
+            validate_entry(wrong)
+
+        orphan = self.valid()
+        orphan["milestone_sticker"] = "★"
+        with self.assertRaisesRegex(BankError, "milestone_sticker requires positive_milestone"):
+            validate_entry(orphan)
+
     def test_missing_required_field_rejected(self):
         e = self.valid(); del e["text"]
         with self.assertRaises(BankError): validate_entry(e)

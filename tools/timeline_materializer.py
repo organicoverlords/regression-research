@@ -2740,6 +2740,7 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
         "mcp_event", "mcp_root", "runner", "diag_path", "error_count", "warning_count", "job_marker_count",
         "thread_id", "thread_source", "continuity", "case_anchors", "evidence_form",
         "disposition", "durability", "semantic_category", "primary_domain", "tags", "superseded_by", "supersedes",
+        "positive_milestone", "milestone_sticker",
         "proof_artifact", "proof_artifact_sha256", "visual_proof_run", "visual_proof_review",
     )
     for key in passthrough:
