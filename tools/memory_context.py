@@ -26,6 +26,16 @@ GENERIC_TASK_WORDS = {
     "a", "an", "are", "current", "do", "doing", "go", "how", "look", "looking",
     "on", "please", "status", "the", "things", "work",
 }
+_FOLLOWUP_GO_META_WORDS = {"ambiguous", "short", "terse", "typo", "typos", "word"}
+
+
+def _preserve_followup_go(ordered_words: list[str]) -> bool:
+    if not ordered_words or ordered_words[-1] != "go":
+        return False
+    terms = set(ordered_words)
+    followup = bool({"followup", "followups"} & terms) or ("follow" in terms and "up" in terms)
+    return followup and bool(_FOLLOWUP_GO_META_WORDS & terms)
+
 
 def context_selectors(query: str) -> dict[str, set[str]]:
     return {"projects": _projects_from_text(query), "roles": _roles_from_text(query)}
@@ -35,7 +45,12 @@ def context_residual_query(query: str) -> str:
     selector_words = {marker for markers in PROJECT_MARKERS.values() for marker in markers}
     selector_words.update(marker for markers in ROLE_MARKERS.values() for marker in markers)
     ordered_words = re.findall(r"[a-z0-9]+", str(query or "").casefold())
-    words = [word for word in ordered_words if word not in selector_words and word not in GENERIC_TASK_WORDS]
+    preserve_go = _preserve_followup_go(ordered_words)
+    words = [
+        word for word in ordered_words
+        if word not in selector_words
+        and (word not in GENERIC_TASK_WORDS or (word == "go" and preserve_go))
+    ]
     return " ".join(words)
 
 

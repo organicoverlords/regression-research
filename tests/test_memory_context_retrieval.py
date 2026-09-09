@@ -1,6 +1,7 @@
 import unittest
 
 from tools.memory_bank import search_context_memory, search_all_memory
+from tools.memory_context import context_residual_query
 from unittest.mock import patch
 
 
@@ -15,6 +16,21 @@ class MemoryContextRetrievalTests(unittest.TestCase):
         if project:
             out["project"] = project
         return out
+
+    def test_followup_go_semantics_keep_go_without_opening_imperative_go(self):
+        followup = self.entry(
+            "followup",
+            "Terse follow ups default to go except no like typos.",
+            scope="shared-agent-user-intent",
+        )
+        self.assertEqual(context_residual_query("terse followup means go"), "terse followup means go")
+        self.assertEqual(context_residual_query("go follow up on email"), "follow up email")
+        self.assertEqual(
+            [hit["id"] for hit in search_context_memory([followup], "terse followup means go", limit=8)],
+            ["followup"],
+        )
+        self.assertEqual(search_context_memory([followup], "go follow up on email", limit=8), [])
+        self.assertEqual(search_context_memory([followup], "followup email means go tomorrow", limit=8), [])
 
     def test_single_token_context_query_stays_closed(self):
         old_rule = self.entry("rule", "slopwall incident capture rule", scope="assistant-orchestration/slopwall")
