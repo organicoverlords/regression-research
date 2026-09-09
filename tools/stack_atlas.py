@@ -16,6 +16,17 @@ from pathlib import Path
 from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
+def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
+    """Run child processes without creating or showing console windows on Windows."""
+    if os.name == "nt":
+        kwargs["creationflags"] = int(kwargs.get("creationflags", 0)) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        if "startupinfo" not in kwargs and hasattr(subprocess, "STARTUPINFO"):
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+            startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+            kwargs["startupinfo"] = startupinfo
+    return subprocess.run(*args, **kwargs)
+
 try:
     from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
 except ModuleNotFoundError:
@@ -2585,7 +2596,7 @@ def _bootstrap_vault_status() -> dict[str, Any]:
     result["git_cli_available"] = bool(git)
     if git:
         try:
-            proc = subprocess.run(
+            proc = _run_process(
                 [git, "-C", str(root), "rev-parse", "--is-inside-work-tree", "HEAD"],
                 text=True,
                 capture_output=True,
@@ -2662,7 +2673,7 @@ def _bootstrap_github_status() -> dict[str, Any]:
     if gh:
         api: subprocess.CompletedProcess[str] | None = None
         try:
-            api = subprocess.run(
+            api = _run_process(
                 [gh, "api", "rate_limit"],
                 text=True,
                 capture_output=True,
@@ -2698,7 +2709,7 @@ def _bootstrap_github_status() -> dict[str, Any]:
             # distinguishes missing/invalid auth from transient API reachability loss.
             auth: subprocess.CompletedProcess[str] | None = None
             try:
-                auth = subprocess.run(
+                auth = _run_process(
                     [gh, "auth", "status", "--active", "--hostname", "github.com"],
                     text=True,
                     capture_output=True,
@@ -2737,7 +2748,7 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
     if not git:
         return None
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             [git, "-C", str(repo_root), "log", "-1", "--format=%cI", "--", relative_path],
             text=True,
             capture_output=True,
@@ -2770,7 +2781,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     if not git:
         return result
     try:
-        proc = subprocess.run(
+        proc = _run_process(
             [git, "-C", str(repo_root), "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
             text=True, capture_output=True, timeout=1.0,
         )
@@ -2793,7 +2804,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
 
     tracking_head = None
     try:
-        tracking_proc = subprocess.run(
+        tracking_proc = _run_process(
             [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
             text=True, capture_output=True, timeout=0.75,
         )
@@ -2806,7 +2817,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     cached_remote_is_ancestor = exact_head
     if local_head and remote_head and not exact_head:
         try:
-            ancestor_proc = subprocess.run(
+            ancestor_proc = _run_process(
                 [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
                 text=True, capture_output=True, timeout=0.75,
             )
@@ -2856,20 +2867,20 @@ def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remo
     if not git or not commit:
         return False
     try:
-        exists = subprocess.run(
+        exists = _run_process(
             [git, "-C", str(repo_root), "cat-file", "-e", f"{commit}^{{commit}}"],
             text=True, capture_output=True, timeout=0.75,
         )
         if exists.returncode != 0:
             return False
-        base_proc = subprocess.run(
+        base_proc = _run_process(
             [git, "-C", str(repo_root), "merge-base", "HEAD", commit],
             text=True, capture_output=True, timeout=0.75,
         )
         base = base_proc.stdout.strip() if base_proc.returncode == 0 else ""
         if not base:
             return False
-        patch_proc = subprocess.run(
+        patch_proc = _run_process(
             [git, "-C", str(repo_root), "diff", "--no-ext-diff", "--unified=0", base, commit, "--", relative_path],
             capture_output=True, timeout=1.0,
         )
@@ -2877,7 +2888,7 @@ def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remo
             return False
         if not patch_proc.stdout:
             return True
-        reverse_check = subprocess.run(
+        reverse_check = _run_process(
             [git, "-C", str(repo_root), "apply", "--reverse", "--check", "--unidiff-zero", "--whitespace=nowarn"],
             input=patch_proc.stdout, capture_output=True, timeout=1.0,
         )
@@ -2934,7 +2945,7 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
             '}'
         )
         try:
-            proc = subprocess.run(
+            proc = _run_process(
                 [gh, "api", "graphql", "-f", f"query={query}"],
                 text=True,
                 capture_output=True,
@@ -3357,7 +3368,7 @@ def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
 
 def _busy_scope_status(scope: str) -> dict[str, Any]:
     try:
-        proc = subprocess.run([BUSY_CMD, "inspect", scope], text=True, capture_output=True, timeout=3)
+        proc = _run_process([BUSY_CMD, "inspect", scope], text=True, capture_output=True, timeout=3)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"available": False, "scope": scope, "error": str(exc)}
     if proc.returncode != 0:
@@ -3736,7 +3747,7 @@ LIVE_PROBE_TIMEOUT_SECONDS = 5
 
 def _powershell_json(script: str) -> Any:
     try:
-        result = subprocess.run(
+        result = _run_process(
             ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
             check=True,
             capture_output=True,
