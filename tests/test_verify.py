@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_stack
+from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_stack, verify_worker_reports
 
 
 class VerifyTests(unittest.TestCase):
@@ -23,6 +23,9 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"02 Evidence/mcp-security-routing-events.jsonl"}), ["memory"])
         self.assertEqual(select_areas({"tools/mcp_reroute_evidence.py"}), ["memory"])
         self.assertEqual(select_areas({"tests/test_mcp_reroute_evidence.py"}), ["memory"])
+        self.assertEqual(select_areas({"tools/worker_report_history.py"}), ["worker_reports"])
+        self.assertEqual(select_areas({"tools/manual_work_disposition.py"}), ["worker_reports"])
+        self.assertEqual(select_areas({"tests/test_manual_work_disposition.py"}), ["worker_reports"])
         self.assertEqual(select_areas({"README.md"}), [])
 
     def test_timeline_changes_select_memory_verification(self):
@@ -126,6 +129,19 @@ class VerifyTests(unittest.TestCase):
         self.assertIn([sys.executable, "tools/mcp_reroute_evidence.py", "verify"], [call.args[0] for call in run.call_args_list])
 
     @patch("tools.verify.run")
+    @patch("tools.verify.run_pytest")
+    def test_worker_report_verification_executes_disposition_regressions(self, pytest_run, run):
+        verify_worker_reports()
+        self.assertIn(
+            [sys.executable, "-m", "py_compile", "tools/worker_report_history.py", "tools/manual_work_disposition.py"],
+            [call.args[0] for call in run.call_args_list],
+        )
+        self.assertEqual(
+            pytest_run.call_args.args[0],
+            ["tests/test_worker_report_history.py", "tests/test_manual_work_disposition.py"],
+        )
+
+    @patch("tools.verify.run")
     def test_busy_verification_executes_alias_regressions(self, run_command):
         verify_busy()
         commands = [call.args[0] for call in run_command.call_args_list]
@@ -148,11 +164,11 @@ class VerifyTests(unittest.TestCase):
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
             select_areas({"tools/verify.py"}),
-            ["stack", "memory", "conversation", "busy"],
+            ["stack", "memory", "conversation", "busy", "worker_reports"],
         )
 
     def test_all_runs_every_area(self):
-        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy"])
+        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy", "worker_reports"])
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):
