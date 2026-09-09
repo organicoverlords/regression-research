@@ -195,14 +195,17 @@ def _source_evidence_tokens(entry: dict[str, Any]) -> list[str]:
 
 def _eligible_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
-    return [
-        entry for entry in entries
-        if entry.get("state") != "REJECTED"
-        and entry.get("id") not in superseded
-        and not is_expired(entry)
-        and classify_entry(entry)["sensitivity"] != "EXCLUDE"
-        and classify_entry(entry)["durability"] not in {"EPHEMERAL", "HISTORICAL"}
-    ]
+    eligible: list[dict[str, Any]] = []
+    for entry in entries:
+        if entry.get("state") == "REJECTED" or entry.get("id") in superseded or is_expired(entry):
+            continue
+        classification = classify_entry(entry)
+        if classification["sensitivity"] == "EXCLUDE":
+            continue
+        if classification["durability"] in {"EPHEMERAL", "HISTORICAL"}:
+            continue
+        eligible.append(entry)
+    return eligible
 
 
 def _idf(total_docs: int, document_frequency: int) -> float:

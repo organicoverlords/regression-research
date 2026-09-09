@@ -1,6 +1,38 @@
 import unittest
+from unittest.mock import patch
 
 from tools.memory_hybrid import _word_tokens, search_entries_hybrid
+from tools.memory_classification import classify_entry
+
+
+class HybridEligibilityEfficiencyTests(unittest.TestCase):
+    def test_each_viable_candidate_is_classified_once(self):
+        entries = [
+            {
+                "id": f"mem-20260909-{index:08x}",
+                "timestamp": f"2026-09-09T10:0{index}:00+03:00",
+                "kind": "lesson",
+                "scope": f"test-{index}",
+                "tags": [],
+                "text": f"connector routing lesson {index}",
+                "state": "PROVEN",
+                "evidence": [f"github:test/repo#{index + 1}"],
+                "supersedes": [],
+            }
+            for index in range(3)
+        ]
+        original = classify_entry
+        calls: list[str] = []
+
+        def counted(entry):
+            calls.append(str(entry["id"]))
+            return original(entry)
+
+        with patch("tools.memory_hybrid.classify_entry", side_effect=counted):
+            result = search_entries_hybrid(entries, "connector routing lesson", limit=3)
+
+        self.assertTrue(result)
+        self.assertEqual(calls, [entry["id"] for entry in entries])
 
 
 class HybridMemoryTests(unittest.TestCase):
