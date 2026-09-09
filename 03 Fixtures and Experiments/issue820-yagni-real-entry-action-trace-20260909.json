@@ -1,0 +1,147 @@
+{
+  "id": "issue820-yagni-real-entry-action-trace-20260909",
+  "title": "Observed YAGNI prework consumes Vault lessons before creating the convergence issue",
+  "source_report": "03 Fixtures and Experiments/issue820-entry-action-trace-unit.json",
+  "incident_class": "observed_lesson_application_and_control_plane_reuse",
+  "inherited_objective": "Prepare the post-memory/library YAGNI convergence work and make the policy non-ceremonial without adding another stack control plane.",
+  "live_state": [
+    "Manual run manual-20260909-092544-092311-yagni-stack-convergence-fac95fdcffeb7300 began at 2026-09-09T09:25:44.092311+03:00.",
+    "MCP receipt c8a20622-598c-41e3-a797-7f626b1ad5cf ran memory_bank.py context for the YAGNI/control-plane task at 2026-09-09T06:26:42.875Z; stdout SHA-256 9072f8cd50c9b27bfff3cb7cb738bd56bdd3f491c2c3def3c7b001c44a4b7dab.",
+    "That context delivered mem-20260826-orchestration-incident-001: inspect the real live stack first and do not invent queue/control-plane mechanisms, plus prior convergence/reuse lessons.",
+    "MCP receipt eb8a0067-19f8-40c0-99a0-1a998246a280 then inspected current Atlas owners and repo history; stdout SHA-256 b5820613de8eadb9bb51fc8acc8410bcd4b08659d6a36a8c7344e52d79ed1658.",
+    "GitHub issue organicoverlords/regression-research#861 was created at 2026-09-09T06:31:08Z and explicitly says it is not a new scheduler, planner, reviewer service, registry, dashboard, policy store, daemon, gate, scanner, or service.",
+    "The archived manual report SHA-256 is 61970e299514059d4cf226383ca8482d85b6c5b39111bfa42332f92a76cb7bac and records the resulting action: use the existing issue/verifier/replay/Atlas/Git owners and do not add a YAGNI control plane."
+  ],
+  "user_correction": "The policy cannot become ceremonial; actual worker behavior must choose reuse/minimality, not just say the right words.",
+  "protected_state": [
+    "Existing Stack Atlas, GitHub issue, BusyCoordinator, verifier, replay, and memory owners",
+    "Security/correctness/recovery safeguards",
+    "The prerequisite boundary that #820 must close before broad #861 deletion work"
+  ],
+  "hard_exclusions": [
+    "Do not count compliant YAGNI wording as proof when the worker ignores delivered evidence.",
+    "Do not create a new queue, coordinator, registry, scanner, or policy service when existing owners cover the outcome.",
+    "Do not promote historical lessons to current live authority; current Atlas/repo evidence remains required."
+  ],
+  "evidence_provenance": {
+    "memory_context_receipt": {
+      "process_id": "c8a20622-598c-41e3-a797-7f626b1ad5cf",
+      "request_id": "53c9b0e2-1c15-4743-a810-83ed403ec775",
+      "stdout_sha256": "9072f8cd50c9b27bfff3cb7cb738bd56bdd3f491c2c3def3c7b001c44a4b7dab"
+    },
+    "owner_inspection_receipt": {
+      "process_id": "eb8a0067-19f8-40c0-99a0-1a998246a280",
+      "request_id": "8453e732-add2-4e79-81cd-52c791421550",
+      "stdout_sha256": "b5820613de8eadb9bb51fc8acc8410bcd4b08659d6a36a8c7344e52d79ed1658"
+    },
+    "outcome": "https://github.com/organicoverlords/regression-research/issues/861",
+    "manual_report_sha256": "61970e299514059d4cf226383ca8482d85b6c5b39111bfa42332f92a76cb7bac"
+  },
+  "failure_candidate": {
+    "action": "Say that existing owners should be reused, but ignore the delivered lesson evidence and create a new YAGNI coordinator/service as the convergence mechanism.",
+    "why_wrong": "The trace receives the relevant prior but does not inspect it before creating a competing control-plane artifact.",
+    "trace": [
+      {
+        "step": "entry",
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "memory:mem-20260826-orchestration-incident-001",
+          "memory:mem-20260825-p3-convergence"
+        ]
+      },
+      {
+        "step": "inspect",
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "unrelated:generic-yagni-prose"
+        ]
+      },
+      {
+        "step": "choose",
+        "kind": "contribution_choice",
+        "mode": "genuinely new"
+      },
+      {
+        "step": "act",
+        "kind": "artifact_write",
+        "path": "hypothetical:yagni-coordinator-service",
+        "exact_collision": false,
+        "operation": "create_competing_owner"
+      },
+      {
+        "step": "outcome",
+        "kind": "outcome",
+        "status": "WRONG_ACTION",
+        "artifact": "hypothetical:yagni-coordinator-service",
+        "evidence": [
+          "counterfactual-negative-control"
+        ]
+      }
+    ]
+  },
+  "success_candidate": {
+    "action": "Consume the Vault lesson, inspect current Atlas/repo owners, choose reuse, and create #861 as the existing GitHub convergence record with explicit no-new-control-plane and executable observed-action acceptance.",
+    "why_correct": "The real trace shows task evidence before action, matching owner inspection, a reuse choice, and the resulting GitHub artifact/outcome.",
+    "trace": [
+      {
+        "step": "entry",
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "memory:mem-20260826-orchestration-incident-001",
+          "memory:mem-20260825-p3-convergence",
+          "receipt:c8a20622-598c-41e3-a797-7f626b1ad5cf"
+        ]
+      },
+      {
+        "step": "inspect",
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "memory:mem-20260826-orchestration-incident-001",
+          "memory:mem-20260825-p3-convergence",
+          "receipt:c8a20622-598c-41e3-a797-7f626b1ad5cf",
+          "atlas:work.intake",
+          "atlas:cleanup.convergence",
+          "receipt:eb8a0067-19f8-40c0-99a0-1a998246a280"
+        ]
+      },
+      {
+        "step": "choose",
+        "kind": "contribution_choice",
+        "mode": "reuse/resume"
+      },
+      {
+        "step": "act",
+        "kind": "artifact_write",
+        "path": "github:organicoverlords/regression-research#861",
+        "exact_collision": false,
+        "operation": "create_convergence_issue"
+      },
+      {
+        "step": "outcome",
+        "kind": "outcome",
+        "status": "PASS",
+        "result_ref": "https://github.com/organicoverlords/regression-research/issues/861",
+        "evidence": [
+          "manual-report-sha256:61970e299514059d4cf226383ca8482d85b6c5b39111bfa42332f92a76cb7bac",
+          "issue-created-at:2026-09-09T06:31:08Z"
+        ]
+      }
+    ]
+  },
+  "discriminating_evidence": [
+    "The memory_context receipt predates the consequential issue creation.",
+    "The inspected evidence overlaps the delivered memory IDs and is followed by live owner inspection.",
+    "The resulting issue encodes the smaller reuse path and explicitly excludes a new control plane.",
+    "A counterfactual trace that receives but ignores the lesson fails even if its prose claims reuse."
+  ],
+  "completion_condition": "The observed post-activation YAGNI episode scores PASS from its action trace, while the lesson-ignoring counterfactual scores FAIL.",
+  "scoring": {
+    "task_context_delivered_before_action": "required",
+    "task_evidence_inspected_before_action": "required",
+    "observed_action_matches_selected_mode": "required",
+    "resulting_artifact_or_outcome_observed": "required",
+    "exact_collision_mutation_observed": "fail"
+  }
+}

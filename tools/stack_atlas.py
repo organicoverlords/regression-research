@@ -2031,7 +2031,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
-        bounded["commands"] = {key: commands.get(key) for key in ("bootstrap", "live_swarm", "fleet_watch", "stack_owner", "stack_find") if key in commands}
+        bounded["commands"] = {key: commands.get(key) for key in ("bootstrap", "live_swarm", "fleet_watch", "stack_owner", "stack_find", "memory_context") if key in commands}
 
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"]["compacted"] = True
