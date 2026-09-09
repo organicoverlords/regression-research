@@ -44,6 +44,9 @@ class HybridMemoryTests(unittest.TestCase):
             ["followup"],
         )
 
+    def test_handoff_plural_shares_handoff_retrieval_concept(self):
+        self.assertEqual(_word_tokens("handoff handoffs"), ["handoff", "handoff"])
+
     def test_checkpoint_plural_matches_shared_checkpoint_memory(self):
         checkpoint = self.entry(
             "checkpoint",
