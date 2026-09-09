@@ -46,6 +46,7 @@ BUSY_PY = str(BUSY_ROOT / "busy.py")
 BUSY_STORE = os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-claims.json")
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
+MCP_HOME_DIRECT_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpV4HomeDirectStable"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 TINY3D_REPO = r"C:\Users\Lauri\Desktop\tiny3d"
@@ -57,6 +58,7 @@ TINY3D_LIBRARY_SEARCH = r"$env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; p
 P3_VISUAL_EVIDENCE_ROOT = r"G:\Oma Drive\P3 Visual Evidence\p3"
 P3_VISUAL_EVIDENCE_INDEX = P3_VISUAL_EVIDENCE_ROOT + r"\index-v1.json"
 P3_VISUAL_EVIDENCE_QUERY = r"$i=Get-Content 'G:\Oma Drive\P3 Visual Evidence\p3\index-v1.json' -Raw | ConvertFrom-Json; $i.entries | Where-Object { $_.search_text -match '<query>' } | Select-Object -First 10"
+MCP_CURRENT_TOPOLOGY_PATH = ROOT / "04 Operating Contracts" / "mcp-current-topology.json"
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
@@ -219,46 +221,60 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     "mcp_minimal_clone": {
         "role": "generation_pinned_process_transport_clone",
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
-        "canonical_sources": [MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1", MCP_ROOT + r"\config\process-tool-contract.json", MCP_ROOT + r"\src\index.ts", MCP_ROOT + r"\src\lib\visual-proof-app.ts", VPS_EDGE_ROOT + r"\mcp-wireguard.conf", VPS_EDGE_ROOT + r"\start-tunnel.ps1", "5.61.91.127:/etc/caddy/Caddyfile", str(MCP_RECOVERY_STATE_PATH)],
-        "chatgpt_plugin_surface": {
-            "profile": "process",
-            "tools": ["start_process", "read_output", "kill_process"],
-            "conditional_ui": {
-                "when": "MCP_VISUAL_PROOF_UI=1",
-                "tools": ["open_visual_proof"],
-                "resource": "ui://visual-proof/inline-v1.html",
-                "mime_type": "text/html;profile=mcp-app",
-                "session_refresh": "A fresh ChatGPT connector handshake may be required after deployment because an already-open conversation can retain its pre-deploy tool schema.",
-            },
-            "internal_only_profiles": ["full"],
-            "boundary": "MCP_TOOL_PROFILE=process remains the three-process-tool baseline. When MCP_VISUAL_PROOF_UI=1, the ChatGPT surface additionally registers read-only open_visual_proof plus its MCP Apps resource; busy_list, busy_claim, busy_release, and legacy view_image remain outside the ChatGPT plugin surface/internal-full-profile only.",
-        },
-        "live_status": [
-            "clone health",
-            "exact tool contract",
-            "ChatGPT plugin baseline is MCP_TOOL_PROFILE=process with start_process, read_output, and kill_process; MCP_VISUAL_PROOF_UI=1 additionally registers read-only open_visual_proof plus ui://visual-proof/inline-v1.html, while full remains explicit internal/local testing and busy_*/view_image stay outside the plugin surface",
-            "process receipt/control route",
-            "direct public clone path plus OAuth authorization-server, protected-resource, and OpenID metadata handlers",
-            "selected recovery deployment: https://5-61-91-127.sslip.io/mcp -> Caddy VPS -> WireGuard 10.203.0.2:3011 as the only automatic upstream -> clone 3011; native reverse-SSH lanes 3101-3104 are explicit recovery only and never automatic Caddy upstreams",
-        ],
-        "supervisor": "instance launcher / owning generation",
-        "self_heal": "generation_specific",
-        "independent_recovery": [
-            "WireGuard is the only automatic VPS-to-PC backend path; four native OpenSSH reverse lanes are intentional independent recovery lanes and their presence/health is expected",
-            "preserve public clone identity/OAuth/shared receipts and all three clone metadata handlers; never restore a stale-regression generation merely because it appears in historical fallback/recovery artifacts",
-            "client-visible no-arrival failure does not authorize backend/OAuth/receipt/port churn",
-            "severe regression after our production MCP change is restore-first: preserve evidence, then return to the canonical known-working production behavior/topology before speculative fixes; do not stack unrelated diagnostics or logging onto the regressed serving runtime",
-            "if a post-restore user-visible reroute occurs between successful MCP calls with no MCP request in flight, treat that event as above-MCP/platform evidence and stop MCP/edge mutation unless new MCP-local evidence appears",
-        ],
-        "resources": ["clone port", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "VPS Caddy WireGuard-only automatic upstream", "WireGuard 10.203.0.2:3011 primary", "reverse-SSH 3101-3104 explicit recovery lanes", "clone OAuth/OpenID metadata handlers"],
-        "dependents": ["chatgpt_process_transport"],
-        "runbook": [
-            MCP_ROOT + r"\AGENTS.md",
-            "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1458_EEST_MCP_runtime_source_reconciliation.md",
-            "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-02_1941_EEST_MCP_direct_clone_topology_recurrence_study.md",
-            "C:/Users/Lauri/Desktop/vault/01 Reports/2026-09-03_MCP_vps_edge_cutover.md",
+        "canonical_sources": [
+            str(MCP_CURRENT_TOPOLOGY_PATH),
+            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\scripts\home-direct-supervisor.ps1",
+            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\config\home-direct.Caddyfile",
+            MCP_ROOT + r"\config\process-tool-contract.json",
+            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\src\index.ts",
+            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\src\lib\process-library-upload.ts",
             str(MCP_RECOVERY_STATE_PATH),
         ],
+        "current_topology": {
+            "connector_url": "https://91-159-12-133.sslip.io/mcp",
+            "public_origin": "https://91-159-12-133.sslip.io",
+            "authorization_endpoint": "https://91-159-12-133.sslip.io/authorize",
+            "serving_path": "ChatGPT/GPT1 -> local HTTPS Caddy -> 127.0.0.1:3022",
+            "runtime": MCP_HOME_DIRECT_RUNTIME_ROOT,
+            "runtime_branch": "chatgpt/home-direct-stable-runtime",
+            "backend_task": "McpV4HomeDirect3022",
+            "caddy_task": "McpV4HomeDirectCaddy",
+            "independent_local_control": "clone-a at 127.0.0.1:3011",
+            "excluded_from_gpt1_path": ["5-61-91-127.sslip.io", "VPS Caddy", "WireGuard", "Tailscale owner authorization"],
+        },
+        "chatgpt_plugin_surface": {
+            "profile": "process",
+            "tool_count": 3,
+            "tools": ["start_process", "read_output", "kill_process"],
+            "image_delivery": {
+                "adds_tool": False,
+                "trigger_prefix": "CHATGPT_LIBRARY_UPLOAD=",
+                "widget_resource": "ui://process/library-upload-v2.html",
+                "result_carriers": ["resource_link", "structuredContent", "_meta.chatgpt_library_upload"],
+            },
+            "excluded_actions": ["view_image", "busy_list", "busy_claim", "busy_release", "open_visual_proof", "open_visual_proof_run", "record_visual_proof_review"],
+            "internal_only_profiles": ["full"],
+            "boundary": "The GPT1 ChatGPT connector exposes exactly three actions: start_process, read_output, and kill_process. Image/file delivery is metadata/resource output attached to process results via CHATGPT_LIBRARY_UPLOAD and ui://process/library-upload-v2.html; it never adds a fourth tool. view_image, busy_*, and visual-proof actions are outside this connector surface. If ChatGPT discovers more than three actions, treat the client connector binding/schema as stale or wrong before changing MCP.",
+        },
+        "live_status": [
+            "canonical GPT1 connector: https://91-159-12-133.sslip.io/mcp",
+            "serving path: ChatGPT/GPT1 -> local HTTPS Caddy -> 127.0.0.1:3022",
+            "OAuth authorization endpoint: https://91-159-12-133.sslip.io/authorize with local-edge owner authorization",
+            "worker-visible contract is exactly start_process, read_output, kill_process; image delivery remains process-result metadata/resource output and does not add an action",
+            "5-61-91-127.sslip.io, VPS Caddy, WireGuard, and Tailscale owner authorization are not in the GPT1 path",
+            "mcp-recovery-state.json is historical recovery/rollback state, not current serving topology",
+        ],
+        "supervisor": "McpV4HomeDirect3022 scheduled task -> pinned home-direct stable runtime",
+        "self_heal": "generation_specific",
+        "independent_recovery": [
+            "clone-a at 127.0.0.1:3011 is the independent local control/recovery route for the home-direct 3022 service",
+            "mcp-recovery-state.json preserves historical rollback targets but must not be projected as current GPT1 topology",
+            "client-visible stale connector metadata does not authorize VPS/WireGuard/Tailscale repair or backend/OAuth churn",
+            "authentication repair must preserve the three-tool process profile and local 91-159-12-133.sslip.io -> 3022 serving topology",
+        ],
+        "resources": ["91-159-12-133.sslip.io HTTPS", "local Caddy", "127.0.0.1:3022", "oauth.json", "transport.jsonl", "shared-process-receipts", "process-control", "clone-a 127.0.0.1:3011 independent control", "process library upload metadata/resource handler"],
+        "dependents": ["chatgpt_process_transport"],
+        "runbook": [str(MCP_CURRENT_TOPOLOGY_PATH), MCP_ROOT + r"\AGENTS.md", str(MCP_RECOVERY_STATE_PATH)],
     },
     "vps_edge_ingress": {
         "role": "public_mcp_edge_and_observer",
@@ -574,28 +590,17 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Ordered navigation to the existing .agents issue-first contract: inspect/claim occurs immediately before shared mutation. The GitHub issue is the shared convergence record, not a queue, priority, capacity, or admission system. Busy is exact mutation collision control only. No new workflow authority is created.",
     },
+    "mcp.current_topology": {
+        "owner_components": ["mcp_minimal_clone"],
+        "triggers": ["gpt1 mcp topology", "mcp current topology", "91-159-12-133", "mcp 3022", "mcp connector url", "mcp local edge"],
+        "entrypoints": [str(MCP_CURRENT_TOPOLOGY_PATH), "python tools\\stack_atlas.py lookup mcp_minimal_clone"],
+        "boundary": "Current GPT1 serving authority: https://91-159-12-133.sslip.io/mcp -> local HTTPS Caddy -> 127.0.0.1:3022. The old 5-61-91-127.sslip.io/VPS/WireGuard/Tailscale path is not the GPT1 serving or authorization path. mcp-recovery-state.json is historical rollback/recovery state only.",
+    },
     "mcp.chatgpt_plugin_surface": {
         "owner_components": ["mcp_minimal_clone"],
-        "triggers": [
-            "chatgpt plugin tools",
-            "chatgpt plugin command",
-            "mcp plugin tools",
-            "process tool profile",
-            "plugin tool contract",
-            "busy_list plugin",
-            "busy claim plugin",
-            "busy release plugin",
-            "view_image plugin",
-            "open_visual_proof",
-            "visual proof app",
-        ],
-        "entrypoints": [
-            "python tools\\stack_atlas.py lookup mcp_minimal_clone",
-            MCP_ROOT + r"\config\process-tool-contract.json",
-            MCP_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1",
-            MCP_ROOT + r"\src\lib\visual-proof-app.ts",
-        ],
-        "boundary": "The ChatGPT plugin keeps MCP_TOOL_PROFILE=process as the start_process/read_output/kill_process baseline. With MCP_VISUAL_PROOF_UI=1, production additionally exposes read-only open_visual_proof and ui://visual-proof/inline-v1.html (text/html;profile=mcp-app). busy_list, busy_claim, busy_release, and legacy view_image remain internal/full-only. An already-open ChatGPT conversation can retain its cached pre-deploy schema, so fresh-session inline rendering is a distinct client acceptance step.",
+        "triggers": ["chatgpt plugin tools", "chatgpt plugin command", "mcp plugin tools", "process tool profile", "plugin tool contract", "image metadata", "library upload", "CHATGPT_LIBRARY_UPLOAD", "busy_list plugin", "view_image plugin", "open_visual_proof"],
+        "entrypoints": ["python tools\\stack_atlas.py lookup mcp_minimal_clone", MCP_ROOT + r"\config\process-tool-contract.json", MCP_HOME_DIRECT_RUNTIME_ROOT + r"\src\lib\process-library-upload.ts", str(MCP_CURRENT_TOPOLOGY_PATH)],
+        "boundary": "The GPT1 ChatGPT connector exposes exactly start_process, read_output, and kill_process. CHATGPT_LIBRARY_UPLOAD image/file handling is process-result metadata/resource output through ui://process/library-upload-v2.html and does not create another tool. busy_*, view_image, and visual-proof actions are excluded. More than three discovered actions indicates stale/wrong client connector metadata before it indicates a server topology defect.",
     },
     "mcp.recovery_state": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
@@ -2488,6 +2493,38 @@ def _bootstrap_memory_titles() -> list[dict[str, Any]]:
     return list(_bootstrap_memory_overview().get("recent", []))
 
 
+def _bootstrap_mcp_current_topology() -> dict[str, Any]:
+    path = MCP_CURRENT_TOPOLOGY_PATH
+    if not path.exists():
+        return {"available": False, "read_state": "MISSING", "path": str(path)}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": str(exc)}
+    if not isinstance(raw, dict) or raw.get("schema") != "mcp-current-topology.v1":
+        return {"available": False, "read_state": "ERROR", "path": str(path), "error": "invalid mcp-current-topology.v1 contract"}
+    serving = raw.get("serving", {}) if isinstance(raw.get("serving"), dict) else {}
+    surface = raw.get("chatgpt_surface", {}) if isinstance(raw.get("chatgpt_surface"), dict) else {}
+    recovery = raw.get("recovery", {}) if isinstance(raw.get("recovery"), dict) else {}
+    image_delivery = surface.get("image_delivery", {}) if isinstance(surface.get("image_delivery"), dict) else {}
+    return {
+        "available": True,
+        "read_state": "OK",
+        "authority": raw.get("authority"),
+        "connector_url": serving.get("connector_url"),
+        "public_origin": serving.get("public_origin"),
+        "authorization_endpoint": serving.get("authorization_endpoint"),
+        "serving_path": serving.get("path"),
+        "tool_count": surface.get("tool_count"),
+        "tools": surface.get("tools"),
+        "image_delivery_adds_tool": image_delivery.get("adds_tool"),
+        "excluded_actions": surface.get("excluded_actions"),
+        "not_in_gpt1_path": raw.get("not_in_gpt1_path"),
+        "independent_local_control": recovery.get("independent_local_control"),
+        "details_path": str(path),
+    }
+
+
 def _bootstrap_mcp_recovery_state() -> dict[str, Any]:
     path = MCP_RECOVERY_STATE_PATH
     if not path.exists():
@@ -3131,6 +3168,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     if isinstance(swarm_topology, dict):
         swarm_topology["execution_nodes"] = execution_nodes
     mcp = _bootstrap_mcp_status_from_live_swarm(live_swarm)
+    mcp_current_topology = _bootstrap_mcp_current_topology()
     mcp_recovery_state = _bootstrap_mcp_recovery_orientation(_bootstrap_mcp_recovery_state())
     agent_contract = _bootstrap_agent_contract_version()
     notable_conditions: list[str] = []
@@ -3241,8 +3279,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "tiny3d": r"C:\Users\Lauri\Desktop\tiny3d",
             "lowvram": r"C:\Users\Lauri\Desktop\lowvram3d-repo",
             "tiny3d_library": r"C:\Users\Lauri\Desktop\Tiny3D_LIBRARY",
-            "mcp": r"%LOCALAPPDATA%\ChatGPTMcpMinimal",
+            "mcp": MCP_HOME_DIRECT_RUNTIME_ROOT,
             "mcp_source_repo": r"%LOCALAPPDATA%\ChatGPTMcpClean",
+            "mcp_current_topology": str(MCP_CURRENT_TOPOLOGY_PATH),
             "mcp_recovery_state": str(MCP_RECOVERY_STATE_PATH),
             "mcp_security_routing_log": str(MCP_SECURITY_ROUTING_LOG_PATH),
             "execution_node_topology": str(ATLAS_LIVE_ROOT / EXECUTION_NODE_TOPOLOGY_RELATIVE_PATH),
@@ -3272,6 +3311,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "source_freshness": source_freshness,
         "pc": pc,
         "workers": worker_glance,
+        "mcp_current_topology": mcp_current_topology,
         "mcp_recovery_state": mcp_recovery_state,
         "memory_overview": memory_overview,
     }

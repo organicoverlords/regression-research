@@ -1,6 +1,9 @@
 {
   "schema": "mcp-recovery-state.v1",
   "updated_at": "2026-09-08T20:56:07.3881510Z",
+  "scope": "recovery_only_not_live_topology",
+  "current_serving_topology_reference": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-current-topology.json",
+  "warning": "Historical rollback/recovery target only. deployment.public_origin and deployment.topology are not the current GPT1 serving topology.",
   "deployment": {
     "id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
     "deployed_at": "2026-09-06T14:42:47.4099008Z",

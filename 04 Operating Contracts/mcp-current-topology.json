@@ -1,0 +1,74 @@
+{
+  "schema": "mcp-current-topology.v1",
+  "authority": "current_serving_topology",
+  "updated_at": "2026-09-09T16:30:48.206029+00:00",
+  "tracking_issue": "organicoverlords/agents#287",
+  "serving": {
+    "connector_url": "https://91-159-12-133.sslip.io/mcp",
+    "public_origin": "https://91-159-12-133.sslip.io",
+    "authorization_endpoint": "https://91-159-12-133.sslip.io/authorize",
+    "path": [
+      "ChatGPT/GPT1 connector",
+      "local HTTPS Caddy",
+      "127.0.0.1:3022"
+    ],
+    "caddy": {
+      "scheduled_task": "McpV4HomeDirectCaddy",
+      "config": "%LOCALAPPDATA%\\ChatGPTMcpV4HomeDirectStable\\config\\home-direct.Caddyfile",
+      "authorization_rule": "/authorize is accepted only from private/local client IPs; other /authorize requests fail closed"
+    },
+    "backend": {
+      "scheduled_task": "McpV4HomeDirect3022",
+      "listen": "127.0.0.1:3022",
+      "runtime_checkout": "%LOCALAPPDATA%\\ChatGPTMcpV4HomeDirectStable",
+      "branch": "chatgpt/home-direct-stable-runtime",
+      "tool_profile": "process",
+      "owner_auth_mode": "local-edge"
+    }
+  },
+  "chatgpt_surface": {
+    "tool_count": 3,
+    "tools": [
+      "start_process",
+      "read_output",
+      "kill_process"
+    ],
+    "image_delivery": {
+      "adds_tool": false,
+      "trigger_prefix": "CHATGPT_LIBRARY_UPLOAD=",
+      "widget_resource": "ui://process/library-upload-v2.html",
+      "result_carriers": [
+        "resource_link",
+        "structuredContent",
+        "_meta.chatgpt_library_upload"
+      ],
+      "source": "%LOCALAPPDATA%\\ChatGPTMcpV4HomeDirectStable\\src\\lib\\process-library-upload.ts"
+    },
+    "excluded_actions": [
+      "view_image",
+      "busy_list",
+      "busy_claim",
+      "busy_release",
+      "open_visual_proof",
+      "open_visual_proof_run",
+      "record_visual_proof_review"
+    ]
+  },
+  "recovery": {
+    "independent_local_control": "clone-a at 127.0.0.1:3011",
+    "recovery_contract": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-recovery-state.json",
+    "recovery_contract_semantics": "historical rollback/recovery target only; never current GPT1 serving identity"
+  },
+  "not_in_gpt1_path": [
+    "5-61-91-127.sslip.io",
+    "VPS Caddy",
+    "WireGuard",
+    "Tailscale owner authorization"
+  ],
+  "diagnostic_invariants": [
+    "If ChatGPT reports anything other than exactly three MCP actions for this connector, treat the client connector binding/schema as stale or wrong before changing the server.",
+    "If an authorization browser opens 5-61-91-127.sslip.io, GPT1 is using stale connector metadata; do not repair the VPS route for this connector.",
+    "Authentication repair must not widen the worker-visible tool surface or introduce a second GPT1 serving topology.",
+    "mcp-recovery-state.json is historical rollback/recovery metadata and must never be projected as current GPT1 topology."
+  ]
+}
