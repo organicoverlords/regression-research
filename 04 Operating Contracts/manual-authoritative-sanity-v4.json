@@ -1,7 +1,7 @@
 {
   "schema": "manual-authoritative-sanity-v4.v1",
-  "revision": 1,
-  "status": "PILOT_NO_AGGREGATE",
+  "revision": 2,
+  "status": "PILOT_TRISTATE_NO_AGGREGATE",
   "purpose": "Measure instruction/execution adherence and repository acceptance from authoritative MCP and GitHub evidence without using worker reports as pass/fail truth.",
   "authority": {
     "execution_and_tool_order": "MCP durable process/runtime receipts (process-output-evidence.v1)",
@@ -20,12 +20,29 @@
   "components": {
     "instruction_execution_trace": {
       "source": "MCP receipts",
-      "metrics": ["hard_satisfied", "soft_satisfaction_rate", "by_category"],
-      "examples": ["required command exists", "forbidden command absent", "claim precedes mutation", "required verifier succeeded", "required command sequence preserved"]
+      "metrics": [
+        "hard_satisfied",
+        "soft_satisfaction_rate",
+        "unknown_check_count",
+        "by_category"
+      ],
+      "examples": [
+        "required command exists",
+        "forbidden command absent",
+        "claim precedes mutation",
+        "required verifier succeeded",
+        "required command sequence preserved"
+      ],
+      "important": "Trace checks are tri-state. Partial coverage can prove observed positives and observed violations, but absence/missing/order failures become UNKNOWN unless coverage is exhaustive and gap-free."
     },
     "github_repository_acceptance": {
       "source": "GitHub",
-      "metrics": ["convergence_pass", "required_checks_pass", "observed_checks"],
+      "metrics": [
+        "convergence_status",
+        "convergence_pass",
+        "required_checks_pass",
+        "observed_checks"
+      ],
       "important": "Non-required failed or pending checks are diagnostic only. Merge state establishes convergence, not semantic task correctness."
     }
   },
@@ -39,6 +56,11 @@
     "A failed exploratory/test command is not automatically a task failure; task specs identify required terminal verifier evidence.",
     "ABANDONED_OPEN and other report lifecycle labels are not task outcomes.",
     "A GitHub check affects acceptance only when repository policy/task spec identifies it as required; otherwise it remains diagnostic.",
-    "Unknown/missing evidence remains unknown rather than being coerced into pass or fail."
-  ]
+    "Unknown/missing evidence remains unknown rather than being coerced into pass or fail.",
+    "MCP trace absence is never PASS/FAIL evidence under partial coverage; use UNKNOWN until exhaustive gap-free coverage is established.",
+    "Open PRs and pending required checks are PENDING/UNKNOWN, not failures; closed-unmerged or completed required-check failures are failures."
+  ],
+  "performance": {
+    "receipt_loading": "When --start is supplied, receipt files whose filesystem mtime is safely older than the window are skipped before JSON parsing; only a lower-bound mtime prefilter is used so long-running in-window receipts are not lost."
+  }
 }

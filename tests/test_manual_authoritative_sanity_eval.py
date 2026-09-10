@@ -51,7 +51,7 @@ class AuthoritativeSanityEvalTests(unittest.TestCase):
             {"type": "command_present", "pattern": "swarm_route", "categories": ["routing"]},
             {"type": "command_present", "pattern": "pytest", "categories": ["validation"]},
         ]}
-        result = score_trace(spec, rows)
+        result = score_trace(spec, rows, coverage_mode="exhaustive")
         self.assertFalse(result["hard_satisfied"])
         self.assertEqual(result["soft_satisfaction_rate"], 50.0)
 
@@ -59,7 +59,7 @@ class AuthoritativeSanityEvalTests(unittest.TestCase):
         row = receipt("pytest -q", process_id="1", started_at="2026-09-10T00:00:00+00:00", outcome="nonzero_exit", exit_code=1)
         row["_started_dt"] = __import__("datetime").datetime.fromisoformat(row["started_at"])
         spec = {"checks": [{"type": "successful_command_present", "pattern": "pytest"}]}
-        self.assertFalse(score_trace(spec, [row])["hard_satisfied"])
+        self.assertFalse(score_trace(spec, [row], coverage_mode="exhaustive")["hard_satisfied"])
 
     def test_ordered_commands_and_precedes_use_receipt_order(self):
         rows = []
@@ -77,7 +77,7 @@ class AuthoritativeSanityEvalTests(unittest.TestCase):
         row = receipt("git status", process_id="1", started_at="2026-09-10T00:00:00+00:00")
         row["_started_dt"] = __import__("datetime").datetime.fromisoformat(row["started_at"])
         spec = {"checks": [{"type": "command_absent", "pattern": r"git\s+reset\s+--hard"}]}
-        self.assertTrue(score_trace(spec, [row])["hard_satisfied"])
+        self.assertTrue(score_trace(spec, [row], coverage_mode="exhaustive")["hard_satisfied"])
 
     def test_github_merge_is_convergence_even_with_nonrequired_failed_check(self):
         payload = {
@@ -103,8 +103,46 @@ class AuthoritativeSanityEvalTests(unittest.TestCase):
             "statusCheckRollup": [{"name": "acceptance", "workflowName": "ci", "status": "IN_PROGRESS", "conclusion": ""}],
         }
         result = evaluate_github_pr_payload(payload, required_checks=["ci/acceptance"])
-        self.assertFalse(result["required_checks_pass"])
+        self.assertIsNone(result["required_checks_pass"])
+        self.assertIsNone(result["required_checks"][0]["passed"])
         self.assertEqual(result["required_checks"][0]["status"], "PENDING")
+
+
+    def test_partial_coverage_missing_positive_is_unknown_not_failure(self):
+        spec = {"checks": [{"type": "command_present", "pattern": "pytest"}]}
+        result = score_trace(spec, [], coverage_mode="partial")
+        self.assertIsNone(result["hard_satisfied"])
+        self.assertIsNone(result["soft_satisfaction_rate"])
+        self.assertEqual(result["unknown_check_count"], 1)
+        self.assertEqual(result["checks"][0]["status"], "UNKNOWN")
+
+    def test_partial_coverage_cannot_prove_command_absent(self):
+        spec = {"checks": [{"type": "command_absent", "pattern": r"git\s+reset\s+--hard"}]}
+        result = score_trace(spec, [], coverage_mode="partial")
+        self.assertIsNone(result["hard_satisfied"])
+        self.assertEqual(result["checks"][0]["status"], "UNKNOWN")
+
+    def test_partial_coverage_can_prove_negative_constraint_violation(self):
+        row = receipt("git reset --hard HEAD~1", process_id="1", started_at="2026-09-10T00:00:00+00:00")
+        row["_started_dt"] = __import__("datetime").datetime.fromisoformat(row["started_at"])
+        spec = {"checks": [{"type": "command_absent", "pattern": r"git\s+reset\s+--hard"}]}
+        result = score_trace(spec, [row], coverage_mode="partial")
+        self.assertFalse(result["hard_satisfied"])
+        self.assertEqual(result["checks"][0]["status"], "FAIL")
+
+    def test_exhaustive_claim_degrades_when_authoritative_receipt_has_gap(self):
+        spec = {"checks": [{"type": "command_absent", "pattern": "forbidden"}]}
+        coverage = {"excluded_incomplete_receipts": 1, "unreadable_candidate_receipts": 0}
+        result = score_trace(spec, [], coverage, coverage_mode="exhaustive")
+        self.assertEqual(result["coverage_mode_effective"], "partial")
+        self.assertTrue(result["coverage"]["exhaustive_claim_degraded"])
+        self.assertIsNone(result["hard_satisfied"])
+
+    def test_open_github_pr_is_pending_not_failure(self):
+        payload = {"number": 11, "state": "OPEN", "mergeCommit": None, "statusCheckRollup": []}
+        result = evaluate_github_pr_payload(payload)
+        self.assertEqual(result["convergence_status"], "PENDING")
+        self.assertIsNone(result["convergence_pass"])
 
     def test_composed_result_has_no_aggregate_score_and_no_report_input(self):
         result = compose_components({"hard_satisfied": True}, [{"convergence_pass": True}])
