@@ -1,0 +1,44 @@
+{
+  "schema": "manual-authoritative-sanity-v4.v1",
+  "revision": 1,
+  "status": "PILOT_NO_AGGREGATE",
+  "purpose": "Measure instruction/execution adherence and repository acceptance from authoritative MCP and GitHub evidence without using worker reports as pass/fail truth.",
+  "authority": {
+    "execution_and_tool_order": "MCP durable process/runtime receipts (process-output-evidence.v1)",
+    "repository_convergence": "GitHub PR/ref/merge-commit state",
+    "automated_acceptance": "Repo-configured required GitHub checks and/or verifier commands whose MCP receipts prove successful execution",
+    "github_issue_prose": "intent/coordination only",
+    "worker_reports": "auxiliary metadata/navigation only"
+  },
+  "benchmark_principles": {
+    "IFEval": "deterministic per-constraint checks plus strict all-constraints pass",
+    "FollowBench": "retain hard and soft satisfaction separately",
+    "IH-Challenge": "test higher-priority constraints against lower-priority conflicting behavior",
+    "SWE-bench": "separate patch convergence from verifier-backed task correctness",
+    "Terminal-Bench": "task-specific verifier evidence rather than generic self-report"
+  },
+  "components": {
+    "instruction_execution_trace": {
+      "source": "MCP receipts",
+      "metrics": ["hard_satisfied", "soft_satisfaction_rate", "by_category"],
+      "examples": ["required command exists", "forbidden command absent", "claim precedes mutation", "required verifier succeeded", "required command sequence preserved"]
+    },
+    "github_repository_acceptance": {
+      "source": "GitHub",
+      "metrics": ["convergence_pass", "required_checks_pass", "observed_checks"],
+      "important": "Non-required failed or pending checks are diagnostic only. Merge state establishes convergence, not semantic task correctness."
+    }
+  },
+  "aggregate": {
+    "score": null,
+    "status": "NOT_CALIBRATED",
+    "rule": "Do not average unlike components until prospective labeled tasks establish coverage, discrimination, and weights. Preserve component results even after calibration."
+  },
+  "anti_goodhart": [
+    "Never reward report length, report brevity, number of tool calls, run duration, or issue-comment verbosity.",
+    "A failed exploratory/test command is not automatically a task failure; task specs identify required terminal verifier evidence.",
+    "ABANDONED_OPEN and other report lifecycle labels are not task outcomes.",
+    "A GitHub check affects acceptance only when repository policy/task spec identifies it as required; otherwise it remains diagnostic.",
+    "Unknown/missing evidence remains unknown rather than being coerced into pass or fail."
+  ]
+}
