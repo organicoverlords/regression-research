@@ -886,6 +886,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(any("worker_recovery_guard.py" in route for route in topology["independent_recovery"]))
         self.assertTrue(any("recurring workers never issue scheduler mutations" in route for route in topology["independent_recovery"]))
         self.assertTrue(any("worker_recovery_guard" in route for route in scheduler["independent_recovery"]))
+        self.assertTrue(any("recurring workers never issue scheduler mutations" in route for route in scheduler["independent_recovery"]))
+        self.assertFalse(any("same-partition recurring siblings" in route for route in scheduler["independent_recovery"]))
 
         timed = find_features("timed runs", limit=5)
         match = next(item for item in timed if item["id"] == "worker.swarm_topology")

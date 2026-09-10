@@ -530,7 +530,7 @@ COMPONENTS.update({
         "live_status": ["current automation enabled/schedule state only; not worker liveness, supervision, or recovery authority"],
         "supervisor": "platform recurrence service only; it does not supervise worker health or own swarm recovery", "self_heal": "not_swarm_supervision",
         "independent_recovery": [
-            "same-partition recurring siblings or a supervising/manual ChatGPT session use fleet-watch plus worker_recovery_guard and may issue one targeted is_enabled=true write; scheduler listing is not the discovery path",
+            "recurring workers never issue scheduler mutations; a supervising/manual ChatGPT session or explicit operator handoff may use fleet-watch plus worker_recovery_guard and issue one targeted is_enabled=true recovery; scheduler listing is not the discovery path",
             "present-turn work continues without recurrence",
         ], "resources": ["timed recurrence and enabled state only"],
         "dependents": ["execution_workers"], "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
