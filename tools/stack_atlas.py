@@ -649,9 +649,21 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
-        "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime", "nexus", "devboard"],
+        "triggers": ["current truth", "project state", "repo state", "direction", "north star", "git", "github", "runtime"],
         "entrypoints": ["shared .agents RULES.md + AGENTS.md", "organicoverlords/agents@main docs/repos/<repo>/ product direction", "git status/HEAD + relevant branch/commit history", "exact GitHub issue/PR/check/runtime evidence"],
         "boundary": "Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards.",
+    },
+    "project.nexus_navigation": {
+        "owner_components": ["north_star", "local_git", "github"],
+        "triggers": ["nexus", "devboard", "dev progress board", "nexus canvas", "nexus board", "nexus repo"],
+        "entrypoints": [
+            os.path.expandvars(r"%LOCALAPPDATA%\nexus"),
+            "organicoverlords/agents@main docs/repos/dev-progress-board/NORTH_STAR.md",
+            "git -C %LOCALAPPDATA%\\nexus status --short --branch",
+            "gh issue list -R organicoverlords/nexus",
+            "gh pr list -R organicoverlords/nexus",
+        ],
+        "boundary": "Navigation only. Nexus product direction lives in organicoverlords/agents@main under docs/repos/dev-progress-board; current Nexus repo/worktree state, exact GitHub issue/PR state, and repo-owned runtime evidence remain implementation/runtime authority. Atlas must not infer Nexus liveness, progress, or delivery state from static paths or old board snapshots.",
     },
     "project.tiny3d_asset_library": {
         "owner_components": ["local_git", "visual_proof"],
@@ -3372,8 +3384,9 @@ def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, 
 
 
 FEATURE_LOOKUP_ALIASES = {
-    "nexus": "project.current_truth",
-    "devboard": "project.current_truth",
+    "nexus": "project.nexus_navigation",
+    "devboard": "project.nexus_navigation",
+    "dev progress board": "project.nexus_navigation",
     "tiny3d_library": "project.tiny3d_asset_library",
     "tiny3d library": "project.tiny3d_asset_library",
     "asset_catalogue": "project.tiny3d_asset_library",

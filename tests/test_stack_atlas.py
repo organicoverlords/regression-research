@@ -2092,16 +2092,23 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(expected.issubset(ids), sorted(expected - ids))
         self.assertNotIn("operator_live", ids)
 
-    def test_nexus_and_devboard_resolve_through_current_truth_navigation(self):
-        for alias in ("nexus", "devboard"):
+    def test_nexus_and_devboard_resolve_through_first_class_navigation(self):
+        for alias in ("nexus", "devboard", "dev progress board"):
             with self.subTest(alias=alias):
                 details = atlas_lookup(alias)
-                self.assertEqual(details["id"], "project.current_truth")
+                self.assertEqual(details["id"], "project.nexus_navigation")
                 self.assertEqual(details["kind"], "feature_navigation")
-                self.assertEqual(details["owner_components"], ["agent_rules", "north_star", "local_git", "github"])
+                self.assertEqual(details["owner_components"], ["north_star", "local_git", "github"])
+                joined = " ".join(details["entrypoints"])
+                self.assertIn(os.path.expandvars(r"%LOCALAPPDATA%\nexus"), joined)
+                self.assertIn("docs/repos/dev-progress-board/NORTH_STAR.md", joined)
+                self.assertIn("organicoverlords/nexus", joined)
+                self.assertIn("Navigation only", details["boundary"])
+                self.assertIn("remain implementation/runtime authority", details["boundary"])
+                self.assertIn("must not infer Nexus liveness", details["boundary"])
 
-        self.assertEqual(find_features("nexus", limit=1)[0]["id"], "project.current_truth")
-        self.assertEqual(find_features("devboard", limit=1)[0]["id"], "project.current_truth")
+        self.assertEqual(find_features("nexus", limit=1)[0]["id"], "project.nexus_navigation")
+        self.assertEqual(find_features("devboard", limit=1)[0]["id"], "project.nexus_navigation")
 
     def test_tiny3d_library_navigation_exposes_showroom_and_durable_visual_proof(self):
         for alias in ("tiny3d_library", "asset_catalogue", "showroom", "visual_proof_library"):
