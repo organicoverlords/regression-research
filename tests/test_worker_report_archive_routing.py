@@ -47,11 +47,16 @@ def test_archive_cli_routes_current_snapshot_to_canonical_history(tmp_path: Path
     assert metrics_path.exists()
     metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
     assert metrics["schema"] == "worker-report-metrics.v1"
-    assert metrics["runs_with_duration"] == 1
-    assert metrics["average_duration_minutes"] == 5.0
-    assert metrics["average_target_utilization_pct"] == 20.8
-    assert metrics["latest_reports"][0]["automation_id"] == "worker-id"
-    assert "early_stop" not in metrics["latest_reports"][0]
-    assert "tool_failures_total" not in metrics["latest_reports"][0]
+    assert metrics["runs_with_duration"] == 0
+    assert metrics["average_duration_minutes"] is None
+    assert metrics["average_target_utilization_pct"] is None
+    assert metrics["duration_filter"]["require_machine_observed_start"] is True
+    assert metrics["duration_filter"]["excluded_unmeasured_count"] == 1
+    latest = metrics["latest_reports"][0]
+    assert latest["automation_id"] == "worker-id"
+    assert latest["duration_minutes"] is None
+    assert latest["timing_evidence"] == "UNMEASURED_NO_MACHINE_START"
+    assert "early_stop" not in latest
+    assert "tool_failures_total" not in latest
     assert not archived.is_relative_to((current / "history").resolve())
     assert not (current / "history").exists()

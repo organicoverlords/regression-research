@@ -38,6 +38,8 @@ CACHE_PROTOCOL_PREFIX = b"SWARM_EXEC_CACHE_MANIFEST "
 GIT_PROVENANCE_VERSION = 1
 GIT_PROVENANCE_COMMIT_LIMIT = 128
 MAX_GIT_PROVENANCE_BYTES = 16 * 1024 * 1024
+GIT_PROVENANCE_PACK_COMPRESSION = 1
+GIT_PROVENANCE_PACK_TIMEOUT_SECONDS = 90.0
 OMEN_TOOL_ENV = "/mnt/ue/worker-tools/env.sh"
 OMEN_PYTHON_PACKAGES = "/mnt/ue/worker-tools/python-packages"
 
@@ -151,8 +153,12 @@ def git_provenance_payload(repo_root: Path, *, max_bytes: int = MAX_GIT_PROVENAN
         if line.strip()
     ))
     pack_proc = subprocess.run(
-        ["git", "-C", str(repo_root), "pack-objects", "--stdout"],
-        input=("\n".join(objects) + "\n").encode("ascii"), capture_output=True, timeout=30.0, check=False,
+        [
+            "git", "-C", str(repo_root), "pack-objects", "--stdout",
+            f"--compression={GIT_PROVENANCE_PACK_COMPRESSION}",
+        ],
+        input=("\n".join(objects) + "\n").encode("ascii"),
+        capture_output=True, timeout=GIT_PROVENANCE_PACK_TIMEOUT_SECONDS, check=False,
     )
     if pack_proc.returncode != 0 or not pack_proc.stdout:
         raise ValueError("SWARM_EXEC_GIT_OBJECT_PACK_FAILED")
