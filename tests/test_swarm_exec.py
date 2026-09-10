@@ -195,6 +195,33 @@ class SwarmExecTests(unittest.TestCase):
             working_changed=set(subprocess.check_output(["git","-C",str(dst),"diff","--name-only","HEAD"],text=True).splitlines())
             self.assertEqual(working_changed,{"a.txt"})
 
+    def test_git_provenance_pack_uses_low_compression_and_bounded_cold_timeout(self):
+        with tempfile.TemporaryDirectory() as td:
+            src=Path(td)/"src"; src.mkdir()
+            subprocess.run(["git","-C",str(src),"init","-q","-b","topic/provenance-pack"],check=True)
+            subprocess.run(["git","-C",str(src),"config","user.email","test@example.invalid"],check=True)
+            subprocess.run(["git","-C",str(src),"config","user.name","Test"],check=True)
+            (src/"a.txt").write_text("base\n",encoding="utf-8")
+            subprocess.run(["git","-C",str(src),"add","a.txt"],check=True)
+            subprocess.run(["git","-C",str(src),"commit","-qm","base"],check=True)
+            real_run=m.subprocess.run
+            pack_calls=[]
+            def recording_run(args,*pargs,**kwargs):
+                if "pack-objects" in args:
+                    pack_calls.append((list(args),kwargs.get("timeout")))
+                return real_run(args,*pargs,**kwargs)
+            m.subprocess.run=recording_run
+            try:
+                m.git_provenance_payload(src)
+            finally:
+                m.subprocess.run=real_run
+            self.assertEqual(len(pack_calls),1)
+            args,timeout=pack_calls[0]
+            self.assertIn(f"--compression={m.GIT_PROVENANCE_PACK_COMPRESSION}",args)
+            self.assertEqual(m.GIT_PROVENANCE_PACK_COMPRESSION,1)
+            self.assertEqual(timeout,m.GIT_PROVENANCE_PACK_TIMEOUT_SECONDS)
+            self.assertEqual(m.GIT_PROVENANCE_PACK_TIMEOUT_SECONDS,90.0)
+
     def test_reserved_cache_metadata_name_is_rejected(self):
         with self.assertRaises(ValueError):
             m._safe_manifest_path(m.CACHE_MANIFEST_NAME)
