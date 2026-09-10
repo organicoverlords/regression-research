@@ -18,6 +18,7 @@ class SwarmExecTests(unittest.TestCase):
             subprocess.run(["git","init","-q",str(root)],check=True)
             state=root/"state.json"
             calls=[]
+            execute_calls=[]
             original_route=m.swarm_route.route_work
             original_execute=m.execute_omen
             try:
@@ -25,13 +26,17 @@ class SwarmExecTests(unittest.TestCase):
                     calls.append((args,kwargs))
                     return {"route":"omen","reason":"OMEN_PORTABLE_ADMITTED","decision_id":"test"}
                 m.swarm_route.route_work=fake_route
-                m.execute_omen=lambda *args,**kwargs: 0
-                rc=m.main(["--state",str(state),"--work-id","issue-936","--kind","portable-light","--repo-root",str(root),"--","true"])
+                def fake_execute(*args,**kwargs):
+                    execute_calls.append((args,kwargs))
+                    return 0
+                m.execute_omen=fake_execute
+                rc=m.main(["--state",str(state),"--work-id","issue-936","--kind","portable-light","--repo-root",str(root),"--sync-path","tests","--","true"])
             finally:
                 m.swarm_route.route_work=original_route
                 m.execute_omen=original_execute
             self.assertEqual(rc,0)
             self.assertEqual(calls[0][1].get("allow_vps"),False)
+            self.assertEqual(execute_calls[0][1].get("sync_paths"),[Path("tests")])
 
     def test_remote_workspace_is_nvme_and_sources_worker_tools(self):
         workspace, script=m.remote_script("issue-768", "python3 -V", self.CACHE_ID)
@@ -64,6 +69,32 @@ class SwarmExecTests(unittest.TestCase):
             self.assertIn("tracked.txt",names)
             self.assertIn("new.txt",names)
             self.assertNotIn("ignored.bin",names)
+
+    def test_snapshot_sync_paths_exclude_unrelated_large_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            subprocess.run(["git","init","-q",str(root)],check=True)
+            subprocess.run(["git","-C",str(root),"config","user.email","test@example.invalid"],check=True)
+            subprocess.run(["git","-C",str(root),"config","user.name","Test"],check=True)
+            (root/"small").mkdir(); (root/"huge").mkdir()
+            (root/"small"/"test.py").write_text("print('ok')\n",encoding="utf-8")
+            (root/"small"/"helper.py").write_text("VALUE=1\n",encoding="utf-8")
+            (root/"huge"/"content.bin").write_bytes(b"x"*(2*1024*1024))
+            subprocess.run(["git","-C",str(root),"add","."],check=True)
+            subprocess.run(["git","-C",str(root),"commit","-qm","base"],check=True)
+            paths=m.snapshot_paths(root,[Path("small")])
+            self.assertEqual({p.as_posix() for p in paths},{"small/helper.py","small/test.py"})
+            self.assertLess(m.snapshot_bytes(root,paths),1024)
+            self.assertGreater(m.snapshot_bytes(root,m.snapshot_paths(root)),2*1024*1024)
+
+    def test_snapshot_sync_paths_fail_closed_for_unsafe_or_empty_selection(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            subprocess.run(["git","init","-q",str(root)],check=True)
+            with self.assertRaisesRegex(ValueError,"SWARM_EXEC_BAD_SYNC_PATH"):
+                m.snapshot_paths(root,[Path("../outside")])
+            with self.assertRaisesRegex(ValueError,"SWARM_EXEC_SYNC_PATH_EMPTY"):
+                m.snapshot_paths(root,[Path("missing")])
 
     def test_manifest_delta_only_sends_changes_and_deletes(self):
         with tempfile.TemporaryDirectory() as td:

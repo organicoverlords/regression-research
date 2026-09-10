@@ -64,15 +64,27 @@ def git_root(path: Path) -> Path:
     return Path(cp.stdout.strip()).resolve()
 
 
-def snapshot_paths(repo_root: Path) -> list[Path]:
+def snapshot_paths(repo_root: Path, sync_paths: Iterable[Path] | None = None) -> list[Path]:
     submodules = _run(["git", "-C", str(repo_root), "ls-files", "-s", "-z"], timeout=20.0)
     if submodules.returncode != 0:
         raise ValueError("SWARM_EXEC_GIT_INDEX_FAILED")
     for entry in submodules.stdout.split("\0"):
         if entry.startswith("160000 "):
             raise ValueError("SWARM_EXEC_SUBMODULE_UNSUPPORTED")
+    selected: list[str] = []
+    for raw in sync_paths or []:
+        rel = Path(raw)
+        if rel.is_absolute() or not rel.parts or ".." in rel.parts:
+            raise ValueError("SWARM_EXEC_BAD_SYNC_PATH")
+        value = rel.as_posix().strip("/")
+        if not value or value == ".":
+            raise ValueError("SWARM_EXEC_BAD_SYNC_PATH")
+        selected.append(f":(literal){value}")
+    argv = ["git", "-C", str(repo_root), "ls-files", "-co", "--exclude-standard", "-z"]
+    if selected:
+        argv.extend(["--", *selected])
     cp = subprocess.run(
-        ["git", "-C", str(repo_root), "ls-files", "-co", "--exclude-standard", "-z"],
+        argv,
         capture_output=True, timeout=30.0, check=False,
     )
     if cp.returncode != 0:
@@ -89,6 +101,8 @@ def snapshot_paths(repo_root: Path) -> list[Path]:
         full = repo_root / rel
         if full.is_file() or full.is_symlink():
             out.append(rel)
+    if selected and not out:
+        raise ValueError("SWARM_EXEC_SYNC_PATH_EMPTY")
     return out
 
 
@@ -550,8 +564,8 @@ def _forward_stdout(stream) -> None:
             sys.stdout.write(chunk.decode("utf-8", errors="replace")); sys.stdout.flush()
 
 
-def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False) -> int:
-    paths = snapshot_paths(repo_root)
+def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, *, keep_workspace: bool = False, sync_paths: Iterable[Path] | None = None) -> int:
+    paths = snapshot_paths(repo_root, sync_paths)
     current_manifest, size, hash_hits, hash_misses = cached_snapshot_manifest(repo_root, paths)
     limit = max_sync_mb * 1024 * 1024
     git_provenance, git_provenance_bytes = git_provenance_payload(repo_root, max_bytes=limit)
@@ -621,6 +635,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--refresh-probe", action="store_true")
     p.add_argument("--keep-lease", action="store_true")
     p.add_argument("--keep-workspace", action="store_true", help="retain the OMEN snapshot after execution for debugging")
+    p.add_argument("--sync-path", type=Path, action="append", default=[], help="sync only this repo-relative file or directory; repeat for multiple roots")
     p.add_argument("argv", nargs=argparse.REMAINDER)
     return p
 
@@ -642,7 +657,7 @@ def main(argv: list[str] | None = None) -> int:
             if assignment.get("route") != "omen":
                 print(json.dumps({"error": "SWARM_EXEC_NON_OMEN_ASSIGNMENT", "route": assignment.get("route"), "reason": assignment.get("reason")}), file=sys.stderr)
                 return 75
-            return execute_omen(root, args.work_id, command, args.max_sync_mb, keep_workspace=args.keep_workspace)
+            return execute_omen(root, args.work_id, command, args.max_sync_mb, keep_workspace=args.keep_workspace, sync_paths=args.sync_path)
         finally:
             if not args.keep_lease:
                 swarm_route.release_work(args.state, args.work_id)
