@@ -1,5 +1,6 @@
 import json
 import os
+import runpy
 import subprocess
 import tempfile
 import unittest
@@ -437,6 +438,28 @@ class CleanupConvergerTests(unittest.TestCase):
         self.assertEqual(scopes["Agents"], "organicoverlords/agents:git-worktree-metadata")
         lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False)
         self.assertEqual(_branch_ref_scope(scopes["Agents"], lane), "organicoverlords/agents:git-ref:refs/heads/topic")
+
+    def test_hygiene_branch_scopes_collide_with_short_busy_repo_aliases(self):
+        from tools.cleanup_converger import DEFAULT_REPOS, _branch_ref_scope
+
+        busy_source = (
+            Path(__file__).resolve().parents[1]
+            / "03 Fixtures and Experiments"
+            / "issue125-busy-coordinator"
+            / "python"
+            / "busy.py"
+        )
+        canonical_scope = runpy.run_path(str(busy_source))["canonical_scope"]
+        scopes = {name: scope for name, _path, scope in DEFAULT_REPOS}
+        lane = Worktree(Path(r"C:\Temp\lane"), "abcd", "topic", False)
+        self.assertEqual(
+            canonical_scope(_branch_ref_scope(scopes["Vault"], lane)),
+            canonical_scope("regression-research:git-ref:refs/heads/topic"),
+        )
+        self.assertEqual(
+            canonical_scope(_branch_ref_scope(scopes["Agents"], lane)),
+            canonical_scope("agents:git-ref:refs/heads/topic"),
+        )
 
     @patch("tools.cleanup_converger.os.getpid", return_value=999)
     def test_clean_anchored_idle_lane_is_eligible(self, _getpid):

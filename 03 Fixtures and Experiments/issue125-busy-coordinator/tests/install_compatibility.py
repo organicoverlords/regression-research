@@ -4,9 +4,12 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CONTRACT = json.loads((ROOT / "coordinator-contract.json").read_text(encoding="utf-8"))
+assert CONTRACT["limits"]["default_lease_seconds"] == 240
+assert CONTRACT["limits"]["max_lease_seconds"] == 240
 
 
 def run_wrapper(wrapper: pathlib.Path, store: pathlib.Path, *args: str) -> dict:
@@ -79,8 +82,8 @@ try:
         assert run_wrapper(wrappers[kind], guard_store, "snapshot")["counts"]["active"] == 0
 
     # T22: equivalent absolute filesystem spellings are one collision boundary
-    # across the installed Python/Rust implementations. Logical scope strings
-    # remain opaque; only absolute path aliases are normalized.
+    # across the installed Python/Rust implementations. Arbitrary logical scopes
+    # remain opaque; known repository aliases are normalized separately below.
     alias_dir = base / "BusyAliasFixture"
     alias_dir.mkdir()
     alias_file = alias_dir / "scope.txt"
@@ -99,6 +102,28 @@ try:
     assert run_wrapper(wrappers["python"], alias_store, "inspect", alias_slash_case)["claim"]["actor"] == alias_owner
     assert run_wrapper(wrappers["rust"], alias_store, "release", alias_owner, alias_slash_case)["ok"] is True
     assert run_wrapper(wrappers["python"], alias_store, "snapshot")["counts"]["active"] == 0
+
+    # T23: short and owner-qualified spellings of known repository scopes share
+    # one installed Python/Rust collision boundary.
+    for index, (short_scope, full_scope) in enumerate((
+        ("regression-research:git-ref:refs/heads/install-topic", "organicoverlords/regression-research:git-ref:refs/heads/install-topic"),
+        ("agents:file:RULES.md", "organicoverlords/agents:file:RULES.md"),
+    )):
+        repo_store = base / f"repo-alias-{index}.json"
+        repo_owner = f"ChatGPT-install-repo-alias-{index}"
+        repo_other = f"ChatGPT-install-repo-other-{index}"
+        assert run_wrapper(wrappers["python"], repo_store, "claim", repo_owner, short_scope, "--lease-seconds", "3600")["ok"] is True
+        repo_view = run_wrapper(wrappers["rust"], repo_store, "inspect", full_scope)
+        assert repo_view["claim"]["scope"] == short_scope
+        assert repo_view["claim"]["actor"] == repo_owner
+        claim_at = datetime.fromisoformat(repo_view["claim"]["timestamp"].replace("Z", "+00:00"))
+        lease_at = datetime.fromisoformat(repo_view["job"]["lease_expires_at"].replace("Z", "+00:00"))
+        assert 0 < (lease_at - claim_at).total_seconds() <= 241
+        repo_conflict = run_wrapper(wrappers["rust"], repo_store, "claim", repo_other, full_scope)
+        assert repo_conflict["ok"] is False and repo_conflict["reason"] == "scope_already_claimed"
+        assert run_wrapper(wrappers["rust"], repo_store, "heartbeat", repo_owner, full_scope, "--lease-seconds", "3600")["ok"] is True
+        assert run_wrapper(wrappers["python"], repo_store, "release", repo_owner, full_scope)["ok"] is True
+        assert run_wrapper(wrappers["rust"], repo_store, "inspect", short_scope)["claim"] is None
 
     # Observability is non-authoritative: core ownership must keep working even if
     # audit_wrapper.py is missing or broken. Only contract/log/audit depend on it.
