@@ -611,7 +611,13 @@ def scan_repo(
             if repo_name == "P3" and not require_contained and not cache_guarded and generated_cache_dirs(worktree.path):
                 cache_candidates.append(worktree)
             continue
-        clean = worktree_is_clean(worktree.path)
+        try:
+            clean = worktree_is_clean(worktree.path)
+        except RuntimeError:
+            if not worktree.path.exists():
+                observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "missing_worktree_registration"))
+                continue
+            raise
         if clean is None:
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "cleanliness_probe_timeout"))
             continue
