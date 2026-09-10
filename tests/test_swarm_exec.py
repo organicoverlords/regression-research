@@ -257,6 +257,18 @@ class SwarmExecTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             m._safe_manifest_path(m.CACHE_MANIFEST_NAME)
 
+    def test_sync_path_cache_identity_isolated_and_order_independent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            subprocess.run(["git","init","-q",str(root)],check=True)
+            full=m.repo_cache_id(root)
+            selected=m.repo_cache_id(root,[Path("tests"),Path("tools")])
+            selected_reordered=m.repo_cache_id(root,[Path("tools"),Path("tests"),Path("tests")])
+            other=m.repo_cache_id(root,[Path("Config")])
+            self.assertNotEqual(full,selected)
+            self.assertEqual(selected,selected_reordered)
+            self.assertNotEqual(selected,other)
+
     def test_snapshot_size_counts_selected_files(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); (root/"a").write_bytes(b"123"); (root/"b").write_bytes(b"4567")

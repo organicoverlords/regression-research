@@ -116,12 +116,15 @@ def snapshot_bytes(repo_root: Path, paths: Iterable[Path]) -> int:
     return total
 
 
-def repo_cache_id(repo_root: Path) -> str:
+def repo_cache_id(repo_root: Path, sync_paths: Iterable[Path] | None = None) -> str:
     cp = _run(["git", "-C", str(repo_root), "config", "--get", "remote.origin.url"], timeout=5.0)
     if cp.returncode == 0 and cp.stdout.strip():
         identity = "origin\0" + cp.stdout.strip()
     else:
         identity = "path\0" + str(repo_root.resolve()).casefold()
+    selected = sorted({Path(raw).as_posix().strip("/") for raw in (sync_paths or [])})
+    if selected:
+        identity += "\0sync\0" + "\0".join(selected)
     return hashlib.sha256(identity.encode("utf-8", errors="surrogatepass")).hexdigest()[:24]
 
 
@@ -572,7 +575,7 @@ def execute_omen(repo_root: Path, work_id: str, command: str, max_sync_mb: int, 
     bounded_size = size + git_provenance_bytes
     if bounded_size > limit:
         raise ValueError(f"SWARM_EXEC_SNAPSHOT_TOO_LARGE bytes={bounded_size} limit={limit}")
-    cache_id = repo_cache_id(repo_root)
+    cache_id = repo_cache_id(repo_root, sync_paths)
     workspace, script = remote_script(work_id, command, cache_id, keep_workspace=keep_workspace)
     proc = subprocess.Popen(ssh_args() + [script], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     assert proc.stdin is not None and proc.stdout is not None
