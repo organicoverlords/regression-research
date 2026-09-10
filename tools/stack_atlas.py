@@ -703,18 +703,20 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": [
             "shared visual library", "chatgpt visual library", "visual library integration",
             "shared chat proof", "stored proof picture", "show same stored proof",
-            "same picture here", "proof picture",
+            "same picture here", "proof picture", "12-view", "12 view",
+            "turnaround sheet", "multiview sheet",
         ],
         "entrypoints": [
             r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py context <current-task>",
             r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup tiny3d_library --query <asset-or-name>",
             P3_VISUAL_EVIDENCE_INDEX,
             "default chat visual route: upload_local_file(<absolute original image path>) -> exact-original resource_link -> ui://process/file-transfer-v1.html thumbnail + native full-resolution vision",
+            "12-view review route: original/highest-resolution producer sheet -> one upload_local_file transfer -> native inspection of all twelve panels; per-view crop/transfer only for unreadable panels or explicit per-view acceptance artifacts",
             r"historical/non-canonical review lineage only: C:\LowVRAMProofs",
             "historical/non-canonical model-review transport only: organicoverlords/p3#1936 / PR #1244",
             "historical/non-canonical MCP Apps transport only: organicoverlords/chatgpt-mcp-clean#158 / PR #159",
         ],
-        "boundary": "Cross-project navigation only; source libraries/indexes remain proof authority and this feature does not create another registry. After resolving one exact original image identity, every worker/project uses upload_local_file as the default chat-visible retrieval path when the pixels are not already exposed: send the absolute original path, consume the same-turn exact-original resource_link, and inspect the full-resolution pixels with native vision. The widget thumbnail is UI-only and transport is not acceptance. Do not prefer Drive/Library, open_visual_proof/view_image, base64, custom HTTP, Git/LFS, re-encoding, C:\\LowVRAMProofs, or a second proof store merely to expose an image when upload_local_file can carry the exact original bytes. Use the smallest faithful project-owned fallback only when the explicit transfer tool cannot reach or support the exact media.",
+        "boundary": "Cross-project navigation only; source libraries/indexes remain proof authority and this feature does not create another registry. After resolving one exact original image identity, every worker/project uses upload_local_file as the default chat-visible retrieval path when the pixels are not already exposed: send the absolute original path, consume the same-turn exact-original resource_link, and inspect the full-resolution pixels with native vision. The widget thumbnail is UI-only and transport is not acceptance. For a complete 12-view asset review, the original/highest-resolution producer 12-view sheet is one transfer/review unit: transfer that sheet once and inspect all twelve panels thoroughly in the same native-vision exposure. Do not substitute thumbnails, reduced per-view previews, a recomposed lower-resolution contact sheet, or 12 separate crop/transfer operations merely to review the asset. A per-view crop/transfer is exception-only when a panel in the original sheet is unreadable at delivered resolution or the owning acceptance contract explicitly requires a per-view derivative/artifact. Do not prefer Drive/Library, open_visual_proof/view_image, base64, custom HTTP, Git/LFS, re-encoding, C:\\LowVRAMProofs, or a second proof store merely to expose an image when upload_local_file can carry the exact original bytes. Use the smallest faithful project-owned fallback only when the explicit transfer tool cannot reach or support the exact media.",
         "related_features": {
             "task_history": "vault.history",
             "tiny3d_library": "project.tiny3d_asset_library",
@@ -3398,6 +3400,10 @@ FEATURE_LOOKUP_ALIASES = {
     "chatgpt visual library": "project.shared_visual_library_integration",
     "shared_chat_proof": "project.shared_visual_library_integration",
     "shared chat proof": "project.shared_visual_library_integration",
+    "12-view": "project.shared_visual_library_integration",
+    "12 view": "project.shared_visual_library_integration",
+    "turnaround sheet": "project.shared_visual_library_integration",
+    "multiview sheet": "project.shared_visual_library_integration",
 }
 
 
