@@ -1,75 +1,89 @@
 {
   "schema": "mcp-recovery-state.v1",
-  "updated_at": "2026-09-08T20:56:07.3881510Z",
+  "updated_at": "2026-09-10T04:44:25.698946+00:00",
   "scope": "recovery_only_not_live_topology",
   "current_serving_topology_reference": "C:\\Users\\Lauri\\Desktop\\vault\\04 Operating Contracts\\mcp-current-topology.json",
-  "warning": "Historical rollback/recovery target only. deployment.public_origin and deployment.topology are not the current GPT1 serving topology.",
+  "warning": "Recovery target only. Live serving identity must be read from mcp-current-topology.json and live health; do not project this file as current GPT1 topology.",
   "deployment": {
-    "id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
-    "deployed_at": "2026-09-06T14:42:47.4099008Z",
-    "commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
-    "generation": "backend-3011-21688-1788705761749",
-    "dist_sha256": "6207503606A7B682624D09472883AF698A3D37378104A45120BA91843F15C253",
-    "public_origin": "https://5-61-91-127.sslip.io",
-    "topology": "VPS Caddy HTTPS -> WireGuard 10.203.0.2:3011 -> Windows persistent portproxy -> loopback backend 127.0.0.1:3011",
+    "id": "deployment:local-home-direct-1100969",
+    "deployed_at": "2026-09-10T04:14:33Z",
+    "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
+    "generation": "frozen-five-tool-1100969",
+    "dist_sha256": "503c0ba257c083c5903e631897e855612809fc3c21e384870293c4fb500312f3",
+    "server_sha256": "3cb026f385e92aa6fe1c8a066aa217576d306ecd7ca50732d14cfb0f39ff1fb4",
+    "public_origin": "https://91-159-12-133.sslip.io",
+    "topology": "local HTTPS Caddy -> stable 127.0.0.1:3028; pr237 host -> 127.0.0.1:3029",
     "runtime": {
-      "owner_checkout": "%LOCALAPPDATA%\\ChatGPTMcpMinimal",
-      "branch": "(detached)",
-      "pid_at_selection": 21688,
-      "port": 3011,
-      "force_connection_close": false,
-      "remote_branch": "origin/master"
+      "owner_checkout": "%LOCALAPPDATA%\\ChatGPTMcpCandidate1100969",
+      "branch": "(detached frozen)",
+      "ports": [
+        3028,
+        3029
+      ],
+      "stable_instance": "home-direct-1100969",
+      "peer_instance": "pr237-1100969",
+      "source_dirty": false,
+      "source_commit": "1100969cfd1276da5341e67c09b9744a3927142e"
     },
     "caddy": {
-      "sha256": "2a41b9e2ec46ff4ccb2f3d760f64de073e31b61577cb21bd27cad7bc726b4284",
-      "public_idle": "5m",
-      "automatic_upstream": "10.203.0.2:3011 only",
-      "backend_keepalive": "30s",
-      "backend_idle_pool_cap": 4,
-      "active_health_polling": false,
-      "service_active": true
+      "sha256": "214df68a5b2e28a510c1bb5a476f18d54240e5cbaa15f711835071e4efec9315",
+      "frozen_config": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\Caddyfile.frozen",
+      "route_switch": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\switch-routes.ps1",
+      "reload_mode": "graceful admin API load; no backend kill"
+    },
+    "oauth": {
+      "stable_store": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\home-direct-test\\oauth.json",
+      "peer_store": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\pr237-test\\oauth.json",
+      "stores_separate": true,
+      "stable_backup": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\home-direct-test\\oauth.before-1100969-20260910-071244.json",
+      "peer_backup": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\pr237-test\\oauth.before-1100969-20260910-071722.json",
+      "restore_policy": "never restore OAuth backup automatically; token rotation may have advanced"
     },
     "rollback": {
-      "rollback_root": "C:\\Users\\Lauri\\AppData\\Local\\ChatGPTMcpClean\\.state\\production-replacement\\rollback-5c853ed4-c975-402a-9424-35f7c13fa8d7",
-      "previous_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
-      "previous_dist_sha256": "4A9E946618A042FA986BD2D209A523C71EE9E81F19151022710B6C5B050E606C",
-      "previous_generation": "backend-3011-17380-1788658484979",
-      "replacement_request_id": "5c853ed4-c975-402a-9424-35f7c13fa8d7"
+      "rollback_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969",
+      "stable_backend": {
+        "port": 3022,
+        "instance": "home-direct-test",
+        "commit": "9a0f90d96d9ed5269c355e5d9716b98f8c8355af"
+      },
+      "peer_backend": {
+        "port": 3027,
+        "instance": "issue240-live",
+        "commit": "3c3a9e9721e5ece01edb0d06aea923feb5538746"
+      },
+      "route_file": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\Caddyfile.rollback-pre-1100969",
+      "rule": "restore routes first with graceful Caddy reload; do not kill preserved rollback backends"
     }
   },
   "recovery_target": {
-    "deployment_id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
-    "selected_at": "2026-09-06T17:46:18.768874+03:00",
-    "reason": "Current preferred restore/bisect reference based on guarded deployment acceptance and subsequent real-use evidence. Selection is independent of health-condition truth.",
+    "deployment_id": "deployment:local-home-direct-1100969",
+    "selected_at": "2026-09-10T04:44:25.698946+00:00",
+    "reason": "Canonical five-tool merge passed the complete suite, exact-original image handoff, OAuth/security gates, dependency audit, and live local-edge route checks.",
     "recovery_lanes": {
-      "automatic_routing": "WireGuard only",
-      "ssh_3101": 200,
-      "ssh_3102": 200,
-      "ssh_3103": 200,
-      "ssh_3104": 200,
-      "ssh_role": "explicit recovery only; not automatic Caddy upstreams"
+      "automatic_routing": "local HTTPS Caddy -> stable 127.0.0.1:3028 and pr237 127.0.0.1:3029",
+      "rollback": "graceful Caddy route switch -> stable 127.0.0.1:3022 and pr237 127.0.0.1:3027",
+      "ssh_role": "historical explicit recovery only; not current automatic routing"
     },
     "policy": {
       "restore_first_on_regression": true,
-      "trigger": "When an assistant/operator-authored production MCP change causes a severe recurring regression, or the user explicitly reports the previously working MCP regressed after our change and requests restoration, restore the last known-working production behavior/topology before speculative fixes.",
+      "trigger": "When an assistant/operator-authored MCP change causes a severe recurring regression, or the user explicitly reports the previously working MCP regressed after our change and requests restoration, restore the frozen local behavior/topology before speculative fixes.",
       "required_order": [
-        "If the user explicitly asks for platform-reroute/security analysis or incident tracking, log any user-observed reroute with report/event-time semantics before further MCP/edge mutation; otherwise treat platform security events as external and do not persist them.",
-        "Preserve the current runtime, dist, serving identity, and rollback evidence.",
-        "Use the production change gate, exact Busy scope, independent rollback, off-path proof, and drain active child processes before cutover.",
-        "Restore the frozen production behavior and topology; a source SHA alone is not sufficient when topology differs. Use only the minimal compatibility required by the proven replacement mechanism.",
-        "Do not stack unrelated logging, diagnostics, guards, or speculative fixes onto the regressed serving runtime before restoration.",
-        "After restoration, verify public route, Host handling, OAuth/tool contract, canonical port, and candidate drain.",
-        "If the client-visible symptom persists after restoration while bounded transport evidence shows no MCP request in flight at the symptom time, classify that event as above-MCP/platform evidence and stop MCP/edge mutation unless new MCP-local evidence appears."
+        "Preserve the current runtime, OAuth stores, active work, live transport evidence, and rollback artifacts.",
+        "Use the production change gate and exact Busy scope before serving-path mutation.",
+        "If only routing differs, restore only the Caddy route; do not restart or kill a backend that already matches the selected artifact.",
+        "Restore stable to 3022 and pr237 to 3027 through the frozen graceful route-switch script when rollback is required.",
+        "Do not restore OAuth backups automatically; compare current store identity and token rotation first.",
+        "Verify public Host handling, OAuth/tool contract, exact five-tool profile, original-image resource behavior, and backend health after restore."
       ],
-      "preservation_rule": "Restoration must preserve unique work and active child processes; do not kill foreign work to accelerate recovery.",
-      "authorization_rule": "Routine reversible shared-production restoration or serving advance that is already the established scoped objective is authorized by go/continue once the existing production-change safety gates pass; do not ask for redundant per-cutover approval. Separate explicit user authorization remains required only for scope-widening, destructive overwrite of user/foreign state, scheduler/fleet mutation, credential/permission changes, or shared production topology/control-plane redesign.",
+      "preservation_rule": "preserve unique work and active child processes; do not kill foreign or rollback work to accelerate recovery.",
+      "authorization_rule": "Routine reversible shared-production restoration or serving advance that is already the established scoped objective is authorized by go/continue once the existing production-change safety gates pass; do not ask for redundant per-cutover approval. Separate explicit user authorization remains required for scope-widening, destructive overwrite of user/foreign state, scheduler/fleet mutation, credential/permission changes, or shared production topology/control-plane redesign.",
       "recovery_invariants": [
-        "During an active MCP incident, keep the selected recovery target fixed unless new evidence positively disqualifies it; do not search for or promote a 'better' target mid-recovery.",
-        "Before any serving-path mutation, including stopping, killing, restarting, retargeting, disabling, or deleting an MCP listener/launcher/task/process tree, reconcile the selected deployment artifact, the live backend artifact/generation, the live transport/topology, the exact active caller/session route from live transport evidence, and an independent rollback/control route. Instance names, task names, port labels, or strings such as 'test'/'debug' are never evidence that a route is disposable.",
-        "If the live backend artifact already matches the selected recovery artifact and only topology differs, restore only the topology; do not restart or replace the backend.",
-        "MCP serving repair must not depend solely on the same MCP request path being repaired. If the target is used by the active caller/session, or its route role is unresolved, mutation is blocked until an independently verified control/rollback route exists; preserve the target instead of inferring safety from a local-looking name or port.",
-        "Automatic Caddy routing is WireGuard 10.203.0.2:3011; SSH 3101-3104 lanes are explicit recovery only. A reverse-SSH primary is topology drift, not a new recovery target.",
-        "A 502 that leaves no Node/backend request row proves only that the request did not reach the Node app; exclude Caddy/VPS/tunnel/listener failure before classifying it as above-MCP/platform."
+        "keep the selected recovery target fixed during an active incident unless new evidence positively disqualifies it.",
+        "Before any serving-path mutation reconcile live backend commit/generation, current Caddy routes, active callers, OAuth store identity, and an independent rollback path.",
+        "Instance/task names and labels such as test/debug are never proof that a route is disposable.",
+        "If the backend artifact already matches the selected recovery artifact and only topology differs, restore only topology.",
+        "Never merge the stable and pr237 OAuth stores or overwrite a live store from backup without proving that token rotation will not be lost.",
+        "Image acceptance requires the exact original resource bytes; a thumbnail-only result is a regression."
       ]
     }
   },
@@ -77,193 +91,137 @@
     {
       "type": "Serving",
       "status": "True",
-      "observed_generation": "backend-3011-21688-1788705761749",
-      "last_transition_at": "2026-09-06T14:42:47.4099008Z",
-      "reason": "CanonicalAcceptancePassed",
-      "message": "Canonical/public health and host/OAuth acceptance passed for this deployment generation."
+      "observed_generation": "frozen-five-tool-1100969",
+      "last_transition_at": "2026-09-10T04:17:51Z",
+      "reason": "LocalHomeDirectRoutesVerified",
+      "message": "Stable routed to 3028 and pr237 to 3029 with the same clean canonical commit."
     },
     {
       "type": "ToolContractHealthy",
       "status": "True",
-      "observed_generation": "backend-3011-21688-1788705761749",
-      "last_transition_at": "2026-09-06T17:46:18.768874+03:00",
-      "reason": "ProcessToolContractValidated",
-      "message": "The three process tools are live with the intended annotations and bounded live validation passed."
+      "observed_generation": "frozen-five-tool-1100969",
+      "last_transition_at": "2026-09-10T04:17:51Z",
+      "reason": "FiveToolContractValidated",
+      "message": "start_process, read_output, kill_process, upload_local_file, and download_chatgpt_file are the frozen process profile."
     },
     {
-      "type": "SecurityReroutesReduced",
-      "status": "Unknown",
-      "observed_generation": "backend-3011-21688-1788705761749",
-      "last_transition_at": "2026-09-06T18:35:10Z",
-      "reason": "RateReductionNotStatisticallyEstablished",
-      "message": "Observed direct-tool-block evidence fell from 3 known occurrences across 17,141 pre-refresh process calls (0.175019 per 1,000) to 0 across 7,105 post-refresh calls, but the post zero-event one-sided 95% Poisson upper bound is about 0.422 per 1,000 and the equal-exposure control is also sparse. The underlying reduction is therefore not statistically established; broader user-visible/above-MCP reroutes persist."
+      "type": "ExactImageVisionHandoff",
+      "status": "True",
+      "observed_generation": "frozen-five-tool-1100969",
+      "last_transition_at": "2026-09-10T04:10:53Z",
+      "reason": "OriginalResourceByteIdentityValidated",
+      "message": "Image resource uses the exact original file bytes; the thumbnail is UI-only."
     },
     {
-      "type": "SecurityReroutesEliminated",
-      "status": "False",
-      "observed_generation": "backend-3011-14360-1788899551179",
-      "last_transition_at": "2026-09-08T20:56:07.3881510Z",
-      "reason": "MatureWindowAndFreshRecurrenceObserved",
-      "message": "The completed 48-hour post-refresh acceptance window contains two preserved exact user-visible adverse occurrence windows, and a fresh same-operation OpenAI pre-dispatch safety block recurred during mature evaluation while this generation was live. The broader platform-side safety/routing class is not eliminated; this does not attribute causality to the backend generation."
+      "type": "OAuthBoundaryHealthy",
+      "status": "True",
+      "observed_generation": "frozen-five-tool-1100969",
+      "last_transition_at": "2026-09-10T04:35:54Z",
+      "reason": "LocalEdgeAclAndRouteChecksPassed",
+      "message": "Stable/pr237 stores are separate; public authorize is fail-closed and protected-resource metadata remains reachable."
+    },
+    {
+      "type": "DependencyAuditClean",
+      "status": "True",
+      "observed_generation": "frozen-five-tool-1100969",
+      "last_transition_at": "2026-09-10T04:35:54Z",
+      "reason": "NpmAuditZero",
+      "message": "npm audit reported zero vulnerabilities across all severities."
     },
     {
       "type": "LongRunStable",
-      "status": "False",
-      "observed_generation": "backend-3011-14360-1788899551179",
-      "last_transition_at": "2026-09-08T20:56:07.3881510Z",
-      "reason": "MatureObservationRecurrenceObserved",
-      "message": "The configured observation threshold elapsed and real-use acceptance failed: the corrected analyzer reports RECURRENCE_OBSERVED from two exact user-visible occurrence windows across the 48-hour campaign, and a fresh pre-dispatch safety block also recurred. Long-run acceptable stability is therefore false; selected recovery-target identity remains unchanged."
+      "status": "Unknown",
+      "observed_generation": "frozen-five-tool-1100969",
+      "last_transition_at": "2026-09-10T04:44:25.698946+00:00",
+      "reason": "FreshFreezeNeedsRealUseWindow",
+      "message": "Immediate acceptance is strong, but this newly frozen generation has not yet accumulated a separate long-run observation window."
     }
   ],
-  "condition_policies": {
-    "LongRunStable": {
-      "evaluate_not_before": "2026-09-08T17:46:18.768874+03:00",
-      "requires_explicit_user_confirmation": true,
-      "rule": "Set LongRunStable to True or False from real-use evidence after the observation window; do not rename or promote the deployment."
+  "evidence": {
+    "acceptance": {
+      "chatgpt_mcp_clean_full_test_suite": "PASS exit 0",
+      "npm_audit_vulnerabilities": 0,
+      "diff_secret_scan": "PASS",
+      "process_contract": [
+        "download_chatgpt_file",
+        "kill_process",
+        "read_output",
+        "start_process",
+        "upload_local_file"
+      ],
+      "file_transfer_test": "PASS lossless file transfer: exact original image vision resource, inline preview, raw bytes, zstd, native file params",
+      "stall_watchdog_test": "PASS",
+      "output_backpressure_test": "PASS",
+      "public_authorize_http": 403,
+      "protected_resource_metadata_http": 200,
+      "active_chatgpt_clients": {
+        "stable": 2,
+        "peer": 2
+      }
+    },
+    "frozen_artifacts": {
+      "root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969",
+      "deployment_manifest": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\deployment.json",
+      "caddy_frozen": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\Caddyfile.frozen",
+      "caddy_rollback": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\Caddyfile.rollback-pre-1100969",
+      "route_switch": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\switch-routes.ps1",
+      "stable_launcher": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\start-stable-3028.ps1",
+      "peer_launcher": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\start-pr237-3029.ps1",
+      "persistence_tasks": [
+        "McpV4FrozenStable3028",
+        "McpV4FrozenPr2373029"
+      ]
+    },
+    "historical_recovery_reference": {
+      "previous_deployment_id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "previous_commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+      "previous_generation": "backend-3011-21688-1788705761749",
+      "previous_public_origin": "https://5-61-91-127.sslip.io",
+      "previous_topology": "VPS Caddy HTTPS -> WireGuard 10.203.0.2:3011 -> Windows persistent portproxy -> loopback backend 127.0.0.1:3011",
+      "previous_recovery_target_deployment_id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "previous_conditions": [
+        {
+          "type": "SecurityReroutesReduced",
+          "status": "Unknown",
+          "reason": "RateReductionNotStatisticallyEstablished",
+          "last_transition_at": "2026-09-06T18:35:10Z"
+        },
+        {
+          "type": "SecurityReroutesEliminated",
+          "status": "False",
+          "reason": "MatureWindowAndFreshRecurrenceObserved",
+          "last_transition_at": "2026-09-08T20:56:07Z"
+        },
+        {
+          "type": "LongRunStable",
+          "status": "False",
+          "reason": "MatureObservationRecurrenceObserved",
+          "last_transition_at": "2026-09-08T20:56:07Z"
+        }
+      ],
+      "note": "The prior VPS/WireGuard recovery contract remains available in Git history; it is historical evidence, not the selected local-home-direct recovery target."
     }
   },
-  "evidence": {
-    "observation_window": {
-      "stable_start": "2026-09-06T14:42:47.4099008Z",
-      "end": "2026-09-06T17:46:18.768874+03:00",
-      "meaning": "Immediate post-deploy candidate evidence only: guarded replacement SUCCEEDED, canonical/public health passed, deployed annotations were introspected, and one same-turn minimal read_output probe succeeded. This is deliberately not multi-day real-use proof."
-    },
-    "host_acceptance": {
-      "bare_public_host": 401,
-      "explicit_default_https_port_443": 401,
-      "nondefault_port_444": 403,
-      "meaning": "Bare and explicit :443 reach authentication; non-default authority remains rejected."
-    },
-    "public_acceptance": {
-      "health": 200,
-      "oauth_protected_resource_metadata": 200,
-      "minimal_post_deploy_start_read_probe": "PASS",
-      "probe_output": "ANNOTATION_DEPLOY_PROBE",
-      "meaning": "Immediate acceptance only; not a reroute-rate or multi-day stability claim."
-    },
-    "known_transients": [
-      {
-        "start": "2026-09-05T06:43:05.437Z",
-        "end": "2026-09-05T06:43:10.654Z",
-        "event": "16 HTTP 502 responses during backend replacement gap",
-        "classification": "DEPLOYMENT_PROCEDURE_DEFECT_NOT_NEW_RUNTIME_ACCEPTANCE",
-        "tracking": "https://github.com/organicoverlords/chatgpt-mcp-clean/issues/99",
-        "rule": "Do not reuse the 2026-09-05 replacement procedure as a claimed zero-downtime production path until issue #99 is fixed and independently proven."
-      }
-    ],
-    "security_reroute_log": "C:\\Users\\Lauri\\Desktop\\vault\\02 Evidence\\mcp-security-routing-events.jsonl",
-    "latest_restore_observation": {
-      "restored_at": "2026-09-06T03:50:10.7736548+03:00",
-      "production_head": "e1839c817665600fb56cdf81bbdc0599e61539af",
-      "frozen_behavior_base": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
-      "compatibility_delta": "26 insertions / 7 deletions across 5 files, limited to guarded replacement and live-process health compatibility",
-      "replacement_request_id": "331adfbd-e8b6-4469-81fd-895d6fc9fcac",
-      "replacement_status": "SUCCEEDED",
-      "post_restore_user_event": "2026-09-06T03:54:26+03:00",
-      "post_restore_correlation": "preceding MCP start_process finished HTTP 200 at 03:54:23.310 EEST; next MCP request began at 03:54:35.454 EEST; no MCP request was in flight at the screenshot moment",
-      "interpretation": "The restored MCP baseline remains the recovery/bisect boundary for MCP regressions, but the observed reroute is not explained by MCP request execution at that moment.",
-      "post_restore_no_mcp_request_in_flight": true
-    },
-    "latest_deployment_observation": {
-      "deployed_at": "2026-09-06T14:42:47.4099008Z",
-      "replacement_request_id": "5c853ed4-c975-402a-9424-35f7c13fa8d7",
-      "replacement_status": "SUCCEEDED",
-      "old_head": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
-      "new_head": "59b566f5106ff22ef2a700edb4012ba339cc756c",
-      "old_generation": "backend-3011-17380-1788658484979",
-      "new_generation": "backend-3011-21688-1788705761749",
-      "old_drain": {
-        "active_requests": 0,
-        "managed_processes": 0,
-        "direct_children": 0,
-        "drained_at": "2026-09-06T14:42:35.9242796Z"
-      },
-      "candidate_drain": {
-        "drained": true,
-        "active_requests": 0,
-        "live_process_count": 0
-      },
-      "post_deploy_read_output_probe": "PASS",
-      "interpretation": "PR #132 annotations plus PR #133 pin/verifier fix are live on canonical 3011. Post-refresh direct-tool-block observations are lower than the pre-refresh record, but normalized sparse-event analysis does not statistically establish a reduced underlying rate: 3 known direct blocks / 17,141 pre-refresh calls (0.175019 per 1,000) versus 0 / 7,105 post-refresh calls, whose one-sided 95% Poisson upper bound is about 0.422 per 1,000. Broader user-visible/above-MCP reroutes persist, so no causal or elimination claim is supported."
-    },
-    "latest_topology_restore_observation": {
-      "observed_at": "2026-09-07T00:44:03+03:00",
-      "incident_id": "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence",
-      "tracking_issue": "https://github.com/organicoverlords/regression-research/issues/675",
-      "user_reported_recurrence": "9th time in 48 hour you kill whole stack just by mcp",
-      "selected_recovery_commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
-      "selected_recovery_dist_sha256": "6207503606A7B682624D09472883AF698A3D37378104A45120BA91843F15C253",
-      "selected_recovery_topology": "VPS Caddy HTTPS -> WireGuard 10.203.0.2:3011 -> Windows persistent portproxy -> loopback backend 127.0.0.1:3011",
-      "before_restore": {
-        "caddy_transport": "reverse_ssh",
-        "caddy_sha256": "d92fd192b13c9026349e05956b2f41d617139e8640a3f5bf554074b7cbd16754",
-        "backend_generation": "backend-3011-45164-1788726029621",
-        "backend_dist_sha256": "6207503606a7b682624d09472883af698a3d37378104a45120ba91843f15c253",
-        "backend_artifact_matches_selected_recovery": true
-      },
-      "failed_replacement_attempt": {
-        "request_id": "670e48e0-0649-4a31-983a-9846903ed3e9",
-        "status": "ROLLED_BACK_CANDIDATE_DRAIN_PENDING",
-        "runtime_changed": false,
-        "production_task_stopped": false,
-        "edge_on_candidate": false,
-        "error": "canonical backend changed unexpectedly while drain was in progress",
-        "candidate_drain": {
-          "drained": false,
-          "active_requests": 0,
-          "live_process_count": 1
-        }
-      },
-      "discriminating_finding": "The live backend binary already matched the selected recovery artifact exactly; the proven divergence was Caddy routing topology, so another backend replacement was unnecessary.",
-      "restore": {
-        "action": "Caddy-only route restore from reverse_ssh to WireGuard 10.203.0.2:3011; backend process/generation unchanged",
-        "caddy_sha256": "2a41b9e2ec46ff4ccb2f3d760f64de073e31b61577cb21bd27cad7bc726b4284",
-        "backend_generation": "backend-3011-45164-1788726029621",
-        "public_health_statuses": [
-          200,
-          200,
-          200,
-          200,
-          200
-        ],
-        "fresh_mcp_process_call": "PASS"
-      },
-      "interpretation": "Recovery-target churn and incomplete topology reconciliation repeatedly widened outages. Future recovery must keep the selected target fixed, identify the exact divergent component, and restore only that component through an independent control route."
-    },
-    "long_run_acceptance_observation": {
-      "evaluated_at": "2026-09-08T20:56:07.3881510Z",
-      "window_start": "2026-09-06T14:52:42.474Z",
-      "window_end": "2026-09-08T14:52:42.474Z",
-      "analyzer_status": "RECURRENCE_OBSERVED",
-      "analyzer_merge": "chatgpt-mcp-clean:936d0b65298183c32d832799b13fb724efc42054",
-      "process_tool_calls": 69296,
-      "process_tool_http_200": 69296,
-      "process_tool_non_2xx": 0,
-      "active_hour_bins": 48,
-      "total_hour_bins": 48,
-      "transport_error_events": 44,
-      "known_adverse_occurrence_windows": 2,
-      "known_adverse_family": "user_visible_or_above_mcp",
-      "fresh_pre_dispatch_same_operation_retry": true,
-      "interpretation": "MCP process-tool transport remained highly successful under heavy exposure, but the broader OpenAI safety/routing class recurred. This is a negative long-run acceptance result, not proof that the observed backend generation caused the platform-side events."
+  "condition_policies": {
+    "LongRunStable": {
+      "requires_explicit_user_confirmation": false,
+      "rule": "Evaluate from a later bounded real-use observation window; do not infer long-run stability from immediate acceptance alone."
     }
   },
   "history": {
     "previous_recovery_target": {
-      "frozen_at": "2026-09-05T09:47:03.975512+03:00",
-      "backend_commit": "d6e2972fd8da4247b164e2194366f84f2bdf8846",
-      "backend_generation": "backend-3011-28128-1788590585408",
-      "source_tag": "mcp-candidate-known-good-20260905-0947",
-      "reason": "Fresh user reports showed security reroutes persisted after restoring the prior candidate; issue #81 records the disqualifying evidence for the target symptom."
+      "deployment_id": "deployment:5c853ed4-c975-402a-9424-35f7c13fa8d7",
+      "generation": "backend-3011-21688-1788705761749",
+      "commit": "59b566f5106ff22ef2a700edb4012ba339cc756c",
+      "topology": "VPS Caddy HTTPS -> WireGuard 10.203.0.2:3011 -> Windows persistent portproxy -> loopback backend 127.0.0.1:3011",
+      "superseded_at": "2026-09-10T04:44:25.698946+00:00",
+      "reason": "Current GPT1 serving and rollback authority moved to the local-home-direct frozen five-tool deployment."
     }
   },
   "notes": [
-    "Recovery-target selection and observed conditions are independent facts. Never infer whole-system health from the selected recovery target.",
-    "Conditions use True/False/Unknown and are tied to the observed deployment generation; update only the condition supported by new evidence.",
-    "Do not recreate any promotion label that combines recovery-target selection with health. LongRunStable can be Unknown while the same deployment remains the preferred recovery target.",
-    "Current operational truth is SecurityReroutesReduced=Unknown and SecurityReroutesEliminated=False: a lower observed direct-block count is real, but sparse normalized evidence does not yet establish a reduced underlying rate.",
-    "Incident recovery invariant: the selected recovery target remains fixed during an outage unless positive evidence disqualifies it; rollback-target search is not a debugging loop.",
-    "Before any MCP serving mutation, compare selected artifact, live backend artifact/generation, live Caddy transport, and independent control route. Restore only the proven divergent component.",
-    "LongRunStable=False records mature acceptance failure from user-visible/platform-side recurrence; it does not change or disqualify the selected recovery target and does not assign backend causality."
+    "Recovery-target selection and live serving identity are independent facts.",
+    "Do not recreate a VPS/WireGuard serving path from historical recovery evidence unless a future explicitly authorized topology change selects it again.",
+    "A cached three-tool ChatGPT schema in an already-open session is not evidence that the five-tool backend or OAuth is broken.",
+    "Thumbnail visibility and model vision are separate: acceptance requires the full original resource bytes."
   ]
 }

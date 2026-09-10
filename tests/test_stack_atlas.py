@@ -1960,26 +1960,26 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["destructive_verdict"], "BLOCK_UNKNOWN_TOPOLOGY")
         self.assertIn("stable_component_identity", result["unknowns"])
 
-    def test_mcp_minimal_clone_pins_three_tools_plus_process_result_image_metadata(self):
+    def test_mcp_minimal_clone_pins_five_tools_plus_exact_original_image_resource(self):
         details = component_details("mcp_minimal_clone")
         surface = details["chatgpt_plugin_surface"]
         self.assertEqual(surface["profile"], "process")
-        self.assertEqual(surface["tool_count"], 3)
-        self.assertEqual(surface["tools"], ["start_process", "read_output", "kill_process"])
-        self.assertFalse(surface["image_delivery"]["adds_tool"])
-        self.assertEqual(surface["image_delivery"]["trigger_prefix"], "CHATGPT_LIBRARY_UPLOAD=")
-        self.assertEqual(surface["image_delivery"]["widget_resource"], "ui://process/library-upload-v2.html")
+        self.assertEqual(surface["tool_count"], 5)
+        self.assertEqual(surface["tools"], ["start_process", "read_output", "kill_process", "upload_local_file", "download_chatgpt_file"])
+        self.assertTrue(surface["image_delivery"]["adds_tool"])
+        self.assertEqual(surface["image_delivery"]["upload_tool"], "upload_local_file")
+        self.assertEqual(surface["image_delivery"]["widget_resource"], "ui://process/file-transfer-v1.html")
         self.assertTrue(surface["image_delivery"]["default_visual_retrieval"])
         self.assertIn("all workers/projects", surface["image_delivery"]["default_scope"])
-        self.assertTrue(any("CHATGPT_LIBRARY_UPLOAD" in step for step in surface["image_delivery"]["sequence"]))
+        self.assertTrue(any("upload_local_file" in step for step in surface["image_delivery"]["sequence"]))
         self.assertTrue(any("native vision" in step for step in surface["image_delivery"]["sequence"]))
         for excluded in ("busy_list", "view_image", "open_visual_proof"):
             self.assertIn(excluded, surface["excluded_actions"])
         self.assertNotIn("conditional_ui", surface)
-        self.assertIn("exactly three actions", surface["boundary"])
+        self.assertIn("exactly five process-profile tools", surface["boundary"])
         status = " ".join(details["live_status"])
         self.assertIn("91-159-12-133.sslip.io/mcp", status)
-        self.assertIn("127.0.0.1:3022", status)
+        self.assertIn("127.0.0.1:3028", status)
         self.assertIn("not in the GPT1 path", status)
 
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
@@ -2146,15 +2146,15 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertEqual(details["related_features"]["tiny3d_library"], "project.tiny3d_asset_library")
                 self.assertEqual(details["related_features"]["p3_visual_evidence"], "project.p3_visual_evidence")
                 self.assertEqual(details["related_features"]["chatgpt_visual_transport"], "mcp.chatgpt_plugin_surface")
-                self.assertEqual(details["shared_chat_display_state"], "MCP_PROCESS_METADATA_UPLOAD_THEN_NATIVE_INSPECTION")
+                self.assertEqual(details["shared_chat_display_state"], "MCP_EXACT_ORIGINAL_UPLOAD_THEN_NATIVE_INSPECTION")
                 self.assertTrue(any("memory_bank.py context" in item for item in details["entrypoints"]))
                 self.assertTrue(any("lookup tiny3d_library" in item for item in details["entrypoints"]))
-                self.assertTrue(any("CHATGPT_LIBRARY_UPLOAD" in item for item in details["entrypoints"]))
+                self.assertTrue(any("upload_local_file" in item for item in details["entrypoints"]))
                 self.assertTrue(any("historical/non-canonical review lineage only" in item for item in details["entrypoints"]))
                 self.assertIn("every worker/project", details["boundary"])
-                self.assertIn("process-result metadata bridge", details["boundary"])
+                self.assertIn("upload_local_file", details["boundary"])
                 self.assertIn("native vision", details["boundary"])
-                self.assertIn("not a fourth MCP action", details["boundary"])
+                self.assertIn("thumbnail is UI-only", details["boundary"])
                 self.assertIn("Do not prefer Drive/Library", details["boundary"])
                 self.assertNotIn("first-party connected Google Drive", details["boundary"])
 
@@ -2341,9 +2341,9 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertTrue(current["available"])
         self.assertEqual(current["authority"], "current_serving_topology")
         self.assertEqual(current["connector_url"], "https://91-159-12-133.sslip.io/mcp")
-        self.assertEqual(current["tool_count"], 3)
-        self.assertEqual(current["tools"], ["start_process", "read_output", "kill_process"])
-        self.assertFalse(current["image_delivery_adds_tool"])
+        self.assertEqual(current["tool_count"], 5)
+        self.assertEqual(current["tools"], ["start_process", "read_output", "kill_process", "upload_local_file", "download_chatgpt_file"])
+        self.assertTrue(current["image_delivery_adds_tool"])
         self.assertIn("mcp_recovery_state", glance)
         if glance["mcp_recovery_state"]["available"]:
             recovery = glance["mcp_recovery_state"]
@@ -2360,7 +2360,7 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertTrue(glance["paths"]["mcp_current_topology"].endswith("mcp-current-topology.json"))
         self.assertTrue(glance["paths"]["mcp_recovery_state"].endswith("mcp-recovery-state.json"))
         self.assertTrue(glance["paths"]["mcp_security_routing_log"].endswith("mcp-security-routing-events.jsonl"))
-        self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpV4HomeDirectStable"))
+        self.assertTrue(glance["paths"]["mcp"].endswith("ChatGPTMcpCandidate1100969"))
 
     def test_freeze_contract_exposes_restore_first_policy(self):
         import tools.stack_atlas as atlas
@@ -2368,35 +2368,35 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         raw_contract = json.loads(freeze_path.read_text(encoding="utf-8"))
         self.assertEqual(raw_contract["scope"], "recovery_only_not_live_topology")
         self.assertTrue(raw_contract["current_serving_topology_reference"].endswith("mcp-current-topology.json"))
-        self.assertIn("not the current GPT1 serving topology", raw_contract["warning"])
+        self.assertIn("Recovery target only", raw_contract["warning"])
         with patch.object(atlas, "MCP_RECOVERY_STATE_PATH", freeze_path):
             state = atlas._bootstrap_mcp_recovery_state()
         self.assertTrue(state["restore_first_on_regression"])
-        self.assertTrue(state["post_restore_no_mcp_request_in_flight"])
-        self.assertEqual(state["automatic_routing"], "WireGuard only")
-        self.assertIn("explicit recovery only", state["ssh_role"])
+        self.assertFalse(state["post_restore_no_mcp_request_in_flight"])
+        self.assertIn("3028", state["automatic_routing"])
+        self.assertIn("historical explicit recovery only", state["ssh_role"])
         self.assertTrue(any("keep the selected recovery target fixed" in item for item in state["recovery_invariants"]))
-        self.assertTrue(any("502" in item and "Node/backend" in item for item in state["recovery_invariants"]))
+        self.assertTrue(any("OAuth stores" in item for item in state["recovery_invariants"]))
         self.assertIn("preserve unique work", state["preservation_rule"])
         self.assertIn("authorized by go/continue", state["authorization_rule"])
         self.assertIn("do not ask for redundant per-cutover approval", state["authorization_rule"])
         self.assertIn("scope-widening", state["authorization_rule"])
-        self.assertTrue(any("2026-09-05 replacement procedure" in item for item in state["replacement_safety_rules"]))
+        self.assertEqual(state["replacement_safety_rules"], [])
         latest = state["latest_topology_restore"]
-        self.assertEqual(latest["incident_id"], "INC-20260906-2017-EEST-live-mcp-stack-disruption-recurrence")
-        self.assertEqual(latest["before_transport"], "reverse_ssh")
-        self.assertEqual(latest["after_transport"], "wireguard")
-        self.assertTrue(latest["backend_artifact_matches_selected_recovery"])
-        self.assertEqual(latest["failed_replacement_status"], "ROLLED_BACK_CANDIDATE_DRAIN_PENDING")
-        self.assertEqual(latest["public_health_statuses"], [200, 200, 200, 200, 200])
-        self.assertEqual(latest["fresh_mcp_process_call"], "PASS")
+        self.assertIsNone(latest)
+        # historical topology restore is no longer the selected recovery target
+        # preserved in Git history, not current recovery projection
+        # no current latest_topology_restore block
+        # no current failed replacement state
+        # immediate local acceptance is recorded under evidence.acceptance
+        # current live health/tool contract is authoritative
         summary = {item["type"]: item["status"] for item in state["conditions"]}
-        self.assertEqual(summary["SecurityReroutesReduced"], "Unknown")
-        self.assertEqual(summary["SecurityReroutesEliminated"], "False")
+        self.assertEqual(summary["ToolContractHealthy"], "True")
+        self.assertEqual(summary["OAuthBoundaryHealthy"], "True")
         raw = json.loads(freeze_path.read_text(encoding="utf-8"))
         first_step = raw["recovery_target"]["policy"]["required_order"][0]
-        self.assertIn("user explicitly asks", first_step)
-        self.assertIn("do not persist them", first_step)
+        self.assertIn("Preserve the current runtime", first_step)
+        self.assertIn("OAuth stores", first_step)
 
     def test_freeze_and_security_reroute_features_are_discoverable(self):
         freeze = find_features("known good refreeze")[0]
@@ -2417,18 +2417,18 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
         self.assertIn("no MCP request in flight", recovery["boundary"])
 
 class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
-    def test_chatgpt_plugin_surface_search_routes_to_exact_three_tool_contract(self):
+    def test_chatgpt_plugin_surface_search_routes_to_exact_five_tool_contract(self):
         for query in ("ChatGPT plugin tool contract process profile", "image metadata library upload", "busy_list plugin command", "view_image plugin", "open_visual_proof"):
             with self.subTest(query=query):
                 result = find_features(query)[0]
                 self.assertEqual(result["id"], "mcp.chatgpt_plugin_surface")
                 self.assertEqual(result["owner_components"], ["mcp_minimal_clone"])
-                self.assertIn("exactly start_process, read_output, and kill_process", result["boundary"])
-                self.assertIn("does not create another tool", result["boundary"])
+                self.assertIn("exactly five process-profile tools", result["boundary"])
+                self.assertIn("same-turn exact-original image resource", result["boundary"])
                 self.assertIn("excluded", result["boundary"])
         sources = component_details("mcp_minimal_clone")["canonical_sources"]
         self.assertTrue(any(item.endswith(r"\config\process-tool-contract.json") for item in sources))
-        self.assertTrue(any(item.endswith(r"\src\lib\process-library-upload.ts") for item in sources))
+        self.assertTrue(any(item.endswith(r"\src\lib\file-transfer.ts") for item in sources))
         self.assertFalse(any("visual-proof-app.ts" in item for item in sources))
 
     def test_current_topology_contract_matches_atlas_and_excludes_old_gpt1_route(self):
@@ -2436,16 +2436,16 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         details = component_details("mcp_minimal_clone")
         self.assertEqual(contract["schema"], "mcp-current-topology.v1")
         self.assertEqual(contract["serving"]["connector_url"], details["current_topology"]["connector_url"])
-        self.assertEqual(contract["chatgpt_surface"]["tool_count"], 3)
+        self.assertEqual(contract["chatgpt_surface"]["tool_count"], 5)
         self.assertEqual(contract["chatgpt_surface"]["tools"], details["chatgpt_plugin_surface"]["tools"])
-        self.assertFalse(contract["chatgpt_surface"]["image_delivery"]["adds_tool"])
+        self.assertTrue(contract["chatgpt_surface"]["image_delivery"]["adds_tool"])
         self.assertTrue(contract["chatgpt_surface"]["image_delivery"]["default_visual_retrieval"])
         self.assertIn("all workers/projects", contract["chatgpt_surface"]["image_delivery"]["default_scope"])
-        self.assertTrue(any("CHATGPT_LIBRARY_UPLOAD" in step for step in contract["chatgpt_surface"]["image_delivery"]["sequence"]))
+        self.assertTrue(any("upload_local_file" in step for step in contract["chatgpt_surface"]["image_delivery"]["sequence"]))
         self.assertIn("5-61-91-127.sslip.io", contract["not_in_gpt1_path"])
         current = find_features("gpt1 mcp topology 91-159-12-133")[0]
         self.assertEqual(current["id"], "mcp.current_topology")
-        self.assertIn("127.0.0.1:3022", current["boundary"])
+        self.assertIn("127.0.0.1:3028", current["boundary"])
         self.assertIn("not the GPT1 serving", current["boundary"])
 
 class VaultUsefulnessRoutingTests(unittest.TestCase):
