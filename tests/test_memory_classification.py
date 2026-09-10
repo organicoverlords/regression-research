@@ -39,6 +39,15 @@ class MemoryClassificationTests(unittest.TestCase):
         self.assertEqual(body_result["projects"], [])
         self.assertEqual(infer_single_project(body_only), None)
 
+    def test_nexus_project_is_inferred_from_nexus_and_devboard_descriptors(self):
+        for scope in ("nexus/canvas", "devboard/canvas"):
+            with self.subTest(scope=scope):
+                entry = self.entry(scope=scope, title="Nexus canvas navigation")
+                result = classify_entry(entry)
+                self.assertEqual(result["projects"], ["nexus"])
+                self.assertEqual(result["primary_domain"], "project:nexus")
+                self.assertEqual(infer_single_project(entry), "nexus")
+
     def test_explicit_project_wins_and_role_is_descriptor_scoped(self):
         entry = self.entry(project="tiny3d", scope="worker/runtime", title="Worker runtime rule")
         result = classify_entry(entry)

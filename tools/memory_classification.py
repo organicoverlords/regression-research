@@ -15,6 +15,7 @@ PROJECT_MARKERS = {
     "p3": ("p3",),
     "tiny3d": ("tiny3d",),
     "lowvram": ("lowvram", "lowvram3d"),
+    "nexus": ("nexus", "devboard"),
 }
 ROLE_MARKERS = {
     "orchestrator": ("orchestrator",),
@@ -38,6 +39,7 @@ DOMAINS = (
     "project:p3",
     "project:tiny3d",
     "project:lowvram",
+    "project:nexus",
     "cross-project",
     "memory-system",
     "assistant-orchestration",
@@ -71,6 +73,7 @@ _ENTITY_MARKERS = {
     "p3": ("p3",),
     "tiny3d": ("tiny3d",),
     "lowvram": ("lowvram", "lowvram3d"),
+    "nexus": ("nexus", "devboard"),
     "mcp": ("mcp",),
     "busycoordinator": ("busycoordinator", "busy-coordinator"),
     "vault": ("vault",),

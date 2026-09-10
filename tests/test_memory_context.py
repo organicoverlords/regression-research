@@ -121,6 +121,17 @@ class MemoryContextPackTests(unittest.TestCase):
         self.assertEqual([x["id"] for x in pack["durable_memory"]], ["global", "p3"])
         self.assertEqual(pack["omitted"]["project_mismatch_matches"], 1)
 
+    def test_nexus_name_and_devboard_alias_select_nexus_memory(self):
+        nexus = self.memory("nexus", scope="nexus/canvas", project="nexus", text="Nexus canvas lesson")
+        p3 = self.memory("p3", scope="p3/build", project="p3", text="P3 build lesson")
+
+        for query in ("work on nexus", "work on devboard"):
+            with self.subTest(query=query):
+                pack = build_context_pack(query, [p3, nexus])
+                self.assertEqual(pack["selectors"]["projects"], ["nexus"])
+                self.assertEqual([x["id"] for x in pack["durable_memory"]], ["nexus"])
+                self.assertEqual(pack["omitted"]["project_mismatch_matches"], 1)
+
     def test_explicit_role_excludes_other_explicit_role_memory(self):
         worker = self.memory("worker", scope="p3/worker", text="Worker-local evidence")
         orchestrator = self.memory("orch", scope="p3/orchestrator", text="Orchestrator-local evidence")
