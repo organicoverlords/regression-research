@@ -42,6 +42,8 @@ GIT_PROVENANCE_PACK_COMPRESSION = 1
 GIT_PROVENANCE_PACK_TIMEOUT_SECONDS = 90.0
 OMEN_TOOL_ENV = "/mnt/ue/worker-tools/env.sh"
 OMEN_PYTHON_PACKAGES = "/mnt/ue/worker-tools/python-packages"
+OMEN_EPIC_TOOLCHAIN_ROOT = "/mnt/ue/toolchains/v26_clang-20.1.8-rockylinux8"
+OMEN_RUST_HOST_TRIPLE = "x86_64-unknown-linux-gnu"
 
 
 def _run(args: list[str], *, cwd: Path | None = None, timeout: float = 20.0) -> subprocess.CompletedProcess[str]:
@@ -497,6 +499,21 @@ cp -a -- \"$cache\" \"$final\"
 rm -f -- \"$final/$manifest_name\"
 . {shlex.quote(OMEN_TOOL_ENV)}
 export PYTHONPATH={shlex.quote(OMEN_PYTHON_PACKAGES)}:${{PYTHONPATH:-}}
+rust_toolchain_root={shlex.quote(OMEN_EPIC_TOOLCHAIN_ROOT)}
+rust_host_triple={shlex.quote(OMEN_RUST_HOST_TRIPLE)}
+rust_clang=\"$rust_toolchain_root/$rust_host_triple/bin/clang\"
+rust_sysroot=\"$rust_toolchain_root/$rust_host_triple\"
+if [ -x \"$rust_clang\" ] && [ -f \"$rust_sysroot/usr/lib64/Scrt1.o\" ] && [ -f \"$rust_sysroot/usr/lib64/crti.o\" ] && [ -e \"$rust_sysroot/usr/lib64/libc.so\" ]; then
+  if [ -z \"${{CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER:-}}\" ]; then
+    export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=\"$rust_clang\"
+  fi
+  rust_sysroot_flag=\"-C link-arg=--sysroot=$rust_sysroot\"
+  case \"${{CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS:-}}\" in
+    *\"--sysroot=$rust_sysroot\"*) ;;
+    \"\") export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS=\"$rust_sysroot_flag\" ;;
+    *) export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS=\"${{CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS}} $rust_sysroot_flag\" ;;
+  esac
+fi
 python3 - \"$final\" \"$git_meta_dir\" <<'PY'
 import json, shutil, subprocess, sys
 from pathlib import Path
