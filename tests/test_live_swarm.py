@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import subprocess
 import unittest
@@ -49,6 +50,65 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertTrue(complete)
             self.assertEqual(len(out),4)
 
+
+    def test_stale_candidate_overflow_does_not_poison_complete_window(self):
+        now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            root.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+
+            def source(name, at):
+                folder=root/name
+                folder.mkdir()
+                path=folder/"transport.jsonl"
+                path.write_text(json.dumps({"at":at.isoformat(),"event":"process_read","caller_id":name})+"\n",encoding="utf-8")
+                stamp=at.timestamp()
+                os.utime(path,(stamp,stamp))
+
+            source("live-a",now-timedelta(minutes=1))
+            source("live-b",now-timedelta(minutes=2))
+            source("stale-overflow",now-timedelta(hours=2))
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}), \
+                 patch("tools.live_swarm.MAX_TRANSPORT_SOURCE_CANDIDATES",2):
+                snapshot=build_live_swarm_snapshot(now=now)
+            discovery=snapshot["transport_source_discovery"]
+            self.assertTrue(discovery["truncated"])
+            self.assertFalse(discovery["truncation_affects_window"])
+            self.assertTrue(snapshot["evidence"]["observation_window_complete"])
+            self.assertEqual(snapshot["evidence"]["transport_source_count"],2)
+
+    def test_in_window_candidate_overflow_keeps_window_incomplete(self):
+        now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            root.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+
+            for index in range(3):
+                folder=root/f"live-{index}"
+                folder.mkdir()
+                at=now-timedelta(minutes=index+1)
+                path=folder/"transport.jsonl"
+                path.write_text(json.dumps({"at":at.isoformat(),"event":"process_read","caller_id":f"live-{index}"})+"\n",encoding="utf-8")
+                stamp=at.timestamp()
+                os.utime(path,(stamp,stamp))
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}), \
+                 patch("tools.live_swarm.MAX_TRANSPORT_SOURCE_CANDIDATES",2):
+                snapshot=build_live_swarm_snapshot(now=now)
+            discovery=snapshot["transport_source_discovery"]
+            self.assertTrue(discovery["truncated"])
+            self.assertTrue(discovery["truncation_affects_window"])
+            self.assertFalse(snapshot["evidence"]["observation_window_complete"])
+            self.assertEqual(snapshot["evidence"]["transport_source_count"],2)
 
     def test_snapshot_aggregates_current_mcpv4_transport_sources(self):
         now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)

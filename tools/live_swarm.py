@@ -119,8 +119,23 @@ def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> 
 
     candidate_count = len(candidates)
     candidate_truncated = candidate_count > MAX_TRANSPORT_SOURCE_CANDIDATES
+    candidate_truncation_affects_window = False
     if candidate_truncated:
-        candidates = sorted(candidates, key=lambda path: path.stat().st_mtime, reverse=True)[:MAX_TRANSPORT_SOURCE_CANDIDATES]
+        def candidate_mtime(path: Path) -> float:
+            try:
+                return path.stat().st_mtime
+            except OSError:
+                # Unknown freshness must stay conservative: retain it ahead of
+                # known-old candidates and treat an omitted unknown as relevant.
+                return float("inf")
+
+        ordered = sorted(candidates, key=candidate_mtime, reverse=True)
+        omitted = ordered[MAX_TRANSPORT_SOURCE_CANDIDATES:]
+        candidates = ordered[:MAX_TRANSPORT_SOURCE_CANDIDATES]
+        cutoff_timestamp = cutoff.timestamp()
+        candidate_truncation_affects_window = any(
+            candidate_mtime(path) >= cutoff_timestamp for path in omitted
+        )
 
     by_instance: dict[str, tuple[Path, datetime]] = {}
     discovery_bytes = 0
@@ -141,6 +156,7 @@ def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> 
     return selected, {
         "candidate_count": candidate_count,
         "candidate_truncated": candidate_truncated,
+        "candidate_truncation_affects_window": candidate_truncation_affects_window,
         "source_truncated": source_truncated,
         "discovery_bytes": discovery_bytes,
     }
@@ -313,7 +329,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         }
 
     rows: list[dict[str, Any]] = []
-    complete = not bool(discovery.get("candidate_truncated") or discovery.get("source_truncated"))
+    complete = not bool(discovery.get("candidate_truncation_affects_window") or discovery.get("source_truncated"))
     sample_bytes = 0
     per_source_budget = max(1, MAX_TRANSPORT_BYTES // max(1, len(sources)))
     source_details: list[dict[str, Any]] = []
@@ -494,6 +510,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         "transport_source_discovery":{
             "bytes":discovery.get("discovery_bytes"),
             "truncated":bool(discovery.get("candidate_truncated") or discovery.get("source_truncated")),
+            "truncation_affects_window":bool(discovery.get("candidate_truncation_affects_window") or discovery.get("source_truncated")),
         },
         "lanes":lane_list,
     }
