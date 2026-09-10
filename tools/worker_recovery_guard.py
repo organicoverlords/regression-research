@@ -1,9 +1,9 @@
-"""Fail-closed authorization for recurring-worker or supervising-chat recovery.
+"""Fail-closed authorization boundary for recurring-worker recovery.
 
-This module deliberately does not mutate ChatGPT scheduler state. It narrows the
-boundary immediately before the existing scheduler write by binding either one
-canonical worker actor or one supervising-chat partition to one exact canonical
-target and the corresponding partition-scoped local fleet evidence.
+This module never mutates ChatGPT scheduler state. Recurring-worker actor mode is
+denial-only: workers may observe and hand off evidence but can never receive a
+scheduler-write authorization. Only supervising-chat mode may authorize one exact
+canonical target from fleet-scoped local evidence.
 """
 from __future__ import annotations
 
@@ -44,9 +44,10 @@ def authorize_recovery(
     *,
     fleet_watch: FleetWatch = _bootstrap_fleet_watch,
 ) -> dict[str, Any]:
-    """Authorize one exact same-partition recovery target or fail closed."""
+    """Fail closed for worker actors; recurring workers never administer scheduler state."""
     actor = str(actor_worker_id or "").strip().lower()
     target = str(target_worker_id or "").strip().lower()
+    _ = fleet_watch  # compatibility parameter; worker mode intentionally performs no fleet read
 
     actor_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(actor)
     if actor_partition is None:
@@ -70,76 +71,13 @@ def authorize_recovery(
             target_partition=target_partition,
         )
 
-    if actor_partition != target_partition:
-        return _deny(
-            actor,
-            target,
-            "CROSS_PARTITION_RECOVERY_FORBIDDEN",
-            actor_partition=actor_partition,
-            target_partition=target_partition,
-        )
-
-    watch = fleet_watch(worker_id=actor)
-    if not isinstance(watch, dict):
-        return _deny(
-            actor,
-            target,
-            "FLEET_WATCH_INVALID",
-            actor_partition=actor_partition,
-            target_partition=target_partition,
-        )
-
-    if watch.get("subscription_scope") != actor_partition:
-        return _deny(
-            actor,
-            target,
-            "FLEET_WATCH_SCOPE_MISMATCH",
-            actor_partition=actor_partition,
-            target_partition=target_partition,
-            observed_subscription_scope=watch.get("subscription_scope"),
-        )
-
-    candidates = {
-        str(item.get("automation_id") or "").strip().lower(): item
-        for item in watch.get("recovery_candidates", [])
-        if isinstance(item, dict)
-    }
-    candidate = candidates.get(target)
-    if candidate is None:
-        return _deny(
-            actor,
-            target,
-            "TARGET_NOT_ACTIONABLE",
-            actor_partition=actor_partition,
-            target_partition=target_partition,
-            fleet_status=watch.get("status"),
-        )
-
-    if candidate.get("subscription_partition") != actor_partition:
-        return _deny(
-            actor,
-            target,
-            "CANDIDATE_PARTITION_MISMATCH",
-            actor_partition=actor_partition,
-            target_partition=target_partition,
-            candidate_partition=candidate.get("subscription_partition"),
-        )
-
-    return {
-        "schema": "recurring-worker-recovery-authorization.v1",
-        "authorized": True,
-        "actor_worker_id": actor,
-        "target_worker_id": target,
-        "actor_partition": actor_partition,
-        "target_partition": target_partition,
-        "reason": str(candidate.get("reason") or "RECOVERY_NEEDED"),
-        "scheduler_action": {
-            "operation": "set_is_enabled",
-            "is_enabled": True,
-        },
-        "scheduler_probe": "not_performed",
-        "evidence_authority": watch.get("authority"),
-    }
+    return _deny(
+        actor,
+        target,
+        "WORKER_SCHEDULER_ADMINISTRATION_FORBIDDEN",
+        actor_partition=actor_partition,
+        target_partition=target_partition,
+    )
 
 
 def _supervisor_deny(partition: str, target: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -243,7 +181,7 @@ def authorize_supervising_chat_recovery(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Authorize one exact recurring-worker recovery from worker- or supervisor-scoped local evidence."
+        description="Authorize one exact recurring-worker recovery from supervisor-scoped local evidence; worker actor mode is denial-only."
     )
     actor_mode = parser.add_mutually_exclusive_group(required=True)
     actor_mode.add_argument("--actor-worker-id")

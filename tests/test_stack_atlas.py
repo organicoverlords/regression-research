@@ -832,44 +832,44 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(glance["pc"]["gpu"]["utilization_pct"], 46)
         self.assertLessEqual(len(json.dumps(glance, separators=(",", ":")).encode("utf-8")), BOOTSTRAP_GLANCE_MAX_BYTES)
 
-    def test_bootstrap_swarm_topology_includes_manual_population_and_primary_s2_handoff(self):
+    def test_bootstrap_swarm_topology_uses_single_s1_fleet_with_global_five_cap(self):
         from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
             contract.parent.mkdir(parents=True)
             contract.write_text(json.dumps({
-                "authority": "USER_EXPLICIT_TOPOLOGY_AND_OPERATOR_HANDOFF",
+                "authority": "CURRENT_USER_DIRECTION_AND_LIVE_S1_SCHEDULER_EVIDENCE",
                 "subscriptions": {
-                    "S1": {"recurring_worker_slots": 5, "operator_control": "DEGRADED_TEMPORARILY"},
-                    "S2": {"recurring_worker_slots": 5, "operator_control": "PRIMARY"},
+                    "S1": {"recurring_worker_slots": 5, "operator_control": "PRIMARY"},
                 },
-                "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; recurring workers never administer themselves or any sibling.",
+                "recurring_worker_global_max": 5,
+                "recurring_worker_partition_rule": "At most five recurring scheduler workers globally; current canonical fleet S1.",
                 "manual_workers": {
                     "population": "SEPARATE_ON_DEMAND",
                     "counts_against_recurring_slots": False,
-                    "total_swarm_semantics": "10 recurring workers plus any concurrently active manual/on-demand workers",
+                    "total_swarm_semantics": "up to 5 recurring workers plus any concurrently active manual/on-demand workers",
                 },
-                "handoff": {"primary_operator_subscription": "S2"},
+                "handoff": {"primary_operator_subscription": "S1"},
             }), encoding="utf-8")
             manual_root = root / "worker-reports" / "manual" / "current"
             manual_root.mkdir(parents=True)
-            now = datetime(2026, 9, 7, 16, 30, tzinfo=timezone.utc)
+            now = datetime(2026, 9, 10, 4, 30, tzinfo=timezone.utc)
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 topology = _bootstrap_swarm_topology(now)
 
-        self.assertEqual(topology["chatgpt_subscription_count"], 2)
-        self.assertEqual(topology["recurring_worker_partitions"], {"S1": 5, "S2": 5})
-        self.assertEqual(topology["recurring_workers_total"], 10)
-        self.assertEqual(topology["operator_handoff"]["primary_operator_subscription"], "S2")
+        self.assertEqual(topology["chatgpt_subscription_count"], 1)
+        self.assertEqual(topology["recurring_worker_partitions"], {"S1": 5})
+        self.assertEqual(topology["recurring_workers_total"], 5)
+        self.assertEqual(topology["operator_handoff"]["primary_operator_subscription"], "S1")
         self.assertEqual(topology["routine_recurring_recovery"]["scheduler_role"], "RECURRENCE_ONLY")
         self.assertEqual(
             topology["routine_recurring_recovery"]["authority"],
             "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
         )
         self.assertFalse(topology["manual_workers"]["counts_against_recurring_slots"])
-        self.assertIn("10 recurring workers plus", topology["manual_workers"]["total_swarm_semantics"])
-
+        self.assertIn("up to 5 recurring workers plus", topology["manual_workers"]["total_swarm_semantics"])
+        self.assertNotIn("S2", topology["recurring_worker_partitions"])
     def test_recurring_worker_recovery_is_admin_supervised_and_scheduler_is_recurrence_only(self):
         topology = component_details("swarm_topology")
         workers = component_details("execution_workers")
@@ -881,6 +881,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(topology["self_heal"], "supervising_chat_guarded_recovery")
         self.assertIn("BusyCoordinator is exact mutation collision control only", workers["supervisor"])
         self.assertNotIn("BusyCoordinator ownership", workers["supervisor"])
+        self.assertFalse(any("worker_recovery_guard" in route for route in workers["independent_recovery"]))
+        self.assertTrue(any("never request or perform scheduler writes" in route for route in workers["independent_recovery"]))
         self.assertIn("does not supervise worker health", scheduler["supervisor"])
         self.assertEqual(scheduler["self_heal"], "not_swarm_supervision")
         self.assertTrue(any("worker_recovery_guard.py" in route for route in topology["independent_recovery"]))
@@ -894,18 +896,18 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("scheduler provides recurrence only", match["boundary"])
         self.assertIn("user is not the worker supervisor", match["boundary"])
 
-    def test_fleet_watch_models_two_five_worker_subscription_partitions_and_scopes_recovery(self):
+    def test_fleet_watch_models_single_five_worker_fleet_and_rejects_s2(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
-            now = datetime(2026, 9, 7, 16, 30, tzinfo=timezone.utc)
-            s2_workers = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]
-            missing_s2_id = s2_workers[0][0]
-            acting_s2_id = s2_workers[1][0]
+            now = datetime(2026, 9, 10, 4, 30, tzinfo=timezone.utc)
+            s1_workers = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]
+            missing_id = s1_workers[0][0]
+            acting_id = s1_workers[1][0]
             for worker_id, label in CANONICAL_RECURRING_WORKERS:
-                if worker_id == missing_s2_id:
+                if worker_id == missing_id:
                     continue
                 started = now - timedelta(minutes=20)
                 (current / f"{worker_id}.md").write_text(
@@ -918,22 +920,23 @@ class StackAtlasTests(unittest.TestCase):
                 )
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 global_watch = _bootstrap_fleet_watch(now)
-                s2_watch = _bootstrap_fleet_watch(now, worker_id=acting_s2_id)
+                s1_watch = _bootstrap_fleet_watch(now, worker_id=acting_id)
+                invalid_s2_watch = _bootstrap_fleet_watch(now, partition="S2")
 
-        self.assertEqual(len(CANONICAL_RECURRING_WORKER_PARTITIONS), 2)
-        self.assertEqual({name: len(workers) for name, workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()}, {"S1": 5, "S2": 5})
-        self.assertEqual(global_watch["subscription_count"], 2)
-        self.assertEqual(global_watch["expected_recurring_workers"], 10)
-        self.assertEqual(global_watch["expected_recurring_workers_total"], 10)
+        self.assertEqual(len(CANONICAL_RECURRING_WORKER_PARTITIONS), 1)
+        self.assertEqual({name: len(workers) for name, workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()}, {"S1": 5})
+        self.assertEqual(global_watch["subscription_count"], 1)
+        self.assertEqual(global_watch["expected_recurring_workers"], 5)
+        self.assertEqual(global_watch["expected_recurring_workers_total"], 5)
         self.assertEqual(global_watch["worker_partitions"]["S1"]["expected_recurring_workers"], 5)
-        self.assertEqual(global_watch["worker_partitions"]["S2"]["expected_recurring_workers"], 5)
-        self.assertEqual(s2_watch["subscription_scope"], "S2")
-        self.assertEqual(s2_watch["expected_recurring_workers"], 5)
-        self.assertEqual(s2_watch["expected_recurring_workers_total"], 10)
-        self.assertEqual(s2_watch["recovery_candidate_count"], 1)
-        self.assertEqual(s2_watch["recovery_candidates"][0]["automation_id"], missing_s2_id)
-        self.assertEqual(s2_watch["recovery_candidates"][0]["subscription_partition"], "S2")
-
+        self.assertNotIn("S2", global_watch["worker_partitions"])
+        self.assertEqual(s1_watch["subscription_scope"], "S1")
+        self.assertEqual(s1_watch["expected_recurring_workers"], 5)
+        self.assertEqual(s1_watch["expected_recurring_workers_total"], 5)
+        self.assertEqual(s1_watch["recovery_candidate_count"], 1)
+        self.assertEqual(s1_watch["recovery_candidates"][0]["automation_id"], missing_id)
+        self.assertEqual(s1_watch["recovery_candidates"][0]["subscription_partition"], "S1")
+        self.assertEqual(invalid_s2_watch["status"], "INVALID_PARTITION")
     def test_fleet_watch_does_not_recover_new_worker_before_first_expected_start_plus_grace(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
@@ -943,12 +946,12 @@ class StackAtlasTests(unittest.TestCase):
             contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
             contract.parent.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 35, tzinfo=timezone.utc)
-            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"][0]
-            actor_id, _ = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"][1]
+            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][0]
+            actor_id, _ = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][1]
             first_expected = now + timedelta(minutes=1)
             contract.write_text(json.dumps({
                 "subscriptions": {
-                    "S2": {
+                    "S1": {
                         "workers": [{
                             "automation_id": target_id,
                             "label": target_label,
@@ -957,7 +960,7 @@ class StackAtlasTests(unittest.TestCase):
                     }
                 }
             }), encoding="utf-8")
-            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]:
+            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]:
                 if worker_id == target_id:
                     continue
                 started = now - timedelta(minutes=20)
@@ -2497,16 +2500,16 @@ class ManualSanityBootstrapTests(unittest.TestCase):
             self.assertEqual(result["post_run_count"], 7)
 
 class TestFleetWatchSubscription(unittest.TestCase):
-    def test_recovery_candidates_stay_in_callers_subscription_partition(self):
+    def test_recovery_candidates_stay_in_canonical_s1_fleet(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 30, tzinfo=timezone.utc)
-            s2 = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]
-            missing_id = s2[0][0]
-            actor_id = s2[1][0]
+            s1 = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]
+            missing_id = s1[0][0]
+            actor_id = s1[1][0]
             for worker_id, label in CANONICAL_RECURRING_WORKERS:
                 if worker_id == missing_id:
                     continue
@@ -2521,12 +2524,12 @@ class TestFleetWatchSubscription(unittest.TestCase):
                 )
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now, worker_id=actor_id)
-        self.assertEqual(watch["subscription_scope"], "S2")
+        self.assertEqual(watch["subscription_scope"], "S1")
         self.assertEqual(watch["expected_recurring_workers"], 5)
-        self.assertEqual(watch["expected_recurring_workers_total"], 10)
+        self.assertEqual(watch["expected_recurring_workers_total"], 5)
         self.assertEqual(watch["recovery_candidate_count"], 1)
         self.assertEqual(watch["recovery_candidates"][0]["automation_id"], missing_id)
-        self.assertTrue(all(item["subscription_partition"] == "S2" for item in watch["recovery_candidates"]))
+        self.assertTrue(all(item["subscription_partition"] == "S1" for item in watch["recovery_candidates"]))
 
     def test_new_worker_is_not_recoverable_before_first_expected_start_plus_grace(self):
         from datetime import datetime, timedelta, timezone
@@ -2537,15 +2540,15 @@ class TestFleetWatchSubscription(unittest.TestCase):
             contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
             contract.parent.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 35, tzinfo=timezone.utc)
-            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"][0]
-            actor_id = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"][1][0]
+            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][0]
+            actor_id = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][1][0]
             first_expected = now + timedelta(minutes=1)
-            contract.write_text(json.dumps({"subscriptions": {"S2": {"workers": [{
+            contract.write_text(json.dumps({"subscriptions": {"S1": {"workers": [{
                 "automation_id": target_id,
                 "label": target_label,
                 "first_expected_start_at": first_expected.isoformat(),
             }]}}}), encoding="utf-8")
-            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]:
+            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]:
                 if worker_id == target_id:
                     continue
                 started = now - timedelta(minutes=20)
