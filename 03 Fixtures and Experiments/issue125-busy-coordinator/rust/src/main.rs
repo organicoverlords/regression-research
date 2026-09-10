@@ -26,7 +26,8 @@ const REPLACE_TIMEOUT: Duration = Duration::from_millis(500);
 const REPLACE_RETRY: Duration = Duration::from_millis(10);
 const TEMP_STALE: Duration = Duration::from_secs(60);
 const MAX_SWEEP_TEMP_ITEMS: usize = 32;
-const DEFAULT_LEASE_SECONDS: i64 = 3600;
+const DEFAULT_LEASE_SECONDS: i64 = 240;
+const MAX_LEASE_SECONDS: i64 = 240;
 const MAX_OPERATIONS: usize = 512;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -191,6 +192,31 @@ fn load(store: &Path) -> Result<StoreFile, String> {
             }
             let mut state: StoreFile = serde_json::from_value(value)
                 .map_err(|e| format!("cannot safely read BUSY store: {e}"))?;
+
+            let mut claims_by_scope: BTreeMap<String, Claim> = BTreeMap::new();
+            for claim in state.claims {
+                let scope = canonical_scope(&claim.scope)?;
+                let normalized = Claim {
+                    actor: claim.actor,
+                    scope: scope.clone(),
+                    timestamp: claim.timestamp,
+                };
+                match claims_by_scope.get(&scope) {
+                    None => {
+                        claims_by_scope.insert(scope, normalized);
+                    }
+                    Some(previous) if previous.actor != normalized.actor => {
+                        return Err(format!(
+                            "conflicting BUSY claims canonicalize to one scope: {scope}"
+                        ));
+                    }
+                    Some(previous) if normalized.timestamp > previous.timestamp => {
+                        claims_by_scope.insert(scope, normalized);
+                    }
+                    Some(_) => {}
+                }
+            }
+            state.claims = claims_by_scope.into_values().collect();
             state.coordinator.version = coordinator_version();
             Ok(state)
         }
@@ -258,6 +284,33 @@ fn now_iso() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
+fn capped_lease_seconds(value: i64) -> i64 {
+    value.clamp(1, MAX_LEASE_SECONDS)
+}
+
+fn capped_lease_expiry(claim_timestamp: &str, raw_lease: Option<&str>) -> Result<String, String> {
+    let claim_time = DateTime::parse_from_rfc3339(claim_timestamp)
+        .map_err(|e| format!("invalid BUSY claim timestamp: {e}"))?
+        .with_timezone(&Utc);
+    let cap = claim_time + ChronoDuration::seconds(MAX_LEASE_SECONDS);
+    let deadline = raw_lease
+        .and_then(|value| DateTime::parse_from_rfc3339(value).ok())
+        .map(|value| value.with_timezone(&Utc))
+        .map(|value| std::cmp::min(value, cap))
+        .unwrap_or(cap);
+    Ok(deadline.to_rfc3339_opts(SecondsFormat::Millis, true))
+}
+
+fn canonical_repo_scope_prefix(raw: &str) -> Option<&'static str> {
+    match raw.to_ascii_lowercase().as_str() {
+        "regression-research" | "organicoverlords/regression-research" => {
+            Some("regression-research")
+        }
+        "agents" | "organicoverlords/agents" => Some("agents"),
+        _ => None,
+    }
+}
+
 fn canonical_scope(raw: &str) -> Result<String, String> {
     let scope = raw.trim().to_string();
     if scope.is_empty() {
@@ -265,10 +318,8 @@ fn canonical_scope(raw: &str) -> Result<String, String> {
     }
     let path = Path::new(&scope);
     if path.is_absolute() {
-        // Match Python's Windows normcase/normpath behavior for absolute
-        // filesystem scopes while keeping non-path logical scope identifiers
-        // opaque. Components removes separator and `.` spelling aliases without
-        // requiring the claimed file to exist.
+        // Match Python's Windows normcase/normpath behavior without requiring
+        // the claimed path to exist.
         let normalized = path
             .components()
             .collect::<PathBuf>()
@@ -276,6 +327,16 @@ fn canonical_scope(raw: &str) -> Result<String, String> {
             .replace('/', "\\")
             .to_ascii_lowercase();
         return Ok(normalized);
+    }
+
+    // Keep arbitrary logical scopes opaque. Normalize only known repository
+    // identities so owner-qualified and short spellings share one collision key.
+    if let Some((repo, suffix)) = scope.split_once(':') {
+        if let Some(canonical_repo) = canonical_repo_scope_prefix(repo) {
+            return Ok(format!("{canonical_repo}:{suffix}"));
+        }
+    } else if let Some(canonical_repo) = canonical_repo_scope_prefix(&scope) {
+        return Ok(canonical_repo.to_string());
     }
     Ok(scope)
 }
@@ -334,36 +395,36 @@ fn compact_job(job: &Job) -> Value {
     Value::Object(map)
 }
 
-fn normalize_jobs(state: &mut StoreFile) -> bool {
-    let claims: BTreeMap<String, Claim> = state
-        .claims
-        .iter()
-        .map(|claim| (claim.scope.clone(), claim.clone()))
-        .collect();
-    let mut normalized = BTreeMap::new();
-    for (raw_scope, mut job) in state.coordinator.jobs.clone() {
-        let scope = match canonical_scope(if job.scope.is_empty() {
-            &raw_scope
+fn normalize_jobs(state: &mut StoreFile) -> Result<bool, String> {
+    let mut raw_jobs: BTreeMap<String, Job> = BTreeMap::new();
+    for (raw_scope, raw_job) in state.coordinator.jobs.clone() {
+        let source_scope = if raw_job.scope.is_empty() {
+            raw_scope.as_str()
         } else {
-            &job.scope
-        }) {
-            Ok(value) => value,
-            Err(_) => continue,
+            raw_job.scope.as_str()
         };
-        let Some(claim) = claims.get(&scope) else {
-            continue;
-        };
+        let scope = canonical_scope(source_scope)?;
+        // BTreeMap iteration makes alias collapse deterministic across runs.
+        raw_jobs.insert(scope, raw_job);
+    }
+
+    let mut normalized = BTreeMap::new();
+    for claim in &state.claims {
+        let scope = claim.scope.clone();
+        let mut job = raw_jobs.get(&scope).cloned().unwrap_or_default();
+        let raw_lease = job.lease_expires_at.clone();
         job.job_id = scope.clone();
         job.scope = scope.clone();
         job.state = "active".into();
         job.owner = Some(claim.actor.clone());
+        job.lease_expires_at = Some(capped_lease_expiry(&claim.timestamp, raw_lease.as_deref())?);
         job.claim_timestamp = Some(claim.timestamp.clone());
         job.updated_at = claim.timestamp.clone();
         normalized.insert(scope, job);
     }
     let changed = normalized != state.coordinator.jobs;
     state.coordinator.jobs = normalized;
-    changed
+    Ok(changed)
 }
 
 fn snapshot_state(
@@ -615,17 +676,15 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
     let mut expired = Vec::new();
     let mut changed = false;
     for scope in scopes {
-        let (job_state, owner, lease, expected_timestamp, checkpoint) =
-            match state.coordinator.jobs.get(&scope) {
-                Some(job) => (
-                    job.state.clone(),
-                    job.owner.clone(),
-                    job.lease_expires_at.clone(),
-                    job.claim_timestamp.clone(),
-                    job.checkpoint.clone(),
-                ),
-                None => continue,
-            };
+        let (job_state, owner, lease, checkpoint) = match state.coordinator.jobs.get(&scope) {
+            Some(job) => (
+                job.state.clone(),
+                job.owner.clone(),
+                job.lease_expires_at.clone(),
+                job.checkpoint.clone(),
+            ),
+            None => continue,
+        };
         if job_state != "active" {
             continue;
         }
@@ -639,19 +698,7 @@ fn sweep_expired(state: &mut StoreFile) -> (Vec<Value>, bool) {
             continue;
         }
         let current = claim_index(state, &scope).map(|index| state.claims[index].clone());
-        if let Some(claim) = current.as_ref().filter(|claim| claim.actor == owner) {
-            if expected_timestamp
-                .as_deref()
-                .is_some_and(|expected| expected != claim.timestamp)
-            {
-                if let Some(job) = state.coordinator.jobs.get_mut(&scope) {
-                    job.claim_timestamp = Some(claim.timestamp.clone());
-                    job.lease_expires_at = None;
-                    job.updated_at = claim.timestamp.clone();
-                }
-                changed = true;
-                continue;
-            }
+        if current.as_ref().is_some_and(|claim| claim.actor == owner) {
             state.claims.retain(|claim| claim.scope != scope);
         }
         remove_scope_metadata(state, &scope);
@@ -754,6 +801,9 @@ fn parse_options(
         }
         index += 1;
     }
+    if allow_lease {
+        options.lease_seconds = capped_lease_seconds(options.lease_seconds);
+    }
     Ok(options)
 }
 
@@ -782,7 +832,7 @@ fn operate(
 ) -> Result<Value, String> {
     let _lock = StoreLock::acquire(store).map_err(|e| e.to_string())?;
     let mut state = load(store)?;
-    let normalized = normalize_jobs(&mut state);
+    let normalized = normalize_jobs(&mut state)?;
     let (swept, sweep_changed) = sweep_expired(&mut state);
     let state_changed = normalized || sweep_changed;
 
@@ -1115,6 +1165,23 @@ mod tests {
     }
 
     #[test]
+    fn canonical_scope_collides_known_repository_aliases() {
+        assert_eq!(
+            canonical_scope("regression-research:git-ref:refs/heads/topic").unwrap(),
+            canonical_scope("organicoverlords/regression-research:git-ref:refs/heads/topic")
+                .unwrap(),
+        );
+        assert_eq!(
+            canonical_scope("agents:file:RULES.md").unwrap(),
+            canonical_scope("organicoverlords/agents:file:RULES.md").unwrap(),
+        );
+        assert_eq!(
+            canonical_scope("other/repo:file:x").unwrap(),
+            "other/repo:file:x"
+        );
+    }
+
+    #[test]
     fn ambiguous_relative_path_scope_requires_namespace_or_absolute_path() {
         assert!(ambiguous_relative_path_scope("scripts/ci/job.py"));
         assert!(ambiguous_relative_path_scope(r"scripts\ci\job.py"));
@@ -1170,6 +1237,13 @@ mod tests {
             60
         );
         assert!(parse_options(&lease, false, false, false).is_err());
+        let oversized = vec!["--lease-seconds".to_string(), "3600".to_string()];
+        assert_eq!(
+            parse_options(&oversized, true, false, false)
+                .unwrap()
+                .lease_seconds,
+            MAX_LEASE_SECONDS
+        );
         let zero = vec!["--lease-seconds".to_string(), "0".to_string()];
         assert!(parse_options(&zero, true, false, false).is_err());
     }

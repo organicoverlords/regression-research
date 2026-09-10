@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PY = [sys.executable, str(ROOT / "python" / "busy.py")]
@@ -87,7 +88,8 @@ try:
     # Compare-and-swap recovery never manufactures ready work.
     for kind in ("py", "rs"):
         recovery = base / f"recover-{kind}.json"
-        claim = {"actor": "legacy-owner", "scope": "legacy-scope", "timestamp": "2026-09-03T00:00:00.000Z"}
+        fresh_timestamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        claim = {"actor": "legacy-owner", "scope": "legacy-scope", "timestamp": fresh_timestamp}
         recovery.write_text(json.dumps({"claims": [claim], "coordinator": {"version": 1, "jobs": {}, "operations": {}}}, indent=2)+"\n", encoding="utf-8")
         stale = run(kind, recovery, "recover", "legacy-owner", "legacy-scope", "--expected-claim-timestamp", "2026-09-02T23:59:59.000Z")
         assert stale["ok"] is False and stale["reason"] == "claim_changed"
@@ -98,7 +100,7 @@ try:
 
     # Legacy queue/checkpoint records migrate to live ownership metadata only.
     legacy = {
-        "claims": [{"actor": actor, "scope": "claimed-old", "timestamp": "2026-09-03T00:00:00.000Z"}],
+        "claims": [{"actor": actor, "scope": "claimed-old", "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")}],
         "coordinator": {
             "version": 1,
             "jobs": {
@@ -133,6 +135,96 @@ try:
         accepted = run(kind, path_scope_store, "claim", path_actor, "p3:file:scripts/ci/job.py")
         assert accepted["ok"] is True
         assert run(kind, path_scope_store, "release", path_actor, "p3:file:scripts/ci/job.py")["ok"] is True
+
+
+    # Known repository aliases are one exact collision identity across both cores.
+    repo_aliases = [
+        (
+            "regression-research:git-ref:refs/heads/topic",
+            "organicoverlords/regression-research:git-ref:refs/heads/topic",
+        ),
+        ("agents:file:RULES.md", "organicoverlords/agents:file:RULES.md"),
+    ]
+    for index, (short_scope, full_scope) in enumerate(repo_aliases):
+        for first, second in (("py", "rs"), ("rs", "py")):
+            alias_store = base / f"repo-alias-{index}-{first}-{second}.json"
+            alias_owner = managed_actor(f"alias-{index}-{first}")
+            alias_other = managed_actor(f"alias-other-{index}-{second}")
+            claimed = run(first, alias_store, "claim", alias_owner, short_scope, "--lease-seconds", "3600")
+            assert claimed["ok"] is True
+            view = run(second, alias_store, "inspect", full_scope)
+            assert view["claim"]["actor"] == alias_owner
+            assert view["claim"]["scope"] == short_scope
+            claim_at = datetime.fromisoformat(view["claim"]["timestamp"].replace("Z", "+00:00"))
+            lease_at = datetime.fromisoformat(view["job"]["lease_expires_at"].replace("Z", "+00:00"))
+            assert 0 < (lease_at - claim_at).total_seconds() <= 241
+            collision = run(second, alias_store, "claim", alias_other, full_scope)
+            assert collision["ok"] is False and collision["reason"] == "scope_already_claimed"
+            heartbeat = run(second, alias_store, "heartbeat", alias_owner, full_scope, "--lease-seconds", "3600")
+            assert heartbeat["ok"] is True
+            assert run(first, alias_store, "inspect", short_scope)["claim"]["timestamp"] == heartbeat["claim"]["timestamp"]
+            assert run(first, alias_store, "release", alias_owner, full_scope)["ok"] is True
+            assert run(second, alias_store, "inspect", short_scope)["claim"] is None
+
+    # Existing same-owner alias records converge to one canonical claim. Different
+    # owners for aliases of the same exact scope fail closed instead of picking one.
+    alias_short = "regression-research:git-ref:refs/heads/stored-topic"
+    alias_full = "organicoverlords/regression-research:git-ref:refs/heads/stored-topic"
+    first_at = datetime.now(timezone.utc)
+    second_at = first_at + timedelta(seconds=1)
+    first_stamp = first_at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    second_stamp = second_at.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    migrated_alias_states = []
+    for kind in ("py", "rs"):
+        alias_path = base / f"stored-alias-{kind}.json"
+        alias_path.write_text(
+            json.dumps(
+                {
+                    "claims": [
+                        {"actor": actor, "scope": alias_short, "timestamp": first_stamp},
+                        {"actor": actor, "scope": alias_full, "timestamp": second_stamp},
+                    ],
+                    "coordinator": {
+                        "version": 1,
+                        "jobs": {
+                            alias_short: {"job_id": alias_short, "scope": alias_short, "state": "active", "owner": actor, "checkpoint": "short-context", "updated_at": first_stamp},
+                            alias_full: {"job_id": alias_full, "scope": alias_full, "state": "active", "owner": actor, "checkpoint": "full-context", "updated_at": second_stamp},
+                        },
+                        "operations": {},
+                    },
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        snap = run(kind, alias_path, "snapshot", "--scope", alias_full)
+        state = read(alias_path)
+        assert snap["counts"] == {"active": 1, "claims": 1, "legacy_only_claims": 0}
+        assert state["claims"] == [{"actor": actor, "scope": alias_short, "timestamp": second_stamp}]
+        assert set(state["coordinator"]["jobs"]) == {alias_short}
+        migrated_alias_states.append(state)
+    assert migrated_alias_states[0] == migrated_alias_states[1]
+
+    for kind in ("py", "rs"):
+        conflict_path = base / f"stored-alias-conflict-{kind}.json"
+        conflict_path.write_text(
+            json.dumps(
+                {
+                    "claims": [
+                        {"actor": managed_actor("stored-a"), "scope": alias_short, "timestamp": first_stamp},
+                        {"actor": managed_actor("stored-b"), "scope": alias_full, "timestamp": second_stamp},
+                    ],
+                    "coordinator": {"version": 1, "jobs": {}, "operations": {}},
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        failed = raw(kind, conflict_path, "snapshot", "--scope", alias_short)
+        assert failed.returncode != 0
+        assert "conflicting BUSY claims canonicalize to one scope" in (failed.stderr + failed.stdout)
 
 
     # Windows readers can hold the canonical file without delete sharing. Writers
