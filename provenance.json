@@ -1517,6 +1517,65 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexes the observation-only security-reroute/build-status log. It records a user-supplied screenshot observation and possible correlates without claiming causation; no tracked raw transcript, evidence file, or contract snapshot is directly linked."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-09_1534_EEST_wrong-wireguard-hardening_after-mcp-recovery_incident_report.md",
+      "title": "Wrong WireGuard hardening after MCP recovery incident",
+      "date": "2026-09-09T15:34:00+03:00",
+      "evidence_type": "incident_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the wrong-WireGuard hardening incident report itself. The report names live/external MCP and repository evidence but no stable tracked raw transcript, local evidence file, or point-in-time contract snapshot is fabricated here."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "observation_not_incident",
+      "report_path": "01 Reports/2026-09-09_1944_EEST_p3-visual-proof-handoff.md",
+      "title": "P3 visual-proof handoff: camera readability, opponent label orientation, and review routing",
+      "date": "2026-09-09",
+      "evidence_type": "handoff_report",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the P3 visual-proof handoff as a checkpoint/history report. Its runtime, PR, and media references remain owned by their external/project evidence sources and are not duplicated into provenance.json."
+    },
+    {
+      "incident_id": null,
+      "incident_id_status": "unassigned",
+      "report_path": "01 Reports/2026-09-09_ChatGPT_Render_Lite_navigation_regression_and_repo_owner.md",
+      "title": "ChatGPT Render Lite: browser RAM extension owner and navigation regression",
+      "date": "2026-09-09",
+      "evidence_type": "regression_analysis",
+      "raw_transcripts": [],
+      "evidence_files": [],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "incident_id_not_assigned",
+        "raw_transcript_not_preserved",
+        "evidence_file_no_direct_match",
+        "contract_snapshot_not_linked"
+      ],
+      "notes": "Indexes the Render Lite navigation-regression report. The report points to the private owning repository and runtime/browser observations; no unavailable raw transcript, local evidence file, or contract snapshot is invented here."
     }
   ],
   "orphan_evidence": [
