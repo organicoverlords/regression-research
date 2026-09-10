@@ -39,6 +39,26 @@ class SwarmExecTests(unittest.TestCase):
         self.assertIn("/mnt/ue/worker-tools/env.sh",script)
         self.assertIn("/mnt/ue/worker-tools/python-packages",script)
 
+    def test_remote_workspace_activates_bundled_rust_sysroot_without_global_rustflags(self):
+        _workspace, script=m.remote_script("rust-host", "cargo test", self.CACHE_ID)
+        toolchain=m.OMEN_EPIC_TOOLCHAIN_ROOT
+        self.assertIn(f"rust_toolchain_root={toolchain}", script)
+        self.assertIn(f"rust_host_triple={m.OMEN_RUST_HOST_TRIPLE}", script)
+        self.assertIn('if [ -x "$rust_clang" ]', script)
+        self.assertIn('usr/lib64/Scrt1.o', script)
+        self.assertIn('usr/lib64/crti.o', script)
+        self.assertIn('usr/lib64/libc.so', script)
+        self.assertIn('CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER', script)
+        self.assertIn('CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS', script)
+        self.assertIn('-C link-arg=--sysroot=$rust_sysroot', script)
+        self.assertNotIn('export RUSTFLAGS=', script)
+
+    def test_remote_workspace_preserves_explicit_rust_target_overrides(self):
+        _workspace, script=m.remote_script("rust-override", "cargo test", self.CACHE_ID)
+        self.assertIn('if [ -z "${CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER:-}" ]; then', script)
+        self.assertIn('case "${CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS:-}" in', script)
+        self.assertIn('*"--sysroot=$rust_sysroot"*) ;;', script)
+
     def test_remote_workspace_cleans_by_default_and_can_be_kept(self):
         _workspace, cleanup_script=m.remote_script("cleanup", "true", self.CACHE_ID)
         self.assertIn("keep_workspace=0", cleanup_script)
