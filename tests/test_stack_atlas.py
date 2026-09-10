@@ -844,7 +844,7 @@ class StackAtlasTests(unittest.TestCase):
                     "S1": {"recurring_worker_slots": 5, "operator_control": "DEGRADED_TEMPORARILY"},
                     "S2": {"recurring_worker_slots": 5, "operator_control": "PRIMARY"},
                 },
-                "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; no cross-partition sibling administration.",
+                "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; recurring workers never administer themselves or any sibling.",
                 "manual_workers": {
                     "population": "SEPARATE_ON_DEMAND",
                     "counts_against_recurring_slots": False,
@@ -865,25 +865,26 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(topology["routine_recurring_recovery"]["scheduler_role"], "RECURRENCE_ONLY")
         self.assertEqual(
             topology["routine_recurring_recovery"]["authority"],
-            "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+            "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
         )
         self.assertFalse(topology["manual_workers"]["counts_against_recurring_slots"])
         self.assertIn("10 recurring workers plus", topology["manual_workers"]["total_swarm_semantics"])
 
-    def test_recurring_worker_recovery_is_peer_supervised_and_scheduler_is_recurrence_only(self):
+    def test_recurring_worker_recovery_is_admin_supervised_and_scheduler_is_recurrence_only(self):
         topology = component_details("swarm_topology")
         workers = component_details("execution_workers")
         scheduler = component_details("chatgpt_automations")
 
-        self.assertIn("same-partition recurring workers", topology["supervisor"])
+        self.assertIn("supervising/manual ChatGPT session", topology["supervisor"])
         self.assertIn("chatgpt_automations", topology["dependents"])
         self.assertNotIn("scheduler", topology["dependents"])
-        self.assertIn("peer", topology["self_heal"])
+        self.assertEqual(topology["self_heal"], "supervising_chat_guarded_recovery")
         self.assertIn("BusyCoordinator is exact mutation collision control only", workers["supervisor"])
         self.assertNotIn("BusyCoordinator ownership", workers["supervisor"])
         self.assertIn("does not supervise worker health", scheduler["supervisor"])
         self.assertEqual(scheduler["self_heal"], "not_swarm_supervision")
         self.assertTrue(any("worker_recovery_guard.py" in route for route in topology["independent_recovery"]))
+        self.assertTrue(any("recurring workers never issue scheduler mutations" in route for route in topology["independent_recovery"]))
         self.assertTrue(any("worker_recovery_guard" in route for route in scheduler["independent_recovery"]))
 
         timed = find_features("timed runs", limit=5)

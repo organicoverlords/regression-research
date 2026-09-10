@@ -1,6 +1,6 @@
 {
   "schema": "chatgpt-swarm-topology.v1",
-  "recorded_at": "2026-09-07T19:31:00+03:00",
+  "recorded_at": "2026-09-10T06:37:00+03:00",
   "authority": "USER_EXPLICIT_TOPOLOGY_AND_OPERATOR_HANDOFF",
   "subscriptions": {
     "S1": {
@@ -66,12 +66,12 @@
     }
   },
   "recurring_worker_total": 10,
-  "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; no cross-partition sibling administration.",
+  "recurring_worker_partition_rule": "Five recurring scheduler workers per ChatGPT subscription partition; recurring workers never administer themselves or any sibling.",
   "routine_recurring_recovery": {
-    "authority": "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+    "authority": "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
     "scheduler_role": "RECURRENCE_ONLY",
-    "peer_recovery": "Each recurring worker runs fleet-watch once after its own start evidence and may re-enable only an exact same-partition sibling authorized by worker_recovery_guard.py; workers never administer themselves or the other partition.",
-    "operator_handoff_role": "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+    "peer_recovery": "Recurring workers may observe bounded fleet-watch evidence but must never issue scheduler mutations against their own or any sibling automation. Exact guarded recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff.",
+    "operator_handoff_role": "ADMINISTRATIVE_FALLBACK_WHEN_SUPERVISING_CHAT_CANNOT_RECOVER",
     "user_role": "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION"
   },
   "manual_workers": {

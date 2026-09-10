@@ -496,12 +496,12 @@ COMPONENTS.update({
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
         "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
-        "supervisor": "distributed same-partition recurring workers; supervising/manual ChatGPT session may perform the same guarded recovery; operator handoff is administrative fallback only",
-        "self_heal": "bounded_same_partition_peer_recovery",
+        "supervisor": "supervising/manual ChatGPT session owns guarded scheduler recovery; recurring workers observe fleet evidence only; operator handoff is administrative fallback",
+        "self_heal": "supervising_chat_guarded_recovery",
         "independent_recovery": [
             r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
             r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
-            "perform one targeted is_enabled=true write only when the guard authorizes the exact same-partition sibling; never self-administer or cross partitions",
+            "recurring workers never issue scheduler mutations; supervising/manual ChatGPT or explicit operator handoff may perform one guard-authorized targeted is_enabled=true recovery",
         ],
         "resources": ["S1 five recurring slots", "S2 five recurring slots", "manual/on-demand worker population"],
         "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
@@ -516,7 +516,7 @@ COMPONENTS.update({
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
-        "supervisor": "distributed peer supervision for recurring workers; supervising/manual ChatGPT session may assist; BusyCoordinator is exact mutation collision control only", "self_heal": "same_partition_sibling_recovery_for_recurring_workers",
+        "supervisor": "recurring workers do not administer scheduler state; supervising/manual ChatGPT handles guarded recovery; BusyCoordinator is exact mutation collision control only", "self_heal": "no_worker_scheduler_administration",
         "independent_recovery": [
             r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
             r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>",
@@ -761,7 +761,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["swarm_topology"],
         "triggers": ["swarm topology", "5+5 workers", "10 recurring workers", "two subscriptions", "sub1", "sub2", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py <actor-worker-id> <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "Two ChatGPT subscription partitions contain five recurring workers each. The scheduler provides recurrence only. Routine health recovery is distributed: each recurring worker checks same-partition siblings from local reports/start receipts and may perform one guard-authorized idempotent re-enable; a supervising/manual ChatGPT session may perform the same bounded recovery. Operator handoff is an administrative fallback/control surface, not routine supervision, and the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence; recovery never crosses subscription partitions.",
+        "boundary": "Two ChatGPT subscription partitions contain five recurring workers each. The scheduler provides recurrence only. Recurring workers may inspect bounded fleet evidence but never administer themselves or siblings. Guard-authorized targeted recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff; the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
@@ -1306,9 +1306,9 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
         "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five recurring workers per ChatGPT subscription partition",
         "subscriptions": subscriptions,
         "routine_recurring_recovery": {
-            "authority": routine_recovery.get("authority") or "DISTRIBUTED_SAME_PARTITION_WORKERS_AND_SUPERVISING_CHAT",
+            "authority": routine_recovery.get("authority") or "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
             "scheduler_role": routine_recovery.get("scheduler_role") or "RECURRENCE_ONLY",
-            "operator_handoff_role": routine_recovery.get("operator_handoff_role") or "ADMINISTRATIVE_FALLBACK_ONLY_NOT_ROUTINE_SUPERVISION",
+            "operator_handoff_role": routine_recovery.get("operator_handoff_role") or "ADMINISTRATIVE_FALLBACK_WHEN_SUPERVISING_CHAT_CANNOT_RECOVER",
             "user_role": routine_recovery.get("user_role") or "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
         },
         "operator_handoff": handoff,
