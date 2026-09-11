@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_stack, verify_worker_reports
+from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_routing, verify_stack, verify_worker_reports
 
 
 class VerifyTests(unittest.TestCase):
@@ -26,6 +26,9 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"tools/worker_report_history.py"}), ["worker_reports"])
         self.assertEqual(select_areas({"tools/manual_work_disposition.py"}), ["worker_reports"])
         self.assertEqual(select_areas({"tests/test_manual_work_disposition.py"}), ["worker_reports"])
+        self.assertEqual(select_areas({"tools/swarm_route.py"}), ["routing"])
+        self.assertEqual(select_areas({"tests/test_swarm_route.py"}), ["routing"])
+        self.assertEqual(select_areas({"tests/test_swarm_route_node_identity.py"}), ["routing"])
         self.assertEqual(select_areas({"README.md"}), [])
 
     def test_timeline_changes_select_memory_verification(self):
@@ -153,6 +156,16 @@ class VerifyTests(unittest.TestCase):
         )
 
     @patch("tools.verify.run")
+    def test_routing_verification_executes_focused_regressions(self, run_command):
+        verify_routing()
+        commands = [call.args[0] for call in run_command.call_args_list]
+        self.assertIn([sys.executable, "-m", "py_compile", "tools/swarm_route.py"], commands)
+        self.assertIn(
+            [sys.executable, "-m", "unittest", "tests.test_swarm_route", "tests.test_swarm_route_node_identity", "-v"],
+            commands,
+        )
+
+    @patch("tools.verify.run")
     def test_busy_verification_executes_alias_regressions(self, run_command):
         verify_busy()
         commands = [call.args[0] for call in run_command.call_args_list]
@@ -175,11 +188,11 @@ class VerifyTests(unittest.TestCase):
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
             select_areas({"tools/verify.py"}),
-            ["stack", "memory", "conversation", "busy", "worker_reports"],
+            ["stack", "memory", "conversation", "busy", "worker_reports", "routing"],
         )
 
     def test_all_runs_every_area(self):
-        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy", "worker_reports"])
+        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy", "worker_reports", "routing"])
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):
