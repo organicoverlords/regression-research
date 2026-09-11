@@ -4,9 +4,9 @@ import tempfile, unittest
 ROOT=Path(__file__).resolve().parents[1]
 SPEC=importlib.util.spec_from_file_location("swarm_route",ROOT/"tools"/"swarm_route.py")
 m=importlib.util.module_from_spec(SPEC); SPEC.loader.exec_module(m)
-def facts(omen=True,mem=12,disk=60,root_disk=None,nvme_disk=None,load1=1,cpus=12,lane1=False,lane2=False,vps=True):
+def facts(omen=True,mem=12,disk=60,root_disk=None,nvme_disk=None,load1=1,cpus=12,lane1=False,lane2=False,vps=True,windows_disk=120):
     root_disk=disk if root_disk is None else root_disk; nvme_disk=disk if nvme_disk is None else nvme_disk
-    return {"observed_at":"2026-09-07T20:00:00Z","omen":{"available":omen,"mem_available_gb":mem,"disk_free_gb":nvme_disk,"root_disk_free_gb":root_disk,"nvme_disk_free_gb":nvme_disk,"load1":load1,"cpu_count":cpus,"lane1_build_active":lane1,"lane2_build_active":lane2},"windows":{"available":True},"vps":{"available":vps}}
+    return {"observed_at":"2026-09-07T20:00:00Z","omen":{"available":omen,"mem_available_gb":mem,"disk_free_gb":nvme_disk,"root_disk_free_gb":root_disk,"nvme_disk_free_gb":nvme_disk,"load1":load1,"cpu_count":cpus,"lane1_build_active":lane1,"lane2_build_active":lane2},"windows":{"available":True,"disk_free_gb":windows_disk},"vps":{"available":vps}}
 class TransportContractTests(unittest.TestCase):
     def test_omen_probe_uses_stable_lan_ip(self):
         self.assertEqual(m.OMEN_HOST, "192.168.0.128")
@@ -26,6 +26,13 @@ class RouteDecisionTests(unittest.TestCase):
     def test_windows_fallback(self):
         f=facts(omen=False,vps=False); route,reason=m.choose_route("portable",f,{})
         self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
+    def test_windows_fallback_fails_closed_below_disk_headroom(self):
+        f=facts(omen=False,vps=False,windows_disk=99); route,reason=m.choose_route("portable",f,{})
+        self.assertEqual(route,"blocked"); self.assertIn("WINDOWS_DISK_LOW",reason)
+    def test_windows_pinned_work_fails_closed_below_disk_headroom(self):
+        for kind in ("lowvram","windows-only"):
+            route,reason=m.choose_route(kind,facts(windows_disk=99),{})
+            self.assertEqual(route,"blocked"); self.assertEqual(reason,"WINDOWS_DISK_LOW")
     def test_vps_light_requires_explicit_execution_capability(self):
         f=facts(mem=1,vps=True)
         self.assertEqual(m.choose_route("portable-light",f,{})[0],"windows")
@@ -89,6 +96,20 @@ class RouteDecisionTests(unittest.TestCase):
             self.assertFalse(rerouted["reused"])
             self.assertEqual(rerouted["route"],"windows")
             self.assertIn("WINDOWS_FALLBACK",rerouted["reason"])
+    def test_low_disk_windows_assignment_is_not_renewed(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)/"state.json"; s=m.empty_state()
+            s["assignments"]["old-windows"]={"work_id":"old-windows","route":"windows","kind":"portable","reason":"OMEN_UNAVAILABLE_WINDOWS_FALLBACK","policy_epoch":m.POLICY_EPOCH,"expires_at":"2099-01-01T00:00:00Z"}
+            m.save_state(p,s)
+            original_windows=m.probe_windows; original_all=m.probe_all
+            try:
+                m.probe_windows=lambda: {"available":True,"disk_free_gb":90}
+                m.probe_all=lambda: facts(omen=True,windows_disk=90)
+                result=m.route_work(p,"old-windows","portable",600,False)
+            finally:
+                m.probe_windows=original_windows; m.probe_all=original_all
+            self.assertFalse(result["reused"]); self.assertEqual(result["route"],"omen")
+
     def test_current_epoch_assignment_renews(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"
