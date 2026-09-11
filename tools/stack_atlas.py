@@ -225,6 +225,13 @@ CANONICAL_RECURRING_WORKER_PARTITIONS = {
         ("6a9adbe27ff08191a918fa3e51aaf9b8", "Repo Worker Aspen"),
         ("6a9b8fc37c148191a70dc17e1e83eda4", "Repo Worker Alder"),
     ),
+    "S2": (
+        ("6a9ee44357908191a11023d4ff0b5b82", "Repo Worker Rowan #S2"),
+        ("6a9ee44e36908191aa0f4fd3d8ebad55", "Repo Worker Spruce #S2"),
+        ("6a9ee456182881918005c354563e8638", "Repo Worker Willow #S2"),
+        ("6a9ee45e7c208191aae86087f11875d9", "Repo Worker Juniper #S2"),
+        ("6a9ee46471a88191b478716a47a38cc4", "Repo Worker Alder #S2"),
+    ),
 }
 CANONICAL_RECURRING_WORKERS = tuple(
     worker
@@ -635,10 +642,10 @@ COMPONENTS.update({
         "self_heal": "supervising_chat_guarded_recovery",
         "independent_recovery": [
             r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
-            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition S1 --target-worker-id <target-worker-id>",
+            r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>",
             "recurring workers never issue scheduler mutations; supervising/manual ChatGPT or explicit operator handoff may perform one guard-authorized targeted is_enabled=true recovery",
         ],
-        "resources": ["S1 five recurring slots (global recurring max 5)", "manual/on-demand worker population"],
+        "resources": ["S1 five recurring slots + S2 five recurring slots (max 5 per partition; 10 total)", "manual/on-demand worker population"],
         "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
         "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
     },
@@ -906,9 +913,9 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
-        "triggers": ["swarm topology", "five recurring workers", "max five recurring workers", "s1", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition S1 --target-worker-id <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "The current canonical recurring fleet is S1 with a global hard maximum of five recurring workers. Canonical membership does not imply enabled state or liveness. The scheduler provides recurrence only. Recurring workers may inspect bounded fleet evidence but never administer themselves or siblings. Guarded targeted recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff; the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence.",
+        "triggers": ["swarm topology", "five recurring workers", "max five recurring workers", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
+        "boundary": "The current canonical recurring topology has two independent partitions, S1 and S2, with at most five recurring workers in each partition (ten total). Activity in one partition never authorizes pausing or disabling the other partition. Canonical membership does not imply enabled state or liveness. The scheduler provides recurrence only. Recurring workers may inspect bounded fleet evidence but never administer themselves or siblings. Guarded targeted recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff; the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
@@ -1450,7 +1457,7 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
             for name, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
         },
         "recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
-        "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "at most five recurring workers globally; current canonical fleet S1",
+        "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "at most five recurring workers per partition; current canonical partitions S1 and S2",
         "subscriptions": subscriptions,
         "routine_recurring_recovery": {
             "authority": routine_recovery.get("authority") or "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
@@ -1463,7 +1470,7 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
             "population": manual_contract.get("population") or "SEPARATE_ON_DEMAND",
             "counts_against_recurring_slots": bool(manual_contract.get("counts_against_recurring_slots", False)),
             "active_count_authority": manual_contract.get("active_count_authority") or "live MCP/runtime evidence",
-            "total_swarm_semantics": manual_contract.get("total_swarm_semantics") or "up to 5 recurring workers plus any concurrently active manual/on-demand workers",
+            "total_swarm_semantics": manual_contract.get("total_swarm_semantics") or "up to 5 recurring workers in S1 plus up to 5 recurring workers in S2, plus any concurrently active manual/on-demand workers",
             "current_report_hint": {
                 "available": manual.get("available") if isinstance(manual, dict) else False,
                 "recent_running_report_count": manual.get("recent_running_report_count") if isinstance(manual, dict) else None,
@@ -1513,8 +1520,9 @@ def _bootstrap_fleet_watch(
 ) -> dict[str, Any]:
     """Compact fleet-cadence signal from local reports/start receipts only.
 
-    Bootstrap uses the global canonical five-worker view. Timed workers pass their own automation id
-    so recovery candidates are restricted to the current canonical recurring fleet.
+    Bootstrap uses the canonical partition-local recurring-worker view. Timed workers pass their own automation id
+    so cadence candidates remain inside that worker's subscription partition. Local reports/start receipts are
+    diagnostic evidence only and never authorize scheduler mutation by themselves.
     """
     current_time = now or datetime.now(timezone.utc)
     if current_time.tzinfo is None:
@@ -1773,6 +1781,7 @@ def _bootstrap_fleet_watch(
             "automation_id": item["automation_id"],
             "subscription_partition": item.get("subscription_partition") or CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(item["automation_id"]),
             "reason": item["reason"],
+            "requires_live_scheduler_probe": True,
         }
         for item in suspects
         if item.get("recovery_actionable")
@@ -1795,11 +1804,13 @@ def _bootstrap_fleet_watch(
         "suspect_workers": suspects,
         "recovery_candidate_count": len(recovery_candidates),
         "recovery_candidates": recovery_candidates,
+        "scheduler_mutation_authorized": False,
+        "recovery_candidates_require_live_scheduler_probe": bool(recovery_candidates),
         "recovery_cooldown_minutes": BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES,
         "recovery_start_grace_minutes": BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES,
         "start_receipt_grace_minutes": BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES,
         "recovery_retry_basis": "next_observed_hourly_phase_plus_grace_then_fallback_cooldown",
-        "scheduler_probe": "not_performed",
+        "scheduler_probe": "required_before_scheduler_mutation" if recovery_candidates else "not_performed",
     }
 
 
