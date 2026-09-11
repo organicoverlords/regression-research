@@ -196,6 +196,7 @@ BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
 BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS = 3.0
+BOOTSTRAP_SOURCE_FRESHNESS_LOCAL_GIT_BUDGET_SECONDS = 6.0
 MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes"
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
@@ -2974,16 +2975,26 @@ def _git_blob_sha_for_file(path: Path) -> str | None:
     return hashlib.sha1(header + data).hexdigest()
 
 
-def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
+def _remaining_bootstrap_git_timeout(deadline: float | None = None) -> float | None:
+    if deadline is None:
+        return BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS
+    remaining = deadline - time.monotonic()
+    if remaining <= 0.01:
+        return None
+    return min(BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS, remaining)
+
+
+def _git_last_committed_at(repo_root: Path, relative_path: str, *, deadline: float | None = None) -> str | None:
     git = shutil.which("git")
-    if not git:
+    timeout = _remaining_bootstrap_git_timeout(deadline)
+    if not git or timeout is None:
         return None
     try:
         proc = _run_process(
             [git, "-C", str(repo_root), "log", "-1", "--format=%cI", "--", relative_path],
             text=True,
             capture_output=True,
-            timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
+            timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -2991,7 +3002,13 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
     return value or None
 
 
-def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str = "main") -> dict[str, Any]:
+def _git_checkout_state(
+    repo_root: Path,
+    remote_main: Any,
+    expected_branch: str = "main",
+    *,
+    deadline: float | None = None,
+) -> dict[str, Any]:
     """Bounded local serving-checkout coherence; never fetches or reads policy bodies."""
     git = shutil.which("git")
     remote_head = str(remote_main or "").strip() or None
@@ -3009,14 +3026,20 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         "dirty": None,
         "coherent": False,
     }
-    if not git:
+    timeout = _remaining_bootstrap_git_timeout(deadline)
+    if not git or timeout is None:
+        if git and timeout is None:
+            result["coherence_basis"] = "git_budget_exhausted"
         return result
     try:
         proc = _run_process(
             [git, "-C", str(repo_root), "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
-            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
+            text=True, capture_output=True, timeout=timeout,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError:
+        return result
+    except subprocess.TimeoutExpired:
+        result["coherence_basis"] = "git_probe_timeout"
         return result
     if proc.returncode != 0:
         return result
@@ -3034,27 +3057,34 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
             dirty = True
 
     tracking_head = None
-    try:
-        tracking_proc = _run_process(
-            [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
-            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
-        )
-        if tracking_proc.returncode == 0:
-            tracking_head = tracking_proc.stdout.strip() or None
-    except (OSError, subprocess.TimeoutExpired):
-        tracking_head = None
+    timeout = _remaining_bootstrap_git_timeout(deadline)
+    if timeout is not None:
+        try:
+            tracking_proc = _run_process(
+                [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
+                text=True, capture_output=True, timeout=timeout,
+            )
+            if tracking_proc.returncode == 0:
+                tracking_head = tracking_proc.stdout.strip() or None
+        except (OSError, subprocess.TimeoutExpired):
+            tracking_head = None
 
     exact_head = bool(local_head and remote_head and local_head == remote_head)
     cached_remote_is_ancestor = exact_head
+    remote_relation_known = exact_head
     if local_head and remote_head and not exact_head:
-        try:
-            ancestor_proc = _run_process(
-                [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
-                text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
-            )
-            cached_remote_is_ancestor = ancestor_proc.returncode == 0
-        except (OSError, subprocess.TimeoutExpired):
-            cached_remote_is_ancestor = False
+        timeout = _remaining_bootstrap_git_timeout(deadline)
+        if timeout is not None:
+            try:
+                ancestor_proc = _run_process(
+                    [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
+                    text=True, capture_output=True, timeout=timeout,
+                )
+                cached_remote_is_ancestor = ancestor_proc.returncode == 0
+                remote_relation_known = True
+            except (OSError, subprocess.TimeoutExpired):
+                cached_remote_is_ancestor = False
+                remote_relation_known = False
 
     tracking_matches = bool(local_head and tracking_head and local_head == tracking_head)
     metadata_lags_tracking = bool(tracking_matches and cached_remote_is_ancestor and not exact_head)
@@ -3072,7 +3102,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         coherence_basis = "dirty"
     elif tracking_head and not tracking_matches:
         coherence_basis = "local_head_differs_tracking_main"
-    elif remote_head and not cached_remote_is_ancestor:
+    elif remote_head and remote_relation_known and not cached_remote_is_ancestor:
         coherence_basis = "cached_remote_not_ancestor"
     else:
         coherence_basis = "remote_relation_unknown"
@@ -3091,37 +3121,56 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     })
     return result
 
-def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remote_commit: Any) -> bool:
+
+def _git_remote_update_already_applied(
+    repo_root: Path,
+    relative_path: str,
+    remote_commit: Any,
+    *,
+    deadline: float | None = None,
+) -> bool:
     """Detect a fetched remote file delta already present in a locally divergent working file."""
     git = shutil.which("git")
     commit = str(remote_commit or "").strip()
     if not git or not commit:
         return False
     try:
+        timeout = _remaining_bootstrap_git_timeout(deadline)
+        if timeout is None:
+            return False
         exists = _run_process(
             [git, "-C", str(repo_root), "cat-file", "-e", f"{commit}^{{commit}}"],
-            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
+            text=True, capture_output=True, timeout=timeout,
         )
         if exists.returncode != 0:
             return False
+        timeout = _remaining_bootstrap_git_timeout(deadline)
+        if timeout is None:
+            return False
         base_proc = _run_process(
             [git, "-C", str(repo_root), "merge-base", "HEAD", commit],
-            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
+            text=True, capture_output=True, timeout=timeout,
         )
         base = base_proc.stdout.strip() if base_proc.returncode == 0 else ""
         if not base:
             return False
+        timeout = _remaining_bootstrap_git_timeout(deadline)
+        if timeout is None:
+            return False
         patch_proc = _run_process(
             [git, "-C", str(repo_root), "diff", "--no-ext-diff", "--unified=0", base, commit, "--", relative_path],
-            capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
+            capture_output=True, timeout=timeout,
         )
         if patch_proc.returncode != 0:
             return False
         if not patch_proc.stdout:
             return True
+        timeout = _remaining_bootstrap_git_timeout(deadline)
+        if timeout is None:
+            return False
         reverse_check = _run_process(
             [git, "-C", str(repo_root), "apply", "--reverse", "--check", "--unidiff-zero", "--whitespace=nowarn"],
-            input=patch_proc.stdout, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
+            input=patch_proc.stdout, capture_output=True, timeout=timeout,
         )
         return reverse_check.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
@@ -3221,8 +3270,11 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         except (json.JSONDecodeError, AttributeError, TypeError):
             return {"available": False, "attention_required": True, "reason": "github_metadata_invalid"}
 
+    git_deadline = time.monotonic() + BOOTSTRAP_SOURCE_FRESHNESS_LOCAL_GIT_BUDGET_SECONDS
     checkout_remote = dict((remote or {}).get("canonical_agents_checkout") or {})
-    canonical_checkout = _git_checkout_state(Path(AGENT_RULES_ROOT), checkout_remote.get("remote_main"))
+    canonical_checkout = _git_checkout_state(
+        Path(AGENT_RULES_ROOT), checkout_remote.get("remote_main"), deadline=git_deadline
+    )
 
     local_sources = {
         "AGENTS.md": (Path(AGENT_RULES_ROOT) / "AGENTS.md", Path(AGENT_RULES_ROOT), "AGENTS.md"),
@@ -3242,10 +3294,10 @@ def _bootstrap_source_freshness() -> dict[str, Any]:
         local_blob = _git_blob_sha_for_file(path)
         remote_blob = item.pop("remote_blob", None)
         matches = bool(local_blob and remote_blob and local_blob == remote_blob)
-        local_last_committed_at = _git_last_committed_at(repo_root, relative_path)
+        local_last_committed_at = _git_last_committed_at(repo_root, relative_path, deadline=git_deadline)
         remote_newer = (not matches) and _remote_is_newer(item.get("last_updated_at"), local_last_committed_at)
         remote_update_already_applied = remote_newer and _git_remote_update_already_applied(
-            repo_root, relative_path, item.get("last_update_commit")
+            repo_root, relative_path, item.get("last_update_commit"), deadline=git_deadline
         )
         updates_pending = remote_newer and not remote_update_already_applied
         sources[key] = {
