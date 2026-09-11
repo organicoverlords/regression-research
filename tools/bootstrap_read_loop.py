@@ -227,9 +227,14 @@ def _publish_degraded_snapshot(repo_root: Path, *, reason: str, exit_code: int) 
         'refresh_failure': reason[-1000:],
         'refresh_exit_code': int(exit_code),
         'carried_forward_from': previous_generated_at,
+        'agent_contract': {
+            'status': 'UNKNOWN',
+            'reason': 'full_bootstrap_refresh_failed',
+            'carried_forward_from': previous_generated_at,
+        },
     })
     payload['bootstrap'] = bootstrap
-    for section in ('live_swarm', 'mcp', 'vault', 'github', 'source_freshness', 'pc', 'workers',
+    for section in ('swarm_topology', 'live_swarm', 'mcp', 'vault', 'github', 'source_freshness', 'pc', 'workers',
                     'mcp_current_topology', 'mcp_recovery_state', 'memory_overview'):
         if section in payload:
             payload[section] = {

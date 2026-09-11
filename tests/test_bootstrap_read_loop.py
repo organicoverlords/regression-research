@@ -164,6 +164,7 @@ def test_invalid_update_publishes_fresh_degraded_snapshot_and_watchdog_retries(t
     assert degraded['bootstrap']['status'] == 'DEGRADED'
     assert degraded['bootstrap']['refresh_mode'] == 'DEGRADED_CARRY_FORWARD'
     assert degraded['bootstrap']['carried_forward_from'] == previous['generated_at']
+    assert degraded['bootstrap']['agent_contract']['status'] == 'UNKNOWN'
     assert degraded['bootstrap_end'] == {'status': 'COMPLETE', 'schema': 'bootstrap.v1'}
     status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
     assert status['mode'] == 'DEGRADED'
