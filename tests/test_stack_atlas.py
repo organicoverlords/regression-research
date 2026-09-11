@@ -33,6 +33,7 @@ from tools.stack_atlas import (
     find_features,
     unified_find,
     _timeline_discovery_hits,
+    _live_discovery_hits,
     full_inventory,
     main as stack_atlas_main,
     production_change_gate,
@@ -2066,6 +2067,41 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["history_hits"], history)
         self.assertEqual(find_features("commander fallback", limit=2), atlas_before)
         self.assertIn("Discovery only", result["boundary"])
+
+    def test_live_discovery_distinguishes_busy_handoff_from_runtime_caller_activity(self):
+        snapshot = {
+            "available": True,
+            "evidence": {"source_age_seconds": 1.0, "busy_source_age_seconds": 2.0, "activity_window_seconds": 300, "observation_window_complete": True},
+            "lanes": [
+                {
+                    "lane_id": "busy:issue301",
+                    "workspace": None,
+                    "worktree": None,
+                    "busy": [{
+                        "owner": "ChatGPT:issue301-image-library-work-20260912",
+                        "checkpoint": "Issue #301 image/video/zip Library + Work fix",
+                        "scopes": ["repo:ChatGPTMcpClean:file:src/lib/file-transfer.ts"],
+                        "last_update_age_seconds": 3.0,
+                    }],
+                    "callers": [],
+                },
+                {
+                    "lane_id": "wt:mcp",
+                    "workspace": "MCP",
+                    "worktree": {"branch": "fix/242-stall-watchdog", "path": "C:/work/ChatGPTMcpClean"},
+                    "busy": [],
+                    "callers": [{"caller_id": "caller_watchdog", "command": "output schema probe", "last_activity_age_seconds": 4.0}],
+                },
+            ],
+        }
+        busy_hits, coverage = _live_discovery_hits("issue 301 library", snapshot=snapshot)
+        self.assertEqual(busy_hits[0]["kind"], "busy_handoff")
+        self.assertEqual(busy_hits[0]["authority"], "BUSY_COORDINATION_EVIDENCE")
+        self.assertEqual(busy_hits[0]["liveness_semantics"], "not_worker_liveness_or_progress")
+        self.assertEqual(coverage["busy_semantics"], "coordination_handoff_only_not_worker_liveness_or_progress")
+        caller_hits, _ = _live_discovery_hits("stall watchdog output schema", snapshot=snapshot)
+        self.assertEqual(caller_hits[0]["kind"], "caller_activity")
+        self.assertEqual(caller_hits[0]["authority"], "LIVE_MCP_RUNTIME_EVIDENCE")
 
     def test_timeline_discovery_index_dedupes_issue_snapshots_and_artifact_lineage(self):
         with tempfile.TemporaryDirectory() as d:

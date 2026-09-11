@@ -74,7 +74,12 @@ class LiveSwarmSearchTests(unittest.TestCase):
         self.assertEqual(search_live_swarm(self.snapshot, ""), [])
         self.assertEqual(search_live_swarm(self.snapshot, "missing-term"), [])
         self.assertEqual(len(search_live_swarm(self.snapshot, "mcp", limit=1)), 1)
-        self.assertTrue(all(item["authority"] == "live_swarm_runtime_evidence" for item in search_live_swarm(self.snapshot, "mcp", limit=5)))
+        hits = search_live_swarm(self.snapshot, "mcp", limit=5)
+        self.assertEqual({item["authority"] for item in hits}, {"BUSY_COORDINATION_EVIDENCE", "LIVE_MCP_RUNTIME_EVIDENCE"})
+        busy = next(item for item in hits if item["kind"] == "busy_handoff")
+        caller = next(item for item in hits if item["kind"] == "caller_activity")
+        self.assertEqual(busy["liveness_semantics"], "not_worker_liveness_or_progress")
+        self.assertEqual(caller["liveness_semantics"], "recent_caller_activity_within_snapshot_window")
 
 
 if __name__ == "__main__":
