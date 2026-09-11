@@ -15,7 +15,7 @@ def test_installer_uses_direct_windowless_producer_actions() -> None:
     assert text.count('New-ScheduledTaskAction -Execute $pythonwPath') == 2
     assert "' --skip-if-fresh-seconds 45'" in text
     assert '$baseStart.AddSeconds(20)' in text
-    assert '-ExecutionTimeLimit (New-TimeSpan -Seconds 20)' in text
+    assert '-ExecutionTimeLimit (New-TimeSpan -Seconds 45)' in text
     assert 'Existing $TaskName task uses an unknown action; preserved without changes' in text
 
 
