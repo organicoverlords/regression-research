@@ -214,6 +214,52 @@ def _read_capture(stream) -> str:
     return stream.read().decode('utf-8', errors='replace')
 
 
+def _sync_deployed_atlas_from_head(repo_root: Path, atlas: Path) -> bool:
+    """Refresh an external deployed Stack Atlas from canonical Git HEAD, never dirty worktree bytes."""
+    repo_root = repo_root.resolve()
+    atlas = atlas.resolve()
+    canonical = (repo_root / 'tools' / 'stack_atlas.py').resolve()
+    if atlas == canonical:
+        return False
+    probe = subprocess.run(
+        ['git', '-C', str(repo_root), 'rev-parse', '--is-inside-work-tree'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
+    )
+    if probe.returncode != 0 or probe.stdout.strip() != 'true':
+        return False
+    source = subprocess.run(
+        ['git', '-C', str(repo_root), 'show', 'HEAD:tools/stack_atlas.py'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if source.returncode != 0 or not source.stdout:
+        detail = source.stderr.decode('utf-8', errors='replace')[-500:]
+        raise RuntimeError(f'unable to read canonical HEAD Stack Atlas: {detail}')
+    desired = source.stdout
+    try:
+        if atlas.read_bytes() == desired:
+            return False
+    except FileNotFoundError:
+        pass
+    atlas.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w+b', dir=atlas.parent, suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(desired)
+            stream.flush()
+            os.fsync(stream.fileno())
+        _replace_snapshot(temporary, atlas)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return True
+
+
 def _run_bootstrap_glance(repo_root: Path, atlas: Path, *, timeout_seconds: float = BOOTSTRAP_GLANCE_TIMEOUT_SECONDS) -> subprocess.CompletedProcess[str]:
     stdout_path = None
     stderr_path = None
@@ -619,6 +665,8 @@ def _emit_singleflight(repo_root: Path, *, quiet: bool, atlas_path: Path | None 
 def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False, atlas_path: Path | None = None) -> bool:
     repo_root = repo_root.resolve()
     atlas = (atlas_path or (repo_root / 'tools' / 'stack_atlas.py')).resolve()
+    if atlas_path is not None:
+        _sync_deployed_atlas_from_head(repo_root, atlas)
     cp = _run_bootstrap_glance(repo_root, atlas)
     if cp.returncode != 0:
         detail = (cp.stderr or f'bootstrap-glance exited {cp.returncode}')[-1000:]
