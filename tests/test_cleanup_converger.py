@@ -385,6 +385,63 @@ class CleanupConvergerTests(unittest.TestCase):
             self.assertEqual(observations[0].reason, "missing_worktree_registration")
             self.assertFalse(missing.exists())
 
+    @patch("tools.cleanup_converger.worktree_anchor_matches", return_value=True)
+    @patch("tools.cleanup_converger.worktree_is_clean", side_effect=RuntimeError("git status failed: not a git repository"))
+    @patch("tools.cleanup_converger.windows_processes", return_value=[])
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger._git")
+    def test_scan_reports_existing_residue_without_git_linkage_as_stale_registration(self, git, _cwds, _processes, _clean, _anchor):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            residue = Path(tmp) / "stale-lane"
+            residue.mkdir()
+            git.return_value = subprocess.CompletedProcess(
+                ["git"],
+                0,
+                stdout=(
+                    f"worktree {repo}\nHEAD root\nbranch refs/heads/main\n\n"
+                    f"worktree {residue}\nHEAD abcd\nbranch refs/heads/topic\n\n"
+                ),
+                stderr="",
+            )
+            candidates, cache_candidates, observations = scan_repo("P3", repo, 300)
+            self.assertEqual(candidates, [])
+            self.assertEqual(cache_candidates, [])
+            self.assertEqual(len(observations), 1)
+            self.assertEqual(observations[0].action, "PRESERVE")
+            self.assertEqual(observations[0].reason, "missing_worktree_registration")
+            self.assertTrue(residue.exists())
+            self.assertFalse((residue / ".git").exists())
+
+    @patch("tools.cleanup_converger.worktree_anchor_matches", return_value=True)
+    @patch("tools.cleanup_converger.worktree_is_clean", side_effect=RuntimeError("git status failed: not a git repository"))
+    @patch("tools.cleanup_converger.windows_processes", return_value=[])
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger._git")
+    def test_scan_reports_broken_gitdir_linkage_as_stale_registration(self, git, _cwds, _processes, _clean, _anchor):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            repo.mkdir()
+            residue = Path(tmp) / "stale-lane"
+            residue.mkdir()
+            (residue / ".git").write_text("gitdir: C:/missing/worktree/metadata\n", encoding="utf-8")
+            git.return_value = subprocess.CompletedProcess(
+                ["git"],
+                0,
+                stdout=(
+                    f"worktree {repo}\nHEAD root\nbranch refs/heads/main\n\n"
+                    f"worktree {residue}\nHEAD abcd\nbranch refs/heads/topic\n\n"
+                ),
+                stderr="",
+            )
+            candidates, cache_candidates, observations = scan_repo("P3", repo, 300)
+            self.assertEqual(candidates, [])
+            self.assertEqual(cache_candidates, [])
+            self.assertEqual(len(observations), 1)
+            self.assertEqual(observations[0].action, "PRESERVE")
+            self.assertEqual(observations[0].reason, "missing_worktree_registration")
+
     @patch("tools.cleanup_converger.disk_free_gb", return_value=10.0)
     @patch("tools.cleanup_converger.scan_repo")
     @patch("tools.cleanup_converger._git")
