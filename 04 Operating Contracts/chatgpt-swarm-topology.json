@@ -1,11 +1,11 @@
 {
   "schema": "chatgpt-swarm-topology.v1",
-  "recorded_at": "2026-09-10T07:46:00+03:00",
-  "authority": "CURRENT_USER_DIRECTION_AND_LIVE_S1_SCHEDULER_EVIDENCE",
+  "recorded_at": "2026-09-11T13:36:00+03:00",
+  "authority": "CURRENT_USER_DIRECTION_AND_VERIFIED_PARTITION_LOCAL_SCHEDULER_STATE",
   "subscriptions": {
     "S1": {
       "recurring_worker_slots": 5,
-      "operator_control": "PRIMARY",
+      "operator_control": "PARTITION_LOCAL",
       "membership_semantics": "canonical recurring membership only; membership does not imply enabled state or worker liveness",
       "enabled_state_authority": "current ChatGPT scheduler state in the owning account",
       "workers": [
@@ -30,27 +30,58 @@
           "label": "Repo Worker Alder"
         }
       ]
+    },
+    "S2": {
+      "recurring_worker_slots": 5,
+      "operator_control": "PARTITION_LOCAL",
+      "membership_semantics": "canonical recurring membership only; membership does not imply enabled state or worker liveness",
+      "enabled_state_authority": "current ChatGPT scheduler state in the owning S2 account; live worker reports prove recent execution but not scheduler flags",
+      "workers": [
+        {
+          "automation_id": "6a9ee44357908191a11023d4ff0b5b82",
+          "label": "Repo Worker Rowan #S2"
+        },
+        {
+          "automation_id": "6a9ee44e36908191aa0f4fd3d8ebad55",
+          "label": "Repo Worker Spruce #S2"
+        },
+        {
+          "automation_id": "6a9ee456182881918005c354563e8638",
+          "label": "Repo Worker Willow #S2"
+        },
+        {
+          "automation_id": "6a9ee45e7c208191aae86087f11875d9",
+          "label": "Repo Worker Juniper #S2"
+        },
+        {
+          "automation_id": "6a9ee46471a88191b478716a47a38cc4",
+          "label": "Repo Worker Alder #S2"
+        }
+      ]
     }
   },
-  "recurring_worker_total": 5,
-  "recurring_worker_global_max": 5,
-  "recurring_worker_partition_rule": "At most five recurring scheduler workers globally; the current canonical recurring fleet is S1; recurring workers never administer themselves or any sibling.",
+  "recurring_worker_total": 10,
+  "recurring_worker_global_max": 10,
+  "recurring_worker_partition_rule": "S1 and S2 are independent canonical recurring partitions with at most five recurring workers each (ten total). Activity in one partition never authorizes scheduler mutation in the other.",
   "routine_recurring_recovery": {
     "authority": "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
     "scheduler_role": "RECURRENCE_ONLY",
-    "peer_recovery": "Recurring workers may observe bounded fleet-watch evidence but must never issue scheduler mutations against their own or any sibling automation. Exact guarded recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff and must keep the enabled recurring count at or below five.",
+    "peer_recovery": "Recurring workers may observe bounded fleet-watch evidence but must never issue scheduler mutations against themselves or siblings. Fleet-watch report/start evidence is diagnostic only; every scheduler recovery requires a live scheduler probe for the exact target in the owning partition. Exact guarded recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff.",
     "operator_handoff_role": "ADMINISTRATIVE_FALLBACK_WHEN_SUPERVISING_CHAT_CANNOT_RECOVER",
-    "user_role": "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION"
+    "user_role": "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
+    "scheduler_probe_requirement": "REQUIRED_FOR_EVERY_SCHEDULER_MUTATION; verify exact target enabled state and last_run from ChatGPT scheduler before enable/rearm; local reports/history/Atlas alone never authorize scheduler mutation.",
+    "topology_mutation_guard": "Activity/topology in one partition is never scheduler-mutation authority for the other partition."
   },
   "manual_workers": {
     "population": "SEPARATE_ON_DEMAND",
     "counts_against_recurring_slots": false,
     "active_count_authority": "live MCP/runtime evidence; manual current reports are purpose/freshness hints only",
-    "total_swarm_semantics": "up to 5 recurring workers plus any concurrently active manual/on-demand workers"
+    "total_swarm_semantics": "up to 5 recurring workers in S1 plus up to 5 recurring workers in S2, plus concurrently active manual/on-demand workers"
   },
   "handoff": {
-    "primary_operator_subscription": "S1",
+    "primary_operator_subscription": "PARTITION_LOCAL",
     "automatic_scheduler_mutation_on_topology_change": false,
-    "note": "Former S2 recurring topology is historical evidence only, not current canonical recurring membership. Scheduler state outside the current owning account must be verified in that account before making live-state claims."
-  }
+    "note": "S1 and S2 are both canonical recurring partitions; verify exact scheduler flags in the owning account. A current live scheduler run overrides stale local report evidence."
+  },
+  "recurring_worker_partition_max": 5
 }

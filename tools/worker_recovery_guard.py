@@ -9,18 +9,21 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 try:
     from tools.stack_atlas import (
         CANONICAL_RECURRING_WORKER_PARTITIONS,
         CANONICAL_RECURRING_WORKER_PARTITION_BY_ID,
+        BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES,
         _bootstrap_fleet_watch,
     )
 except ImportError:
     from stack_atlas import (
         CANONICAL_RECURRING_WORKER_PARTITIONS,
         CANONICAL_RECURRING_WORKER_PARTITION_BY_ID,
+        BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES,
         _bootstrap_fleet_watch,
     )
 
@@ -92,13 +95,28 @@ def _supervisor_deny(partition: str, target: str, reason: str, **extra: Any) -> 
     }
 
 
+def _parse_scheduler_time(value: str | None) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def authorize_supervising_chat_recovery(
     supervising_chat_partition: str,
     target_worker_id: str,
     *,
+    scheduler_enabled: bool | None = None,
+    scheduler_last_run_at: str | None = None,
     fleet_watch: FleetWatch = _bootstrap_fleet_watch,
 ) -> dict[str, Any]:
-    """Authorize one exact partition-scoped recovery without worker impersonation."""
+    """Authorize one exact partition-scoped recovery only after a live scheduler probe."""
     partition = str(supervising_chat_partition or "").strip().upper()
     target = str(target_worker_id or "").strip().lower()
 
@@ -162,6 +180,48 @@ def authorize_supervising_chat_recovery(
             candidate_partition=candidate.get("subscription_partition"),
         )
 
+    if scheduler_enabled is None:
+        return _supervisor_deny(
+            partition,
+            target,
+            "LIVE_SCHEDULER_PROBE_REQUIRED",
+            target_partition=target_partition,
+            candidate_reason=str(candidate.get("reason") or "LOCAL_CADENCE_GAP"),
+            scheduler_probe="required",
+            evidence_authority=watch.get("authority"),
+        )
+
+    scheduler_probe = "verified_disabled" if scheduler_enabled is False else "verified_enabled"
+    scheduler_last_run = _parse_scheduler_time(scheduler_last_run_at)
+    scheduler_age_minutes = None
+    if scheduler_last_run is not None:
+        scheduler_age_minutes = max(0.0, (datetime.now(timezone.utc) - scheduler_last_run).total_seconds() / 60.0)
+
+    if scheduler_enabled is True:
+        if scheduler_last_run is None:
+            return _supervisor_deny(
+                partition,
+                target,
+                "SCHEDULER_ENABLED_LAST_RUN_REQUIRED",
+                target_partition=target_partition,
+                scheduler_probe=scheduler_probe,
+                candidate_reason=str(candidate.get("reason") or "LOCAL_CADENCE_GAP"),
+                evidence_authority=watch.get("authority"),
+            )
+        if scheduler_age_minutes <= BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES:
+            return _supervisor_deny(
+                partition,
+                target,
+                "LOCAL_EVIDENCE_STALE_SCHEDULER_CURRENT",
+                target_partition=target_partition,
+                scheduler_probe=scheduler_probe,
+                scheduler_last_run_at=scheduler_last_run.isoformat(),
+                scheduler_last_run_age_minutes=round(scheduler_age_minutes, 1),
+                candidate_reason=str(candidate.get("reason") or "LOCAL_CADENCE_GAP"),
+                evidence_authority=watch.get("authority"),
+            )
+        scheduler_probe = "verified_enabled_missed_cadence"
+
     return {
         "schema": "recurring-worker-recovery-authorization.v1",
         "authorized": True,
@@ -169,13 +229,20 @@ def authorize_supervising_chat_recovery(
         "supervising_chat_partition": partition,
         "target_worker_id": target,
         "target_partition": target_partition,
-        "reason": str(candidate.get("reason") or "RECOVERY_NEEDED"),
+        "reason": (
+            "SCHEDULER_DISABLED_RECOVERY"
+            if scheduler_enabled is False
+            else "ENABLED_BUT_MISSED_SCHEDULER_CADENCE_REARM"
+        ),
+        "local_candidate_reason": str(candidate.get("reason") or "LOCAL_CADENCE_GAP"),
         "scheduler_action": {
             "operation": "set_is_enabled",
             "is_enabled": True,
         },
-        "scheduler_probe": "not_performed",
-        "evidence_authority": watch.get("authority"),
+        "scheduler_probe": scheduler_probe,
+        "scheduler_last_run_at": scheduler_last_run.isoformat() if scheduler_last_run is not None else None,
+        "scheduler_last_run_age_minutes": round(scheduler_age_minutes, 1) if scheduler_age_minutes is not None else None,
+        "evidence_authority": f"{watch.get('authority')}+live_scheduler_probe",
     }
 
 
@@ -190,13 +257,20 @@ def main() -> int:
         choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS),
     )
     parser.add_argument("--target-worker-id", required=True)
+    parser.add_argument("--scheduler-enabled", choices=("true", "false"))
+    parser.add_argument("--scheduler-last-run-at")
     args = parser.parse_args()
     if args.actor_worker_id:
         result = authorize_recovery(args.actor_worker_id, args.target_worker_id)
     else:
+        scheduler_enabled = None
+        if args.scheduler_enabled is not None:
+            scheduler_enabled = args.scheduler_enabled == "true"
         result = authorize_supervising_chat_recovery(
             args.supervising_chat_partition,
             args.target_worker_id,
+            scheduler_enabled=scheduler_enabled,
+            scheduler_last_run_at=args.scheduler_last_run_at,
         )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("authorized") else 3
