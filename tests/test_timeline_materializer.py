@@ -1,8 +1,12 @@
+import io
 import json
 import os
 import subprocess
 import tempfile
+import threading
+import time
 import unittest
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +15,7 @@ from tools.memory_timeline import build_continuity_graph
 from tools.repo_timeline import RepoSpec
 from tools.timeline_materializer import (
     BOOTSTRAP_SCHEMA,
+    DELTA_SCHEMA,
     DEFAULT_DELTA_REPO_EVENTS_PER_REPO,
     DEFAULT_GITHUB_EVENTS_PER_KIND,
     DEFAULT_MAX_EVENTS,
@@ -26,6 +31,7 @@ from tools.timeline_materializer import (
     github_events,
     install_task,
     library_artifact_events,
+    load_materialized,
     local_artifact_events,
     main,
     machine_observation_events,
@@ -464,6 +470,36 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("created >=2026-09-05T00:00:00Z", commands[2])
         self.assertNotIn("--created", commands[3])
 
+    def test_github_adapter_parallelizes_distinct_repos_and_preserves_repo_order(self):
+        specs = [RepoSpec("alpha", Path("C:/fake/alpha")), RepoSpec("beta", Path("C:/fake/beta"))]
+        lock = threading.Lock()
+        active = 0
+        max_active = 0
+
+        def fake_slug(spec):
+            return f"organicoverlords/{spec.project}"
+
+        def fake_run_json(_command, **_kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            try:
+                time.sleep(0.02)
+                return [], None
+            finally:
+                with lock:
+                    active -= 1
+
+        with patch("tools.timeline_materializer._github_slug", side_effect=fake_slug), patch(
+            "tools.timeline_materializer._run_json", side_effect=fake_run_json
+        ):
+            events, coverage = github_events(specs, since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+        self.assertGreaterEqual(max_active, 2)
+        self.assertEqual(list(coverage["repos"]), ["organicoverlords/alpha", "organicoverlords/beta"])
+        summaries = [event for event in events if event["source_type"] == "GITHUB_ACTION_SUMMARY"]
+        self.assertEqual([event["project"] for event in summaries], ["alpha", "beta"])
+
     def test_github_adapter_marks_per_kind_saturation_at_query_limit(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
         now = "2026-09-06T05:00:00Z"
@@ -672,8 +708,11 @@ class TimelineMaterializerTests(unittest.TestCase):
                 f"[INF] Running job for {sha}\n[WRN] warning\n[ERR] failure\nAuthorization: Bearer SECRET {sha}\n",
                 encoding="utf-8",
             )
-            with patch("tools.timeline_materializer._runner_diag_roots", return_value=[diag]):
+            with patch("tools.timeline_materializer._runner_diag_roots", return_value=[diag]), patch(
+                "tools.timeline_materializer.os.scandir", wraps=os.scandir
+            ) as scandir:
                 events, coverage = runner_log_events(since=datetime.now().astimezone() - timedelta(days=1))
+            self.assertEqual(scandir.call_count, 1)
             self.assertEqual(len(events), 1)
             event = events[0]
             self.assertIn(sha, event["refs"])
@@ -740,6 +779,7 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "ingestion": {"backfill_incomplete_sources": ["github", "repos"]},
                 "timeline": {"events": [old_event]},
             }), encoding="utf-8")
+            base_store_before = (state / "timeline-store.json").read_text(encoding="utf-8")
             new_event = self.commit_event(new_sha, "New delta work", "2026-09-06T05:04:00+00:00")
             repaired_old = dict(old_event, body="Historical Hummingbird wing deformation lesson", changed_paths=["rigging/avian.py"], _search_text="Historical Hummingbird wing deformation lesson rigging/avian.py")
             minimal_overview = {"contract": "history only", "eligible_entries": 0, "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": []}
@@ -765,7 +805,9 @@ class TimelineMaterializerTests(unittest.TestCase):
                 "tools.timeline_materializer.runner_log_events", return_value=([], {"events": 0, "saturated": False, "errors": []})
             ), patch(
                 "tools.timeline_materializer.coordinator_events", return_value=([], {"events": 0, "errors": [], "current_only": True})
-            ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview):
+            ), patch("tools.timeline_materializer.build_overview", return_value=minimal_overview), patch(
+                "tools.timeline_materializer._atomic_pickle"
+            ) as atomic_pickle:
                 result = materialize(
                     root=root,
                     include_github=False,
@@ -784,7 +826,14 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(library_artifacts.call_args.kwargs["since"], expected_unbounded_source_since)
             self.assertEqual(machine_observations.call_args.kwargs["since"], expected_unbounded_source_since)
             self.assertEqual(mcp_history.call_args.kwargs["since"], expected_unbounded_source_since)
-            payload = json.loads((state / "timeline-store.json").read_text(encoding="utf-8"))
+            self.assertEqual((state / "timeline-store.json").read_text(encoding="utf-8"), base_store_before)
+            self.assertFalse(atomic_pickle.called, "incremental refresh must not rewrite the full query index")
+            delta_payload = json.loads((state / "timeline-delta.json").read_text(encoding="utf-8"))
+            self.assertEqual(delta_payload["schema"], DELTA_SCHEMA)
+            self.assertEqual(delta_payload["base_generated_at"], prior_at.isoformat())
+            self.assertEqual(result["delta_materialization"]["publication_mode"], "DELTA_OVERLAY")
+            payload = load_materialized(root=root)
+            self.assertIsNotNone(payload)
             events_by_id = {event["id"]: event for event in payload["timeline"]["events"]}
             self.assertIn(old_event["id"], events_by_id)
             self.assertIn(new_event["id"], events_by_id)
@@ -868,6 +917,39 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(retry["status"], "FRESH")
         self.assertEqual(retry["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
         self.assertIn("DELTA_RETRY_PENDING", retry["absence_unsafe_reasons"])
+
+    def test_query_cli_defaults_to_compact_projection_and_preserves_full_detail_escape_hatch(self):
+        parsed = build_parser().parse_args(["query", "needle"])
+        self.assertFalse(parsed.full_detail)
+        parsed_full = build_parser().parse_args(["query", "needle", "--full-detail"])
+        self.assertTrue(parsed_full.full_detail)
+
+        base_args = {
+            "command": "query", "root": Path("."), "query": "needle", "view": "general", "project": None,
+            "thread": None, "days": None, "limit": 20, "no_workers": False,
+        }
+        rich = {"events": [{"id": "one", "summary": "x" * 2000}]}
+        compact = {"events": [{"id": "one"}], "detail": "COMPACT_AGENT_FACING; use --full-detail for forensic projection"}
+
+        with patch("tools.timeline_materializer.build_parser") as parser, patch(
+            "tools.timeline_materializer.query_materialized", return_value=rich
+        ), patch("tools.timeline_materializer._compact_timeline_report", return_value=compact) as compact_call:
+            parser.return_value.parse_args.return_value = type("Args", (), {**base_args, "full_detail": False})()
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(), 0)
+            self.assertEqual(json.loads(stdout.getvalue()), compact)
+            compact_call.assert_called_once_with(rich, limit=20)
+
+        with patch("tools.timeline_materializer.build_parser") as parser, patch(
+            "tools.timeline_materializer.query_materialized", return_value=rich
+        ), patch("tools.timeline_materializer._compact_timeline_report") as compact_call:
+            parser.return_value.parse_args.return_value = type("Args", (), {**base_args, "full_detail": True})()
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(main(), 0)
+            self.assertEqual(json.loads(stdout.getvalue()), rich)
+            compact_call.assert_not_called()
 
     def test_refresh_cli_treats_existing_refresh_lock_as_successful_noop(self):
         with patch("tools.timeline_materializer.build_parser") as build_parser, patch(
