@@ -80,6 +80,10 @@ def _run_bootstrap_glance(repo_root: Path, atlas: Path, *, timeout_seconds: floa
     stdout_stream = None
     stderr_stream = None
     command = [_child_python(), str(atlas), 'bootstrap-glance']
+    env = os.environ.copy()
+    env['STACK_ATLAS_ROOT_OVERRIDE'] = str(repo_root)
+    existing_pythonpath = env.get('PYTHONPATH', '')
+    env['PYTHONPATH'] = str(repo_root) if not existing_pythonpath else os.pathsep.join((str(repo_root), existing_pythonpath))
     try:
         stdout_stream = tempfile.NamedTemporaryFile(mode='w+b', prefix='bootstrap-glance-stdout-', suffix='.tmp', delete=False)
         stderr_stream = tempfile.NamedTemporaryFile(mode='w+b', prefix='bootstrap-glance-stderr-', suffix='.tmp', delete=False)
@@ -90,6 +94,7 @@ def _run_bootstrap_glance(repo_root: Path, atlas: Path, *, timeout_seconds: floa
             cwd=str(repo_root),
             stdout=stdout_stream,
             stderr=stderr_stream,
+            env=env,
             creationflags=_creationflags(),
             close_fds=True,
         )
@@ -321,19 +326,19 @@ def _release_producer_lock(stream) -> None:
         stream.close()
 
 
-def _emit_singleflight(repo_root: Path, *, quiet: bool) -> bool:
+def _emit_singleflight(repo_root: Path, *, quiet: bool, atlas_path: Path | None = None) -> bool:
     lock = _try_acquire_producer_lock(repo_root)
     if lock is None:
         _write_producer_status(repo_root, mode='SKIPPED_INFLIGHT', exit_code=0)
         return True
     try:
-        return emit_snapshot(repo_root, quiet=quiet)
+        return emit_snapshot(repo_root, quiet=quiet, atlas_path=atlas_path)
     finally:
         _release_producer_lock(lock)
 
-def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -> bool:
+def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False, atlas_path: Path | None = None) -> bool:
     repo_root = repo_root.resolve()
-    atlas = repo_root / 'tools' / 'stack_atlas.py'
+    atlas = (atlas_path or (repo_root / 'tools' / 'stack_atlas.py')).resolve()
     cp = _run_bootstrap_glance(repo_root, atlas)
     if cp.returncode != 0:
         detail = (cp.stderr or f'bootstrap-glance exited {cp.returncode}')[-1000:]
@@ -386,7 +391,13 @@ def main() -> int:
         '--repo-root',
         type=Path,
         default=DEFAULT_REPO_ROOT,
-        help='Repository root whose tools/stack_atlas.py supplies bootstrap snapshots.',
+        help='Repository root that owns snapshot state and live/root authority.',
+    )
+    ap.add_argument(
+        '--atlas-path',
+        type=Path,
+        default=None,
+        help='Optional deployed Stack Atlas script; live/root authority remains --repo-root.',
     )
     ap.add_argument('--once', action='store_true', help='Emit one snapshot and exit.')
     ap.add_argument('--quiet', action='store_true', help='Publish the snapshot file without repeating it on stdout.')
@@ -399,6 +410,7 @@ def main() -> int:
     args = ap.parse_args()
     interval = max(5.0, args.interval_seconds)
     repo_root = args.repo_root.resolve()
+    atlas_path = None if args.atlas_path is None else args.atlas_path.resolve()
     skip_if_fresh = None if args.skip_if_fresh_seconds is None else max(0.0, args.skip_if_fresh_seconds)
     while True:
         started = time.monotonic()
@@ -410,9 +422,9 @@ def main() -> int:
                     _write_producer_status(repo_root, mode='SKIPPED_FRESH', exit_code=0)
                     ok = True
                 else:
-                    ok = _emit_singleflight(repo_root, quiet=args.quiet)
+                    ok = _emit_singleflight(repo_root, quiet=args.quiet, atlas_path=atlas_path)
             else:
-                ok = _emit_singleflight(repo_root, quiet=args.quiet)
+                ok = _emit_singleflight(repo_root, quiet=args.quiet, atlas_path=atlas_path)
         except Exception as exc:
             print(json.dumps({
                 'stream_schema': 'bootstrap-read-stream.v1',

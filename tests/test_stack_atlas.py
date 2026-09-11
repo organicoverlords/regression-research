@@ -1672,6 +1672,13 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
 
+    def test_runtime_root_override_keeps_deployed_atlas_bound_to_canonical_repo(self):
+        import runpy
+        script = Path(__file__).resolve().parents[1] / 'tools' / 'stack_atlas.py'
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'STACK_ATLAS_ROOT_OVERRIDE': tmp}):
+            namespace = runpy.run_path(str(script))
+        self.assertEqual(namespace['ROOT'], Path(tmp).resolve())
+
     def test_bootstrap_git_timeout_covers_loaded_windows_process_startup(self):
         from tools.stack_atlas import BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS
         self.assertEqual(BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS, 3.0)

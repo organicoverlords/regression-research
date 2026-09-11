@@ -158,7 +158,7 @@ try:
 except ModuleNotFoundError:
     from tiny3d_atlas_projection import project_current as project_tiny3d_current
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("STACK_ATLAS_ROOT_OVERRIDE") or Path(__file__).resolve().parents[1]).resolve()
 ATLAS_LIVE_ROOT = Path(r"C:\Users\Lauri\Desktop\vault")
 BUSY_ROOT = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator"))
 BUSY_CONTRACT = str(BUSY_ROOT / "coordinator-contract.json")

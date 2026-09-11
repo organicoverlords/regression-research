@@ -49,10 +49,13 @@ def _run_once(
     *,
     quiet: bool = True,
     skip_if_fresh_seconds: float | None = None,
+    atlas_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env['VAULT_MEMORY_LOCAL_BANK'] = str(overlay)
     command = [sys.executable, str(SCRIPT), '--once', '--repo-root', str(alternate)]
+    if atlas_path is not None:
+        command.extend(['--atlas-path', str(atlas_path)])
     if quiet:
         command.append('--quiet')
     if skip_if_fresh_seconds is not None:
@@ -83,6 +86,28 @@ def test_once_uses_explicit_repo_root(tmp_path: Path) -> None:
     assert payload["bootstrap_end"]["status"] == "COMPLETE"
     assert json.loads((alternate / '.state' / 'bootstrap' / 'latest.json').read_text(encoding='utf-8')) == payload
     assert not list((alternate / '.state' / 'bootstrap').glob('*.tmp'))
+
+
+def test_once_can_run_deployed_atlas_outside_repo_root(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    runtime = tmp_path / 'runtime'
+    runtime.mkdir()
+    atlas = runtime / 'stack_atlas.py'
+    atlas.write_text(
+        "import json, os\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T11:00:00+00:00',"
+        "'source_marker':'runtime-atlas','root_override':os.environ.get('STACK_ATLAS_ROOT_OVERRIDE'),"
+        "'pythonpath':os.environ.get('PYTHONPATH',''),'memory_overview':{'recent':[]},"
+        "'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    cp = _run_once(alternate, overlay, quiet=False, atlas_path=atlas)
+    assert cp.returncode == 0, cp.stderr
+    payload = json.loads(cp.stdout.lstrip('\ufeff'))
+    assert payload['source_marker'] == 'runtime-atlas'
+    assert Path(payload['root_override']) == alternate.resolve()
+    assert str(alternate.resolve()) in payload['pythonpath'].split(os.pathsep)
 
 
 def test_once_overlays_fingerprint_current_recent_memory_projection(tmp_path: Path) -> None:

@@ -10,15 +10,19 @@ if ($RepoRoot) { $repoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path } else {
 
 $producerSource = Join-Path $PSScriptRoot 'bootstrap_read_loop.py'
 $helperSource = Join-Path $PSScriptRoot 'memory_recent_projection.py'
+$atlasSource = Join-Path $PSScriptRoot 'stack_atlas.py'
 if (-not (Test-Path -LiteralPath $producerSource -PathType Leaf)) { throw "Bootstrap producer source missing: $producerSource" }
 if (-not (Test-Path -LiteralPath $helperSource -PathType Leaf)) { throw "Bootstrap helper source missing: $helperSource" }
+if (-not (Test-Path -LiteralPath $atlasSource -PathType Leaf)) { throw "Bootstrap Stack Atlas source missing: $atlasSource" }
 
 $runtimeRoot = Join-Path $env:LOCALAPPDATA 'VaultBootstrapSnapshot'
 New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
 $producerRuntime = Join-Path $runtimeRoot 'bootstrap_read_loop.py'
 $helperRuntime = Join-Path $runtimeRoot 'memory_recent_projection.py'
+$atlasRuntime = Join-Path $runtimeRoot 'stack_atlas.py'
 Copy-Item -LiteralPath $producerSource -Destination $producerRuntime -Force
 Copy-Item -LiteralPath $helperSource -Destination $helperRuntime -Force
+Copy-Item -LiteralPath $atlasSource -Destination $atlasRuntime -Force
 
 $pythonPath = (& python.exe -c 'import sys; print(sys.executable)').Trim()
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) { throw 'Python runtime unavailable' }
@@ -28,7 +32,9 @@ $pwshCommand = Get-Command pwsh.exe -ErrorAction SilentlyContinue
 if ($pwshCommand) { $shellPath = $pwshCommand.Source } else { $shellPath = (Get-Command powershell.exe -ErrorAction Stop).Source }
 
 function Q([string]$Value) { return '"' + $Value.Replace('"','\"') + '"' }
-$primaryArguments = (Q $producerRuntime) + ' --once --quiet --repo-root ' + (Q $repoRoot)
+$directPrimaryArguments = (Q $producerRuntime) + ' --once --quiet --repo-root ' + (Q $repoRoot)
+$directWatchdogArguments = $directPrimaryArguments + ' --skip-if-fresh-seconds 45'
+$primaryArguments = $directPrimaryArguments + ' --atlas-path ' + (Q $atlasRuntime)
 $watchdogArguments = $primaryArguments + ' --skip-if-fresh-seconds 45'
 
 # Recognize every task action shipped by the prior generations so migration stays fail-closed.
@@ -52,8 +58,8 @@ function Assert-KnownTaskAction([string]$TaskName, [string[]]$KnownExecutables, 
 }
 
 $knownExecutables = @($pythonwPath, $shellPath)
-$existingPrimary = Assert-KnownTaskAction $primaryTaskName $knownExecutables @($legacyArguments, $v1PrimaryArguments, $v2PrimaryArguments, $primaryArguments)
-$existingWatchdog = Assert-KnownTaskAction $watchdogTaskName $knownExecutables @($v1WatchdogArguments, $v2WatchdogArguments, $watchdogArguments)
+$existingPrimary = Assert-KnownTaskAction $primaryTaskName $knownExecutables @($legacyArguments, $v1PrimaryArguments, $v2PrimaryArguments, $directPrimaryArguments, $primaryArguments)
+$existingWatchdog = Assert-KnownTaskAction $watchdogTaskName $knownExecutables @($v1WatchdogArguments, $v2WatchdogArguments, $directWatchdogArguments, $watchdogArguments)
 if ($existingPrimary) { Unregister-ScheduledTask -TaskName $primaryTaskName -Confirm:$false }
 if ($existingWatchdog) { Unregister-ScheduledTask -TaskName $watchdogTaskName -Confirm:$false }
 
