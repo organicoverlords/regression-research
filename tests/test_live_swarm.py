@@ -51,6 +51,41 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(len(out),4)
 
 
+    def test_activity_window_completeness_is_distinct_from_observation_window(self):
+        now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            root.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+            folder=root/"busy-source"
+            folder.mkdir()
+            path=folder/"transport.jsonl"
+            rows=[
+                {"at":(now-timedelta(seconds=seconds_ago)).isoformat(),"event":"process_read","caller_id":"caller_busy","process_id":"p"}
+                for seconds_ago in range(0,1801,15)
+            ]
+            path.write_text("\n".join(json.dumps(row) for row in reversed(rows))+"\n",encoding="utf-8")
+            stamp=now.timestamp()
+            os.utime(path,(stamp,stamp))
+
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}), \
+                 patch("tools.live_swarm.MAX_TRANSPORT_BYTES",5000):
+                enough=build_live_swarm_snapshot(now=now)
+            self.assertFalse(enough["evidence"]["observation_window_complete"])
+            self.assertTrue(enough["evidence"]["activity_window_complete"])
+            self.assertTrue(enough["transport_sources"][0]["activity_window_complete"])
+
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}), \
+                 patch("tools.live_swarm.MAX_TRANSPORT_BYTES",1000):
+                truncated=build_live_swarm_snapshot(now=now)
+            self.assertFalse(truncated["evidence"]["observation_window_complete"])
+            self.assertFalse(truncated["evidence"]["activity_window_complete"])
+            self.assertFalse(truncated["transport_sources"][0]["activity_window_complete"])
+
     def test_stale_candidate_overflow_does_not_poison_complete_window(self):
         now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as td:
@@ -79,7 +114,9 @@ class LiveSwarmTests(unittest.TestCase):
             discovery=snapshot["transport_source_discovery"]
             self.assertTrue(discovery["truncated"])
             self.assertFalse(discovery["truncation_affects_window"])
+            self.assertFalse(discovery["truncation_affects_activity_window"])
             self.assertTrue(snapshot["evidence"]["observation_window_complete"])
+            self.assertTrue(snapshot["evidence"]["activity_window_complete"])
             self.assertEqual(snapshot["evidence"]["transport_source_count"],2)
 
     def test_in_window_candidate_overflow_keeps_window_incomplete(self):
@@ -107,7 +144,9 @@ class LiveSwarmTests(unittest.TestCase):
             discovery=snapshot["transport_source_discovery"]
             self.assertTrue(discovery["truncated"])
             self.assertTrue(discovery["truncation_affects_window"])
+            self.assertTrue(discovery["truncation_affects_activity_window"])
             self.assertFalse(snapshot["evidence"]["observation_window_complete"])
+            self.assertFalse(snapshot["evidence"]["activity_window_complete"])
             self.assertEqual(snapshot["evidence"]["transport_source_count"],2)
 
     def test_snapshot_aggregates_current_mcpv4_transport_sources(self):

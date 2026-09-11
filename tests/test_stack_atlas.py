@@ -86,7 +86,8 @@ class StackAtlasTests(unittest.TestCase):
                 "transport": "MCPv4",
                 "transport_source_count": 2,
                 "source_age_seconds": 0.5,
-                "observation_window_complete": True,
+                "observation_window_complete": False,
+                "activity_window_complete": True,
                 "activity_summary": {"starts": 2, "reads": 2},
             },
             "lanes": [],
@@ -95,6 +96,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(projected["transport"], "MCPv4")
         self.assertEqual(projected["transport_source_count"], 2)
         self.assertEqual(projected["active_session_count"], 2)
+        self.assertEqual(projected["active_session_count_status"], "COMPLETE")
+        self.assertEqual(projected["activity_evidence_status"], "FRESH")
 
     def test_cleanup_convergence_is_discoverable_and_operator_only(self):
         result = find_features("cleanup worktree convergence")[0]

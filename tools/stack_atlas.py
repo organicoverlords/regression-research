@@ -3126,7 +3126,7 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
         return {"available": False, "status": "MISSING", "active_session_count": 0, "active_sessions": [], "workspace_counts": {}}
     evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
     summary = snapshot.get("summary") if isinstance(snapshot.get("summary"), dict) else {}
-    complete = bool(evidence.get("observation_window_complete"))
+    complete = bool(evidence.get("activity_window_complete", evidence.get("observation_window_complete")))
     sessions = []
     for lane in snapshot.get("lanes", []) if isinstance(snapshot.get("lanes"), list) else []:
         if not isinstance(lane, dict): continue

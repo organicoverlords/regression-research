@@ -120,6 +120,7 @@ def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> 
     candidate_count = len(candidates)
     candidate_truncated = candidate_count > MAX_TRANSPORT_SOURCE_CANDIDATES
     candidate_truncation_affects_window = False
+    candidate_truncation_affects_activity_window = False
     if candidate_truncated:
         def candidate_mtime(path: Path) -> float:
             try:
@@ -133,8 +134,12 @@ def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> 
         omitted = ordered[MAX_TRANSPORT_SOURCE_CANDIDATES:]
         candidates = ordered[:MAX_TRANSPORT_SOURCE_CANDIDATES]
         cutoff_timestamp = cutoff.timestamp()
+        activity_cutoff_timestamp = (now - timedelta(seconds=ACTIVITY_WINDOW_SECONDS)).timestamp()
         candidate_truncation_affects_window = any(
             candidate_mtime(path) >= cutoff_timestamp for path in omitted
+        )
+        candidate_truncation_affects_activity_window = any(
+            candidate_mtime(path) >= activity_cutoff_timestamp for path in omitted
         )
 
     by_instance: dict[str, tuple[Path, datetime]] = {}
@@ -152,12 +157,17 @@ def _discover_transport_sources(root: Path, cutoff: datetime, now: datetime) -> 
 
     discovered = sorted(by_instance.values(), key=lambda item: item[1], reverse=True)
     source_truncated = len(discovered) > MAX_TRANSPORT_SOURCES
+    omitted_sources = discovered[MAX_TRANSPORT_SOURCES:]
+    activity_cutoff = now - timedelta(seconds=ACTIVITY_WINDOW_SECONDS)
+    source_truncation_affects_activity_window = any(latest >= activity_cutoff for _, latest in omitted_sources)
     selected = discovered[:MAX_TRANSPORT_SOURCES]
     return selected, {
         "candidate_count": candidate_count,
         "candidate_truncated": candidate_truncated,
         "candidate_truncation_affects_window": candidate_truncation_affects_window,
+        "candidate_truncation_affects_activity_window": candidate_truncation_affects_activity_window,
         "source_truncated": source_truncated,
+        "source_truncation_affects_activity_window": source_truncation_affects_activity_window,
         "discovery_bytes": discovery_bytes,
     }
 
@@ -320,6 +330,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
     root = _local_appdata_root() / "ChatGPTMcpClean" / "minimal-connectors"
     cutoff = now - timedelta(minutes=OBSERVATION_WINDOW_MINUTES)
+    active_cutoff = now - timedelta(seconds=ACTIVITY_WINDOW_SECONDS)
     sources, discovery = _discover_transport_sources(root, cutoff, now)
     if not sources and not discovery.get("candidate_count"):
         return {
@@ -330,6 +341,10 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
 
     rows: list[dict[str, Any]] = []
     complete = not bool(discovery.get("candidate_truncation_affects_window") or discovery.get("source_truncated"))
+    activity_complete = not bool(
+        discovery.get("candidate_truncation_affects_activity_window")
+        or discovery.get("source_truncation_affects_activity_window")
+    )
     sample_bytes = 0
     per_source_budget = max(1, MAX_TRANSPORT_BYTES // max(1, len(sources)))
     source_details: list[dict[str, Any]] = []
@@ -337,17 +352,22 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         source_rows, source_complete, read_bytes = _read_window(source, cutoff, max_bytes=per_source_budget)
         rows.extend(source_rows)
         complete = complete and source_complete
+        source_activity_complete = source_complete or any(
+            (at := _dt(row.get("at"))) is not None and at <= active_cutoff
+            for row in source_rows
+        )
+        activity_complete = activity_complete and source_activity_complete
         sample_bytes += read_bytes
         source_details.append({
             "instance": _transport_instance(source),
             "latest_event_at": latest.isoformat(),
             "observation_window_complete": source_complete,
+            "activity_window_complete": source_activity_complete,
             "sample_bytes": read_bytes,
             **_transport_runtime_identity(source_rows),
         })
     rows.sort(key=lambda row: _dt(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc))
     latest_transport_at = max((latest for _, latest in sources), default=None)
-    active_cutoff = now - timedelta(seconds=ACTIVITY_WINDOW_SECONDS)
     callers: dict[str, dict[str, Any]] = {}
     processes: dict[str, dict[str, Any]] = {}
     activity_counts = {"starts":0,"reads":0,"exits":0,"kills":0,"nonzero_exits":0}
@@ -499,7 +519,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "transport_source_count":len(sources),
             "source_age_seconds":round(max(0.0,(now-latest_transport_at).total_seconds()),1) if latest_transport_at else None,
             "activity_window_seconds":ACTIVITY_WINDOW_SECONDS,"observation_window_minutes":OBSERVATION_WINDOW_MINUTES,
-            "observation_window_complete":complete,"sample_bytes":sample_bytes,
+            "activity_window_complete":activity_complete,"observation_window_complete":complete,"sample_bytes":sample_bytes,
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
             "execution_reference_minutes":EXECUTION_REFERENCE_MINUTES,
             "execution_reference_semantics":"orientation_only_not_remaining_time",
@@ -511,6 +531,10 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "bytes":discovery.get("discovery_bytes"),
             "truncated":bool(discovery.get("candidate_truncated") or discovery.get("source_truncated")),
             "truncation_affects_window":bool(discovery.get("candidate_truncation_affects_window") or discovery.get("source_truncated")),
+            "truncation_affects_activity_window":bool(
+                discovery.get("candidate_truncation_affects_activity_window")
+                or discovery.get("source_truncation_affects_activity_window")
+            ),
         },
         "lanes":lane_list,
     }
