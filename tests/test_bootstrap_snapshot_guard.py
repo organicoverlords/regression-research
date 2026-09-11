@@ -23,6 +23,8 @@ def test_installer_uses_direct_windowless_producer_actions() -> None:
     assert '$baseStart.AddSeconds(20)' in text
     assert '-ExecutionTimeLimit (New-TimeSpan -Seconds 45)' in text
     assert '-ExecutionTimeLimit (New-TimeSpan -Seconds 15)' in text
+    assert '$primarySettings.Priority = 4' in text
+    assert '$watchdogSettings.Priority = 4' in text
     assert 'watchdogArguments = $primaryArguments' not in text
     assert 'Existing $TaskName task uses an unknown action; preserved without changes' in text
 
