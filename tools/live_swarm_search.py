@@ -25,9 +25,9 @@ def _match_score(query_terms: set[str], values: list[tuple[int, str]]) -> int:
 
 
 def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Search current live-swarm ownership/activity without inventing new authority.
+    """Search one live-swarm snapshot without collapsing coordination into liveness.
 
-    This is intentionally a pure projection: callers provide one already-collected
+    Busy rows are coordination/handoff only; caller rows are runtime activity. Callers provide one already-collected
     live-swarm snapshot, so search never performs another runtime probe or becomes
     a queue/scheduler surface.
     """
@@ -62,7 +62,8 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 item = {
                     "id": f"live_swarm.busy:{owner or lane.get('lane_id', 'unknown')}",
                     "kind": "busy_handoff",
-                    "authority": "live_swarm_runtime_evidence",
+                    "authority": "BUSY_COORDINATION_EVIDENCE",
+                    "liveness_semantics": "not_worker_liveness_or_progress",
                     "owner": owner or None,
                     "workspace": workspace or None,
                     "branch": branch or None,
@@ -92,7 +93,8 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 item = {
                     "id": f"live_swarm.caller:{caller_id or lane.get('lane_id', 'unknown')}",
                     "kind": "caller_activity",
-                    "authority": "live_swarm_runtime_evidence",
+                    "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+                    "liveness_semantics": "recent_caller_activity_within_snapshot_window",
                     "caller_id": caller_id or None,
                     "workspace": caller_workspace or None,
                     "branch": caller_branch or None,

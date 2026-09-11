@@ -24,6 +24,11 @@ try:
 except ModuleNotFoundError:
     from yard_inbox_bridge import count_pending as _yard_inbox_check
 
+try:
+    from tools.live_swarm_search import search_live_swarm as _search_live_swarm
+except ModuleNotFoundError:
+    from live_swarm_search import search_live_swarm as _search_live_swarm
+
 def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
     """Best-effort bounded tree termination for a task-owned Windows child."""
     if process.poll() is not None:
@@ -4225,55 +4230,25 @@ def _live_discovery_hits(query: str, limit: int = 5, *, snapshot: dict[str, Any]
     except (OSError, ValueError, TypeError) as exc:
         return [], {
             "status": "UNAVAILABLE",
-            "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+            "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
             "error": str(exc),
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
     if not isinstance(snapshot, dict) or not snapshot.get("available"):
         return [], {
             "status": "UNAVAILABLE",
-            "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+            "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
-    terms = set(_feature_query_terms(query)[0])
-    hits: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for lane in snapshot.get("lanes", []) or []:
-        if not isinstance(lane, dict):
-            continue
-        worktree = lane.get("worktree") if isinstance(lane.get("worktree"), dict) else {}
-        workspace = str(lane.get("workspace") or "")
-        path = str(worktree.get("path") or "")
-        branch = str(worktree.get("branch") or "")
-        hay_tokens = set(re.findall(r"[a-z0-9]+", " ".join((workspace, path, branch)).casefold()))
-        if terms and not (terms & hay_tokens):
-            continue
-        stable = (path or workspace or str(lane.get("lane_id") or "")).casefold()
-        if not stable or stable in seen:
-            continue
-        seen.add(stable)
-        caller_ages = [
-            float(caller.get("last_activity_age_seconds"))
-            for caller in lane.get("callers", []) or []
-            if isinstance(caller, dict) and isinstance(caller.get("last_activity_age_seconds"), (int, float))
-        ]
-        hit = {
-            "kind": "live_workspace",
-            "workspace": workspace or None,
-            "worktree": {key: worktree.get(key) for key in ("path", "branch", "head") if worktree.get(key)},
-            "authority": "LIVE_MCP_ACTIVITY_NAVIGATION_HINT",
-            "ownership_semantics": "not_ownership_or_progress_by_itself",
-        }
-        if caller_ages:
-            hit["last_activity_age_seconds"] = round(min(caller_ages), 1)
-        hits.append({key: value for key, value in hit.items() if value not in (None, "", {})})
-        if len(hits) >= max(1, int(limit)):
-            break
+    hits = _search_live_swarm(snapshot, query, limit=max(1, int(limit)))
     evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
     return hits, {
         "status": "OK",
-        "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+        "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
+        "busy_semantics": "coordination_handoff_only_not_worker_liveness_or_progress",
+        "caller_semantics": "live_mcp_runtime_activity_within_snapshot_window",
         "source_age_seconds": evidence.get("source_age_seconds"),
+        "busy_source_age_seconds": evidence.get("busy_source_age_seconds"),
         "activity_window_seconds": evidence.get("activity_window_seconds"),
         "observation_window_complete": evidence.get("observation_window_complete"),
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
