@@ -229,6 +229,29 @@ def cwd_targets_path(path: Path, recent_cwds: Iterable[str]) -> bool:
     return any(path_is_same_or_child(cwd, path) for cwd in recent_cwds)
 
 
+def worktree_linkage_is_missing(path: Path) -> bool:
+    """Return True only when a listed worktree has no usable local Git linkage."""
+    marker = path / ".git"
+    if not marker.exists():
+        return True
+    if not marker.is_file():
+        return False
+    try:
+        first_line = marker.read_text(encoding="utf-8", errors="replace").splitlines()[0].strip()
+    except (OSError, IndexError):
+        return False
+    prefix = "gitdir:"
+    if not first_line.lower().startswith(prefix):
+        return False
+    target_text = first_line[len(prefix):].strip()
+    if not target_text:
+        return False
+    target = Path(target_text)
+    if not target.is_absolute():
+        target = marker.parent / target
+    return not target.exists()
+
+
 def worktree_is_clean(
     path: Path, timeout_seconds: float = CLEANLINESS_PROBE_TIMEOUT_SECONDS
 ) -> bool | None:
@@ -614,7 +637,11 @@ def scan_repo(
         try:
             clean = worktree_is_clean(worktree.path)
         except RuntimeError:
-            if not worktree.path.exists():
+            # `git worktree list` can retain a registration after its linked worktree
+            # metadata is gone. The directory itself may still exist as residue, so
+            # path existence alone is not enough to decide whether `git status` failed
+            # on a real worktree. Only suppress the error when Git linkage is absent.
+            if worktree_linkage_is_missing(worktree.path):
                 observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, "missing_worktree_registration"))
                 continue
             raise
