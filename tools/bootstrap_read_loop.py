@@ -212,29 +212,31 @@ def _load_previous_snapshot(repo_root: Path) -> dict | None:
     return payload
 
 
-def _publish_degraded_snapshot(repo_root: Path, *, reason: str, exit_code: int) -> bool:
-    previous = _load_previous_snapshot(repo_root)
-    if previous is None:
-        return False
+def _build_degraded_snapshot(
+    previous: dict,
+    *,
+    reason: str,
+    exit_code: int,
+    refresh_mode: str,
+    reason_code: str,
+    warning: str,
+) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     payload = dict(previous)
     previous_generated_at = payload.get('generated_at')
     payload['generated_at'] = now
-    payload['bootstrap_warning'] = (
-        'BOOTSTRAP REFRESH DEGRADED: the full bootstrap-glance refresh failed. '
-        'Treat carried-forward live/current sections as non-authoritative until a full refresh succeeds.'
-    )
+    payload['bootstrap_warning'] = warning
     bootstrap = dict(payload.get('bootstrap') or {})
     bootstrap.update({
         'status': 'DEGRADED',
         'self_check': 'DEGRADED',
-        'refresh_mode': 'DEGRADED_CARRY_FORWARD',
+        'refresh_mode': refresh_mode,
         'refresh_failure': reason[-1000:],
         'refresh_exit_code': int(exit_code),
         'carried_forward_from': previous_generated_at,
         'agent_contract': {
             'status': 'UNKNOWN',
-            'reason': 'full_bootstrap_refresh_failed',
+            'reason': reason_code,
             'carried_forward_from': previous_generated_at,
         },
     })
@@ -245,14 +247,35 @@ def _publish_degraded_snapshot(repo_root: Path, *, reason: str, exit_code: int) 
             payload[section] = {
                 'available': False,
                 'status': 'UNKNOWN',
-                'reason': 'full_bootstrap_refresh_failed',
+                'reason': reason_code,
                 'carried_forward_from': previous_generated_at,
             }
     payload['bootstrap_end'] = {'status': 'COMPLETE', 'schema': 'bootstrap.v1'}
-    _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    return payload
+
+
+def _publish_degraded_snapshot(repo_root: Path, *, reason: str, exit_code: int) -> bool:
+    lock = _acquire_snapshot_write_lock(repo_root)
+    try:
+        previous = _load_previous_snapshot(repo_root)
+        if previous is None:
+            return False
+        payload = _build_degraded_snapshot(
+            previous,
+            reason=reason,
+            exit_code=exit_code,
+            refresh_mode='DEGRADED_CARRY_FORWARD',
+            reason_code='full_bootstrap_refresh_failed',
+            warning=(
+                'BOOTSTRAP REFRESH DEGRADED: the full bootstrap-glance refresh failed. '
+                'Live/current sections are UNKNOWN until a full refresh succeeds.'
+            ),
+        )
+        _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    finally:
+        _release_producer_lock(lock)
     _write_producer_status(repo_root, mode='DEGRADED', detail=reason, exit_code=exit_code)
     return True
-
 
 def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
     path = _snapshot_dir(repo_root) / 'latest.json'
@@ -282,9 +305,55 @@ def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
     return max(0.0, age), status
 
 
+def publish_watchdog_heartbeat(
+    repo_root: Path,
+    *,
+    older_than_seconds: float,
+    quiet: bool = False,
+) -> bool:
+    repo_root = repo_root.resolve()
+    threshold = max(0.0, older_than_seconds)
+    lock = _acquire_snapshot_write_lock(repo_root)
+    try:
+        previous = _load_previous_snapshot(repo_root)
+        if previous is None:
+            _write_producer_status(
+                repo_root,
+                mode='WATCHDOG_HEARTBEAT_UNAVAILABLE',
+                detail='no previous COMPLETE bootstrap snapshot available',
+                exit_code=1,
+            )
+            return False
+        age, _status = snapshot_age_seconds(repo_root)
+        if age <= threshold:
+            _write_producer_status(repo_root, mode='WATCHDOG_SKIPPED_FRESH', exit_code=0)
+            return True
+        age_label = 'unknown' if age == float('inf') else f'{age:.1f}s'
+        reason = (
+            f'watchdog heartbeat published because the last COMPLETE snapshot age {age_label} '
+            f'exceeded {threshold:.1f}s while the primary refresh may be delayed or resource-starved'
+        )
+        payload = _build_degraded_snapshot(
+            previous,
+            reason=reason,
+            exit_code=0,
+            refresh_mode='WATCHDOG_HEARTBEAT',
+            reason_code='primary_refresh_overdue_or_resource_pressure',
+            warning=(
+                'BOOTSTRAP WATCHDOG HEARTBEAT: the full refresh is overdue or still in progress. '
+                'This envelope is fresh, but live/current sections are UNKNOWN until the primary full refresh succeeds.'
+            ),
+        )
+        _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    finally:
+        _release_producer_lock(lock)
+    _write_producer_status(repo_root, mode='WATCHDOG_HEARTBEAT', detail=reason, exit_code=0)
+    if not quiet:
+        print(json.dumps(payload, separators=(',', ':'), ensure_ascii=False), flush=True)
+    return True
 
-def _try_acquire_producer_lock(repo_root: Path):
-    path = _snapshot_dir(repo_root) / 'producer.lock'
+
+def _try_acquire_lock_path(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
     stream = path.open('a+b')
     try:
@@ -311,6 +380,25 @@ def _try_acquire_producer_lock(repo_root: Path):
     except Exception:
         stream.close()
         raise
+
+
+def _try_acquire_producer_lock(repo_root: Path):
+    return _try_acquire_lock_path(_snapshot_dir(repo_root) / 'producer.lock')
+
+
+def _try_acquire_snapshot_write_lock(repo_root: Path):
+    return _try_acquire_lock_path(_snapshot_dir(repo_root) / 'snapshot-write.lock')
+
+
+def _acquire_snapshot_write_lock(repo_root: Path, *, timeout_seconds: float = 0.5):
+    deadline = time.monotonic() + max(0.0, timeout_seconds)
+    while True:
+        lock = _try_acquire_snapshot_write_lock(repo_root)
+        if lock is not None:
+            return lock
+        if time.monotonic() >= deadline:
+            raise TimeoutError('timed out acquiring bootstrap snapshot write lock')
+        time.sleep(0.005)
 
 
 def _release_producer_lock(stream) -> None:
@@ -377,7 +465,11 @@ def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False, a
     encoded = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
     if len(encoded.encode('utf-8')) > 64 * 1024:
         raise RuntimeError('bootstrap snapshot exceeds 64 KiB producer limit')
-    _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    snapshot_lock = _acquire_snapshot_write_lock(repo_root)
+    try:
+        _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    finally:
+        _release_producer_lock(snapshot_lock)
     _write_producer_status(repo_root, mode='FULL', exit_code=0)
     if not quiet:
         print(encoded, flush=True)
@@ -407,16 +499,29 @@ def main() -> int:
         default=None,
         help='Skip bootstrap-glance when the current COMPLETE snapshot is no older than this threshold.',
     )
+    ap.add_argument(
+        '--heartbeat-if-older-than-seconds',
+        type=float,
+        default=None,
+        help='Watchdog-only mode: publish a lightweight fresh DEGRADED envelope when the COMPLETE snapshot is older than this threshold; never run bootstrap-glance.',
+    )
     args = ap.parse_args()
     interval = max(5.0, args.interval_seconds)
     repo_root = args.repo_root.resolve()
     atlas_path = None if args.atlas_path is None else args.atlas_path.resolve()
     skip_if_fresh = None if args.skip_if_fresh_seconds is None else max(0.0, args.skip_if_fresh_seconds)
+    heartbeat_if_older = None if args.heartbeat_if_older_than_seconds is None else max(0.0, args.heartbeat_if_older_than_seconds)
+    if skip_if_fresh is not None and heartbeat_if_older is not None:
+        ap.error('--skip-if-fresh-seconds and --heartbeat-if-older-than-seconds are mutually exclusive')
     while True:
         started = time.monotonic()
         ok = False
         try:
-            if skip_if_fresh is not None:
+            if heartbeat_if_older is not None:
+                ok = publish_watchdog_heartbeat(
+                    repo_root, older_than_seconds=heartbeat_if_older, quiet=args.quiet
+                )
+            elif skip_if_fresh is not None:
                 age, status = snapshot_age_seconds(repo_root)
                 if status == 'OK' and age <= skip_if_fresh:
                     _write_producer_status(repo_root, mode='SKIPPED_FRESH', exit_code=0)

@@ -49,6 +49,7 @@ def _run_once(
     *,
     quiet: bool = True,
     skip_if_fresh_seconds: float | None = None,
+    heartbeat_if_older_than_seconds: float | None = None,
     atlas_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
@@ -60,6 +61,8 @@ def _run_once(
         command.append('--quiet')
     if skip_if_fresh_seconds is not None:
         command.extend(['--skip-if-fresh-seconds', str(skip_if_fresh_seconds)])
+    if heartbeat_if_older_than_seconds is not None:
+        command.extend(['--heartbeat-if-older-than-seconds', str(heartbeat_if_older_than_seconds)])
     return subprocess.run(
         command,
         cwd=str(REPO_ROOT),
@@ -419,3 +422,108 @@ def test_singleflight_skips_second_producer_while_lock_is_held(tmp_path: Path) -
     assert not marker.exists()
     status = json.loads((alternate / '.state' / 'bootstrap' / 'producer-status.json').read_text(encoding='utf-8'))
     assert status['mode'] == 'SKIPPED_INFLIGHT'
+
+
+def _write_complete_snapshot(destination: Path, *, age_seconds: float, status: str = 'OK') -> dict:
+    from datetime import datetime, timedelta, timezone
+    payload = {
+        'schema': 'bootstrap.v1',
+        'generated_at': (datetime.now(timezone.utc) - timedelta(seconds=age_seconds)).isoformat(),
+        'bootstrap': {'status': status, 'agent_contract': {'status': 'COHERENT'}},
+        'live_swarm': {'available': True, 'status': 'LIVE'},
+        'github': {'available': True, 'status': 'OK'},
+        'swarm_topology': {'recurring_workers_total': 10},
+        'bootstrap_end': {'status': 'COMPLETE', 'schema': 'bootstrap.v1'},
+    }
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(payload), encoding='utf-8')
+    return payload
+
+
+def test_watchdog_heartbeat_refreshes_stale_snapshot_without_running_atlas(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    previous = _write_complete_snapshot(destination, age_seconds=70)
+
+    cp = _run_once(alternate, overlay, heartbeat_if_older_than_seconds=45)
+
+    assert cp.returncode == 0, cp.stderr
+    assert not marker.exists()
+    payload = json.loads(destination.read_text(encoding='utf-8'))
+    assert payload['generated_at'] != previous['generated_at']
+    assert payload['bootstrap']['status'] == 'DEGRADED'
+    assert payload['bootstrap']['refresh_mode'] == 'WATCHDOG_HEARTBEAT'
+    assert payload['bootstrap']['carried_forward_from'] == previous['generated_at']
+    assert payload['bootstrap']['agent_contract']['status'] == 'UNKNOWN'
+    assert payload['live_swarm']['status'] == 'UNKNOWN'
+    assert payload['github']['status'] == 'UNKNOWN'
+    assert payload['swarm_topology']['status'] == 'UNKNOWN'
+    assert payload['bootstrap_end'] == {'status': 'COMPLETE', 'schema': 'bootstrap.v1'}
+    status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'WATCHDOG_HEARTBEAT'
+
+
+def test_watchdog_heartbeat_skips_fresh_complete_snapshot_without_running_atlas(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    original = _write_complete_snapshot(destination, age_seconds=5)
+
+    cp = _run_once(alternate, overlay, heartbeat_if_older_than_seconds=45)
+
+    assert cp.returncode == 0, cp.stderr
+    assert not marker.exists()
+    assert json.loads(destination.read_text(encoding='utf-8')) == original
+    status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'WATCHDOG_SKIPPED_FRESH'
+
+
+def test_watchdog_heartbeat_bypasses_stuck_primary_lock_without_running_atlas(tmp_path: Path) -> None:
+    import importlib.util
+    import time
+
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    _write_complete_snapshot(destination, age_seconds=70)
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_heartbeat_lock_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    producer_lock = module._try_acquire_producer_lock(alternate)
+    assert producer_lock is not None
+    try:
+        started = time.monotonic()
+        cp = _run_once(alternate, overlay, heartbeat_if_older_than_seconds=45)
+        elapsed = time.monotonic() - started
+    finally:
+        module._release_producer_lock(producer_lock)
+
+    assert cp.returncode == 0, cp.stderr
+    assert elapsed < 2.0
+    assert not marker.exists()
+    payload = json.loads(destination.read_text(encoding='utf-8'))
+    assert payload['bootstrap']['refresh_mode'] == 'WATCHDOG_HEARTBEAT'
+    assert payload['bootstrap']['status'] == 'DEGRADED'
