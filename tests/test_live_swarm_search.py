@@ -70,6 +70,16 @@ class LiveSwarmSearchTests(unittest.TestCase):
         probe = search_live_swarm(self.snapshot, "output schema probe")[0]
         self.assertEqual(probe["caller_id"], "caller_watchdog")
 
+    def test_multi_term_query_rejects_single_generic_term_noise(self):
+        noisy = search_live_swarm(self.snapshot, "issue 301 library file transfer", limit=5)
+        self.assertEqual(noisy, [])
+        exact = search_live_swarm(self.snapshot, "stable generation", limit=5)
+        self.assertEqual(exact[0]["kind"], "busy_handoff")
+        self.assertEqual(set(exact[0]["matched_terms"]), {"stable", "generation"})
+        caller = search_live_swarm(self.snapshot, "stall watchdog", limit=5)
+        self.assertEqual(caller[0]["kind"], "caller_activity")
+        self.assertEqual(set(caller[0]["matched_terms"]), {"stall", "watchdog"})
+
     def test_search_is_bounded_and_uses_existing_snapshot_only(self):
         self.assertEqual(search_live_swarm(self.snapshot, ""), [])
         self.assertEqual(search_live_swarm(self.snapshot, "missing-term"), [])

@@ -2169,6 +2169,30 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual({hit["label"] for hit in hits}, {"Lightweight asshole correction marker", "Repo Worker Alder #S2"})
         self.assertEqual({hit["kind"] for hit in hits}, {"vault_memory", "worker_report"})
 
+    def test_timeline_discovery_boosts_explicit_issue_number_over_textual_neighbor(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T02:22:00+03:00"
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 2, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            ids = [
+                "github-issue:organicoverlords/chatgpt-mcp-clean#301:2026-09-12T00:00:00Z",
+                "github-issue:organicoverlords/chatgpt-mcp-clean#248:2026-09-11T00:00:00Z",
+            ]
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"issue": [0, 1], "301": [0], "library": [0, 1], "file": [1], "transfer": [1]},
+                    "weight_codes": {"issue": bytes([2, 2]), "301": bytes([2]), "library": bytes([3, 5]), "file": bytes([5]), "transfer": bytes([5])},
+                    "anchors": [["github:organicoverlords/chatgpt-mcp-clean#301"], ["github:organicoverlords/chatgpt-mcp-clean#248"]],
+                }, handle)
+            hits, _ = _timeline_discovery_hits("issue 301 library file transfer", limit=5, root=root)
+        self.assertEqual(hits[0]["reference"], "organicoverlords/chatgpt-mcp-clean#301")
+
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])
         self.assertEqual(find_features("definitely-unknown-capability"), [])
