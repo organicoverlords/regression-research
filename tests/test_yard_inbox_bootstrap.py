@@ -85,7 +85,7 @@ class YardInboxBootstrapTests(unittest.TestCase):
             statuses = sorted([json.loads(out1)["status"], json.loads(out2)["status"]])
             self.assertEqual(statuses, ["CLAIMED", "EMPTY"])
 
-    def test_bootstrap_glance_checks_and_claims_inbox(self):
+    def test_bootstrap_glance_reports_only_message_count(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(Path(tmp), [{
                 "id": "msg_boot",
@@ -93,17 +93,22 @@ class YardInboxBootstrapTests(unittest.TestCase):
                 "text": "Bootstrap sees this",
                 "ts": "2026-09-11T14:00:00Z",
             }])
-            check = lambda: inbox.peek_next(store)
+            check = lambda: inbox.count_pending(store)
             with patch.object(atlas, "_yard_inbox_check", side_effect=check):
                 glance = atlas.build_live_bootstrap_glance()
             self.assertEqual(glance["schema"], "bootstrap.v1")
-            self.assertEqual(glance["yard_inbox"]["status"], "PENDING")
-            self.assertEqual(glance["yard_inbox"]["message_preview"]["id"], "msg_boot")
+            self.assertEqual(glance["yard_messages"], 1)
+            self.assertNotIn("yard_inbox", glance)
             persisted = json.loads(store.read_text(encoding="utf-8"))
             self.assertNotIn("status", persisted[0])
             self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
             encoded = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
             self.assertLessEqual(len(encoded), atlas.BOOTSTRAP_GLANCE_MAX_BYTES)
+
+            glance["commands"]["synthetic_bloat"] = "x" * 20000
+            compacted = atlas._fit_bootstrap_glance_budget(glance)
+            self.assertEqual(compacted["yard_messages"], 1)
+            self.assertNotIn("yard_inbox", compacted)
 
 
 if __name__ == "__main__":
