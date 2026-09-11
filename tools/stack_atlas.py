@@ -2842,25 +2842,35 @@ def _bootstrap_vault_status() -> dict[str, Any]:
 
     git = shutil.which("git")
     result["git_cli_available"] = bool(git)
+    result["attention_required"] = False
     if git:
-        try:
-            proc = _run_process(
-                [git, "-C", str(root), "rev-parse", "--is-inside-work-tree", "HEAD"],
-                text=True,
-                capture_output=True,
-                timeout=2,
-            )
-            lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-            result["git_worktree"] = proc.returncode == 0 and bool(lines) and lines[0].casefold() == "true"
-            if proc.returncode == 0 and len(lines) >= 2:
-                result["head"] = lines[-1]
-            if proc.returncode != 0:
-                result["status"] = "DEGRADED"
-        except (OSError, subprocess.TimeoutExpired):
-            result["git_worktree"] = False
+        # Observation only: the dedicated sync owner refreshes origin/main. Bootstrap never fetches.
+        git_deadline = time.monotonic() + 2.0
+        cached_remote_main = None
+        timeout = _remaining_bootstrap_git_timeout(git_deadline)
+        if timeout is not None:
+            try:
+                remote_proc = _run_process(
+                    [git, "-C", str(root), "rev-parse", "--verify", "refs/remotes/origin/main"],
+                    text=True,
+                    capture_output=True,
+                    timeout=timeout,
+                )
+                if remote_proc.returncode == 0:
+                    cached_remote_main = remote_proc.stdout.strip() or None
+            except (OSError, subprocess.TimeoutExpired):
+                cached_remote_main = None
+        checkout = _git_checkout_state(root, cached_remote_main, deadline=git_deadline)
+        result["checkout"] = checkout
+        result["git_worktree"] = bool(checkout.get("available"))
+        if checkout.get("local_head"):
+            result["head"] = checkout.get("local_head")
+        result["attention_required"] = not bool(checkout.get("coherent"))
+        if not checkout.get("coherent"):
             result["status"] = "DEGRADED"
     else:
         result["git_worktree"] = False
+        result["attention_required"] = True
         result["status"] = "DEGRADED"
 
     if memory_path.is_file():
