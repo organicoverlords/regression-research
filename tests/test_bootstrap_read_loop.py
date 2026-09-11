@@ -113,6 +113,42 @@ def test_once_can_run_deployed_atlas_outside_repo_root(tmp_path: Path) -> None:
     assert str(alternate.resolve()) in payload['pythonpath'].split(os.pathsep)
 
 
+def test_deployed_atlas_refreshes_from_git_head_not_dirty_worktree(tmp_path: Path) -> None:
+    alternate = tmp_path / 'repo'
+    runtime = tmp_path / 'runtime'
+    runtime.mkdir()
+    _write_fake_atlas(alternate)
+    subprocess.run(['git', 'init', '-q'], cwd=alternate, check=True)
+    subprocess.run(['git', 'add', 'tools/stack_atlas.py'], cwd=alternate, check=True)
+    subprocess.run(
+        ['git', '-c', 'user.name=Bootstrap Test', '-c', 'user.email=bootstrap@example.invalid',
+         'commit', '-q', '-m', 'canonical atlas'],
+        cwd=alternate, check=True,
+    )
+    canonical = alternate / 'tools' / 'stack_atlas.py'
+    head_bytes = subprocess.check_output(['git', 'show', 'HEAD:tools/stack_atlas.py'], cwd=alternate)
+    canonical.write_text(
+        canonical.read_text(encoding='utf-8').replace('alternate-root', 'dirty-working-tree'),
+        encoding='utf-8',
+    )
+    atlas = runtime / 'stack_atlas.py'
+    atlas.write_text(
+        "import json\nprint(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T11:00:00+00:00',"
+        "'source_marker':'stale-runtime','memory_overview':{'recent':[]},"
+        "'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+
+    cp = _run_once(alternate, overlay, quiet=False, atlas_path=atlas)
+
+    assert cp.returncode == 0, cp.stderr
+    payload = json.loads(cp.stdout.lstrip('\ufeff'))
+    assert payload['source_marker'] == 'alternate-root'
+    assert atlas.read_bytes() == head_bytes
+    assert 'dirty-working-tree' in canonical.read_text(encoding='utf-8')
+
+
 def test_once_overlays_fingerprint_current_recent_memory_projection(tmp_path: Path) -> None:
     alternate = tmp_path / 'alternate'
     _write_fake_atlas(alternate)
