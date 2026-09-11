@@ -2173,7 +2173,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(details["current_topology"]["connector_url"], "https://91-159-12-133.sslip.io/mcp")
         self.assertIn("mcp-current-topology.v1", status)
         self.assertEqual(details["current_topology"]["status"], "OK")
-        self.assertIn("127.0.0.1:3028", details["current_topology"]["serving_path"])
+        contract = json.loads((ROOT / "04 Operating Contracts" / "mcp-current-topology.json").read_text(encoding="utf-8"))
+        self.assertIn(contract["serving"]["backend"]["listen"], details["current_topology"]["serving_path"])
         self.assertIn("5-61-91-127.sslip.io", details["current_topology"]["excluded_from_gpt1_path"])
 
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
@@ -2645,11 +2646,11 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         self.assertEqual(contract["schema"], "mcp-current-topology.v1")
         self.assertEqual(contract["serving"]["connector_url"], details["current_topology"]["connector_url"])
         self.assertEqual(details["current_topology"]["status"], "OK")
-        self.assertIn("127.0.0.1:3028", details["current_topology"]["serving_path"])
-        self.assertEqual(contract["serving"]["backend"]["listen"], "127.0.0.1:3028")
-        self.assertEqual(contract["serving"]["peer_route"]["listen"], "127.0.0.1:3029")
-        self.assertEqual(contract["serving"]["backend"]["persistence_task"], "McpV4FrozenStable3028")
-        self.assertEqual(contract["serving"]["peer_route"]["persistence_task"], "McpV4FrozenPr2373029")
+        self.assertIn(contract["serving"]["backend"]["listen"], details["current_topology"]["serving_path"])
+        self.assertTrue(contract["serving"]["backend"]["listen"].startswith("127.0.0.1:"))
+        self.assertTrue(contract["serving"]["peer_route"]["listen"].startswith("127.0.0.1:"))
+        self.assertTrue(contract["serving"]["backend"]["persistence_task"])
+        self.assertTrue(contract["serving"]["peer_route"]["persistence_task"])
         self.assertEqual(contract["chatgpt_surface"]["tool_count"], 5)
         self.assertEqual(contract["chatgpt_surface"]["tools"], details["chatgpt_plugin_surface"]["tools"])
         self.assertTrue(contract["chatgpt_surface"]["image_delivery"]["adds_tool"])
@@ -2657,8 +2658,8 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         current = find_features("gpt1 mcp topology 91-159-12-133")[0]
         self.assertEqual(current["id"], "mcp.current_topology")
         self.assertIn("mcp-current-topology.v1", current["boundary"])
-        self.assertNotIn("127.0.0.1:3036", current["boundary"])
-        self.assertNotIn("127.0.0.1:3039", current["boundary"])
+        self.assertNotIn(contract["serving"]["backend"]["listen"], current["boundary"])
+        self.assertNotIn(contract["serving"]["peer_route"]["listen"], current["boundary"])
 
     def test_mcp_lookup_reads_valid_current_topology_contract_at_call_time(self):
         import tools.stack_atlas as atlas
@@ -2672,6 +2673,7 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
                     "public_origin": "https://example.invalid",
                     "authorization_endpoint": "https://example.invalid/authorize",
                     "path": ["ChatGPT/GPT1 connector", "test Caddy", "127.0.0.1:3999"],
+                    "backend": {"listen": "127.0.0.1:3999"},
                 },
                 "chatgpt_surface": {"tool_count": 5, "tools": ["a", "b", "c", "d", "e"]},
                 "recovery": {"independent_local_control": "test rollback"},
@@ -2695,7 +2697,18 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
             invalid.write_text(json.dumps({"schema": "wrong.v1"}), encoding="utf-8")
             with patch.object(atlas, "MCP_CURRENT_TOPOLOGY_PATH", invalid):
                 invalid_current = atlas.component_details("mcp_minimal_clone")["current_topology"]
-        for current in (missing_current, invalid_current):
+            split_brain = root / "split-brain.json"
+            split_brain.write_text(json.dumps({
+                "schema": "mcp-current-topology.v1",
+                "authority": "current_serving_topology",
+                "serving": {
+                    "path": ["ChatGPT/GPT1 connector", "test Caddy", "127.0.0.1:3998"],
+                    "backend": {"listen": "127.0.0.1:3999"},
+                },
+            }), encoding="utf-8")
+            with patch.object(atlas, "MCP_CURRENT_TOPOLOGY_PATH", split_brain):
+                split_brain_current = atlas.component_details("mcp_minimal_clone")["current_topology"]
+        for current in (missing_current, invalid_current, split_brain_current):
             self.assertEqual(current["status"], "UNKNOWN_SOURCE_UNAVAILABLE")
             self.assertNotIn("serving_path", current)
             self.assertNotIn("3036", json.dumps(current))

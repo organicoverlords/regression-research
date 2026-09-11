@@ -2366,7 +2366,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("paths"), dict):
         paths = bounded["paths"]
-        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault") if key in paths}
+        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log") if key in paths}
 
     if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("mcp_recovery_state"), dict):
         recovery = bounded["mcp_recovery_state"]
@@ -2700,6 +2700,16 @@ def _bootstrap_mcp_current_topology() -> dict[str, Any]:
     if not isinstance(raw, dict) or raw.get("schema") != "mcp-current-topology.v1":
         return {"available": False, "read_state": "ERROR", "path": str(path), "error": "invalid mcp-current-topology.v1 contract"}
     serving = raw.get("serving", {}) if isinstance(raw.get("serving"), dict) else {}
+    backend = serving.get("backend", {}) if isinstance(serving.get("backend"), dict) else {}
+    serving_path = serving.get("path")
+    backend_listen = backend.get("listen")
+    if not isinstance(serving_path, list) or not serving_path or not isinstance(backend_listen, str) or serving_path[-1] != backend_listen:
+        return {
+            "available": False,
+            "read_state": "ERROR",
+            "path": str(path),
+            "error": "mcp-current-topology.v1 serving.path/backend.listen mismatch",
+        }
     surface = raw.get("chatgpt_surface", {}) if isinstance(raw.get("chatgpt_surface"), dict) else {}
     recovery = raw.get("recovery", {}) if isinstance(raw.get("recovery"), dict) else {}
     image_delivery = surface.get("image_delivery", {}) if isinstance(surface.get("image_delivery"), dict) else {}
