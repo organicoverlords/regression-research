@@ -379,15 +379,36 @@ COMPONENTS: dict[str, dict[str, Any]] = {
     },
     "github_runner": {
         "role": "ci_execution_worker",
-        "capabilities": ["runtime_validate"],
-        "canonical_sources": [r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1"],
-        "live_status": ["GitHub runner registration + exact workflow run"],
-        "supervisor": "runner-specific hidden launcher",
-        "self_heal": "runner-specific; do not infer fleet health from one process",
+        "capabilities": ["runtime_validate", "runtime_control"],
+        "canonical_sources": [
+            r"C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1",
+            r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1",
+        ],
+        "live_status": [
+            r"powershell -NoProfile -File C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1 -RunnerRoot <runner-root> -Action Status",
+            "GitHub runner registration + exact workflow run",
+        ],
+        "control": {
+            "entrypoint": r"C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1",
+            "actions": ["Status", "Install", "On", "Off", "Start", "Stop", "AutostartOn", "AutostartOff", "Uninstall"],
+            "autostart": "explicit logon trigger; independent from enabled/running state",
+            "intent_semantics": {
+                "off": "task disabled intentionally",
+                "on_stopped": "task enabled but not running",
+                "on_running": "task enabled and running",
+                "misconfigured": "task action no longer matches the canonical launcher/root",
+                "not_installed": "no task is registered",
+            },
+        },
+        "supervisor": "Start-GitHubRunnerHidden.ps1 after an explicit successful task start",
+        "self_heal": "bounded broker/listener recovery after successful launch only; Task Scheduler restart-on-failure loops are not a recovery mechanism",
         "independent_recovery": ["other online compatible runners"],
-        "resources": ["runner work directory"],
+        "resources": ["runner work directory", "explicit scheduled task state"],
         "dependents": ["github_actions"],
-        "runbook": [r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1"],
+        "runbook": [
+            r"C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1",
+            r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1",
+        ],
     },
     "local_git": {
         "role": "local_source_truth",

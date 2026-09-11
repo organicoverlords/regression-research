@@ -1953,6 +1953,17 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("saturated/unavailable", feature["boundary"])
         self.assertTrue(any("swarm_route.py route" in entry for entry in feature["entrypoints"]))
 
+    def test_github_runner_exposes_explicit_control_and_intent(self):
+        details = component_details("github_runner")
+        self.assertIn(r"C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1", details["canonical_sources"])
+        self.assertIn(r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1", details["canonical_sources"])
+        self.assertIn("runtime_control", details["capabilities"])
+        self.assertIn("Status", details["control"]["actions"])
+        self.assertIn("AutostartOn", details["control"]["actions"])
+        self.assertEqual(details["control"]["intent_semantics"]["off"], "task disabled intentionally")
+        self.assertIn("-Action Status", " ".join(details["live_status"]))
+        self.assertIn("restart-on-failure loops are not a recovery mechanism", details["self_heal"])
+
     def test_pid_is_lookup_key_not_component_identity(self):
         self.assertIn("ephemeral live lookup key", ATLAS_CONTRACT["pid_semantics"])
         self.assertIn("stable identity", ATLAS_CONTRACT["pid_semantics"])
