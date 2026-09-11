@@ -1672,6 +1672,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
 
+    def test_bootstrap_git_timeout_covers_loaded_windows_process_startup(self):
+        from tools.stack_atlas import BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS
+        self.assertEqual(BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS, 3.0)
+
     def test_git_checkout_state_distinguishes_cached_remote_from_local_tracking_main(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)

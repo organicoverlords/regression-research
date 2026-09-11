@@ -195,6 +195,7 @@ BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS = 60.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
+BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS = 3.0
 MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes"
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
@@ -2961,7 +2962,7 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
             [git, "-C", str(repo_root), "log", "-1", "--format=%cI", "--", relative_path],
             text=True,
             capture_output=True,
-            timeout=1.0,
+            timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -2992,7 +2993,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     try:
         proc = _run_process(
             [git, "-C", str(repo_root), "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
-            text=True, capture_output=True, timeout=1.0,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
         return result
@@ -3015,7 +3016,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     try:
         tracking_proc = _run_process(
             [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
-            text=True, capture_output=True, timeout=0.75,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         if tracking_proc.returncode == 0:
             tracking_head = tracking_proc.stdout.strip() or None
@@ -3028,7 +3029,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         try:
             ancestor_proc = _run_process(
                 [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
-                text=True, capture_output=True, timeout=0.75,
+                text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
             )
             cached_remote_is_ancestor = ancestor_proc.returncode == 0
         except (OSError, subprocess.TimeoutExpired):
@@ -3078,20 +3079,20 @@ def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remo
     try:
         exists = _run_process(
             [git, "-C", str(repo_root), "cat-file", "-e", f"{commit}^{{commit}}"],
-            text=True, capture_output=True, timeout=0.75,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         if exists.returncode != 0:
             return False
         base_proc = _run_process(
             [git, "-C", str(repo_root), "merge-base", "HEAD", commit],
-            text=True, capture_output=True, timeout=0.75,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         base = base_proc.stdout.strip() if base_proc.returncode == 0 else ""
         if not base:
             return False
         patch_proc = _run_process(
             [git, "-C", str(repo_root), "diff", "--no-ext-diff", "--unified=0", base, commit, "--", relative_path],
-            capture_output=True, timeout=1.0,
+            capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         if patch_proc.returncode != 0:
             return False
@@ -3099,7 +3100,7 @@ def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remo
             return True
         reverse_check = _run_process(
             [git, "-C", str(repo_root), "apply", "--reverse", "--check", "--unidiff-zero", "--whitespace=nowarn"],
-            input=patch_proc.stdout, capture_output=True, timeout=1.0,
+            input=patch_proc.stdout, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         return reverse_check.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
