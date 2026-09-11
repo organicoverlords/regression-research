@@ -39,12 +39,19 @@ from tools.timeline_materializer import (
     _github_read_cli,
     _lesson_packet,
     _merge_materialized_events,
+    _query_index_opaque_label,
     _run_json,
     _run_process,
 )
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_query_index_opaque_label_only_materializes_human_labels_for_opaque_identities(self):
+        self.assertEqual(_query_index_opaque_label({"id": "worker:abc", "display_label": "Repo Worker Alder #S2", "title": "fallback"}), "Repo Worker Alder #S2")
+        self.assertEqual(_query_index_opaque_label({"id": "mem-20260912-abc", "title": "Lightweight asshole correction marker"}), "Lightweight asshole correction marker")
+        self.assertIsNone(_query_index_opaque_label({"id": "github-issue:org/repo#1:now", "title": "Issue title"}))
+        self.assertEqual(len(_query_index_opaque_label({"id": "worker:long", "title": "x" * 400})), 180)
+
     def test_github_read_cli_prefers_gh_swarm_on_path(self):
         def which(name):
             return "C:/tools/gh-swarm.exe" if name == "gh-swarm" else "C:/tools/gh.exe"
