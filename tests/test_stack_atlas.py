@@ -2137,7 +2137,7 @@ class StackAtlasTests(unittest.TestCase):
             component_details("tiny3d_library")
 
     def test_shared_visual_library_integration_reconciles_existing_proof_owners(self):
-        for alias in ("shared_visual_library", "chatgpt_visual_library", "shared_chat_proof", "12-view", "12 view", "turnaround sheet", "multiview sheet"):
+        for alias in ("shared_visual_library", "chatgpt_visual_library", "shared_chat_proof", "12-view", "12 view", "turnaround sheet", "multiview sheet", "standardized 12-view", "standardized 12 views", "canonical 12-view set", "review contact sheet"):
             with self.subTest(alias=alias):
                 details = atlas_lookup(alias)
                 self.assertEqual(details["id"], "project.shared_visual_library_integration")
@@ -2158,6 +2158,11 @@ class StackAtlasTests(unittest.TestCase):
                 self.assertIn("original/highest-resolution producer 12-view sheet is one transfer/review unit", details["boundary"])
                 self.assertIn("inspect all twelve panels thoroughly", details["boundary"])
                 self.assertIn("12 separate crop/transfer operations", details["boundary"])
+                self.assertIn("complete standardized 12-view set already exists as canonical individual images", details["boundary"])
+                self.assertIn("transient ZIP+manifest payload", details["boundary"])
+                self.assertIn("Never create a reviewer-authored contact sheet", details["boundary"])
+                self.assertIn("background, exposure, lighting, crop, scale/resolution, tone/color, or panel layout", details["boundary"])
+                self.assertIn("owning renderer/grid builder's canonical standardized output", details["boundary"])
                 self.assertIn("per-view crop/transfer is exception-only", details["boundary"])
                 self.assertIn("Do not prefer Drive/Library", details["boundary"])
                 self.assertNotIn("first-party connected Google Drive", details["boundary"])
@@ -2167,7 +2172,7 @@ class StackAtlasTests(unittest.TestCase):
             limit=1,
         )
         self.assertEqual(result[0]["id"], "project.shared_visual_library_integration")
-        for query in ("review this 12-view render", "inspect the 12 view asset", "transfer the turnaround sheet", "review the multiview sheet"):
+        for query in ("review this 12-view render", "inspect the 12 view asset", "transfer the turnaround sheet", "review the multiview sheet", "use the standardized 12-view instead of making a contact sheet", "inspect the canonical 12-view set"):
             with self.subTest(query=query):
                 self.assertEqual(find_features(query, limit=1)[0]["id"], "project.shared_visual_library_integration")
 
