@@ -49,6 +49,16 @@ class LiveSwarmSearchTests(unittest.TestCase):
                     ],
                 },
             ],
+            "transport_sources": [
+                {
+                    "instance": "home-direct-7a457c6-library-work-canary",
+                    "local_port": 3045,
+                    "server_pid": 24136,
+                    "latest_event_at": "2026-09-11T23:25:06Z",
+                    "activity_window_complete": True,
+                    "observation_window_complete": True,
+                }
+            ],
         }
 
     def test_checkpoint_and_scope_are_searchable_handoff_context(self):
@@ -79,6 +89,17 @@ class LiveSwarmSearchTests(unittest.TestCase):
         caller = search_live_swarm(self.snapshot, "stall watchdog", limit=5)
         self.assertEqual(caller[0]["kind"], "caller_activity")
         self.assertEqual(set(caller[0]["matched_terms"]), {"stall", "watchdog"})
+
+    def test_numeric_terms_are_required_and_transport_sources_are_searchable(self):
+        self.assertEqual(search_live_swarm(self.snapshot, "issue 301 library file transfer", limit=5), [])
+        canary = search_live_swarm(self.snapshot, "library canary", limit=5)[0]
+        self.assertEqual(canary["kind"], "transport_source")
+        self.assertEqual(canary["authority"], "LIVE_MCP_TRANSPORT_SOURCE_EVIDENCE")
+        self.assertEqual(canary["instance"], "home-direct-7a457c6-library-work-canary")
+        self.assertEqual(set(canary["matched_terms"]), {"library", "canary"})
+        by_port = search_live_swarm(self.snapshot, "port 3045", limit=5)[0]
+        self.assertEqual(by_port["kind"], "transport_source")
+        self.assertEqual(by_port["local_port"], 3045)
 
     def test_search_is_bounded_and_uses_existing_snapshot_only(self):
         self.assertEqual(search_live_swarm(self.snapshot, ""), [])
