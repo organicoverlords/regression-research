@@ -54,6 +54,79 @@ class MemoryCliTests(unittest.TestCase):
             standalone = json.loads(self.run_cli(bank, *self.record_args(kind="correction", text="Standalone correction rule", state="PROVISIONAL"), "--standalone-correction", check=True).stdout)
             self.assertEqual(standalone["supersedes"], [])
 
+    def test_literal_slopwall_record_requires_diagnosis_and_prevention_lesson(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "bank.jsonl"
+            source = "slopwall tämä vastaus ei tehnyt pyydettyä työtä"
+            rejected = self.run_cli(
+                bank,
+                *self.record_args(kind="correction", text="Be concise and answer better.", source=source),
+                "--tag", "slopwall", "--standalone-correction",
+            )
+            self.assertEqual(rejected.returncode, 2, rejected.stderr)
+            self.assertIn("Rejected behavior:", rejected.stdout)
+            self.assertIn("Mechanism uncertainty:", rejected.stdout)
+            self.assertIn("Prevention lesson:", rejected.stdout)
+            self.assertIn("answer better", rejected.stdout)
+
+    def test_literal_slopwall_record_accepts_complete_learning_loop_and_adds_tag(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "bank.jsonl"
+            source = "SLOPWALL: lopeta reitin selittely ja tee työ"
+            text = (
+                "Rejected behavior: assistant stayed on a blocked transport and narrated route discovery instead of doing the requested inspection. "
+                "Best-supported mechanism: route selection did not pivot after direct evidence showed the first transport was blocked. "
+                "Prevention lesson: when a low-level route is blocked and a supported read-only owner path exists, switch to that path and return the operational result first."
+            )
+            created = json.loads(self.run_cli(
+                bank,
+                *self.record_args(kind="correction", text=text, source=source),
+                "--standalone-correction",
+                check=True,
+            ).stdout)
+            self.assertIn("slopwall", created["tags"])
+            self.assertEqual(created["text"], text)
+            self.assertEqual(created["source_messages"], [source])
+
+    def test_slopwall_tag_requires_literal_source_provenance(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "bank.jsonl"
+            text = (
+                "Rejected behavior: assistant selected the wrong route and displaced the requested result. "
+                "Mechanism: route selection stopped at the first blocked transport instead of using the supported owner path. "
+                "Prevention lesson: switch to the supported owner path after a bounded low-level route failure."
+            )
+            result = self.run_cli(
+                bank,
+                *self.record_args(kind="correction", text=text, source="this answer used the wrong route"),
+                "--tag", "slopwall", "--standalone-correction",
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("verbatim --source-message containing literal slopwall", result.stdout)
+
+    def test_tagged_slopwall_must_be_recorded_as_correction(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "bank.jsonl"
+            text = (
+                "Rejected behavior: assistant displaced the requested result with process narration. "
+                "Mechanism uncertainty: the observable selection failure is proven but a deeper internal cause is not. "
+                "Prevention lesson: keep the inherited task live and return the missing substantive result before process detail."
+            )
+            result = self.run_cli(bank, *self.record_args(kind="lesson", text=text, source="slopwall"), "--tag", "slopwall")
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("literal slopwall must be recorded with --kind correction", result.stdout)
+
+    def test_meta_slopwall_reference_without_correction_tag_remains_ordinary_memory(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = Path(d) / "bank.jsonl"
+            created = json.loads(self.run_cli(
+                bank,
+                *self.record_args(kind="lesson", text="Slopwall history distinguishes corrective incidents from meta references.", source="what does slopwall mean?"),
+                check=True,
+            ).stdout)
+            self.assertEqual(created["kind"], "lesson")
+            self.assertNotIn("slopwall", created["tags"])
+
     def test_record_cli_accepts_unicode_error(self):
         with tempfile.TemporaryDirectory() as d:
             bank = Path(d) / "bank.jsonl"

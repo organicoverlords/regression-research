@@ -1247,6 +1247,45 @@ def attach_materialized_orientation(
     return report
 
 
+def _slopwall_section(text: str, labels: tuple[str, ...]) -> str | None:
+    label_expr = "|".join(re.escape(label) for label in labels)
+    match = re.search(rf"(?i)(?:^|[\s.;])(?:{label_expr})\s*:\s*", text)
+    if match is None:
+        return None
+    tail = text[match.end():]
+    next_label = re.search(
+        r"(?i)(?:^|[\s.;])(?:Rejected behavior|Best-supported mechanism|Mechanism uncertainty|Mechanism|Prevention lesson)\s*:\s*",
+        tail,
+    )
+    value = tail[: next_label.start()] if next_label is not None else tail
+    value = " ".join(value.split()).strip(" .;:-")
+    return value if len(value) >= 12 else None
+
+
+def _validate_slopwall_record(kind: str, tags: list[str], source_messages: list[str], text: str) -> bool:
+    """Validate only newly recorded literal Slopwall corrections; historical entries remain readable."""
+    tagged = any(str(tag).casefold() == "slopwall" for tag in tags)
+    literal_source = any("slopwall" in str(message).casefold() for message in source_messages)
+    slopwall_correction = tagged or (kind == "correction" and literal_source)
+    if not slopwall_correction:
+        return False
+    if tagged and not literal_source:
+        raise BankError("--tag slopwall requires a verbatim --source-message containing literal slopwall")
+    if kind != "correction":
+        raise BankError("literal slopwall must be recorded with --kind correction")
+
+    rejected = _slopwall_section(text, ("Rejected behavior",))
+    mechanism = _slopwall_section(text, ("Best-supported mechanism", "Mechanism uncertainty", "Mechanism"))
+    prevention = _slopwall_section(text, ("Prevention lesson",))
+    if not (rejected and mechanism and prevention):
+        raise BankError(
+            "literal slopwall correction requires non-empty 'Rejected behavior:', "
+            "'Best-supported mechanism:'/'Mechanism:'/'Mechanism uncertainty:', and 'Prevention lesson:' sections; "
+            "brevity, apology, complaint restatement, or 'answer better' alone is insufficient"
+        )
+    return True
+
+
 def _main() -> int:
     parser = argparse.ArgumentParser(description="Shared memory bank")
     parser.add_argument("--bank", type=Path, default=DEFAULT_BANK)
@@ -1323,6 +1362,7 @@ def _main() -> int:
             _print_json({"status": "PROVEN", "entries": len(entries)})
             return 0
         if args.command == "record":
+            slopwall_record = _validate_slopwall_record(args.kind, args.tag, args.source_message, args.text)
             if args.standalone_correction and args.kind != "correction":
                 raise BankError("--standalone-correction is valid only with --kind correction")
             if args.kind == "correction" and not args.supersedes and not args.standalone_correction:
@@ -1332,6 +1372,8 @@ def _main() -> int:
             if missing_supersedes:
                 raise BankError("supersedes target not found: " + ", ".join(missing_supersedes))
             record_tags = [*args.tag, "assistant-recorded", "verbatim-source"]
+            if slopwall_record and not any(str(tag).casefold() == "slopwall" for tag in record_tags):
+                record_tags.append("slopwall")
             if args.positive_milestone:
                 record_tags.append("positive-milestone")
             values = {
