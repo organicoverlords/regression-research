@@ -101,6 +101,27 @@ def _stale(item: dict[str, Any], now: datetime, ttl_seconds: int) -> bool:
     return (now.astimezone(timezone.utc) - claimed_at.astimezone(timezone.utc)).total_seconds() >= ttl_seconds
 
 
+def count_pending(store_path: str | Path | None = None, *, now: datetime | None = None, ttl_seconds: int = CLAIM_TTL_SECONDS) -> int | None:
+    """Return only the number of currently claimable yard comments for bootstrap."""
+    store = Path(store_path) if store_path is not None else DEFAULT_STORE
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    if not store.exists():
+        return None
+    try:
+        with _file_lock(store):
+            items = _read_unlocked(store)
+            return sum(
+                1
+                for item in items
+                if item.get("role") == "human"
+                and (item.get("status") == "unread" or _stale(item, current, ttl_seconds))
+            )
+    except (OSError, json.JSONDecodeError, ValueError):
+        return None
+
+
 def peek_next(store_path: str | Path | None = None, *, now: datetime | None = None, ttl_seconds: int = CLAIM_TTL_SECONDS) -> dict[str, Any]:
     """Read the next eligible yard comment without taking ownership of it."""
     store = Path(store_path) if store_path is not None else DEFAULT_STORE

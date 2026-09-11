@@ -19,9 +19,9 @@ from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
 try:
-    from tools.yard_inbox_bridge import peek_next as _yard_inbox_check
+    from tools.yard_inbox_bridge import count_pending as _yard_inbox_check
 except ModuleNotFoundError:
-    from yard_inbox_bridge import peek_next as _yard_inbox_check
+    from yard_inbox_bridge import count_pending as _yard_inbox_check
 
 def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
     """Best-effort bounded tree termination for a task-owned Windows child."""
@@ -3420,9 +3420,9 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        f_yard_inbox = pool.submit(_yard_inbox_check)
-        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness, yard_inbox = (
-            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result(), f_yard_inbox.result()
+        f_yard_messages = pool.submit(_yard_inbox_check)
+        execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness, yard_messages = (
+            f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result(), f_yard_messages.result()
         )
     pc = _bind_pc_node_identity(pc, execution_nodes)
     bootstrap_now = datetime.now(timezone.utc)
@@ -3579,7 +3579,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "vault": vault,
         "github": github,
         "source_freshness": source_freshness,
-        "yard_inbox": yard_inbox,
+        "yard_messages": yard_messages,
         "pc": pc,
         "workers": worker_glance,
         "mcp_current_topology": mcp_current_topology,
