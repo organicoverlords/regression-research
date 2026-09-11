@@ -4128,6 +4128,9 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
         return [], coverage
 
+    normalized_query = str(query).casefold()
+    explicit_issue_numbers = set(re.findall(r"\bissue\s*#?\s*(\d+)\b", normalized_query))
+    explicit_pr_numbers = set(re.findall(r"\b(?:pr|pull\s+request)\s*#?\s*(\d+)\b", normalized_query))
     concepts = _discovery_query_terms(query)
     if not concepts:
         coverage.update({"status": "OK", "generated_at": generated_at, "candidate_count": 0})
@@ -4175,6 +4178,11 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         score = sum(weights.get(position, 0.0) for weights in best_by_concept)
         score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
         score += matched / max(1, len(concepts))
+        reference_number = reference.rsplit("#", 1)[-1] if "#" in reference else ""
+        if kind == "github_issue" and reference_number in explicit_issue_numbers:
+            score += 25.0
+        if kind == "github_pr" and reference_number in explicit_pr_numbers:
+            score += 25.0
         ranked.append((score, stable_key, kind, reference, anchors))
 
     ranked.sort(key=lambda item: (-item[0], item[1]))
