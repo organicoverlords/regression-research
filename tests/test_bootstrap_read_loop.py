@@ -352,3 +352,45 @@ def test_skip_if_fresh_refreshes_invalid_snapshot(tmp_path: Path) -> None:
     payload = json.loads(destination.read_text(encoding='utf-8'))
     assert payload['source_marker'] == 'alternate-root'
     assert payload['bootstrap_end']['status'] == 'COMPLETE'
+
+
+def test_default_glance_timeout_allows_loaded_but_bounded_refresh() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_timeout_constant_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    assert module.BOOTSTRAP_GLANCE_TIMEOUT_SECONDS == 30.0
+
+
+def test_singleflight_skips_second_producer_while_lock_is_held(tmp_path: Path) -> None:
+    import importlib.util
+    import time
+
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_lock_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    lock = module._try_acquire_producer_lock(alternate)
+    assert lock is not None
+    try:
+        started = time.monotonic()
+        cp = _run_once(alternate, overlay)
+        elapsed = time.monotonic() - started
+    finally:
+        module._release_producer_lock(lock)
+    assert cp.returncode == 0, cp.stderr
+    assert elapsed < 2.0
+    assert not marker.exists()
+    status = json.loads((alternate / '.state' / 'bootstrap' / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'SKIPPED_INFLIGHT'

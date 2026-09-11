@@ -66,7 +66,7 @@ $primaryTrigger = New-ScheduledTaskTrigger -Once -At $baseStart -RepetitionInter
 Register-ScheduledTask -TaskName $primaryTaskName -Action $primaryAction -Trigger $primaryTrigger -Settings $settings -Principal $principal -Description 'Publishes one bounded bootstrap snapshot per minute directly through the runtime producer.' | Out-Null
 
 $watchdogAction = New-ScheduledTaskAction -Execute $pythonwPath -Argument $watchdogArguments -WorkingDirectory $repoRoot
-$watchdogTrigger = New-ScheduledTaskTrigger -Once -At $baseStart.AddSeconds(20) -RepetitionInterval (New-TimeSpan -Minutes 1)
+$watchdogTrigger = New-ScheduledTaskTrigger -Once -At $baseStart.AddSeconds(35) -RepetitionInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName $watchdogTaskName -Action $watchdogAction -Trigger $watchdogTrigger -Settings $settings -Principal $principal -Description 'Runs the same bounded producer independently and skips work while a COMPLETE bootstrap snapshot is 45 seconds old or newer.' | Out-Null
 
 # guard-state.json belonged to the retired PowerShell wrapper and must not masquerade as live authority.

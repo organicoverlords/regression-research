@@ -19,7 +19,7 @@ MEMORY_RECENT_LIMIT = 3
 PRODUCER_STATUS_NAME = 'producer-status.json'
 
 
-BOOTSTRAP_GLANCE_TIMEOUT_SECONDS = 12.0
+BOOTSTRAP_GLANCE_TIMEOUT_SECONDS = 30.0
 PROCESS_TREE_KILL_TIMEOUT_SECONDS = 2.0
 
 
@@ -277,6 +277,60 @@ def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
     return max(0.0, age), status
 
 
+
+def _try_acquire_producer_lock(repo_root: Path):
+    path = _snapshot_dir(repo_root) / 'producer.lock'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    stream = path.open('a+b')
+    try:
+        stream.seek(0, os.SEEK_END)
+        if stream.tell() == 0:
+            stream.write(b'\0')
+            stream.flush()
+        stream.seek(0)
+        if os.name == 'nt':
+            import msvcrt
+            try:
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                stream.close()
+                return None
+        else:
+            import fcntl
+            try:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                stream.close()
+                return None
+        return stream
+    except Exception:
+        stream.close()
+        raise
+
+
+def _release_producer_lock(stream) -> None:
+    try:
+        stream.seek(0)
+        if os.name == 'nt':
+            import msvcrt
+            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    finally:
+        stream.close()
+
+
+def _emit_singleflight(repo_root: Path, *, quiet: bool) -> bool:
+    lock = _try_acquire_producer_lock(repo_root)
+    if lock is None:
+        _write_producer_status(repo_root, mode='SKIPPED_INFLIGHT', exit_code=0)
+        return True
+    try:
+        return emit_snapshot(repo_root, quiet=quiet)
+    finally:
+        _release_producer_lock(lock)
+
 def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -> bool:
     repo_root = repo_root.resolve()
     atlas = repo_root / 'tools' / 'stack_atlas.py'
@@ -356,9 +410,9 @@ def main() -> int:
                     _write_producer_status(repo_root, mode='SKIPPED_FRESH', exit_code=0)
                     ok = True
                 else:
-                    ok = emit_snapshot(repo_root, quiet=args.quiet)
+                    ok = _emit_singleflight(repo_root, quiet=args.quiet)
             else:
-                ok = emit_snapshot(repo_root, quiet=args.quiet)
+                ok = _emit_singleflight(repo_root, quiet=args.quiet)
         except Exception as exc:
             print(json.dumps({
                 'stream_schema': 'bootstrap-read-stream.v1',
