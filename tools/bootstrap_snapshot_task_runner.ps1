@@ -2,12 +2,13 @@ param(
     [Parameter(Mandatory=$true)][ValidateSet('Primary','Watchdog')][string]$Mode,
     [Parameter(Mandatory=$true)][string]$RepoRoot,
     [Parameter(Mandatory=$true)][string]$PythonPath,
+    [string]$ProducerPath,
     [int]$TimeoutSeconds = 15,
     [int]$StaleSeconds = 55
 )
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path -LiteralPath $RepoRoot).Path
-$producer = Join-Path $repo 'tools\bootstrap_read_loop.py'
+$producer = $(if ($ProducerPath) { (Resolve-Path -LiteralPath $ProducerPath).Path } else { Join-Path (Split-Path -Parent $PSCommandPath) 'bootstrap_read_loop.py' })
 $snapshot = Join-Path $repo '.state\bootstrap\latest.json'
 $statePath = Join-Path $repo '.state\bootstrap\guard-state.json'
 if (-not (Test-Path -LiteralPath $PythonPath -PathType Leaf)) { throw "Python runtime missing: $PythonPath" }
@@ -74,6 +75,9 @@ function Invoke-BoundedRefresh {
     $psi.WorkingDirectory = $repo
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
+    $pathSeparator = [System.IO.Path]::PathSeparator
+    $existingPythonPath = $psi.Environment['PYTHONPATH']
+    $psi.Environment['PYTHONPATH'] = $(if ($existingPythonPath) { $repo + $pathSeparator + $existingPythonPath } else { $repo })
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     [void]$psi.ArgumentList.Add($producer)

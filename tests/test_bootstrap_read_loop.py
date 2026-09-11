@@ -199,3 +199,45 @@ def test_replace_snapshot_fails_closed_after_retry_deadline(monkeypatch, tmp_pat
         module._replace_snapshot(source, destination, retry_seconds=0)
     assert source.exists()
     assert destination.read_text(encoding='utf-8') == 'old'
+
+
+def test_glance_capture_does_not_wait_for_inherited_stdout_handles(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    _, overlay = _memory_files(alternate, tmp_path)
+    (tools / 'stack_atlas.py').write_text(
+        "import json, subprocess, sys\n"
+        "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'])\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T03:00:00+00:00','memory_overview':{'recent':[]},'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}), flush=True)\n",
+        encoding='utf-8',
+    )
+
+    started = __import__('time').monotonic()
+    cp = _run_once(alternate, overlay)
+    elapsed = __import__('time').monotonic() - started
+
+    assert cp.returncode == 0, cp.stderr
+    assert elapsed < 2.5
+    payload = json.loads((alternate / '.state' / 'bootstrap' / 'latest.json').read_text(encoding='utf-8'))
+    assert payload['bootstrap_end']['status'] == 'COMPLETE'
+
+
+def test_glance_timeout_is_bounded_without_pipe_eof_wait(tmp_path: Path) -> None:
+    import importlib.util
+    import time
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_timeout_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    atlas = tmp_path / 'stack_atlas.py'
+    atlas.write_text('import time\ntime.sleep(30)\n', encoding='utf-8')
+
+    started = time.monotonic()
+    cp = module._run_bootstrap_glance(tmp_path, atlas, timeout_seconds=0.2)
+    elapsed = time.monotonic() - started
+
+    assert cp.returncode == 124
+    assert 'timed out after 0.2s' in cp.stderr
+    assert elapsed < 4.0

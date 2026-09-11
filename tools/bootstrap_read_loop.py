@@ -16,6 +16,109 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = HERE.parent
 MEMORY_RECENT_LIMIT = 3
 
+BOOTSTRAP_GLANCE_TIMEOUT_SECONDS = 12.0
+PROCESS_TREE_KILL_TIMEOUT_SECONDS = 2.0
+
+
+def _creationflags() -> int:
+    if os.name != 'nt':
+        return 0
+    return int(getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+
+
+def _child_python() -> str:
+    executable = Path(sys.executable)
+    if os.name == 'nt' and executable.name.casefold() == 'pythonw.exe':
+        console = executable.with_name('python.exe')
+        if console.exists():
+            return str(console)
+    return str(executable)
+
+
+def _terminate_process_tree(process: subprocess.Popen[bytes], *, timeout_seconds: float = PROCESS_TREE_KILL_TIMEOUT_SECONDS) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == 'nt':
+        killer = None
+        try:
+            killer = subprocess.Popen(
+                ['taskkill.exe', '/PID', str(process.pid), '/T', '/F'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=_creationflags(),
+                close_fds=True,
+            )
+            try:
+                killer.wait(timeout=max(0.1, timeout_seconds))
+            except subprocess.TimeoutExpired:
+                killer.kill()
+        except OSError:
+            pass
+    if process.poll() is None:
+        try:
+            process.kill()
+        except OSError:
+            pass
+    try:
+        process.wait(timeout=1.0)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def _read_capture(stream) -> str:
+    stream.flush()
+    stream.seek(0)
+    return stream.read().decode('utf-8', errors='replace')
+
+
+def _run_bootstrap_glance(repo_root: Path, atlas: Path, *, timeout_seconds: float = BOOTSTRAP_GLANCE_TIMEOUT_SECONDS) -> subprocess.CompletedProcess[str]:
+    stdout_path = None
+    stderr_path = None
+    stdout_stream = None
+    stderr_stream = None
+    command = [_child_python(), str(atlas), 'bootstrap-glance']
+    try:
+        stdout_stream = tempfile.NamedTemporaryFile(mode='w+b', prefix='bootstrap-glance-stdout-', suffix='.tmp', delete=False)
+        stderr_stream = tempfile.NamedTemporaryFile(mode='w+b', prefix='bootstrap-glance-stderr-', suffix='.tmp', delete=False)
+        stdout_path = Path(stdout_stream.name)
+        stderr_path = Path(stderr_stream.name)
+        process = subprocess.Popen(
+            command,
+            cwd=str(repo_root),
+            stdout=stdout_stream,
+            stderr=stderr_stream,
+            creationflags=_creationflags(),
+            close_fds=True,
+        )
+        timed_out = False
+        try:
+            returncode = process.wait(timeout=max(0.1, timeout_seconds))
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _terminate_process_tree(process)
+            returncode = 124
+        stdout = _read_capture(stdout_stream)
+        stderr = _read_capture(stderr_stream)
+        if timed_out:
+            suffix = f'bootstrap-glance timed out after {timeout_seconds:.1f}s'
+            stderr = f'{stderr.rstrip()}\n{suffix}'.lstrip()
+        return subprocess.CompletedProcess(command, returncode, stdout, stderr)
+    finally:
+        for stream in (stdout_stream, stderr_stream):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+        for path in (stdout_path, stderr_path):
+            if path is not None:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    # A timed-out descendant can briefly retain an inherited file handle.
+                    # The producer must stay bounded even if that best-effort cleanup cannot run yet.
+                    pass
+
 
 def _load_current_memory_projection(repo_root: Path) -> dict | None:
     seed_path = repo_root / 'memory' / 'memory-bank.jsonl'
@@ -60,16 +163,7 @@ def _replace_snapshot(temporary: Path, destination: Path, *, retry_seconds: floa
 def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -> bool:
     repo_root = repo_root.resolve()
     atlas = repo_root / 'tools' / 'stack_atlas.py'
-    cp = subprocess.run(
-        [sys.executable, str(atlas), 'bootstrap-glance'],
-        cwd=str(repo_root),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding='utf-8',
-        errors='replace',
-        timeout=20,
-    )
+    cp = _run_bootstrap_glance(repo_root, atlas)
     if cp.returncode != 0:
         print(json.dumps({
             'stream_schema': 'bootstrap-read-stream.v1',

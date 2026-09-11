@@ -41,6 +41,7 @@ def _run(root: Path, mode: str, *, timeout_seconds: int = 3, stale_seconds: int 
     return subprocess.run([
         _pwsh(), '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
         '-File', str(RUNNER), '-Mode', mode, '-RepoRoot', str(root), '-PythonPath', sys.executable,
+        '-ProducerPath', str(root / 'tools' / 'bootstrap_read_loop.py'),
         '-TimeoutSeconds', str(timeout_seconds), '-StaleSeconds', str(stale_seconds),
     ], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=10)
 
@@ -105,6 +106,8 @@ def test_primary_timeout_kills_child_tree_without_waiting_for_scheduler(tmp_path
 def test_installer_uses_pwsh_runner_not_pythonw_and_offsets_watchdog() -> None:
     text = INSTALLER.read_text(encoding='utf-8')
     assert 'bootstrap_snapshot_task_runner.ps1' in text
+    assert "$producerRuntime = Join-Path $runtimeRoot 'bootstrap_read_loop.py'" in text
+    assert 'Copy-Item -LiteralPath $producerPath -Destination $producerRuntime -Force' in text
     assert '-Mode Primary' in text
     assert '-Mode Watchdog' in text
     assert '-TimeoutSeconds 15' in text

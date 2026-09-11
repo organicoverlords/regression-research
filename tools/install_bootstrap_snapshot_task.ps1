@@ -14,7 +14,9 @@ if (-not (Test-Path -LiteralPath $runnerSource)) { throw "Bootstrap task runner 
 $runtimeRoot = Join-Path $env:LOCALAPPDATA 'VaultBootstrapSnapshot'
 New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
 $runnerRuntime = Join-Path $runtimeRoot 'bootstrap_snapshot_task_runner.ps1'
+$producerRuntime = Join-Path $runtimeRoot 'bootstrap_read_loop.py'
 Copy-Item -LiteralPath $runnerSource -Destination $runnerRuntime -Force
+Copy-Item -LiteralPath $producerPath -Destination $producerRuntime -Force
 
 $pythonPath = (& python.exe -c 'import sys; print(sys.executable)').Trim()
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonPath)) { throw 'Python runtime unavailable' }
