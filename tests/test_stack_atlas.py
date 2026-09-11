@@ -1683,6 +1683,47 @@ class StackAtlasTests(unittest.TestCase):
         from tools.stack_atlas import BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS
         self.assertEqual(BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS, 3.0)
 
+    def test_bootstrap_source_freshness_git_probes_share_one_deadline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            agents = root / "agents"
+            vault = root / "vault"
+            agents.mkdir()
+            contract = vault / "04 Operating Contracts" / "fresh-worker-generation-launch.md"
+            contract.parent.mkdir(parents=True)
+            (agents / "AGENTS.md").write_text("agents\n", encoding="utf-8")
+            (agents / "RULES.md").write_text("rules\n", encoding="utf-8")
+            contract.write_text("worker\n", encoding="utf-8")
+            remote_metadata = {
+                "canonical_agents_checkout": {"remote_main": "a" * 40},
+                "AGENTS.md": {"remote_blob": "b" * 40, "last_updated_at": "2026-09-11T00:00:00Z", "last_update_commit": "c" * 40},
+                "RULES.md": {"remote_blob": "d" * 40, "last_updated_at": "2026-09-11T00:00:00Z", "last_update_commit": "e" * 40},
+                "worker_report_contract": {"remote_blob": "f" * 40, "last_updated_at": "2026-09-11T00:00:00Z", "last_update_commit": "1" * 40},
+            }
+            calls = []
+
+            def slow_timeout(*args, **kwargs):
+                timeout = float(kwargs["timeout"])
+                calls.append(timeout)
+                time.sleep(timeout + 0.02)
+                raise subprocess.TimeoutExpired(args[0], timeout)
+
+            with patch("tools.stack_atlas.AGENT_RULES_ROOT", str(agents)), \
+                 patch("tools.stack_atlas.ROOT", vault), \
+                 patch("tools.stack_atlas.BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS", 0.05), \
+                 patch("tools.stack_atlas.BOOTSTRAP_SOURCE_FRESHNESS_LOCAL_GIT_BUDGET_SECONDS", 0.05), \
+                 patch("tools.stack_atlas._bootstrap_cache_read_any", return_value=(remote_metadata, 0.1)), \
+                 patch("tools.stack_atlas._bootstrap_cache_refresh_view", return_value=(remote_metadata, False)), \
+                 patch("tools.stack_atlas._run_process", side_effect=slow_timeout):
+                started = time.monotonic()
+                result = _bootstrap_source_freshness()
+                elapsed = time.monotonic() - started
+
+            self.assertEqual(len(calls), 1)
+            self.assertLess(elapsed, 0.25)
+            self.assertEqual(result["canonical_checkout"]["coherence_basis"], "git_probe_timeout")
+            self.assertTrue(result["attention_required"])
+
     def test_git_checkout_state_distinguishes_cached_remote_from_local_tracking_main(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
