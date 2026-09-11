@@ -160,15 +160,17 @@ Use `find <query>` when you know the need but not the component. Search this der
 ### `github_runner`
 
 - Role: `ci_execution_worker`
-- Capabilities: runtime_validate
-- Canonical sources: C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1
-- Live status: GitHub runner registration + exact workflow run
+- Capabilities: runtime_validate, runtime_control
+- Canonical sources: C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1; C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1
+- Control: `Manage-GitHubRunner.ps1` exposes `Status`, `Install`, `On`, `Off`, `Start`, `Stop`, `AutostartOn`, `AutostartOff`, and `Uninstall`. Autostart is an explicit logon trigger and is independent from whether the task is enabled or currently running.
+- State semantics: `off` means intentionally disabled; `on_stopped` means enabled but not running; `on_running` means enabled and running; `misconfigured` means the task action no longer matches the canonical launcher/root; `not_installed` means no task exists.
+- Live status: `powershell -NoProfile -File C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1 -RunnerRoot <runner-root> -Action Status`; GitHub runner registration + exact workflow run
 - Independent recovery: other online compatible runners
-- Resources: runner work directory
+- Resources: runner work directory; explicit scheduled task state
 - Dependents: github_actions
-- Runbook: C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1
-- Supervisor: runner-specific hidden launcher
-- Self-heal: runner-specific; do not infer fleet health from one process
+- Runbook: C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1; C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1
+- Supervisor: `Start-GitHubRunnerHidden.ps1` only after an explicit successful task start
+- Self-heal: bounded broker/listener recovery after successful launch only; Task Scheduler restart-on-failure loops are not a recovery mechanism
 
 ### `local_git`
 
