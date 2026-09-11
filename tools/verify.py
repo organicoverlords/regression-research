@@ -106,6 +106,12 @@ VERIFIER_PATHS = {
     ".github/workflows/changelog-landing.yml",
 }
 
+ROUTING_PATHS = {
+    "tools/swarm_route.py",
+    "tests/test_swarm_route.py",
+    "tests/test_swarm_route_node_identity.py",
+}
+
 
 def changed_files(base_ref: str) -> set[str]:
     commands = [
@@ -126,7 +132,7 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "memory", "conversation", "busy", "worker_reports"]
+        return ["stack", "memory", "conversation", "busy", "worker_reports", "routing"]
     selected = []
     if changed & STACK_PATHS or any(
         Path(path).parent.as_posix() == "03 Fixtures and Experiments" and path.endswith(".json")
@@ -141,6 +147,8 @@ def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
         selected.append("worker_reports")
     if any(path.startswith(BUSY_PATH_PREFIX) for path in changed):
         selected.append("busy")
+    if changed & ROUTING_PATHS:
+        selected.append("routing")
     return selected
 
 
@@ -258,6 +266,12 @@ def verify_worker_reports() -> None:
     print("MANUAL_WORK_DISPOSITION_PROVEN")
 
 
+def verify_routing() -> None:
+    run([sys.executable, "-m", "py_compile", "tools/swarm_route.py"])
+    run([sys.executable, "-m", "unittest", "tests.test_swarm_route", "tests.test_swarm_route_node_identity", "-v"])
+    print("SWARM_ROUTING_POLICY_PROVEN")
+
+
 def verify_conversation() -> None:
     run(
         [
@@ -324,6 +338,8 @@ def main() -> int:
             verify_busy()
         elif area == "worker_reports":
             verify_worker_reports()
+        elif area == "routing":
+            verify_routing()
 
     if not areas:
         print("CHANGED_AREA_CHECKS_SKIPPED")
