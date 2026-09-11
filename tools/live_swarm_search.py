@@ -45,6 +45,7 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
     a queue/scheduler surface.
     """
     query_terms = _terms(query)
+    numeric_terms = {term for term in query_terms if term.isdigit()}
     if not query_terms or limit <= 0:
         return []
 
@@ -72,6 +73,8 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 (1, path),
             ]
             matched_terms = _matched_terms(query_terms, values)
+            if numeric_terms and not (numeric_terms & matched_terms):
+                continue
             if len(matched_terms) < _minimum_query_term_matches(query_terms):
                 continue
             score = _match_score(query_terms, values)
@@ -108,6 +111,8 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 (1, caller_path),
             ]
             matched_terms = _matched_terms(query_terms, values)
+            if numeric_terms and not (numeric_terms & matched_terms):
+                continue
             if len(matched_terms) < _minimum_query_term_matches(query_terms):
                 continue
             score = _match_score(query_terms, values)
@@ -125,6 +130,38 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                     "last_activity_age_seconds": caller.get("last_activity_age_seconds"),
                 }
                 ranked.append((score, item["id"], item))
+
+    for source in snapshot.get("transport_sources", []) if isinstance(snapshot.get("transport_sources"), list) else []:
+        if not isinstance(source, Mapping):
+            continue
+        instance = str(source.get("instance") or "")
+        local_port = source.get("local_port")
+        server_pid = source.get("server_pid")
+        values = [
+            (6, instance),
+            (4, f"port {local_port}" if local_port is not None else ""),
+            (2, f"pid {server_pid}" if server_pid is not None else ""),
+        ]
+        matched_terms = _matched_terms(query_terms, values)
+        if numeric_terms and not (numeric_terms & matched_terms):
+            continue
+        if len(matched_terms) < _minimum_query_term_matches(query_terms):
+            continue
+        score = _match_score(query_terms, values)
+        item = {
+            "id": f"live_swarm.transport:{instance or local_port or server_pid or 'unknown'}",
+            "kind": "transport_source",
+            "authority": "LIVE_MCP_TRANSPORT_SOURCE_EVIDENCE",
+            "liveness_semantics": "transport_observation_source_not_worker_liveness_or_progress",
+            "matched_terms": sorted(matched_terms),
+            "instance": instance or None,
+            "local_port": local_port,
+            "server_pid": server_pid,
+            "latest_event_at": source.get("latest_event_at"),
+            "activity_window_complete": source.get("activity_window_complete"),
+            "observation_window_complete": source.get("observation_window_complete"),
+        }
+        ranked.append((score, item["id"], item))
 
     ranked.sort(key=lambda row: (-row[0], row[1]))
     return [item for _, _, item in ranked[:limit]]
