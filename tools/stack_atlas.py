@@ -7,6 +7,7 @@ import json
 import locale
 import os
 import platform
+import pickle
 import re
 import shutil
 import subprocess
@@ -3985,6 +3986,333 @@ def find_features(query: str, limit: int = 5) -> list[dict[str, Any]]:
     return results
 
 
+DISCOVERY_SCHEMA = "stack-atlas.discovery.v1"
+DISCOVERY_AUTHORITY = "DISCOVERY_NAVIGATION_ONLY_NOT_CURRENT_TRUTH"
+_TIMELINE_QUERY_INDEX_SCHEMA = "vault.timeline.query-index.v1"
+_TIMELINE_WEIGHT_CODE = {1: 0.7, 2: 1.2, 3: 2.0, 4: 2.2, 5: 4.0}
+_DISCOVERY_SOURCE_BONUS = {
+    "github_issue": 6.0,
+    "github_pr": 5.5,
+    "tracked_artifact": 5.0,
+    "local_artifact": 4.5,
+    "library_artifact": 4.5,
+    "git_commit": 3.0,
+    "vault_memory": 2.0,
+    "worker_report": 1.0,
+}
+
+
+def _discovery_root() -> Path:
+    override = os.environ.get("STACK_ATLAS_DISCOVERY_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    live_state = ATLAS_LIVE_ROOT / ".state" / "timeline"
+    if live_state.is_dir():
+        return ATLAS_LIVE_ROOT
+    return ROOT
+
+
+def _discovery_query_terms(query: str) -> list[set[str]]:
+    base_terms, _ = _feature_query_terms(query)
+    concepts: list[set[str]] = []
+    seen: set[tuple[str, ...]] = set()
+    for raw in base_terms:
+        variants = {raw}
+        if len(raw) > 4 and raw.endswith("ies"):
+            variants.add(raw[:-3] + "y")
+        elif len(raw) > 4 and raw.endswith("s") and not raw.endswith("ss"):
+            variants.add(raw[:-1])
+        key = tuple(sorted(variants))
+        if key not in seen:
+            seen.add(key)
+            concepts.append(variants)
+    return concepts
+
+
+def _minimum_discovery_matches(concept_count: int) -> int:
+    if concept_count <= 1:
+        return 1
+    if concept_count <= 4:
+        return 2
+    if concept_count <= 7:
+        return 3
+    return 4
+
+
+def _history_discovery_identity(event_id: str, anchors: list[str]) -> tuple[str, str, str] | None:
+    match = re.match(r"^github-issue:([^#]+)#(\d+):", event_id)
+    if match:
+        ref = f"{match.group(1)}#{match.group(2)}"
+        return "github_issue", f"github_issue:{ref.casefold()}", ref
+    match = re.match(r"^github-pr:([^#]+)#(\d+):", event_id)
+    if match:
+        ref = f"{match.group(1)}#{match.group(2)}"
+        return "github_pr", f"github_pr:{ref.casefold()}", ref
+    match = re.match(r"^git:([^:]+):([0-9a-fA-F]{7,64})$", event_id)
+    if match:
+        project, sha = match.groups()
+        ref = f"{project}@{sha[:12]}"
+        return "git_commit", f"git_commit:{project.casefold()}:{sha.casefold()}", ref
+    match = re.match(r"^artifact:[^:]+:(.+)$", event_id)
+    if match:
+        path = match.group(1)
+        return "tracked_artifact", f"artifact:{path.casefold()}", path
+    match = re.match(r"^local-artifact:(.+):\d+(?:\.\d+)?$", event_id)
+    if match:
+        path = match.group(1)
+        return "local_artifact", f"artifact:{path.casefold()}", path
+    match = re.match(r"^library-artifact:(.+)$", event_id)
+    if match:
+        ref = match.group(1)
+        return "library_artifact", f"library_artifact:{ref.casefold()}", ref
+    if event_id.startswith("mem-"):
+        return "vault_memory", f"vault_memory:{event_id.casefold()}", event_id
+    if event_id.startswith("worker:"):
+        return "worker_report", f"worker_report:{event_id.casefold()}", event_id
+    for anchor in anchors:
+        match = re.match(r"^github:([^#]+)#(\d+)$", str(anchor))
+        if match:
+            ref = f"{match.group(1)}#{match.group(2)}"
+            return "github_ref", f"github_ref:{ref.casefold()}", ref
+    return None
+
+
+def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    started = time.perf_counter()
+    root = root or _discovery_root()
+    state = root / ".state" / "timeline"
+    status_path = state / "status.json"
+    index_path = state / "timeline-query-index.pkl"
+    coverage: dict[str, Any] = {
+        "authority": "DERIVED_MATERIALIZED_HISTORY_ONLY",
+        "read_mode": "MATERIALIZED_QUERY_INDEX_ONLY",
+        "root": str(root),
+        "network_fanout": False,
+        "live_truth_required": True,
+    }
+    try:
+        status = json.loads(status_path.read_text(encoding="utf-8-sig"))
+        with index_path.open("rb") as handle:
+            index = pickle.load(handle)
+    except (OSError, json.JSONDecodeError, EOFError, pickle.PickleError, AttributeError, ValueError) as exc:
+        coverage.update({"status": "UNAVAILABLE", "error": str(exc)})
+        coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        return [], coverage
+    generated_at = str(status.get("generated_at") or "")
+    if (
+        not isinstance(index, dict)
+        or index.get("schema") != _TIMELINE_QUERY_INDEX_SCHEMA
+        or str(index.get("generated_at") or "") != generated_at
+        or not isinstance(index.get("ids"), list)
+        or not isinstance(index.get("postings"), dict)
+        or not isinstance(index.get("weight_codes"), dict)
+        or not isinstance(index.get("anchors"), list)
+        or len(index["ids"]) != len(index["anchors"])
+    ):
+        coverage.update({"status": "INVALID_OR_STALE_INDEX", "generated_at": generated_at})
+        coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        return [], coverage
+
+    concepts = _discovery_query_terms(query)
+    if not concepts:
+        coverage.update({"status": "OK", "generated_at": generated_at, "candidate_count": 0})
+        coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+        return [], coverage
+    ids = index["ids"]
+    postings = index["postings"]
+    weight_codes = index["weight_codes"]
+    anchors_by_position = index["anchors"]
+    best_by_concept: list[dict[int, float]] = []
+    candidate_positions: set[int] = set()
+    for concept in concepts:
+        best: dict[int, float] = {}
+        for token in concept:
+            rows = postings.get(token)
+            codes = weight_codes.get(token)
+            if not isinstance(rows, list) or not isinstance(codes, (bytes, bytearray)) or len(rows) != len(codes):
+                continue
+            for position, code in zip(rows, codes):
+                if not isinstance(position, int) or position < 0 or position >= len(ids):
+                    continue
+                weight = _TIMELINE_WEIGHT_CODE.get(int(code), 0.0)
+                if weight > best.get(position, 0.0):
+                    best[position] = weight
+        candidate_positions.update(best)
+        best_by_concept.append(best)
+
+    minimum_matches = _minimum_discovery_matches(len(concepts))
+    ranked: list[tuple[float, str, str, str, list[str]]] = []
+    for position in candidate_positions:
+        matched = sum(1 for weights in best_by_concept if weights.get(position, 0.0) > 0.0)
+        if matched < minimum_matches:
+            continue
+        event_id = str(ids[position])
+        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:6]
+        identity = _history_discovery_identity(event_id, anchors)
+        if identity is None:
+            continue
+        kind, stable_key, reference = identity
+        score = sum(weights.get(position, 0.0) for weights in best_by_concept)
+        score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
+        score += matched / max(1, len(concepts))
+        ranked.append((score, stable_key, kind, reference, anchors))
+
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    effective_limit = max(1, int(limit))
+    selected_rows: list[tuple[float, str, str, str, list[str]]] = []
+    selected_keys: set[str] = set()
+    selected_kinds: set[str] = set()
+    # Discovery should expose different evidence classes before filling the rest
+    # with near-duplicate snapshots from one class (for example many PRs).
+    for row in ranked:
+        _, stable_key, kind, _, _ = row
+        if stable_key in selected_keys or kind in selected_kinds:
+            continue
+        selected_rows.append(row)
+        selected_keys.add(stable_key)
+        selected_kinds.add(kind)
+        if len(selected_rows) >= effective_limit:
+            break
+    if len(selected_rows) < effective_limit:
+        for row in ranked:
+            stable_key = row[1]
+            if stable_key in selected_keys:
+                continue
+            selected_rows.append(row)
+            selected_keys.add(stable_key)
+            if len(selected_rows) >= effective_limit:
+                break
+
+    hits: list[dict[str, Any]] = []
+    for score, _, kind, reference, anchors in selected_rows:
+        hit = {
+            "kind": kind,
+            "reference": reference,
+            "authority": "DERIVED_MATERIALIZED_HISTORY_ONLY",
+            "live_truth_required": True,
+            "score": round(score, 3),
+        }
+        if anchors:
+            hit["anchors"] = anchors
+        hits.append(hit)
+    coverage.update({
+        "status": "OK",
+        "generated_at": generated_at,
+        "candidate_count": len(candidate_positions),
+        "matching_identity_count": len({row[1] for row in ranked}),
+        "events": status.get("events"),
+        "truncated": bool(status.get("truncated")),
+        "saturated_sources": list(status.get("saturated_sources") or []),
+    })
+    coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
+    return hits, coverage
+
+
+def _live_discovery_hits(query: str, limit: int = 5, *, snapshot: dict[str, Any] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    started = time.perf_counter()
+    try:
+        snapshot = snapshot if snapshot is not None else build_live_swarm_snapshot()
+    except (OSError, ValueError, TypeError) as exc:
+        return [], {
+            "status": "UNAVAILABLE",
+            "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+            "error": str(exc),
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    if not isinstance(snapshot, dict) or not snapshot.get("available"):
+        return [], {
+            "status": "UNAVAILABLE",
+            "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    terms = set(_feature_query_terms(query)[0])
+    hits: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for lane in snapshot.get("lanes", []) or []:
+        if not isinstance(lane, dict):
+            continue
+        worktree = lane.get("worktree") if isinstance(lane.get("worktree"), dict) else {}
+        workspace = str(lane.get("workspace") or "")
+        path = str(worktree.get("path") or "")
+        branch = str(worktree.get("branch") or "")
+        hay_tokens = set(re.findall(r"[a-z0-9]+", " ".join((workspace, path, branch)).casefold()))
+        if terms and not (terms & hay_tokens):
+            continue
+        stable = (path or workspace or str(lane.get("lane_id") or "")).casefold()
+        if not stable or stable in seen:
+            continue
+        seen.add(stable)
+        caller_ages = [
+            float(caller.get("last_activity_age_seconds"))
+            for caller in lane.get("callers", []) or []
+            if isinstance(caller, dict) and isinstance(caller.get("last_activity_age_seconds"), (int, float))
+        ]
+        hit = {
+            "kind": "live_workspace",
+            "workspace": workspace or None,
+            "worktree": {key: worktree.get(key) for key in ("path", "branch", "head") if worktree.get(key)},
+            "authority": "LIVE_MCP_ACTIVITY_NAVIGATION_HINT",
+            "ownership_semantics": "not_ownership_or_progress_by_itself",
+        }
+        if caller_ages:
+            hit["last_activity_age_seconds"] = round(min(caller_ages), 1)
+        hits.append({key: value for key, value in hit.items() if value not in (None, "", {})})
+        if len(hits) >= max(1, int(limit)):
+            break
+    evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
+    return hits, {
+        "status": "OK",
+        "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+        "source_age_seconds": evidence.get("source_age_seconds"),
+        "activity_window_seconds": evidence.get("activity_window_seconds"),
+        "observation_window_complete": evidence.get("observation_window_complete"),
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+    }
+
+
+def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
+    query = str(query or "").strip()
+    effective_limit = max(1, min(20, int(limit)))
+    if not query:
+        return {
+            "schema": DISCOVERY_SCHEMA,
+            "query": query,
+            "authority": DISCOVERY_AUTHORITY,
+            "atlas_hits": [],
+            "live_hits": [],
+            "history_hits": [],
+            "coverage": {},
+        }
+    started = time.perf_counter()
+    atlas_hits = find_features(query, effective_limit)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        history_future = pool.submit(_timeline_discovery_hits, query, effective_limit)
+        live_future = pool.submit(_live_discovery_hits, query, effective_limit)
+        try:
+            history_hits, history_coverage = history_future.result()
+        except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
+            history_hits, history_coverage = [], {"status": "ERROR", "error": str(exc)}
+        try:
+            live_hits, live_coverage = live_future.result()
+        except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
+            live_hits, live_coverage = [], {"status": "ERROR", "error": str(exc)}
+    return {
+        "schema": DISCOVERY_SCHEMA,
+        "query": query,
+        "authority": DISCOVERY_AUTHORITY,
+        "atlas_hits": atlas_hits,
+        "live_hits": live_hits,
+        "history_hits": history_hits,
+        "coverage": {
+            "atlas": {"status": "OK", "authority": ATLAS_CONTRACT["authority"]},
+            "live": live_coverage,
+            "history": history_coverage,
+        },
+        "boundary": "Discovery only. Verify current issue/PR/repo/runtime state through its named owner before making a current-state claim or mutation.",
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+    }
+
+
 def _ancestry(pid: int, by_pid: dict[int, dict[str, Any]], limit: int = 16) -> list[dict[str, Any]]:
     chain: list[dict[str, Any]] = []
     seen: set[int] = set()
@@ -4329,7 +4657,7 @@ def main() -> int:
             print(text)
             return 0
     elif args.command == "find":
-        value = find_features(args.query, args.limit)
+        value = unified_find(args.query, args.limit)
     elif args.command == "lookup":
         try:
             value = atlas_lookup(args.target, query=args.query)
