@@ -416,6 +416,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("behavior", glance)
         self.assertEqual(glance["paths"]["rules"], r"C:\Users\Lauri\.agents\RULES.md")
         self.assertEqual(glance["paths"]["agents"], r"C:\Users\Lauri\.agents\AGENTS.md")
+        visual = glance["bootstrap"]["visual_acceptance"]
+        self.assertEqual(visual["status"], "HARD_GATE")
+        self.assertIn("exact candidate pixels/frames", visual["rule"])
+        self.assertIn("never substitute for pixel inspection", visual["metrics"])
+        self.assertIn("REJECTED/NOT_PROVEN", visual["failure"])
+        self.assertIn("UNKNOWN/NOT_PROVEN", visual["failure"])
         contract = glance["bootstrap"]["agent_contract"]
         self.assertEqual(contract["status"], "COHERENT")
         self.assertGreaterEqual(contract["version"], 1)

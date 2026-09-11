@@ -3521,6 +3521,13 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "elapsed_ms": elapsed_ms,
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
         "agent_contract": agent_contract,
+        "visual_acceptance": {
+            "status": "HARD_GATE",
+            "rule": "Inspect the exact candidate pixels/frames before visual success or user handoff.",
+            "metrics": "Metrics/logs/tests/file existence/hashes/point counts/reprojection error are supporting only and never substitute for pixel inspection.",
+            "failure": "Visible defect => REJECTED/NOT_PROVEN; unavailable pixels/frames => UNKNOWN/NOT_PROVEN.",
+            "source": r"C:\Users\Lauri\.agents\RULES.md",
+        },
     }
     glance = {
         "schema": "bootstrap.v1",
