@@ -1,6 +1,9 @@
 import io
 import json
 import os
+import subprocess
+import sys
+import time
 from contextlib import redirect_stdout
 import tempfile
 import unittest
@@ -10,6 +13,7 @@ from pathlib import Path
 from tools.cleanup_converger import Worktree, eligibility_reason, process_targets_path
 from tools.memory_recent_projection import write_recent_projection
 from tools.stack_atlas import (
+    _run_process,
     _bootstrap_fleet_watch,
     CANONICAL_RECURRING_WORKERS,
     CANONICAL_RECURRING_WORKER_PARTITIONS,
@@ -1591,9 +1595,9 @@ class StackAtlasTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
              patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
-             patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
+             patch("tools.stack_atlas._run_process", return_value=completed) as run:
             first = _bootstrap_github_status()
-            with patch("tools.stack_atlas.subprocess.run", side_effect=AssertionError("warm cache must not spawn gh")):
+            with patch("tools.stack_atlas._run_process", side_effect=AssertionError("warm cache must not spawn gh")):
                 second = _bootstrap_github_status()
 
         self.assertEqual(run.call_count, 1)
@@ -1617,7 +1621,7 @@ class StackAtlasTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.dict(os.environ, {"LOCALAPPDATA": tmp}), \
              patch("tools.stack_atlas.shutil.which", return_value=r"C:\gh.exe"), \
-             patch("tools.stack_atlas.subprocess.run", side_effect=[api_failure, auth_ok]) as run:
+             patch("tools.stack_atlas._run_process", side_effect=[api_failure, auth_ok]) as run:
             status = _bootstrap_github_status()
 
         self.assertEqual(run.call_count, 2)
@@ -1634,13 +1638,13 @@ class StackAtlasTests(unittest.TestCase):
 
     def test_live_powershell_probe_is_bounded(self):
         completed = __import__("subprocess").CompletedProcess([], 0, stdout="[]", stderr="")
-        with patch("tools.stack_atlas.subprocess.run", return_value=completed) as run:
+        with patch("tools.stack_atlas._run_process", return_value=completed) as run:
             __import__("tools.stack_atlas", fromlist=["_powershell_json"])._powershell_json("Get-Process")
         self.assertEqual(run.call_args.kwargs["timeout"], 5)
 
     def test_live_powershell_probe_timeout_is_explicit(self):
         timeout = __import__("subprocess").TimeoutExpired(["powershell"], 5)
-        with patch("tools.stack_atlas.subprocess.run", side_effect=timeout):
+        with patch("tools.stack_atlas._run_process", side_effect=timeout):
             with self.assertRaisesRegex(RuntimeError, "timed out after 5s"):
                 __import__("tools.stack_atlas", fromlist=["_powershell_json"])._powershell_json("Get-Process")
 
@@ -1667,6 +1671,17 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("before yielding", joined)
         self.assertIn("not a queue", result["boundary"])
         self.assertIn("collision control only", result["boundary"])
+
+    def test_runtime_root_override_keeps_deployed_atlas_bound_to_canonical_repo(self):
+        import runpy
+        script = Path(__file__).resolve().parents[1] / 'tools' / 'stack_atlas.py'
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'STACK_ATLAS_ROOT_OVERRIDE': tmp}):
+            namespace = runpy.run_path(str(script))
+        self.assertEqual(namespace['ROOT'], Path(tmp).resolve())
+
+    def test_bootstrap_git_timeout_covers_loaded_windows_process_startup(self):
+        from tools.stack_atlas import BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS
+        self.assertEqual(BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS, 3.0)
 
     def test_git_checkout_state_distinguishes_cached_remote_from_local_tracking_main(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -2600,3 +2615,42 @@ class TestFleetWatchSubscription(unittest.TestCase):
         target = next(item for item in overdue["suspect_workers"] if item["automation_id"] == target_id)
         self.assertEqual(target["reason"], "NO_LOCAL_START_EVIDENCE")
         self.assertTrue(target["recovery_actionable"])
+
+
+class TestWindowsBoundedProcessCapture(unittest.TestCase):
+    @unittest.skipUnless(os.name == "nt", "Windows inherited-handle regression")
+    def test_capture_does_not_wait_for_descendant_inherited_stdout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "spawn_descendant.py"
+            script.write_text(
+                "import subprocess, sys\n"
+                "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'])\n"
+                "print('parent-done', flush=True)\n",
+                encoding="utf-8",
+            )
+            started = time.monotonic()
+            result = _run_process(
+                [sys.executable, str(script)], capture_output=True, text=True, timeout=1.0
+            )
+            elapsed = time.monotonic() - started
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("parent-done", result.stdout)
+        self.assertLess(elapsed, 2.5)
+
+    @unittest.skipUnless(os.name == "nt", "Windows inherited-handle regression")
+    def test_timeout_terminates_descendant_tree_without_pipe_eof_wait(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "hang_tree.py"
+            script.write_text(
+                "import subprocess, sys, time\n"
+                "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+            started = time.monotonic()
+            with self.assertRaises(subprocess.TimeoutExpired):
+                _run_process(
+                    [sys.executable, str(script)], capture_output=True, text=True, timeout=0.2
+                )
+            elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 4.0)

@@ -49,10 +49,13 @@ def _run_once(
     *,
     quiet: bool = True,
     skip_if_fresh_seconds: float | None = None,
+    atlas_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env['VAULT_MEMORY_LOCAL_BANK'] = str(overlay)
     command = [sys.executable, str(SCRIPT), '--once', '--repo-root', str(alternate)]
+    if atlas_path is not None:
+        command.extend(['--atlas-path', str(atlas_path)])
     if quiet:
         command.append('--quiet')
     if skip_if_fresh_seconds is not None:
@@ -83,6 +86,28 @@ def test_once_uses_explicit_repo_root(tmp_path: Path) -> None:
     assert payload["bootstrap_end"]["status"] == "COMPLETE"
     assert json.loads((alternate / '.state' / 'bootstrap' / 'latest.json').read_text(encoding='utf-8')) == payload
     assert not list((alternate / '.state' / 'bootstrap').glob('*.tmp'))
+
+
+def test_once_can_run_deployed_atlas_outside_repo_root(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    runtime = tmp_path / 'runtime'
+    runtime.mkdir()
+    atlas = runtime / 'stack_atlas.py'
+    atlas.write_text(
+        "import json, os\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T11:00:00+00:00',"
+        "'source_marker':'runtime-atlas','root_override':os.environ.get('STACK_ATLAS_ROOT_OVERRIDE'),"
+        "'pythonpath':os.environ.get('PYTHONPATH',''),'memory_overview':{'recent':[]},"
+        "'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    cp = _run_once(alternate, overlay, quiet=False, atlas_path=atlas)
+    assert cp.returncode == 0, cp.stderr
+    payload = json.loads(cp.stdout.lstrip('\ufeff'))
+    assert payload['source_marker'] == 'runtime-atlas'
+    assert Path(payload['root_override']) == alternate.resolve()
+    assert str(alternate.resolve()) in payload['pythonpath'].split(os.pathsep)
 
 
 def test_once_overlays_fingerprint_current_recent_memory_projection(tmp_path: Path) -> None:
@@ -145,7 +170,7 @@ def test_once_missing_repo_root_fails_closed(tmp_path: Path) -> None:
     assert payload["repo_root"] == str(missing.resolve())
 
 
-def test_invalid_update_preserves_previous_snapshot(tmp_path: Path) -> None:
+def test_invalid_update_publishes_fresh_degraded_snapshot_and_watchdog_retries(tmp_path: Path) -> None:
     alternate = tmp_path / 'alternate'
     _write_fake_atlas(alternate)
     _, overlay = _memory_files(alternate, tmp_path)
@@ -153,11 +178,36 @@ def test_invalid_update_preserves_previous_snapshot(tmp_path: Path) -> None:
     assert good.returncode == 0, good.stderr
     assert good.stdout == ''
     destination = alternate / '.state' / 'bootstrap' / 'latest.json'
-    previous = destination.read_bytes()
+    previous = json.loads(destination.read_text(encoding='utf-8'))
+
     (alternate / 'tools' / 'stack_atlas.py').write_text("print('{}')", encoding='utf-8')
-    failed = _run_once(alternate, overlay)
-    assert failed.returncode == 1
-    assert destination.read_bytes() == previous
+    degraded_run = _run_once(alternate, overlay)
+
+    assert degraded_run.returncode == 0, degraded_run.stderr
+    degraded = json.loads(destination.read_text(encoding='utf-8'))
+    assert degraded['generated_at'] != previous['generated_at']
+    assert degraded['bootstrap']['status'] == 'DEGRADED'
+    assert degraded['bootstrap']['refresh_mode'] == 'DEGRADED_CARRY_FORWARD'
+    assert degraded['bootstrap']['carried_forward_from'] == previous['generated_at']
+    assert degraded['bootstrap']['agent_contract']['status'] == 'UNKNOWN'
+    assert degraded['bootstrap_end'] == {'status': 'COMPLETE', 'schema': 'bootstrap.v1'}
+    status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'DEGRADED'
+
+    marker = tmp_path / 'watchdog-retried.txt'
+    (alternate / 'tools' / 'stack_atlas.py').write_text(
+        "import json\n"
+        "from datetime import datetime, timezone\n"
+        "from pathlib import Path\n"
+        f"Path(r'{marker}').write_text('retried')\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':datetime.now(timezone.utc).isoformat(),'bootstrap':{'status':'OK'},'memory_overview':{'recent':[]},'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+    retry = _run_once(alternate, overlay, skip_if_fresh_seconds=45)
+    assert retry.returncode == 0, retry.stderr
+    assert marker.read_text(encoding='utf-8') == 'retried'
+    repaired = json.loads(destination.read_text(encoding='utf-8'))
+    assert repaired['bootstrap']['status'] == 'OK'
 
 
 def test_replace_snapshot_retries_transient_windows_permission_error(monkeypatch, tmp_path: Path) -> None:
@@ -327,3 +377,45 @@ def test_skip_if_fresh_refreshes_invalid_snapshot(tmp_path: Path) -> None:
     payload = json.loads(destination.read_text(encoding='utf-8'))
     assert payload['source_marker'] == 'alternate-root'
     assert payload['bootstrap_end']['status'] == 'COMPLETE'
+
+
+def test_default_glance_timeout_allows_loaded_but_bounded_refresh() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_timeout_constant_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    assert module.BOOTSTRAP_GLANCE_TIMEOUT_SECONDS == 30.0
+
+
+def test_singleflight_skips_second_producer_while_lock_is_held(tmp_path: Path) -> None:
+    import importlib.util
+    import time
+
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_lock_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    lock = module._try_acquire_producer_lock(alternate)
+    assert lock is not None
+    try:
+        started = time.monotonic()
+        cp = _run_once(alternate, overlay)
+        elapsed = time.monotonic() - started
+    finally:
+        module._release_producer_lock(lock)
+    assert cp.returncode == 0, cp.stderr
+    assert elapsed < 2.0
+    assert not marker.exists()
+    status = json.loads((alternate / '.state' / 'bootstrap' / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'SKIPPED_INFLIGHT'

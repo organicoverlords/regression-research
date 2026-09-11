@@ -4,11 +4,13 @@ import argparse
 import ctypes
 import hashlib
 import json
+import locale
 import os
 import platform
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -16,16 +18,130 @@ from pathlib import Path
 from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
+def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
+    """Best-effort bounded tree termination for a task-owned Windows child."""
+    if process.poll() is not None:
+        return
+    try:
+        killer = subprocess.Popen(
+            ["taskkill.exe", "/PID", str(process.pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            close_fds=True,
+        )
+        try:
+            killer.wait(timeout=max(0.1, timeout_seconds))
+        except subprocess.TimeoutExpired:
+            killer.kill()
+    except OSError:
+        pass
+    if process.poll() is None:
+        try:
+            process.kill()
+        except OSError:
+            pass
+    try:
+        process.wait(timeout=1.0)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def _decode_process_capture(data: bytes, *, text_mode: bool, encoding: str | None, errors: str | None) -> Any:
+    if not text_mode:
+        return data
+    return data.decode(encoding or locale.getpreferredencoding(False), errors=errors or "strict")
+
+
 def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
-    """Run child processes without creating or showing console windows on Windows."""
-    if os.name == "nt":
-        kwargs["creationflags"] = int(kwargs.get("creationflags", 0)) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        if "startupinfo" not in kwargs and hasattr(subprocess, "STARTUPINFO"):
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
-            startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
-            kwargs["startupinfo"] = startupinfo
-    return subprocess.run(*args, **kwargs)
+    """Run hidden Windows children without pipe-EOF stalls from inherited descendant handles."""
+    if os.name != "nt":
+        return subprocess.run(*args, **kwargs)
+
+    kwargs["creationflags"] = int(kwargs.get("creationflags", 0)) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    if "startupinfo" not in kwargs and hasattr(subprocess, "STARTUPINFO"):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+        startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+        kwargs["startupinfo"] = startupinfo
+
+    capture_output = bool(kwargs.get("capture_output"))
+    timeout = kwargs.get("timeout")
+    if not capture_output or timeout is None:
+        return subprocess.run(*args, **kwargs)
+
+    kwargs = dict(kwargs)
+    kwargs.pop("capture_output", None)
+    timeout = kwargs.pop("timeout", None)
+    check = bool(kwargs.pop("check", False))
+    input_data = kwargs.pop("input", None)
+    text_mode = bool(
+        kwargs.get("text")
+        or kwargs.get("universal_newlines")
+        or kwargs.get("encoding") is not None
+        or kwargs.get("errors") is not None
+    )
+    encoding = kwargs.get("encoding")
+    errors = kwargs.get("errors")
+    command = args[0] if args else kwargs.get("args")
+
+    stdout_path = stderr_path = None
+    stdout_stream = stderr_stream = None
+    try:
+        stdout_stream = tempfile.NamedTemporaryFile(
+            mode="w+b", prefix="stack-atlas-stdout-", suffix=".tmp", delete=False
+        )
+        stderr_stream = tempfile.NamedTemporaryFile(
+            mode="w+b", prefix="stack-atlas-stderr-", suffix=".tmp", delete=False
+        )
+        stdout_path = Path(stdout_stream.name)
+        stderr_path = Path(stderr_stream.name)
+        process = subprocess.Popen(
+            *args,
+            stdout=stdout_stream,
+            stderr=stderr_stream,
+            stdin=subprocess.PIPE if input_data is not None else None,
+            **kwargs,
+        )
+        timed_out = False
+        try:
+            process.communicate(input=input_data, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _terminate_windows_process_tree(process)
+
+        stdout_stream.flush()
+        stdout_stream.seek(0)
+        stderr_stream.flush()
+        stderr_stream.seek(0)
+        stdout = _decode_process_capture(
+            stdout_stream.read(), text_mode=text_mode, encoding=encoding, errors=errors
+        )
+        stderr = _decode_process_capture(
+            stderr_stream.read(), text_mode=text_mode, encoding=encoding, errors=errors
+        )
+        if timed_out:
+            raise subprocess.TimeoutExpired(command, timeout, output=stdout, stderr=stderr)
+        completed = subprocess.CompletedProcess(command, int(process.returncode or 0), stdout, stderr)
+        if check and completed.returncode != 0:
+            raise subprocess.CalledProcessError(
+                completed.returncode, command, output=stdout, stderr=stderr
+            )
+        return completed
+    finally:
+        for stream in (stdout_stream, stderr_stream):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+        for path in (stdout_path, stderr_path):
+            if path is not None:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+
 
 try:
     from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
@@ -42,7 +158,7 @@ try:
 except ModuleNotFoundError:
     from tiny3d_atlas_projection import project_current as project_tiny3d_current
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("STACK_ATLAS_ROOT_OVERRIDE") or Path(__file__).resolve().parents[1]).resolve()
 ATLAS_LIVE_ROOT = Path(r"C:\Users\Lauri\Desktop\vault")
 BUSY_ROOT = Path(os.path.expandvars(r"%LOCALAPPDATA%\BusyCoordinator"))
 BUSY_CONTRACT = str(BUSY_ROOT / "coordinator-contract.json")
@@ -79,6 +195,7 @@ BOOTSTRAP_SOURCE_FRESHNESS_CACHE_SECONDS = 60.0
 BOOTSTRAP_GITHUB_FAILURE_CACHE_SECONDS = 10.0
 BOOTSTRAP_GITHUB_API_TIMEOUT_SECONDS = 1.5
 BOOTSTRAP_GITHUB_AUTH_FALLBACK_TIMEOUT_SECONDS = 1.0
+BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS = 3.0
 MCP_ACTIVE_SESSION_COUNT_SEMANTICS = "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes"
 BOOTSTRAP_GPU_CACHE_SECONDS = 15.0
 BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
@@ -2845,7 +2962,7 @@ def _git_last_committed_at(repo_root: Path, relative_path: str) -> str | None:
             [git, "-C", str(repo_root), "log", "-1", "--format=%cI", "--", relative_path],
             text=True,
             capture_output=True,
-            timeout=1.0,
+            timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -2876,7 +2993,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     try:
         proc = _run_process(
             [git, "-C", str(repo_root), "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
-            text=True, capture_output=True, timeout=1.0,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
         return result
@@ -2899,7 +3016,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
     try:
         tracking_proc = _run_process(
             [git, "-C", str(repo_root), "rev-parse", "--verify", f"refs/remotes/origin/{expected_branch}"],
-            text=True, capture_output=True, timeout=0.75,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         if tracking_proc.returncode == 0:
             tracking_head = tracking_proc.stdout.strip() or None
@@ -2912,7 +3029,7 @@ def _git_checkout_state(repo_root: Path, remote_main: Any, expected_branch: str 
         try:
             ancestor_proc = _run_process(
                 [git, "-C", str(repo_root), "merge-base", "--is-ancestor", remote_head, local_head],
-                text=True, capture_output=True, timeout=0.75,
+                text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
             )
             cached_remote_is_ancestor = ancestor_proc.returncode == 0
         except (OSError, subprocess.TimeoutExpired):
@@ -2962,20 +3079,20 @@ def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remo
     try:
         exists = _run_process(
             [git, "-C", str(repo_root), "cat-file", "-e", f"{commit}^{{commit}}"],
-            text=True, capture_output=True, timeout=0.75,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         if exists.returncode != 0:
             return False
         base_proc = _run_process(
             [git, "-C", str(repo_root), "merge-base", "HEAD", commit],
-            text=True, capture_output=True, timeout=0.75,
+            text=True, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         base = base_proc.stdout.strip() if base_proc.returncode == 0 else ""
         if not base:
             return False
         patch_proc = _run_process(
             [git, "-C", str(repo_root), "diff", "--no-ext-diff", "--unified=0", base, commit, "--", relative_path],
-            capture_output=True, timeout=1.0,
+            capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         if patch_proc.returncode != 0:
             return False
@@ -2983,7 +3100,7 @@ def _git_remote_update_already_applied(repo_root: Path, relative_path: str, remo
             return True
         reverse_check = _run_process(
             [git, "-C", str(repo_root), "apply", "--reverse", "--check", "--unidiff-zero", "--whitespace=nowarn"],
-            input=patch_proc.stdout, capture_output=True, timeout=1.0,
+            input=patch_proc.stdout, capture_output=True, timeout=BOOTSTRAP_GIT_COMMAND_TIMEOUT_SECONDS,
         )
         return reverse_check.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
