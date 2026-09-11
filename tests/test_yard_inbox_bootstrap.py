@@ -93,12 +93,14 @@ class YardInboxBootstrapTests(unittest.TestCase):
                 "text": "Bootstrap sees this",
                 "ts": "2026-09-11T14:00:00Z",
             }])
-            claim = lambda: inbox.claim_next(store, actor="bootstrap-test")
-            with patch.object(atlas, "_yard_inbox_claim_next", side_effect=claim):
+            check = lambda: inbox.peek_next(store)
+            with patch.object(atlas, "_yard_inbox_check", side_effect=check):
                 glance = atlas.build_live_bootstrap_glance()
             self.assertEqual(glance["schema"], "bootstrap.v1")
-            self.assertEqual(glance["yard_inbox"]["status"], "CLAIMED")
-            self.assertEqual(glance["yard_inbox"]["message"]["id"], "msg_boot")
+            self.assertEqual(glance["yard_inbox"]["status"], "PENDING")
+            self.assertEqual(glance["yard_inbox"]["message_preview"]["id"], "msg_boot")
+            persisted = json.loads(store.read_text(encoding="utf-8"))
+            self.assertNotIn("status", persisted[0])
             self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
             encoded = json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
             self.assertLessEqual(len(encoded), atlas.BOOTSTRAP_GLANCE_MAX_BYTES)

@@ -19,9 +19,9 @@ from typing import Any, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
 try:
-    from tools.yard_inbox_bridge import claim_next as _yard_inbox_claim_next
+    from tools.yard_inbox_bridge import peek_next as _yard_inbox_check
 except ModuleNotFoundError:
-    from yard_inbox_bridge import claim_next as _yard_inbox_claim_next
+    from yard_inbox_bridge import peek_next as _yard_inbox_check
 
 def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
     """Best-effort bounded tree termination for a task-owned Windows child."""
@@ -3420,7 +3420,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         f_vault = pool.submit(_bootstrap_vault_status)
         f_github = pool.submit(_bootstrap_github_status)
         f_source_freshness = pool.submit(_bootstrap_source_freshness)
-        f_yard_inbox = pool.submit(_yard_inbox_claim_next)
+        f_yard_inbox = pool.submit(_yard_inbox_check)
         execution_nodes, pc, workers, live_swarm, memory_overview, vault, github, source_freshness, yard_inbox = (
             f_execution_nodes.result(), f_pc.result(), f_workers.result(), f_live_swarm.result(), f_memory.result(), f_vault.result(), f_github.result(), f_source_freshness.result(), f_yard_inbox.result()
         )

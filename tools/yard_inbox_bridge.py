@@ -101,6 +101,49 @@ def _stale(item: dict[str, Any], now: datetime, ttl_seconds: int) -> bool:
     return (now.astimezone(timezone.utc) - claimed_at.astimezone(timezone.utc)).total_seconds() >= ttl_seconds
 
 
+def peek_next(store_path: str | Path | None = None, *, now: datetime | None = None, ttl_seconds: int = CLAIM_TTL_SECONDS) -> dict[str, Any]:
+    """Read the next eligible yard comment without taking ownership of it."""
+    store = Path(store_path) if store_path is not None else DEFAULT_STORE
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    base = {
+        "authority": "live_yard_comment_store",
+        "store": str(store),
+        "claim_semantics": "first_receiving_chat_atomic_claim",
+        "claim_ttl_seconds": int(ttl_seconds),
+    }
+    if not store.exists():
+        return {**base, "available": False, "status": "STORE_MISSING"}
+    try:
+        with _file_lock(store):
+            items = _read_unlocked(store)
+            eligible = [
+                item for item in items
+                if item.get("role") == "human"
+                and (item.get("status") == "unread" or _stale(item, current, ttl_seconds))
+            ]
+            if not eligible:
+                return {**base, "available": True, "status": "EMPTY", "pending_count": 0}
+            item = eligible[0]
+            preview = {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "text_preview": str(item.get("text") or "")[:800],
+                "ts": item.get("ts"),
+            }
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        return {**base, "available": False, "status": "ERROR", "error": str(exc)[:240]}
+    return {
+        **base,
+        "available": True,
+        "status": "PENDING",
+        "pending_count": len(eligible),
+        "message_preview": preview,
+        "instruction": "Before normal work, run claim_command. Only the chat that receives CLAIMED owns and handles the yard comment; EMPTY means another chat won.",
+        "claim_command": f'python "{LIVE_SCRIPT}" --store "{store}" claim',
+    }
+
 def claim_next(
     store_path: str | Path | None = None,
     *,
