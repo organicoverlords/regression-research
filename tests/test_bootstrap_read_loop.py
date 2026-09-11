@@ -43,12 +43,20 @@ def _memory_files(root: Path, tmp_path: Path) -> tuple[Path, Path]:
     return seed, overlay
 
 
-def _run_once(alternate: Path, overlay: Path, *, quiet: bool = True) -> subprocess.CompletedProcess[str]:
+def _run_once(
+    alternate: Path,
+    overlay: Path,
+    *,
+    quiet: bool = True,
+    skip_if_fresh_seconds: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env['VAULT_MEMORY_LOCAL_BANK'] = str(overlay)
     command = [sys.executable, str(SCRIPT), '--once', '--repo-root', str(alternate)]
     if quiet:
         command.append('--quiet')
+    if skip_if_fresh_seconds is not None:
+        command.extend(['--skip-if-fresh-seconds', str(skip_if_fresh_seconds)])
     return subprocess.run(
         command,
         cwd=str(REPO_ROOT),
@@ -199,3 +207,123 @@ def test_replace_snapshot_fails_closed_after_retry_deadline(monkeypatch, tmp_pat
         module._replace_snapshot(source, destination, retry_seconds=0)
     assert source.exists()
     assert destination.read_text(encoding='utf-8') == 'old'
+
+
+def test_glance_capture_does_not_wait_for_inherited_stdout_handles(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    _, overlay = _memory_files(alternate, tmp_path)
+    (tools / 'stack_atlas.py').write_text(
+        "import json, subprocess, sys\n"
+        "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(5)'])\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T03:00:00+00:00','memory_overview':{'recent':[]},'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}), flush=True)\n",
+        encoding='utf-8',
+    )
+
+    started = __import__('time').monotonic()
+    cp = _run_once(alternate, overlay)
+    elapsed = __import__('time').monotonic() - started
+
+    assert cp.returncode == 0, cp.stderr
+    assert elapsed < 2.5
+    payload = json.loads((alternate / '.state' / 'bootstrap' / 'latest.json').read_text(encoding='utf-8'))
+    assert payload['bootstrap_end']['status'] == 'COMPLETE'
+
+
+def test_glance_timeout_is_bounded_without_pipe_eof_wait(tmp_path: Path) -> None:
+    import importlib.util
+    import time
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_timeout_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    atlas = tmp_path / 'stack_atlas.py'
+    atlas.write_text('import time\ntime.sleep(30)\n', encoding='utf-8')
+
+    started = time.monotonic()
+    cp = module._run_bootstrap_glance(tmp_path, atlas, timeout_seconds=0.2)
+    elapsed = time.monotonic() - started
+
+    assert cp.returncode == 124
+    assert 'timed out after 0.2s' in cp.stderr
+    assert elapsed < 4.0
+
+
+def test_skip_if_fresh_avoids_bootstrap_glance(tmp_path: Path) -> None:
+    from datetime import datetime, timezone
+
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    original = {
+        'schema': 'bootstrap.v1',
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+        'bootstrap_end': {'status': 'COMPLETE', 'schema': 'bootstrap.v1'},
+    }
+    destination.write_text(json.dumps(original), encoding='utf-8')
+
+    cp = _run_once(alternate, overlay, skip_if_fresh_seconds=45)
+
+    assert cp.returncode == 0, cp.stderr
+    assert not marker.exists()
+    assert json.loads(destination.read_text(encoding='utf-8')) == original
+
+
+def test_skip_if_fresh_refreshes_stale_snapshot(tmp_path: Path) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    marker = tmp_path / 'atlas-ran.txt'
+    (tools / 'stack_atlas.py').write_text(
+        "import json\n"
+        "from datetime import datetime, timezone\n"
+        "from pathlib import Path\n"
+        f"Path(r'{marker}').write_text('ran')\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':datetime.now(timezone.utc).isoformat(),'memory_overview':{'recent':[]},'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps({
+        'schema': 'bootstrap.v1',
+        'generated_at': (datetime.now(timezone.utc) - timedelta(seconds=70)).isoformat(),
+        'bootstrap_end': {'status': 'COMPLETE', 'schema': 'bootstrap.v1'},
+    }), encoding='utf-8')
+
+    cp = _run_once(alternate, overlay, skip_if_fresh_seconds=45)
+
+    assert cp.returncode == 0, cp.stderr
+    assert marker.read_text(encoding='utf-8') == 'ran'
+    payload = json.loads(destination.read_text(encoding='utf-8'))
+    assert payload['bootstrap_end']['status'] == 'COMPLETE'
+    generated = datetime.fromisoformat(payload['generated_at'])
+    assert (datetime.now(timezone.utc) - generated.astimezone(timezone.utc)).total_seconds() < 5
+
+
+def test_skip_if_fresh_refreshes_invalid_snapshot(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    _write_fake_atlas(alternate)
+    _, overlay = _memory_files(alternate, tmp_path)
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text('{"schema":"bootstrap.v1"}', encoding='utf-8')
+
+    cp = _run_once(alternate, overlay, skip_if_fresh_seconds=45)
+
+    assert cp.returncode == 0, cp.stderr
+    payload = json.loads(destination.read_text(encoding='utf-8'))
+    assert payload['source_marker'] == 'alternate-root'
+    assert payload['bootstrap_end']['status'] == 'COMPLETE'

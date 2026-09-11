@@ -7,31 +7,40 @@ $primaryTaskName = 'VaultBootstrapSnapshot'
 $watchdogTaskName = 'VaultBootstrapSnapshotWatchdog'
 $sourceRepoRoot = Split-Path -Parent $PSScriptRoot
 if ($RepoRoot) { $repoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path } else { $repoRoot = $sourceRepoRoot }
-$producerPath = Join-Path $repoRoot 'tools\bootstrap_read_loop.py'
-if (-not (Test-Path -LiteralPath $producerPath)) { throw "Bootstrap producer missing: $producerPath" }
-$runnerSource = Join-Path $PSScriptRoot 'bootstrap_snapshot_task_runner.ps1'
-if (-not (Test-Path -LiteralPath $runnerSource)) { throw "Bootstrap task runner missing: $runnerSource" }
+
+$producerSource = Join-Path $PSScriptRoot 'bootstrap_read_loop.py'
+$helperSource = Join-Path $PSScriptRoot 'memory_recent_projection.py'
+if (-not (Test-Path -LiteralPath $producerSource -PathType Leaf)) { throw "Bootstrap producer source missing: $producerSource" }
+if (-not (Test-Path -LiteralPath $helperSource -PathType Leaf)) { throw "Bootstrap helper source missing: $helperSource" }
+
 $runtimeRoot = Join-Path $env:LOCALAPPDATA 'VaultBootstrapSnapshot'
 New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
-$runnerRuntime = Join-Path $runtimeRoot 'bootstrap_snapshot_task_runner.ps1'
-Copy-Item -LiteralPath $runnerSource -Destination $runnerRuntime -Force
+$producerRuntime = Join-Path $runtimeRoot 'bootstrap_read_loop.py'
+$helperRuntime = Join-Path $runtimeRoot 'memory_recent_projection.py'
+Copy-Item -LiteralPath $producerSource -Destination $producerRuntime -Force
+Copy-Item -LiteralPath $helperSource -Destination $helperRuntime -Force
 
 $pythonPath = (& python.exe -c 'import sys; print(sys.executable)').Trim()
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonPath)) { throw 'Python runtime unavailable' }
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) { throw 'Python runtime unavailable' }
+$pythonwPath = Join-Path (Split-Path -Parent $pythonPath) 'pythonw.exe'
+if (-not (Test-Path -LiteralPath $pythonwPath -PathType Leaf)) { throw "Windowless Python runtime unavailable: $pythonwPath" }
 $pwshCommand = Get-Command pwsh.exe -ErrorAction SilentlyContinue
 if ($pwshCommand) { $shellPath = $pwshCommand.Source } else { $shellPath = (Get-Command powershell.exe -ErrorAction Stop).Source }
 
 function Q([string]$Value) { return '"' + $Value.Replace('"','\"') + '"' }
-$common = '-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File ' + (Q $runnerRuntime)
-$primaryArguments = $common + ' -Mode Primary -RepoRoot ' + (Q $repoRoot) + ' -PythonPath ' + (Q $pythonPath) + ' -TimeoutSeconds 15'
-$watchdogArguments = $common + ' -Mode Watchdog -RepoRoot ' + (Q $repoRoot) + ' -PythonPath ' + (Q $pythonPath) + ' -TimeoutSeconds 12 -StaleSeconds 55'
+$primaryArguments = (Q $producerRuntime) + ' --once --quiet --repo-root ' + (Q $repoRoot)
+$watchdogArguments = $primaryArguments + ' --skip-if-fresh-seconds 45'
 
-$legacyPythonw = Join-Path (Split-Path -Parent $pythonPath) 'pythonw.exe'
+# Recognize every task action shipped by the prior generations so migration stays fail-closed.
 $legacyScript = Join-Path $repoRoot 'tools\bootstrap_read_loop.py'
-$legacyArguments = '"{0}" --once --quiet --repo-root "{1}"' -f $legacyScript, $repoRoot
+$legacyArguments = (Q $legacyScript) + ' --once --quiet --repo-root ' + (Q $repoRoot)
 $v1Guard = Join-Path $runtimeRoot 'bootstrap_snapshot_guard.py'
-$v1PrimaryArguments = '"{0}" --refresh --timeout-seconds 15 --repo-root "{1}"' -f $v1Guard, $repoRoot
-$v1WatchdogArguments = '"{0}" --watchdog --stale-seconds 55 --timeout-seconds 15 --primary-task-name "{1}" --repo-root "{2}"' -f $v1Guard, $primaryTaskName, $repoRoot
+$v1PrimaryArguments = (Q $v1Guard) + ' --refresh --timeout-seconds 15 --repo-root ' + (Q $repoRoot)
+$v1WatchdogArguments = (Q $v1Guard) + ' --watchdog --stale-seconds 55 --timeout-seconds 15 --primary-task-name ' + (Q $primaryTaskName) + ' --repo-root ' + (Q $repoRoot)
+$v2RunnerRuntime = Join-Path $runtimeRoot 'bootstrap_snapshot_task_runner.ps1'
+$v2Common = '-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File ' + (Q $v2RunnerRuntime)
+$v2PrimaryArguments = $v2Common + ' -Mode Primary -RepoRoot ' + (Q $repoRoot) + ' -PythonPath ' + (Q $pythonPath) + ' -TimeoutSeconds 15'
+$v2WatchdogArguments = $v2Common + ' -Mode Watchdog -RepoRoot ' + (Q $repoRoot) + ' -PythonPath ' + (Q $pythonPath) + ' -TimeoutSeconds 12 -StaleSeconds 55'
 
 function Assert-KnownTaskAction([string]$TaskName, [string[]]$KnownExecutables, [string[]]$KnownArguments) {
     $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -42,23 +51,25 @@ function Assert-KnownTaskAction([string]$TaskName, [string[]]$KnownExecutables, 
     return $existing
 }
 
-$knownExecutables = @($legacyPythonw, $shellPath)
-$existingPrimary = Assert-KnownTaskAction $primaryTaskName $knownExecutables @($legacyArguments, $v1PrimaryArguments, $primaryArguments)
-$existingWatchdog = Assert-KnownTaskAction $watchdogTaskName $knownExecutables @($v1WatchdogArguments, $watchdogArguments)
+$knownExecutables = @($pythonwPath, $shellPath)
+$existingPrimary = Assert-KnownTaskAction $primaryTaskName $knownExecutables @($legacyArguments, $v1PrimaryArguments, $v2PrimaryArguments, $primaryArguments)
+$existingWatchdog = Assert-KnownTaskAction $watchdogTaskName $knownExecutables @($v1WatchdogArguments, $v2WatchdogArguments, $watchdogArguments)
 if ($existingPrimary) { Unregister-ScheduledTask -TaskName $primaryTaskName -Confirm:$false }
 if ($existingWatchdog) { Unregister-ScheduledTask -TaskName $watchdogTaskName -Confirm:$false }
 
 $baseStart = (Get-Date).AddMinutes(1)
 $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
-$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 22) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 45) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
-$primaryAction = New-ScheduledTaskAction -Execute $shellPath -Argument $primaryArguments -WorkingDirectory $repoRoot
+$primaryAction = New-ScheduledTaskAction -Execute $pythonwPath -Argument $primaryArguments -WorkingDirectory $repoRoot
 $primaryTrigger = New-ScheduledTaskTrigger -Once -At $baseStart -RepetitionInterval (New-TimeSpan -Minutes 1)
-Register-ScheduledTask -TaskName $primaryTaskName -Action $primaryAction -Trigger $primaryTrigger -Settings $settings -Principal $principal -Description 'Publishes one bounded bootstrap snapshot per minute through a no-window PowerShell/.NET process runner.' | Out-Null
+Register-ScheduledTask -TaskName $primaryTaskName -Action $primaryAction -Trigger $primaryTrigger -Settings $settings -Principal $principal -Description 'Publishes one bounded bootstrap snapshot per minute directly through the runtime producer.' | Out-Null
 
-$watchdogAction = New-ScheduledTaskAction -Execute $shellPath -Argument $watchdogArguments -WorkingDirectory $repoRoot
-$watchdogTrigger = New-ScheduledTaskTrigger -Once -At $baseStart.AddSeconds(10) -RepetitionInterval (New-TimeSpan -Minutes 1)
-Register-ScheduledTask -TaskName $watchdogTaskName -Action $watchdogAction -Trigger $watchdogTrigger -Settings $settings -Principal $principal -Description 'Checks bootstrap freshness independently and performs a bounded recovery refresh before the 90-second MCP freshness contract.' | Out-Null
+$watchdogAction = New-ScheduledTaskAction -Execute $pythonwPath -Argument $watchdogArguments -WorkingDirectory $repoRoot
+$watchdogTrigger = New-ScheduledTaskTrigger -Once -At $baseStart.AddSeconds(20) -RepetitionInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName $watchdogTaskName -Action $watchdogAction -Trigger $watchdogTrigger -Settings $settings -Principal $principal -Description 'Runs the same bounded producer independently and skips work while a COMPLETE bootstrap snapshot is 45 seconds old or newer.' | Out-Null
 
+# guard-state.json belonged to the retired PowerShell wrapper and must not masquerade as live authority.
+Remove-Item -LiteralPath (Join-Path $repoRoot '.state\bootstrap\guard-state.json') -Force -ErrorAction SilentlyContinue
 if ($StartNow) { Start-ScheduledTask -TaskName $primaryTaskName }
 Get-ScheduledTask -TaskName $primaryTaskName, $watchdogTaskName | Select-Object TaskName, State
