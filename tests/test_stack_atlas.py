@@ -31,6 +31,8 @@ from tools.stack_atlas import (
     component_details,
     atlas_lookup,
     find_features,
+    unified_find,
+    _timeline_discovery_hits,
     full_inventory,
     main as stack_atlas_main,
     production_change_gate,
@@ -2050,6 +2052,60 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(all(command.startswith(expected) for command in details["independent_recovery"]))
         self.assertIn(expected, details["canonical_sources"])
         self.assertTrue(Path(expected).exists())
+
+    def test_unified_find_composes_atlas_live_and_materialized_history_without_changing_find_features(self):
+        atlas_before = find_features("commander fallback", limit=2)
+        live = [{"kind": "live_workspace", "workspace": "ponytail-upstream-read-20260911"}]
+        history = [{"kind": "github_issue", "reference": "organicoverlords/regression-research#861"}]
+        with patch("tools.stack_atlas._live_discovery_hits", return_value=(live, {"status": "OK"})), \
+                patch("tools.stack_atlas._timeline_discovery_hits", return_value=(history, {"status": "OK"})):
+            result = unified_find("commander fallback", limit=2)
+        self.assertEqual(result["schema"], "stack-atlas.discovery.v1")
+        self.assertEqual(result["atlas_hits"], atlas_before)
+        self.assertEqual(result["live_hits"], live)
+        self.assertEqual(result["history_hits"], history)
+        self.assertEqual(find_features("commander fallback", limit=2), atlas_before)
+        self.assertIn("Discovery only", result["boundary"])
+
+    def test_timeline_discovery_index_dedupes_issue_snapshots_and_artifact_lineage(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-11T22:26:16+03:00"
+            (state / "status.json").write_text(json.dumps({
+                "generated_at": generated,
+                "events": 6,
+                "truncated": False,
+                "saturated_sources": [],
+            }), encoding="utf-8")
+            ids = [
+                "github-issue:organicoverlords/regression-research#861:2026-09-09T10:46:29Z",
+                "github-issue:organicoverlords/regression-research#861:2026-09-09T09:48:50Z",
+                "artifact:aaa:01 Reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md",
+                "artifact:bbb:01 Reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md",
+            ]
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"yagni": [0, 1, 2, 3]},
+                    "weight_codes": {"yagni": bytes([5, 5, 5, 5])},
+                    "anchors": [
+                        ["github:organicoverlords/regression-research#861"],
+                        ["github:organicoverlords/regression-research#861"],
+                        ["artifact:01 reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md"],
+                        ["artifact:01 reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md"],
+                    ],
+                }, handle)
+            hits, coverage = _timeline_discovery_hits("yagni", limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual(coverage["candidate_count"], 4)
+        self.assertEqual([hit["kind"] for hit in hits], ["github_issue", "tracked_artifact"])
+        self.assertEqual(hits[0]["reference"], "organicoverlords/regression-research#861")
+        self.assertEqual(hits[1]["reference"], "01 Reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md")
 
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])
