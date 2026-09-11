@@ -145,7 +145,7 @@ def test_once_missing_repo_root_fails_closed(tmp_path: Path) -> None:
     assert payload["repo_root"] == str(missing.resolve())
 
 
-def test_invalid_update_preserves_previous_snapshot(tmp_path: Path) -> None:
+def test_invalid_update_publishes_fresh_degraded_snapshot_and_watchdog_retries(tmp_path: Path) -> None:
     alternate = tmp_path / 'alternate'
     _write_fake_atlas(alternate)
     _, overlay = _memory_files(alternate, tmp_path)
@@ -153,11 +153,35 @@ def test_invalid_update_preserves_previous_snapshot(tmp_path: Path) -> None:
     assert good.returncode == 0, good.stderr
     assert good.stdout == ''
     destination = alternate / '.state' / 'bootstrap' / 'latest.json'
-    previous = destination.read_bytes()
+    previous = json.loads(destination.read_text(encoding='utf-8'))
+
     (alternate / 'tools' / 'stack_atlas.py').write_text("print('{}')", encoding='utf-8')
-    failed = _run_once(alternate, overlay)
-    assert failed.returncode == 1
-    assert destination.read_bytes() == previous
+    degraded_run = _run_once(alternate, overlay)
+
+    assert degraded_run.returncode == 0, degraded_run.stderr
+    degraded = json.loads(destination.read_text(encoding='utf-8'))
+    assert degraded['generated_at'] != previous['generated_at']
+    assert degraded['bootstrap']['status'] == 'DEGRADED'
+    assert degraded['bootstrap']['refresh_mode'] == 'DEGRADED_CARRY_FORWARD'
+    assert degraded['bootstrap']['carried_forward_from'] == previous['generated_at']
+    assert degraded['bootstrap_end'] == {'status': 'COMPLETE', 'schema': 'bootstrap.v1'}
+    status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'DEGRADED'
+
+    marker = tmp_path / 'watchdog-retried.txt'
+    (alternate / 'tools' / 'stack_atlas.py').write_text(
+        "import json\n"
+        "from datetime import datetime, timezone\n"
+        "from pathlib import Path\n"
+        f"Path(r'{marker}').write_text('retried')\n"
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':datetime.now(timezone.utc).isoformat(),'bootstrap':{'status':'OK'},'memory_overview':{'recent':[]},'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+    retry = _run_once(alternate, overlay, skip_if_fresh_seconds=45)
+    assert retry.returncode == 0, retry.stderr
+    assert marker.read_text(encoding='utf-8') == 'retried'
+    repaired = json.loads(destination.read_text(encoding='utf-8'))
+    assert repaired['bootstrap']['status'] == 'OK'
 
 
 def test_replace_snapshot_retries_transient_windows_permission_error(monkeypatch, tmp_path: Path) -> None:

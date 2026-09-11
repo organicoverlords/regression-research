@@ -16,6 +16,8 @@ except ImportError:
 HERE = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = HERE.parent
 MEMORY_RECENT_LIMIT = 3
+PRODUCER_STATUS_NAME = 'producer-status.json'
+
 
 BOOTSTRAP_GLANCE_TIMEOUT_SECONDS = 12.0
 PROCESS_TREE_KILL_TIMEOUT_SECONDS = 2.0
@@ -161,8 +163,89 @@ def _replace_snapshot(temporary: Path, destination: Path, *, retry_seconds: floa
             delay = min(delay * 2, 0.05)
 
 
+def _snapshot_dir(repo_root: Path) -> Path:
+    return repo_root.resolve() / '.state' / 'bootstrap'
+
+
+def _write_json_atomic(destination: Path, payload: dict) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=destination.parent,
+                                         suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(encoded)
+        _replace_snapshot(temporary, destination)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _write_producer_status(repo_root: Path, *, mode: str, detail: str = '', exit_code: int = 0) -> None:
+    try:
+        _write_json_atomic(_snapshot_dir(repo_root) / PRODUCER_STATUS_NAME, {
+            'schema': 'bootstrap-producer-status.v1',
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'mode': mode,
+            'exit_code': int(exit_code),
+            'detail': detail[-1000:],
+        })
+    except OSError:
+        pass
+
+
+def _load_previous_snapshot(repo_root: Path) -> dict | None:
+    path = _snapshot_dir(repo_root) / 'latest.json'
+    try:
+        payload = json.loads(path.read_text(encoding='utf-8-sig'))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+    end = payload.get('bootstrap_end') or {}
+    if payload.get('schema') != 'bootstrap.v1' or end.get('status') != 'COMPLETE' or end.get('schema') != 'bootstrap.v1':
+        return None
+    return payload
+
+
+def _publish_degraded_snapshot(repo_root: Path, *, reason: str, exit_code: int) -> bool:
+    previous = _load_previous_snapshot(repo_root)
+    if previous is None:
+        return False
+    now = datetime.now(timezone.utc).isoformat()
+    payload = dict(previous)
+    previous_generated_at = payload.get('generated_at')
+    payload['generated_at'] = now
+    payload['bootstrap_warning'] = (
+        'BOOTSTRAP REFRESH DEGRADED: the full bootstrap-glance refresh failed. '
+        'Treat carried-forward live/current sections as non-authoritative until a full refresh succeeds.'
+    )
+    bootstrap = dict(payload.get('bootstrap') or {})
+    bootstrap.update({
+        'status': 'DEGRADED',
+        'self_check': 'DEGRADED',
+        'refresh_mode': 'DEGRADED_CARRY_FORWARD',
+        'refresh_failure': reason[-1000:],
+        'refresh_exit_code': int(exit_code),
+        'carried_forward_from': previous_generated_at,
+    })
+    payload['bootstrap'] = bootstrap
+    for section in ('live_swarm', 'mcp', 'vault', 'github', 'source_freshness', 'pc', 'workers',
+                    'mcp_current_topology', 'mcp_recovery_state', 'memory_overview'):
+        if section in payload:
+            payload[section] = {
+                'available': False,
+                'status': 'UNKNOWN',
+                'reason': 'full_bootstrap_refresh_failed',
+                'carried_forward_from': previous_generated_at,
+            }
+    payload['bootstrap_end'] = {'status': 'COMPLETE', 'schema': 'bootstrap.v1'}
+    _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    _write_producer_status(repo_root, mode='DEGRADED', detail=reason, exit_code=exit_code)
+    return True
+
+
 def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
-    path = repo_root.resolve() / '.state' / 'bootstrap' / 'latest.json'
+    path = _snapshot_dir(repo_root) / 'latest.json'
     try:
         payload = json.loads(path.read_text(encoding='utf-8-sig'))
     except FileNotFoundError:
@@ -184,7 +267,9 @@ def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
     age = (datetime.now(timezone.utc) - generated.astimezone(timezone.utc)).total_seconds()
     if age < -5:
         return float('inf'), 'FUTURE_GENERATED_AT'
-    return max(0.0, age), 'OK'
+    bootstrap = payload.get('bootstrap') or {}
+    status = 'OK' if bootstrap.get('status', 'OK') == 'OK' else 'DEGRADED'
+    return max(0.0, age), status
 
 
 def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -> bool:
@@ -192,35 +277,44 @@ def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -
     atlas = repo_root / 'tools' / 'stack_atlas.py'
     cp = _run_bootstrap_glance(repo_root, atlas)
     if cp.returncode != 0:
+        detail = (cp.stderr or f'bootstrap-glance exited {cp.returncode}')[-1000:]
+        if _publish_degraded_snapshot(repo_root, reason=detail, exit_code=cp.returncode):
+            if not quiet:
+                print((_snapshot_dir(repo_root) / 'latest.json').read_text(encoding='utf-8'), flush=True)
+            return True
         print(json.dumps({
             'stream_schema': 'bootstrap-read-stream.v1',
-            'error': 'bootstrap-glance failed',
+            'error': 'bootstrap-glance failed and no previous COMPLETE snapshot was available',
             'exit_code': cp.returncode,
             'repo_root': str(repo_root),
-            'stderr_tail': cp.stderr[-1000:],
+            'stderr_tail': detail,
         }, separators=(',', ':')), flush=True)
+        _write_producer_status(repo_root, mode='FAILED', detail=detail, exit_code=cp.returncode)
         return False
-    payload = json.loads(cp.stdout.lstrip('\ufeff'))
+    try:
+        payload = json.loads(cp.stdout.lstrip('\ufeff'))
+    except json.JSONDecodeError as exc:
+        detail = f'invalid bootstrap-glance JSON: {exc}'
+        if _publish_degraded_snapshot(repo_root, reason=detail, exit_code=2):
+            if not quiet:
+                print((_snapshot_dir(repo_root) / 'latest.json').read_text(encoding='utf-8'), flush=True)
+            return True
+        raise
     end = payload.get('bootstrap_end') or {}
     if (payload.get('schema') != 'bootstrap.v1' or not payload.get('generated_at')
             or end.get('status') != 'COMPLETE' or end.get('schema') != 'bootstrap.v1'):
-        raise RuntimeError('bootstrap-glance returned invalid bootstrap.v1 payload')
+        detail = 'bootstrap-glance returned invalid bootstrap.v1 payload'
+        if _publish_degraded_snapshot(repo_root, reason=detail, exit_code=2):
+            if not quiet:
+                print((_snapshot_dir(repo_root) / 'latest.json').read_text(encoding='utf-8'), flush=True)
+            return True
+        raise RuntimeError(detail)
     payload = _overlay_current_memory(payload, repo_root)
     encoded = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
     if len(encoded.encode('utf-8')) > 64 * 1024:
         raise RuntimeError('bootstrap snapshot exceeds 64 KiB producer limit')
-    destination = repo_root / '.state' / 'bootstrap' / 'latest.json'
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=destination.parent,
-                                         suffix='.tmp', delete=False) as stream:
-            temporary = Path(stream.name)
-            stream.write(encoded)
-        _replace_snapshot(temporary, destination)
-    finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
+    _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    _write_producer_status(repo_root, mode='FULL', exit_code=0)
     if not quiet:
         print(encoded, flush=True)
     return True
@@ -254,6 +348,7 @@ def main() -> int:
             if skip_if_fresh is not None:
                 age, status = snapshot_age_seconds(repo_root)
                 if status == 'OK' and age <= skip_if_fresh:
+                    _write_producer_status(repo_root, mode='SKIPPED_FRESH', exit_code=0)
                     ok = True
                 else:
                     ok = emit_snapshot(repo_root, quiet=args.quiet)
