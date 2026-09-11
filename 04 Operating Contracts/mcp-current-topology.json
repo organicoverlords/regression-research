@@ -1,19 +1,14 @@
 {
   "schema": "mcp-current-topology.v1",
   "authority": "current_serving_topology",
-  "updated_at": "2026-09-11T10:23:38.127833+00:00",
-  "tracking_issue": "organicoverlords/regression-research#979",
+  "updated_at": "2026-09-11T18:34:14.892000+00:00",
+  "tracking_issue": "organicoverlords/regression-research#1023",
   "source_change": {
     "repository": "organicoverlords/chatgpt-mcp-clean",
-    "merge_commit": "fbbb79dc3b1575b8e0ffd10fb01dbbf7d20e41f4",
-    "pull_request": 280,
-    "base_five_tool_commit": "1100969cfd1276da5341e67c09b9744a3927142e",
-    "base_five_tool_pull_request": 241,
+    "merge_commit": "1100969cfd1276da5341e67c09b9744a3927142e",
+    "pull_request": 241,
     "image_handoff_issue": 240,
-    "stall_watchdog_pull_request": 244,
-    "template_compat_issue": 272,
-    "live_backport_commit": "b7b1e24ea3cabb6f9c27d6734567597a470903ca",
-    "durability_issue": 281
+    "stall_watchdog_pull_request": 244
   },
   "serving": {
     "connector_url": "https://91-159-12-133.sslip.io/mcp",
@@ -22,36 +17,36 @@
     "path": [
       "ChatGPT/GPT1 connector",
       "local HTTPS Caddy",
-      "127.0.0.1:3036"
+      "127.0.0.1:3028"
     ],
     "caddy": {
       "scheduled_task": "McpV4HomeDirectCaddy",
-      "config": "%LOCALAPPDATA%\\Caddy\\mcp-home-test\\Caddyfile",
-      "frozen_config": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\1100969\\Caddyfile.frozen",
-      "sha256": "35a34dc9cce13907a362f31ba49fa580ae3b6d887f4113fd904e21e040d32134",
-      "authorization_rule": "/authorize is accepted only from private/local client IPs; other /authorize requests fail closed",
-      "sha256_basis": "raw Caddy admin /config/ bytes",
+      "config": "%LOCALAPPDATA%\\\\Caddy\\\\mcp-home-test\\\\Caddyfile",
+      "frozen_config": "%LOCALAPPDATA%\\\\ChatGPTMcpFrozen\\\\1100969\\\\Caddyfile.frozen",
+      "sha256": "214df68a5b2e28a510c1bb5a476f18d54240e5cbaa15f711835071e4efec9315",
+      "sha256_basis": "on-disk Caddyfile raw bytes",
+      "loaded_admin_sha256": "ebc4505b33658231d255a3059c3642ad39990ef6007d4e1e5e2a7cc6569faf44",
+      "loaded_admin_sha256_basis": "raw Caddy admin /config/ response bytes",
       "loaded_upstreams": [
-        "127.0.0.1:3036",
-        "127.0.0.1:3037"
+        "127.0.0.1:3028",
+        "127.0.0.1:3029"
       ],
-      "on_disk_config_matches_loaded_routes": false,
+      "on_disk_config_matches_loaded_routes": true,
       "on_disk_config_routes": [
         "127.0.0.1:3028",
         "127.0.0.1:3029"
       ],
-      "reload_warning": "On-disk Caddyfile is stale recovery/foreign state; do not reload it as current serving truth without a gated topology change.",
-      "frozen_config_role": "1100969 recovery config, not the currently loaded 3036/3037 route"
+      "authorization_rule": "/authorize is accepted only from private/local client IPs; other /authorize requests fail closed"
     },
     "backend": {
-      "persistence_task": "McpV4FrozenIssue281Main3036",
-      "persistence_task_state": "Ready",
-      "current_process_scheduler_owned": false,
-      "listen": "127.0.0.1:3036",
-      "runtime_checkout": "%LOCALAPPDATA%\\Temp\\mcp-272-live-1100969-final",
-      "durable_runtime_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\issue281-b7b1e24",
-      "branch": "fix/272-live-1100969-template-compat",
-      "commit": "b7b1e24ea3cabb6f9c27d6734567597a470903ca",
+      "persistence_task": "McpV4FrozenStable3028",
+      "persistence_task_state": "Running",
+      "current_process_scheduler_owned": true,
+      "listen": "127.0.0.1:3028",
+      "runtime_checkout": "%LOCALAPPDATA%\\\\ChatGPTMcpCandidate1100969",
+      "durable_runtime_root": "%LOCALAPPDATA%\\\\ChatGPTMcpFrozen\\\\1100969",
+      "branch": "(detached frozen)",
+      "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
       "tool_profile": "process",
       "owner_auth_mode": "local-edge",
       "tracked_source_clean": true
@@ -59,14 +54,14 @@
     "peer_route": {
       "connector_url": "https://pr237.91-159-12-133.sslip.io/mcp",
       "public_origin": "https://pr237.91-159-12-133.sslip.io",
-      "listen": "127.0.0.1:3037",
-      "persistence_task": "McpV4FrozenIssue281Pr2373037",
-      "persistence_task_state": "Ready",
-      "current_process_scheduler_owned": false,
-      "runtime_checkout": "%LOCALAPPDATA%\\Temp\\mcp-272-live-1100969-final",
-      "durable_runtime_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\issue281-b7b1e24",
-      "commit": "b7b1e24ea3cabb6f9c27d6734567597a470903ca",
-      "oauth_store": "%LOCALAPPDATA%\\ChatGPTMcpClean\\minimal-connectors\\pr237-test\\oauth.json"
+      "listen": "127.0.0.1:3029",
+      "persistence_task": "McpV4FrozenPr2373029",
+      "persistence_task_state": "Running",
+      "current_process_scheduler_owned": true,
+      "runtime_checkout": "%LOCALAPPDATA%\\\\ChatGPTMcpCandidate1100969",
+      "durable_runtime_root": "%LOCALAPPDATA%\\\\ChatGPTMcpFrozen\\\\1100969",
+      "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
+      "oauth_store": "%LOCALAPPDATA%\\\\ChatGPTMcpClean\\\\minimal-connectors\\\\pr237-test\\\\oauth.json"
     }
   },
   "chatgpt_surface": {
@@ -95,7 +90,7 @@
       "adds_tool": true,
       "tool": "upload_local_file",
       "resource_protocol": "mcp-upload://file-transfer/{token}",
-      "source": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\issue281-b7b1e24\\runtime\\src\\lib\\file-transfer.ts",
+      "source": "%LOCALAPPDATA%\\\\ChatGPTMcpCandidate1100969\\\\src\\\\lib\\\\file-transfer.ts",
       "widget_resource": "ui://process/file-transfer-v1.html",
       "default_visual_retrieval": true,
       "default_scope": "all workers/projects when exact image pixels are not already exposed and the original supported image is reachable through the normal machine route",
@@ -121,13 +116,7 @@
       "open_visual_proof_run",
       "record_visual_proof_review"
     ],
-    "generation": "b7b1e24-template-compat",
-    "template_compatibility": [
-      "ui://process/file-transfer-v1.html",
-      "ui://process/library-upload-v1.html",
-      "ui://process/library-upload-v2.html",
-      "ui://visual-proof/inline-v1.html"
-    ]
+    "generation": "frozen-five-tool-1100969"
   },
   "oauth": {
     "mode": "local-edge",
@@ -142,29 +131,13 @@
     "protected_resource_metadata_expected_status": 200
   },
   "recovery": {
-    "freeze_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\issue281-b7b1e24",
-    "route_switch": null,
-    "route_switch_note": "The b7b1e24 durability artifact has no autonomous Caddy route-switch script; current routing is the loaded Caddy admin config and serving-path mutation still requires the production gate.",
-    "independent_local_control": "first recovery is live 127.0.0.1:3028 plus restartable 127.0.0.1:3029 on frozen 1100969; secondary rollback remains 127.0.0.1:3022/3027",
+    "independent_local_control": "127.0.0.1:3022 remains a live stable rollback backend; 127.0.0.1:3027 remains the peer rollback slot but is not currently listening",
     "stable_rollback": {
-      "listen": "127.0.0.1:3028",
-      "instance": "home-direct-1100969",
-      "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
-      "persistence_task": "McpV4FrozenStable3028",
+      "listen": "127.0.0.1:3022",
+      "instance": "home-direct-test",
       "currently_listening": true
     },
     "peer_rollback": {
-      "listen": "127.0.0.1:3029",
-      "instance": "pr237-1100969",
-      "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
-      "persistence_task": "McpV4FrozenPr2373029",
-      "currently_listening": false
-    },
-    "secondary_stable_rollback": {
-      "listen": "127.0.0.1:3022",
-      "instance": "home-direct-test"
-    },
-    "secondary_peer_rollback": {
       "listen": "127.0.0.1:3027",
       "instance": "issue240-live",
       "currently_listening": false
@@ -179,24 +152,41 @@
     "Tailscale owner authorization"
   ],
   "diagnostic_invariants": [
-    "The current frozen backend generation exposes exactly five MCP actions: start_process, read_output, kill_process, upload_local_file, download_chatgpt_file.",
-    "A chat that was opened before the five-tool promotion may still show a cached three-tool schema; verify live backend commit/tool contract before changing OAuth or routing.",
+    "The current serving backend generation exposes exactly five MCP actions: start_process, read_output, kill_process, upload_local_file, download_chatgpt_file.",
+    "A chat opened before the five-tool promotion may still show a cached three-tool schema; verify live backend commit/tool contract before changing OAuth or routing.",
     "The image thumbnail is UI-only. Model vision must be backed by the exact original image resource and source integrity checks, not a resized preview.",
     "Stable and pr237 use separate OAuth stores; authentication repair must not merge, replace, or copy one store over the other.",
     "If an authorization browser opens 5-61-91-127.sslip.io, GPT1 is using stale connector metadata; do not repair the VPS route for this connector.",
     "mcp-recovery-state.json is recovery-target metadata and must not be projected as current GPT1 serving identity.",
-    "Current loaded Caddy routes are 3036/3037; the on-disk mcp-home-test Caddyfile still names 3028/3029 and is not current serving authority.",
-    "The Ready #281 persistence tasks are reboot/logon ownership for 3036/3037, but the currently serving PIDs predate task registration and must not be described as task-parented.",
-    "Cached historical MCP app template URIs remain readable on b7b1e24; do not remove the compatibility resources while clients may retain old tool metadata."
+    "Loaded Caddy upstreams and the on-disk mcp-home-test Caddyfile agree on 3028/3029 at this observation.",
+    "3036/3037 remain live side-generation processes but are not loaded GPT1 Caddy upstreams and must not be projected as the current serving path.",
+    "The current 3028/3029 serving processes are parented by the launcher commands registered in their Running persistence tasks."
   ],
   "current_live_persistence": {
-    "status": "DURABILITY_REGISTERED_TASKS_READY_CURRENT_PIDS_PREDATE_TASKS",
-    "primary_task": "McpV4FrozenIssue281Main3036",
-    "peer_task": "McpV4FrozenIssue281Pr2373037",
-    "task_state": "Ready",
-    "current_process_scheduler_owned": false,
-    "scheduler_context_proof": "PASS on disposable 3041/3042 with exact clean b7b1e24; proof tasks removed",
-    "artifact_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\issue281-b7b1e24",
-    "tracking_issue": "organicoverlords/chatgpt-mcp-clean#281"
-  }
+    "status": "RUNNING_TASKS_PARENT_CURRENT_SERVING_PIDS",
+    "primary_task": "McpV4FrozenStable3028",
+    "peer_task": "McpV4FrozenPr2373029",
+    "task_state": "Running",
+    "current_process_scheduler_owned": true,
+    "artifact_root": "%LOCALAPPDATA%\\\\ChatGPTMcpFrozen\\\\1100969",
+    "tracking_issue": "organicoverlords/regression-research#1023"
+  },
+  "non_serving_live_instances": [
+    {
+      "listen": "127.0.0.1:3036",
+      "persistence_task": "McpV4FrozenIssue281Main3036",
+      "task_state": "Running",
+      "commit": "b7b1e24ea3cabb6f9c27d6734567597a470903ca",
+      "loaded_caddy_upstream": false,
+      "role": "live side generation; not current GPT1 serving path"
+    },
+    {
+      "listen": "127.0.0.1:3037",
+      "persistence_task": "McpV4FrozenIssue281Pr2373037",
+      "task_state": "Running",
+      "commit": "b7b1e24ea3cabb6f9c27d6734567597a470903ca",
+      "loaded_caddy_upstream": false,
+      "role": "live side generation; not current GPT1 serving path"
+    }
+  ]
 }

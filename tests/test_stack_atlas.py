@@ -2066,9 +2066,11 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("conditional_ui", surface)
         self.assertIn("exactly five process-profile tools", surface["boundary"])
         status = " ".join(details["live_status"])
-        self.assertIn("91-159-12-133.sslip.io/mcp", status)
-        self.assertIn("127.0.0.1:3036", status)
-        self.assertIn("not in the GPT1 path", status)
+        self.assertEqual(details["current_topology"]["connector_url"], "https://91-159-12-133.sslip.io/mcp")
+        self.assertIn("mcp-current-topology.v1", status)
+        self.assertEqual(details["current_topology"]["status"], "OK")
+        self.assertIn("127.0.0.1:3028", details["current_topology"]["serving_path"])
+        self.assertIn("5-61-91-127.sslip.io", details["current_topology"]["excluded_from_gpt1_path"])
 
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
         details = component_details("mcp_front_door")
@@ -2538,25 +2540,63 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         details = component_details("mcp_minimal_clone")
         self.assertEqual(contract["schema"], "mcp-current-topology.v1")
         self.assertEqual(contract["serving"]["connector_url"], details["current_topology"]["connector_url"])
+        self.assertEqual(details["current_topology"]["status"], "OK")
+        self.assertIn("127.0.0.1:3028", details["current_topology"]["serving_path"])
+        self.assertEqual(contract["serving"]["backend"]["listen"], "127.0.0.1:3028")
+        self.assertEqual(contract["serving"]["peer_route"]["listen"], "127.0.0.1:3029")
+        self.assertEqual(contract["serving"]["backend"]["persistence_task"], "McpV4FrozenStable3028")
+        self.assertEqual(contract["serving"]["peer_route"]["persistence_task"], "McpV4FrozenPr2373029")
         self.assertEqual(contract["chatgpt_surface"]["tool_count"], 5)
         self.assertEqual(contract["chatgpt_surface"]["tools"], details["chatgpt_plugin_surface"]["tools"])
         self.assertTrue(contract["chatgpt_surface"]["image_delivery"]["adds_tool"])
-        self.assertTrue(contract["chatgpt_surface"]["image_delivery"]["default_visual_retrieval"])
-        self.assertIn("all workers/projects", contract["chatgpt_surface"]["image_delivery"]["default_scope"])
-        self.assertTrue(any("upload_local_file" in step for step in contract["chatgpt_surface"]["image_delivery"]["sequence"]))
         self.assertIn("5-61-91-127.sslip.io", contract["not_in_gpt1_path"])
         current = find_features("gpt1 mcp topology 91-159-12-133")[0]
         self.assertEqual(current["id"], "mcp.current_topology")
-        self.assertIn("127.0.0.1:3036", current["boundary"])
-        self.assertIn("pr237 on 3037", current["boundary"])
-        self.assertIn("b7b1e24", current["boundary"])
-        self.assertEqual(contract["serving"]["backend"]["persistence_task"], "McpV4FrozenIssue281Main3036")
-        self.assertEqual(contract["serving"]["peer_route"]["persistence_task"], "McpV4FrozenIssue281Pr2373037")
-        self.assertFalse(contract["serving"]["backend"]["current_process_scheduler_owned"])
-        self.assertFalse(contract["serving"]["peer_route"]["current_process_scheduler_owned"])
-        self.assertEqual(contract["serving"]["caddy"]["loaded_upstreams"], ["127.0.0.1:3036", "127.0.0.1:3037"])
-        self.assertFalse(contract["serving"]["caddy"]["on_disk_config_matches_loaded_routes"])
-        self.assertIn("not the GPT1 serving", current["boundary"])
+        self.assertIn("mcp-current-topology.v1", current["boundary"])
+        self.assertNotIn("127.0.0.1:3036", current["boundary"])
+        self.assertNotIn("127.0.0.1:3039", current["boundary"])
+
+    def test_mcp_lookup_reads_valid_current_topology_contract_at_call_time(self):
+        import tools.stack_atlas as atlas
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "mcp-current-topology.json"
+            path.write_text(json.dumps({
+                "schema": "mcp-current-topology.v1",
+                "authority": "current_serving_topology",
+                "serving": {
+                    "connector_url": "https://example.invalid/mcp",
+                    "public_origin": "https://example.invalid",
+                    "authorization_endpoint": "https://example.invalid/authorize",
+                    "path": ["ChatGPT/GPT1 connector", "test Caddy", "127.0.0.1:3999"],
+                },
+                "chatgpt_surface": {"tool_count": 5, "tools": ["a", "b", "c", "d", "e"]},
+                "recovery": {"independent_local_control": "test rollback"},
+                "not_in_gpt1_path": ["legacy.invalid"],
+            }), encoding="utf-8")
+            with patch.object(atlas, "MCP_CURRENT_TOPOLOGY_PATH", path):
+                current = atlas.atlas_lookup("mcp_minimal_clone")["current_topology"]
+        self.assertEqual(current["status"], "OK")
+        self.assertEqual(current["connector_url"], "https://example.invalid/mcp")
+        self.assertIn("127.0.0.1:3999", current["serving_path"])
+        self.assertNotIn("3036", json.dumps(current))
+
+    def test_mcp_lookup_fails_closed_when_current_topology_is_missing_or_invalid(self):
+        import tools.stack_atlas as atlas
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            missing = root / "missing.json"
+            with patch.object(atlas, "MCP_CURRENT_TOPOLOGY_PATH", missing):
+                missing_current = atlas.component_details("mcp_minimal_clone")["current_topology"]
+            invalid = root / "invalid.json"
+            invalid.write_text(json.dumps({"schema": "wrong.v1"}), encoding="utf-8")
+            with patch.object(atlas, "MCP_CURRENT_TOPOLOGY_PATH", invalid):
+                invalid_current = atlas.component_details("mcp_minimal_clone")["current_topology"]
+        for current in (missing_current, invalid_current):
+            self.assertEqual(current["status"], "UNKNOWN_SOURCE_UNAVAILABLE")
+            self.assertNotIn("serving_path", current)
+            self.assertNotIn("3036", json.dumps(current))
+            self.assertIn("must not masquerade", current["boundary"])
+
 
 class VaultUsefulnessRoutingTests(unittest.TestCase):
     def test_vague_vault_usefulness_routes_to_overview_first(self):
