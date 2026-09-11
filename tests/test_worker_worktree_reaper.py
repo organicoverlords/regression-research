@@ -37,14 +37,22 @@ class WorkerWorktreeReaperTests(unittest.TestCase):
             self.assertEqual(branch_head, head)
 
     @patch("tools.worker_worktree_reaper.windows_processes", return_value=[{"ProcessId": 9001, "CommandLine": "idle.exe"}])
-    def test_dirty_lane_is_preserved(self, _processes):
+    def test_dirty_lane_is_preserved_but_own_ignored_target_is_cleaned(self, _processes):
         with tempfile.TemporaryDirectory() as d:
             _repo, lane, _head = self._repo_with_worktree(Path(d))
+            (lane / ".gitignore").write_text("target/\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(lane), "add", ".gitignore"], check=True)
+            subprocess.run(["git", "-C", str(lane), "commit", "-q", "-m", "ignore target"], check=True)
             (lane / "dirty.txt").write_text("unique\n", encoding="utf-8")
+            (lane / "target").mkdir()
+            (lane / "target" / "cache.bin").write_bytes(b"cache")
             result = release_own_worktree(lane)
             self.assertEqual(result["action"], "PRESERVE")
             self.assertEqual(result["reason"], "dirty")
+            self.assertEqual(result["cleaned_cache"], ["target"])
             self.assertTrue(lane.exists())
+            self.assertTrue((lane / "dirty.txt").exists())
+            self.assertFalse((lane / "target").exists())
 
     @patch("tools.worker_worktree_reaper.windows_processes", return_value=[{"ProcessId": 9001, "CommandLine": "idle.exe"}])
     def test_primary_worktree_is_never_removed(self, _processes):
@@ -55,15 +63,20 @@ class WorkerWorktreeReaperTests(unittest.TestCase):
             self.assertEqual(result["reason"], "primary_worktree")
             self.assertTrue(repo.exists())
 
-    def test_process_targeted_lane_is_preserved(self):
+    def test_process_targeted_lane_is_preserved_with_target_untouched(self):
         with tempfile.TemporaryDirectory() as d:
             _repo, lane, _head = self._repo_with_worktree(Path(d))
+            (lane / ".gitignore").write_text("target/\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(lane), "add", ".gitignore"], check=True)
+            subprocess.run(["git", "-C", str(lane), "commit", "-q", "-m", "ignore target"], check=True)
+            (lane / "target").mkdir()
+            (lane / "target" / "cache.bin").write_bytes(b"cache")
             processes = [{"ProcessId": 9001, "CommandLine": f'build.exe -Project="{lane}\\p3.uproject"'}]
             with patch("tools.worker_worktree_reaper.windows_processes", return_value=processes):
                 result = release_own_worktree(lane)
             self.assertEqual(result["action"], "PRESERVE")
             self.assertEqual(result["reason"], "external_process_targets_path")
-            self.assertTrue(lane.exists())
+            self.assertTrue((lane / "target" / "cache.bin").exists())
 
 
     def test_manual_start_records_execution_cwd(self):

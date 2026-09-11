@@ -577,9 +577,19 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Observer semantics only: healthy/primary_healthy describe the automatic WireGuard primary path, while SSH 3101-3104 contribute only recovery_available/fallback health. WireGuard freshness is explicit in wireguard_handshake_age_seconds and wireguard_peer_fresh. Observation never authorizes automatic SSH failover or serving-path mutation.",
     },
+    "resource.disk_pressure": {
+        "owner_components": ["agent_rules", "execution_nodes"],
+        "triggers": ["disk cleanup", "disk full", "low disk", "free disk", "runner cache", "build cache", "runner cleanup", "disk pressure"],
+        "entrypoints": [
+            r"python C:\Users\Lauri\Desktop\vault\tools\swarm_route.py status --refresh-probe",
+            r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+            "inspect the exact live runner/build owner before cleanup; use that repo's owned cache/reclaim entrypoint",
+        ],
+        "boundary": "Disk-pressure recovery is provenance-first, not name/age/size-first. Stop new heavy growth through machine admission, identify the live runner/process/work-id that created the space, then reclaim only its repo-owned regeneratable cache/output after its hot lease/process ends. Never substitute generic worktree cleanup for runner-cache recovery, never delete Content/source/evidence/user data merely to hit a free-space target, and never treat process-free/old/large alone as proof of disposability.",
+    },
     "cleanup.convergence": {
         "owner_components": ["agent_rules", "local_git", "busy_coordinator"],
-        "triggers": ["cleanup convergence", "cleanup", "worktree cleanup", "disk cleanup", "converge worktrees", "stale worktrees", "orphan residue", "reap worktrees"],
+        "triggers": ["cleanup convergence", "worktree cleanup", "converge worktrees", "stale worktrees", "orphan residue", "reap worktrees"],
         "entrypoints": [
             r"python C:\Users\Lauri\Desktop\vault\tools\cleanup_converger.py --apply --operator-ack",
             r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\operator-cleanup-convergence.md",

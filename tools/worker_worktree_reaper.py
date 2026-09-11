@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -82,6 +83,33 @@ def registered_context(path: Path) -> tuple[Path, Worktree, list[Worktree]] | No
     return rows[0].path, target, rows
 
 
+
+
+def _is_reparse_dir(path: Path) -> bool:
+    try:
+        info = path.lstat()
+    except OSError:
+        return True
+    return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & 0x400)
+
+
+def _clean_own_ignored_target(path: Path) -> list[str]:
+    """Remove only this finished worker's exact Git-ignored Cargo target cache."""
+    target = path / "target"
+    if not target.is_dir() or _is_reparse_dir(target):
+        return []
+    try:
+        ignored = _git(path, "check-ignore", "-q", "--", "target", timeout=5.0)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if ignored.returncode != 0:
+        return []
+    try:
+        shutil.rmtree(target)
+    except OSError:
+        return []
+    return ["target"]
+
 def release_own_worktree(path: Path) -> dict[str, Any]:
     context = registered_context(path)
     if context is None:
@@ -98,18 +126,6 @@ def release_own_worktree(path: Path) -> dict[str, Any]:
         }
 
     try:
-        clean = worktree_is_clean(target.path)
-    except (OSError, RuntimeError):
-        return {"ok": True, "action": "PRESERVE", "reason": "cleanliness_probe_error", "path": str(target.path)}
-    if clean is None:
-        return {"ok": True, "action": "PRESERVE", "reason": "cleanliness_probe_timeout", "path": str(target.path)}
-    if clean is False:
-        return {"ok": True, "action": "PRESERVE", "reason": "dirty", "path": str(target.path)}
-    if not worktree_anchor_matches(repo, target):
-        reason = "detached_or_unanchored" if target.detached or not target.branch else "branch_ref_mismatch"
-        return {"ok": True, "action": "PRESERVE", "reason": reason, "path": str(target.path)}
-
-    try:
         processes = windows_processes()
     except (OSError, RuntimeError, subprocess.TimeoutExpired):
         return {"ok": True, "action": "PRESERVE", "reason": "process_probe_error", "path": str(target.path)}
@@ -119,6 +135,19 @@ def release_own_worktree(path: Path) -> dict[str, Any]:
         return {"ok": True, "action": "PRESERVE", "reason": "process_probe_empty", "path": str(target.path)}
     if process_targets_path(target.path, processes, self_pid=os.getpid()):
         return {"ok": True, "action": "PRESERVE", "reason": "external_process_targets_path", "path": str(target.path)}
+
+    cleaned_cache = _clean_own_ignored_target(target.path)
+    try:
+        clean = worktree_is_clean(target.path)
+    except (OSError, RuntimeError):
+        return {"ok": True, "action": "PRESERVE", "reason": "cleanliness_probe_error", "path": str(target.path), "cleaned_cache": cleaned_cache}
+    if clean is None:
+        return {"ok": True, "action": "PRESERVE", "reason": "cleanliness_probe_timeout", "path": str(target.path), "cleaned_cache": cleaned_cache}
+    if clean is False:
+        return {"ok": True, "action": "PRESERVE", "reason": "dirty", "path": str(target.path), "cleaned_cache": cleaned_cache}
+    if not worktree_anchor_matches(repo, target):
+        reason = "detached_or_unanchored" if target.detached or not target.branch else "branch_ref_mismatch"
+        return {"ok": True, "action": "PRESERVE", "reason": reason, "path": str(target.path), "cleaned_cache": cleaned_cache}
 
     # Re-read identity immediately before the non-force remove. Git itself rechecks
     # dirtiness, so a write racing this guard fails closed rather than being forced.

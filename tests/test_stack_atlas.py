@@ -107,6 +107,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("content/saved/proof/evidence/source", result["boundary"].lower())
         self.assertTrue(any("cleanup_converger.py --apply --operator-ack" in item for item in result["entrypoints"]))
 
+    def test_disk_cleanup_routes_to_disk_pressure_not_worktree_convergence(self):
+        results = find_features("disk cleanup")
+        self.assertTrue(results)
+        self.assertEqual(results[0]["id"], "resource.disk_pressure")
+        self.assertIn("provenance-first", results[0]["boundary"])
+
     def test_cleanup_guard_blocks_cross_cwd_process_target_and_locked_lane(self):
         lane = Worktree(Path(r"C:\Temp\p3-lane"), "abcd", "topic", False)
         processes = [{"ProcessId": 42, "CommandLine": r"dotnet.exe -Project=C:\Temp\p3-lane\p3.uproject"}]
