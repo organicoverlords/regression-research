@@ -107,7 +107,8 @@ def test_installer_uses_pwsh_runner_not_pythonw_and_offsets_watchdog() -> None:
     text = INSTALLER.read_text(encoding='utf-8')
     assert 'bootstrap_snapshot_task_runner.ps1' in text
     assert "$producerRuntime = Join-Path $runtimeRoot 'bootstrap_read_loop.py'" in text
-    assert 'Copy-Item -LiteralPath $producerPath -Destination $producerRuntime -Force' in text
+    assert "$producerSource = Join-Path $PSScriptRoot 'bootstrap_read_loop.py'" in text
+    assert 'Copy-Item -LiteralPath $producerSource -Destination $producerRuntime -Force' in text
     assert '-Mode Primary' in text
     assert '-Mode Watchdog' in text
     assert '-TimeoutSeconds 15' in text

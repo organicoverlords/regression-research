@@ -7,8 +7,8 @@ $primaryTaskName = 'VaultBootstrapSnapshot'
 $watchdogTaskName = 'VaultBootstrapSnapshotWatchdog'
 $sourceRepoRoot = Split-Path -Parent $PSScriptRoot
 if ($RepoRoot) { $repoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path } else { $repoRoot = $sourceRepoRoot }
-$producerPath = Join-Path $repoRoot 'tools\bootstrap_read_loop.py'
-if (-not (Test-Path -LiteralPath $producerPath)) { throw "Bootstrap producer missing: $producerPath" }
+$producerSource = Join-Path $PSScriptRoot 'bootstrap_read_loop.py'
+if (-not (Test-Path -LiteralPath $producerSource)) { throw "Bootstrap producer source missing: $producerSource" }
 $runnerSource = Join-Path $PSScriptRoot 'bootstrap_snapshot_task_runner.ps1'
 if (-not (Test-Path -LiteralPath $runnerSource)) { throw "Bootstrap task runner missing: $runnerSource" }
 $runtimeRoot = Join-Path $env:LOCALAPPDATA 'VaultBootstrapSnapshot'
@@ -16,7 +16,7 @@ New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
 $runnerRuntime = Join-Path $runtimeRoot 'bootstrap_snapshot_task_runner.ps1'
 $producerRuntime = Join-Path $runtimeRoot 'bootstrap_read_loop.py'
 Copy-Item -LiteralPath $runnerSource -Destination $runnerRuntime -Force
-Copy-Item -LiteralPath $producerPath -Destination $producerRuntime -Force
+Copy-Item -LiteralPath $producerSource -Destination $producerRuntime -Force
 
 $pythonPath = (& python.exe -c 'import sys; print(sys.executable)').Trim()
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pythonPath)) { throw 'Python runtime unavailable' }
