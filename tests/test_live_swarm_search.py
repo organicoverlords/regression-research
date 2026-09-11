@@ -74,11 +74,15 @@ class LiveSwarmSearchTests(unittest.TestCase):
     def test_active_branch_and_activity_are_searchable(self):
         result = search_live_swarm(self.snapshot, "stall watchdog")[0]
         self.assertEqual(result["kind"], "caller_activity")
+        self.assertEqual(result["match_semantics"], "query_matched_execution_surface_or_identity_not_activity_command")
+        self.assertIn("branch", result["matched_fields"])
         self.assertEqual(result["branch"], "fix/242-stall-watchdog")
         self.assertEqual(result["caller_id"], "caller_watchdog")
 
         probe = search_live_swarm(self.snapshot, "output schema probe")[0]
         self.assertEqual(probe["caller_id"], "caller_watchdog")
+        self.assertEqual(probe["match_semantics"], "query_matched_activity_command")
+        self.assertIn("activity", probe["matched_fields"])
 
     def test_multi_term_query_rejects_single_generic_term_noise(self):
         noisy = search_live_swarm(self.snapshot, "issue 301 library file transfer", limit=5)
@@ -96,6 +100,8 @@ class LiveSwarmSearchTests(unittest.TestCase):
         self.assertEqual(canary["kind"], "transport_source")
         self.assertEqual(canary["authority"], "LIVE_MCP_TRANSPORT_SOURCE_EVIDENCE")
         self.assertEqual(canary["instance"], "home-direct-7a457c6-library-work-canary")
+        self.assertEqual(canary["match_semantics"], "query_matched_transport_source_identity")
+        self.assertEqual(set(canary["matched_fields"]), {"instance"})
         self.assertEqual(set(canary["matched_terms"]), {"library", "canary"})
         by_port = search_live_swarm(self.snapshot, "port 3045", limit=5)[0]
         self.assertEqual(by_port["kind"], "transport_source")

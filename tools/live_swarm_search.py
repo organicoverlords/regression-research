@@ -24,6 +24,15 @@ def _matched_terms(query_terms: set[str], values: list[tuple[int, str]]) -> set[
     return matched
 
 
+def _matched_fields(query_terms: set[str], fields: Mapping[str, str]) -> dict[str, list[str]]:
+    matched: dict[str, list[str]] = {}
+    for name, value in fields.items():
+        terms = sorted(_matched_terms(query_terms, [(1, value)]))
+        if terms:
+            matched[name] = terms
+    return matched
+
+
 def _minimum_query_term_matches(query_terms: set[str]) -> int:
     return 1 if len(query_terms) <= 1 else 2
 
@@ -79,12 +88,22 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 continue
             score = _match_score(query_terms, values)
             if score:
+                matched_fields = _matched_fields(query_terms, {
+                    "checkpoint": checkpoint,
+                    "scopes": " ".join(scopes),
+                    "owner": owner,
+                    "workspace": workspace,
+                    "branch": branch,
+                    "path": path,
+                })
                 item = {
                     "id": f"live_swarm.busy:{owner or lane.get('lane_id', 'unknown')}",
                     "kind": "busy_handoff",
                     "authority": "BUSY_COORDINATION_EVIDENCE",
                     "liveness_semantics": "not_worker_liveness_or_progress",
                     "matched_terms": sorted(matched_terms),
+                    "matched_fields": matched_fields,
+                    "match_semantics": "query_matched_coordination_handoff_fields_not_worker_activity",
                     "owner": owner or None,
                     "workspace": workspace or None,
                     "branch": branch or None,
@@ -117,12 +136,22 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 continue
             score = _match_score(query_terms, values)
             if score:
+                matched_fields = _matched_fields(query_terms, {
+                    "activity": command,
+                    "caller_id": caller_id,
+                    "workspace": caller_workspace,
+                    "branch": caller_branch,
+                    "path": caller_path,
+                })
+                activity_match = bool(matched_fields.get("activity"))
                 item = {
                     "id": f"live_swarm.caller:{caller_id or lane.get('lane_id', 'unknown')}",
                     "kind": "caller_activity",
                     "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
                     "liveness_semantics": "recent_caller_activity_within_snapshot_window",
                     "matched_terms": sorted(matched_terms),
+                    "matched_fields": matched_fields,
+                    "match_semantics": ("query_matched_activity_command" if activity_match else "query_matched_execution_surface_or_identity_not_activity_command"),
                     "caller_id": caller_id or None,
                     "workspace": caller_workspace or None,
                     "branch": caller_branch or None,
@@ -148,12 +177,19 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
         if len(matched_terms) < _minimum_query_term_matches(query_terms):
             continue
         score = _match_score(query_terms, values)
+        matched_fields = _matched_fields(query_terms, {
+            "instance": instance,
+            "port": f"port {local_port}" if local_port is not None else "",
+            "pid": f"pid {server_pid}" if server_pid is not None else "",
+        })
         item = {
             "id": f"live_swarm.transport:{instance or local_port or server_pid or 'unknown'}",
             "kind": "transport_source",
             "authority": "LIVE_MCP_TRANSPORT_SOURCE_EVIDENCE",
             "liveness_semantics": "transport_observation_source_not_worker_liveness_or_progress",
             "matched_terms": sorted(matched_terms),
+            "matched_fields": matched_fields,
+            "match_semantics": "query_matched_transport_source_identity",
             "instance": instance or None,
             "local_port": local_port,
             "server_pid": server_pid,
