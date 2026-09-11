@@ -527,3 +527,81 @@ def test_watchdog_heartbeat_bypasses_stuck_primary_lock_without_running_atlas(tm
     payload = json.loads(destination.read_text(encoding='utf-8'))
     assert payload['bootstrap']['refresh_mode'] == 'WATCHDOG_HEARTBEAT'
     assert payload['bootstrap']['status'] == 'DEGRADED'
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Job Object behavior')
+def test_windows_job_object_kills_atlas_child_when_producer_is_killed(tmp_path: Path) -> None:
+    import time
+
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    _, overlay = _memory_files(alternate, tmp_path)
+    child_pid_file = tmp_path / 'atlas-child.pid'
+    (tools / 'stack_atlas.py').write_text(
+        "import os, time\n"
+        "from pathlib import Path\n"
+        f"Path(r'{child_pid_file}').write_text(str(os.getpid()), encoding='utf-8')\n"
+        "time.sleep(30)\n",
+        encoding='utf-8',
+    )
+    env = os.environ.copy()
+    env['VAULT_MEMORY_LOCAL_BANK'] = str(overlay)
+    producer = subprocess.Popen(
+        [sys.executable, str(SCRIPT), '--once', '--quiet', '--repo-root', str(alternate)],
+        cwd=str(REPO_ROOT),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    deadline = time.monotonic() + 8.0
+    while time.monotonic() < deadline and not child_pid_file.exists():
+        time.sleep(0.02)
+    assert child_pid_file.exists(), 'Atlas child did not start'
+    child_pid = int(child_pid_file.read_text(encoding='utf-8'))
+
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+    def pid_exists(pid: int) -> bool:
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return False
+        kernel32.CloseHandle(handle)
+        return True
+
+    assert pid_exists(child_pid)
+    producer.kill()
+    producer.wait(timeout=5)
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline and pid_exists(child_pid):
+        time.sleep(0.02)
+    if pid_exists(child_pid):
+        subprocess.run(['taskkill.exe', '/PID', str(child_pid), '/T', '/F'], capture_output=True)
+        pytest.fail(f'Atlas child {child_pid} survived producer termination')
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows Job Object behavior')
+def test_windows_job_assignment_failure_fails_closed_without_unmanaged_child(monkeypatch, tmp_path: Path) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_job_failure_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    atlas = tmp_path / 'stack_atlas.py'
+    atlas.write_text('import time\ntime.sleep(30)\n', encoding='utf-8')
+    monkeypatch.setattr(
+        module,
+        '_assign_windows_kill_on_close_job',
+        lambda _process: (_ for _ in ()).throw(OSError(5, 'assignment denied')),
+    )
+    cp = module._run_bootstrap_glance(tmp_path, atlas, timeout_seconds=5)
+    assert cp.returncode == module.WINDOWS_JOB_OBJECT_ASSIGN_FAILURE_EXIT_CODE
+    assert 'job assignment failed' in cp.stderr
