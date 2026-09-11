@@ -52,6 +52,7 @@ BUSY_STORE = os.path.expandvars(r"%LOCALAPPDATA%\ChatGPTMcpClean\.state\busy-cla
 MCP_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpClean"
 MCP_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpMinimal"
 MCP_HOME_DIRECT_RUNTIME_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpCandidate1100969"
+MCP_CURRENT_FROZEN_ROOT = r"%LOCALAPPDATA%\ChatGPTMcpFrozen\issue281-b7b1e24"
 VPS_EDGE_ROOT = r"%LOCALAPPDATA%\McpVpsEdge"
 AGENT_RULES_ROOT = r"C:\Users\Lauri\.agents"
 TINY3D_REPO = r"C:\Users\Lauri\Desktop\tiny3d"
@@ -221,23 +222,23 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": [
             str(MCP_CURRENT_TOPOLOGY_PATH),
-            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\scripts\start-minimal-clone.ps1",
+            MCP_CURRENT_FROZEN_ROOT + r"\start-frozen.ps1",
             r"%LOCALAPPDATA%\\Caddy\\mcp-home-test\\Caddyfile",
             MCP_ROOT + r"\config\process-tool-contract.json",
-            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\src\index.ts",
-            MCP_HOME_DIRECT_RUNTIME_ROOT + r"\src\lib\file-transfer.ts",
+            MCP_CURRENT_FROZEN_ROOT + r"\runtime\src\index.ts",
+            MCP_CURRENT_FROZEN_ROOT + r"\runtime\src\lib\file-transfer.ts",
             str(MCP_RECOVERY_STATE_PATH),
         ],
         "current_topology": {
             "connector_url": "https://91-159-12-133.sslip.io/mcp",
             "public_origin": "https://91-159-12-133.sslip.io",
             "authorization_endpoint": "https://91-159-12-133.sslip.io/authorize",
-            "serving_path": "ChatGPT/GPT1 -> local HTTPS Caddy -> 127.0.0.1:3028",
-            "runtime": MCP_HOME_DIRECT_RUNTIME_ROOT,
-            "runtime_branch": "(detached frozen 1100969)",
-            "backend_task": "McpV4FrozenStable3028",
+            "serving_path": "ChatGPT/GPT1 -> local HTTPS Caddy -> 127.0.0.1:3036",
+            "runtime": MCP_CURRENT_FROZEN_ROOT + r"\runtime",
+            "runtime_branch": "byte-frozen b7b1e24 template-compat runtime",
+            "backend_task": "McpV4FrozenIssue281Main3036",
             "caddy_task": "McpV4HomeDirectCaddy",
-            "independent_local_control": "preserved rollback backends at 127.0.0.1:3022 and 127.0.0.1:3027",
+            "independent_local_control": "first rollback generation is 127.0.0.1:3028/3029 on 1100969; secondary rollback is 127.0.0.1:3022/3027",
             "excluded_from_gpt1_path": ["5-61-91-127.sslip.io", "VPS Caddy", "WireGuard", "Tailscale owner authorization"],
         },
         "chatgpt_plugin_surface": {
@@ -266,22 +267,23 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         },
         "live_status": [
             "canonical GPT1 connector: https://91-159-12-133.sslip.io/mcp",
-            "serving path: ChatGPT/GPT1 -> local HTTPS Caddy -> 127.0.0.1:3028",
+            "serving path: ChatGPT/GPT1 -> local HTTPS Caddy -> 127.0.0.1:3036, with pr237 on 127.0.0.1:3037",
             "OAuth authorization endpoint: https://91-159-12-133.sslip.io/authorize with local-edge owner authorization",
             "worker-visible contract is exactly five tools: start_process, read_output, kill_process, upload_local_file, download_chatgpt_file",
             "default visual retrieval for all workers/projects is upload_local_file -> exact original resource_link -> native full-resolution inspection; thumbnail is UI-only",
             "5-61-91-127.sslip.io, VPS Caddy, WireGuard, and Tailscale owner authorization are not in the GPT1 path",
+            "loaded Caddy admin state is 3036/3037 while the on-disk mcp-home-test Caddyfile remains stale at 3028/3029",
             "mcp-recovery-state.json selects the frozen recovery target but is never current serving identity",
         ],
-        "supervisor": "McpV4FrozenStable3028 logon task -> pinned detached 1100969 runtime",
+        "supervisor": "Ready McpV4FrozenIssue281Main3036/McpV4FrozenIssue281Pr2373037 logon tasks -> frozen b7b1e24 artifact; current serving PIDs predate task registration",
         "self_heal": "generation_specific",
         "independent_recovery": [
-            "preserved 3022 and 3027 backends are independent rollback routes for the frozen 3028/3029 service",
+            "1100969 on 3028/3029 is first rollback (3028 live, 3029 task-restartable); 3022/3027 is secondary rollback",
             "mcp-recovery-state.json selects recovery targets but must not be projected as current GPT1 topology",
             "client-visible stale connector metadata does not authorize VPS/WireGuard/Tailscale repair or backend/OAuth churn",
-            "authentication repair must preserve separate OAuth stores and the five-tool 91-159-12-133.sslip.io -> 3028 serving topology",
+            "authentication repair must preserve separate OAuth stores and the five-tool 91-159-12-133.sslip.io -> 3036 / pr237 -> 3037 serving topology",
         ],
-        "resources": ["91-159-12-133.sslip.io HTTPS", "local Caddy", "127.0.0.1:3028", "pr237 127.0.0.1:3029", "rollback 127.0.0.1:3022/3027", "separate oauth.json stores", "transport.jsonl", "shared-process-receipts", "process-control", "exact-byte file-transfer resource handler"],
+        "resources": ["91-159-12-133.sslip.io HTTPS", "local Caddy", "127.0.0.1:3036", "pr237 127.0.0.1:3037", "first rollback 127.0.0.1:3028/3029", "secondary rollback 127.0.0.1:3022/3027", "separate oauth.json stores", "transport.jsonl", "shared-process-receipts", "process-control", "exact-byte file-transfer resource handler"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [str(MCP_CURRENT_TOPOLOGY_PATH), MCP_ROOT + r"\AGENTS.md", str(MCP_RECOVERY_STATE_PATH)],
     },
@@ -611,14 +613,14 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     },
     "mcp.current_topology": {
         "owner_components": ["mcp_minimal_clone"],
-        "triggers": ["gpt1 mcp topology", "mcp current topology", "91-159-12-133", "mcp 3028", "mcp 3029", "mcp connector url", "mcp local edge"],
+        "triggers": ["gpt1 mcp topology", "mcp current topology", "91-159-12-133", "mcp 3036", "mcp 3037", "mcp 3028", "mcp 3029", "mcp connector url", "mcp local edge"],
         "entrypoints": [str(MCP_CURRENT_TOPOLOGY_PATH), "python tools\\stack_atlas.py lookup mcp_minimal_clone"],
-        "boundary": "Current GPT1 serving authority: https://91-159-12-133.sslip.io/mcp -> local HTTPS Caddy -> 127.0.0.1:3028, with pr237 on 3029. The frozen five-tool generation is commit 1100969; 3022/3027 are preserved rollback backends. The old 5-61-91-127.sslip.io/VPS/WireGuard/Tailscale path is not the GPT1 serving or authorization path.",
+        "boundary": "Current GPT1 serving authority: https://91-159-12-133.sslip.io/mcp -> loaded local HTTPS Caddy -> 127.0.0.1:3036, with pr237 on 3037. The selected frozen generation is b7b1e24 with cached-template compatibility; 1100969 on 3028/3029 is first rollback and 3022/3027 is secondary rollback. The on-disk mcp-home-test Caddyfile is stale at 3028/3029 and is not live serving authority. The old 5-61-91-127.sslip.io/VPS/WireGuard/Tailscale path is not the GPT1 serving or authorization path.",
     },
     "mcp.chatgpt_plugin_surface": {
         "owner_components": ["mcp_minimal_clone"],
         "triggers": ["chatgpt plugin tools", "chatgpt plugin command", "mcp plugin tools", "process tool profile", "plugin tool contract", "image metadata", "library upload", "CHATGPT_LIBRARY_UPLOAD", "busy_list plugin", "view_image plugin", "open_visual_proof"],
-        "entrypoints": ["python tools\\stack_atlas.py lookup mcp_minimal_clone", MCP_ROOT + r"\config\process-tool-contract.json", MCP_HOME_DIRECT_RUNTIME_ROOT + r"\src\lib\file-transfer.ts", str(MCP_CURRENT_TOPOLOGY_PATH)],
+        "entrypoints": ["python tools\\stack_atlas.py lookup mcp_minimal_clone", MCP_ROOT + r"\config\process-tool-contract.json", MCP_CURRENT_FROZEN_ROOT + r"\runtime\src\lib\file-transfer.ts", str(MCP_CURRENT_TOPOLOGY_PATH)],
         "boundary": "The GPT1 ChatGPT connector exposes exactly five process-profile tools: start_process, read_output, kill_process, upload_local_file, and download_chatgpt_file. upload_local_file returns a same-turn exact-original image resource for native vision while its inline thumbnail is UI-only. busy_*, view_image, and visual-proof actions remain excluded. An already-open chat may retain a cached three-tool schema; verify live backend identity before changing OAuth or routing.",
     },
     "mcp.recovery_state": {

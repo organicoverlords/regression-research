@@ -1988,7 +1988,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("exactly five process-profile tools", surface["boundary"])
         status = " ".join(details["live_status"])
         self.assertIn("91-159-12-133.sslip.io/mcp", status)
-        self.assertIn("127.0.0.1:3028", status)
+        self.assertIn("127.0.0.1:3036", status)
         self.assertIn("not in the GPT1 path", status)
 
     def test_mcp_front_door_requires_inactive_generation_update_path(self):
@@ -2394,7 +2394,9 @@ class McpRecoveryStateVisibilityTests(unittest.TestCase):
             state = atlas._bootstrap_mcp_recovery_state()
         self.assertTrue(state["restore_first_on_regression"])
         self.assertFalse(state["post_restore_no_mcp_request_in_flight"])
-        self.assertIn("3028", state["automatic_routing"])
+        self.assertIn("3036", state["automatic_routing"])
+        self.assertIn("3037", state["automatic_routing"])
+        self.assertEqual(state["recovery_target_generation"], "b7b1e24-template-compat")
         self.assertIn("historical explicit recovery only", state["ssh_role"])
         self.assertTrue(any("keep the selected recovery target fixed" in item for item in state["recovery_invariants"]))
         self.assertTrue(any("OAuth stores" in item for item in state["recovery_invariants"]))
@@ -2466,7 +2468,15 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         self.assertIn("5-61-91-127.sslip.io", contract["not_in_gpt1_path"])
         current = find_features("gpt1 mcp topology 91-159-12-133")[0]
         self.assertEqual(current["id"], "mcp.current_topology")
-        self.assertIn("127.0.0.1:3028", current["boundary"])
+        self.assertIn("127.0.0.1:3036", current["boundary"])
+        self.assertIn("pr237 on 3037", current["boundary"])
+        self.assertIn("b7b1e24", current["boundary"])
+        self.assertEqual(contract["serving"]["backend"]["persistence_task"], "McpV4FrozenIssue281Main3036")
+        self.assertEqual(contract["serving"]["peer_route"]["persistence_task"], "McpV4FrozenIssue281Pr2373037")
+        self.assertFalse(contract["serving"]["backend"]["current_process_scheduler_owned"])
+        self.assertFalse(contract["serving"]["peer_route"]["current_process_scheduler_owned"])
+        self.assertEqual(contract["serving"]["caddy"]["loaded_upstreams"], ["127.0.0.1:3036", "127.0.0.1:3037"])
+        self.assertFalse(contract["serving"]["caddy"]["on_disk_config_matches_loaded_routes"])
         self.assertIn("not the GPT1 serving", current["boundary"])
 
 class VaultUsefulnessRoutingTests(unittest.TestCase):
