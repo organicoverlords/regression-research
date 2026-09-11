@@ -791,8 +791,8 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
-        "entrypoints": ["memory_bank.py search", "memory_bank.py search --history", "memory_bank.py context", "memory_bank.py timeline", "memory_bank.py recent-titles"],
-        "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
+        "entrypoints": ["python tools\\stack_atlas.py find <natural-language-query>", "drill-down only: python tools\\memory_bank.py context <query>", "drill-down only: python tools\\memory_bank.py timeline <query>", "exact-known-memory only: python tools\\memory_bank.py recent-titles"],
+        "boundary": "Unified discovery starts with Stack Atlas find. Memory/timeline commands are second-stage historical drill-down only; never recursive Vault scans or current-state inference.",
     },
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
@@ -4137,6 +4137,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     postings = index["postings"]
     weight_codes = index["weight_codes"]
     anchors_by_position = index["anchors"]
+    opaque_labels = index.get("opaque_labels") if isinstance(index.get("opaque_labels"), dict) else {}
     best_by_concept: list[dict[int, float]] = []
     candidate_positions: set[int] = set()
     for concept in concepts:
@@ -4157,6 +4158,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
 
     minimum_matches = _minimum_discovery_matches(len(concepts))
     ranked: list[tuple[float, str, str, str, list[str]]] = []
+    label_by_stable_key: dict[str, str] = {}
     for position in candidate_positions:
         matched = sum(1 for weights in best_by_concept if weights.get(position, 0.0) > 0.0)
         if matched < minimum_matches:
@@ -4167,6 +4169,9 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         if identity is None:
             continue
         kind, stable_key, reference = identity
+        opaque_label = str(opaque_labels.get(event_id) or "").strip()
+        if opaque_label and stable_key not in label_by_stable_key:
+            label_by_stable_key[stable_key] = opaque_label
         score = sum(weights.get(position, 0.0) for weights in best_by_concept)
         score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
         score += matched / max(1, len(concepts))
@@ -4199,7 +4204,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
                 break
 
     hits: list[dict[str, Any]] = []
-    for score, _, kind, reference, anchors in selected_rows:
+    for score, stable_key, kind, reference, anchors in selected_rows:
         hit = {
             "kind": kind,
             "reference": reference,
@@ -4207,6 +4212,8 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
             "live_truth_required": True,
             "score": round(score, 3),
         }
+        if label_by_stable_key.get(stable_key):
+            hit["label"] = label_by_stable_key[stable_key]
         if anchors:
             hit["anchors"] = anchors
         hits.append(hit)

@@ -2295,6 +2295,7 @@ def materialize(
         postings: dict[str, list[int]] = defaultdict(list)
         weight_codes: dict[str, bytearray] = defaultdict(bytearray)
         query_anchors: list[list[str]] = []
+        query_opaque_labels: dict[str, str] = {}
         for index, event in enumerate(query_events.values()):
             best_weight_by_token: dict[str, float] = {}
             for weight, tokens in _event_query_fields(event):
@@ -2305,6 +2306,9 @@ def materialize(
                 postings[token].append(index)
                 weight_codes[token].append(_QUERY_WEIGHT_TO_CODE[weight])
             query_anchors.append(_event_anchors(event))
+            opaque_label = _query_index_opaque_label(event)
+            if opaque_label:
+                query_opaque_labels[str(event.get("id") or "")] = opaque_label
         _atomic_pickle(query_index_path, {
             "schema": QUERY_INDEX_SCHEMA,
             "generated_at": str(store_payload.get("generated_at") or ""),
@@ -2312,6 +2316,7 @@ def materialize(
             "postings": dict(postings),
             "weight_codes": {token: bytes(codes) for token, codes in weight_codes.items()},
             "anchors": query_anchors,
+            "opaque_labels": query_opaque_labels,
         })
 
         overview = build_overview(entries, limit=20, include_timeline_snapshots=False, now=now)
@@ -2765,6 +2770,17 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
         if clipped_values:
             result[key] = clipped_values
     return result
+
+
+def _query_index_opaque_label(event: dict[str, Any]) -> str | None:
+    """Keep human labels only for discovery identities that would otherwise be opaque."""
+    event_id = str(event.get("id") or "")
+    if not (event_id.startswith("mem-") or event_id.startswith("worker:")):
+        return None
+    label = str(event.get("display_label") or event.get("title") or event.get("worker") or "").strip()
+    if not label:
+        return None
+    return label if len(label) <= 180 else label[:177] + "..."
 
 
 def _query_index_candidate_ids(index: dict[str, Any], query: str) -> set[str] | None:

@@ -1988,7 +1988,9 @@ class StackAtlasTests(unittest.TestCase):
         timeline = find_features("vault timeline")[0]
         self.assertEqual(timeline["id"], "vault.history")
         self.assertEqual(timeline["owner_components"], ["memory_bank"])
-        self.assertIn("memory_bank.py timeline", timeline["entrypoints"])
+        self.assertTrue(timeline["entrypoints"][0].startswith("python tools\\stack_atlas.py find"))
+        self.assertTrue(any("drill-down only:" in entry and "memory_bank.py timeline" in entry for entry in timeline["entrypoints"]))
+        self.assertIn("Unified discovery starts with Stack Atlas find", timeline["boundary"])
         self.assertIn("never recursive Vault scans", timeline["boundary"])
 
         checkpoint = find_features("checkpoint resume")[0]
@@ -2142,6 +2144,30 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual([hit["kind"] for hit in hits], ["github_issue", "tracked_artifact"])
         self.assertEqual(hits[0]["reference"], "organicoverlords/regression-research#861")
         self.assertEqual(hits[1]["reference"], "01 Reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md")
+
+    def test_timeline_discovery_surfaces_opaque_labels_from_query_index_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T02:11:56+03:00"
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 2, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            ids = ["mem-20260912-abc", "worker:deadbeef"]
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"asshole": [0, 1]},
+                    "weight_codes": {"asshole": bytes([5, 5])},
+                    "anchors": [[], []],
+                    "opaque_labels": {ids[0]: "Lightweight asshole correction marker", ids[1]: "Repo Worker Alder #S2"},
+                }, handle)
+            hits, coverage = _timeline_discovery_hits("asshole", limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual({hit["label"] for hit in hits}, {"Lightweight asshole correction marker", "Repo Worker Alder #S2"})
+        self.assertEqual({hit["kind"] for hit in hits}, {"vault_memory", "worker_report"})
 
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])
