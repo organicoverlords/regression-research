@@ -22,6 +22,62 @@ PRODUCER_STATUS_NAME = 'producer-status.json'
 BOOTSTRAP_GLANCE_TIMEOUT_SECONDS = 30.0
 PROCESS_TREE_KILL_TIMEOUT_SECONDS = 2.0
 WINDOWS_JOB_OBJECT_ASSIGN_FAILURE_EXIT_CODE = 125
+SEVERE_FREE_PHYSICAL_BYTES = 768 * 1024 * 1024
+SEVERE_COMMIT_USED_PCT = 85.0
+
+
+def _resource_pressure_from_memory_values(*, available_physical: int, commit_limit: int, commit_available: int) -> dict | None:
+    commit_used = max(0, int(commit_limit) - int(commit_available))
+    commit_used_pct = 0.0 if commit_limit <= 0 else 100.0 * commit_used / int(commit_limit)
+    low_physical = int(available_physical) < SEVERE_FREE_PHYSICAL_BYTES
+    high_commit = commit_used_pct >= SEVERE_COMMIT_USED_PCT
+    # Windows can run with very little free physical RAM while commit headroom is
+    # still healthy. Shed the full refresh only when both pressure signals agree;
+    # physical-free alone must not turn a healthy-commit machine DEGRADED.
+    if not (low_physical and high_commit):
+        return None
+    reasons = ['low_free_physical_memory', 'high_commit_pressure']
+    return {
+        'status': 'SEVERE',
+        'reasons': reasons,
+        'available_physical_bytes': int(available_physical),
+        'available_physical_mb': round(int(available_physical) / (1024 * 1024), 1),
+        'commit_used_bytes': commit_used,
+        'commit_limit_bytes': int(commit_limit),
+        'commit_used_pct': round(commit_used_pct, 1),
+    }
+
+
+def _windows_resource_pressure() -> dict | None:
+    if os.name != 'nt':
+        return None
+    import ctypes
+
+    class MEMORYSTATUSEX(ctypes.Structure):
+        _fields_ = [
+            ('dwLength', ctypes.c_ulong),
+            ('dwMemoryLoad', ctypes.c_ulong),
+            ('ullTotalPhys', ctypes.c_ulonglong),
+            ('ullAvailPhys', ctypes.c_ulonglong),
+            ('ullTotalPageFile', ctypes.c_ulonglong),
+            ('ullAvailPageFile', ctypes.c_ulonglong),
+            ('ullTotalVirtual', ctypes.c_ulonglong),
+            ('ullAvailVirtual', ctypes.c_ulonglong),
+            ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
+        ]
+
+    status = MEMORYSTATUSEX()
+    status.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.GlobalMemoryStatusEx.argtypes = [ctypes.POINTER(MEMORYSTATUSEX)]
+    kernel32.GlobalMemoryStatusEx.restype = ctypes.c_int
+    if not kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        return None
+    return _resource_pressure_from_memory_values(
+        available_physical=status.ullAvailPhys,
+        commit_limit=status.ullTotalPageFile,
+        commit_available=status.ullAvailPageFile,
+    )
 
 
 def _close_windows_handle(handle) -> None:
@@ -376,6 +432,40 @@ def _publish_degraded_snapshot(repo_root: Path, *, reason: str, exit_code: int) 
     _write_producer_status(repo_root, mode='DEGRADED', detail=reason, exit_code=exit_code)
     return True
 
+def _publish_resource_pressure_snapshot(repo_root: Path, *, pressure: dict, quiet: bool) -> bool:
+    lock = _acquire_snapshot_write_lock(repo_root)
+    try:
+        previous = _load_previous_snapshot(repo_root)
+        if previous is None:
+            return False
+        reason = (
+            'full bootstrap refresh load-shed under severe local resource pressure: '
+            + ','.join(str(item) for item in pressure.get('reasons') or ['unknown'])
+        )
+        payload = _build_degraded_snapshot(
+            previous,
+            reason=reason,
+            exit_code=0,
+            refresh_mode='RESOURCE_PRESSURE_SHED',
+            reason_code='severe_local_resource_pressure',
+            warning=(
+                'BOOTSTRAP RESOURCE-PRESSURE SHED: the heavy full refresh was intentionally skipped '
+                'to avoid worsening a severely memory-constrained machine. This envelope is fresh, '
+                'but live/current sections are UNKNOWN until a later full refresh succeeds.'
+            ),
+        )
+        bootstrap = dict(payload.get('bootstrap') or {})
+        bootstrap['resource_pressure'] = pressure
+        payload['bootstrap'] = bootstrap
+        _write_json_atomic(_snapshot_dir(repo_root) / 'latest.json', payload)
+    finally:
+        _release_producer_lock(lock)
+    _write_producer_status(repo_root, mode='RESOURCE_PRESSURE_SHED', detail=reason, exit_code=0)
+    if not quiet:
+        print(json.dumps(payload, separators=(',', ':'), ensure_ascii=False), flush=True)
+    return True
+
+
 def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
     path = _snapshot_dir(repo_root) / 'latest.json'
     try:
@@ -519,6 +609,9 @@ def _emit_singleflight(repo_root: Path, *, quiet: bool, atlas_path: Path | None 
         _write_producer_status(repo_root, mode='SKIPPED_INFLIGHT', exit_code=0)
         return True
     try:
+        pressure = _windows_resource_pressure()
+        if pressure is not None and _publish_resource_pressure_snapshot(repo_root, pressure=pressure, quiet=quiet):
+            return True
         return emit_snapshot(repo_root, quiet=quiet, atlas_path=atlas_path)
     finally:
         _release_producer_lock(lock)

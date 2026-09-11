@@ -605,3 +605,89 @@ def test_windows_job_assignment_failure_fails_closed_without_unmanaged_child(mon
     cp = module._run_bootstrap_glance(tmp_path, atlas, timeout_seconds=5)
     assert cp.returncode == module.WINDOWS_JOB_OBJECT_ASSIGN_FAILURE_EXIT_CODE
     assert 'job assignment failed' in cp.stderr
+
+
+
+def test_resource_pressure_thresholds_are_conservative() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_pressure_threshold_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    gib = 1024 ** 3
+    assert module._resource_pressure_from_memory_values(
+        available_physical=2 * gib,
+        commit_limit=64 * gib,
+        commit_available=20 * gib,
+    ) is None
+    low_phys_only = module._resource_pressure_from_memory_values(
+        available_physical=512 * 1024 ** 2,
+        commit_limit=64 * gib,
+        commit_available=20 * gib,
+    )
+    assert low_phys_only is None
+    high_commit_only = module._resource_pressure_from_memory_values(
+        available_physical=2 * gib,
+        commit_limit=64 * gib,
+        commit_available=8 * gib,
+    )
+    assert high_commit_only is None
+    combined = module._resource_pressure_from_memory_values(
+        available_physical=512 * 1024 ** 2,
+        commit_limit=64 * gib,
+        commit_available=8 * gib,
+    )
+    assert combined is not None
+    assert combined['reasons'] == ['low_free_physical_memory', 'high_commit_pressure']
+
+
+def test_singleflight_load_sheds_without_running_atlas_when_snapshot_exists(monkeypatch, tmp_path: Path) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_load_shed_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    destination = tmp_path / '.state' / 'bootstrap' / 'latest.json'
+    previous = _write_complete_snapshot(destination, age_seconds=5)
+    marker = tmp_path / 'atlas-ran.txt'
+    atlas = tmp_path / 'atlas.py'
+    atlas.write_text(f"from pathlib import Path\nPath(r'{marker}').write_text('ran')\n", encoding='utf-8')
+    pressure = {
+        'status': 'SEVERE',
+        'reasons': ['low_free_physical_memory', 'high_commit_pressure'],
+        'available_physical_mb': 400.0,
+        'commit_used_pct': 90.0,
+    }
+    monkeypatch.setattr(module, '_windows_resource_pressure', lambda: pressure)
+
+    assert module._emit_singleflight(tmp_path, quiet=True, atlas_path=atlas)
+    assert not marker.exists()
+    payload = json.loads(destination.read_text(encoding='utf-8'))
+    assert payload['generated_at'] != previous['generated_at']
+    assert payload['bootstrap']['status'] == 'DEGRADED'
+    assert payload['bootstrap']['refresh_mode'] == 'RESOURCE_PRESSURE_SHED'
+    assert payload['bootstrap']['resource_pressure'] == pressure
+    assert payload['live_swarm']['status'] == 'UNKNOWN'
+    assert payload['bootstrap_end']['status'] == 'COMPLETE'
+    status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'RESOURCE_PRESSURE_SHED'
+
+
+def test_first_materialization_still_attempts_full_refresh_under_pressure(monkeypatch, tmp_path: Path) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('bootstrap_read_loop_first_pressure_test', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(
+        module,
+        '_windows_resource_pressure',
+        lambda: {'status': 'SEVERE', 'reasons': ['low_free_physical_memory', 'high_commit_pressure']},
+    )
+    called = []
+    monkeypatch.setattr(module, 'emit_snapshot', lambda *args, **kwargs: called.append(True) or True)
+    assert module._emit_singleflight(tmp_path, quiet=True)
+    assert called == [True]
