@@ -21,6 +21,7 @@ from typing import Any
 try:
     from .cleanup_converger import (
         Worktree,
+        generated_cache_dirs,
         parse_worktrees,
         process_targets_path,
         windows_processes,
@@ -30,6 +31,7 @@ try:
 except ImportError:
     from cleanup_converger import (
         Worktree,
+        generated_cache_dirs,
         parse_worktrees,
         process_targets_path,
         windows_processes,
@@ -93,22 +95,41 @@ def _is_reparse_dir(path: Path) -> bool:
     return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & 0x400)
 
 
-def _clean_own_ignored_target(path: Path) -> list[str]:
-    """Remove only this finished worker's exact Git-ignored Cargo target cache."""
+def _clean_own_ignored_build_cache(path: Path) -> list[str]:
+    """Remove only this finished worker's exact, Git-ignored build caches.
+
+    This is closeout-driven, never pressure-driven. Generic workers may reclaim an
+    ignored Cargo ``target`` directory. P3 workers may additionally reclaim only the
+    standard Unreal generated directories already proven safe by cleanup_converger.
+    Source, Content, Saved, proof/evidence, and non-ignored paths are never candidates.
+    """
+    candidates: list[Path] = []
     target = path / "target"
-    if not target.is_dir() or _is_reparse_dir(target):
-        return []
-    try:
-        ignored = _git(path, "check-ignore", "-q", "--", "target", timeout=5.0)
-    except (OSError, subprocess.TimeoutExpired):
-        return []
-    if ignored.returncode != 0:
-        return []
-    try:
-        shutil.rmtree(target)
-    except OSError:
-        return []
-    return ["target"]
+    if target.is_dir() and not _is_reparse_dir(target):
+        candidates.append(target)
+    if (path / "p3.uproject").is_file():
+        candidates.extend(generated_cache_dirs(path))
+
+    removed: list[str] = []
+    for candidate in candidates:
+        try:
+            relative = candidate.relative_to(path)
+        except ValueError:
+            continue
+        if _is_reparse_dir(candidate):
+            continue
+        try:
+            ignored = _git(path, "check-ignore", "-q", "--", str(relative), timeout=5.0)
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if ignored.returncode != 0:
+            continue
+        try:
+            shutil.rmtree(candidate)
+        except OSError:
+            continue
+        removed.append(str(relative).replace("\\", "/"))
+    return removed
 
 def release_own_worktree(path: Path) -> dict[str, Any]:
     context = registered_context(path)
@@ -135,8 +156,11 @@ def release_own_worktree(path: Path) -> dict[str, Any]:
         return {"ok": True, "action": "PRESERVE", "reason": "process_probe_empty", "path": str(target.path)}
     if process_targets_path(target.path, processes, self_pid=os.getpid()):
         return {"ok": True, "action": "PRESERVE", "reason": "external_process_targets_path", "path": str(target.path)}
+    if not worktree_anchor_matches(repo, target):
+        reason = "detached_or_unanchored" if target.detached or not target.branch else "branch_ref_mismatch"
+        return {"ok": True, "action": "PRESERVE", "reason": reason, "path": str(target.path)}
 
-    cleaned_cache = _clean_own_ignored_target(target.path)
+    cleaned_cache = _clean_own_ignored_build_cache(target.path)
     try:
         clean = worktree_is_clean(target.path)
     except (OSError, RuntimeError):
@@ -145,9 +169,6 @@ def release_own_worktree(path: Path) -> dict[str, Any]:
         return {"ok": True, "action": "PRESERVE", "reason": "cleanliness_probe_timeout", "path": str(target.path), "cleaned_cache": cleaned_cache}
     if clean is False:
         return {"ok": True, "action": "PRESERVE", "reason": "dirty", "path": str(target.path), "cleaned_cache": cleaned_cache}
-    if not worktree_anchor_matches(repo, target):
-        reason = "detached_or_unanchored" if target.detached or not target.branch else "branch_ref_mismatch"
-        return {"ok": True, "action": "PRESERVE", "reason": reason, "path": str(target.path), "cleaned_cache": cleaned_cache}
 
     # Re-read identity immediately before the non-force remove. Git itself rechecks
     # dirtiness, so a write racing this guard fails closed rather than being forced.
