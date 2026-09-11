@@ -68,6 +68,10 @@ $baseStart = (Get-Date).AddMinutes(1)
 $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
 $primarySettings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 45) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 $watchdogSettings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 15) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+# Task Scheduler defaults Priority to 7 (BelowNormal). Under concurrent worker and memory pressure
+# that can starve a bounded bootstrap refresh until its outer execution limit. Keep bootstrap at Normal.
+$primarySettings.Priority = 4
+$watchdogSettings.Priority = 4
 
 $primaryAction = New-ScheduledTaskAction -Execute $pythonwPath -Argument $primaryArguments -WorkingDirectory $repoRoot
 $primaryTrigger = New-ScheduledTaskTrigger -Once -At $baseStart -RepetitionInterval (New-TimeSpan -Minutes 1)
