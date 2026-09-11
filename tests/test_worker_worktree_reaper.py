@@ -55,6 +55,50 @@ class WorkerWorktreeReaperTests(unittest.TestCase):
             self.assertFalse((lane / "target").exists())
 
     @patch("tools.worker_worktree_reaper.windows_processes", return_value=[{"ProcessId": 9001, "CommandLine": "idle.exe"}])
+    def test_dirty_p3_lane_reclaims_only_ignored_unreal_generated_cache(self, _processes):
+        with tempfile.TemporaryDirectory() as d:
+            _repo, lane, _head = self._repo_with_worktree(Path(d))
+            (lane / "p3.uproject").write_text("{}\n", encoding="utf-8")
+            (lane / ".gitignore").write_text(
+                "/Binaries/\n/Intermediate/\n/DerivedDataCache/\n", encoding="utf-8"
+            )
+            subprocess.run(["git", "-C", str(lane), "add", "p3.uproject", ".gitignore"], check=True)
+            subprocess.run(["git", "-C", str(lane), "commit", "-q", "-m", "p3 marker"], check=True)
+            (lane / "dirty.txt").write_text("unique\n", encoding="utf-8")
+            for name in ("Binaries", "Intermediate", "DerivedDataCache"):
+                directory = lane / name
+                directory.mkdir()
+                (directory / "generated.bin").write_bytes(b"cache")
+
+            result = release_own_worktree(lane)
+
+            self.assertEqual(result["action"], "PRESERVE")
+            self.assertEqual(result["reason"], "dirty")
+            self.assertEqual(set(result["cleaned_cache"]), {"Binaries", "Intermediate", "DerivedDataCache"})
+            self.assertTrue((lane / "dirty.txt").exists())
+            self.assertTrue((lane / "p3.uproject").exists())
+            self.assertFalse((lane / "Binaries").exists())
+            self.assertFalse((lane / "Intermediate").exists())
+            self.assertFalse((lane / "DerivedDataCache").exists())
+
+    def test_active_p3_lane_does_not_cleanup_generated_cache(self):
+        with tempfile.TemporaryDirectory() as d:
+            _repo, lane, _head = self._repo_with_worktree(Path(d))
+            (lane / "p3.uproject").write_text("{}\n", encoding="utf-8")
+            (lane / ".gitignore").write_text("/Binaries/\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(lane), "add", "p3.uproject", ".gitignore"], check=True)
+            subprocess.run(["git", "-C", str(lane), "commit", "-q", "-m", "p3 marker"], check=True)
+            (lane / "dirty.txt").write_text("unique\n", encoding="utf-8")
+            binaries = lane / "Binaries"
+            binaries.mkdir()
+            (binaries / "generated.bin").write_bytes(b"cache")
+            processes = [{"ProcessId": 9001, "CommandLine": f'build.exe -Project="{lane}\\p3.uproject"'}]
+            with patch("tools.worker_worktree_reaper.windows_processes", return_value=processes):
+                result = release_own_worktree(lane)
+            self.assertEqual(result["reason"], "external_process_targets_path")
+            self.assertTrue((binaries / "generated.bin").exists())
+
+    @patch("tools.worker_worktree_reaper.windows_processes", return_value=[{"ProcessId": 9001, "CommandLine": "idle.exe"}])
     def test_primary_worktree_is_never_removed(self, _processes):
         with tempfile.TemporaryDirectory() as d:
             repo, _lane, _head = self._repo_with_worktree(Path(d))
