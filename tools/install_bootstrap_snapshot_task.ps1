@@ -35,7 +35,8 @@ function Q([string]$Value) { return '"' + $Value.Replace('"','\"') + '"' }
 $directPrimaryArguments = (Q $producerRuntime) + ' --once --quiet --repo-root ' + (Q $repoRoot)
 $directWatchdogArguments = $directPrimaryArguments + ' --skip-if-fresh-seconds 45'
 $primaryArguments = $directPrimaryArguments + ' --atlas-path ' + (Q $atlasRuntime)
-$watchdogArguments = $primaryArguments + ' --skip-if-fresh-seconds 45'
+$legacyFullWatchdogArguments = $primaryArguments + ' --skip-if-fresh-seconds 45'
+$watchdogArguments = $directPrimaryArguments + ' --heartbeat-if-older-than-seconds 45'
 
 # Recognize every task action shipped by the prior generations so migration stays fail-closed.
 $legacyScript = Join-Path $repoRoot 'tools\bootstrap_read_loop.py'
@@ -59,21 +60,22 @@ function Assert-KnownTaskAction([string]$TaskName, [string[]]$KnownExecutables, 
 
 $knownExecutables = @($pythonwPath, $shellPath)
 $existingPrimary = Assert-KnownTaskAction $primaryTaskName $knownExecutables @($legacyArguments, $v1PrimaryArguments, $v2PrimaryArguments, $directPrimaryArguments, $primaryArguments)
-$existingWatchdog = Assert-KnownTaskAction $watchdogTaskName $knownExecutables @($v1WatchdogArguments, $v2WatchdogArguments, $directWatchdogArguments, $watchdogArguments)
+$existingWatchdog = Assert-KnownTaskAction $watchdogTaskName $knownExecutables @($v1WatchdogArguments, $v2WatchdogArguments, $directWatchdogArguments, $legacyFullWatchdogArguments, $watchdogArguments)
 if ($existingPrimary) { Unregister-ScheduledTask -TaskName $primaryTaskName -Confirm:$false }
 if ($existingWatchdog) { Unregister-ScheduledTask -TaskName $watchdogTaskName -Confirm:$false }
 
 $baseStart = (Get-Date).AddMinutes(1)
 $principal = New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
-$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 45) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+$primarySettings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 45) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+$watchdogSettings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Seconds 15) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 
 $primaryAction = New-ScheduledTaskAction -Execute $pythonwPath -Argument $primaryArguments -WorkingDirectory $repoRoot
 $primaryTrigger = New-ScheduledTaskTrigger -Once -At $baseStart -RepetitionInterval (New-TimeSpan -Minutes 1)
-Register-ScheduledTask -TaskName $primaryTaskName -Action $primaryAction -Trigger $primaryTrigger -Settings $settings -Principal $principal -Description 'Publishes one bounded bootstrap snapshot per minute directly through the runtime producer.' | Out-Null
+Register-ScheduledTask -TaskName $primaryTaskName -Action $primaryAction -Trigger $primaryTrigger -Settings $primarySettings -Principal $principal -Description 'Publishes one bounded full bootstrap snapshot per minute directly through the runtime producer.' | Out-Null
 
 $watchdogAction = New-ScheduledTaskAction -Execute $pythonwPath -Argument $watchdogArguments -WorkingDirectory $repoRoot
-$watchdogTrigger = New-ScheduledTaskTrigger -Once -At $baseStart.AddSeconds(35) -RepetitionInterval (New-TimeSpan -Minutes 1)
-Register-ScheduledTask -TaskName $watchdogTaskName -Action $watchdogAction -Trigger $watchdogTrigger -Settings $settings -Principal $principal -Description 'Runs the same bounded producer independently and skips work while a COMPLETE bootstrap snapshot is 45 seconds old or newer.' | Out-Null
+$watchdogTrigger = New-ScheduledTaskTrigger -Once -At $baseStart.AddSeconds(20) -RepetitionInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName $watchdogTaskName -Action $watchdogAction -Trigger $watchdogTrigger -Settings $watchdogSettings -Principal $principal -Description 'Publishes only a lightweight DEGRADED heartbeat when the last COMPLETE snapshot is older than 45 seconds; never runs Stack Atlas.' | Out-Null
 
 # guard-state.json belonged to the retired PowerShell wrapper and must not masquerade as live authority.
 Remove-Item -LiteralPath (Join-Path $repoRoot '.state\bootstrap\guard-state.json') -Force -ErrorAction SilentlyContinue
