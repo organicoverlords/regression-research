@@ -518,7 +518,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
                 "not_installed": "no task is registered",
             },
         },
-        "supervisor": "Start-GitHubRunnerHidden.ps1 after an explicit successful task start",
+        "supervisor": "Start-GitHubRunnerHidden.ps1 only after an explicit successful task start",
         "self_heal": "bounded broker/listener recovery after successful launch only; Task Scheduler restart-on-failure loops are not a recovery mechanism",
         "independent_recovery": ["other online compatible runners"],
         "resources": ["runner work directory", "explicit scheduled task state"],
@@ -4133,10 +4133,50 @@ def render_manual() -> str:
     lines.extend(["", "## Components", ""])
     for name, spec in inventory["components"].items():
         lines.extend([f"### `{name}`", "", f"- Role: `{spec['role']}`", f"- Capabilities: {', '.join(spec['capabilities']) or 'none'}"])
-        for label, key in (("Canonical sources", "canonical_sources"), ("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
+        for label, key in (("Canonical sources", "canonical_sources"),):
             values = "; ".join(str(item) for item in spec.get(key, []))
             lines.append(f"- {label}: {values or 'none'}")
-        lines.extend([f"- Supervisor: {spec['supervisor']}", f"- Self-heal: {spec['self_heal']}", ""])
+        control = spec.get("control") if isinstance(spec.get("control"), dict) else None
+        if control is not None:
+            actions = [str(action) for action in control.get("actions", []) if str(action).strip()]
+            action_items = [f"`{action}`" for action in actions]
+            if len(action_items) > 1:
+                action_text = ", ".join(action_items[:-1]) + f", and {action_items[-1]}"
+            else:
+                action_text = action_items[0] if action_items else "none"
+            entrypoint_name = Path(str(control.get("entrypoint") or "control entrypoint")).name
+            autostart = str(control.get("autostart") or "").strip()
+            if autostart == "explicit logon trigger; independent from enabled/running state":
+                autostart = "Autostart is an explicit logon trigger and is independent from whether the task is enabled or currently running."
+            elif autostart:
+                autostart = f"Autostart: {autostart}."
+            lines.append(f"- Control: `{entrypoint_name}` exposes {action_text}. {autostart}".rstrip())
+            semantics = control.get("intent_semantics") if isinstance(control.get("intent_semantics"), dict) else {}
+            semantic_phrases = {
+                "task disabled intentionally": "intentionally disabled",
+                "task enabled but not running": "enabled but not running",
+                "task enabled and running": "enabled and running",
+                "task action no longer matches the canonical launcher/root": "the task action no longer matches the canonical launcher/root",
+                "no task is registered": "no task exists",
+            }
+            rendered_semantics = [
+                f"`{state}` means {semantic_phrases.get(str(meaning), str(meaning))}"
+                for state, meaning in semantics.items()
+            ]
+            if rendered_semantics:
+                lines.append("- State semantics: " + "; ".join(rendered_semantics) + ".")
+        for label, key in (("Live status", "live_status"), ("Independent recovery", "independent_recovery"), ("Resources", "resources"), ("Dependents", "dependents"), ("Runbook", "runbook")):
+            items = [str(item) for item in spec.get(key, [])]
+            if control is not None and key == "live_status" and items:
+                items[0] = f"`{items[0]}`"
+            values = "; ".join(items)
+            lines.append(f"- {label}: {values or 'none'}")
+        supervisor = str(spec["supervisor"])
+        if control is not None:
+            first, separator, rest = supervisor.partition(" ")
+            if first.casefold().endswith(".ps1"):
+                supervisor = f"`{first}`{separator}{rest}"
+        lines.extend([f"- Supervisor: {supervisor}", f"- Self-heal: {spec['self_heal']}", ""])
     lines.extend(["## Process identity and blast radius", "", "OS PIDs are ephemeral lookup keys only. `blast-radius --pid <pid>` resolves stable identity from executable/command line, ancestry, supervisor/config/resource evidence, then reports affected control paths and a destructive verdict.", "", "MCP/VPS process identity is derived from executable, command line, ancestry, supervisor, and resource evidence; never infer safety from a tool name alone.", ""])
     return "\n".join(lines).rstrip()
 
