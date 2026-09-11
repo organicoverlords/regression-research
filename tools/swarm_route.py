@@ -10,7 +10,6 @@ KINDS = ("lowvram", "windows-only", "portable", "portable-light", "heavy", "p3-r
 DEFAULT_TTL_SECONDS = 1800
 PROBE_TTL_SECONDS = 45
 POLICY_EPOCH = 3
-WINDOWS_MIN_FREE_GIB = 100.0
 WORK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#@+-]{0,191}$")
 OMEN_HOST = "192.168.0.128"
 OMEN_HOST_KEY_ALIAS = "192.168.0.128"
@@ -284,10 +283,7 @@ def reclaim_omen_scratch(kind,timeout=12.0):
 
 def windows_admissible(windows):
     if not windows.get("available"): return False,"WINDOWS_UNAVAILABLE"
-    disk=windows.get("disk_free_gb")
-    if disk is None: return False,"WINDOWS_DISK_UNKNOWN"
-    if float(disk)<WINDOWS_MIN_FREE_GIB: return False,"WINDOWS_DISK_LOW"
-    return True,"WINDOWS_DISK_READY"
+    return True,"WINDOWS_AVAILABLE"
 
 def choose_route(kind,facts,assignments,allow_vps=False):
     windows_ok,windows_reason=windows_admissible(facts.get("windows",{}))
@@ -351,7 +347,7 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
                 route="blocked"; reason=windows_reason
         if route=="blocked":
             save_state(state_path,state)
-            raise ValueError(f"SWARM_ROUTE_NO_SAFE_NODE kind={kind} reason={reason} windows_min_free_gib={WINDOWS_MIN_FREE_GIB:g}")
+            raise ValueError(f"SWARM_ROUTE_NO_SAFE_NODE kind={kind} reason={reason}")
         recovery=None
         if not owner_node_id and route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
             recovery=reclaim_omen_scratch(kind)
