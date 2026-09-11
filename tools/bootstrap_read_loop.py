@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -160,6 +161,32 @@ def _replace_snapshot(temporary: Path, destination: Path, *, retry_seconds: floa
             delay = min(delay * 2, 0.05)
 
 
+def snapshot_age_seconds(repo_root: Path) -> tuple[float, str]:
+    path = repo_root.resolve() / '.state' / 'bootstrap' / 'latest.json'
+    try:
+        payload = json.loads(path.read_text(encoding='utf-8-sig'))
+    except FileNotFoundError:
+        return float('inf'), 'MISSING'
+    except (OSError, json.JSONDecodeError):
+        return float('inf'), 'UNREADABLE'
+    end = payload.get('bootstrap_end') or {}
+    if payload.get('schema') != 'bootstrap.v1' or end.get('status') != 'COMPLETE' or end.get('schema') != 'bootstrap.v1':
+        return float('inf'), 'INVALID'
+    generated_raw = payload.get('generated_at')
+    if not isinstance(generated_raw, str) or not generated_raw.strip():
+        return float('inf'), 'INVALID_GENERATED_AT'
+    try:
+        generated = datetime.fromisoformat(generated_raw.strip().replace('Z', '+00:00'))
+    except ValueError:
+        return float('inf'), 'INVALID_GENERATED_AT'
+    if generated.tzinfo is None:
+        generated = generated.replace(tzinfo=timezone.utc)
+    age = (datetime.now(timezone.utc) - generated.astimezone(timezone.utc)).total_seconds()
+    if age < -5:
+        return float('inf'), 'FUTURE_GENERATED_AT'
+    return max(0.0, age), 'OK'
+
+
 def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False) -> bool:
     repo_root = repo_root.resolve()
     atlas = repo_root / 'tools' / 'stack_atlas.py'
@@ -210,14 +237,28 @@ def main() -> int:
     )
     ap.add_argument('--once', action='store_true', help='Emit one snapshot and exit.')
     ap.add_argument('--quiet', action='store_true', help='Publish the snapshot file without repeating it on stdout.')
+    ap.add_argument(
+        '--skip-if-fresh-seconds',
+        type=float,
+        default=None,
+        help='Skip bootstrap-glance when the current COMPLETE snapshot is no older than this threshold.',
+    )
     args = ap.parse_args()
     interval = max(5.0, args.interval_seconds)
     repo_root = args.repo_root.resolve()
+    skip_if_fresh = None if args.skip_if_fresh_seconds is None else max(0.0, args.skip_if_fresh_seconds)
     while True:
         started = time.monotonic()
         ok = False
         try:
-            ok = emit_snapshot(repo_root, quiet=args.quiet)
+            if skip_if_fresh is not None:
+                age, status = snapshot_age_seconds(repo_root)
+                if status == 'OK' and age <= skip_if_fresh:
+                    ok = True
+                else:
+                    ok = emit_snapshot(repo_root, quiet=args.quiet)
+            else:
+                ok = emit_snapshot(repo_root, quiet=args.quiet)
         except Exception as exc:
             print(json.dumps({
                 'stream_schema': 'bootstrap-read-stream.v1',
