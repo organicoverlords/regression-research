@@ -577,7 +577,7 @@ class CleanupConvergerTests(unittest.TestCase):
             git.return_value = subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
             with patch("tools.cleanup_converger.DEFAULT_REPOS", (("Vault", repo, "organicoverlords/regression-research:git-worktree-metadata"),)):
                 result = converge(apply=False, safe_auto=True, max_rounds=1, stable_rounds=1, settle_seconds=0, window_seconds=300, actor="scheduled-test")
-        scan.assert_called_once_with("Vault", repo, 300, require_contained=True)
+        scan.assert_called_once_with("Vault", repo, 300, require_contained=True, allow_generated_cache=False)
         self.assertEqual(result["mode"], "safe-auto")
         self.assertFalse(result["operator_only"])
 
@@ -620,6 +620,51 @@ class CleanupConvergerTests(unittest.TestCase):
         candidates, _, observations = scan_repo("Vault", Path(r"C:\repo"), 300, require_contained=True)
         self.assertEqual(candidates, [])
         self.assertEqual(observations[0].reason, "detached_not_contained_in_origin_main")
+
+    @patch("tools.cleanup_converger.disk_free_gb", side_effect=[20.0, 22.0])
+    @patch("tools.cleanup_converger._clean_generated_cache_one")
+    @patch("tools.cleanup_converger._remove_one")
+    @patch("tools.cleanup_converger.busy_release")
+    @patch("tools.cleanup_converger.busy_claim", return_value=(True, "claimed"))
+    @patch("tools.cleanup_converger.scan_repo")
+    @patch("tools.cleanup_converger._git")
+    def test_pressure_auto_is_one_bounded_contained_pass_with_p3_cache_reclaim(
+        self, git, scan, _claim, _release, remove_one, clean_cache, _disk
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            lane = Worktree(repo / "lane", "abcd", "topic", False)
+            cache_lane = Worktree(repo / "cache", "beef", "cache-topic", False)
+            scan.return_value = ([lane], [cache_lane], [])
+            remove_one.return_value = Action("P3", str(lane.path), "REMOVED_WORKTREE", lane.branch, lane.head)
+            clean_cache.return_value = Action("P3", str(cache_lane.path), "CLEANED_GENERATED_CACHE", cache_lane.branch, cache_lane.head, "dirs=1")
+            git.return_value = subprocess.CompletedProcess(["git"], 0, stdout="", stderr="")
+            with patch("tools.cleanup_converger.DEFAULT_REPOS", (("P3", repo, "p3:git-worktree-metadata"),)):
+                result = converge(
+                    apply=False,
+                    pressure_auto=True,
+                    max_rounds=1,
+                    stable_rounds=1,
+                    settle_seconds=0,
+                    window_seconds=300,
+                    actor="pressure-test",
+                )
+        scan.assert_called_once_with(
+            "P3", repo, 300, require_contained=True, allow_generated_cache=True
+        )
+        self.assertEqual(result["mode"], "pressure-auto")
+        self.assertEqual(result["rounds_run"], 1)
+        self.assertFalse(result["operator_only"] )
+        self.assertEqual(result["removed_count"], 1)
+        self.assertEqual(result["generated_cache_cleanup_count"], 1)
+        remove_one.assert_called_once()
+        clean_cache.assert_called_once()
+
+    def test_cli_rejects_combined_automatic_modes(self):
+        with patch("sys.argv", ["cleanup_converger.py", "--safe-auto", "--pressure-auto"]):
+            with self.assertRaises(SystemExit) as exit_info:
+                runpy.run_path(str(Path(__file__).resolve().parents[1] / "tools" / "cleanup_converger.py"), run_name="__main__")
+        self.assertEqual(exit_info.exception.code, 2)
 
 
 if __name__ == "__main__":

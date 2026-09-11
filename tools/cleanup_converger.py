@@ -615,8 +615,15 @@ def _remove_one(repo_name: str, repo: Path, worktree: Worktree, window_seconds: 
 
 
 def scan_repo(
-    repo_name: str, repo: Path, window_seconds: int, *, require_contained: bool = False
+    repo_name: str,
+    repo: Path,
+    window_seconds: int,
+    *,
+    require_contained: bool = False,
+    allow_generated_cache: bool | None = None,
 ) -> tuple[list[Worktree], list[Worktree], list[Action]]:
+    if allow_generated_cache is None:
+        allow_generated_cache = not require_contained
     worktrees = parse_worktrees(_git(repo, "worktree", "list", "--porcelain").stdout)
     recent = recent_mcp_cwds(window_seconds)
     processes = windows_processes()
@@ -631,7 +638,7 @@ def scan_repo(
         )
         if preliminary and (preliminary.startswith("git_worktree_locked:") or preliminary in {"detached_or_unanchored", "recent_mcp_cwd_activity", "external_process_targets_path", "branch_ref_mismatch"}):
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, preliminary))
-            if repo_name == "P3" and not require_contained and not cache_guarded and generated_cache_dirs(worktree.path):
+            if repo_name == "P3" and allow_generated_cache and not cache_guarded and generated_cache_dirs(worktree.path):
                 cache_candidates.append(worktree)
             continue
         try:
@@ -659,7 +666,7 @@ def scan_repo(
                 else:
                     reason = "dirty_contained_unclassified"
             observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, reason))
-            if repo_name == "P3" and not require_contained and not cache_guarded and generated_cache_dirs(worktree.path):
+            if repo_name == "P3" and allow_generated_cache and not cache_guarded and generated_cache_dirs(worktree.path):
                 cache_candidates.append(worktree)
             continue
         if require_contained and not canonical_main_contains_head(repo, worktree):
@@ -737,6 +744,7 @@ def converge(
     window_seconds: int,
     actor: str,
     safe_auto: bool = False,
+    pressure_auto: bool = False,
     repo_names: set[str] | None = None,
 ) -> dict[str, Any]:
     existing_repos = [
@@ -744,7 +752,7 @@ def converge(
         for name, path, scope in DEFAULT_REPOS
         if path.exists() and (repo_names is None or name in repo_names)
     ]
-    effective_apply = apply or safe_auto
+    effective_apply = apply or safe_auto or pressure_auto
     if not existing_repos:
         raise RuntimeError("no configured repositories exist")
     before_free = disk_free_gb(existing_repos[0][1])
@@ -764,7 +772,11 @@ def converge(
             if effective_apply:
                 _git(repo, "worktree", "prune", check=False)
             candidates, cache_candidates, observations = scan_repo(
-                repo_name, repo, window_seconds, require_contained=safe_auto
+                repo_name,
+                repo,
+                window_seconds,
+                require_contained=(safe_auto or pressure_auto),
+                allow_generated_cache=pressure_auto or not (safe_auto or pressure_auto),
             )
             if safe_auto:
                 cache_candidates = []
@@ -854,9 +866,10 @@ def converge(
     after_free = disk_free_gb(existing_repos[0][1])
     summary = summarize_actions(actions)
     return {
-        "mode": "safe-auto" if safe_auto else ("apply" if apply else "dry-run"),
-        "operator_only": bool(apply and not safe_auto),
+        "mode": "pressure-auto" if pressure_auto else ("safe-auto" if safe_auto else ("apply" if apply else "dry-run")),
+        "operator_only": bool(apply and not safe_auto and not pressure_auto),
         "safe_auto": safe_auto,
+        "pressure_auto": pressure_auto,
         "rounds_run": rounds_run,
         "stable_rounds_required": stable_rounds,
         **{key: summary[key] for key in ("removed_count", "generated_cache_cleanup_count", "blocked_count")},
@@ -873,7 +886,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="apply safe non-force removals; default is dry-run")
     parser.add_argument("--safe-auto", action="store_true", help="worker-safe: remove only clean idle worktrees already contained in cached origin/main")
-    parser.add_argument("--operator-ack", action="store_true", help="required with --apply; not required for --safe-auto")
+    parser.add_argument("--pressure-auto", action="store_true", help="bounded pressure pass: safe-auto worktree convergence plus guarded P3 ignored generated-cache reclaim")
+    parser.add_argument("--operator-ack", action="store_true", help="required with --apply; not required for automatic bounded modes")
     parser.add_argument("--repo", action="append", choices=[name for name, _path, _scope in DEFAULT_REPOS], help="limit to one or more configured repos")
     parser.add_argument("--max-rounds", type=int, default=8)
     parser.add_argument("--stable-rounds", type=int, default=2)
@@ -885,8 +899,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    if args.apply and args.safe_auto:
-        print("ERROR: choose either --apply or --safe-auto", file=sys.stderr)
+    automatic_modes = int(bool(args.safe_auto)) + int(bool(args.pressure_auto))
+    if (args.apply and automatic_modes) or automatic_modes > 1:
+        print("ERROR: choose exactly one of --apply, --safe-auto, or --pressure-auto", file=sys.stderr)
         return 2
     if args.apply and not args.operator_ack:
         print("ERROR: --apply requires --operator-ack; workers must not self-administer sibling lanes", file=sys.stderr)
@@ -902,6 +917,7 @@ def main() -> int:
         window_seconds=args.activity_window_seconds,
         actor=args.actor,
         safe_auto=args.safe_auto,
+        pressure_auto=args.pressure_auto,
         repo_names=set(args.repo) if args.repo else None,
     )
     print(json.dumps(result, indent=2))
