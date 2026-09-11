@@ -26,13 +26,14 @@ class RouteDecisionTests(unittest.TestCase):
     def test_windows_fallback(self):
         f=facts(omen=False,vps=False); route,reason=m.choose_route("portable",f,{})
         self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
-    def test_windows_fallback_fails_closed_below_disk_headroom(self):
-        f=facts(omen=False,vps=False,windows_disk=99); route,reason=m.choose_route("portable",f,{})
-        self.assertEqual(route,"blocked"); self.assertIn("WINDOWS_DISK_LOW",reason)
-    def test_windows_pinned_work_fails_closed_below_disk_headroom(self):
+    def test_windows_fallback_does_not_use_generic_disk_admission(self):
+        f=facts(omen=False,vps=False,windows_disk=1); route,reason=m.choose_route("portable",f,{})
+        self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
+    def test_windows_pinned_work_ignores_generic_disk_threshold(self):
         for kind in ("lowvram","windows-only"):
-            route,reason=m.choose_route(kind,facts(windows_disk=99),{})
-            self.assertEqual(route,"blocked"); self.assertEqual(reason,"WINDOWS_DISK_LOW")
+            route,reason=m.choose_route(kind,facts(windows_disk=1),{})
+            self.assertEqual(route,"windows")
+            self.assertIn(reason,("LOWVRAM_PINNED_WINDOWS","WINDOWS_ONLY"))
     def test_vps_light_requires_explicit_execution_capability(self):
         f=facts(mem=1,vps=True)
         self.assertEqual(m.choose_route("portable-light",f,{})[0],"windows")
@@ -96,19 +97,19 @@ class RouteDecisionTests(unittest.TestCase):
             self.assertFalse(rerouted["reused"])
             self.assertEqual(rerouted["route"],"windows")
             self.assertIn("WINDOWS_FALLBACK",rerouted["reason"])
-    def test_low_disk_windows_assignment_is_not_renewed(self):
+    def test_low_disk_windows_assignment_is_reused_while_node_available(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"; s=m.empty_state()
             s["assignments"]["old-windows"]={"work_id":"old-windows","route":"windows","kind":"portable","reason":"OMEN_UNAVAILABLE_WINDOWS_FALLBACK","policy_epoch":m.POLICY_EPOCH,"expires_at":"2099-01-01T00:00:00Z"}
             m.save_state(p,s)
             original_windows=m.probe_windows; original_all=m.probe_all
             try:
-                m.probe_windows=lambda: {"available":True,"disk_free_gb":90}
-                m.probe_all=lambda: facts(omen=True,windows_disk=90)
+                m.probe_windows=lambda: {"available":True,"disk_free_gb":1}
+                m.probe_all=lambda: (_ for _ in ()).throw(AssertionError("valid sticky Windows assignment must not reroute from generic disk telemetry"))
                 result=m.route_work(p,"old-windows","portable",600,False)
             finally:
                 m.probe_windows=original_windows; m.probe_all=original_all
-            self.assertFalse(result["reused"]); self.assertEqual(result["route"],"omen")
+            self.assertTrue(result["reused"]); self.assertEqual(result["route"],"windows")
 
     def test_current_epoch_assignment_renews(self):
         with tempfile.TemporaryDirectory() as td:
