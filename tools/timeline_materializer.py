@@ -25,11 +25,13 @@ try:
         build_overview,
         load_bank,
     )
+    from .memory_hybrid import recover_query_term_candidates
     from .memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from .repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_bank import DEFAULT_MANUAL_WORKER_HISTORY, DEFAULT_WORKER_HISTORY, build_overview, load_bank
+    from memory_hybrid import recover_query_term_candidates
     from memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from worker_report_history import worker_history_events
@@ -2501,6 +2503,49 @@ def _query_tokens(value: Any) -> set[str]:
     return set(_QUERY_TOKEN_RE.findall(str(value or "").casefold()))
 
 
+def _rank_query_concepts(query: str, vocabulary: Iterable[str]) -> list[tuple[dict[str, float], bool]]:
+    """Project timeline semantic concepts through shared corpus-grounded weak-query recovery."""
+    corpus_vocabulary = {str(token).casefold() for token in vocabulary if str(token).strip()}
+    by_initial: dict[str, set[str]] = defaultdict(set)
+    for token in corpus_vocabulary:
+        if token:
+            by_initial[token[0]].add(token)
+    ranked: list[tuple[dict[str, float], bool]] = []
+    for concept in _query_concepts(query):
+        direct = {token: 1.0 for token in concept if token in corpus_vocabulary}
+        if direct:
+            ranked.append((direct, False))
+            continue
+        if len(concept) == 1:
+            term = next(iter(concept))
+            recovered, require_all = recover_query_term_candidates(
+                term,
+                corpus_vocabulary,
+                approximate_vocabulary=by_initial.get(term[:1], set()),
+            )
+            ranked.append((recovered, require_all))
+        else:
+            # Keep an unrecovered semantic concept in the denominator so extra
+            # unrelated query ideas still make rich weak-wording queries abstain.
+            ranked.append(({}, False))
+    return ranked
+
+
+def _query_concept_field_weight(
+    fields: list[tuple[float, set[str]]], candidates: dict[str, float], require_all: bool,
+) -> float:
+    if not candidates:
+        return 0.0
+    matched: dict[str, float] = {}
+    for token, confidence in candidates.items():
+        best = max((weight for weight, tokens in fields if token in tokens), default=0.0)
+        if best:
+            matched[token] = best * confidence
+    if require_all:
+        return min(matched.values()) if len(matched) == len(candidates) else 0.0
+    return max(matched.values(), default=0.0)
+
+
 def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
     cached = event.get("_query_fields_cache")
     if isinstance(cached, list) and len(cached) == 5:
@@ -2588,15 +2633,15 @@ def _event_matches_query(event: dict[str, Any], query: str) -> bool:
 
 
 def _rank_query_events(events: list[dict[str, Any]], query: str, *, corpus_size_override: int | None = None) -> list[tuple[float, dict[str, Any]]]:
-    concepts = _query_concepts(query)
+    fields_by_id = [_event_query_fields(event) for event in events]
+    vocabulary = set().union(*(tokens for fields in fields_by_id for _, tokens in fields)) if fields_by_id else set()
+    concepts = _rank_query_concepts(query, vocabulary)
     if not concepts:
         return [(1.0, event) for event in events]
-    fields_by_id = [_event_query_fields(event) for event in events]
     document_frequency = [0] * len(concepts)
     for fields in fields_by_id:
-        merged = set().union(*(tokens for _, tokens in fields))
-        for index, concept in enumerate(concepts):
-            if merged & concept:
+        for index, (candidates, require_all) in enumerate(concepts):
+            if _query_concept_field_weight(fields, candidates, require_all):
                 document_frequency[index] += 1
     corpus_size = max(1, int(corpus_size_override) if corpus_size_override is not None else len(events))
     minimum_matches = _minimum_query_matches(len(concepts))
@@ -2605,8 +2650,8 @@ def _rank_query_events(events: list[dict[str, Any]], query: str, *, corpus_size_
     for event, fields in zip(events, fields_by_id):
         matched = 0
         score = 0.0
-        for index, concept in enumerate(concepts):
-            best_weight = max((weight for weight, tokens in fields if tokens & concept), default=0.0)
+        for index, (candidates, require_all) in enumerate(concepts):
+            best_weight = _query_concept_field_weight(fields, candidates, require_all)
             if not best_weight:
                 continue
             matched += 1
@@ -2636,12 +2681,12 @@ def _rank_query_events_indexed(
     *,
     corpus_size_override: int | None = None,
 ) -> list[tuple[float, dict[str, Any]]] | None:
-    concepts = _query_concepts(query)
-    if not concepts:
-        return [(1.0, event) for event in events]
     ids = index.get("ids") if isinstance(index.get("ids"), list) else []
     postings = index.get("postings") if isinstance(index.get("postings"), dict) else {}
     weight_codes = index.get("weight_codes") if isinstance(index.get("weight_codes"), dict) else {}
+    concepts = _rank_query_concepts(query, postings.keys())
+    if not concepts:
+        return [(1.0, event) for event in events]
     position_by_id = {str(event_id): position for position, event_id in enumerate(ids)}
     allowed_positions = {
         position_by_id[event_id]
@@ -2654,19 +2699,32 @@ def _rank_query_events_indexed(
 
     best_weights: list[dict[int, float]] = []
     document_frequency: list[int] = []
-    for concept in concepts:
-        best: dict[int, float] = {}
-        for token in concept:
+    for candidates, require_all in concepts:
+        per_token: list[dict[int, float]] = []
+        for token, confidence in candidates.items():
             rows = postings.get(token)
             codes = weight_codes.get(token)
-            if not isinstance(rows, list) or not isinstance(codes, (bytes, bytearray)) or len(rows) != len(codes):
-                continue
-            for position, code in zip(rows, codes):
-                if position not in allowed_positions:
-                    continue
-                weight = _QUERY_CODE_TO_WEIGHT.get(int(code), 0.0)
-                if weight > best.get(position, 0.0):
-                    best[position] = weight
+            token_weights: dict[int, float] = {}
+            if isinstance(rows, list) and isinstance(codes, (bytes, bytearray)) and len(rows) == len(codes):
+                for position, code in zip(rows, codes):
+                    if position not in allowed_positions:
+                        continue
+                    weight = _QUERY_CODE_TO_WEIGHT.get(int(code), 0.0) * confidence
+                    if weight > token_weights.get(position, 0.0):
+                        token_weights[position] = weight
+            per_token.append(token_weights)
+        best: dict[int, float] = {}
+        if per_token:
+            if require_all:
+                common = set(per_token[0])
+                for token_weights in per_token[1:]:
+                    common.intersection_update(token_weights)
+                best = {position: min(token_weights[position] for token_weights in per_token) for position in common}
+            else:
+                for token_weights in per_token:
+                    for position, weight in token_weights.items():
+                        if weight > best.get(position, 0.0):
+                            best[position] = weight
         best_weights.append(best)
         document_frequency.append(len(best))
 
@@ -2768,17 +2826,29 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
 
 
 def _query_index_candidate_ids(index: dict[str, Any], query: str) -> set[str] | None:
-    concepts = _query_concepts(query)
-    if not concepts:
-        return None
     ids = index.get("ids") if isinstance(index.get("ids"), list) else []
     postings = index.get("postings") if isinstance(index.get("postings"), dict) else {}
+    concepts = _rank_query_concepts(query, postings.keys())
+    if not concepts:
+        return None
     positions: set[int] = set()
-    for concept in concepts:
-        for token in concept:
+    for candidates, require_all in concepts:
+        token_positions: list[set[int]] = []
+        for token in candidates:
             rows = postings.get(token)
-            if isinstance(rows, list):
-                positions.update(int(value) for value in rows if isinstance(value, int) and 0 <= value < len(ids))
+            token_positions.append({
+                int(value) for value in rows or []
+                if isinstance(value, int) and 0 <= value < len(ids)
+            } if isinstance(rows, list) else set())
+        if not token_positions:
+            continue
+        if require_all:
+            matched_positions = set(token_positions[0])
+            for values in token_positions[1:]:
+                matched_positions.intersection_update(values)
+        else:
+            matched_positions = set().union(*token_positions)
+        positions.update(matched_positions)
     return {str(ids[position]) for position in positions}
 
 

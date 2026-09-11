@@ -277,13 +277,6 @@ def _rank_map(scores: list[float], allowed: set[int] | None = None) -> dict[int,
 def _compound_query_terms(term: str, vocabulary: set[str]) -> list[str]:
     if len(term) < 6 or term.isdigit():
         return []
-    by_initial: dict[str, list[str]] = {}
-    for candidate in vocabulary:
-        if len(candidate) < 3 or candidate.isdigit() or candidate == term:
-            continue
-        by_initial.setdefault(candidate[0], []).append(candidate)
-    for candidates in by_initial.values():
-        candidates.sort(key=lambda value: (-len(value), value))
 
     memo: dict[int, list[str] | None] = {}
 
@@ -293,10 +286,14 @@ def _compound_query_terms(term: str, vocabulary: set[str]) -> list[str]:
         if pos in memo:
             return memo[pos]
         options: list[list[str]] = []
-        for candidate in by_initial.get(term[pos], []):
-            if not term.startswith(candidate, pos):
+        # Membership probes avoid scanning the full corpus vocabulary. Candidate
+        # pieces shorter than 3 characters are intentionally excluded, matching
+        # the prior recovery contract.
+        for end in range(len(term), pos + 2, -1):
+            candidate = term[pos:end]
+            if candidate == term or candidate.isdigit() or candidate not in vocabulary:
                 continue
-            suffix = solve(pos + len(candidate))
+            suffix = solve(end)
             if suffix is not None:
                 options.append([candidate, *suffix])
         if not options:
@@ -343,6 +340,39 @@ def _prefix_query_terms(term: str, vocabulary: set[str]) -> list[str]:
     return matches[:2]
 
 
+def recover_query_term_candidates(
+    term: str,
+    vocabulary: Iterable[str],
+    *,
+    approximate_vocabulary: Iterable[str] | None = None,
+) -> tuple[dict[str, float], bool]:
+    """Recover one weak query term only against vocabulary already present in the corpus.
+
+    Returns candidate -> confidence plus whether every candidate must be present
+    (joined-compound recovery). This helper is intentionally model-free and
+    deterministic so structured memory and materialized timeline recall can share
+    exactly the same typo/prefix/compound recovery semantics.
+    """
+    normalized = str(term or "").casefold().strip()
+    corpus_vocabulary = vocabulary if isinstance(vocabulary, set) else {
+        str(candidate).casefold() for candidate in vocabulary if str(candidate).strip()
+    }
+    approx_vocabulary = approximate_vocabulary if approximate_vocabulary is not None else corpus_vocabulary
+    if not isinstance(approx_vocabulary, set):
+        approx_vocabulary = {str(candidate).casefold() for candidate in approx_vocabulary if str(candidate).strip()}
+    if not normalized or normalized in _QUERY_NOISE_TOKENS:
+        return {}, False
+    if normalized in corpus_vocabulary:
+        return {normalized: 1.0}, False
+    compounds = _compound_query_terms(normalized, corpus_vocabulary)
+    if compounds:
+        return {candidate: COMPOUND_QUERY_WEIGHT for candidate in compounds}, True
+    prefixes = _prefix_query_terms(normalized, approx_vocabulary)
+    if prefixes:
+        return {candidate: PREFIX_QUERY_WEIGHT for candidate in prefixes}, False
+    return dict(_fuzzy_query_terms(normalized, approx_vocabulary)), False
+
+
 def _expand_query_weights(
     query_terms: list[str], df: Counter[str],
 ) -> tuple[dict[str, float], set[str], list[tuple[str, dict[str, float], bool]]]:
@@ -359,22 +389,9 @@ def _expand_query_weights(
     for term in dict.fromkeys(query_terms):
         if term in _QUERY_NOISE_TOKENS:
             continue
-        candidates: dict[str, float] = {}
-        require_all = False
+        candidates, require_all = recover_query_term_candidates(term, vocabulary)
         if term in vocabulary:
-            candidates[term] = 1.0
             direct.add(term)
-        else:
-            compounds = _compound_query_terms(term, vocabulary)
-            if compounds:
-                candidates = {candidate: COMPOUND_QUERY_WEIGHT for candidate in compounds}
-                require_all = True
-            else:
-                prefixes = _prefix_query_terms(term, vocabulary)
-                if prefixes:
-                    candidates = {candidate: PREFIX_QUERY_WEIGHT for candidate in prefixes}
-                else:
-                    candidates = dict(_fuzzy_query_terms(term, vocabulary))
         for candidate, weight in candidates.items():
             weights[candidate] = max(weights.get(candidate, 0.0), weight)
         concepts.append((term, candidates, require_all))
