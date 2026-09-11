@@ -58,6 +58,7 @@ from tools.stack_atlas import (
     _bootstrap_memory_overview,
     _bootstrap_mcp_from_live_swarm,
     _bootstrap_agent_contract_version,
+    _bootstrap_slopwall_contract,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +83,46 @@ class StackAtlasTests(unittest.TestCase):
             missing = _bootstrap_agent_contract_version(root)
             self.assertEqual(missing["status"], "MISSING")
             self.assertIsNone(missing["version"])
+
+    def test_bootstrap_slopwall_contract_requires_learning_and_durability(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "RULES.md").write_text(
+                "`slopwall` is a **mandatory correction-and-learning incident**\n"
+                "identify the concrete failed behavior or decision\n"
+                "infer the best-supported mechanism\n"
+                "derive one reusable prevention lesson\n"
+                "persist one compact durable correction\n"
+                "The durable correction is mandatory for literal `slopwall`\n"
+                "A slopwall is not defined by length\n",
+                encoding="utf-8",
+            )
+            (root / "AGENTS.md").write_text(
+                "literal `slopwall` additionally requires a bounded durable learning loop\n"
+                "The Slopwall record is mandatory\n"
+                "do not store merely `be concise`, `answer better`\n"
+                "bounded uncertainty instead of fabricating a root cause\n"
+                "after durability is secured, continue or finish the inherited task\n",
+                encoding="utf-8",
+            )
+            contract = _bootstrap_slopwall_contract(root)
+            self.assertEqual(contract["status"], "ENFORCED")
+            self.assertIn("failed_behavior", contract["process"])
+            self.assertIn("best_supported_mechanism", contract["process"])
+            self.assertIn("condition/action_prevention", contract["process"])
+            self.assertIn("mandatory_durable_correction", contract["process"])
+            self.assertIn("not brevity/apology", contract["process"])
+            self.assertNotIn("missing", contract)
+
+            (root / "AGENTS.md").write_text(
+                "literal `slopwall` additionally requires a bounded durable learning loop\n"
+                "The Slopwall record is mandatory\n",
+                encoding="utf-8",
+            )
+            drifted = _bootstrap_slopwall_contract(root)
+            self.assertEqual(drifted["status"], "DRIFTED")
+            self.assertIn("AGENTS:uncertainty", drifted["missing"])
+            self.assertIn("AGENTS:inherit", drifted["missing"])
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
@@ -428,6 +469,13 @@ class StackAtlasTests(unittest.TestCase):
         self.assertGreaterEqual(contract["version"], 1)
         self.assertEqual(contract["version"], contract["rules_version"])
         self.assertEqual(contract["version"], contract["agents_version"])
+        slopwall = glance["bootstrap"]["slopwall_contract"]
+        self.assertEqual(slopwall["status"], "ENFORCED")
+        self.assertIn("failed_behavior", slopwall["process"])
+        self.assertIn("best_supported_mechanism", slopwall["process"])
+        self.assertIn("condition/action_prevention", slopwall["process"])
+        self.assertIn("mandatory_durable_correction", slopwall["process"])
+        self.assertIn("not brevity/apology", slopwall["process"])
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])

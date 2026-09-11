@@ -3402,6 +3402,46 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
     return {"status": "MISMATCH", "version": None, "rules_version": rules_version, "agents_version": agents_version}
 
 
+_SLOPWALL_RULES_INVARIANTS = {
+    "incident": "`slopwall` is a **mandatory correction-and-learning incident**",
+    "failure": "identify the concrete failed behavior or decision",
+    "mechanism": "infer the best-supported mechanism",
+    "lesson": "derive one reusable prevention lesson",
+    "durability": "persist one compact durable correction",
+    "mandatory": "The durable correction is mandatory for literal `slopwall`",
+    "not_length": "A slopwall is not defined by length",
+}
+_SLOPWALL_AGENTS_INVARIANTS = {
+    "learning_loop": "literal `slopwall` additionally requires a bounded durable learning loop",
+    "record": "The Slopwall record is mandatory",
+    "specific": "do not store merely `be concise`, `answer better`",
+    "uncertainty": "bounded uncertainty instead of fabricating a root cause",
+    "inherit": "after durability is secured, continue or finish the inherited task",
+}
+
+
+def _bootstrap_slopwall_contract(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
+    """Project the serving Slopwall process into every fresh-chat bootstrap."""
+    root = Path(agent_rules_root)
+    try:
+        rules = (root / "RULES.md").read_text(encoding="utf-8")
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+    except OSError:
+        return {"status": "MISSING", "trigger": "literal_slopwall", "missing": ["serving_rules_unreadable"]}
+
+    missing = [
+        *(f"RULES:{key}" for key, phrase in _SLOPWALL_RULES_INVARIANTS.items() if phrase not in rules),
+        *(f"AGENTS:{key}" for key, phrase in _SLOPWALL_AGENTS_INVARIANTS.items() if phrase not in agents),
+    ]
+    contract = {
+        "status": "ENFORCED" if not missing else "DRIFTED",
+        "process": "resume_task > failed_behavior > best_supported_mechanism > condition/action_prevention > mandatory_durable_correction; not brevity/apology",
+    }
+    if missing:
+        contract["missing"] = missing
+    return contract
+
+
 def build_live_bootstrap_glance() -> dict[str, Any]:
     """Single compact factual session bootstrap."""
     started = time.perf_counter()
@@ -3428,9 +3468,12 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     mcp_current_topology = _bootstrap_mcp_current_topology()
     mcp_recovery_state = _bootstrap_mcp_recovery_orientation(_bootstrap_mcp_recovery_state())
     agent_contract = _bootstrap_agent_contract_version()
+    slopwall_contract = _bootstrap_slopwall_contract()
     notable_conditions: list[str] = []
     if agent_contract["status"] != "COHERENT":
         notable_conditions.append(f"agent_contract_version_{str(agent_contract['status']).casefold()}")
+    if slopwall_contract["status"] != "ENFORCED":
+        notable_conditions.append(f"slopwall_contract_{str(slopwall_contract['status']).casefold()}")
     disk = pc.get("disk", {})
     if disk.get("status") != "OK":
         notable_conditions.append(f"disk_{str(disk.get('status')).casefold()}_free_{disk.get('free_gb')}gb")
@@ -3512,7 +3555,11 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             notable_conditions.append("timeline_materialized_event_cap_truncated")
 
     elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
-    bootstrap_status = "OK" if (mcp_health == vault_health == github_health == "OK" and agent_contract["status"] == "COHERENT") else "DEGRADED"
+    bootstrap_status = "OK" if (
+        mcp_health == vault_health == github_health == "OK"
+        and agent_contract["status"] == "COHERENT"
+        and slopwall_contract["status"] == "ENFORCED"
+    ) else "DEGRADED"
     if elapsed_ms >= 5000:
         notable_conditions.append(f"bootstrap_slow_{round(elapsed_ms)}ms")
     bootstrap = {
@@ -3521,6 +3568,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "elapsed_ms": elapsed_ms,
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
         "agent_contract": agent_contract,
+        "slopwall_contract": slopwall_contract,
         "visual_acceptance": {
             "status": "HARD_GATE",
             "rule": "Inspect the exact candidate pixels/frames before visual success or user handoff.",
