@@ -50,6 +50,7 @@ from tools.stack_atlas import (
     _git_remote_update_already_applied,
     _git_checkout_state,
     _bootstrap_source_freshness,
+    _bootstrap_vault_status,
     _cwd_uses_worktree,
     _compact_memory_overview,
     _fit_memory_overview_budget,
@@ -2717,3 +2718,160 @@ class TestWindowsBoundedProcessCapture(unittest.TestCase):
                 )
             elapsed = time.monotonic() - started
         self.assertLess(elapsed, 4.0)
+
+
+class TestVaultServingCheckoutConvergence(unittest.TestCase):
+    def _git(self, cwd: Path, *args: str) -> str:
+        proc = subprocess.run(
+            ["git", "-C", str(cwd), *args],
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+        return proc.stdout.strip()
+
+    def _init_remote_pair(self, root: Path) -> tuple[Path, Path, Path]:
+        remote = root / "remote.git"
+        seed = root / "seed"
+        live = root / "live"
+        subprocess.run(["git", "init", "--bare", "-q", str(remote)], check=True)
+        subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], check=True)
+        self._git(seed, "config", "user.email", "test@example.com")
+        self._git(seed, "config", "user.name", "Vault Sync Test")
+        (seed / "tracked.txt").write_text("base\n", encoding="utf-8")
+        self._git(seed, "add", "tracked.txt")
+        self._git(seed, "commit", "-q", "-m", "base")
+        self._git(seed, "remote", "add", "origin", str(remote))
+        self._git(seed, "push", "-q", "-u", "origin", "main")
+        self._git(remote, "symbolic-ref", "HEAD", "refs/heads/main")
+        subprocess.run(["git", "clone", "-q", str(remote), str(live)], check=True)
+        self._git(live, "config", "user.email", "test@example.com")
+        self._git(live, "config", "user.name", "Vault Sync Test")
+        return remote, seed, live
+
+    def _advance_remote(self, seed: Path, filename: str, content: str) -> str:
+        (seed / filename).write_text(content, encoding="utf-8")
+        self._git(seed, "add", filename)
+        self._git(seed, "commit", "-q", "-m", f"advance {filename}")
+        self._git(seed, "push", "-q", "origin", "main")
+        return self._git(seed, "rev-parse", "HEAD")
+
+    def _run_sync(self, live: Path, *extra: str) -> tuple[int, dict]:
+        script = ROOT / "tools" / "Sync-VaultCheckout.ps1"
+        proc = subprocess.run(
+            [
+                "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
+                "-ExecutionPolicy", "Bypass", "-File", str(script),
+                "-RepoRoot", str(live), *extra,
+            ],
+            text=True,
+            capture_output=True,
+        )
+        lines = [line for line in proc.stdout.splitlines() if line.strip()]
+        self.assertTrue(lines, msg=f"sync emitted no JSON: stderr={proc.stderr}")
+        return proc.returncode, json.loads(lines[-1])
+
+    @unittest.skipUnless(os.name == "nt", "Vault serving checkout sync is a Windows scheduled-task contract")
+    def test_sync_fast_forwards_blocks_dirty_and_preserves_before_repair(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, seed, live = self._init_remote_pair(Path(tmp))
+            remote_head = self._advance_remote(seed, "remote-a.txt", "remote a\n")
+            code, data = self._run_sync(live)
+            self.assertEqual(code, 0)
+            self.assertEqual(data["status"], "FAST_FORWARDED")
+            self.assertEqual(self._git(live, "rev-parse", "HEAD"), remote_head)
+
+            (live / "tracked.txt").write_text("foreign working tree\n", encoding="utf-8")
+            (live / "foreign-untracked.txt").write_text("foreign untracked\n", encoding="utf-8")
+            remote_head = self._advance_remote(seed, "remote-b.txt", "remote b\n")
+            code, blocked = self._run_sync(live)
+            self.assertNotEqual(code, 0)
+            self.assertEqual(blocked["status"], "DIRTY_BLOCKED")
+            self.assertEqual((live / "tracked.txt").read_text(encoding="utf-8"), "foreign working tree\n")
+            self.assertEqual((live / "foreign-untracked.txt").read_text(encoding="utf-8"), "foreign untracked\n")
+
+            code, repaired = self._run_sync(live, "-Repair")
+            self.assertEqual(code, 0)
+            self.assertEqual(repaired["status"], "REPAIRED")
+            self.assertTrue(repaired["preservation_branch"].startswith("preserve/vault-live-"))
+            self.assertEqual(self._git(live, "rev-parse", "HEAD"), remote_head)
+            self.assertEqual(self._git(live, "status", "--porcelain"), "")
+            preserved = self._git(live, "show", f'{repaired["preservation_branch"]}:tracked.txt')
+            self.assertEqual(preserved, "foreign working tree")
+            preserved_untracked = self._git(live, "show", f'{repaired["preservation_branch"]}:foreign-untracked.txt')
+            self.assertEqual(preserved_untracked, "foreign untracked")
+            self.assertFalse((live / "foreign-untracked.txt").exists())
+
+    @unittest.skipUnless(os.name == "nt", "Vault serving checkout sync is a Windows scheduled-task contract")
+    def test_sync_fails_closed_on_ahead_diverged_and_wrong_branch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, seed, live = self._init_remote_pair(Path(tmp))
+            (live / "local.txt").write_text("local\n", encoding="utf-8")
+            self._git(live, "add", "local.txt")
+            self._git(live, "commit", "-q", "-m", "local ahead")
+            code, ahead = self._run_sync(live)
+            self.assertNotEqual(code, 0)
+            self.assertEqual(ahead["status"], "AHEAD_BLOCKED")
+
+            self._advance_remote(seed, "remote.txt", "remote\n")
+            code, diverged = self._run_sync(live)
+            self.assertNotEqual(code, 0)
+            self.assertEqual(diverged["status"], "DIVERGED_BLOCKED")
+
+            self._git(live, "reset", "--hard", "origin/main")
+            self._git(live, "switch", "-q", "-c", "scratch")
+            code, wrong = self._run_sync(live, "-SkipFetch")
+            self.assertNotEqual(code, 0)
+            self.assertEqual(wrong["status"], "WRONG_BRANCH")
+
+    def test_installer_is_hidden_one_minute_fail_closed_default(self):
+        text = (ROOT / "tools" / "Install-VaultCheckoutSyncTask.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("'VaultCheckoutSync'", text)
+        self.assertIn("[int]$IntervalMinutes = 1", text)
+        self.assertIn("-WindowStyle Hidden", text)
+        self.assertIn("-MultipleInstances IgnoreNew", text)
+        self.assertIn("-RunLevel Limited", text)
+        self.assertIn("tools\\Sync-VaultCheckout.ps1", text)
+        self.assertNotIn(" -Repair", text)
+
+    def test_bootstrap_vault_status_marks_checkout_incoherence_degraded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "vault"
+            subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+            self._git(repo, "config", "user.email", "test@example.com")
+            self._git(repo, "config", "user.name", "Vault Status Test")
+            (repo / "tools").mkdir()
+            (repo / "tools" / "stack_atlas.py").write_text("# probe\n", encoding="utf-8")
+            (repo / "memory").mkdir()
+            (repo / "memory" / "memory-bank.jsonl").write_text('{"id":"x"}\n', encoding="utf-8")
+            (repo / "tracked.txt").write_text("base\n", encoding="utf-8")
+            self._git(repo, "add", ".")
+            self._git(repo, "commit", "-q", "-m", "base")
+            base = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "update-ref", "refs/remotes/origin/main", base)
+            with patch("tools.stack_atlas.ROOT", repo):
+                current = _bootstrap_vault_status()
+            self.assertEqual(current["status"], "OK")
+            self.assertTrue(current["checkout"]["coherent"])
+            self.assertFalse(current["attention_required"])
+
+            (repo / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+            with patch("tools.stack_atlas.ROOT", repo):
+                dirty = _bootstrap_vault_status()
+            self.assertEqual(dirty["status"], "DEGRADED")
+            self.assertTrue(dirty["checkout"]["dirty"])
+            self.assertTrue(dirty["attention_required"])
+
+            self._git(repo, "reset", "--hard", base)
+            (repo / "remote.txt").write_text("remote\n", encoding="utf-8")
+            self._git(repo, "add", "remote.txt")
+            self._git(repo, "commit", "-q", "-m", "remote simulated")
+            remote = self._git(repo, "rev-parse", "HEAD")
+            self._git(repo, "reset", "--hard", base)
+            self._git(repo, "update-ref", "refs/remotes/origin/main", remote)
+            with patch("tools.stack_atlas.ROOT", repo):
+                behind = _bootstrap_vault_status()
+            self.assertEqual(behind["status"], "DEGRADED")
+            self.assertFalse(behind["checkout"]["coherent"])
+            self.assertEqual(behind["checkout"]["remote_main"], remote)
+            self.assertTrue(behind["attention_required"])
