@@ -1,6 +1,7 @@
 import hashlib
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,8 @@ from tools.runtime_dependency_graph import (
     _arg_paths,
     _comparison,
     build_surface,
+    explain_runtime_dependency_node,
+    runtime_dependency_path,
     runtime_graph_for_components,
     search_runtime_dependency_graph,
 )
@@ -99,6 +102,16 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
                     if edge["relation"] == "EXECUTES" and edge["from"].endswith("task:VaultBootstrapSnapshot")
                 )
                 self.assertTrue(task_edge["observed_action_match"])
+                self.assertEqual(task_edge["provenance"]["evidence_class"], "DECLARED")
+                self.assertEqual(task_edge["verification"]["evidence_class"], "OBSERVED")
+                self.assertEqual(task_edge["verification"]["status"], "MATCH")
+                deploy_edge = next(
+                    edge for edge in surface["edges"]
+                    if edge["from"].endswith("source:producer") and edge["to"].endswith("runtime:producer")
+                )
+                self.assertEqual(deploy_edge["provenance"]["evidence_class"], "DECLARED")
+                self.assertEqual(deploy_edge["verification"]["evidence_class"], "DERIVED")
+                self.assertEqual(deploy_edge["verification"]["status"], "MATCH")
                 self.assertTrue(any(edge["relation"] == "EXPOSED_AS" for edge in surface["edges"]))
 
                 (runtime / "stack_atlas.py").write_bytes(b"stale-atlas\n")
@@ -196,6 +209,91 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
             self.assertEqual(result["runtime_clean_blob"], filtered)
             self.assertEqual(result["runtime_comparison_blob"], exact)
             self.assertEqual(result["comparison_mode"], "EXACT_RUNTIME_BYTES_VS_GIT_BLOB")
+
+    def test_runtime_explain_requires_exact_disambiguation_and_returns_edge_evidence(self):
+        with tempfile.TemporaryDirectory() as raw_root, tempfile.TemporaryDirectory() as raw_local:
+            root = Path(raw_root)
+            with patch.dict(os.environ, {"LOCALAPPDATA": raw_local}):
+                ambiguous = explain_runtime_dependency_node(
+                    "source:installer", root=root, probe_live=False
+                )
+                exact = explain_runtime_dependency_node(
+                    "vault.bootstrap_snapshot:runtime:producer", root=root, probe_live=False
+                )
+
+        self.assertEqual(ambiguous["status"], "AMBIGUOUS")
+        self.assertEqual(ambiguous["resolution"]["match_mode"], "EXACT_KEY")
+        self.assertEqual(
+            [row["id"] for row in ambiguous["resolution"]["candidates"]],
+            ["vault.bootstrap_snapshot:source:installer", "vault.checkout_sync:source:installer"],
+        )
+        self.assertEqual(exact["status"], "OK")
+        self.assertEqual(exact["resolution"]["match_mode"], "EXACT_NODE_ID")
+        self.assertEqual(exact["node"]["id"], "vault.bootstrap_snapshot:runtime:producer")
+        self.assertTrue(exact["incoming"])
+        self.assertTrue(all("provenance" in edge for edge in exact["incoming"] + exact["outgoing"]))
+
+    def test_runtime_path_is_deterministic_directed_and_preserves_provenance(self):
+        with tempfile.TemporaryDirectory() as raw_root, tempfile.TemporaryDirectory() as raw_local:
+            root = Path(raw_root)
+            with patch.dict(os.environ, {"LOCALAPPDATA": raw_local}):
+                first = runtime_dependency_path(
+                    "vault.bootstrap_snapshot:source:producer",
+                    "vault.bootstrap_snapshot:consumer:bootstrap_alias",
+                    root=root,
+                    probe_live=False,
+                )
+                second = runtime_dependency_path(
+                    "vault.bootstrap_snapshot:source:producer",
+                    "vault.bootstrap_snapshot:consumer:bootstrap_alias",
+                    root=root,
+                    probe_live=False,
+                )
+                no_path = runtime_dependency_path(
+                    "vault.checkout_sync:source:installer",
+                    "vault.timeline_materializer:consumer:memory",
+                    root=root,
+                    probe_live=False,
+                )
+
+        self.assertEqual(first, second)
+        self.assertEqual(first["status"], "OK")
+        self.assertEqual(first["distance"], 3)
+        self.assertEqual(
+            [hop["relation"] for hop in first["hops"]],
+            ["PRODUCER_BUNDLE_SYNCS_FROM_CACHED_ORIGIN_MAIN", "WRITES", "EXPOSED_AS"],
+        )
+        self.assertTrue(all(hop["provenance"]["evidence_class"] == "DECLARED" for hop in first["hops"]))
+        self.assertEqual(no_path["status"], "NO_PATH")
+        self.assertEqual(no_path["hops"], [])
+
+    def test_runtime_path_output_is_hash_seed_invariant(self):
+        with tempfile.TemporaryDirectory() as raw_root, tempfile.TemporaryDirectory() as raw_local:
+            script = (
+                "import json; from pathlib import Path; "
+                "from tools.runtime_dependency_graph import runtime_dependency_path; "
+                f"value=runtime_dependency_path('vault.bootstrap_snapshot:source:producer',"
+                f"'vault.bootstrap_snapshot:consumer:bootstrap_alias',root=Path({raw_root!r}),probe_live=False); "
+                "print(json.dumps(value,sort_keys=True,separators=(',',':')))"
+            )
+            outputs = []
+            for seed in ("1", "777"):
+                env = os.environ.copy()
+                env["PYTHONHASHSEED"] = seed
+                env["LOCALAPPDATA"] = raw_local
+                cp = subprocess.run(
+                    [sys.executable, "-c", script],
+                    cwd=str(Path(__file__).resolve().parents[1]),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=20,
+                    env=env,
+                )
+                self.assertEqual(cp.returncode, 0, cp.stderr)
+                outputs.append(cp.stdout.strip())
+        self.assertEqual(outputs[0], outputs[1])
 
     def test_checkout_sync_surface_exposes_exact_missing_task_and_source_chain(self):
         task_rows = {
