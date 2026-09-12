@@ -107,6 +107,18 @@ class LiveSwarmSearchTests(unittest.TestCase):
         self.assertEqual(by_port["kind"], "transport_source")
         self.assertEqual(by_port["local_port"], 3045)
 
+    def test_semantic_concepts_can_match_live_fields_without_literal_query_synonym(self):
+        self.snapshot["lanes"][0]["busy"][0]["checkpoint"] = "MCP image handoff ready"
+        hits = search_live_swarm(
+            self.snapshot,
+            "MCP kuvahommeli",
+            query_concepts=[{"mcp"}, {"image", "images", "visual", "kuvahommeli"}],
+        )
+        self.assertEqual(hits[0]["kind"], "busy_handoff")
+        self.assertIn("image", hits[0]["matched_terms"])
+        self.assertIn("mcp", hits[0]["matched_terms"])
+        self.assertIn("checkpoint", hits[0]["matched_fields"])
+
     def test_search_is_bounded_and_uses_existing_snapshot_only(self):
         self.assertEqual(search_live_swarm(self.snapshot, ""), [])
         self.assertEqual(search_live_swarm(self.snapshot, "missing-term"), [])

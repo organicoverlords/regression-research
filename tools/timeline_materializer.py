@@ -50,13 +50,15 @@ SCHEMA = "vault.timeline.materialized.v1"
 BOOTSTRAP_SCHEMA = "vault.timeline.bootstrap.v1"
 TASK_NAME = "Vault Timeline Materializer"
 DEFAULT_DAYS: int | None = None
-DEFAULT_REPO_EVENTS = 5000
+DEFAULT_REPO_EVENTS = 25000
 DEFAULT_ARTIFACT_EVENTS = 2000
 DEFAULT_REFRESH_MINUTES = 5
 DEFAULT_TASK_EXECUTION_LIMIT_SECONDS = 240
 TASK_EXECUTION_GUARD_SECONDS = 10
-DEFAULT_MAX_EVENTS = 50000
-DEFAULT_GITHUB_EVENTS_PER_KIND = 5000
+DEFAULT_MAX_EVENTS = 200000
+DEFAULT_GITHUB_EVENTS_PER_KIND = 25000
+DEFAULT_GITHUB_DETAIL_BATCH_TIMEOUT_SECONDS = 120
+GITHUB_LIST_NESTED_COMMENTS_CAP = 100
 DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND = 200
 DEFAULT_QUEUE_RUNS_PER_REPO = 50
 DEFAULT_RUNNER_LOG_EVENTS = 10000
@@ -67,6 +69,7 @@ DEFAULT_MACHINE_OBSERVATION_EVENTS = 5000
 DEFAULT_HISTORICAL_EVIDENCE_EVENTS = 5000
 DEFAULT_OVERLAP_MINUTES = 10
 HISTORICAL_SOURCE_NAMES = {"library_artifacts", "mcp_history"}
+BACKFILL_RETRY_FROM_HORIZON_SOURCE_NAMES = frozenset({"github"})
 HISTORICAL_EVIDENCE_FLOOR = datetime(2000, 1, 1, tzinfo=timezone.utc)
 LOCK_STALE_MINUTES = 30
 WORKER_ARCHIVE_SAMPLE_LIMIT = 5
@@ -133,10 +136,17 @@ _QUERY_CONCEPT_GROUPS = (
     frozenset({"review", "reviewed", "inspect", "inspecting", "inspection", "inspected"}),
     frozenset({"accepted", "acceptance"}),
     frozenset({"capture", "captures", "captured", "screenshot", "screenshots", "frame", "frames"}),
-    frozenset({"visual", "visible", "render", "rendered", "image", "images", "picture", "pictures"}),
-    frozenset({"transport", "delivery", "display", "displayed", "share", "shared", "show", "shown", "showing"}),
+    frozenset({"visual", "visible", "render", "rendered", "image", "images", "picture", "pictures", "kuva", "kuvat", "kuvahomma", "kuvahommeli"}),
+    frozenset({"transport", "delivery", "display", "displayed", "share", "shared", "show", "shown", "showing", "siirto", "siirtoa", "siirtaa"}),
+    frozenset({"github", "gh", "ghbuf", "ghbuffer"}),
+    frozenset({"cache", "cached", "buffer", "buffered", "valimuisti", "välimuisti"}),
+    frozenset({"issue", "issues", "issuet", "ticket", "tickets"}),
+    frozenset({"pr", "prs", "pullrequest", "pullrequests"}),
+    frozenset({"comment", "comments", "kommentti", "kommentit", "reply", "replies"}),
+    frozenset({"repo", "repos", "repository", "repositories", "repon", "repojen"}),
+    frozenset({"search", "find", "haku", "hae", "etsi", "etsinta", "etsintä"}),
     frozenset({"again", "repeat", "repeated", "recurring", "recurrence"}),
-    frozenset({"branch", "branches", "worktree", "worktrees"}),
+    frozenset({"branch", "branches", "worktree", "worktrees", "haara", "haarat"}),
     frozenset({"convergence", "converge", "converged", "merge", "merged", "integration", "integrated"}),
     frozenset({"reconnect", "reconnection", "connection", "connections"}),
     frozenset({"reroute", "rerouted", "routing", "route"}),
@@ -146,7 +156,7 @@ _QUERY_CONCEPT_GROUPS = (
 )
 _QUERY_CONCEPT_BY_TOKEN = {token: group for group in _QUERY_CONCEPT_GROUPS for token in group}
 _QUERY_SOURCE_PRIOR = {"VAULT_MEMORY": 2.0, "WORKER_REPORT": 0.82, "GITHUB_ACTION": 0.9}
-_QUERY_TOKEN_RE = re.compile(r"[a-z0-9]+")
+_QUERY_TOKEN_RE = re.compile(r"[a-z0-9åäö]+")
 _QUERY_WEIGHT_TO_CODE = {0.7: 1, 1.2: 2, 2.0: 3, 2.2: 4, 4.0: 5}
 _QUERY_CODE_TO_WEIGHT = {code: weight for weight, code in _QUERY_WEIGHT_TO_CODE.items()}
 _CAUSAL_QUERY_TOKENS = {"why", "cause", "causal", "because", "caused"}
@@ -407,6 +417,70 @@ def _event_time_ok(value: Any, since: datetime) -> bool:
     return bool(stamp and stamp >= since.astimezone(stamp.tzinfo))
 
 
+def _complete_github_thread_detail(kind: str, slug: str, row: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+    comments = row.get("comments") if isinstance(row.get("comments"), list) else []
+    if len(comments) < GITHUB_LIST_NESTED_COMMENTS_CAP:
+        return row, None
+    number = int(row.get("number") or 0)
+    if number <= 0 or kind not in {"issue", "pr"}:
+        return row, "invalid github thread identity for capped comments"
+    detail, err = _run_json([
+        "gh", kind, "view", str(number), "--repo", slug, "--json", "body,comments",
+    ], timeout=DEFAULT_GITHUB_DETAIL_BATCH_TIMEOUT_SECONDS)
+    if err or not isinstance(detail, dict):
+        return row, err or "invalid github thread detail payload"
+    merged = dict(row)
+    if "body" in detail:
+        merged["body"] = detail.get("body")
+    if isinstance(detail.get("comments"), list):
+        merged["comments"] = detail["comments"]
+    return merged, None
+
+
+def _repair_legacy_capped_github_comments(
+    events: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    grouped: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
+    for event in events:
+        if event.get("source_type") not in {"GITHUB_ISSUE", "GITHUB_PR"}:
+            continue
+        if event.get("github_comments_complete") is True:
+            continue
+        if int(event.get("github_comment_count") or 0) < GITHUB_LIST_NESTED_COMMENTS_CAP:
+            continue
+        repo = str(event.get("github_repo") or "").strip()
+        kind = str(event.get("github_kind") or "").strip().casefold()
+        number = int(event.get("github_number") or 0)
+        if repo and kind in {"issue", "pr"} and number > 0:
+            grouped.setdefault((repo, kind, number), []).append(event)
+
+    repaired: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
+    for (repo, kind, number), snapshots in sorted(grouped.items()):
+        detail, err = _run_json([
+            "gh", kind, "view", str(number), "--repo", repo, "--json", "body,comments",
+        ], timeout=DEFAULT_GITHUB_DETAIL_BATCH_TIMEOUT_SECONDS)
+        if err or not isinstance(detail, dict):
+            errors.append({
+                "repo": repo, "source": f"legacy_{kind}_comments", "number": number,
+                "error": err or "invalid github thread detail payload",
+            })
+            continue
+        comments = detail.get("comments") if isinstance(detail.get("comments"), list) else []
+        body = str(detail.get("body") or "")
+        comment_text = "\n".join(
+            str(comment.get("body") or "") for comment in comments if isinstance(comment, dict)
+        )
+        for event in snapshots:
+            row = dict(event)
+            row["body"] = body
+            row["_search_text"] = "\n".join(value for value in (body, comment_text) if value)
+            row["github_comment_count"] = len(comments)
+            row["github_comments_complete"] = True
+            repaired.append(row)
+    return repaired, errors
+
+
 def github_events(
     specs: Iterable[RepoSpec],
     *,
@@ -450,16 +524,24 @@ def github_events(
             "gh", "issue", "list", "--repo", slug, "--state", "all",
             "--search", updated_filter,
             "--limit", str(limit_per_kind),
-            "--json", "number,title,state,createdAt,updatedAt,closedAt,url",
-        ])
+            "--json", "number,title,state,createdAt,updatedAt,closedAt,url,body,comments",
+        ], timeout=DEFAULT_GITHUB_DETAIL_BATCH_TIMEOUT_SECONDS)
         if err:
             coverage["errors"].append({"repo": slug, "source": "issues", "error": err})
-        for row in issue_rows if isinstance(issue_rows, list) else []:
+        for raw_row in issue_rows if isinstance(issue_rows, list) else []:
+            row, detail_err = _complete_github_thread_detail("issue", slug, raw_row)
+            if detail_err:
+                coverage["errors"].append({
+                    "repo": slug, "source": "issue_comments", "number": raw_row.get("number"), "error": detail_err
+                })
             event_at = row.get("updatedAt") or row.get("createdAt")
             if not _event_time_ok(event_at, since):
                 continue
             number = int(row.get("number") or 0)
             anchor = f"github:{slug}#{number}"
+            body = str(row.get("body") or "")
+            comments = row.get("comments") if isinstance(row.get("comments"), list) else []
+            comment_text = "\n".join(str(comment.get("body") or "") for comment in comments if isinstance(comment, dict))
             events.append({
                 "id": f"github-issue:{slug}#{number}:{event_at}",
                 "source_type": "GITHUB_ISSUE",
@@ -469,7 +551,11 @@ def github_events(
                 "project": spec.project,
                 "projects": [spec.project],
                 "title": f"Issue #{number}: {row.get('title') or ''}".strip(),
-                "summary": f"state={row.get('state')}",
+                "summary": f"state={row.get('state')} comments={len(comments)}",
+                "body": body,
+                "_search_text": "\n".join(value for value in (body, comment_text) if value),
+                "github_comment_count": len(comments),
+                "github_comments_complete": detail_err is None,
                 "github_repo": slug,
                 "github_number": number,
                 "github_kind": "issue",
@@ -486,16 +572,24 @@ def github_events(
             "gh", "pr", "list", "--repo", slug, "--state", "all",
             "--search", updated_filter,
             "--limit", str(limit_per_kind),
-            "--json", "number,title,state,createdAt,updatedAt,closedAt,mergedAt,url,headRefName,baseRefName,headRefOid",
-        ])
+            "--json", "number,title,state,createdAt,updatedAt,closedAt,mergedAt,url,headRefName,baseRefName,headRefOid,body,comments",
+        ], timeout=DEFAULT_GITHUB_DETAIL_BATCH_TIMEOUT_SECONDS)
         if err:
             coverage["errors"].append({"repo": slug, "source": "prs", "error": err})
-        for row in pr_rows if isinstance(pr_rows, list) else []:
+        for raw_row in pr_rows if isinstance(pr_rows, list) else []:
+            row, detail_err = _complete_github_thread_detail("pr", slug, raw_row)
+            if detail_err:
+                coverage["errors"].append({
+                    "repo": slug, "source": "pr_comments", "number": raw_row.get("number"), "error": detail_err
+                })
             event_at = row.get("updatedAt") or row.get("mergedAt") or row.get("createdAt")
             if not _event_time_ok(event_at, since):
                 continue
             number = int(row.get("number") or 0)
             anchor = f"github:{slug}#{number}"
+            body = str(row.get("body") or "")
+            comments = row.get("comments") if isinstance(row.get("comments"), list) else []
+            comment_text = "\n".join(str(comment.get("body") or "") for comment in comments if isinstance(comment, dict))
             head_sha = str(row.get("headRefOid") or "").casefold()
             anchors = [anchor, f"pr:{anchor}"]
             if head_sha:
@@ -509,7 +603,11 @@ def github_events(
                 "project": spec.project,
                 "projects": [spec.project],
                 "title": f"PR #{number}: {row.get('title') or ''}".strip(),
-                "summary": f"state={row.get('state')}",
+                "summary": f"state={row.get('state')} comments={len(comments)}",
+                "body": body,
+                "_search_text": "\n".join(value for value in (body, comment_text) if value),
+                "github_comment_count": len(comments),
+                "github_comments_complete": detail_err is None,
                 "github_repo": slug,
                 "github_number": number,
                 "github_kind": "pr",
@@ -1795,6 +1893,21 @@ def _acquire_lock(path: Path) -> int | None:
         return None
 
 
+def _github_refresh_limit(
+    *, incremental: bool, requested_limit: int, previous: dict[str, Any] | None
+) -> int:
+    if not incremental:
+        return requested_limit
+    ingestion = previous.get("ingestion") if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict) else {}
+    incomplete = {
+        str(value) for value in ingestion.get("backfill_incomplete_sources", [])
+        if str(value).strip()
+    }
+    if "github" in incomplete:
+        return requested_limit
+    return min(requested_limit, DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND)
+
+
 def _materialized_source_since(
     previous: dict[str, Any] | None,
     source: str,
@@ -1804,6 +1917,13 @@ def _materialized_source_since(
 ) -> datetime:
     if not previous:
         return HISTORICAL_EVIDENCE_FLOOR if source in HISTORICAL_SOURCE_NAMES else horizon_since
+    ingestion = previous.get("ingestion") if isinstance(previous.get("ingestion"), dict) else {}
+    incomplete = {
+        str(value) for value in ingestion.get("backfill_incomplete_sources", [])
+        if str(value).strip()
+    }
+    if source in incomplete and source in BACKFILL_RETRY_FROM_HORIZON_SOURCE_NAMES:
+        return horizon_since
     watermarks = previous.get("source_watermarks") if isinstance(previous.get("source_watermarks"), dict) else {}
     if source not in watermarks:
         return HISTORICAL_EVIDENCE_FLOOR if source in HISTORICAL_SOURCE_NAMES else horizon_since
@@ -2120,13 +2240,24 @@ def materialize(
         github_delta: list[dict[str, Any]] = []
         github_coverage: dict[str, Any] = {"available": False, "skipped": True}
         if include_github:
-            github_limit = min(github_events_per_kind, DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND) if incremental else github_events_per_kind
+            github_limit = _github_refresh_limit(
+                incremental=incremental, requested_limit=github_events_per_kind, previous=previous
+            )
             github_delta, github_coverage = github_events(
                 specs,
                 since=source_since["github"],
                 limit_per_kind=github_limit,
                 snapshot_now=now,
             )
+            if incremental:
+                github_comment_repairs, github_comment_repair_errors = _repair_legacy_capped_github_comments(previous_events)
+                github_delta.extend(github_comment_repairs)
+                if github_comment_repair_errors:
+                    github_coverage.setdefault("errors", []).extend(github_comment_repair_errors)
+                github_coverage["legacy_comment_repairs"] = {
+                    "events": len(github_comment_repairs),
+                    "errors": len(github_comment_repair_errors),
+                }
 
         mcp_delta, mcp_coverage = mcp_events(
             since=source_since["mcp"], root=root, project_to_slug=project_to_slug
@@ -2205,11 +2336,18 @@ def materialize(
 
         previous_ingestion = previous.get("ingestion") if isinstance(previous, dict) and isinstance(previous.get("ingestion"), dict) else {}
         previous_backfill_incomplete = set(str(value) for value in previous_ingestion.get("backfill_incomplete_sources", []) if str(value).strip())
-        backfill_incomplete_sources = (
-            sorted(set(saturated_sources) | set(skipped_sources))
-            if refresh_mode == "BACKFILL"
-            else sorted(previous_backfill_incomplete | set(skipped_sources))
-        )
+        if refresh_mode == "BACKFILL":
+            backfill_incomplete_sources = sorted(set(saturated_sources) | set(skipped_sources))
+        else:
+            recovered_backfill_sources = {
+                name for name in previous_backfill_incomplete
+                if name in BACKFILL_RETRY_FROM_HORIZON_SOURCE_NAMES
+                and name not in saturated_sources
+                and name not in skipped_sources
+            }
+            backfill_incomplete_sources = sorted(
+                (previous_backfill_incomplete - recovered_backfill_sources) | set(skipped_sources)
+            )
         retry_sources = sorted(set(saturated_sources)) if refresh_mode == "INCREMENTAL" else []
         source_coverage = {
             **delta_coverage,
@@ -2295,6 +2433,7 @@ def materialize(
         postings: dict[str, list[int]] = defaultdict(list)
         weight_codes: dict[str, bytearray] = defaultdict(bytearray)
         query_anchors: list[list[str]] = []
+        query_branch_refs: list[list[str]] = []
         query_opaque_labels: dict[str, str] = {}
         for index, event in enumerate(query_events.values()):
             best_weight_by_token: dict[str, float] = {}
@@ -2306,6 +2445,7 @@ def materialize(
                 postings[token].append(index)
                 weight_codes[token].append(_QUERY_WEIGHT_TO_CODE[weight])
             query_anchors.append(_event_anchors(event))
+            query_branch_refs.append(_event_branch_refs(event))
             opaque_label = _query_index_opaque_label(event)
             if opaque_label:
                 query_opaque_labels[str(event.get("id") or "")] = opaque_label
@@ -2316,6 +2456,7 @@ def materialize(
             "postings": dict(postings),
             "weight_codes": {token: bytes(codes) for token, codes in weight_codes.items()},
             "anchors": query_anchors,
+            "branch_refs": query_branch_refs,
             "opaque_labels": query_opaque_labels,
         })
 
@@ -2522,6 +2663,9 @@ def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
         " ".join(str(value) for value in event.get("projects", []) or []),
         str(event.get("worker") or ""),
         str(event.get("artifact_type") or ""),
+        " ".join(str(value) for value in event.get("branch_refs", []) or []),
+        str(event.get("head_ref") or ""),
+        str(event.get("base_ref") or ""),
     ])
     links = " ".join([
         " ".join(str(value) for value in event.get("refs", []) or []),
@@ -2571,6 +2715,20 @@ def _minimum_query_matches(concept_count: int) -> int:
     if concept_count <= 7:
         return 3
     return 4
+
+
+def _query_identity_multiplier(event: dict[str, Any], query: str) -> float:
+    query_tokens = _query_tokens(query)
+    if not query_tokens:
+        return 1.0
+    identity = " ".join([
+        str(event.get("project") or ""),
+        " ".join(str(value) for value in event.get("projects", []) or []),
+        str(event.get("github_repo") or ""),
+    ])
+    identity_tokens = _query_tokens(identity)
+    exact_matches = len(query_tokens & identity_tokens)
+    return 1.0 + min(0.6, 0.3 * exact_matches)
 
 
 def _is_causal_correction_event(event: dict[str, Any]) -> bool:
@@ -2624,6 +2782,7 @@ def _rank_query_events(events: list[dict[str, Any]], query: str, *, corpus_size_
         coverage = matched / min(len(concepts), 6)
         score *= 0.75 + (1.35 * coverage)
         score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
+        score *= _query_identity_multiplier(event, query)
         if causal_correction:
             score *= 2.25
         ranked.append((score, event))
@@ -2696,6 +2855,7 @@ def _rank_query_events_indexed(
         coverage = matched / min(len(concepts), 6)
         score *= 0.75 + (1.35 * coverage)
         score *= _QUERY_SOURCE_PRIOR.get(str(event.get("source_type") or ""), 1.0)
+        score *= _query_identity_multiplier(event, query)
         if causal_correction:
             score *= 2.25
         ranked.append((score, event))
@@ -2775,7 +2935,12 @@ def _compact_query_event(event: dict[str, Any]) -> dict[str, Any]:
 def _query_index_opaque_label(event: dict[str, Any]) -> str | None:
     """Keep human labels only for discovery identities that would otherwise be opaque."""
     event_id = str(event.get("id") or "")
-    if not (event_id.startswith("mem-") or event_id.startswith("worker:")):
+    source_type = str(event.get("source_type") or "")
+    if not (
+        event_id.startswith("mem-")
+        or event_id.startswith("worker:")
+        or source_type in {"GIT_COMMIT", "GITHUB_ISSUE", "GITHUB_PR"}
+    ):
         return None
     label = str(event.get("display_label") or event.get("title") or event.get("worker") or "").strip()
     if not label:

@@ -29,6 +29,11 @@ try:
 except ModuleNotFoundError:
     from live_swarm_search import search_live_swarm as _search_live_swarm
 
+try:
+    from tools.unified_search_sources import search_gh_buffer_cache as _search_gh_buffer_cache
+except ModuleNotFoundError:
+    from unified_search_sources import search_gh_buffer_cache as _search_gh_buffer_cache
+
 def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
     """Best-effort bounded tree termination for a task-owned Windows child."""
     if process.poll() is not None:
@@ -3904,14 +3909,41 @@ FEATURE_QUERY_SYNONYMS: dict[str, set[str]] = {
 }
 
 
+def _shared_query_concepts(query: str) -> list[set[str]]:
+    try:
+        from tools.timeline_materializer import _query_concepts
+    except ImportError:
+        try:
+            from timeline_materializer import _query_concepts
+        except ImportError:
+            _query_concepts = None
+    if _query_concepts is not None:
+        return [set(concept) for concept in _query_concepts(query)]
+    concepts: list[set[str]] = []
+    for raw in re.findall(r"[a-z0-9åäö]+", query.casefold()):
+        if raw in FEATURE_QUERY_STOPWORDS:
+            continue
+        variants = {raw}
+        if len(raw) > 4 and raw.endswith("ies"):
+            variants.add(raw[:-3] + "y")
+        elif len(raw) > 4 and raw.endswith("s") and not raw.endswith("ss"):
+            variants.add(raw[:-1])
+        concepts.append(variants)
+    return concepts
+
+
 def _feature_query_terms(query: str) -> tuple[list[str], set[str]]:
     base = [
-        term for term in re.findall(r"[a-z0-9]+", query.casefold())
+        term for term in re.findall(r"[a-z0-9åäö]+", query.casefold())
         if term and term not in FEATURE_QUERY_STOPWORDS
     ]
     expanded = set(base)
     for term in base:
         expanded.update(FEATURE_QUERY_SYNONYMS.get(term, set()))
+    for concept in _shared_query_concepts(query):
+        if concept & FEATURE_QUERY_STOPWORDS:
+            continue
+        expanded.update(concept)
     return base, expanded
 
 
@@ -4028,20 +4060,7 @@ def _discovery_root() -> Path:
 
 
 def _discovery_query_terms(query: str) -> list[set[str]]:
-    base_terms, _ = _feature_query_terms(query)
-    concepts: list[set[str]] = []
-    seen: set[tuple[str, ...]] = set()
-    for raw in base_terms:
-        variants = {raw}
-        if len(raw) > 4 and raw.endswith("ies"):
-            variants.add(raw[:-3] + "y")
-        elif len(raw) > 4 and raw.endswith("s") and not raw.endswith("ss"):
-            variants.add(raw[:-1])
-        key = tuple(sorted(variants))
-        if key not in seen:
-            seen.add(key)
-            concepts.append(variants)
-    return concepts
+    return _shared_query_concepts(query)
 
 
 def _minimum_discovery_matches(concept_count: int) -> int:
@@ -4123,6 +4142,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         or not isinstance(index.get("weight_codes"), dict)
         or not isinstance(index.get("anchors"), list)
         or len(index["ids"]) != len(index["anchors"])
+        or (index.get("branch_refs") is not None and (not isinstance(index.get("branch_refs"), list) or len(index["ids"]) != len(index["branch_refs"])))
     ):
         coverage.update({"status": "INVALID_OR_STALE_INDEX", "generated_at": generated_at})
         coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
@@ -4140,6 +4160,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     postings = index["postings"]
     weight_codes = index["weight_codes"]
     anchors_by_position = index["anchors"]
+    branch_refs_by_position = index.get("branch_refs") if isinstance(index.get("branch_refs"), list) else [[] for _ in ids]
     opaque_labels = index.get("opaque_labels") if isinstance(index.get("opaque_labels"), dict) else {}
     best_by_concept: list[dict[int, float]] = []
     candidate_positions: set[int] = set()
@@ -4162,6 +4183,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     minimum_matches = _minimum_discovery_matches(len(concepts))
     ranked: list[tuple[float, str, str, str, list[str]]] = []
     label_by_stable_key: dict[str, str] = {}
+    branches_by_stable_key: dict[str, list[str]] = {}
     for position in candidate_positions:
         matched = sum(1 for weights in best_by_concept if weights.get(position, 0.0) > 0.0)
         if matched < minimum_matches:
@@ -4175,9 +4197,19 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         opaque_label = str(opaque_labels.get(event_id) or "").strip()
         if opaque_label and stable_key not in label_by_stable_key:
             label_by_stable_key[stable_key] = opaque_label
+        branch_refs = [str(value) for value in (branch_refs_by_position[position] or []) if str(value).strip()]
+        if branch_refs and stable_key not in branches_by_stable_key:
+            branches_by_stable_key[stable_key] = branch_refs[:12]
         score = sum(weights.get(position, 0.0) for weights in best_by_concept)
         score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
         score += matched / max(1, len(concepts))
+        identity_text = ""
+        if kind in {"github_issue", "github_pr"}:
+            identity_text = reference.rsplit("#", 1)[0]
+        elif kind == "git_commit":
+            identity_text = reference.split("@", 1)[0]
+        identity_tokens = set(re.findall(r"[a-z0-9]+", identity_text.casefold()))
+        score += 4.0 * sum(1 for concept in concepts if identity_tokens & concept)
         reference_number = reference.rsplit("#", 1)[-1] if "#" in reference else ""
         if kind == "github_issue" and reference_number in explicit_issue_numbers:
             score += 25.0
@@ -4222,6 +4254,8 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         }
         if label_by_stable_key.get(stable_key):
             hit["label"] = label_by_stable_key[stable_key]
+        if branches_by_stable_key.get(stable_key):
+            hit["branches"] = branches_by_stable_key[stable_key]
         if anchors:
             hit["anchors"] = anchors
         hits.append(hit)
@@ -4255,7 +4289,9 @@ def _live_discovery_hits(query: str, limit: int = 5, *, snapshot: dict[str, Any]
             "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
-    hits = _search_live_swarm(snapshot, query, limit=max(1, int(limit)))
+    hits = _search_live_swarm(
+        snapshot, query, limit=max(1, int(limit)), query_concepts=_shared_query_concepts(query)
+    )
     evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
     return hits, {
         "status": "OK",
@@ -4281,13 +4317,16 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             "atlas_hits": [],
             "live_hits": [],
             "history_hits": [],
+            "git_hits": [],
+            "github_cache_hits": [],
             "coverage": {},
         }
     started = time.perf_counter()
     atlas_hits = find_features(query, effective_limit)
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         history_future = pool.submit(_timeline_discovery_hits, query, effective_limit)
         live_future = pool.submit(_live_discovery_hits, query, effective_limit)
+        github_cache_future = pool.submit(_search_gh_buffer_cache, query, effective_limit)
         try:
             history_hits, history_coverage = history_future.result()
         except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
@@ -4296,6 +4335,14 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             live_hits, live_coverage = live_future.result()
         except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
             live_hits, live_coverage = [], {"status": "ERROR", "error": str(exc)}
+        try:
+            github_cache_hits, github_cache_coverage = github_cache_future.result()
+        except Exception as exc:
+            github_cache_hits, github_cache_coverage = [], {"status": "ERROR", "error": str(exc), "network_fanout": False}
+    git_hits = [
+        hit for hit in history_hits
+        if hit.get("kind") == "git_commit" or bool(hit.get("branches"))
+    ]
     return {
         "schema": DISCOVERY_SCHEMA,
         "query": query,
@@ -4303,12 +4350,22 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
         "atlas_hits": atlas_hits,
         "live_hits": live_hits,
         "history_hits": history_hits,
+        "git_hits": git_hits,
+        "github_cache_hits": github_cache_hits,
         "coverage": {
             "atlas": {"status": "OK", "authority": ATLAS_CONTRACT["authority"]},
             "live": live_coverage,
             "history": history_coverage,
+            "git": {
+                "status": history_coverage.get("status"),
+                "authority": "DERIVED_MATERIALIZED_LOCAL_GIT_HISTORY",
+                "read_mode": "MATERIALIZED_QUERY_INDEX_ONLY",
+                "network_fanout": False,
+                "repo_content_scan": False,
+            },
+            "github_cache": github_cache_coverage,
         },
-        "boundary": "Discovery only. Verify current issue/PR/repo/runtime state through its named owner before making a current-state claim or mutation.",
+        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan and no GitHub network fanout. Local Git commits/branches come from the materialized Git metadata index; GitHub detail comes from materialized history plus the local gh-buffer cache.",
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
     }
 
