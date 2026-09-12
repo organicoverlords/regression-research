@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 
 _STOPWORDS = frozenset({"a", "an", "and", "for", "in", "is", "of", "the", "to", "work"})
@@ -10,52 +10,103 @@ _STOPWORDS = frozenset({"a", "an", "and", "for", "in", "is", "of", "the", "to", 
 def _terms(text: str) -> set[str]:
     return {
         term
-        for term in re.findall(r"[a-z0-9]+", str(text).casefold())
+        for term in re.findall(r"[a-z0-9åäö]+", str(text).casefold())
         if term and term not in _STOPWORDS
     }
 
 
-def _matched_terms(query_terms: set[str], values: list[tuple[int, str]]) -> set[str]:
-    matched: set[str] = set()
+def _query_concept_sets(query: str, query_concepts: Iterable[Iterable[str]] | None) -> list[frozenset[str]]:
+    if query_concepts is None:
+        return [frozenset({term}) for term in sorted(_terms(query))]
+    concepts: list[frozenset[str]] = []
+    seen: set[frozenset[str]] = set()
+    for raw_concept in query_concepts:
+        terms: set[str] = set()
+        for value in raw_concept:
+            terms.update(_terms(str(value)))
+        concept = frozenset(terms)
+        if concept and concept not in seen:
+            seen.add(concept)
+            concepts.append(concept)
+    return concepts
+
+
+def _matches_for_value(concepts: list[frozenset[str]], value: str) -> tuple[set[int], set[str]]:
+    normalized = str(value).casefold()
+    tokens = _terms(value)
+    matched_indices: set[int] = set()
+    matched_terms: set[str] = set()
+    for index, concept in enumerate(concepts):
+        variants = {term for term in concept if term in tokens or term in normalized}
+        if variants:
+            matched_indices.add(index)
+            matched_terms.update(variants)
+    return matched_indices, matched_terms
+
+
+def _matched_concepts(concepts: list[frozenset[str]], values: list[tuple[int, str]]) -> tuple[set[int], set[str]]:
+    matched_indices: set[int] = set()
+    matched_terms: set[str] = set()
     for _, value in values:
-        normalized = str(value).casefold()
-        tokens = _terms(value)
-        matched.update(term for term in query_terms if term in tokens or term in normalized)
-    return matched
+        indices, terms = _matches_for_value(concepts, value)
+        matched_indices.update(indices)
+        matched_terms.update(terms)
+    return matched_indices, matched_terms
 
 
-def _matched_fields(query_terms: set[str], fields: Mapping[str, str]) -> dict[str, list[str]]:
+def _matched_fields(concepts: list[frozenset[str]], fields: Mapping[str, str]) -> dict[str, list[str]]:
     matched: dict[str, list[str]] = {}
     for name, value in fields.items():
-        terms = sorted(_matched_terms(query_terms, [(1, value)]))
+        _, terms = _matches_for_value(concepts, value)
         if terms:
-            matched[name] = terms
+            matched[name] = sorted(terms)
     return matched
 
 
-def _minimum_query_term_matches(query_terms: set[str]) -> int:
-    return 1 if len(query_terms) <= 1 else 2
+def _minimum_query_concept_matches(concept_count: int) -> int:
+    if concept_count <= 1:
+        return 1
+    if concept_count <= 4:
+        return 2
+    if concept_count <= 7:
+        return 3
+    return 4
 
 
-def _match_score(query_terms: set[str], values: list[tuple[int, str]]) -> int:
+def _match_score(concepts: list[frozenset[str]], values: list[tuple[int, str]]) -> int:
     score = 0
     for weight, value in values:
-        normalized = str(value).casefold()
-        tokens = _terms(value)
-        score += weight * sum(1 for term in query_terms if term in tokens or term in normalized)
+        matched_indices, _ = _matches_for_value(concepts, value)
+        score += weight * len(matched_indices)
     return score
 
 
-def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -> list[dict[str, Any]]:
+def _eligible_match(concepts: list[frozenset[str]], values: list[tuple[int, str]]) -> tuple[bool, set[str]]:
+    matched_indices, matched_terms = _matched_concepts(concepts, values)
+    numeric_indices = {
+        index for index, concept in enumerate(concepts)
+        if any(term.isdigit() for term in concept)
+    }
+    if numeric_indices and not numeric_indices.issubset(matched_indices):
+        return False, matched_terms
+    return len(matched_indices) >= _minimum_query_concept_matches(len(concepts)), matched_terms
+
+
+def search_live_swarm(
+    snapshot: Mapping[str, Any],
+    query: str,
+    limit: int = 5,
+    *,
+    query_concepts: Iterable[Iterable[str]] | None = None,
+) -> list[dict[str, Any]]:
     """Search one live-swarm snapshot without collapsing coordination into liveness.
 
     Busy rows are coordination/handoff only; caller rows are runtime activity. Callers provide one already-collected
-    live-swarm snapshot, so search never performs another runtime probe or becomes
-    a queue/scheduler surface.
+    live-swarm snapshot, so search never performs another runtime probe or becomes a queue/scheduler surface.
+    Optional query_concepts lets the unified discovery layer reuse the same semantic concept map as timeline search.
     """
-    query_terms = _terms(query)
-    numeric_terms = {term for term in query_terms if term.isdigit()}
-    if not query_terms or limit <= 0:
+    concepts = _query_concept_sets(query, query_concepts)
+    if not concepts or limit <= 0:
         return []
 
     ranked: list[tuple[int, str, dict[str, Any]]] = []
@@ -81,14 +132,12 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 (2, branch),
                 (1, path),
             ]
-            matched_terms = _matched_terms(query_terms, values)
-            if numeric_terms and not (numeric_terms & matched_terms):
+            eligible, matched_terms = _eligible_match(concepts, values)
+            if not eligible:
                 continue
-            if len(matched_terms) < _minimum_query_term_matches(query_terms):
-                continue
-            score = _match_score(query_terms, values)
+            score = _match_score(concepts, values)
             if score:
-                matched_fields = _matched_fields(query_terms, {
+                matched_fields = _matched_fields(concepts, {
                     "checkpoint": checkpoint,
                     "scopes": " ".join(scopes),
                     "owner": owner,
@@ -129,14 +178,12 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
                 (2, caller_workspace),
                 (1, caller_path),
             ]
-            matched_terms = _matched_terms(query_terms, values)
-            if numeric_terms and not (numeric_terms & matched_terms):
+            eligible, matched_terms = _eligible_match(concepts, values)
+            if not eligible:
                 continue
-            if len(matched_terms) < _minimum_query_term_matches(query_terms):
-                continue
-            score = _match_score(query_terms, values)
+            score = _match_score(concepts, values)
             if score:
-                matched_fields = _matched_fields(query_terms, {
+                matched_fields = _matched_fields(concepts, {
                     "activity": command,
                     "caller_id": caller_id,
                     "workspace": caller_workspace,
@@ -171,13 +218,11 @@ def search_live_swarm(snapshot: Mapping[str, Any], query: str, limit: int = 5) -
             (4, f"port {local_port}" if local_port is not None else ""),
             (2, f"pid {server_pid}" if server_pid is not None else ""),
         ]
-        matched_terms = _matched_terms(query_terms, values)
-        if numeric_terms and not (numeric_terms & matched_terms):
+        eligible, matched_terms = _eligible_match(concepts, values)
+        if not eligible:
             continue
-        if len(matched_terms) < _minimum_query_term_matches(query_terms):
-            continue
-        score = _match_score(query_terms, values)
-        matched_fields = _matched_fields(query_terms, {
+        score = _match_score(concepts, values)
+        matched_fields = _matched_fields(concepts, {
             "instance": instance,
             "port": f"port {local_port}" if local_port is not None else "",
             "pid": f"pid {server_pid}" if server_pid is not None else "",

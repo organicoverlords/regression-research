@@ -2104,6 +2104,10 @@ class StackAtlasTests(unittest.TestCase):
         caller_hits, _ = _live_discovery_hits("stall watchdog output schema", snapshot=snapshot)
         self.assertEqual(caller_hits[0]["kind"], "caller_activity")
         self.assertEqual(caller_hits[0]["authority"], "LIVE_MCP_RUNTIME_EVIDENCE")
+        semantic_hits, _ = _live_discovery_hits("MCP kuvahommeli", snapshot=snapshot)
+        self.assertEqual(semantic_hits[0]["kind"], "busy_handoff")
+        self.assertIn("image", semantic_hits[0]["matched_terms"])
+        self.assertIn("mcp", semantic_hits[0]["matched_terms"])
 
     def test_timeline_discovery_index_dedupes_issue_snapshots_and_artifact_lineage(self):
         with tempfile.TemporaryDirectory() as d:

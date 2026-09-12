@@ -11,6 +11,7 @@ from tools.memory_timeline import build_continuity_graph
 from tools.repo_timeline import RepoSpec
 from tools.timeline_materializer import (
     BOOTSTRAP_SCHEMA,
+    DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND,
     DEFAULT_DELTA_REPO_EVENTS_PER_REPO,
     DEFAULT_GITHUB_EVENTS_PER_KIND,
     DEFAULT_MAX_EVENTS,
@@ -37,9 +38,12 @@ from tools.timeline_materializer import (
     runner_log_events,
     _bootstrap_correction_trigger_projection,
     _github_read_cli,
+    _github_refresh_limit,
     _lesson_packet,
+    _materialized_source_since,
     _merge_materialized_events,
     _query_index_opaque_label,
+    _repair_legacy_capped_github_comments,
     _run_json,
     _run_process,
 )
@@ -153,6 +157,33 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("identify the concrete mistake", projected["asshole"])
         self.assertIn("smaller than `slopwall`", projected["asshole"])
         self.assertEqual(projected["authority"], "DERIVED_PROJECTION_ONLY")
+
+    def test_github_retry_uses_backfill_limit_in_incremental_mode(self):
+        previous = {"ingestion": {"backfill_incomplete_sources": ["github"]}}
+        self.assertEqual(
+            _github_refresh_limit(incremental=True, requested_limit=25000, previous=previous),
+            25000,
+        )
+        self.assertEqual(
+            _github_refresh_limit(incremental=True, requested_limit=25000, previous={"ingestion": {}}),
+            DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND,
+        )
+        self.assertEqual(
+            _github_refresh_limit(incremental=False, requested_limit=25000, previous=previous),
+            25000,
+        )
+
+    def test_incomplete_historical_source_retries_from_history_floor(self):
+        previous = {
+            "generated_at": "2026-09-12T02:55:18+03:00",
+            "source_watermarks": {"github": "2026-09-12T02:55:18+03:00"},
+            "ingestion": {"backfill_incomplete_sources": ["github"]},
+        }
+        horizon = datetime(2026, 9, 1, tzinfo=timezone.utc)
+        since = _materialized_source_since(previous, "github", horizon_since=horizon)
+        self.assertEqual(since, horizon)
+        full_history = _materialized_source_since(previous, "github", horizon_since=HISTORICAL_EVIDENCE_FLOOR)
+        self.assertEqual(full_history, HISTORICAL_EVIDENCE_FLOOR)
 
     def test_default_backfill_capacity_covers_current_large_history_shape(self):
         self.assertGreaterEqual(DEFAULT_REPO_EVENTS, 5000)
@@ -439,11 +470,11 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(legacy["free_gb"], 61.5)
             self.assertIsNone(legacy["commit_headroom_gb"])
 
-    def test_github_adapter_projects_issues_prs_and_actions_without_body_fetches(self):
+    def test_github_adapter_projects_issue_pr_bodies_and_comments_in_batch(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
         now = "2026-09-06T05:00:00Z"
-        issue = [{"number": 803, "title": "Milestone", "state": "OPEN", "createdAt": now, "updatedAt": now, "closedAt": None, "url": "https://example/803"}]
-        pr = [{"number": 1884, "title": "Avatar wait", "state": "MERGED", "createdAt": now, "updatedAt": now, "closedAt": now, "mergedAt": now, "url": "https://example/1884", "headRefName": "topic", "baseRefName": "main", "headRefOid": "a" * 40}]
+        issue = [{"number": 803, "title": "Milestone", "state": "OPEN", "createdAt": now, "updatedAt": now, "closedAt": None, "url": "https://example/803", "body": "MCP image resource handoff", "comments": [{"body": "exact original image is visible"}]}]
+        pr = [{"number": 1884, "title": "Avatar wait", "state": "MERGED", "createdAt": now, "updatedAt": now, "closedAt": now, "mergedAt": now, "url": "https://example/1884", "headRefName": "topic", "baseRefName": "main", "headRefOid": "a" * 40, "body": "Library transport", "comments": [{"body": "same-turn native vision"}]}]
         run = [{"databaseId": 99, "workflowName": "verify", "status": "completed", "conclusion": "success", "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "topic", "event": "pull_request", "displayTitle": "Avatar wait", "url": "https://example/run/99"}]
         with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
             "tools.timeline_materializer._run_json", side_effect=[(issue, None), (pr, None), (run, None), ([], None)]
@@ -465,11 +496,80 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(repo_cov["limit_per_kind"], repo_cov["issues"]["limit"])
         self.assertEqual(repo_cov["saturated_kinds"], [])
         self.assertFalse(coverage["saturated"])
+        issue_event = next(event for event in events if event["source_type"] == "GITHUB_ISSUE")
+        pr_event = next(event for event in events if event["source_type"] == "GITHUB_PR")
+        self.assertEqual(issue_event["github_comment_count"], 1)
+        self.assertIn("exact original image", issue_event["_search_text"])
+        self.assertEqual(pr_event["github_comment_count"], 1)
+        self.assertIn("same-turn native vision", pr_event["_search_text"])
         commands = [" ".join(call.args[0]) for call in run_json.call_args_list]
-        self.assertTrue(all("body" not in command for command in commands))
+        self.assertEqual(run_json.call_args_list[0].kwargs.get("timeout"), 120)
+        self.assertEqual(run_json.call_args_list[1].kwargs.get("timeout"), 120)
+        self.assertIsNone(run_json.call_args_list[2].kwargs.get("timeout"))
+        self.assertTrue(all("body,comments" in command for command in commands[:2]))
         self.assertTrue(all("updated:>=2026-09-05T00:00:00Z" in command for command in commands[:2]))
         self.assertIn("created >=2026-09-05T00:00:00Z", commands[2])
         self.assertNotIn("--created", commands[3])
+
+    def test_legacy_capped_comment_self_heal_dedupes_thread_fetches(self):
+        snapshots = [
+            {
+                "id": "github-issue:organicoverlords/tiny3d#442:a",
+                "source_type": "GITHUB_ISSUE", "github_repo": "organicoverlords/tiny3d",
+                "github_kind": "issue", "github_number": 442, "github_comment_count": 100,
+                "event_at": "2026-09-11T23:49:55Z",
+            },
+            {
+                "id": "github-issue:organicoverlords/tiny3d#442:b",
+                "source_type": "GITHUB_ISSUE", "github_repo": "organicoverlords/tiny3d",
+                "github_kind": "issue", "github_number": 442, "github_comment_count": 100,
+                "event_at": "2026-09-11T23:49:07Z",
+            },
+        ]
+        detail = {"body": "full", "comments": [{"body": f"c{i}"} for i in range(206)]}
+        with patch("tools.timeline_materializer._run_json", return_value=(detail, None)) as run_json:
+            repaired, errors = _repair_legacy_capped_github_comments(snapshots)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(repaired), 2)
+        self.assertTrue(all(row["github_comments_complete"] for row in repaired))
+        self.assertTrue(all(row["github_comment_count"] == 206 for row in repaired))
+        self.assertEqual(run_json.call_count, 1)
+        self.assertIn("issue view 442", " ".join(run_json.call_args.args[0]))
+
+    def test_github_adapter_completes_threads_that_hit_nested_comment_cap(self):
+        spec = RepoSpec("mcp", Path("C:/fake/mcp"))
+        now = "2026-09-06T05:00:00Z"
+        capped_comments = [{"body": f"c{i}"} for i in range(100)]
+        full_issue_comments = [{"body": f"issue-{i}"} for i in range(206)]
+        full_pr_comments = [{"body": f"pr-{i}"} for i in range(131)]
+        issue = [{
+            "number": 442, "title": "Deep issue", "state": "OPEN", "createdAt": now, "updatedAt": now,
+            "closedAt": None, "url": "https://example/442", "body": "base issue", "comments": capped_comments,
+        }]
+        issue_detail = {"body": "full issue", "comments": full_issue_comments}
+        pr = [{
+            "number": 244, "title": "Deep PR", "state": "MERGED", "createdAt": now, "updatedAt": now,
+            "closedAt": now, "mergedAt": now, "url": "https://example/244", "headRefName": "topic",
+            "baseRefName": "main", "headRefOid": "a" * 40, "body": "base pr", "comments": capped_comments,
+        }]
+        pr_detail = {"body": "full pr", "comments": full_pr_comments}
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/chatgpt-mcp-clean"), patch(
+            "tools.timeline_materializer._run_json",
+            side_effect=[(issue, None), (issue_detail, None), (pr, None), (pr_detail, None), ([], None), ([], None)],
+        ) as run_json:
+            events, coverage = github_events([spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+        issue_event = next(event for event in events if event["source_type"] == "GITHUB_ISSUE")
+        pr_event = next(event for event in events if event["source_type"] == "GITHUB_PR")
+        self.assertEqual(issue_event["github_comment_count"], 206)
+        self.assertEqual(pr_event["github_comment_count"], 131)
+        self.assertTrue(issue_event["github_comments_complete"])
+        self.assertTrue(pr_event["github_comments_complete"])
+        self.assertEqual(coverage["errors"], [])
+        commands = [" ".join(call.args[0]) for call in run_json.call_args_list]
+        self.assertIn("issue view 442", commands[1])
+        self.assertIn("pr view 244", commands[3])
+        self.assertEqual(run_json.call_args_list[1].kwargs.get("timeout"), 120)
+        self.assertEqual(run_json.call_args_list[3].kwargs.get("timeout"), 120)
 
     def test_github_adapter_marks_per_kind_saturation_at_query_limit(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
