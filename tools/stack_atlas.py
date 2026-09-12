@@ -2489,13 +2489,13 @@ def _fit_bootstrap_glance_budget(
     if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
         compact_commands = {
-            "bootstrap": "stack_atlas.py bootstrap-glance",
-            "live_swarm": "stack_atlas.py live-swarm",
-            "fleet_watch": "stack_atlas.py fleet-watch --worker-id <own-automation-id>",
-            "stack_owner": "stack_atlas.py lookup <id-or-alias>",
-            "stack_find": "stack_atlas.py find <query>",
-            "production_change_gate": "stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
-            "memory_overview": "memory_bank.py overview",
+            "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+            "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+            "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
+            "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
+            "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
             "tiny3d_asset_library": "lookup tiny3d_library",
         }
         bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}

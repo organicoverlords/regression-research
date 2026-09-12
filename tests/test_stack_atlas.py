@@ -653,6 +653,37 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["bootstrap"]["payload_budget"]["compaction_target_bytes"], 15_000)
         self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
 
+    def test_bootstrap_compaction_keeps_stack_commands_directly_executable(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "commands": {
+                "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+                "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+                "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+                "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
+                "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
+                "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+                "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
+                "tiny3d_asset_library": "lookup tiny3d_library",
+            },
+            "paths": {
+                "rules": r"C:\Users\Lauri\.agents\RULES.md",
+                "agents": r"C:\Users\Lauri\.agents\AGENTS.md",
+                "vault": r"C:\Users\Lauri\Desktop\vault",
+                "synthetic_bloat": "x" * 20_000,
+            },
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        commands = fitted["commands"]
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(commands["live_swarm"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm")
+        self.assertEqual(commands["stack_find"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>")
+        self.assertEqual(commands["memory_overview"], r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview")
+        self.assertLessEqual(
+            len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8")),
+            BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
+        )
+
     def test_bootstrap_mcp_service_health_source_detail_is_bounded(self):
         glance = {
             "bootstrap": {"status": "OK"},
