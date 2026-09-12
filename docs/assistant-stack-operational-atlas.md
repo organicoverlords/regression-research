@@ -25,6 +25,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `mcp.security_reroute_log` | agent_rules, mcp_minimal_clone, vps_edge_ingress, memory_bank | C:\Users\Lauri\Desktop\vault\02 Evidence\mcp-security-routing-events.jsonl; C:\Users\Lauri\Desktop\vault\04 Operating Contracts\mcp-recovery-state.json; C:\Users\Lauri\.agents\RULES.md | When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes. |
 | `vault.overview` | memory_bank | python tools\memory_bank.py overview; python tools\memory_bank.py digest; python tools\stack_atlas.py find <natural-language-query> | Default bounded Vault orientation: aggregate durable/historical memory evidence into useful themes and recent items without treating Vault as current repo/runtime/scheduler truth. Use targeted context/timeline only after the overview identifies a relevant thread. |
 | `vault.history` | memory_bank | python tools\stack_atlas.py find <natural-language-query>; drill-down only: python tools\memory_bank.py context <query>; drill-down only: python tools\memory_bank.py timeline <query>; exact-known-memory only: python tools\memory_bank.py recent-titles | Unified discovery starts with Stack Atlas find. Memory/timeline commands are second-stage historical drill-down only; never recursive Vault scans or current-state inference. |
+| `runtime.deployment_graph` | stack_atlas, bootstrap_snapshot, timeline_materializer | python tools\stack_atlas.py find <natural-language-query>; exact owner drill-down: python tools\stack_atlas.py lookup <component-or-feature> | Runtime/deployment structure is an evidence class inside the one unified find surface, not a second search system. It maps bounded declared source -> deployed artifact -> exact scheduler/task entrypoint -> output/consumer relationships and labels observed drift. No recursive scan, broad Scheduled Task enumeration, or separate runtime registry service; current liveness and mutation truth remain with the returned named owner/runtime evidence. |
 | `project.current_truth` | agent_rules, north_star, local_git, github | shared .agents RULES.md + AGENTS.md; organicoverlords/agents@main docs/repos/<repo>/ product direction; git status/HEAD + relevant branch/commit history; exact GitHub issue/PR/check/runtime evidence | Current project truth comes from the smallest relevant live authority, not Atlas, memory, reports, or dashboards. |
 | `project.nexus_navigation` | north_star, local_git, github | C:\Users\Lauri\AppData\Local\nexus; organicoverlords/agents@main docs/repos/dev-progress-board/NORTH_STAR.md; git -C %LOCALAPPDATA%\nexus status --short --branch; gh issue list -R organicoverlords/nexus; gh pr list -R organicoverlords/nexus | Navigation only. Nexus product direction lives in organicoverlords/agents@main under docs/repos/dev-progress-board; current Nexus repo/worktree state, exact GitHub issue/PR state, and repo-owned runtime evidence remain implementation/runtime authority. Atlas must not infer Nexus liveness, progress, or delivery state from static paths or old board snapshots. |
 | `project.tiny3d_asset_library` | local_git, visual_proof | C:\Users\Lauri\Desktop\Tiny3D_LIBRARY; C:\Users\Lauri\Desktop\Tiny3D_LIBRARY\.tiny3d\library\unified-asset-inventory-v1.json; C:\Users\Lauri\Desktop\Tiny3D_LIBRARY\.tiny3d\library\showroom-v2-catalog-v1.json; $env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; python -m tiny3d library search <query> --workspace 'C:\Users\Lauri\Desktop\Tiny3D_LIBRARY'; $env:PYTHONPATH='C:\Users\Lauri\Desktop\tiny3d\src'; python -m tiny3d library show <asset-id> --workspace 'C:\Users\Lauri\Desktop\Tiny3D_LIBRARY'; python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup tiny3d_library --query <asset-or-name> | Navigation only; Tiny3D repo/library data remain product authority. Use the canonical production workspace, bounded library search/show, and receipt-declared proof paths. Do not recursively scan, fetch LFS, unzip, regenerate previews, re-encode media, or hunt producer paths merely to inspect evidence. Producer/runtime PASS and independent visual review are separate states. |
@@ -241,14 +242,40 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 - Role: `derived:stack-atlas-navigation`
 - Capabilities: source_read, runtime_validate
-- Canonical sources: organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md; C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py; C:\\Users\\Lauri\\Desktop\\vault\\docs\\assistant-stack-operational-atlas.md
+- Canonical sources: organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md; C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py; C:\\Users\\Lauri\\Desktop\\vault\\tools\\runtime_dependency_graph.py; C:\\Users\\Lauri\\Desktop\\vault\\docs\\assistant-stack-operational-atlas.md
 - Live status: python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py bootstrap-glance; python C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py lookup stack_atlas
 - Independent recovery: read canonical agent rules, project direction, and named live/source authorities directly; Atlas unavailability is not a permission gate
-- Resources: Stack Atlas North Star; derived component map; feature index; generated operational manual
+- Resources: Stack Atlas North Star; derived component map; feature index; runtime deployment graph; generated operational manual
 - Dependents: chatgpt_session; execution_workers
 - Runbook: organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md
 - Supervisor: none; derived map generated from named authorities
 - Self-heal: not_applicable
+
+### `bootstrap_snapshot`
+
+- Role: `runtime:persistent-bootstrap-producer`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: tools/install_bootstrap_snapshot_task.ps1; tools/bootstrap_read_loop.py; tools/memory_recent_projection.py; tools/stack_atlas.py
+- Live status: exact Windows tasks VaultBootstrapSnapshot + VaultBootstrapSnapshotWatchdog; %LOCALAPPDATA%\VaultBootstrapSnapshot\bootstrap_read_loop.py; %LOCALAPPDATA%\VaultBootstrapSnapshot\stack_atlas.py; C:\Users\Lauri\Desktop\vault\.state\bootstrap\latest.json
+- Independent recovery: tools/install_bootstrap_snapshot_task.ps1; %LOCALAPPDATA%\VaultBootstrapSnapshot rollback-* copies
+- Resources: %LOCALAPPDATA%\VaultBootstrapSnapshot; .state\bootstrap\latest.json; .state\bootstrap\producer-status.json; MCP persistent process_id=bootstrap
+- Dependents: stack_atlas; chatgpt_session; execution_workers
+- Runbook: organicoverlords/regression-research#987; organicoverlords/regression-research#1025
+- Supervisor: Windows Task Scheduler; producer owns bounded Atlas child lifecycle
+- Self-heal: watchdog can publish an honest degraded heartbeat; installer redeploys source copies
+
+### `timeline_materializer`
+
+- Role: `runtime:materialized-history-producer`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: tools/timeline_materializer.py; tools/memory_bank.py; tools/memory_git_sync.py; tools/memory_timeline.py; tools/repo_timeline.py; tools/worker_report_history.py
+- Live status: exact Windows task Vault Timeline Materializer; %LOCALAPPDATA%\VaultTimeline\timeline-store.json; %LOCALAPPDATA%\VaultTimeline\timeline-query-index.pkl; %LOCALAPPDATA%\VaultTimeline\status.json
+- Independent recovery: python tools	imeline_materializer.py refresh --rebuild; validated runtime install-task path
+- Resources: %LOCALAPPDATA%\VaultTimeline; materialized Timeline/query index
+- Dependents: stack_atlas; memory_bank; chatgpt_session; execution_workers
+- Runbook: organicoverlords/regression-research#820
+- Supervisor: Windows Task Scheduler; commit-addressed runtime owns periodic materialization
+- Self-heal: derived state is rebuildable from canonical/history sources
 
 ### `chatgpt_memory`
 

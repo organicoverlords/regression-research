@@ -304,6 +304,11 @@ COMPONENT_ALIASES = {
     "repo rules": "repo_rule_pointer",
     "atlas": "stack_atlas",
     "stack atlas": "stack_atlas",
+    "bootstrap snapshot": "bootstrap_snapshot",
+    "vault bootstrap snapshot": "bootstrap_snapshot",
+    "bootstrap producer": "bootstrap_snapshot",
+    "timeline materializer": "timeline_materializer",
+    "vault timeline materializer": "timeline_materializer",
 }
 
 ATLAS_CONTRACT = {
@@ -596,6 +601,7 @@ COMPONENTS.update({
         "canonical_sources": [
             "organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md",
             r"C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py",
+            r"C:\\Users\\Lauri\\Desktop\\vault\\tools\\runtime_dependency_graph.py",
             r"C:\\Users\\Lauri\\Desktop\\vault\\docs\\assistant-stack-operational-atlas.md",
         ],
         "live_status": [
@@ -607,9 +613,33 @@ COMPONENTS.update({
         "independent_recovery": [
             "read canonical agent rules, project direction, and named live/source authorities directly; Atlas unavailability is not a permission gate"
         ],
-        "resources": ["Stack Atlas North Star", "derived component map", "feature index", "generated operational manual"],
+        "resources": ["Stack Atlas North Star", "derived component map", "feature index", "runtime deployment graph", "generated operational manual"],
         "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md"],
+    },
+    "bootstrap_snapshot": {
+        "role": "runtime:persistent-bootstrap-producer",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": ["tools/install_bootstrap_snapshot_task.ps1", "tools/bootstrap_read_loop.py", "tools/memory_recent_projection.py", "tools/stack_atlas.py"],
+        "live_status": ["exact Windows tasks VaultBootstrapSnapshot + VaultBootstrapSnapshotWatchdog", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\bootstrap_read_loop.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\stack_atlas.py", r"C:\Users\Lauri\Desktop\vault\.state\bootstrap\latest.json"],
+        "supervisor": "Windows Task Scheduler; producer owns bounded Atlas child lifecycle",
+        "self_heal": "watchdog can publish an honest degraded heartbeat; installer redeploys source copies",
+        "independent_recovery": ["tools/install_bootstrap_snapshot_task.ps1", r"%LOCALAPPDATA%\VaultBootstrapSnapshot rollback-* copies"],
+        "resources": [r"%LOCALAPPDATA%\VaultBootstrapSnapshot", r".state\bootstrap\latest.json", r".state\bootstrap\producer-status.json", "MCP persistent process_id=bootstrap"],
+        "dependents": ["stack_atlas", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#987", "organicoverlords/regression-research#1025"],
+    },
+    "timeline_materializer": {
+        "role": "runtime:materialized-history-producer",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": ["tools/timeline_materializer.py", "tools/memory_bank.py", "tools/memory_git_sync.py", "tools/memory_timeline.py", "tools/repo_timeline.py", "tools/worker_report_history.py"],
+        "live_status": ["exact Windows task Vault Timeline Materializer", r"%LOCALAPPDATA%\VaultTimeline\timeline-store.json", r"%LOCALAPPDATA%\VaultTimeline\timeline-query-index.pkl", r"%LOCALAPPDATA%\VaultTimeline\status.json"],
+        "supervisor": "Windows Task Scheduler; commit-addressed runtime owns periodic materialization",
+        "self_heal": "derived state is rebuildable from canonical/history sources",
+        "independent_recovery": ["python tools\timeline_materializer.py refresh --rebuild", "validated runtime install-task path"],
+        "resources": [r"%LOCALAPPDATA%\VaultTimeline", "materialized Timeline/query index"],
+        "dependents": ["stack_atlas", "memory_bank", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#820"],
     },
     "chatgpt_memory": {
         "role": "context:disabled-product-memory", "capabilities": ["memory_read"],
@@ -800,6 +830,19 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
         "entrypoints": ["python tools\\stack_atlas.py find <natural-language-query>", "drill-down only: python tools\\memory_bank.py context <query>", "drill-down only: python tools\\memory_bank.py timeline <query>", "exact-known-memory only: python tools\\memory_bank.py recent-titles"],
         "boundary": "Unified discovery starts with Stack Atlas find. Memory/timeline commands are second-stage historical drill-down only; never recursive Vault scans or current-state inference.",
+    },
+    "runtime.deployment_graph": {
+        "owner_components": ["stack_atlas", "bootstrap_snapshot", "timeline_materializer"],
+        "triggers": [
+            "runtime graph", "deployment graph", "dependency graph", "runtime dependency",
+            "deployed script", "runtime copy", "scheduled task", "scheduler task",
+            "runtime drift", "deployment drift", "what actually runs", "what runs this",
+        ],
+        "entrypoints": [
+            "python tools\\stack_atlas.py find <natural-language-query>",
+            "exact owner drill-down: python tools\\stack_atlas.py lookup <component-or-feature>",
+        ],
+        "boundary": "Runtime/deployment structure is an evidence class inside the one unified find surface, not a second search system. It maps bounded declared source -> deployed artifact -> exact scheduler/task entrypoint -> output/consumer relationships and labels observed drift. No recursive scan, broad Scheduled Task enumeration, or separate runtime registry service; current liveness and mutation truth remain with the returned named owner/runtime evidence.",
     },
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
@@ -3788,6 +3831,41 @@ def _tiny3d_lookup_projection(query: str) -> dict[str, Any]:
         }
 
 
+def _runtime_graph_for_components_safe(component_ids: Iterable[str]) -> dict[str, Any]:
+    """Load deployment-graph code only for lookup/find so bootstrap-glance has no new runtime import."""
+    try:
+        from tools.runtime_dependency_graph import runtime_graph_for_components
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import runtime_graph_for_components
+        except ModuleNotFoundError as exc:
+            return {
+                "schema": "stack-atlas.runtime-deployment-graph.v1",
+                "authority": "DERIVED_DEPLOYMENT_NAVIGATION",
+                "surfaces": [],
+                "coverage": {"status": "UNAVAILABLE", "error": str(exc)},
+            }
+    return runtime_graph_for_components(component_ids, root=ATLAS_LIVE_ROOT)
+
+
+def _runtime_graph_search_safe(query: str, limit: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Fail-soft bounded runtime/deployment discovery; no broad scheduler enumeration."""
+    try:
+        from tools.runtime_dependency_graph import search_runtime_dependency_graph
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import search_runtime_dependency_graph
+        except ModuleNotFoundError as exc:
+            return [], {
+                "status": "UNAVAILABLE",
+                "authority": "DERIVED_DEPLOYMENT_NAVIGATION",
+                "error": str(exc),
+                "network_fanout": False,
+                "broad_task_enumeration": False,
+            }
+    return search_runtime_dependency_graph(query, root=ATLAS_LIVE_ROOT, limit=limit)
+
+
 def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
     """Resolve a stack component or exact feature target, optionally with bounded Tiny3D evidence."""
     requested = name
@@ -3812,6 +3890,12 @@ def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
             raise ValueError("lookup --query is supported only for tiny3d_library/asset catalogue/showroom targets")
         result = dict(result)
         result["current_projection"] = _tiny3d_lookup_projection(query)
+
+    component_ids = [result["id"]] if result.get("id") in COMPONENTS else list(result.get("owner_components") or [])
+    runtime_graph = _runtime_graph_for_components_safe(component_ids)
+    if runtime_graph.get("surfaces"):
+        result = dict(result)
+        result["runtime_graph"] = runtime_graph
     return result
 
 
@@ -4573,16 +4657,18 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             "history_hits": [],
             "git_hits": [],
             "runtime_hits": [],
+            "runtime_graph_hits": [],
             "github_cache_hits": [],
             "evidence_clusters": [],
             "coverage": {},
         }
     started = time.perf_counter()
     atlas_hits = find_features(query, effective_limit)
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         history_future = pool.submit(_timeline_discovery_hits, query, effective_limit)
         live_future = pool.submit(_live_discovery_hits, query, effective_limit)
         github_cache_future = pool.submit(_search_gh_buffer_cache, query, effective_limit)
+        runtime_graph_future = pool.submit(_runtime_graph_search_safe, query, min(3, effective_limit))
         try:
             history_hits, history_coverage = history_future.result()
         except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
@@ -4595,6 +4681,10 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             github_cache_hits, github_cache_coverage = github_cache_future.result()
         except Exception as exc:
             github_cache_hits, github_cache_coverage = [], {"status": "ERROR", "error": str(exc), "network_fanout": False}
+        try:
+            runtime_graph_hits, runtime_graph_coverage = runtime_graph_future.result()
+        except Exception as exc:
+            runtime_graph_hits, runtime_graph_coverage = [], {"status": "ERROR", "error": str(exc), "network_fanout": False, "broad_task_enumeration": False}
     git_hits = [
         hit for hit in history_hits
         if hit.get("kind") == "git_commit" or bool(hit.get("branches"))
@@ -4611,6 +4701,7 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
         "history_hits": history_hits,
         "git_hits": git_hits,
         "runtime_hits": runtime_hits,
+        "runtime_graph_hits": runtime_graph_hits,
         "github_cache_hits": github_cache_hits,
         "evidence_clusters": evidence_clusters,
         "coverage": {
@@ -4625,8 +4716,9 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
                 "repo_content_scan": False,
             },
             "github_cache": github_cache_coverage,
+            "runtime_graph": runtime_graph_coverage,
         },
-        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan and no GitHub network fanout. Local Git commits/branches, MCP/runtime receipts and transport/watchdog events, CI/runner evidence, worker reports, artifacts, and materialized history are searched locally; GitHub detail comes from materialized history plus the local gh-buffer cache. Evidence clusters are correlation windows only, never shared truth.",
+        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan, broad Scheduled Task enumeration, or GitHub network fanout. Local Git commits/branches, MCP/runtime receipts and transport/watchdog events, CI/runner evidence, worker reports, artifacts, materialized history, and bounded deployment/runtime graph slices are searched locally. GitHub detail comes from materialized history plus the local gh-buffer cache. Evidence clusters are correlation windows only, never shared truth; runtime graph observations label exact local task/file state but do not replace the owning runtime authority.",
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
     }
 

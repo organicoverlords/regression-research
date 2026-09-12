@@ -2102,19 +2102,42 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn(expected, details["canonical_sources"])
         self.assertTrue(Path(expected).exists())
 
-    def test_unified_find_composes_atlas_live_and_materialized_history_without_changing_find_features(self):
+    def test_unified_find_composes_atlas_live_history_and_runtime_graph_without_changing_find_features(self):
         atlas_before = find_features("commander fallback", limit=2)
         live = [{"kind": "live_workspace", "workspace": "ponytail-upstream-read-20260911"}]
         history = [{"kind": "github_issue", "reference": "organicoverlords/regression-research#861"}]
+        runtime_graph = [{"surface_id": "vault.bootstrap_snapshot", "status": "OK"}]
         with patch("tools.stack_atlas._live_discovery_hits", return_value=(live, {"status": "OK"})), \
-                patch("tools.stack_atlas._timeline_discovery_hits", return_value=(history, {"status": "OK"})):
+                patch("tools.stack_atlas._timeline_discovery_hits", return_value=(history, {"status": "OK"})), \
+                patch("tools.stack_atlas._search_gh_buffer_cache", return_value=([], {"status": "OK"})), \
+                patch("tools.stack_atlas._runtime_graph_search_safe", return_value=(runtime_graph, {"status": "OK", "broad_task_enumeration": False})):
             result = unified_find("commander fallback", limit=2)
         self.assertEqual(result["schema"], "stack-atlas.discovery.v1")
         self.assertEqual(result["atlas_hits"], atlas_before)
         self.assertEqual(result["live_hits"], live)
         self.assertEqual(result["history_hits"], history)
+        self.assertEqual(result["runtime_graph_hits"], runtime_graph)
+        self.assertFalse(result["coverage"]["runtime_graph"]["broad_task_enumeration"])
         self.assertEqual(find_features("commander fallback", limit=2), atlas_before)
         self.assertIn("Discovery only", result["boundary"])
+
+    def test_runtime_deployment_graph_is_discoverable_inside_unified_find_model(self):
+        feature = find_features("runtime deployment graph", limit=3)[0]
+        self.assertEqual(feature["id"], "runtime.deployment_graph")
+        self.assertIn("one unified find surface", feature["boundary"])
+        self.assertIn("No recursive scan", feature["boundary"])
+
+    def test_bootstrap_snapshot_lookup_attaches_same_runtime_graph_surface(self):
+        graph = {
+            "schema": "stack-atlas.runtime-deployment-graph.v1",
+            "surfaces": [{"surface_id": "vault.bootstrap_snapshot", "status": "OK"}],
+            "coverage": {"status": "OK"},
+        }
+        with patch("tools.stack_atlas._runtime_graph_for_components_safe", return_value=graph) as runtime_graph:
+            result = atlas_lookup("bootstrap snapshot")
+        self.assertEqual(result["id"], "bootstrap_snapshot")
+        self.assertEqual(result["runtime_graph"], graph)
+        runtime_graph.assert_called_once_with(["bootstrap_snapshot"])
 
     def test_live_discovery_distinguishes_busy_handoff_from_runtime_caller_activity(self):
         snapshot = {
