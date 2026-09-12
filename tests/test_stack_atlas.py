@@ -1,4 +1,3 @@
-import copy
 import io
 import json
 import os
@@ -23,6 +22,7 @@ from tools.stack_atlas import (
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
     BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
     BOOTSTRAP_GLANCE_MAX_BYTES,
+    BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     CANONICAL_RECURRING_WORKERS,
     CANONICAL_RECURRING_WORKER_PARTITIONS,
@@ -60,7 +60,6 @@ from tools.stack_atlas import (
     _compact_memory_overview,
     _fit_memory_overview_budget,
     _fit_bootstrap_glance_budget,
-    _deduplicate_bootstrap_runtime_views,
     _bootstrap_memory_overview,
     _bootstrap_mcp_from_live_swarm,
     _bootstrap_agent_contract_version,
@@ -129,104 +128,6 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(drifted["status"], "DRIFTED")
             self.assertIn("AGENTS:uncertainty", drifted["missing"])
             self.assertIn("AGENTS:inherit", drifted["missing"])
-
-    def test_bootstrap_runtime_dedupe_preserves_unique_mcp_and_worker_context(self):
-        snapshot = {
-            "available": True,
-            "summary": {"recent_callers": 2, "lanes": 1, "busy_owners": 0, "workspace_counts": {"Vault": 2}},
-            "evidence": {
-                "transport": "MCPv4", "transport_source_count": 2, "source_age_seconds": 0.5,
-                "activity_window_seconds": 300, "observation_window_complete": True, "activity_window_complete": True,
-                "activity_summary": {"starts": 2, "reads": 3, "exits": 2, "kills": 0, "nonzero_exits": 0},
-            },
-            "lanes": [{
-                "workspace": "Vault", "worktree": {"path": r"C:\work"}, "busy": [],
-                "callers": [
-                    {"caller_id": "c1", "last_activity_age_seconds": 1.0},
-                    {"caller_id": "c2", "last_activity_age_seconds": 2.0},
-                ],
-            }],
-        }
-        mcp = _bootstrap_mcp_from_live_swarm(snapshot)
-        mcp.update({
-            "authority": "live_swarm_runtime_evidence",
-            "service_health": {"available": True, "status": "LIVE", "backend_generation": "g1"},
-        })
-        workers = {"current_activity": {
-            "authority": "live_swarm_runtime_evidence",
-            "population_scope": "unified_recurring_and_manual_on_demand_activity",
-            "recent_callers": 2, "lanes": 1, "busy_owners": 0,
-            "activity_window_seconds": 300, "observation_window_complete": True, "source_age_seconds": 0.5,
-            "manual_run": {"run_id": "manual-1"},
-        }}
-        glance = {"live_swarm": copy.deepcopy(snapshot), "mcp": mcp, "workers": workers}
-        canonical_before = copy.deepcopy(glance["live_swarm"])
-        service_health_before = copy.deepcopy(glance["mcp"]["service_health"])
-
-        self.assertTrue(_deduplicate_bootstrap_runtime_views(glance))
-
-        self.assertEqual(glance["live_swarm"], canonical_before)
-        self.assertEqual(glance["mcp"]["activity_ref"], "#/live_swarm")
-        for key in ("source_age_seconds", "transport", "transport_source_count", "active_session_count", "active_sessions", "workspace_counts", "activity_summary"):
-            self.assertNotIn(key, glance["mcp"])
-        self.assertEqual(glance["mcp"]["service_health"], service_health_before)
-        self.assertEqual(glance["mcp"]["authority"], "live_swarm_runtime_evidence")
-        self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
-        current = glance["workers"]["current_activity"]
-        self.assertEqual(current["runtime_ref"], "#/live_swarm")
-        self.assertEqual(current["population_scope"], "unified_recurring_and_manual_on_demand_activity")
-        self.assertEqual(current["manual_run"], {"run_id": "manual-1"})
-        for key in ("recent_callers", "lanes", "busy_owners", "activity_window_seconds", "observation_window_complete", "source_age_seconds"):
-            self.assertNotIn(key, current)
-
-    def test_bootstrap_runtime_dedupe_is_equality_gated(self):
-        snapshot = {
-            "available": True,
-            "summary": {"recent_callers": 0, "workspace_counts": {}},
-            "evidence": {
-                "transport": "MCPv4", "transport_source_count": 1, "source_age_seconds": 0.5,
-                "activity_window_complete": True, "observation_window_complete": True, "activity_summary": {},
-            },
-            "lanes": [],
-        }
-        mcp = _bootstrap_mcp_from_live_swarm(snapshot)
-        mcp["transport"] = "MCPvX"
-        glance = {"live_swarm": snapshot, "mcp": mcp}
-        self.assertTrue(_deduplicate_bootstrap_runtime_views(glance))
-        self.assertEqual(glance["mcp"]["transport"], "MCPvX")
-        self.assertEqual(glance["mcp"]["activity_ref"], "#/live_swarm")
-
-    def test_bootstrap_runtime_dedupe_reduces_fifteen_caller_payload_without_new_truncation(self):
-        callers = [{"caller_id": f"c{i:02d}", "last_activity_age_seconds": float(i)} for i in range(15)]
-        snapshot = {
-            "available": True,
-            "summary": {"recent_callers": 15, "lanes": 1, "busy_owners": 0, "workspace_counts": {"Vault": 15}},
-            "evidence": {
-                "transport": "MCPv4", "transport_source_count": 3, "source_age_seconds": 0.4,
-                "activity_window_seconds": 300, "observation_window_complete": True, "activity_window_complete": True,
-                "activity_summary": {"starts": 30, "reads": 45, "exits": 30, "kills": 0, "nonzero_exits": 1},
-            },
-            "lanes": [{"workspace": "Vault", "worktree": {"path": r"C:\vault"}, "busy": [], "callers": callers}],
-            "lanes_truncated": False,
-        }
-        mcp = _bootstrap_mcp_from_live_swarm(snapshot)
-        mcp["service_health"] = {"available": True, "status": "LIVE", "sources": [{"instance": "a"}, {"instance": "b"}]}
-        workers = {"current_activity": {
-            "authority": "live_swarm_runtime_evidence", "population_scope": "unified_recurring_and_manual_on_demand_activity",
-            "recent_callers": 15, "lanes": 1, "busy_owners": 0, "activity_window_seconds": 300,
-            "observation_window_complete": True, "source_age_seconds": 0.4,
-        }}
-        glance = {"live_swarm": copy.deepcopy(snapshot), "mcp": mcp, "workers": workers}
-        before = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        canonical_before = copy.deepcopy(glance["live_swarm"])
-
-        self.assertTrue(_deduplicate_bootstrap_runtime_views(glance))
-
-        after = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertGreater(before - after, 300)
-        self.assertEqual(glance["live_swarm"], canonical_before)
-        self.assertFalse(glance["live_swarm"]["lanes_truncated"])
-        self.assertEqual(len(glance["live_swarm"]["lanes"][0]["callers"]), 15)
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
@@ -567,8 +468,8 @@ class StackAtlasTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
         self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 50_000)
-        self.assertEqual(BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES, 50_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 25_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES, 15_000)
         self.assertEqual(next(iter(glance)), "bootstrap_warning")
         self.assertEqual(next(reversed(glance)), "bootstrap_end")
         self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
@@ -577,19 +478,16 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
-        self.assertEqual(glance["mcp"]["activity_ref"], "#/live_swarm")
+        self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
         self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
-        self.assertNotIn("active_session_count", glance["mcp"])
-        self.assertNotIn("active_sessions", glance["mcp"])
-        self.assertNotIn("workspace_counts", glance["mcp"])
-        self.assertIn("recent_callers", glance["live_swarm"]["summary"])
-        self.assertIn("workspace_counts", glance["live_swarm"]["summary"])
-        self.assertTrue(glance["bootstrap"]["payload_budget"]["deduplicated"])
-        self.assertFalse(glance["bootstrap"]["payload_budget"]["compacted"])
-        self.assertFalse(glance["bootstrap"]["payload_budget"]["lossy_compaction"])
-        self.assertEqual(glance["bootstrap"]["payload_budget"]["policy"], "deduplicate_only_fail_closed")
-        self.assertIn("transport_sources", glance["live_swarm"])
-        self.assertNotIn("lanes_truncated", glance["live_swarm"])
+        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
+        self.assertIn("workspace_counts", glance["mcp"])
+        for session in glance["mcp"]["active_sessions"]:
+            self.assertIn("caller_id", session)
+            self.assertIn("cwd", session)
+            self.assertIn("workspace", session)
+            self.assertIn("busy_titles", session)
+            self.assertLessEqual(session["activity_age_seconds"], 300)
         self.assertNotIn("notable_conditions", glance)
         self.assertNotIn("latest_archived_per_worker", glance["workers"])
         self.assertNotIn("fleet", glance["workers"])
@@ -598,7 +496,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn('"state":"RUNNING"', json.dumps(glance["workers"], separators=(",", ":")))
         self.assertEqual(glance["workers"]["current_activity"]["authority"], "live_swarm_runtime_evidence")
         self.assertEqual(glance["workers"]["current_activity"]["population_scope"], "unified_recurring_and_manual_on_demand_activity")
-        self.assertEqual(glance["workers"]["current_activity"]["runtime_ref"], "#/live_swarm")
         self.assertNotIn("fleet_watch", glance["workers"])
         self.assertNotIn("component_statuses", glance["bootstrap"])
         self.assertNotIn("recent_memory_titles", glance)
@@ -665,62 +562,129 @@ class StackAtlasTests(unittest.TestCase):
         path_call.assert_called_once_with("node-a", "node-b", surface_id="surface-y")
         self.assertEqual(json.loads(path_output.getvalue()), path_value)
 
-    def test_bootstrap_budget_preserves_unique_detail_without_lossy_compaction(self):
+    def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "mcp_recovery_state": {
-                "path": r"C:\vault\mcp-recovery-state.json",
-                "conditions": [{
-                    "type": "Ready", "status": "Unknown", "reason": "BoundedReason",
-                    "message": "full unique recovery detail", "observed_generation": "generation-123",
-                }],
+                "path": r"C:\\vault\\mcp-recovery-state.json",
+                "conditions": [
+                    {
+                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
+                        "message": "detail " * 120, "observed_generation": "g" * 80,
+                        "last_transition_at": "2026-09-06T18:00:00Z",
+                    }
+                    for i in range(5)
+                ],
+            },
+            "memory_overview": {
+                "contract": "history only", "eligible_entries": 400,
+                "timeline_snapshots": {
+                    "authority": "DERIVED_HISTORY_ONLY",
+                    "narrative": {"primary": "cases", "read_order": "cases>work_graph>evidence_density>context_only"},
+                    "windows": [{
+                        "window": "24h", "cases": {"total": 20, "red": 1}, "observations": 5000,
+                        "case_examples": [{"id": "case:important", "title": "important case", "support": "mixed"}],
+                        "highlights": [{"title": "x" * 500} for _ in range(8)],
+                    }],
+                },
+                "timeline_materialized": {"status": "FRESH", "coverage_status": "HISTORICAL_INCOMPLETE"},
+                "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
             },
             "source_freshness": {
-                "available": True,
-                "meaning": "full unique freshness meaning",
-                "cache": {"used": True, "age_seconds": 1},
-                "sources": {"RULES.md": {"path": r"C:\rules", "last_update_commit": "abc123"}},
+                "available": True, "attention_required": True, "updates_pending": False,
+                "meaning": "detail " * 120, "cache": {"used": True, "age_seconds": 1},
+                "sources": {
+                    "RULES.md": {"path": "p" * 500, "last_update_commit": "a" * 40, "last_updated_at": "2026-09-06T18:00:00Z", "local_last_committed_at": "2026-09-06T18:00:00Z", "local_matches_remote_main": False, "local_differs_from_remote_main": True, "updates_pending": False},
+                },
             },
-            "workers": {"manual_sanity": {"status": "PROVISIONAL", "components": {"metric": {"delta": 1}}}},
-            "commands": {"custom": "python custom.py --full-command"},
-            "paths": {"custom": r"C:\full\unique\path"},
+            "mcp": {
+                "active_session_count": 9, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 9},
+                "active_sessions": [{"caller_id": f"caller-{i}", "cwd": "C:\\" + ("x" * 350), "workspace": "Vault", "busy_titles": []} for i in range(4)],
+            },
+            "workers": {
+                "attention": [{"worker": f"w{i}", "detail": "x" * 300} for i in range(4)], "stale_reports": [],
+                "manual_sanity": {
+                    "available": True, "path": "p" * 500, "baseline_id": "baseline", "boundary_at": "2026-09-06T21:26:41+03:00",
+                    "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                    "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
+                    "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
+                    "semantics": "diagnostic detail " * 100,
+                },
+            },
+            "paths": {"mcp_recovery_state": r"C:\\vault\\mcp-recovery-state.json"},
+            "commands": {"stack_owner": "python tools/stack_atlas.py lookup <id>"},
         }
-        before = copy.deepcopy(glance)
+        memory_before = json.loads(json.dumps(glance["memory_overview"]))
         fitted = _fit_bootstrap_glance_budget(glance)
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["lossy_compaction"])
-        for key in ("mcp_recovery_state", "source_freshness", "workers", "commands", "paths"):
-            self.assertEqual(fitted[key], before[key])
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["mcp"]["active_session_count"], 9)
+        self.assertEqual(fitted["mcp"]["workspace_counts"], {"Vault": 9})
+        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
+        self.assertTrue(fitted["source_freshness"]["attention_required"])
+        self.assertTrue(fitted["source_freshness"]["sources"]["RULES.md"]["local_differs_from_remote_main"])
+        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
+        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
+        self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
+        self.assertEqual(fitted["memory_overview"], memory_before)
 
-    def test_bootstrap_hard_cap_fails_closed_instead_of_stripping(self):
+    def test_bootstrap_hard_cap_does_not_relax_existing_compaction_target(self):
         glance = {
             "bootstrap": {"status": "OK"},
-            "paths": {"unique_payload": "x" * 4_000},
-            "mcp_recovery_state": {"conditions": [{"message": "must survive"}]},
+            "mcp_recovery_state": {
+                "conditions": [
+                    {
+                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
+                        "message": "detail " * 400, "observed_generation": "g" * 500,
+                    }
+                    for i in range(5)
+                ],
+            },
         }
-        before = copy.deepcopy(glance)
-        with self.assertRaisesRegex(ValueError, "BOOTSTRAP_BUDGET_EXCEEDED_WITHOUT_LOSSY_COMPACTION"):
-            _fit_bootstrap_glance_budget(glance, 2_200)
-        self.assertEqual(glance, before)
+        raw_size = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertGreater(raw_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertLess(raw_size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        fitted = _fit_bootstrap_glance_budget(glance)
+        fitted_size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(fitted_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["max_bytes"], 25_000)
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["compaction_target_bytes"], 15_000)
+        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
 
-    def test_bootstrap_no_loss_preserves_all_stack_commands_and_paths(self):
+    def test_bootstrap_compaction_keeps_stack_commands_directly_executable(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "commands": {
                 "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
                 "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+                "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+                "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
                 "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
-                "custom_unique": "python custom_unique.py --keep-me",
+                "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+                "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
+                "tiny3d_asset_library": "lookup tiny3d_library",
             },
-            "paths": {"synthetic_bloat": "x" * 20_000, "unique_path": r"C:\keep\this\path"},
+            "paths": {
+                "rules": r"C:\Users\Lauri\.agents\RULES.md",
+                "agents": r"C:\Users\Lauri\.agents\AGENTS.md",
+                "vault": r"C:\Users\Lauri\Desktop\vault",
+                "synthetic_bloat": "x" * 20_000,
+            },
         }
         fitted = _fit_bootstrap_glance_budget(glance)
-        self.assertEqual(fitted["commands"], glance["commands"])
-        self.assertEqual(fitted["paths"], glance["paths"])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["lossy_compaction"])
+        commands = fitted["commands"]
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(commands["live_swarm"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm")
+        self.assertEqual(commands["stack_find"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>")
+        self.assertEqual(commands["memory_overview"], r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview")
+        self.assertLessEqual(
+            len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8")),
+            BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
+        )
 
-    def test_bootstrap_mcp_service_health_source_detail_is_preserved(self):
+    def test_bootstrap_mcp_service_health_source_detail_is_bounded(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "mcp": {"active_session_count": 2, "service_health": {
@@ -732,16 +696,20 @@ class StackAtlasTests(unittest.TestCase):
         health = fitted["mcp"]["service_health"]
         self.assertEqual(health["source_count"], 10)
         self.assertEqual(health["live_source_count"], 10)
-        self.assertEqual(len(health["sources"]), 10)
-        self.assertNotIn("source_detail_limit", health)
-        self.assertNotIn("sources_truncated", health)
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(health["source_detail_limit"], BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
+        self.assertTrue(health["sources_truncated"])
+        self.assertEqual(len(health["sources"]), BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
+        self.assertEqual([item["instance"] for item in health["sources"]], [f"source-{i}" for i in range(BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)])
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
 
-    def test_bootstrap_small_budget_fails_without_truncating_manual_sanity_or_sessions(self):
+    def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "workers": {"manual_sanity": {
                 "available": True, "path": "p" * 500, "baseline_id": "baseline",
+                "boundary_at": "2026-09-06T21:26:41+03:00", "status": "PROVISIONAL",
+                "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
+                "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
                 "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
                 "semantics": "diagnostic detail " * 200,
             }},
@@ -750,10 +718,14 @@ class StackAtlasTests(unittest.TestCase):
                 "active_sessions": [{"caller_id": f"c{i}", "cwd": "C:/" + ("x" * 250), "workspace": "Vault", "busy_titles": []} for i in range(4)],
             },
         }
-        before = copy.deepcopy(glance)
-        with self.assertRaisesRegex(ValueError, "BOOTSTRAP_BUDGET_EXCEEDED_WITHOUT_LOSSY_COMPACTION"):
-            _fit_bootstrap_glance_budget(glance, 2_200)
-        self.assertEqual(glance, before)
+        fitted = _fit_bootstrap_glance_budget(glance, 2_200)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(size, 2_200)
+        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 4)
+        self.assertEqual(fitted["mcp"]["active_session_count"], 4)
+        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
+        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
+        self.assertNotIn("components", fitted["workers"]["manual_sanity"])
 
     def test_production_change_gate_requires_specific_scope_basis(self):
         mcp = {
