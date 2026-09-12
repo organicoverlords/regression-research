@@ -53,6 +53,19 @@ class MemoryGitSyncTests(unittest.TestCase):
         git.assert_called_once_with("ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False)
 
 
+    def test_git_child_launch_uses_window_suppression_kwargs(self):
+        completed = subprocess.CompletedProcess([], 0, "", "")
+        with patch(
+            "tools.memory_git_sync._subprocess_window_kwargs",
+            return_value={"creationflags": 0x08000000},
+        ) as window_kwargs, patch(
+            "tools.memory_git_sync.subprocess.run", return_value=completed
+        ) as run:
+            _git("status", check=False)
+        window_kwargs.assert_called_once_with()
+        self.assertEqual(run.call_args.kwargs["creationflags"], 0x08000000)
+
+
     def test_remote_branch_probe_uses_ghbuf_when_available(self):
         existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
         with patch("tools.memory_git_sync._ghbuf_bin", return_value="C:/ghbuf.exe"), patch(
@@ -67,6 +80,11 @@ class MemoryGitSyncTests(unittest.TestCase):
                 "origin", "refs/heads/memory/live",
             ],
         )
+        if __import__("tools.memory_git_sync", fromlist=["IS_WINDOWS"]).IS_WINDOWS:
+            self.assertEqual(
+                run.call_args.kwargs["creationflags"],
+                getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
 
     def test_remote_branch_probe_falls_back_after_ghbuf_operational_error(self):
         proxy_error = subprocess.CompletedProcess([], 1, "", "proxy unavailable")
