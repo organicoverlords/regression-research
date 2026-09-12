@@ -24,6 +24,12 @@ Artifact bytes remain in ChatGPT Library/conversation storage unless a separate 
 
 The search path must not fall back to repository-content grep, recursive repo/Vault scans, or GitHub network fanout. Once discovery resolves an exact owner/path, targeted source reads and implementation tracing are allowed. Bootstrap stays intentionally smaller: it may expose current machine/route/topology/recovery/live-swarm and source freshness/health, but it must not embed Library chronology or the other detailed search histories.
 
+## Timeline state and durability ownership
+
+The canonical memory/timeline runtime must not use an active Git checkout as mutable storage. New durable memory is appended to the external local journal under `%LOCALAPPDATA%\VaultMemory`; the tracked `memory/memory-bank.jsonl` is a seed and `origin/memory/live` is a Git replica/history surface. Publishing that replica may use a detached temporary worktree, but it must never fast-forward, reset, switch, or rewrite the operator/serving checkout. A published local memory remains in the local journal even if the checked-out seed later moves backward.
+
+The rebuildable timeline store, query index, caches, status, and lock live under `%LOCALAPPDATA%\VaultTimeline`, outside every Vault worktree. The legacy `<vault>\.state\timeline` path is migration/read fallback only. Scheduled materialization runs from `%LOCALAPPDATA%\VaultTimeline\runtime\<commit>`: a commit-addressed `git archive` snapshot installed only from a commit contained in cached `origin/main`. The scheduled action never follows a mutable branch/worktree. Search may merge the local journal with the locally fetched `origin/memory/live` replica so an exact historical `mem-*` identity remains retrievable even when the current checkout seed no longer contains it; no network fetch or checkout mutation is part of the search path.
+
 Example:
 
 ```powershell
