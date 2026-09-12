@@ -1,3 +1,4 @@
+import copy
 import io
 import json
 import os
@@ -60,6 +61,7 @@ from tools.stack_atlas import (
     _compact_memory_overview,
     _fit_memory_overview_budget,
     _fit_bootstrap_glance_budget,
+    _deduplicate_bootstrap_runtime_views,
     _bootstrap_memory_overview,
     _bootstrap_mcp_from_live_swarm,
     _bootstrap_agent_contract_version,
@@ -128,6 +130,104 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(drifted["status"], "DRIFTED")
             self.assertIn("AGENTS:uncertainty", drifted["missing"])
             self.assertIn("AGENTS:inherit", drifted["missing"])
+
+    def test_bootstrap_runtime_dedupe_preserves_unique_mcp_and_worker_context(self):
+        snapshot = {
+            "available": True,
+            "summary": {"recent_callers": 2, "lanes": 1, "busy_owners": 0, "workspace_counts": {"Vault": 2}},
+            "evidence": {
+                "transport": "MCPv4", "transport_source_count": 2, "source_age_seconds": 0.5,
+                "activity_window_seconds": 300, "observation_window_complete": True, "activity_window_complete": True,
+                "activity_summary": {"starts": 2, "reads": 3, "exits": 2, "kills": 0, "nonzero_exits": 0},
+            },
+            "lanes": [{
+                "workspace": "Vault", "worktree": {"path": r"C:\work"}, "busy": [],
+                "callers": [
+                    {"caller_id": "c1", "last_activity_age_seconds": 1.0},
+                    {"caller_id": "c2", "last_activity_age_seconds": 2.0},
+                ],
+            }],
+        }
+        mcp = _bootstrap_mcp_from_live_swarm(snapshot)
+        mcp.update({
+            "authority": "live_swarm_runtime_evidence",
+            "service_health": {"available": True, "status": "LIVE", "backend_generation": "g1"},
+        })
+        workers = {"current_activity": {
+            "authority": "live_swarm_runtime_evidence",
+            "population_scope": "unified_recurring_and_manual_on_demand_activity",
+            "recent_callers": 2, "lanes": 1, "busy_owners": 0,
+            "activity_window_seconds": 300, "observation_window_complete": True, "source_age_seconds": 0.5,
+            "manual_run": {"run_id": "manual-1"},
+        }}
+        glance = {"live_swarm": copy.deepcopy(snapshot), "mcp": mcp, "workers": workers}
+        canonical_before = copy.deepcopy(glance["live_swarm"])
+        service_health_before = copy.deepcopy(glance["mcp"]["service_health"])
+
+        self.assertTrue(_deduplicate_bootstrap_runtime_views(glance))
+
+        self.assertEqual(glance["live_swarm"], canonical_before)
+        self.assertEqual(glance["mcp"]["activity_ref"], "#/live_swarm")
+        for key in ("source_age_seconds", "transport", "transport_source_count", "active_session_count", "active_sessions", "workspace_counts", "activity_summary"):
+            self.assertNotIn(key, glance["mcp"])
+        self.assertEqual(glance["mcp"]["service_health"], service_health_before)
+        self.assertEqual(glance["mcp"]["authority"], "live_swarm_runtime_evidence")
+        self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
+        current = glance["workers"]["current_activity"]
+        self.assertEqual(current["runtime_ref"], "#/live_swarm")
+        self.assertEqual(current["population_scope"], "unified_recurring_and_manual_on_demand_activity")
+        self.assertEqual(current["manual_run"], {"run_id": "manual-1"})
+        for key in ("recent_callers", "lanes", "busy_owners", "activity_window_seconds", "observation_window_complete", "source_age_seconds"):
+            self.assertNotIn(key, current)
+
+    def test_bootstrap_runtime_dedupe_is_equality_gated(self):
+        snapshot = {
+            "available": True,
+            "summary": {"recent_callers": 0, "workspace_counts": {}},
+            "evidence": {
+                "transport": "MCPv4", "transport_source_count": 1, "source_age_seconds": 0.5,
+                "activity_window_complete": True, "observation_window_complete": True, "activity_summary": {},
+            },
+            "lanes": [],
+        }
+        mcp = _bootstrap_mcp_from_live_swarm(snapshot)
+        mcp["transport"] = "MCPvX"
+        glance = {"live_swarm": snapshot, "mcp": mcp}
+        self.assertTrue(_deduplicate_bootstrap_runtime_views(glance))
+        self.assertEqual(glance["mcp"]["transport"], "MCPvX")
+        self.assertEqual(glance["mcp"]["activity_ref"], "#/live_swarm")
+
+    def test_bootstrap_runtime_dedupe_reduces_fifteen_caller_payload_without_new_truncation(self):
+        callers = [{"caller_id": f"c{i:02d}", "last_activity_age_seconds": float(i)} for i in range(15)]
+        snapshot = {
+            "available": True,
+            "summary": {"recent_callers": 15, "lanes": 1, "busy_owners": 0, "workspace_counts": {"Vault": 15}},
+            "evidence": {
+                "transport": "MCPv4", "transport_source_count": 3, "source_age_seconds": 0.4,
+                "activity_window_seconds": 300, "observation_window_complete": True, "activity_window_complete": True,
+                "activity_summary": {"starts": 30, "reads": 45, "exits": 30, "kills": 0, "nonzero_exits": 1},
+            },
+            "lanes": [{"workspace": "Vault", "worktree": {"path": r"C:\vault"}, "busy": [], "callers": callers}],
+            "lanes_truncated": False,
+        }
+        mcp = _bootstrap_mcp_from_live_swarm(snapshot)
+        mcp["service_health"] = {"available": True, "status": "LIVE", "sources": [{"instance": "a"}, {"instance": "b"}]}
+        workers = {"current_activity": {
+            "authority": "live_swarm_runtime_evidence", "population_scope": "unified_recurring_and_manual_on_demand_activity",
+            "recent_callers": 15, "lanes": 1, "busy_owners": 0, "activity_window_seconds": 300,
+            "observation_window_complete": True, "source_age_seconds": 0.4,
+        }}
+        glance = {"live_swarm": copy.deepcopy(snapshot), "mcp": mcp, "workers": workers}
+        before = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        canonical_before = copy.deepcopy(glance["live_swarm"])
+
+        self.assertTrue(_deduplicate_bootstrap_runtime_views(glance))
+
+        after = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertGreater(before - after, 300)
+        self.assertEqual(glance["live_swarm"], canonical_before)
+        self.assertFalse(glance["live_swarm"]["lanes_truncated"])
+        self.assertEqual(len(glance["live_swarm"]["lanes"][0]["callers"]), 15)
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
@@ -478,16 +578,14 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
-        self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
+        self.assertEqual(glance["mcp"]["activity_ref"], "#/live_swarm")
         self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
-        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
-        self.assertIn("workspace_counts", glance["mcp"])
-        for session in glance["mcp"]["active_sessions"]:
-            self.assertIn("caller_id", session)
-            self.assertIn("cwd", session)
-            self.assertIn("workspace", session)
-            self.assertIn("busy_titles", session)
-            self.assertLessEqual(session["activity_age_seconds"], 300)
+        self.assertNotIn("active_session_count", glance["mcp"])
+        self.assertNotIn("active_sessions", glance["mcp"])
+        self.assertNotIn("workspace_counts", glance["mcp"])
+        self.assertIn("recent_callers", glance["live_swarm"]["summary"])
+        self.assertIn("workspace_counts", glance["live_swarm"]["summary"])
+        self.assertTrue(glance["bootstrap"]["payload_budget"]["deduplicated"])
         self.assertNotIn("notable_conditions", glance)
         self.assertNotIn("latest_archived_per_worker", glance["workers"])
         self.assertNotIn("fleet", glance["workers"])
@@ -496,6 +594,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn('"state":"RUNNING"', json.dumps(glance["workers"], separators=(",", ":")))
         self.assertEqual(glance["workers"]["current_activity"]["authority"], "live_swarm_runtime_evidence")
         self.assertEqual(glance["workers"]["current_activity"]["population_scope"], "unified_recurring_and_manual_on_demand_activity")
+        self.assertEqual(glance["workers"]["current_activity"]["runtime_ref"], "#/live_swarm")
         self.assertNotIn("fleet_watch", glance["workers"])
         self.assertNotIn("component_statuses", glance["bootstrap"])
         self.assertNotIn("recent_memory_titles", glance)
