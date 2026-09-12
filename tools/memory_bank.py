@@ -225,18 +225,25 @@ def _write_entries_file(path: Path, entries: list[dict[str, Any]]) -> None:
     temp_path.replace(path)
 
 
-def _write_overlay_delta(seed_path: Path, effective_entries: list[dict[str, Any]]) -> None:
-    seed = _read_bank_file(seed_path)
-    seed_by_id = {entry["id"]: entry for entry in seed}
-    overlay: list[dict[str, Any]] = []
+def _merge_overlay_from_synced_entries(seed_path: Path, effective_entries: list[dict[str, Any]]) -> None:
+    """Append newly observed durable entries without making checkout state the retention boundary."""
+    seed_by_id = {entry["id"]: entry for entry in _read_bank_file(seed_path)}
+    overlay_entries = _read_bank_file(DEFAULT_LOCAL_BANK)
+    overlay_by_id = {entry["id"]: entry for entry in overlay_entries}
     for entry in effective_entries:
         ident = entry["id"]
-        if ident in seed_by_id:
-            if seed_by_id[ident] != entry:
+        seed_entry = seed_by_id.get(ident)
+        if seed_entry is not None and seed_entry != entry:
+            raise BankError(f"memory id conflict: {ident}")
+        overlay_entry = overlay_by_id.get(ident)
+        if overlay_entry is not None:
+            if overlay_entry != entry:
                 raise BankError(f"memory id conflict: {ident}")
             continue
-        overlay.append(entry)
-    _write_entries_file(DEFAULT_LOCAL_BANK, overlay)
+        if seed_entry is not None:
+            continue
+        _append_entry_file(DEFAULT_LOCAL_BANK, entry)
+        overlay_by_id[ident] = entry
 
 
 def _sync_default_overlay_locked(path: Path, *, strict: bool) -> None:
@@ -251,7 +258,7 @@ def _sync_default_overlay_locked(path: Path, *, strict: bool) -> None:
                 raise BankError(f"local memory was saved; {message}; do not append a duplicate") from exc
             print(message, file=sys.stderr)
             return
-        _write_overlay_delta(path, _read_bank_file(staged))
+        _merge_overlay_from_synced_entries(path, _read_bank_file(staged))
     if result.get("pulled") or result.get("pushed"):
         print("MEMORY_SYNC " + json.dumps(result, ensure_ascii=False), file=sys.stderr)
 

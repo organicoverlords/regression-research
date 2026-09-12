@@ -4038,14 +4038,19 @@ DISCOVERY_AUTHORITY = "DISCOVERY_NAVIGATION_ONLY_NOT_CURRENT_TRUTH"
 _TIMELINE_QUERY_INDEX_SCHEMA = "vault.timeline.query-index.v1"
 _TIMELINE_WEIGHT_CODE = {1: 0.7, 2: 1.2, 3: 2.0, 4: 2.2, 5: 4.0}
 _DISCOVERY_SOURCE_BONUS = {
+    "mcp_event": 7.0,
     "github_issue": 6.0,
     "github_pr": 5.5,
+    "github_action": 5.0,
     "tracked_artifact": 5.0,
+    "runner_log": 4.8,
     "local_artifact": 4.5,
     "library_artifact": 4.5,
     "git_commit": 3.0,
+    "machine_observation": 2.0,
     "vault_memory": 2.0,
     "worker_report": 1.0,
+    "coordinator_event": 0.5,
 }
 
 
@@ -4073,7 +4078,11 @@ def _minimum_discovery_matches(concept_count: int) -> int:
     return 4
 
 
-def _history_discovery_identity(event_id: str, anchors: list[str]) -> tuple[str, str, str] | None:
+def _history_discovery_identity(
+    event_id: str,
+    anchors: list[str],
+    source_type: str | None = None,
+) -> tuple[str, str, str] | None:
     match = re.match(r"^github-issue:([^#]+)#(\d+):", event_id)
     if match:
         ref = f"{match.group(1)}#{match.group(2)}"
@@ -4103,18 +4112,50 @@ def _history_discovery_identity(event_id: str, anchors: list[str]) -> tuple[str,
         return "vault_memory", f"vault_memory:{event_id.casefold()}", event_id
     if event_id.startswith("worker:"):
         return "worker_report", f"worker_report:{event_id.casefold()}", event_id
+
+    source_kind = {
+        "MCP_EVENT": "mcp_event",
+        "GITHUB_ACTION": "github_action",
+        "GITHUB_ACTION_SUMMARY": "github_action_summary",
+        "RUNNER_LOG": "runner_log",
+        "MACHINE_OBSERVATION": "machine_observation",
+        "COORDINATOR_EVENT": "coordinator_event",
+    }.get(str(source_type or "").upper())
+    if source_kind:
+        return source_kind, f"{source_kind}:{event_id.casefold()}", event_id
+
     for anchor in anchors:
         match = re.match(r"^github:([^#]+)#(\d+)$", str(anchor))
         if match:
             ref = f"{match.group(1)}#{match.group(2)}"
             return "github_ref", f"github_ref:{ref.casefold()}", ref
+    if source_type:
+        generic_kind = re.sub(r"[^a-z0-9]+", "_", str(source_type).casefold()).strip("_") or "history_event"
+        return generic_kind, f"{generic_kind}:{event_id.casefold()}", event_id
     return None
+
+
+def _discovery_event_timestamp(value: Any) -> float | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        stamp = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return stamp.timestamp()
 
 
 def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     started = time.perf_counter()
     root = root or _discovery_root()
-    state = root / ".state" / "timeline"
+    try:
+        from .timeline_materializer import timeline_read_state_root
+    except ImportError:
+        from timeline_materializer import timeline_read_state_root
+    state = timeline_read_state_root(root)
     status_path = state / "status.json"
     index_path = state / "timeline-query-index.pkl"
     coverage: dict[str, Any] = {
@@ -4143,6 +4184,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         or not isinstance(index.get("anchors"), list)
         or len(index["ids"]) != len(index["anchors"])
         or (index.get("branch_refs") is not None and (not isinstance(index.get("branch_refs"), list) or len(index["ids"]) != len(index["branch_refs"])))
+        or (index.get("event_meta") is not None and (not isinstance(index.get("event_meta"), list) or len(index["ids"]) != len(index["event_meta"])))
     ):
         coverage.update({"status": "INVALID_OR_STALE_INDEX", "generated_at": generated_at})
         coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
@@ -4153,6 +4195,7 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     explicit_pr_numbers = set(re.findall(r"\b(?:pr|pull\s+request)\s*#?\s*(\d+)\b", normalized_query))
     explicit_worker_hashes = set(re.findall(r"(?<![0-9a-f])([0-9a-f]{64})(?![0-9a-f])", normalized_query))
     exact_worker_ids = {f"worker:{value}" for value in explicit_worker_hashes}
+    explicit_memory_ids = set(re.findall(r"\b(mem-\d{8}-[a-z0-9]{8,})\b", normalized_query))
     concepts = _discovery_query_terms(query)
     if not concepts:
         coverage.update({"status": "OK", "generated_at": generated_at, "candidate_count": 0})
@@ -4163,12 +4206,17 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     weight_codes = index["weight_codes"]
     anchors_by_position = index["anchors"]
     branch_refs_by_position = index.get("branch_refs") if isinstance(index.get("branch_refs"), list) else [[] for _ in ids]
+    event_meta_by_position = index.get("event_meta") if isinstance(index.get("event_meta"), list) else [{} for _ in ids]
     opaque_labels = index.get("opaque_labels") if isinstance(index.get("opaque_labels"), dict) else {}
     best_by_concept: list[dict[int, float]] = []
     exact_worker_positions = {
         position for position, event_id in enumerate(ids) if str(event_id) in exact_worker_ids
     }
-    candidate_positions: set[int] = set(exact_worker_positions)
+    exact_memory_positions = {
+        position for position, event_id in enumerate(ids) if str(event_id).casefold() in explicit_memory_ids
+    }
+    exact_identity_positions = exact_worker_positions | exact_memory_positions
+    candidate_positions: set[int] = set(exact_identity_positions)
     for concept in concepts:
         best: dict[int, float] = {}
         for token in concept:
@@ -4186,28 +4234,34 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         best_by_concept.append(best)
 
     minimum_matches = _minimum_discovery_matches(len(concepts))
-    ranked: list[tuple[float, str, str, str, list[str]]] = []
+    ranked: list[tuple[float, str, str, str, list[str], int]] = []
     label_by_stable_key: dict[str, str] = {}
     branches_by_stable_key: dict[str, list[str]] = {}
+    meta_by_stable_key: dict[str, dict[str, Any]] = {}
     for position in candidate_positions:
         matched = sum(1 for weights in best_by_concept if weights.get(position, 0.0) > 0.0)
         exact_worker_match = position in exact_worker_positions
-        if matched < minimum_matches and not exact_worker_match:
+        exact_memory_match = position in exact_memory_positions
+        exact_identity_match = exact_worker_match or exact_memory_match
+        if matched < minimum_matches and not exact_identity_match:
             continue
         event_id = str(ids[position])
-        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:6]
-        identity = _history_discovery_identity(event_id, anchors)
+        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:24]
+        meta = event_meta_by_position[position] if isinstance(event_meta_by_position[position], dict) else {}
+        identity = _history_discovery_identity(event_id, anchors, str(meta.get("source_type") or ""))
         if identity is None:
             continue
         kind, stable_key, reference = identity
-        opaque_label = str(opaque_labels.get(event_id) or "").strip()
+        opaque_label = str(opaque_labels.get(event_id) or meta.get("title") or "").strip()
         if opaque_label and stable_key not in label_by_stable_key:
             label_by_stable_key[stable_key] = opaque_label
+        if stable_key not in meta_by_stable_key:
+            meta_by_stable_key[stable_key] = meta
         branch_refs = [str(value) for value in (branch_refs_by_position[position] or []) if str(value).strip()]
         if branch_refs and stable_key not in branches_by_stable_key:
             branches_by_stable_key[stable_key] = branch_refs[:12]
         score = sum(weights.get(position, 0.0) for weights in best_by_concept)
-        if exact_worker_match:
+        if exact_identity_match:
             score += 100.0
         score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
         score += matched / max(1, len(concepts))
@@ -4216,6 +4270,8 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
             identity_text = reference.rsplit("#", 1)[0]
         elif kind == "git_commit":
             identity_text = reference.split("@", 1)[0]
+        else:
+            identity_text = str(meta.get("project") or "")
         identity_tokens = set(re.findall(r"[a-z0-9]+", identity_text.casefold()))
         score += 4.0 * sum(1 for concept in concepts if identity_tokens & concept)
         reference_number = reference.rsplit("#", 1)[-1] if "#" in reference else ""
@@ -4223,17 +4279,16 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
             score += 25.0
         if kind == "github_pr" and reference_number in explicit_pr_numbers:
             score += 25.0
-        ranked.append((score, stable_key, kind, reference, anchors))
+        ranked.append((score, stable_key, kind, reference, anchors, position))
 
     ranked.sort(key=lambda item: (-item[0], item[1]))
     effective_limit = max(1, int(limit))
-    selected_rows: list[tuple[float, str, str, str, list[str]]] = []
+    selected_rows: list[tuple[float, str, str, str, list[str], int]] = []
     selected_keys: set[str] = set()
     selected_kinds: set[str] = set()
-    # Discovery should expose different evidence classes before filling the rest
-    # with near-duplicate snapshots from one class (for example many PRs).
+    # Show different evidence classes before filling with multiple members from one class.
     for row in ranked:
-        _, stable_key, kind, _, _ = row
+        _, stable_key, kind, _, _, _ = row
         if stable_key in selected_keys or kind in selected_kinds:
             continue
         selected_rows.append(row)
@@ -4251,8 +4306,44 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
             if len(selected_rows) >= effective_limit:
                 break
 
+    def render_position(position: int, *, relationship: str | None = None, time_delta_seconds: float | None = None, shared_anchors: list[str] | None = None) -> dict[str, Any] | None:
+        event_id = str(ids[position])
+        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:24]
+        meta = event_meta_by_position[position] if isinstance(event_meta_by_position[position], dict) else {}
+        identity = _history_discovery_identity(event_id, anchors, str(meta.get("source_type") or ""))
+        if identity is None:
+            return None
+        kind, _, reference = identity
+        item: dict[str, Any] = {
+            "kind": kind,
+            "reference": reference,
+            "source_type": meta.get("source_type"),
+            "event_at": meta.get("event_at"),
+            "project": meta.get("project"),
+            "source_authority": meta.get("authority"),
+        }
+        title = str(meta.get("title") or opaque_labels.get(event_id) or "").strip()
+        if title:
+            item["label"] = title
+        if meta.get("summary"):
+            item["summary"] = meta.get("summary")
+        branches = [str(value) for value in (branch_refs_by_position[position] or []) if str(value).strip()]
+        if branches:
+            item["branches"] = branches[:12]
+        details = meta.get("details") if isinstance(meta.get("details"), dict) else {}
+        if details:
+            item["details"] = details
+        if relationship:
+            item["relationship"] = relationship
+        if time_delta_seconds is not None:
+            item["time_delta_seconds"] = round(time_delta_seconds, 3)
+        if shared_anchors:
+            item["shared_anchors"] = shared_anchors[:8]
+        return item
+
     hits: list[dict[str, Any]] = []
-    for score, stable_key, kind, reference, anchors in selected_rows:
+    for score, stable_key, kind, reference, anchors, position in selected_rows:
+        meta = meta_by_stable_key.get(stable_key, {})
         hit = {
             "kind": kind,
             "reference": reference,
@@ -4265,8 +4356,129 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         if branches_by_stable_key.get(stable_key):
             hit["branches"] = branches_by_stable_key[stable_key]
         if anchors:
-            hit["anchors"] = anchors
+            hit["anchors"] = anchors[:8]
+        for key in ("source_type", "event_at", "project", "authority", "summary"):
+            value = meta.get(key)
+            if value not in (None, "", [], {}):
+                hit["source_authority" if key == "authority" else key] = value
+        details = meta.get("details") if isinstance(meta.get("details"), dict) else {}
+        if details:
+            hit["details"] = details
         hits.append(hit)
+
+    # Evidence windows are correlation/navigation only. They deliberately expose nearby
+    # runtime/Git/GitHub/CI/worker evidence without asserting that all members are one job.
+    evidence_clusters: list[dict[str, Any]] = []
+    source_priority = {
+        "MCP_EVENT": 0,
+        "GIT_COMMIT": 1,
+        "GITHUB_ISSUE": 2,
+        "GITHUB_PR": 2,
+        "GITHUB_ACTION": 3,
+        "RUNNER_LOG": 4,
+        "WORKER_REPORT": 5,
+        "TRACKED_ARTIFACT": 6,
+        "LOCAL_ARTIFACT": 6,
+        "LIBRARY_ARTIFACT": 6,
+        "MACHINE_OBSERVATION": 7,
+        "COORDINATOR_EVENT": 8,
+    }
+    for _, _, seed_kind, seed_reference, seed_anchors, seed_position in selected_rows[:3]:
+        seed_meta = event_meta_by_position[seed_position] if isinstance(event_meta_by_position[seed_position], dict) else {}
+        seed_project = str(seed_meta.get("project") or "")
+        seed_ts = _discovery_event_timestamp(seed_meta.get("event_at"))
+        seed_anchor_set = set(seed_anchors)
+        related_by_key: dict[str, tuple[tuple[int, float, str], int, str, float | None, list[str]]] = {}
+        for position, raw_meta in enumerate(event_meta_by_position):
+            if position == seed_position or not isinstance(raw_meta, dict):
+                continue
+            event_id = str(ids[position])
+            anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()]
+            identity = _history_discovery_identity(event_id, anchors, str(raw_meta.get("source_type") or ""))
+            if identity is None:
+                continue
+            kind, stable_key, _ = identity
+            shared = sorted(seed_anchor_set & set(anchors))
+            candidate_ts = _discovery_event_timestamp(raw_meta.get("event_at"))
+            delta = abs(seed_ts - candidate_ts) if seed_ts is not None and candidate_ts is not None else None
+            same_project = bool(seed_project and seed_project == str(raw_meta.get("project") or ""))
+            if shared:
+                relationship = "shared_anchor"
+                relation_rank = 0
+            elif same_project and delta is not None and delta <= 180.0:
+                relationship = "same_project_time_window"
+                relation_rank = 1
+            else:
+                continue
+            priority = source_priority.get(str(raw_meta.get("source_type") or ""), 9)
+            rank_key = (relation_rank, delta if delta is not None else 10**9, f"{priority}:{stable_key}")
+            prior = related_by_key.get(stable_key)
+            if prior is None or rank_key < prior[0]:
+                related_by_key[stable_key] = (rank_key, position, relationship, delta, shared)
+        related_rows = sorted(related_by_key.values(), key=lambda row: (row[0][0], source_priority.get(str((event_meta_by_position[row[1]] or {}).get("source_type") or ""), 9), row[0][1], row[0][2]))
+        selected_related: list[tuple[tuple[int, float, str], int, str, float | None, list[str]]] = []
+        seen_types: set[str] = set()
+        for row in related_rows:
+            source_type = str((event_meta_by_position[row[1]] or {}).get("source_type") or "")
+            if source_type in seen_types:
+                continue
+            selected_related.append(row)
+            seen_types.add(source_type)
+            if len(selected_related) >= 8:
+                break
+        if len(selected_related) < 12:
+            for row in related_rows:
+                if row in selected_related:
+                    continue
+                selected_related.append(row)
+                if len(selected_related) >= 12:
+                    break
+        seed_member = render_position(seed_position, relationship="seed")
+        members = [seed_member] if seed_member else []
+        for _, position, relationship, delta, shared in selected_related:
+            rendered = render_position(position, relationship=relationship, time_delta_seconds=delta, shared_anchors=shared)
+            if rendered:
+                members.append(rendered)
+        if len(members) > 1:
+            evidence_clusters.append({
+                "authority": "SEARCH_CORRELATION_ONLY_NOT_SHARED_TRUTH",
+                "seed_kind": seed_kind,
+                "seed_reference": seed_reference,
+                "project": seed_project or None,
+                "time_window_seconds": 180,
+                "members": members,
+            })
+
+    materialized_memory_ids = {str(event_id).casefold() for event_id in ids if str(event_id).startswith("mem-")}
+    missing_memory_ids = sorted(explicit_memory_ids - materialized_memory_ids)
+    if missing_memory_ids:
+        referenced_by = [
+            {"kind": hit.get("kind"), "reference": hit.get("reference"), "score": hit.get("score")}
+            for hit in hits[:8]
+        ]
+        reference_only_hits = [
+            {
+                "kind": "referenced_identity",
+                "identity_kind": "vault_memory",
+                "reference": memory_id,
+                "authority": "SEARCH_REFERENCE_ONLY_NOT_OBJECT_TRUTH",
+                "materialized_object_present": False,
+                "note": "Exact memory identity is referenced by materialized evidence but is not present as a current materialized memory object.",
+                "referenced_by": referenced_by,
+                "score": 150.0,
+            }
+            for memory_id in missing_memory_ids
+        ]
+        hits = [*reference_only_hits, *hits][:effective_limit]
+
+    source_latest_at: dict[str, str] = {}
+    for meta in event_meta_by_position:
+        if not isinstance(meta, dict):
+            continue
+        source_type = str(meta.get("source_type") or "")
+        event_at = str(meta.get("event_at") or "")
+        if source_type and event_at and event_at > source_latest_at.get(source_type, ""):
+            source_latest_at[source_type] = event_at
     coverage.update({
         "status": "OK",
         "generated_at": generated_at,
@@ -4275,6 +4487,9 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         "events": status.get("events"),
         "truncated": bool(status.get("truncated")),
         "saturated_sources": list(status.get("saturated_sources") or []),
+        "source_latest_at": dict(sorted(source_latest_at.items())),
+        "evidence_cluster_semantics": "SEARCH_CORRELATION_ONLY_NOT_SHARED_TRUTH",
+        "evidence_clusters": evidence_clusters,
     })
     coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
     return hits, coverage
@@ -4326,7 +4541,9 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             "live_hits": [],
             "history_hits": [],
             "git_hits": [],
+            "runtime_hits": [],
             "github_cache_hits": [],
+            "evidence_clusters": [],
             "coverage": {},
         }
     started = time.perf_counter()
@@ -4351,6 +4568,9 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
         hit for hit in history_hits
         if hit.get("kind") == "git_commit" or bool(hit.get("branches"))
     ]
+    runtime_kinds = {"mcp_event", "runner_log", "github_action", "github_action_summary", "machine_observation", "coordinator_event"}
+    runtime_hits = [hit for hit in history_hits if hit.get("kind") in runtime_kinds]
+    evidence_clusters = list(history_coverage.get("evidence_clusters") or [])
     return {
         "schema": DISCOVERY_SCHEMA,
         "query": query,
@@ -4359,7 +4579,9 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
         "live_hits": live_hits,
         "history_hits": history_hits,
         "git_hits": git_hits,
+        "runtime_hits": runtime_hits,
         "github_cache_hits": github_cache_hits,
+        "evidence_clusters": evidence_clusters,
         "coverage": {
             "atlas": {"status": "OK", "authority": ATLAS_CONTRACT["authority"]},
             "live": live_coverage,
@@ -4373,7 +4595,7 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             },
             "github_cache": github_cache_coverage,
         },
-        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan and no GitHub network fanout. Local Git commits/branches come from the materialized Git metadata index; GitHub detail comes from materialized history plus the local gh-buffer cache.",
+        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan and no GitHub network fanout. Local Git commits/branches, MCP/runtime receipts and transport/watchdog events, CI/runner evidence, worker reports, artifacts, and materialized history are searched locally; GitHub detail comes from materialized history plus the local gh-buffer cache. Evidence clusters are correlation windows only, never shared truth.",
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
     }
 
