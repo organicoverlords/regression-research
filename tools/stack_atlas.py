@@ -310,6 +310,10 @@ COMPONENT_ALIASES = {
     "vault checkout sync": "vault_checkout_sync",
     "vaultcheckoutsync": "vault_checkout_sync",
     "serving checkout": "vault_checkout_sync",
+    "worktree hygiene": "worktree_hygiene",
+    "vault worktree hygiene": "worktree_hygiene",
+    "vaultworktreehygiene": "worktree_hygiene",
+    "worktree hygiene task": "worktree_hygiene",
     "timeline materializer": "timeline_materializer",
     "vault timeline materializer": "timeline_materializer",
 }
@@ -644,6 +648,35 @@ COMPONENTS.update({
         "dependents": ["bootstrap_snapshot", "stack_atlas", "chatgpt_session", "execution_workers"],
         "runbook": ["organicoverlords/regression-research#1021"],
     },
+    "worktree_hygiene": {
+        "role": "runtime:scheduled-worktree-hygiene-control-plane",
+        "capabilities": ["source_read", "runtime_validate", "repository_mutate"],
+        "canonical_sources": [
+            "tools/Install-WorktreeHygieneTask.ps1",
+            "tools/worktree_hygiene_task.py",
+            "tools/worktree_hygiene_guard.py",
+            "tools/cleanup_converger.py",
+            "tools/live_swarm.py",
+        ],
+        "live_status": [
+            "exact Windows task VaultWorktreeHygiene",
+            r"%LOCALAPPDATA%\VaultWorktreeHygiene\runtime\<commit>\worktree_hygiene_task.py",
+            r"%LOCALAPPDATA%\VaultWorktreeHygiene\latest.json",
+        ],
+        "supervisor": "Windows Task Scheduler; commit-addressed runtime bundle performs bounded fail-closed hygiene",
+        "self_heal": "task reruns every minute and writes health state; runtime version changes only through the validated installer",
+        "independent_recovery": [
+            "tools/Install-WorktreeHygieneTask.ps1 from a clean commit contained in cached origin/main",
+            r"preserve existing %LOCALAPPDATA%\VaultWorktreeHygiene\runtime\<commit> snapshots for rollback",
+        ],
+        "resources": [
+            r"%LOCALAPPDATA%\VaultWorktreeHygiene",
+            r"C:\Users\Lauri\Desktop\vault and C:\Users\Lauri\.agents worktree metadata",
+            "Busy Coordinator exact repo/worktree scopes",
+        ],
+        "dependents": ["stack_atlas", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#900", "organicoverlords/regression-research#1047"],
+    },
     "timeline_materializer": {
         "role": "runtime:materialized-history-producer",
         "capabilities": ["source_read", "runtime_validate"],
@@ -737,6 +770,7 @@ SHARED_PRODUCTION_COMPONENTS = frozenset({
     "busy_coordinator",
     "bootstrap_snapshot",
     "vault_checkout_sync",
+    "worktree_hygiene",
     "vps_edge_ingress",
     "mcp_front_door",
     "mcp_minimal_clone",
@@ -849,7 +883,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Unified discovery starts with Stack Atlas find. Memory/timeline commands are second-stage historical drill-down only; never recursive Vault scans or current-state inference.",
     },
     "runtime.deployment_graph": {
-        "owner_components": ["stack_atlas", "bootstrap_snapshot", "vault_checkout_sync", "timeline_materializer"],
+        "owner_components": ["stack_atlas", "bootstrap_snapshot", "vault_checkout_sync", "worktree_hygiene", "timeline_materializer"],
         "triggers": [
             "runtime graph", "deployment graph", "dependency graph", "runtime dependency",
             "deployed script", "runtime copy", "scheduled task", "scheduler task",

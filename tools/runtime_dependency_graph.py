@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -75,6 +77,58 @@ SURFACES: dict[str, dict[str, Any]] = {
             "default sync is fail-closed for dirty/ahead/diverged/wrong-branch worktrees; -Repair preserves exact WIP before convergence",
         ],
     },
+    "vault.worktree_hygiene": {
+        "label": "Vault scheduled worktree hygiene runtime",
+        "components": ["worktree_hygiene", "stack_atlas"],
+        "aliases": [
+            "VaultWorktreeHygiene", "worktree hygiene", "scheduled worktree hygiene",
+            "worktree_hygiene_task", "worktree_hygiene_guard", "cleanup converger runtime",
+            "immutable hygiene runtime", "hygiene runtime snapshot",
+        ],
+        "tasks": ["VaultWorktreeHygiene"],
+        "task_result_semantics": {
+            "VaultWorktreeHygiene": {
+                "0": "HEALTHY",
+                "2": "EXECUTION_ERROR",
+                "3": "DEGRADED_HEALTH_STATE",
+                "267009": "SCHEDULER_RUNNING_SENTINEL",
+                "note": "result 3 is an intentional degraded policy-health signal, not task-definition drift or scheduler execution failure",
+            },
+        },
+        "pairs": [
+            ("entry", "tools/worktree_hygiene_task.py", "$TASK:VaultWorktreeHygiene:worktree_hygiene_task.py", "pinned_worktree_copy"),
+            ("guard", "tools/worktree_hygiene_guard.py", "$SIBLING:entry:worktree_hygiene_guard.py", "pinned_worktree_copy"),
+            ("cleanup", "tools/cleanup_converger.py", "$SIBLING:entry:cleanup_converger.py", "pinned_worktree_copy"),
+            ("live_swarm", "tools/live_swarm.py", "$SIBLING:entry:live_swarm.py", "pinned_worktree_copy"),
+        ],
+        "sources": [("installer", "tools/Install-WorktreeHygieneTask.ps1")],
+        "outputs": [("latest", r"%LOCALAPPDATA%\VaultWorktreeHygiene\latest.json")],
+        "output_json_fields": {"latest": ["schema", "at", "status", "canonical_root", "thresholds"]},
+        "health_output": "latest",
+        "consumers": [
+            ("canonical_checkout", r"C:\Users\Lauri\Desktop\vault canonical checkout hygiene"),
+            ("operator", "operator/Stack Atlas hygiene diagnosis"),
+        ],
+        "edges": [
+            ("source:installer", "task:VaultWorktreeHygiene", "INSTALLS"),
+            ("source:entry", "runtime:entry", "DEPLOYS_TO_PINNED_WORKTREE_COPY"),
+            ("source:guard", "runtime:guard", "DEPLOYS_WITH"),
+            ("source:cleanup", "runtime:cleanup", "DEPLOYS_WITH"),
+            ("source:live_swarm", "runtime:live_swarm", "DEPLOYS_WITH"),
+            ("task:VaultWorktreeHygiene", "runtime:entry", "EXECUTES"),
+            ("runtime:entry", "runtime:guard", "IMPORTS"),
+            ("runtime:entry", "runtime:cleanup", "IMPORTS"),
+            ("runtime:guard", "runtime:live_swarm", "IMPORTS"),
+            ("runtime:entry", "output:latest", "WRITES_HEALTH_STATE"),
+            ("runtime:guard", "consumer:canonical_checkout", "OBSERVES_AND_FAILS_CLOSED_ON"),
+            ("output:latest", "consumer:operator", "READ_BY"),
+        ],
+        "recovery": [
+            "reinstall only through tools/Install-WorktreeHygieneTask.ps1 from a clean commit contained in cached origin/main",
+            "runtime snapshots are commit-addressed under %LOCALAPPDATA%/VaultWorktreeHygiene/runtime/<commit>",
+            "preserve foreign dirty/active worktrees; task health result 3 means degraded policy state, not task-definition drift",
+        ],
+    },
     "vault.timeline_materializer": {
         "label": "Vault materialized Timeline scheduled runtime",
         "components": ["timeline_materializer", "memory_bank", "stack_atlas"],
@@ -145,6 +199,22 @@ def _file(path: Path | None) -> dict[str, Any]:
         out["sha256"] = _hash(path)
     return out
 
+def _bounded_json_projection(path: Path | None, fields: Iterable[str], max_bytes: int = 262_144) -> dict[str, Any]:
+    if path is None or not path.is_file():
+        return {"status": "MISSING"}
+    try:
+        size = path.stat().st_size
+        if size > max_bytes:
+            return {"status": "TOO_LARGE", "size_bytes": size, "max_bytes": max_bytes}
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"status": "ERROR", "error": f"{type(exc).__name__}: {exc}"}
+    if not isinstance(raw, dict):
+        return {"status": "INVALID_SHAPE"}
+    wanted = [str(field) for field in fields]
+    return {"status": "OK", "fields": {field: raw.get(field) for field in wanted}}
+
+
 def _git_blob_oid(root: Path, ref: str, relpath: str) -> str | None:
     try:
         proc = subprocess.run(
@@ -188,6 +258,43 @@ def _arg_paths(arguments: str) -> list[str]:
     return out
 
 
+def _task_runtime_info(name: str) -> dict[str, Any]:
+    """Read current state/result for one exact task without enumerating Task Scheduler."""
+    try:
+        proc = subprocess.run(
+            ["schtasks.exe", "/Query", "/TN", name, "/V", "/FO", "CSV", "/NH"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"RuntimeInfoStatus": "UNAVAILABLE", "RuntimeInfoError": str(exc)}
+    if proc.returncode != 0:
+        return {"RuntimeInfoStatus": "UNAVAILABLE"}
+    try:
+        rows = list(csv.reader(io.StringIO(proc.stdout.lstrip("\ufeff"))))
+    except csv.Error as exc:
+        return {"RuntimeInfoStatus": "PARSE_ERROR", "RuntimeInfoError": str(exc)}
+    if not rows or len(rows[0]) < 12:
+        return {"RuntimeInfoStatus": "PARSE_ERROR", "RuntimeInfoError": "unexpected schtasks verbose CSV shape"}
+    row = rows[0]
+    raw_result = row[6].strip()
+    try:
+        last_result = int(raw_result, 0)
+    except ValueError:
+        last_result = raw_result or None
+    enabled_text = row[11].strip().casefold()
+    return {
+        "RuntimeInfoStatus": "OK",
+        "NextRunTime": row[2].strip() or None,
+        "State": row[3].strip() or None,
+        "LastRunTime": row[5].strip() or None,
+        "LastTaskResult": last_result,
+        "Enabled": enabled_text in {"enabled", "käytössä", "enabled (scheduled)"},
+        "ScheduledTaskStateRaw": row[11].strip() or None,
+        "RuntimeObservationMode": "SCHTASKS_VERBOSE_CSV_EXACT_NAME",
+    }
+
+
 def probe_tasks(names: Iterable[str]) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     """Read only named Task Scheduler definitions via schtasks XML; never enumerate the scheduler."""
     names = list(dict.fromkeys(str(n) for n in names if str(n).strip()))
@@ -195,7 +302,7 @@ def probe_tasks(names: Iterable[str]) -> tuple[dict[str, dict[str, Any]], dict[s
         "authority": "EXACT_LOCAL_WINDOWS_TASK_DEFINITION",
         "task_names": names,
         "broad_enumeration": False,
-        "observation_mode": "SCHTASKS_XML_EXACT_NAME",
+        "observation_mode": "SCHTASKS_XML_PLUS_VERBOSE_CSV_EXACT_NAME",
     }
     if not names:
         return {}, {**coverage, "status": "NO_TASKS_REQUESTED"}
@@ -234,7 +341,10 @@ def probe_tasks(names: Iterable[str]) -> tuple[dict[str, dict[str, Any]], dict[s
                 "Arguments": text("Arguments"),
                 "WorkingDirectory": text("WorkingDirectory"),
             })
-        result[name] = {"TaskName": name, "Exists": True, "Actions": actions, "ObservationMode": "SCHTASKS_XML_EXACT_NAME"}
+        result[name] = {
+            "TaskName": name, "Exists": True, "Actions": actions, "ObservationMode": "SCHTASKS_XML_EXACT_NAME",
+            **_task_runtime_info(name),
+        }
     status = "OK" if not errors else "PARTIAL"
     return result, {
         **coverage, "status": status, "returned_tasks": len(result), "errors": errors,
@@ -265,7 +375,18 @@ def _compact_task(row: dict[str, Any] | None) -> dict[str, Any]:
     for action in row.get("Actions") or []:
         if isinstance(action, dict):
             actions.append({"execute": action.get("Execute"), "arguments": action.get("Arguments"), "working_directory": action.get("WorkingDirectory"), "paths": _task_paths({"Actions":[action]})})
-    return {"observed": True, "exists": bool(row.get("Exists")), "state": row.get("State"), "last_task_result": row.get("LastTaskResult"), "last_run_time": row.get("LastRunTime"), "next_run_time": row.get("NextRunTime"), "actions": actions}
+    return {
+        "observed": True,
+        "exists": bool(row.get("Exists")),
+        "state": row.get("State"),
+        "enabled": row.get("Enabled"),
+        "last_task_result": row.get("LastTaskResult"),
+        "last_run_time": row.get("LastRunTime"),
+        "next_run_time": row.get("NextRunTime"),
+        "runtime_info_status": row.get("RuntimeInfoStatus"),
+        "scheduled_task_state_raw": row.get("ScheduledTaskStateRaw"),
+        "actions": actions,
+    }
 
 
 def _runtime_path(raw: str, *, root: Path, task_rows: dict[str, dict[str, Any]], resolved: dict[str, Path | None]) -> Path | None:
@@ -310,12 +431,20 @@ def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str
     if runtime_hash is None:
         return {**out, "status": "MISSING_RUNTIME", "comparison_basis": "RUNTIME_PATH"}
 
-    if tracking == "pinned":
+    if tracking in {"pinned", "pinned_worktree_copy"}:
         pin = _pin_from_path(runtime)
         out["pinned_commit"] = pin
         desired_blob = _git_blob_oid(root, pin, source_rel) if pin else None
-        basis = f"PINNED_GIT_COMMIT:{pin}:{source_rel}" if pin else "PINNED_PATH_COMMIT_UNRESOLVED"
-        out["deployment_mechanism"] = "COMMIT_ADDRESSED_RUNTIME"
+        if tracking == "pinned_worktree_copy":
+            basis = f"PINNED_WORKTREE_COPY_COMMIT:{pin}:{source_rel}" if pin else "PINNED_WORKTREE_COPY_COMMIT_UNRESOLVED"
+            out["deployment_mechanism"] = "COMMIT_ADDRESSED_WORKTREE_COPY"
+            out["drift_semantics"] = (
+                "installer copied a clean worktree snapshot from the pinned commit; compare the runtime through Git clean filters "
+                "so Windows checkout transformations do not fabricate drift"
+            )
+        else:
+            basis = f"PINNED_GIT_COMMIT:{pin}:{source_rel}" if pin else "PINNED_PATH_COMMIT_UNRESOLVED"
+            out["deployment_mechanism"] = "COMMIT_ADDRESSED_RUNTIME"
     elif tracking == "worktree_copy":
         head_blob = _git_blob_oid(root, "HEAD", source_rel)
         out["git_head_clean_blob"] = head_blob
@@ -347,6 +476,9 @@ def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str
     if tracking == "worktree_copy":
         comparison_runtime_blob = runtime_clean_blob
         comparison_mode = "GIT_CLEAN_FILTERED_RUNTIME_VS_WORKTREE_SOURCE"
+    elif tracking == "pinned_worktree_copy":
+        comparison_runtime_blob = runtime_clean_blob
+        comparison_mode = "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB"
     else:
         comparison_runtime_blob = runtime_exact_blob
         comparison_mode = "EXACT_RUNTIME_BYTES_VS_GIT_BLOB"
@@ -362,6 +494,8 @@ def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str
         out["status"] = "MATCH"
     elif tracking == "worktree_copy":
         out["status"] = "DRIFT_FROM_CURRENT_INSTALL_SOURCE"
+    elif tracking == "pinned_worktree_copy":
+        out["status"] = "DRIFT_FROM_PINNED_INSTALL_SOURCE"
     else:
         out["status"] = "DRIFT"
     return out
@@ -395,8 +529,19 @@ def build_surface(surface_id: str, *, root: Path, task_rows: dict[str, dict[str,
         p = (root / source_rel).resolve()
         add(f"source:{name}", "source_artifact", label=f"{name.replace('_',' ')} source", resolved_path=str(p), observation=_file(p))
 
+    task_result_semantics = spec.get("task_result_semantics") or {}
     for task_name in spec["tasks"]:
-        add(f"task:{task_name}", "scheduled_task", label=task_name, task_name=task_name, observation=_compact_task(task_rows.get(task_name)))
+        observation = _compact_task(task_rows.get(task_name))
+        semantics = task_result_semantics.get(task_name)
+        result_meaning = None
+        if isinstance(semantics, dict) and observation.get("last_task_result") is not None:
+            result_meaning = semantics.get(str(observation.get("last_task_result")))
+        add(
+            f"task:{task_name}", "scheduled_task", label=task_name, task_name=task_name,
+            observation=observation,
+            result_semantics=semantics,
+            result_meaning=result_meaning,
+        )
 
     for name, source_rel, raw_runtime, tracking in spec["pairs"]:
         p = _runtime_path(raw_runtime, root=root, task_rows=task_rows, resolved=resolved_runtime)
@@ -407,9 +552,27 @@ def build_surface(surface_id: str, *, root: Path, task_rows: dict[str, dict[str,
             deployment=_comparison(root, source_rel, p, tracking),
         )
 
+    output_json_fields = spec.get("output_json_fields") or {}
     for name, raw in spec.get("outputs", []):
         p = (root / raw).resolve() if not raw.startswith("%") else Path(_env(raw)).expanduser()
-        add(f"output:{name}", "output_artifact", label=name.replace("_"," "), resolved_path=str(p), observation=_file(p))
+        observation = _file(p)
+        fields = output_json_fields.get(name)
+        if fields:
+            observation["json_projection"] = _bounded_json_projection(p, fields)
+        add(f"output:{name}", "output_artifact", label=name.replace("_"," "), resolved_path=str(p), observation=observation)
+    operational_health = None
+    health_output = spec.get("health_output")
+    if health_output and f"output:{health_output}" in by_key:
+        health_node = by_key[f"output:{health_output}"]
+        projection = (health_node.get("observation") or {}).get("json_projection")
+        fields = projection.get("fields") if isinstance(projection, dict) and projection.get("status") == "OK" else None
+        if isinstance(fields, dict):
+            operational_health = {
+                "source_node": health_node["id"],
+                "status": fields.get("status"),
+                "at": fields.get("at"),
+                "details": {key: fields.get(key) for key in fields if key not in {"status", "at"}},
+            }
     for name, label in spec.get("consumers", []):
         add(f"consumer:{name}", "consumer", label=label)
 
@@ -478,7 +641,7 @@ def build_surface(surface_id: str, *, root: Path, task_rows: dict[str, dict[str,
             })
 
     edges.sort(key=lambda row: (str(row.get("from")), str(row.get("to")), str(row.get("relation"))))
-    drift = [n for n in nodes if (n.get("deployment") or {}).get("status") in {"DRIFT","DRIFT_FROM_CURRENT_INSTALL_SOURCE","MISSING_RUNTIME"}]
+    drift = [n for n in nodes if (n.get("deployment") or {}).get("status") in {"DRIFT","DRIFT_FROM_CURRENT_INSTALL_SOURCE","DRIFT_FROM_PINNED_INSTALL_SOURCE","MISSING_RUNTIME"}]
     missing_tasks = [n for n in nodes if n["kind"] == "scheduled_task" and n["observation"].get("observed") and not n["observation"].get("exists")]
     if drift:
         status = "DRIFT"
@@ -490,7 +653,7 @@ def build_surface(surface_id: str, *, root: Path, task_rows: dict[str, dict[str,
         status = "OK"
     return {
         "schema": SCHEMA, "surface_id": surface_id, "label": spec["label"], "components": list(spec["components"]),
-        "aliases": list(spec["aliases"]), "authority": AUTHORITY, "status": status, "nodes": nodes, "edges": edges,
+        "aliases": list(spec["aliases"]), "authority": AUTHORITY, "status": status, "operational_health": operational_health, "nodes": nodes, "edges": edges,
         "recovery": list(spec.get("recovery") or []),
         "coverage": {"task_scheduler": task_coverage, "repo_root": str(root), "network_fanout": False, "broad_task_enumeration": False},
         "boundary": "Deployment graph is navigation plus exact local file/task observation. It does not replace the owning source/runtime authority or prove process liveness unless a node explicitly carries that evidence.",
