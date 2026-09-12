@@ -1,7 +1,7 @@
 {
   "schema": "mcp-current-topology.v1",
   "authority": "current_serving_topology",
-  "updated_at": "2026-09-11T23:33:37.848743+00:00",
+  "updated_at": "2026-09-12T04:10:07.105717+03:00",
   "tracking_issue": "organicoverlords/regression-research#1023",
   "source_change": {
     "repository": "organicoverlords/chatgpt-mcp-clean",
@@ -14,7 +14,7 @@
     "process_output_schema_pull_request": 293,
     "adaptive_read_smoke_issue": 294,
     "adaptive_read_smoke_pull_request": 295,
-    "peer_runtime_commit": "896bb403f0ef1fc543958d7fe4088c4dfcd2a0ac",
+    "peer_runtime_commit": "aff995b1498dbc231a2e8e112df344cccb6fe0af",
     "vps_read_guidance_pull_request": 296,
     "home_direct_current_port_pull_request": 297,
     "frozen_home_direct_promotion_pull_request": 298,
@@ -26,7 +26,16 @@
     "library_work_merge_commit": "7a457c6a530709f484a3d5c00b05e0f6a3ea3866",
     "process_library_handoff_issue": 303,
     "process_library_handoff_pull_request": 304,
-    "process_library_handoff_merge_commit": "064bc588aecb1a870226609950a951af85f2aadf"
+    "process_library_handoff_merge_commit": "064bc588aecb1a870226609950a951af85f2aadf",
+    "tool_file_reference_issue": 305,
+    "tool_file_reference_pull_request": 306,
+    "tool_file_reference_merge_commit": "50d00ba0dafa4f03cda9647e2f06e2100dd3fe13",
+    "widget_free_native_handoff_issue": 307,
+    "widget_free_native_handoff_pull_request": 308,
+    "widget_free_native_handoff_merge_commit": "aff995b1498dbc231a2e8e112df344cccb6fe0af",
+    "peer_replacement_wrapper_issue": 310,
+    "peer_replacement_wrapper_pull_request": 311,
+    "peer_replacement_wrapper_merge_commit": "234709adf11c2d2638ee3ec95278f479894141ef"
   },
   "serving": {
     "connector_url": "https://91-159-12-133.sslip.io/mcp",
@@ -41,21 +50,21 @@
       "scheduled_task": "McpV4HomeDirectCaddy",
       "config": "%LOCALAPPDATA%\\\\Caddy\\\\mcp-home-test\\\\Caddyfile",
       "frozen_config": "%LOCALAPPDATA%\\\\ChatGPTMcpFrozen\\\\1100969\\\\Caddyfile.frozen",
-      "sha256": "78b6e8386c1d544a2f392b20ec2ed2168779b6e11d243da3943e087ba1b95198",
+      "sha256": "dc14d40fbf66c1a3beb20ec425432e9b19ab049e7b7cac4cf18bce6adb302db4",
       "sha256_basis": "on-disk Caddyfile raw bytes",
-      "loaded_admin_sha256": "163f87d0525e2a66fc50dc4167eb9cb88a03999b759958df6916bce4fda2ead3",
+      "loaded_admin_sha256": "de624b7259b5a1f370bd36859850877ac18ae9836656a4455f16ef3e23eb0883",
       "loaded_admin_sha256_basis": "raw Caddy admin /config/ response bytes",
       "loaded_upstreams": [
         "127.0.0.1:3046",
-        "127.0.0.1:3037"
+        "127.0.0.1:3048"
       ],
       "on_disk_config_matches_loaded_routes": true,
       "on_disk_config_routes": [
         "127.0.0.1:3046",
-        "127.0.0.1:3037"
+        "127.0.0.1:3048"
       ],
       "authorization_rule": "/authorize is accepted only from private/local client IPs; other /authorize requests fail closed",
-      "frozen_config_role": "1100969 config is preserved older rollback material; current stable route is 3046 and peer route is 3037"
+      "frozen_config_role": "1100969 config is preserved older rollback material; current stable route is 3046 and peer canary route is 3048"
     },
     "backend": {
       "persistence_task": "McpV4FrozenIssue303Canary3046-064bc58",
@@ -73,14 +82,15 @@
     "peer_route": {
       "connector_url": "https://pr237.91-159-12-133.sslip.io/mcp",
       "public_origin": "https://pr237.91-159-12-133.sslip.io",
-      "listen": "127.0.0.1:3037",
-      "persistence_task": "McpV4FrozenIssue281Pr2373037",
+      "listen": "127.0.0.1:3048",
+      "persistence_task": "McpV4FrozenIssue307Canary3048-aff995b",
       "persistence_task_state": "Running",
       "current_process_scheduler_owned": true,
-      "runtime_checkout": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\896bb40-outputschema\\runtime",
-      "durable_runtime_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\896bb40-outputschema",
-      "commit": "896bb403f0ef1fc543958d7fe4088c4dfcd2a0ac",
-      "oauth_store": "%LOCALAPPDATA%\\\\ChatGPTMcpClean\\\\minimal-connectors\\\\pr237-test\\\\oauth.json"
+      "runtime_checkout": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\aff995b-widget-free-native-peer\\runtime",
+      "durable_runtime_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\aff995b-widget-free-native-peer",
+      "commit": "aff995b1498dbc231a2e8e112df344cccb6fe0af",
+      "oauth_store": "%LOCALAPPDATA%\\\\ChatGPTMcpClean\\\\minimal-connectors\\\\pr237-test\\\\oauth.json",
+      "acceptance_state": "WORK_UI_LIBRARY_PENDING"
     }
   },
   "chatgpt_surface": {
@@ -103,7 +113,20 @@
         "report SHA-256",
         "do not transcode stored media/artifacts",
         "verify exact reconstructed bytes on reverse transfer"
-      ]
+      ],
+      "peer_canary": {
+        "generation": "aff995b-widget-free-native",
+        "route": "https://pr237.91-159-12-133.sslip.io/mcp",
+        "upload_tool": "upload_local_file",
+        "delivery_mode": "tool_file_reference",
+        "resource_protocol": "mcp-upload://file-transfer/{token}",
+        "start_process_mounts_file_widget": false,
+        "read_output_mounts_file_widget": false,
+        "upload_local_file_mounts_file_widget": false,
+        "process_marker_handoff": false,
+        "widget_library_upload_api": false,
+        "work_ui_library_acceptance": "PENDING_FRESH_WORK"
+      }
     },
     "image_delivery": {
       "adds_tool": true,
@@ -150,7 +173,7 @@
     "protected_resource_metadata_expected_status": 200
   },
   "recovery": {
-    "independent_local_control": "3045 preserves the immediately previous 7a457c6 stable serving generation; 3044 preserves 26dc9be; 3030 preserves a877fbc; older rollback generations remain available",
+    "independent_local_control": "3045 preserves the immediately previous stable 7a457c6 generation; 3044 preserves 26dc9be; 3047 preserves the immediately previous peer 50d00ba generation; 3037 preserves peer 896bb40; older rollback generations remain available",
     "stable_rollback": {
       "listen": "127.0.0.1:3022",
       "instance": "home-direct-test",
@@ -171,10 +194,10 @@
       "currently_listening": true
     },
     "immediate_peer_rollback": {
-      "listen": "127.0.0.1:3029",
-      "instance": "pr237-1100969",
-      "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
-      "persistence_task": "McpV4FrozenPr2373029",
+      "listen": "127.0.0.1:3047",
+      "instance": "pr237-50d00ba-work-file-reference",
+      "commit": "50d00ba0dafa4f03cda9647e2f06e2100dd3fe13",
+      "persistence_task": "McpV4FrozenIssue305Peer3047-50d00ba",
       "currently_listening": true
     },
     "prior_stable_rollback": {
@@ -182,6 +205,13 @@
       "instance": "home-direct-1100969",
       "commit": "1100969cfd1276da5341e67c09b9744a3927142e",
       "persistence_task": "McpV4FrozenStable3028",
+      "currently_listening": true
+    },
+    "prior_peer_rollback": {
+      "listen": "127.0.0.1:3037",
+      "instance": "pr237-896bb40-outputschema-side",
+      "commit": "896bb403f0ef1fc543958d7fe4088c4dfcd2a0ac",
+      "persistence_task": "McpV4FrozenIssue281Pr2373037",
       "currently_listening": true
     }
   },
@@ -192,28 +222,26 @@
     "Tailscale owner authorization"
   ],
   "diagnostic_invariants": [
-    "The current serving backend generation exposes exactly five MCP actions: start_process, read_output, kill_process, upload_local_file, download_chatgpt_file.",
-    "A chat opened before the five-tool promotion may still show a cached three-tool schema; verify live backend commit/tool contract before changing OAuth or routing.",
-    "The image thumbnail is UI-only. Model vision must be backed by the exact original image resource and source integrity checks, not a resized preview.",
+    "The stable GPT1 serving backend remains 3046 / 064bc58 and exposes exactly five MCP actions: start_process, read_output, kill_process, upload_local_file, download_chatgpt_file.",
+    "The pr237 peer canary serving backend is 3048 / aff995b and exposes the same five-tool surface.",
     "Stable and pr237 use separate OAuth stores; authentication repair must not merge, replace, or copy one store over the other.",
-    "If an authorization browser opens 5-61-91-127.sslip.io, GPT1 is using stale connector metadata; do not repair the VPS route for this connector.",
-    "mcp-recovery-state.json is recovery-target metadata and must not be projected as current GPT1 serving identity.",
-    "Loaded Caddy upstreams and the on-disk mcp-home-test Caddyfile agree on stable 3044 and peer 3037 at this observation.",
-    "3030 remains live on a877fbc as the immediate stable rollback; 3036 remains live on 896bb40 as the prior stable rollback; 3028/3029 remain live on frozen 1100969 and are not loaded Caddy upstreams.",
-    "The current stable 3044 and peer 3037 serving processes are parented by Running persistence tasks and use the existing separate OAuth stores.",
-    "start_process, read_output, and kill_process advertise outputSchema and return structuredContent on stable runtime 26dc9be and peer runtime 896bb40; compatibility text content remains intentional.",
-    "Raw production-VPS transports remain blocked; the 26dc9be stable runtime preserves the supported capture-edge-runtime/fanout/backend-correlation read-only diagnosis path.",
-    "Direct image upload_local_file results use image_resource delivery: exact image bytes remain the same-turn resource carrier and the widget returns before the Library upload call, so ordinary image review does not require Library permission."
+    "Caddy canonical and runtime configs agree on stable 3046 and peer 3048 at this observation.",
+    "Peer 3048 restores the #235 separation: start_process/read_output do not mount file UI and do not parse CHATGPT_LIBRARY_UPLOAD markers.",
+    "Peer 3048 upload_local_file returns exact first-class MCP file resources for image/video/ZIP/other supported files and does not mount the file widget or call window.openai.uploadFile.",
+    "Peer 3048 Work UI / automatic Library persistence remains PENDING fresh Work acceptance; backend/resource correctness is not sufficient acceptance.",
+    "3047 remains the immediate peer rollback and 3037 remains an older independent peer rollback; neither is a loaded Caddy upstream.",
+    "The image thumbnail or conversation file chip is transport/UI evidence only; exact bytes/hash and actual user-visible pixels are separate acceptance evidence.",
+    "mcp-recovery-state.json is recovery-target metadata and must not be projected as current serving identity."
   ],
   "current_live_persistence": {
     "status": "RUNNING_TASKS_PARENT_CURRENT_SERVING_PIDS",
     "primary_task": "McpV4FrozenIssue303Canary3046-064bc58",
-    "peer_task": "McpV4FrozenIssue281Pr2373037",
+    "peer_task": "McpV4FrozenIssue307Canary3048-aff995b",
     "task_state": "Running",
     "current_process_scheduler_owned": true,
     "artifact_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\064bc58-process-library-handoff",
     "tracking_issue": "organicoverlords/chatgpt-mcp-clean#303",
-    "peer_artifact_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\896bb40-outputschema"
+    "peer_artifact_root": "%LOCALAPPDATA%\\ChatGPTMcpFrozen\\aff995b-widget-free-native-peer"
   },
   "non_serving_live_instances": [
     {
@@ -263,12 +291,29 @@
       "commit": "7a457c6a530709f484a3d5c00b05e0f6a3ea3866",
       "loaded_caddy_upstream": false,
       "role": "immediate stable rollback generation; not current GPT1 serving path"
+    },
+    {
+      "listen": "127.0.0.1:3037",
+      "persistence_task": "McpV4FrozenIssue281Pr2373037",
+      "task_state": "Running",
+      "commit": "896bb403f0ef1fc543958d7fe4088c4dfcd2a0ac",
+      "loaded_caddy_upstream": false,
+      "role": "prior independent peer rollback; not current pr237 serving path"
+    },
+    {
+      "listen": "127.0.0.1:3047",
+      "persistence_task": "McpV4FrozenIssue305Peer3047-50d00ba",
+      "task_state": "Running",
+      "commit": "50d00ba0dafa4f03cda9647e2f06e2100dd3fe13",
+      "loaded_caddy_upstream": false,
+      "role": "immediate peer rollback generation; not current pr237 serving path"
     }
   ],
   "notes": [
-    "Loaded Caddy upstreams and the on-disk mcp-home-test Caddyfile agree on stable 3046 and peer 3037 at this observation.",
-    "3045 remains live on 7a457c6 as the immediate stable rollback; 3044 remains an older rollback generation.",
-    "Stable 3046 runs 064bc58 from PR #304 and restores CHATGPT_LIBRARY_UPLOAD=<absolute path> on start_process/read_output so Work can hand off image/video/ZIP files without a separate upload_local_file invocation.",
-    "Existing ChatGPT conversations may retain a cached pre-3046 tool descriptor; validate the new outputTemplate/description in a fresh chat or fresh Work run before judging Library UI behavior."
+    "Loaded Caddy upstreams and the on-disk canonical/runtime Caddyfiles agree on stable 3046 and peer 3048 at this observation.",
+    "Peer 3048 runs aff995b from PR #308: widget-free native file handoff with exact resource_link/resources-read semantics and no process marker handoff.",
+    "3047 remains live on 50d00ba as immediate peer rollback; 3037 remains live on 896bb40 as prior independent peer rollback.",
+    "Stable 3046 remains unchanged on 064bc58 and still carries the older process Library handoff design until a separately proven promotion.",
+    "Fresh Work acceptance is still required for peer 3048 Library persistence and materialization-prompt behavior."
   ]
 }
