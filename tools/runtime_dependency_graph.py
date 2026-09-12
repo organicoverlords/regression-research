@@ -157,12 +157,20 @@ def _git_blob_oid(root: Path, ref: str, relpath: str) -> str | None:
     return value if proc.returncode == 0 and re.fullmatch(r"[0-9a-f]{40,64}", value, re.I) else None
 
 
-def _file_git_blob_oid(root: Path, relpath: str, path: Path | None) -> str | None:
+def _file_git_blob_oid(
+    root: Path, relpath: str, path: Path | None, *, apply_filters: bool = True
+) -> str | None:
     if path is None or not path.is_file():
         return None
+    command = ["git", "-C", str(root), "hash-object"]
+    if apply_filters:
+        command.append(f"--path={relpath.replace(os.sep, '/')}")
+    else:
+        command.append("--no-filters")
+    command.append(str(path))
     try:
         proc = subprocess.run(
-            ["git", "-C", str(root), "hash-object", f"--path={relpath.replace(os.sep, '/')}", str(path)],
+            command,
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -286,14 +294,16 @@ def _pin_from_path(path: Path | None) -> str | None:
 def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str) -> dict[str, Any]:
     source = (root / source_rel).resolve()
     runtime_hash, source_hash = _hash(runtime), _hash(source)
-    runtime_blob = _file_git_blob_oid(root, source_rel, runtime)
-    source_blob = _file_git_blob_oid(root, source_rel, source)
+    runtime_exact_blob = _file_git_blob_oid(root, source_rel, runtime, apply_filters=False)
+    runtime_clean_blob = _file_git_blob_oid(root, source_rel, runtime, apply_filters=True)
+    source_blob = _file_git_blob_oid(root, source_rel, source, apply_filters=True)
     out: dict[str, Any] = {
         "runtime_sha256": runtime_hash,
         "worktree_source_sha256": source_hash,
-        "runtime_clean_blob": runtime_blob,
+        "runtime_exact_blob": runtime_exact_blob,
+        "runtime_clean_blob": runtime_clean_blob,
         "worktree_source_clean_blob": source_blob,
-        "matches_worktree_source": bool(runtime_blob and source_blob and runtime_blob == source_blob),
+        "matches_worktree_source": bool(runtime_clean_blob and source_blob and runtime_clean_blob == source_blob),
     }
     if runtime is None:
         return {**out, "status": "UNRESOLVED_RUNTIME_PATH", "comparison_basis": "NONE"}
@@ -334,10 +344,21 @@ def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str
         else:
             out["deployment_mechanism"] = "GIT_REF_TRACKED_RUNTIME"
 
-    out.update({"desired_clean_blob": desired_blob, "comparison_basis": basis})
-    if desired_blob is None or runtime_blob is None:
+    if tracking == "worktree_copy":
+        comparison_runtime_blob = runtime_clean_blob
+        comparison_mode = "GIT_CLEAN_FILTERED_RUNTIME_VS_WORKTREE_SOURCE"
+    else:
+        comparison_runtime_blob = runtime_exact_blob
+        comparison_mode = "EXACT_RUNTIME_BYTES_VS_GIT_BLOB"
+    out.update({
+        "desired_clean_blob": desired_blob,
+        "comparison_basis": basis,
+        "comparison_mode": comparison_mode,
+        "runtime_comparison_blob": comparison_runtime_blob,
+    })
+    if desired_blob is None or comparison_runtime_blob is None:
         out["status"] = "UNKNOWN"
-    elif runtime_blob == desired_blob:
+    elif comparison_runtime_blob == desired_blob:
         out["status"] = "MATCH"
     elif tracking == "worktree_copy":
         out["status"] = "DRIFT_FROM_CURRENT_INSTALL_SOURCE"
