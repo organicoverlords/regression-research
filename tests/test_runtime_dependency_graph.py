@@ -10,6 +10,7 @@ from unittest.mock import patch
 from tools.runtime_dependency_graph import (
     _arg_paths,
     _comparison,
+    _task_runtime_info,
     build_surface,
     explain_runtime_dependency_node,
     runtime_dependency_path,
@@ -210,6 +211,138 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
             self.assertEqual(result["runtime_comparison_blob"], exact)
             self.assertEqual(result["comparison_mode"], "EXACT_RUNTIME_BYTES_VS_GIT_BLOB")
 
+    def test_pinned_worktree_copy_uses_clean_filtered_runtime_against_pinned_commit(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "core.autocrlf", "true"], check=True)
+            pin = "a" * 40
+            runtime = root / "runtime" / pin / "worktree_hygiene_task.py"
+            runtime.parent.mkdir(parents=True)
+            runtime.write_bytes(b"line-one\r\nline-two\r\n")
+            exact = subprocess.check_output(
+                ["git", "-C", str(root), "hash-object", "--no-filters", str(runtime)], text=True
+            ).strip()
+            filtered = subprocess.check_output(
+                ["git", "-C", str(root), "hash-object", "--path=tools/worktree_hygiene_task.py", str(runtime)], text=True
+            ).strip()
+            self.assertNotEqual(exact, filtered)
+            with patch("tools.runtime_dependency_graph._git_blob_oid", return_value=filtered):
+                result = _comparison(
+                    root, "tools/worktree_hygiene_task.py", runtime, "pinned_worktree_copy"
+                )
+        self.assertEqual(result["status"], "MATCH")
+        self.assertEqual(result["pinned_commit"], pin)
+        self.assertEqual(result["runtime_exact_blob"], exact)
+        self.assertEqual(result["runtime_clean_blob"], filtered)
+        self.assertEqual(result["runtime_comparison_blob"], filtered)
+        self.assertEqual(result["comparison_mode"], "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB")
+        self.assertEqual(result["deployment_mechanism"], "COMMIT_ADDRESSED_WORKTREE_COPY")
+
+    def test_worktree_hygiene_surface_maps_immutable_bundle_and_health_result_without_false_drift(self):
+        with tempfile.TemporaryDirectory() as raw_root, tempfile.TemporaryDirectory() as raw_local:
+            root = Path(raw_root)
+            local = Path(raw_local)
+            (root / "tools").mkdir()
+            pin = "b" * 40
+            runtime = local / "VaultWorktreeHygiene" / "runtime" / pin
+            runtime.mkdir(parents=True)
+            names = [
+                "worktree_hygiene_task.py", "worktree_hygiene_guard.py",
+                "cleanup_converger.py", "live_swarm.py",
+            ]
+            source_bytes = {f"tools/{name}": (name + "\n").encode() for name in names}
+            source_bytes["tools/Install-WorktreeHygieneTask.ps1"] = b"installer\n"
+            for rel, data in source_bytes.items():
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            for name in names:
+                (runtime / name).write_bytes(source_bytes[f"tools/{name}"])
+            latest = local / "VaultWorktreeHygiene" / "latest.json"
+            latest.write_text('{"status":"degraded"}', encoding="utf-8")
+            task_rows = {
+                "VaultWorktreeHygiene": {
+                    "TaskName": "VaultWorktreeHygiene", "Exists": True, "State": "Ready",
+                    "Enabled": True, "LastTaskResult": 3, "LastRunTime": "now", "NextRunTime": "next",
+                    "RuntimeInfoStatus": "OK",
+                    "Actions": [{
+                        "Execute": "pythonw.exe",
+                        "Arguments": f'"{runtime / "worktree_hygiene_task.py"}"',
+                        "WorkingDirectory": str(runtime),
+                    }],
+                }
+            }
+            desired = {rel: _sha(data) for rel, data in source_bytes.items()}
+
+            def desired_blob(_root, ref, relpath):
+                self.assertEqual(ref, pin)
+                return desired.get(relpath)
+
+            def clean_blob(_root, _relpath, path, *, apply_filters=True):
+                return _sha(Path(path).read_bytes()) if path and Path(path).is_file() else None
+
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
+                    patch("tools.runtime_dependency_graph._git_blob_oid", side_effect=desired_blob), \
+                    patch("tools.runtime_dependency_graph._file_git_blob_oid", side_effect=clean_blob):
+                surface = build_surface(
+                    "vault.worktree_hygiene", root=root, task_rows=task_rows,
+                    task_coverage={"status": "INJECTED", "broad_enumeration": False},
+                )
+                self.assertEqual(surface["status"], "OK")
+                self.assertEqual(surface["operational_health"]["status"], "degraded")
+                by_key = {node["key"]: node for node in surface["nodes"]}
+                task = by_key["task:VaultWorktreeHygiene"]
+                self.assertEqual(task["observation"]["last_task_result"], 3)
+                self.assertEqual(task["observation"]["state"], "Ready")
+                self.assertEqual(task["result_meaning"], "DEGRADED_HEALTH_STATE")
+                self.assertEqual(task["result_semantics"]["3"], "DEGRADED_HEALTH_STATE")
+                self.assertIn("not task-definition drift", task["result_semantics"]["note"])
+                for key in ("runtime:entry", "runtime:guard", "runtime:cleanup", "runtime:live_swarm"):
+                    deployment = by_key[key]["deployment"]
+                    self.assertEqual(deployment["status"], "MATCH")
+                    self.assertEqual(deployment["pinned_commit"], pin)
+                    self.assertEqual(
+                        deployment["comparison_mode"],
+                        "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB",
+                    )
+                self.assertEqual(Path(by_key["output:latest"]["resolved_path"]), latest)
+                self.assertEqual(
+                    by_key["output:latest"]["observation"]["json_projection"]["fields"]["status"],
+                    "degraded",
+                )
+                self.assertTrue(any(
+                    edge["relation"] == "EXECUTES" and edge.get("observed_action_match")
+                    for edge in surface["edges"]
+                ))
+
+                (runtime / "worktree_hygiene_guard.py").write_bytes(b"stale\n")
+                drifted = build_surface(
+                    "vault.worktree_hygiene", root=root, task_rows=task_rows,
+                    task_coverage={"status": "INJECTED", "broad_enumeration": False},
+                )
+                self.assertEqual(drifted["status"], "DRIFT")
+                guard = next(node for node in drifted["nodes"] if node["key"] == "runtime:guard")
+                self.assertEqual(guard["deployment"]["status"], "DRIFT_FROM_PINNED_INSTALL_SOURCE")
+
+    def test_task_runtime_info_reads_one_exact_verbose_task_row(self):
+        csv_row = (
+            '"KONE","\\\\VaultWorktreeHygiene","12.9.2026 18.44.16","Ready","Interactive only",'
+            '"12.9.2026 18.43.17","3","N/A","pythonw.exe task.py","runtime","N/A","Enabled"\n'
+        )
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=csv_row, stderr="")
+        with patch("tools.runtime_dependency_graph.subprocess.run", return_value=completed) as run:
+            result = _task_runtime_info("VaultWorktreeHygiene")
+        self.assertEqual(result["RuntimeInfoStatus"], "OK")
+        self.assertEqual(result["State"], "Ready")
+        self.assertEqual(result["LastTaskResult"], 3)
+        self.assertTrue(result["Enabled"])
+        args = run.call_args.args[0]
+        self.assertEqual(
+            args,
+            ["schtasks.exe", "/Query", "/TN", "VaultWorktreeHygiene", "/V", "/FO", "CSV", "/NH"],
+        )
+
     def test_runtime_explain_requires_exact_disambiguation_and_returns_edge_evidence(self):
         with tempfile.TemporaryDirectory() as raw_root, tempfile.TemporaryDirectory() as raw_local:
             root = Path(raw_root)
@@ -225,7 +358,11 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
         self.assertEqual(ambiguous["resolution"]["match_mode"], "EXACT_KEY")
         self.assertEqual(
             [row["id"] for row in ambiguous["resolution"]["candidates"]],
-            ["vault.bootstrap_snapshot:source:installer", "vault.checkout_sync:source:installer"],
+            [
+                "vault.bootstrap_snapshot:source:installer",
+                "vault.checkout_sync:source:installer",
+                "vault.worktree_hygiene:source:installer",
+            ],
         )
         self.assertEqual(exact["status"], "OK")
         self.assertEqual(exact["resolution"]["match_mode"], "EXACT_NODE_ID")

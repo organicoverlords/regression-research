@@ -711,6 +711,7 @@ class StackAtlasTests(unittest.TestCase):
         for target, scope in (
             ("bootstrap_snapshot", "vault:bootstrap-snapshot:runtime-bundle"),
             ("vault_checkout_sync", "vault:checkout-sync:scheduled-task"),
+            ("worktree_hygiene", "vault:worktree-hygiene:scheduled-task"),
         ):
             gate = production_change_gate(
                 target, actor="ChatGPT:test", busy_scope=scope,
@@ -2173,6 +2174,19 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(result["id"], "bootstrap_snapshot")
         self.assertEqual(result["runtime_graph"], graph)
         runtime_graph.assert_called_once_with(["bootstrap_snapshot"])
+
+    def test_worktree_hygiene_lookup_attaches_runtime_graph_surface(self):
+        graph = {
+            "schema": "stack-atlas.runtime-deployment-graph.v1",
+            "surfaces": [{"surface_id": "vault.worktree_hygiene", "status": "OK"}],
+            "coverage": {"status": "OK"},
+        }
+        with patch("tools.stack_atlas._runtime_graph_for_components_safe", return_value=graph) as runtime_graph:
+            result = atlas_lookup("worktree hygiene")
+        self.assertEqual(result["id"], "worktree_hygiene")
+        self.assertIn("VaultWorktreeHygiene", " ".join(result["live_status"]))
+        self.assertEqual(result["runtime_graph"], graph)
+        runtime_graph.assert_called_once_with(["worktree_hygiene"])
 
     def test_live_discovery_distinguishes_busy_handoff_from_runtime_caller_activity(self):
         snapshot = {
