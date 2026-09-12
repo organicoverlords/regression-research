@@ -219,6 +219,7 @@ def _git_ref_file_bytes(repo_root: Path, source_ref: str, relative_path: str) ->
         text=True,
         encoding='utf-8',
         errors='replace',
+        creationflags=_creationflags(),
     )
     if probe.returncode != 0 or probe.stdout.strip() != 'true':
         return None
@@ -226,6 +227,7 @@ def _git_ref_file_bytes(repo_root: Path, source_ref: str, relative_path: str) ->
         ['git', '-C', str(repo_root), 'show', f'{source_ref}:{relative_path}'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        creationflags=_creationflags(),
     )
     if source.returncode != 0 or not source.stdout:
         detail = source.stderr.decode('utf-8', errors='replace')[-500:]
