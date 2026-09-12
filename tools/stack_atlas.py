@@ -219,7 +219,9 @@ BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
-BOOTSTRAP_GLANCE_MAX_BYTES = 15_000
+BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES = 15_000
+BOOTSTRAP_GLANCE_MAX_BYTES = 25_000
+BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT = 4
 BOOTSTRAP_INTEGRITY_WARNING = (
     "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
     "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
@@ -2216,9 +2218,32 @@ def _compact_json_bytes(value: Any) -> int:
     return len(json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 
 
-def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES) -> dict[str, Any]:
-    """Bound the whole bootstrap payload while preserving live truth and drill-down routes."""
+def _bound_bootstrap_mcp_service_health_sources(
+    glance: dict[str, Any], limit: int = BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
+) -> bool:
+    """Keep MCP source detail useful but bounded while preserving aggregate health counts."""
+    mcp = glance.get("mcp")
+    service_health = mcp.get("service_health") if isinstance(mcp, dict) else None
+    sources = service_health.get("sources") if isinstance(service_health, dict) else None
+    if not isinstance(sources, list):
+        return False
+    detail_limit = max(0, int(limit))
+    service_health["source_detail_limit"] = detail_limit
+    service_health["sources_truncated"] = len(sources) > detail_limit
+    if len(sources) <= detail_limit:
+        return False
+    service_health["sources"] = sources[:detail_limit]
+    return True
+
+
+def _fit_bootstrap_glance_budget(
+    glance: dict[str, Any],
+    max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES,
+    compaction_target_bytes: int = BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
+) -> dict[str, Any]:
+    """Compact toward the legacy target while enforcing a larger hard payload ceiling."""
     budget = max(2_048, int(max_bytes))
+    compaction_target = max(2_048, min(budget, int(compaction_target_bytes)))
     source = json.loads(json.dumps(glance, ensure_ascii=False))
     source.pop("bootstrap_warning", None)
     source.pop("bootstrap_end", None)
@@ -2227,11 +2252,16 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         **source,
         "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
     }
+    source_details_compacted = _bound_bootstrap_mcp_service_health_sources(bounded)
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
-        bootstrap["payload_budget"] = {"max_bytes": budget, "compacted": False}
+        bootstrap["payload_budget"] = {
+            "max_bytes": budget,
+            "compaction_target_bytes": compaction_target,
+            "compacted": source_details_compacted,
+        }
 
-    if _compact_json_bytes(bounded) <= budget:
+    if _compact_json_bytes(bounded) <= compaction_target:
         return bounded
 
     recovery = bounded.get("mcp_recovery_state")
@@ -2261,7 +2291,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             }
 
 
-    if _compact_json_bytes(bounded) > budget:
+    if _compact_json_bytes(bounded) > compaction_target:
         freshness = bounded.get("source_freshness")
         if isinstance(freshness, dict):
             freshness.pop("meaning", None)
@@ -2275,7 +2305,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
                         item.pop(key, None)
 
     workers = bounded.get("workers")
-    if _compact_json_bytes(bounded) > budget and isinstance(workers, dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(workers, dict):
         sanity = workers.get("manual_sanity")
         if isinstance(sanity, dict):
             workers["manual_sanity"] = {
@@ -2288,7 +2318,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             }
 
     mcp = bounded.get("mcp")
-    if _compact_json_bytes(bounded) > budget and isinstance(mcp, dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(mcp, dict):
         activity = mcp.get("activity_summary")
         if isinstance(activity, dict):
             mcp["activity_summary"] = {
@@ -2299,17 +2329,17 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         mcp.pop("cache", None)
 
     sessions = mcp.get("active_sessions") if isinstance(mcp, dict) else None
-    while _compact_json_bytes(bounded) > budget and isinstance(sessions, list) and sessions:
+    while _compact_json_bytes(bounded) > compaction_target and isinstance(sessions, list) and sessions:
         sessions.pop()
         bounded["mcp"]["active_sessions_truncated"] = True
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
         for key in ("attention", "stale_reports"):
             items = bounded["workers"].get(key)
             if isinstance(items, list) and len(items) > 1:
                 bounded["workers"][key] = items[:1]
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
         workers = bounded["workers"]
         recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
         workers["recurring_scheduler_recovery"] = {key: recovery.get(key) for key in (
@@ -2320,7 +2350,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         workers.pop("attention", None)
         workers.pop("stale_reports", None)
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("swarm_topology"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("swarm_topology"), dict):
         topo = bounded["swarm_topology"]
         handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
         routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
@@ -2356,11 +2386,11 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
 
     live_swarm = bounded.get("live_swarm")
-    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
+    while _compact_json_bytes(bounded) > compaction_target and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
         live_swarm["lanes"].pop()
         live_swarm["lanes_truncated"] = True
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
         compact_commands = {
             "bootstrap": "stack_atlas.py bootstrap-glance",
@@ -2374,11 +2404,11 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         }
         bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("paths"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("paths"), dict):
         paths = bounded["paths"]
         bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log") if key in paths}
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("mcp_recovery_state"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("mcp_recovery_state"), dict):
         recovery = bounded["mcp_recovery_state"]
         bounded["mcp_recovery_state"] = {
             key: recovery.get(key)
@@ -2386,10 +2416,11 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             if recovery.get(key) not in (None, "", [], {})
         }
 
-    if _compact_json_bytes(bounded) > budget:
+    final_bytes = _compact_json_bytes(bounded)
+    if final_bytes > budget:
         raise ValueError(
             f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
-            f"bytes={_compact_json_bytes(bounded)} budget={budget}"
+            f"bytes={final_bytes} target={compaction_target} budget={budget}"
         )
 
     if isinstance(bootstrap, dict):

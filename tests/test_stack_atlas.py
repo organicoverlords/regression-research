@@ -20,7 +20,9 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
+    BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
     BOOTSTRAP_GLANCE_MAX_BYTES,
+    BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     CANONICAL_RECURRING_WORKERS,
     CANONICAL_RECURRING_WORKER_PARTITIONS,
@@ -429,11 +431,13 @@ class StackAtlasTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
         self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 15_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 25_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES, 15_000)
         self.assertEqual(next(iter(glance)), "bootstrap_warning")
         self.assertEqual(next(reversed(glance)), "bootstrap_end")
         self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["compaction_target_bytes"], BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
@@ -568,6 +572,48 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
         self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
         self.assertEqual(fitted["memory_overview"], memory_before)
+
+    def test_bootstrap_hard_cap_does_not_relax_existing_compaction_target(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "mcp_recovery_state": {
+                "conditions": [
+                    {
+                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
+                        "message": "detail " * 400, "observed_generation": "g" * 500,
+                    }
+                    for i in range(5)
+                ],
+            },
+        }
+        raw_size = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertGreater(raw_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertLess(raw_size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        fitted = _fit_bootstrap_glance_budget(glance)
+        fitted_size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(fitted_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["max_bytes"], 25_000)
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["compaction_target_bytes"], 15_000)
+        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
+
+    def test_bootstrap_mcp_service_health_source_detail_is_bounded(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "mcp": {"active_session_count": 2, "service_health": {
+                "available": True, "status": "LIVE", "source_count": 10, "live_source_count": 10,
+                "sources": [{"instance": f"source-{i}", "status": "LIVE", "backend_generation": "g" * 80} for i in range(10)],
+            }},
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        health = fitted["mcp"]["service_health"]
+        self.assertEqual(health["source_count"], 10)
+        self.assertEqual(health["live_source_count"], 10)
+        self.assertEqual(health["source_detail_limit"], BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
+        self.assertTrue(health["sources_truncated"])
+        self.assertEqual(len(health["sources"]), BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
+        self.assertEqual([item["instance"] for item in health["sources"]], [f"source-{i}" for i in range(BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)])
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
 
     def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
         glance = {
