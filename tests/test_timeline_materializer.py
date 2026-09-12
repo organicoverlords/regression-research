@@ -39,9 +39,11 @@ from tools.timeline_materializer import (
     _bootstrap_correction_trigger_projection,
     _github_read_cli,
     _github_refresh_limit,
+    _event_query_fields,
     _lesson_packet,
     _materialized_source_since,
     _merge_materialized_events,
+    _query_concepts,
     _query_index_opaque_label,
     _repair_legacy_capped_github_comments,
     _run_json,
@@ -55,6 +57,27 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(_query_index_opaque_label({"id": "mem-20260912-abc", "title": "Lightweight asshole correction marker"}), "Lightweight asshole correction marker")
         self.assertIsNone(_query_index_opaque_label({"id": "github-issue:org/repo#1:now", "title": "Issue title"}))
         self.assertEqual(len(_query_index_opaque_label({"id": "worker:long", "title": "x" * 400})), 180)
+
+    def test_nexus_query_concept_includes_devboard_without_singularizing_to_nexu(self):
+        concepts = _query_concepts("nexus")
+        self.assertEqual(len(concepts), 1)
+        self.assertIn("nexus", concepts[0])
+        self.assertIn("devboard", concepts[0])
+        self.assertNotIn("nexu", concepts[0])
+
+    def test_worker_query_fields_include_manual_report_identity_and_findings(self):
+        fields = _event_query_fields({
+            "source_type": "WORKER_REPORT",
+            "title": "marker upload acceptance",
+            "display_label": "manual-marker-handoff",
+            "run_id": "manual-20260912-marker-handoff",
+            "state": "RUN_FINISHED",
+            "finding_tags": ["proof", "regression", "route_problem", "wrapper_anomaly"],
+            "stop_reason": "UI Library acceptance not proven",
+        })
+        all_tokens = set().union(*(tokens for _, tokens in fields))
+        for token in ("manual", "marker", "proof", "regression", "route", "problem", "wrapper", "anomaly", "finished", "library"):
+            self.assertIn(token, all_tokens)
 
     def test_github_read_cli_prefers_gh_swarm_on_path(self):
         def which(name):
