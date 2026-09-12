@@ -1,5 +1,6 @@
 import hashlib
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ from unittest.mock import patch
 
 from tools.runtime_dependency_graph import (
     _arg_paths,
+    _comparison,
     build_surface,
     runtime_graph_for_components,
     search_runtime_dependency_graph,
@@ -69,7 +71,7 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
             def desired_blob(_root, _ref, relpath):
                 return desired.get(relpath)
 
-            def clean_blob(_root, _relpath, path):
+            def clean_blob(_root, _relpath, path, *, apply_filters=True):
                 return _sha(Path(path).read_bytes()) if path and Path(path).is_file() else None
 
             with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}), \
@@ -153,7 +155,7 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
                 self.assertEqual(ref, pin)
                 return _sha((Path(relpath).name + "\n").encode())
 
-            def clean_blob(_root, _relpath, path):
+            def clean_blob(_root, _relpath, path, *, apply_filters=True):
                 return _sha(Path(path).read_bytes()) if path and Path(path).is_file() else None
 
             with patch("tools.runtime_dependency_graph._git_blob_oid", side_effect=desired_blob), \
@@ -167,6 +169,33 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
             self.assertEqual(by_key["runtime:entry"]["deployment"]["pinned_commit"], pin)
             self.assertEqual(Path(by_key["runtime:repo_timeline"]["resolved_path"]), runtime_tools / "repo_timeline.py")
             self.assertEqual(by_key["runtime:worker_history"]["deployment"]["status"], "MATCH")
+
+    def test_git_ref_runtime_comparison_uses_exact_blob_bytes_not_autocrlf_filters(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "core.autocrlf", "true"], check=True)
+            runtime = root / "runtime-stack-atlas.py"
+            runtime.write_bytes(b"line-one\r\nline-two\r\n")
+
+            exact = subprocess.check_output(
+                ["git", "-C", str(root), "hash-object", "--no-filters", str(runtime)], text=True
+            ).strip()
+            filtered = subprocess.check_output(
+                ["git", "-C", str(root), "hash-object", "--path=tools/stack_atlas.py", str(runtime)], text=True
+            ).strip()
+            self.assertNotEqual(exact, filtered)
+
+            with patch("tools.runtime_dependency_graph._git_blob_oid", return_value=exact):
+                result = _comparison(
+                    root, "tools/stack_atlas.py", runtime, "refs/remotes/origin/main"
+                )
+
+            self.assertEqual(result["status"], "MATCH")
+            self.assertEqual(result["runtime_exact_blob"], exact)
+            self.assertEqual(result["runtime_clean_blob"], filtered)
+            self.assertEqual(result["runtime_comparison_blob"], exact)
+            self.assertEqual(result["comparison_mode"], "EXACT_RUNTIME_BYTES_VS_GIT_BLOB")
 
     def test_checkout_sync_surface_exposes_exact_missing_task_and_source_chain(self):
         task_rows = {
