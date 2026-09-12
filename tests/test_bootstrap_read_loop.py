@@ -7,6 +7,7 @@ import sys
 import pytest
 from pathlib import Path
 
+from tools import bootstrap_read_loop as bootstrap_read_loop
 from tools.memory_recent_projection import write_recent_projection
 
 
@@ -160,6 +161,22 @@ def test_deployed_atlas_refreshes_from_cached_origin_main_not_feature_head_or_di
     assert atlas.read_bytes() == source_bytes
     assert 'feature-branch-head' in canonical.read_text(encoding='utf-8')
     assert 'dirty-working-tree' in canonical.read_text(encoding='utf-8')
+
+
+
+def test_deployed_byte_repair_falls_back_when_atomic_replace_is_denied(tmp_path: Path, monkeypatch) -> None:
+    destination = tmp_path / 'bootstrap_read_loop.py'
+    destination.write_bytes(b'old-runtime-bytes\n')
+    desired = b'new-committed-bytes\n'
+
+    def deny_replace(*_args, **_kwargs):
+        raise PermissionError(5, 'destination is held without delete sharing')
+
+    monkeypatch.setattr(bootstrap_read_loop, '_replace_snapshot', deny_replace)
+    monkeypatch.setattr(bootstrap_read_loop.os, 'name', 'nt')
+
+    assert bootstrap_read_loop._replace_deployed_file_bytes(destination, desired) is True
+    assert destination.read_bytes() == desired
 
 
 def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_head(tmp_path: Path) -> None:
