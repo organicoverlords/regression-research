@@ -25,6 +25,21 @@ class MemorySyncError(RuntimeError):
     pass
 
 
+def _subprocess_window_kwargs() -> dict[str, Any]:
+    """Prevent child CLI console windows from surfacing in scheduled Windows runs."""
+    if not IS_WINDOWS:
+        return {}
+    kwargs: dict[str, Any] = {
+        "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    }
+    if hasattr(subprocess, "STARTUPINFO"):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 0)
+        startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+        kwargs["startupinfo"] = startupinfo
+    return kwargs
+
+
 def _validate_sync_branch() -> None:
     branch = BRANCH.strip()
     if not branch:
@@ -34,7 +49,14 @@ def _validate_sync_branch() -> None:
 
 
 def _git(*args: str, cwd: Path = REPO_ROOT, check: bool = True) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(["git", *args], cwd=cwd, text=True, encoding="utf-8", capture_output=True)
+    proc = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        **_subprocess_window_kwargs(),
+    )
     if check and proc.returncode:
         detail = (proc.stderr or proc.stdout).strip()[-1600:]
         raise MemorySyncError(f"git {' '.join(args)} failed: {detail}")
@@ -217,6 +239,7 @@ def _ghbuf_remote_branch_probe() -> subprocess.CompletedProcess[str] | None:
             text=True,
             encoding="utf-8",
             capture_output=True,
+            **_subprocess_window_kwargs(),
         )
     except OSError:
         return None
