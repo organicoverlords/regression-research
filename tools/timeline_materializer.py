@@ -138,6 +138,7 @@ _QUERY_CONCEPT_GROUPS = (
     frozenset({"capture", "captures", "captured", "screenshot", "screenshots", "frame", "frames"}),
     frozenset({"visual", "visible", "render", "rendered", "image", "images", "picture", "pictures", "kuva", "kuvat", "kuvahomma", "kuvahommeli"}),
     frozenset({"transport", "delivery", "display", "displayed", "share", "shared", "show", "shown", "showing", "siirto", "siirtoa", "siirtaa"}),
+    frozenset({"nexus", "devboard", "devboards"}),
     frozenset({"github", "gh", "ghbuf", "ghbuffer"}),
     frozenset({"cache", "cached", "buffer", "buffered", "valimuisti", "välimuisti"}),
     frozenset({"issue", "issues", "issuet", "ticket", "tickets"}),
@@ -2662,6 +2663,10 @@ def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
         str(event.get("project") or ""),
         " ".join(str(value) for value in event.get("projects", []) or []),
         str(event.get("worker") or ""),
+        str(event.get("display_label") or ""),
+        str(event.get("run_id") or ""),
+        str(event.get("state") or ""),
+        " ".join(str(value) for value in event.get("finding_tags", []) or []),
         str(event.get("artifact_type") or ""),
         " ".join(str(value) for value in event.get("branch_refs", []) or []),
         str(event.get("head_ref") or ""),
@@ -2679,6 +2684,7 @@ def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
         str(event.get("findings") or ""),
         str(event.get("validation") or ""),
         str(event.get("outcome") or ""),
+        str(event.get("stop_reason") or ""),
     ])
     return [
         (4.0, _query_tokens(event.get("title"))),

@@ -4151,6 +4151,8 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     normalized_query = str(query).casefold()
     explicit_issue_numbers = set(re.findall(r"\bissue\s*#?\s*(\d+)\b", normalized_query))
     explicit_pr_numbers = set(re.findall(r"\b(?:pr|pull\s+request)\s*#?\s*(\d+)\b", normalized_query))
+    explicit_worker_hashes = set(re.findall(r"(?<![0-9a-f])([0-9a-f]{64})(?![0-9a-f])", normalized_query))
+    exact_worker_ids = {f"worker:{value}" for value in explicit_worker_hashes}
     concepts = _discovery_query_terms(query)
     if not concepts:
         coverage.update({"status": "OK", "generated_at": generated_at, "candidate_count": 0})
@@ -4163,7 +4165,10 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     branch_refs_by_position = index.get("branch_refs") if isinstance(index.get("branch_refs"), list) else [[] for _ in ids]
     opaque_labels = index.get("opaque_labels") if isinstance(index.get("opaque_labels"), dict) else {}
     best_by_concept: list[dict[int, float]] = []
-    candidate_positions: set[int] = set()
+    exact_worker_positions = {
+        position for position, event_id in enumerate(ids) if str(event_id) in exact_worker_ids
+    }
+    candidate_positions: set[int] = set(exact_worker_positions)
     for concept in concepts:
         best: dict[int, float] = {}
         for token in concept:
@@ -4186,7 +4191,8 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     branches_by_stable_key: dict[str, list[str]] = {}
     for position in candidate_positions:
         matched = sum(1 for weights in best_by_concept if weights.get(position, 0.0) > 0.0)
-        if matched < minimum_matches:
+        exact_worker_match = position in exact_worker_positions
+        if matched < minimum_matches and not exact_worker_match:
             continue
         event_id = str(ids[position])
         anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:6]
@@ -4201,6 +4207,8 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         if branch_refs and stable_key not in branches_by_stable_key:
             branches_by_stable_key[stable_key] = branch_refs[:12]
         score = sum(weights.get(position, 0.0) for weights in best_by_concept)
+        if exact_worker_match:
+            score += 100.0
         score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
         score += matched / max(1, len(concepts))
         identity_text = ""

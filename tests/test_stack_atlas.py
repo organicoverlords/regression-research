@@ -2173,6 +2173,35 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual({hit["label"] for hit in hits}, {"Lightweight asshole correction marker", "Repo Worker Alder #S2"})
         self.assertEqual({hit["kind"] for hit in hits}, {"vault_memory", "worker_report"})
 
+    def test_timeline_discovery_resolves_exact_manual_worker_report_hash_or_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T03:20:00+03:00"
+            worker_hash = "229f46e6d59fdafe226c05834a8d022cb6e0bea4fa02029efb11357a56e6ecf2"
+            worker_id = f"worker:{worker_hash}"
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 1, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": [worker_id],
+                    "postings": {},
+                    "weight_codes": {},
+                    "anchors": [[]],
+                    "opaque_labels": {worker_id: "manual marker handoff report repair"},
+                }, handle)
+            hits, coverage = _timeline_discovery_hits(
+                f"worker-reports/manual/history/_reports/{worker_hash}.md", limit=5, root=root
+            )
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual(hits[0]["kind"], "worker_report")
+        self.assertEqual(hits[0]["reference"], worker_id)
+        self.assertEqual(hits[0]["label"], "manual marker handoff report repair")
+        self.assertGreaterEqual(hits[0]["score"], 100.0)
+
     def test_timeline_discovery_boosts_explicit_issue_number_over_textual_neighbor(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
