@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -113,7 +114,7 @@ def test_once_can_run_deployed_atlas_outside_repo_root(tmp_path: Path) -> None:
     assert str(alternate.resolve()) in payload['pythonpath'].split(os.pathsep)
 
 
-def test_deployed_atlas_refreshes_from_git_head_not_dirty_worktree(tmp_path: Path) -> None:
+def test_deployed_atlas_refreshes_from_cached_origin_main_not_feature_head_or_dirty_worktree(tmp_path: Path) -> None:
     alternate = tmp_path / 'repo'
     runtime = tmp_path / 'runtime'
     runtime.mkdir()
@@ -126,11 +127,22 @@ def test_deployed_atlas_refreshes_from_git_head_not_dirty_worktree(tmp_path: Pat
         cwd=alternate, check=True,
     )
     canonical = alternate / 'tools' / 'stack_atlas.py'
-    head_bytes = subprocess.check_output(['git', 'show', 'HEAD:tools/stack_atlas.py'], cwd=alternate)
+    canonical_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=alternate, text=True).strip()
+    subprocess.run(['git', 'update-ref', 'refs/remotes/origin/main', canonical_commit], cwd=alternate, check=True)
+    source_bytes = subprocess.check_output(
+        ['git', 'show', 'refs/remotes/origin/main:tools/stack_atlas.py'], cwd=alternate
+    )
     canonical.write_text(
-        canonical.read_text(encoding='utf-8').replace('alternate-root', 'dirty-working-tree'),
+        canonical.read_text(encoding='utf-8').replace('alternate-root', 'feature-branch-head'),
         encoding='utf-8',
     )
+    subprocess.run(['git', 'add', 'tools/stack_atlas.py'], cwd=alternate, check=True)
+    subprocess.run(
+        ['git', '-c', 'user.name=Bootstrap Test', '-c', 'user.email=bootstrap@example.invalid',
+         'commit', '-q', '-m', 'feature branch atlas must not deploy'],
+        cwd=alternate, check=True,
+    )
+    canonical.write_text(canonical.read_text(encoding='utf-8') + '\n# dirty-working-tree\n', encoding='utf-8')
     atlas = runtime / 'stack_atlas.py'
     atlas.write_text(
         "import json\nprint(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T11:00:00+00:00',"
@@ -145,8 +157,97 @@ def test_deployed_atlas_refreshes_from_git_head_not_dirty_worktree(tmp_path: Pat
     assert cp.returncode == 0, cp.stderr
     payload = json.loads(cp.stdout.lstrip('\ufeff'))
     assert payload['source_marker'] == 'alternate-root'
-    assert atlas.read_bytes() == head_bytes
+    assert atlas.read_bytes() == source_bytes
+    assert 'feature-branch-head' in canonical.read_text(encoding='utf-8')
     assert 'dirty-working-tree' in canonical.read_text(encoding='utf-8')
+
+
+def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_head(tmp_path: Path) -> None:
+    alternate = tmp_path / 'repo'
+    runtime = tmp_path / 'runtime'
+    tools = alternate / 'tools'
+    _write_fake_atlas(alternate)
+    runtime.mkdir()
+
+    producer_source = REPO_ROOT / 'tools' / 'bootstrap_read_loop.py'
+    helper_source = REPO_ROOT / 'tools' / 'memory_recent_projection.py'
+    shutil.copy2(producer_source, tools / 'bootstrap_read_loop.py')
+    shutil.copy2(helper_source, tools / 'memory_recent_projection.py')
+    subprocess.run(['git', 'init', '-q'], cwd=alternate, check=True)
+    subprocess.run(['git', 'add', 'tools'], cwd=alternate, check=True)
+    subprocess.run(
+        ['git', '-c', 'user.name=Bootstrap Test', '-c', 'user.email=bootstrap@example.invalid',
+         'commit', '-q', '-m', 'canonical bootstrap bundle'],
+        cwd=alternate, check=True,
+    )
+    canonical_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=alternate, text=True).strip()
+    subprocess.run(['git', 'update-ref', 'refs/remotes/origin/main', canonical_commit], cwd=alternate, check=True)
+    deployed_source = {
+        name: subprocess.check_output(['git', 'show', f'refs/remotes/origin/main:tools/{name}'], cwd=alternate)
+        for name in ('bootstrap_read_loop.py', 'memory_recent_projection.py', 'stack_atlas.py')
+    }
+
+    # Commit a different feature HEAD. The scheduled runtime must ignore it.
+    (tools / 'stack_atlas.py').write_text(
+        (tools / 'stack_atlas.py').read_text(encoding='utf-8').replace('alternate-root', 'feature-branch-head'),
+        encoding='utf-8',
+    )
+    (tools / 'memory_recent_projection.py').write_text(
+        "raise RuntimeError('feature branch helper loaded')\n", encoding='utf-8'
+    )
+    (tools / 'bootstrap_read_loop.py').write_bytes(
+        (tools / 'bootstrap_read_loop.py').read_bytes() + b'\n# feature branch producer marker\n'
+    )
+    subprocess.run(['git', 'add', 'tools'], cwd=alternate, check=True)
+    subprocess.run(
+        ['git', '-c', 'user.name=Bootstrap Test', '-c', 'user.email=bootstrap@example.invalid',
+         'commit', '-q', '-m', 'feature head must not deploy'],
+        cwd=alternate, check=True,
+    )
+
+    # The live runtime starts from an older but still self-healing producer, a helper
+    # that would fail immediately if imported before repair, and a stale Atlas.
+    producer_runtime = runtime / 'bootstrap_read_loop.py'
+    producer_runtime.write_bytes(deployed_source['bootstrap_read_loop.py'] + b'\n# stale runtime producer marker\n')
+    (runtime / 'memory_recent_projection.py').write_text(
+        "raise RuntimeError('stale runtime helper loaded before self-heal')\n", encoding='utf-8'
+    )
+    atlas_runtime = runtime / 'stack_atlas.py'
+    atlas_runtime.write_text(
+        "import json\nprint(json.dumps({'schema':'bootstrap.v1','generated_at':'2026-09-11T11:00:00+00:00',"
+        "'source_marker':'stale-runtime','memory_overview':{'recent':[]},"
+        "'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
+        encoding='utf-8',
+    )
+
+    # Dirty worktree bytes must not be promoted either.
+    for name in ('bootstrap_read_loop.py', 'stack_atlas.py'):
+        path = tools / name
+        path.write_bytes(path.read_bytes() + b'\n# dirty working tree marker\n')
+    (tools / 'memory_recent_projection.py').write_text(
+        "raise RuntimeError('dirty worktree helper loaded')\n", encoding='utf-8'
+    )
+
+    _, overlay = _memory_files(alternate, tmp_path)
+    env = os.environ.copy()
+    env['VAULT_MEMORY_LOCAL_BANK'] = str(overlay)
+    cp = subprocess.run(
+        [
+            sys.executable, str(producer_runtime), '--once', '--repo-root', str(alternate),
+            '--atlas-path', str(atlas_runtime),
+        ],
+        cwd=str(alternate), capture_output=True, text=True, encoding='utf-8', errors='replace',
+        timeout=20, env=env,
+    )
+
+    assert cp.returncode == 0, cp.stderr
+    payload = json.loads(cp.stdout.lstrip('\ufeff'))
+    assert payload['source_marker'] == 'alternate-root'
+    assert producer_runtime.read_bytes() == deployed_source['bootstrap_read_loop.py']
+    assert (runtime / 'memory_recent_projection.py').read_bytes() == deployed_source['memory_recent_projection.py']
+    assert atlas_runtime.read_bytes() == deployed_source['stack_atlas.py']
+    assert b'feature branch producer marker' in (tools / 'bootstrap_read_loop.py').read_bytes()
+    assert b'dirty working tree marker' in (tools / 'bootstrap_read_loop.py').read_bytes()
 
 
 def test_once_overlays_fingerprint_current_recent_memory_projection(tmp_path: Path) -> None:

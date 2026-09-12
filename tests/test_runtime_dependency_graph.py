@@ -82,10 +82,16 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
                 self.assertEqual(surface["status"], "OK")
                 by_key = {node["key"]: node for node in surface["nodes"]}
                 self.assertEqual(by_key["runtime:producer"]["deployment"]["status"], "MATCH")
-                self.assertEqual(by_key["runtime:producer"]["deployment"]["deployment_mechanism"], "INSTALLER_COPY_FROM_WORKTREE")
-                self.assertFalse(by_key["runtime:producer"]["deployment"]["install_identity_persisted"])
+                self.assertEqual(
+                    by_key["runtime:producer"]["deployment"]["deployment_mechanism"],
+                    "PRODUCER_BUNDLE_SYNC_FROM_CACHED_ORIGIN_MAIN",
+                )
+                self.assertEqual(by_key["runtime:producer"]["deployment"]["desired_ref"], "refs/remotes/origin/main")
                 self.assertEqual(by_key["runtime:atlas"]["deployment"]["status"], "MATCH")
-                self.assertEqual(by_key["runtime:atlas"]["deployment"]["deployment_mechanism"], "PRODUCER_SYNC_FROM_GIT_HEAD")
+                self.assertEqual(
+                    by_key["runtime:atlas"]["deployment"]["deployment_mechanism"],
+                    "PRODUCER_BUNDLE_SYNC_FROM_CACHED_ORIGIN_MAIN",
+                )
                 task_edge = next(
                     edge for edge in surface["edges"]
                     if edge["relation"] == "EXECUTES" and edge["from"].endswith("task:VaultBootstrapSnapshot")
@@ -101,7 +107,10 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
                 self.assertEqual(drifted["status"], "DRIFT")
                 drift_node = next(node for node in drifted["nodes"] if node["key"] == "runtime:atlas")
                 self.assertEqual(drift_node["deployment"]["status"], "DRIFT")
-                self.assertEqual(drift_node["deployment"]["comparison_basis"], "GIT_REF:HEAD:tools/stack_atlas.py")
+                self.assertEqual(
+                    drift_node["deployment"]["comparison_basis"],
+                    "GIT_REF:refs/remotes/origin/main:tools/stack_atlas.py",
+                )
 
                 (runtime / "stack_atlas.py").write_bytes(source_bytes["tools/stack_atlas.py"])
                 (runtime / "bootstrap_read_loop.py").write_bytes(b"older-producer-copy\n")
@@ -111,10 +120,10 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
                 )
                 producer_node = next(node for node in producer_drift["nodes"] if node["key"] == "runtime:producer")
                 self.assertEqual(producer_drift["status"], "DRIFT")
-                self.assertEqual(producer_node["deployment"]["status"], "DRIFT_FROM_CURRENT_INSTALL_SOURCE")
+                self.assertEqual(producer_node["deployment"]["status"], "DRIFT")
                 self.assertEqual(
                     producer_node["deployment"]["comparison_basis"],
-                    "CURRENT_WORKTREE_INSTALL_SOURCE:tools/bootstrap_read_loop.py",
+                    "GIT_REF:refs/remotes/origin/main:tools/bootstrap_read_loop.py",
                 )
 
     def test_timeline_surface_resolves_commit_addressed_task_runtime_and_siblings(self):
@@ -187,6 +196,10 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
         self.assertTrue(hits)
         self.assertEqual(hits[0]["surface_id"], "vault.bootstrap_snapshot")
         self.assertEqual(graph["surfaces"][0]["surface_id"], "vault.bootstrap_snapshot")
+        self.assertEqual(
+            {surface["surface_id"] for surface in graph["surfaces"]},
+            {"vault.bootstrap_snapshot", "vault.checkout_sync"},
+        )
         self.assertFalse(coverage["broad_task_enumeration"])
         self.assertFalse(coverage["network_fanout"])
 
