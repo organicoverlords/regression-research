@@ -35,6 +35,7 @@ DEFAULT_REPOS = (
 )
 P3_GENERATED_DIR_NAMES = frozenset({"Binaries", "Intermediate", "DerivedDataCache"})
 CLEANLINESS_PROBE_TIMEOUT_SECONDS = 15.0
+SAFE_AUTO_WORKTREE_STARTUP_GRACE_SECONDS = 120.0
 
 
 @dataclass(frozen=True)
@@ -379,6 +380,19 @@ def _fresh_cache_guard(repo: Path, worktree: Worktree, window_seconds: int) -> s
     return None
 
 
+def safe_auto_startup_guard(path: Path, *, now: float | None = None) -> str | None:
+    """Preserve a newly-created worktree long enough for its first activity evidence to appear."""
+    try:
+        created_at = path.stat().st_ctime
+    except OSError:
+        return None
+    current = time.time() if now is None else now
+    age_seconds = max(0.0, current - created_at)
+    if age_seconds < SAFE_AUTO_WORKTREE_STARTUP_GRACE_SECONDS:
+        return "recent_worktree_creation"
+    return None
+
+
 def _cache_scope(repo_name: str, worktree: Worktree) -> str:
     leaf = worktree.path.name.replace(":", "_") or "worktree"
     return f"{repo_name.lower()}:generated-cache:{leaf}"
@@ -624,6 +638,11 @@ def scan_repo(
     cache_candidates: list[Worktree] = []
     observations: list[Action] = []
     for worktree in worktrees[1:]:
+        if require_contained:
+            startup_reason = safe_auto_startup_guard(worktree.path)
+            if startup_reason:
+                observations.append(Action(repo_name, str(worktree.path), "PRESERVE", worktree.branch, worktree.head, startup_reason))
+                continue
         cache_guarded = bool(worktree.locked or cwd_targets_path(worktree.path, recent) or process_targets_path(worktree.path, processes, self_pid=os.getpid()))
         preliminary = eligibility_reason(
             worktree, recent_cwds=recent, processes=processes, clean=None,

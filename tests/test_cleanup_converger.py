@@ -568,6 +568,47 @@ class CleanupConvergerTests(unittest.TestCase):
             ]
             self.assertTrue(dirty_changes_match_origin_main(Path(r"C:\repo"), lane))
 
+    @patch("tools.cleanup_converger.worktree_anchor_matches", return_value=True)
+    @patch("tools.cleanup_converger.worktree_is_clean", return_value=True)
+    @patch("tools.cleanup_converger.windows_processes", return_value=[])
+    @patch("tools.cleanup_converger.recent_mcp_cwds", return_value=set())
+    @patch("tools.cleanup_converger.safe_auto_startup_guard", return_value="recent_worktree_creation")
+    @patch("tools.cleanup_converger._git")
+    def test_safe_auto_preserves_new_worktree_before_first_activity(
+        self, git, startup_guard, _cwds, _processes, _clean, _anchor
+    ):
+        git.return_value = subprocess.CompletedProcess(
+            ["git"],
+            0,
+            stdout=(
+                "worktree C:/repo\nHEAD root\nbranch refs/heads/main\n\n"
+                "worktree C:/new-lane\nHEAD abcd\nbranch refs/heads/topic\n\n"
+            ),
+            stderr="",
+        )
+        candidates, cache_candidates, observations = scan_repo(
+            "Agents", Path(r"C:\repo"), 600, require_contained=True
+        )
+        self.assertEqual(candidates, [])
+        self.assertEqual(cache_candidates, [])
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(observations[0].action, "PRESERVE")
+        self.assertEqual(observations[0].reason, "recent_worktree_creation")
+        startup_guard.assert_called_once_with(Path(r"C:\new-lane"))
+
+    def test_safe_auto_startup_guard_expires_after_bounded_grace(self):
+        from tools.cleanup_converger import SAFE_AUTO_WORKTREE_STARTUP_GRACE_SECONDS, safe_auto_startup_guard
+        with tempfile.TemporaryDirectory() as tmp:
+            lane = Path(tmp)
+            created = lane.stat().st_ctime
+            self.assertEqual(
+                safe_auto_startup_guard(lane, now=created + SAFE_AUTO_WORKTREE_STARTUP_GRACE_SECONDS - 1),
+                "recent_worktree_creation",
+            )
+            self.assertIsNone(
+                safe_auto_startup_guard(lane, now=created + SAFE_AUTO_WORKTREE_STARTUP_GRACE_SECONDS + 1)
+            )
+
     @patch("tools.cleanup_converger.disk_free_gb", return_value=10.0)
     @patch("tools.cleanup_converger.scan_repo", return_value=([], [], []))
     @patch("tools.cleanup_converger._git")
