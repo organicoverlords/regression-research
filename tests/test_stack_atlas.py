@@ -330,6 +330,43 @@ class StackAtlasTests(unittest.TestCase):
         size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
 
+    def test_bootstrap_memory_overview_prefers_canonical_external_projection_over_stale_legacy_copy(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "vault"
+            external = Path(d) / "VaultTimeline"
+            legacy = root / ".state" / "timeline"
+            external.mkdir(parents=True)
+            legacy.mkdir(parents=True)
+            (external / "timeline-store.json").write_text("{}", encoding="utf-8")
+            now = datetime.now(timezone.utc)
+
+            def projection(path: Path, *, marker: str, generated_at: datetime) -> None:
+                path.write_text(json.dumps({
+                    "schema": "vault.timeline.bootstrap.v1",
+                    "generated_at": generated_at.isoformat(),
+                    "overview": {
+                        "contract": "history only",
+                        "eligible_entries": 1,
+                        "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
+                        "incident_rollups": [],
+                        "recent": [],
+                        "projects": [{"name": marker, "count": 1}],
+                        "recurring_tags": [],
+                        "timeline_materialized": {"as_of": generated_at.isoformat()},
+                    },
+                }), encoding="utf-8")
+
+            projection(legacy / "bootstrap-memory-overview.json", marker="legacy-stale", generated_at=now - timedelta(hours=12))
+            projection(external / "bootstrap-memory-overview.json", marker="canonical-live", generated_at=now)
+            with patch.dict(os.environ, {"VAULT_TIMELINE_STATE_ROOT": str(external)}), \
+                    patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                    patch("tools.memory_bank.build_overview", side_effect=AssertionError("bootstrap must not rebuild timeline")):
+                compact = _bootstrap_memory_overview()
+
+        self.assertEqual(compact["projects"][0]["name"], "canonical-live")
+        self.assertEqual(compact["timeline_materialized"]["status"], "FRESH")
+
     def test_bootstrap_memory_overview_overlays_current_recent_projection_without_rebuilding_history(self):
         from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as d:

@@ -2508,7 +2508,11 @@ def _fit_bootstrap_glance_budget(
         recovery = bounded["mcp_recovery_state"]
         bounded["mcp_recovery_state"] = {
             key: recovery.get(key)
-            for key in ("status", "path", "selected_recovery_target")
+            for key in (
+                "available", "read_state", "authority", "recovery_target_deployment_id",
+                "recovery_target_generation", "recovery_selected_at", "scope", "details_path",
+                "status", "path", "selected_recovery_target", "conditions",
+            )
             if recovery.get(key) not in (None, "", [], {})
         }
 
@@ -2751,7 +2755,11 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
 
 def _bootstrap_memory_overview() -> dict[str, Any]:
     """Read the periodic Vault timeline projection; never rebuild timeline sources here."""
-    path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
+    try:
+        from tools.timeline_materializer import BOOTSTRAP_PATH, materialized_health, timeline_read_state_root
+    except ImportError:
+        from timeline_materializer import BOOTSTRAP_PATH, materialized_health, timeline_read_state_root
+    path = timeline_read_state_root(ATLAS_LIVE_ROOT) / BOOTSTRAP_PATH.name
     base_missing = {
         "contract": "Periodic Vault timeline projection only; bootstrap never scans Git, GitHub, workers, reports, MCP logs, or artifact history to rebuild it.",
         "eligible_entries": 0,
@@ -2795,10 +2803,6 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
     # and evidence-completeness semantics are owned by the materializer so overview,
     # timeline queries, and bootstrap cannot drift apart.
     overview = json.loads(json.dumps(raw["overview"], ensure_ascii=False))
-    try:
-        from tools.timeline_materializer import materialized_health
-    except ImportError:
-        from timeline_materializer import materialized_health
     materialized = overview.get("timeline_materialized")
     materialized = dict(materialized) if isinstance(materialized, dict) else {}
     materialized.update(materialized_health(raw, now=datetime.now().astimezone()))
