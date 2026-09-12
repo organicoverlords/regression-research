@@ -226,6 +226,11 @@ class LiveSwarmTests(unittest.TestCase):
         self.assertEqual(compact["summary"]["recent_callers"],3)
         self.assertEqual(compact["lanes"][0]["busy"][0]["scope_count"],5)
         self.assertNotIn("scopes",compact["lanes"][0]["busy"][0])
+        self.assertNotIn("lanes_truncated",compact)
+        self.assertEqual(compact["lane_details"], {
+            "policy":"most_recent", "limit":8, "returned":1, "total":1, "bounded":False,
+            "semantics":"bootstrap_detail_bound_not_evidence_truncation",
+        })
 
 
 if __name__ == "__main__":

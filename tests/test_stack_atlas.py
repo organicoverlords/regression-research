@@ -480,7 +480,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("commit_headroom_gb", memory)
         self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
         self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
-        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
+        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_details"]["limit"])
+        self.assertEqual(glance["mcp"]["active_session_details"]["returned"], len(glance["mcp"]["active_sessions"]))
+        self.assertNotIn("active_sessions_truncated", glance["mcp"])
+        self.assertNotIn("lanes_truncated", glance["live_swarm"])
+        self.assertEqual(glance["live_swarm"]["lane_details"]["returned"], len(glance["live_swarm"]["lanes"]))
+        self.assertEqual(glance["live_swarm"]["lane_details"]["semantics"], "bootstrap_detail_bound_not_evidence_truncation")
         self.assertIn("workspace_counts", glance["mcp"])
         for session in glance["mcp"]["active_sessions"]:
             self.assertIn("caller_id", session)
@@ -628,6 +633,34 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
         self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
         self.assertEqual(fitted["memory_overview"], memory_before)
+
+    def test_bootstrap_soft_target_preserves_bounded_live_status_detail_under_hard_cap(self):
+        lanes = [{"basis": "worktree", "workspace": f"w{i}", "worktree": {"path": f"C:/w{i}"}, "callers": [{"caller_id": f"c{i}"}], "busy": []} for i in range(4)]
+        sessions = [{"caller_id": f"c{i}", "cwd": f"C:/w{i}", "workspace": f"w{i}", "busy_titles": []} for i in range(3)]
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "live_swarm": {
+                "summary": {"recent_callers": 4, "lanes": 4},
+                "evidence": {"activity_window_complete": True, "observation_window_complete": True},
+                "lanes": lanes,
+                "lane_details": {"policy": "most_recent", "limit": 4, "returned": 4, "total": 4, "bounded": False, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
+            },
+            "mcp": {
+                "active_session_count": 4, "active_session_count_status": "COMPLETE",
+                "active_sessions": sessions,
+                "active_session_details": {"policy": "most_recent", "limit": 3, "returned": 3, "total": 4, "bounded": True, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
+            },
+            "synthetic_uncompacted_detail": "x" * 16_000,
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertGreater(size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertEqual(len(fitted["live_swarm"]["lanes"]), 4)
+        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 3)
+        self.assertNotIn("lanes_truncated", fitted["live_swarm"])
+        self.assertNotIn("active_sessions_truncated", fitted["mcp"])
+        self.assertTrue(fitted["mcp"]["active_session_details"]["bounded"])
 
     def test_bootstrap_hard_cap_does_not_relax_existing_compaction_target(self):
         glance = {

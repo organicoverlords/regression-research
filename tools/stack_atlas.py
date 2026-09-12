@@ -2424,10 +2424,8 @@ def _fit_bootstrap_glance_budget(
             }
         mcp.pop("cache", None)
 
-    sessions = mcp.get("active_sessions") if isinstance(mcp, dict) else None
-    while _compact_json_bytes(bounded) > compaction_target and isinstance(sessions, list) and sessions:
-        sessions.pop()
-        bounded["mcp"]["active_sessions_truncated"] = True
+    # Active-session detail is an intentionally bounded work/status view.
+    # Preserve the configured sample while the payload remains under the hard budget.
 
     if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
         for key in ("attention", "stale_reports"):
@@ -2481,10 +2479,8 @@ def _fit_bootstrap_glance_budget(
         bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
         bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
 
-    live_swarm = bounded.get("live_swarm")
-    while _compact_json_bytes(bounded) > compaction_target and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
-        live_swarm["lanes"].pop()
-        live_swarm["lanes_truncated"] = True
+    # Live-swarm lanes are a bounded work/status view, not an evidence-completeness signal.
+    # Preserve the configured recent lane sample while the payload remains under the hard budget.
 
     if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
@@ -3519,8 +3515,14 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
         "active_session_count_status": "COMPLETE" if complete else "LOWER_BOUND",
         "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
         "active_sessions": sessions[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT],
-        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
-        "active_sessions_truncated": len(sessions) > BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+        "active_session_details": {
+            "policy": "most_recent",
+            "limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+            "returned": min(len(sessions), BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT),
+            "total": len(sessions),
+            "bounded": len(sessions) > BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+            "semantics": "bootstrap_detail_bound_not_evidence_truncation",
+        },
         "workspace_counts": summary.get("workspace_counts", {}),
         "activity_summary": {
             **activity,
@@ -3796,7 +3798,7 @@ def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, 
         "observed_session_count": int(mcp.get("active_session_count") or 0),
         "observed_session_count_status": mcp.get("active_session_count_status"),
         "workspace_counts": mcp.get("workspace_counts", {}),
-        "sessions_truncated": bool(mcp.get("active_sessions_truncated")),
+        "session_details": mcp.get("active_session_details"),
     }
 
 

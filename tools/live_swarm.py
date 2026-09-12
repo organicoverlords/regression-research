@@ -543,11 +543,26 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
 
 
 def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[str,Any]:
+    lane_limit=max(0,int(lane_limit))
+    source_lanes=list(snapshot.get("lanes") or [])
     lanes=[]
-    for lane in list(snapshot.get("lanes") or [])[:lane_limit]:
+    for lane in source_lanes[:lane_limit]:
         lanes.append({
             "basis":lane.get("basis"),"workspace":lane.get("workspace"),"worktree":lane.get("worktree"),
             "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
-    return {"summary":snapshot.get("summary",{}),"evidence":snapshot.get("evidence",{}),"lanes":lanes,"lanes_truncated":len(snapshot.get("lanes") or [])>len(lanes),"elapsed_ms":snapshot.get("elapsed_ms")}
+    return {
+        "summary":snapshot.get("summary",{}),
+        "evidence":snapshot.get("evidence",{}),
+        "lanes":lanes,
+        "lane_details":{
+            "policy":"most_recent",
+            "limit":lane_limit,
+            "returned":len(lanes),
+            "total":len(source_lanes),
+            "bounded":len(source_lanes)>len(lanes),
+            "semantics":"bootstrap_detail_bound_not_evidence_truncation",
+        },
+        "elapsed_ms":snapshot.get("elapsed_ms"),
+    }
