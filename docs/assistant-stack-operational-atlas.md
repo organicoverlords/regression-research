@@ -258,11 +258,11 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Canonical sources: tools/install_bootstrap_snapshot_task.ps1; tools/bootstrap_read_loop.py; tools/memory_recent_projection.py; tools/stack_atlas.py
 - Live status: exact Windows tasks VaultBootstrapSnapshot + VaultBootstrapSnapshotWatchdog; %LOCALAPPDATA%\VaultBootstrapSnapshot\bootstrap_read_loop.py; %LOCALAPPDATA%\VaultBootstrapSnapshot\stack_atlas.py; C:\Users\Lauri\Desktop\vault\.state\bootstrap\latest.json
 - Independent recovery: tools/install_bootstrap_snapshot_task.ps1; %LOCALAPPDATA%\VaultBootstrapSnapshot rollback-* copies
-- Resources: %LOCALAPPDATA%\VaultBootstrapSnapshot; .state\bootstrap\latest.json; .state\bootstrap\producer-status.json; MCP persistent process_id=bootstrap
+- Resources: %LOCALAPPDATA%\VaultBootstrapSnapshot; refs/remotes/origin/main; .state\bootstrap\latest.json; .state\bootstrap\producer-status.json; MCP persistent process_id=bootstrap
 - Dependents: stack_atlas; chatgpt_session; execution_workers
 - Runbook: organicoverlords/regression-research#987; organicoverlords/regression-research#1025
 - Supervisor: Windows Task Scheduler; producer owns bounded Atlas child lifecycle
-- Self-heal: watchdog can publish an honest degraded heartbeat; installer redeploys source copies
+- Self-heal: scheduled producer bundle repairs producer/helper/Atlas from cached refs/remotes/origin/main; VaultCheckoutSync owns refreshing that ref; watchdog can publish an honest degraded heartbeat
 
 ### `vault_checkout_sync`
 
@@ -272,7 +272,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 - Live status: exact Windows task VaultCheckoutSync; C:\Users\Lauri\Desktop\vault; cached refs/remotes/origin/main
 - Independent recovery: tools/Install-VaultCheckoutSyncTask.ps1; tools/Sync-VaultCheckout.ps1 -Repair after attribution/authorization
 - Resources: C:\Users\Lauri\Desktop\vault; refs/remotes/origin/main; preserve/vault-live-*
-- Dependents: stack_atlas; chatgpt_session; execution_workers
+- Dependents: bootstrap_snapshot; stack_atlas; chatgpt_session; execution_workers
 - Runbook: organicoverlords/regression-research#1021
 - Supervisor: Windows Task Scheduler when installed; exact sync script owns fetch/convergence semantics
 - Self-heal: fetch refreshes cached origin/main even when worktree convergence fails closed; clean-behind can fast-forward

@@ -20,13 +20,13 @@ _GENERIC = {"runtime","deployment","deploy","deployed","graph","dependency","dep
 SURFACES: dict[str, dict[str, Any]] = {
     "vault.bootstrap_snapshot": {
         "label": "Vault persistent bootstrap snapshot runtime",
-        "components": ["bootstrap_snapshot", "stack_atlas"],
+        "components": ["bootstrap_snapshot", "stack_atlas", "vault_checkout_sync"],
         "aliases": ["bootstrap", "bootstrap snapshot", "persistent bootstrap", "VaultBootstrapSnapshot", "VaultBootstrapSnapshotWatchdog", "bootstrap_read_loop", "runtime stack atlas", "AppData stack_atlas copy", "bootstrap producer", "bootstrap alias"],
         "tasks": ["VaultBootstrapSnapshot", "VaultBootstrapSnapshotWatchdog"],
         "pairs": [
-            ("producer", "tools/bootstrap_read_loop.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\bootstrap_read_loop.py", "worktree_copy"),
-            ("memory_helper", "tools/memory_recent_projection.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\memory_recent_projection.py", "worktree_copy"),
-            ("atlas", "tools/stack_atlas.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\stack_atlas.py", "HEAD"),
+            ("producer", "tools/bootstrap_read_loop.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\bootstrap_read_loop.py", "refs/remotes/origin/main"),
+            ("memory_helper", "tools/memory_recent_projection.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\memory_recent_projection.py", "refs/remotes/origin/main"),
+            ("atlas", "tools/stack_atlas.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\stack_atlas.py", "refs/remotes/origin/main"),
         ],
         "sources": [("installer", "tools/install_bootstrap_snapshot_task.ps1")],
         "outputs": [("latest", ".state/bootstrap/latest.json"), ("producer_status", ".state/bootstrap/producer-status.json")],
@@ -34,9 +34,9 @@ SURFACES: dict[str, dict[str, Any]] = {
         "edges": [
             ("source:installer","task:VaultBootstrapSnapshot","INSTALLS"),
             ("source:installer","task:VaultBootstrapSnapshotWatchdog","INSTALLS"),
-            ("source:producer","runtime:producer","INSTALLER_COPIES_WORKTREE"),
-            ("source:memory_helper","runtime:memory_helper","INSTALLER_COPIES_WORKTREE"),
-            ("source:atlas","runtime:atlas","PRODUCER_SYNCS_FROM_GIT_HEAD"),
+            ("source:producer","runtime:producer","PRODUCER_BUNDLE_SYNCS_FROM_CACHED_ORIGIN_MAIN"),
+            ("source:memory_helper","runtime:memory_helper","PRODUCER_BUNDLE_SYNCS_FROM_CACHED_ORIGIN_MAIN"),
+            ("source:atlas","runtime:atlas","PRODUCER_BUNDLE_SYNCS_FROM_CACHED_ORIGIN_MAIN"),
             ("task:VaultBootstrapSnapshot","runtime:producer","EXECUTES"),
             ("task:VaultBootstrapSnapshotWatchdog","runtime:producer","EXECUTES"),
             ("runtime:producer","runtime:memory_helper","IMPORTS"),
@@ -45,11 +45,11 @@ SURFACES: dict[str, dict[str, Any]] = {
             ("runtime:producer","output:producer_status","WRITES"),
             ("output:latest","consumer:bootstrap_alias","EXPOSED_AS"),
         ],
-        "recovery": ["reinstall with tools/install_bootstrap_snapshot_task.ps1 after validating source", "preserve %LOCALAPPDATA%/VaultBootstrapSnapshot rollback copies before replacing a live runtime file"],
+        "recovery": ["keep exact VaultCheckoutSync active so cached origin/main remains fresh without mutating foreign WIP", "reinstall with tools/install_bootstrap_snapshot_task.ps1 after validating source", "preserve %LOCALAPPDATA%/VaultBootstrapSnapshot rollback copies before replacing a live runtime file"],
     },
     "vault.checkout_sync": {
         "label": "Vault canonical serving checkout remote-ref/convergence owner",
-        "components": ["vault_checkout_sync", "stack_atlas"],
+        "components": ["vault_checkout_sync", "stack_atlas", "bootstrap_snapshot"],
         "aliases": ["VaultCheckoutSync", "vault checkout sync", "serving checkout", "canonical vault checkout", "origin/main refresh", "cached origin main", "vault main sync"],
         "tasks": ["VaultCheckoutSync"],
         "pairs": [],
@@ -61,12 +61,14 @@ SURFACES: dict[str, dict[str, Any]] = {
         "consumers": [
             ("origin_main", "cached refs/remotes/origin/main authority"),
             ("serving_checkout", r"C:\Users\Lauri\Desktop\vault canonical serving/read checkout"),
+            ("bootstrap_runtime", "VaultBootstrapSnapshot committed deployment source"),
         ],
         "edges": [
             ("source:installer", "task:VaultCheckoutSync", "INSTALLS"),
             ("task:VaultCheckoutSync", "source:sync", "EXECUTES"),
             ("task:VaultCheckoutSync", "consumer:origin_main", "REFRESHES_CACHED_REF"),
             ("consumer:origin_main", "consumer:serving_checkout", "FAST_FORWARD_SOURCE_FOR"),
+            ("consumer:origin_main", "consumer:bootstrap_runtime", "SUPPLIES_COMMITTED_SOURCE_TO"),
         ],
         "recovery": [
             "install the hidden exact VaultCheckoutSync task only after production/change-gate review",
@@ -325,9 +327,12 @@ def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str
             out["worktree_source_dirty_vs_head"] = bool(source_blob and desired_blob and source_blob != desired_blob)
         basis = f"GIT_REF:{tracking}:{source_rel}"
         out["desired_ref"] = tracking
-        out["deployment_mechanism"] = (
-            "PRODUCER_SYNC_FROM_GIT_HEAD" if tracking == "HEAD" else "GIT_REF_TRACKED_RUNTIME"
-        )
+        if tracking == "refs/remotes/origin/main":
+            out["deployment_mechanism"] = "PRODUCER_BUNDLE_SYNC_FROM_CACHED_ORIGIN_MAIN"
+        elif tracking == "HEAD":
+            out["deployment_mechanism"] = "PRODUCER_SYNC_FROM_GIT_HEAD"
+        else:
+            out["deployment_mechanism"] = "GIT_REF_TRACKED_RUNTIME"
 
     out.update({"desired_clean_blob": desired_blob, "comparison_basis": basis})
     if desired_blob is None or runtime_blob is None:

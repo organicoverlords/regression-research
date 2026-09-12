@@ -687,6 +687,22 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(allowed["reasons"], [])
         self.assertTrue(allowed["target"]["shared_production"])
 
+    def test_production_change_gate_covers_bootstrap_control_plane_components(self):
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        for target, scope in (
+            ("bootstrap_snapshot", "vault:bootstrap-snapshot:runtime-bundle"),
+            ("vault_checkout_sync", "vault:checkout-sync:scheduled-task"),
+        ):
+            gate = production_change_gate(
+                target, actor="ChatGPT:test", busy_scope=scope,
+                explicit_user_authorization=True, independent_rollback_verified=True,
+                offpath_proof_verified=True, busy_status=busy,
+            )
+            self.assertEqual(gate["verdict"], "PASS", gate)
+            self.assertTrue(gate["target"]["shared_production"])
+            self.assertEqual(gate["reasons"], [])
+            self.assertEqual(gate["live_dependencies"], {})
+
     def test_production_change_gate_blocks_without_independent_rollback(self):
         mcp = {
             "available": True, "status": "LIVE", "active_session_count": 3,
