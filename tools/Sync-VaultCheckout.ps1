@@ -16,19 +16,18 @@ function Invoke-GitText {
         [Parameter(Mandatory=$true)][string[]]$GitArgs,
         [switch]$AllowFailure
     )
+    $outFile = Join-Path ([IO.Path]::GetTempPath()) ("vault-sync-gitout-" + [Guid]::NewGuid().ToString('N'))
     $errFile = Join-Path ([IO.Path]::GetTempPath()) ("vault-sync-giterr-" + [Guid]::NewGuid().ToString('N'))
-    $savedPreference = $ErrorActionPreference
     try {
-        $ErrorActionPreference = 'Continue'
-        $output = @(& git -C $RepoRoot @GitArgs 2> $errFile)
-        $code = $LASTEXITCODE
+        $git = (Get-Command git.exe -ErrorAction Stop).Source
+        $process = Start-Process -FilePath $git -ArgumentList (@('-C', $RepoRoot) + $GitArgs) -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+        $code = $process.ExitCode
+        $text = if (Test-Path -LiteralPath $outFile) { [IO.File]::ReadAllText($outFile).Trim() } else { '' }
         $stderr = if (Test-Path -LiteralPath $errFile) { [IO.File]::ReadAllText($errFile).Trim() } else { '' }
     }
     finally {
-        $ErrorActionPreference = $savedPreference
-        Remove-Item -LiteralPath $errFile -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $outFile,$errFile -Force -ErrorAction SilentlyContinue
     }
-    $text = (($output | ForEach-Object { [string]$_ }) -join "`n").Trim()
     if ($code -ne 0 -and -not $AllowFailure) {
         $detail = @($text,$stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         throw "git $($GitArgs -join ' ') failed ($code): $($detail -join ' | ')"
