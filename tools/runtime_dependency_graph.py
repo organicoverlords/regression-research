@@ -417,10 +417,44 @@ def build_surface(surface_id: str, *, root: Path, task_rows: dict[str, dict[str,
     for a, b, relation in spec["edges"]:
         if a not in by_key or b not in by_key:
             continue
-        edge = {"from": by_key[a]["id"], "to": by_key[b]["id"], "relation": relation}
+        edge = {
+            "from": by_key[a]["id"],
+            "to": by_key[b]["id"],
+            "relation": relation,
+            "provenance": {
+                "evidence_class": "DECLARED",
+                "authority": "RUNTIME_SURFACE_SPEC",
+                "source": f"SURFACES:{surface_id}",
+                "semantics": "declared topology; not current observation",
+            },
+        }
+        deployment = by_key[b].get("deployment") if by_key[b]["kind"] == "runtime_artifact" else None
+        if isinstance(deployment, dict):
+            edge["verification"] = {
+                "evidence_class": "DERIVED",
+                "authority": "RUNTIME_DEPLOYMENT_COMPARISON",
+                "status": deployment.get("status"),
+                "source": deployment.get("comparison_basis"),
+                "comparison_mode": deployment.get("comparison_mode"),
+            }
         if by_key[a]["kind"] == "scheduled_task" and by_key[b].get("resolved_path"):
-            observed = {x.casefold() for x in _task_paths(task_rows.get(str(by_key[a].get("task_name") or "")))}
-            edge["observed_action_match"] = str(by_key[b]["resolved_path"]).casefold() in observed
+            task_name = str(by_key[a].get("task_name") or "")
+            task_row = task_rows.get(task_name)
+            observed = {x.casefold() for x in _task_paths(task_row)}
+            matched = str(by_key[b]["resolved_path"]).casefold() in observed
+            edge["observed_action_match"] = matched
+            if not isinstance(task_row, dict):
+                verification_status = "UNKNOWN"
+            elif not bool(task_row.get("Exists")):
+                verification_status = "MISSING_TASK"
+            else:
+                verification_status = "MATCH" if matched else "MISMATCH"
+            edge["verification"] = {
+                "evidence_class": "OBSERVED",
+                "authority": "EXACT_LOCAL_WINDOWS_TASK_DEFINITION",
+                "status": verification_status,
+                "source": f"TaskScheduler:{task_name}:Actions",
+            }
         edges.append(edge)
 
     known_paths = {str(n.get("resolved_path")).casefold() for n in nodes if n.get("resolved_path")}
@@ -431,8 +465,19 @@ def build_surface(surface_id: str, *, root: Path, task_rows: dict[str, dict[str,
             if candidate.suffix.casefold() not in {".py",".ps1",".cmd",".bat"} or raw.casefold() in known_paths:
                 continue
             node = add(f"observed:{task_name}:{index}", "observed_runtime_entrypoint", label=f"observed task action target {candidate.name}", resolved_path=str(candidate), observation=_file(candidate))
-            edges.append({"from": task_node["id"], "to": node["id"], "relation": "EXECUTES_OBSERVED"})
+            edges.append({
+                "from": task_node["id"],
+                "to": node["id"],
+                "relation": "EXECUTES_OBSERVED",
+                "provenance": {
+                    "evidence_class": "OBSERVED",
+                    "authority": "EXACT_LOCAL_WINDOWS_TASK_DEFINITION",
+                    "source": f"TaskScheduler:{task_name}:Actions",
+                    "semantics": "exact task action target observed outside the declared topology",
+                },
+            })
 
+    edges.sort(key=lambda row: (str(row.get("from")), str(row.get("to")), str(row.get("relation"))))
     drift = [n for n in nodes if (n.get("deployment") or {}).get("status") in {"DRIFT","DRIFT_FROM_CURRENT_INSTALL_SOURCE","MISSING_RUNTIME"}]
     missing_tasks = [n for n in nodes if n["kind"] == "scheduled_task" and n["observation"].get("observed") and not n["observation"].get("exists")]
     if drift:
@@ -522,3 +567,284 @@ def runtime_graph_for_components(component_ids: Iterable[str], *, root: Path, ta
         task_rows = task_rows or {}; task_cov = {"status":"INJECTED" if task_rows else "NOT_PROBED","broad_enumeration":False}
     surfaces = [build_surface(sid, root=root, task_rows=task_rows, task_coverage=task_cov, probe_live=probe_live) for sid in ids]
     return {"schema":SCHEMA,"authority":AUTHORITY,"components":sorted(wanted),"surfaces":surfaces,"coverage":{"status":"OK","task_scheduler":task_cov,"network_fanout":False,"broad_task_enumeration":False},"boundary":"Bounded graph slice for the resolved owner; exact returned source/runtime/task observations must be reconciled before mutation or liveness claims."}
+
+
+def _navigation_surfaces(
+    *,
+    root: Path,
+    surface_id: str | None = None,
+    task_rows: dict[str, dict[str, Any]] | None = None,
+    probe_live: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    ids = [surface_id] if surface_id else sorted(SURFACES)
+    unknown = [sid for sid in ids if sid not in SURFACES]
+    if unknown:
+        return [], {
+            "status": "UNKNOWN_SURFACE",
+            "surface_ids": unknown,
+            "authority": AUTHORITY,
+            "network_fanout": False,
+            "broad_task_enumeration": False,
+        }
+    if task_rows is None and probe_live:
+        task_names = sorted({name for sid in ids for name in SURFACES[sid]["tasks"]})
+        task_rows, task_cov = probe_tasks(task_names)
+    else:
+        task_rows = task_rows or {}
+        task_cov = {
+            "status": "INJECTED" if task_rows else "NOT_PROBED",
+            "broad_enumeration": False,
+            "task_names": sorted(task_rows),
+        }
+    surfaces = [
+        build_surface(
+            sid,
+            root=root,
+            task_rows=task_rows,
+            task_coverage=task_cov,
+            probe_live=probe_live,
+        )
+        for sid in ids
+    ]
+    return surfaces, {
+        "status": "OK",
+        "authority": AUTHORITY,
+        "surface_ids": ids,
+        "task_scheduler": task_cov,
+        "network_fanout": False,
+        "broad_task_enumeration": False,
+    }
+
+
+def _node_summary(node: dict[str, Any], surface_id: str) -> dict[str, Any]:
+    return {
+        "id": node.get("id"),
+        "surface_id": surface_id,
+        "key": node.get("key"),
+        "kind": node.get("kind"),
+        "label": node.get("label"),
+        "resolved_path": node.get("resolved_path"),
+        "task_name": node.get("task_name"),
+    }
+
+
+def _navigation_nodes(surfaces: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for surface in surfaces:
+        sid = str(surface.get("surface_id") or "")
+        for node in surface.get("nodes") or []:
+            if isinstance(node, dict):
+                rows.append(_node_summary(node, sid))
+    return sorted(rows, key=lambda row: str(row.get("id") or ""))
+
+
+def _resolve_navigation_node(term: str, surfaces: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    query = str(term or "").strip()
+    if not query:
+        return {"status": "EMPTY_QUERY", "query": query, "candidates": []}
+    q = query.casefold()
+    nodes = _navigation_nodes(surfaces)
+
+    def candidates(predicate) -> list[dict[str, Any]]:
+        return [row for row in nodes if predicate(row)]
+
+    exact_id = candidates(lambda row: str(row.get("id") or "").casefold() == q)
+    if exact_id:
+        return {"status": "OK", "query": query, "match_mode": "EXACT_NODE_ID", "node": exact_id[0]}
+
+    exact_key = candidates(lambda row: str(row.get("key") or "").casefold() == q)
+    if len(exact_key) == 1:
+        return {"status": "OK", "query": query, "match_mode": "EXACT_KEY", "node": exact_key[0]}
+    if len(exact_key) > 1:
+        return {"status": "AMBIGUOUS", "query": query, "match_mode": "EXACT_KEY", "candidates": exact_key}
+
+    exact_label = candidates(lambda row: str(row.get("label") or "").casefold() == q)
+    if len(exact_label) == 1:
+        return {"status": "OK", "query": query, "match_mode": "EXACT_LABEL", "node": exact_label[0]}
+    if len(exact_label) > 1:
+        return {"status": "AMBIGUOUS", "query": query, "match_mode": "EXACT_LABEL", "candidates": exact_label}
+
+    exact_task = candidates(lambda row: str(row.get("task_name") or "").casefold() == q)
+    if len(exact_task) == 1:
+        return {"status": "OK", "query": query, "match_mode": "EXACT_TASK_NAME", "node": exact_task[0]}
+    if len(exact_task) > 1:
+        return {"status": "AMBIGUOUS", "query": query, "match_mode": "EXACT_TASK_NAME", "candidates": exact_task}
+
+    terms = _tokens(query)
+    fuzzy = []
+    for row in nodes:
+        haystack = " ".join(
+            str(row.get(name) or "")
+            for name in ("id", "key", "kind", "label", "resolved_path", "task_name")
+        ).casefold()
+        if terms and all(term in haystack for term in terms):
+            fuzzy.append(row)
+    if len(fuzzy) == 1:
+        return {"status": "OK", "query": query, "match_mode": "UNIQUE_TOKEN_MATCH", "node": fuzzy[0]}
+    if fuzzy:
+        return {"status": "AMBIGUOUS", "query": query, "match_mode": "TOKEN_MATCH", "candidates": fuzzy}
+    return {"status": "NOT_FOUND", "query": query, "candidates": []}
+
+
+def _all_navigation_edges(surfaces: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    edges = [
+        dict(edge)
+        for surface in surfaces
+        for edge in (surface.get("edges") or [])
+        if isinstance(edge, dict)
+    ]
+    return sorted(edges, key=lambda row: (str(row.get("from")), str(row.get("to")), str(row.get("relation"))))
+
+
+def explain_runtime_dependency_node(
+    term: str,
+    *,
+    root: Path,
+    surface_id: str | None = None,
+    task_rows: dict[str, dict[str, Any]] | None = None,
+    probe_live: bool = True,
+) -> dict[str, Any]:
+    surfaces, coverage = _navigation_surfaces(
+        root=root, surface_id=surface_id, task_rows=task_rows, probe_live=probe_live
+    )
+    if coverage.get("status") != "OK":
+        return {
+            "schema": "stack-atlas.runtime-explain.v1",
+            "status": coverage.get("status"),
+            "query": term,
+            "coverage": coverage,
+        }
+    resolution = _resolve_navigation_node(term, surfaces)
+    if resolution.get("status") != "OK":
+        return {
+            "schema": "stack-atlas.runtime-explain.v1",
+            "status": resolution.get("status"),
+            "query": term,
+            "resolution": resolution,
+            "coverage": coverage,
+            "boundary": "Ambiguous runtime terms are never silently resolved; use an exact returned node id.",
+        }
+    node = resolution["node"]
+    node_id = str(node["id"])
+    full_node = next(
+        dict(candidate)
+        for surface in surfaces
+        for candidate in (surface.get("nodes") or [])
+        if isinstance(candidate, dict) and candidate.get("id") == node_id
+    )
+    edges = _all_navigation_edges(surfaces)
+    incoming = [edge for edge in edges if edge.get("to") == node_id]
+    outgoing = [edge for edge in edges if edge.get("from") == node_id]
+    return {
+        "schema": "stack-atlas.runtime-explain.v1",
+        "status": "OK",
+        "query": term,
+        "resolution": resolution,
+        "node": full_node,
+        "incoming": incoming,
+        "outgoing": outgoing,
+        "coverage": coverage,
+        "boundary": "Edge provenance states why a relationship is present; verification states whether named live/source evidence corroborates it. Neither implies process liveness unless explicitly observed.",
+    }
+
+
+def runtime_dependency_path(
+    source_term: str,
+    target_term: str,
+    *,
+    root: Path,
+    surface_id: str | None = None,
+    task_rows: dict[str, dict[str, Any]] | None = None,
+    probe_live: bool = True,
+) -> dict[str, Any]:
+    surfaces, coverage = _navigation_surfaces(
+        root=root, surface_id=surface_id, task_rows=task_rows, probe_live=probe_live
+    )
+    base = {
+        "schema": "stack-atlas.runtime-path.v1",
+        "source_query": source_term,
+        "target_query": target_term,
+        "coverage": coverage,
+    }
+    if coverage.get("status") != "OK":
+        return {**base, "status": coverage.get("status")}
+    source = _resolve_navigation_node(source_term, surfaces)
+    target = _resolve_navigation_node(target_term, surfaces)
+    if source.get("status") != "OK" or target.get("status") != "OK":
+        status = "AMBIGUOUS" if "AMBIGUOUS" in {source.get("status"), target.get("status")} else "NOT_FOUND"
+        return {
+            **base,
+            "status": status,
+            "source_resolution": source,
+            "target_resolution": target,
+            "boundary": "Ambiguous runtime terms are never silently resolved; use exact returned node ids.",
+        }
+
+    source_id = str(source["node"]["id"])
+    target_id = str(target["node"]["id"])
+    if source_id == target_id:
+        return {
+            **base,
+            "status": "OK",
+            "source_resolution": source,
+            "target_resolution": target,
+            "distance": 0,
+            "nodes": [source["node"]],
+            "hops": [],
+        }
+
+    edges = _all_navigation_edges(surfaces)
+    adjacency: dict[str, list[dict[str, Any]]] = {}
+    for edge in edges:
+        adjacency.setdefault(str(edge.get("from")), []).append(edge)
+    for rows in adjacency.values():
+        rows.sort(key=lambda row: (str(row.get("relation")), str(row.get("to"))))
+
+    previous: dict[str, tuple[str, dict[str, Any]] | None] = {source_id: None}
+    queue = [source_id]
+    cursor = 0
+    while cursor < len(queue) and target_id not in previous:
+        current = queue[cursor]
+        cursor += 1
+        for edge in adjacency.get(current, []):
+            nxt = str(edge.get("to"))
+            if nxt in previous:
+                continue
+            previous[nxt] = (current, edge)
+            queue.append(nxt)
+            if nxt == target_id:
+                break
+
+    if target_id not in previous:
+        return {
+            **base,
+            "status": "NO_PATH",
+            "source_resolution": source,
+            "target_resolution": target,
+            "distance": None,
+            "nodes": [],
+            "hops": [],
+        }
+
+    hops: list[dict[str, Any]] = []
+    current = target_id
+    while current != source_id:
+        prior = previous[current]
+        if prior is None:
+            raise RuntimeError("runtime path predecessor chain terminated unexpectedly")
+        parent, edge = prior
+        hops.append(edge)
+        current = parent
+    hops.reverse()
+    node_map = {row["id"]: row for row in _navigation_nodes(surfaces)}
+    node_ids = [source_id] + [str(hop["to"]) for hop in hops]
+    return {
+        **base,
+        "status": "OK",
+        "source_resolution": source,
+        "target_resolution": target,
+        "distance": len(hops),
+        "nodes": [node_map[node_id] for node_id in node_ids],
+        "hops": hops,
+        "boundary": "Directed path over the bounded declared/observed deployment graph; edge provenance and verification remain distinct from liveness authority.",
+    }

@@ -506,6 +506,25 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(raw.rstrip().endswith(b'"bootstrap_end":{"status":"COMPLETE","schema":"bootstrap.v1"}}'))
         self.assertEqual(json.loads(raw), glance)
 
+    def test_runtime_graph_cli_routes_explain_and_path_commands(self):
+        explain_value = {"schema": "stack-atlas.runtime-explain.v1", "status": "OK"}
+        explain_output = io.StringIO()
+        with patch("sys.argv", ["stack_atlas.py", "runtime-explain", "node-x", "--surface", "surface-x"]), \
+                patch("tools.stack_atlas._runtime_graph_explain_safe", return_value=explain_value) as explain_call, \
+                redirect_stdout(explain_output):
+            self.assertEqual(stack_atlas_main(), 0)
+        explain_call.assert_called_once_with("node-x", surface_id="surface-x")
+        self.assertEqual(json.loads(explain_output.getvalue()), explain_value)
+
+        path_value = {"schema": "stack-atlas.runtime-path.v1", "status": "OK", "distance": 2}
+        path_output = io.StringIO()
+        with patch("sys.argv", ["stack_atlas.py", "runtime-path", "node-a", "node-b", "--surface", "surface-y"]), \
+                patch("tools.stack_atlas._runtime_graph_path_safe", return_value=path_value) as path_call, \
+                redirect_stdout(path_output):
+            self.assertEqual(stack_atlas_main(), 0)
+        path_call.assert_called_once_with("node-a", "node-b", surface_id="surface-y")
+        self.assertEqual(json.loads(path_output.getvalue()), path_value)
+
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
         glance = {
             "bootstrap": {"status": "OK"},

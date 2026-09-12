@@ -858,8 +858,10 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "entrypoints": [
             "python tools\\stack_atlas.py find <natural-language-query>",
             "exact owner drill-down: python tools\\stack_atlas.py lookup <component-or-feature>",
+            "node evidence: python tools\\stack_atlas.py runtime-explain <node-id-or-term>",
+            "directed dependency path: python tools\\stack_atlas.py runtime-path <from> <to>",
         ],
-        "boundary": "Runtime/deployment structure is an evidence class inside the one unified find surface, not a second search system. It maps bounded declared source -> deployed artifact -> exact scheduler/task entrypoint -> output/consumer relationships and labels observed drift. No recursive scan, broad Scheduled Task enumeration, or separate runtime registry service; current liveness and mutation truth remain with the returned named owner/runtime evidence.",
+        "boundary": "Runtime/deployment structure is an evidence class inside the one unified find surface, not a second search system. It maps bounded declared source -> deployed artifact -> exact scheduler/task entrypoint -> output/consumer relationships and labels observed drift. Edges carry provenance separately from live verification; runtime-explain/runtime-path require explicit disambiguation instead of silently selecting ambiguous nodes. No recursive scan, broad Scheduled Task enumeration, clustering, or separate runtime registry service; current liveness and mutation truth remain with the returned named owner/runtime evidence.",
     },
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
@@ -3883,6 +3885,41 @@ def _runtime_graph_search_safe(query: str, limit: int) -> tuple[list[dict[str, A
     return search_runtime_dependency_graph(query, root=ATLAS_LIVE_ROOT, limit=limit)
 
 
+def _runtime_graph_explain_safe(term: str, surface_id: str | None = None) -> dict[str, Any]:
+    """Bounded runtime/deployment node explanation with ambiguity-explicit resolution."""
+    try:
+        from tools.runtime_dependency_graph import explain_runtime_dependency_node
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import explain_runtime_dependency_node
+        except ModuleNotFoundError as exc:
+            return {
+                "schema": "stack-atlas.runtime-explain.v1",
+                "status": "UNAVAILABLE",
+                "query": term,
+                "coverage": {"status": "UNAVAILABLE", "error": str(exc)},
+            }
+    return explain_runtime_dependency_node(term, root=ATLAS_LIVE_ROOT, surface_id=surface_id)
+
+
+def _runtime_graph_path_safe(source: str, target: str, surface_id: str | None = None) -> dict[str, Any]:
+    """Bounded deterministic directed path over the runtime/deployment graph."""
+    try:
+        from tools.runtime_dependency_graph import runtime_dependency_path
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import runtime_dependency_path
+        except ModuleNotFoundError as exc:
+            return {
+                "schema": "stack-atlas.runtime-path.v1",
+                "status": "UNAVAILABLE",
+                "source_query": source,
+                "target_query": target,
+                "coverage": {"status": "UNAVAILABLE", "error": str(exc)},
+            }
+    return runtime_dependency_path(source, target, root=ATLAS_LIVE_ROOT, surface_id=surface_id)
+
+
 def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
     """Resolve a stack component or exact feature target, optionally with bounded Tiny3D evidence."""
     requested = name
@@ -5053,6 +5090,13 @@ def main() -> int:
     lookup = sub.add_parser("lookup")
     lookup.add_argument("target")
     lookup.add_argument("--query", help="bounded current Tiny3D asset/name query for tiny3d_library-style targets")
+    runtime_explain = sub.add_parser("runtime-explain")
+    runtime_explain.add_argument("node")
+    runtime_explain.add_argument("--surface")
+    runtime_path = sub.add_parser("runtime-path")
+    runtime_path.add_argument("source")
+    runtime_path.add_argument("target")
+    runtime_path.add_argument("--surface")
     blast = sub.add_parser("blast-radius")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
@@ -5092,6 +5136,10 @@ def main() -> int:
             parser.error(f"unknown Atlas lookup target: {args.target}")
         except ValueError as exc:
             parser.error(str(exc))
+    elif args.command == "runtime-explain":
+        value = _runtime_graph_explain_safe(args.node, surface_id=args.surface)
+    elif args.command == "runtime-path":
+        value = _runtime_graph_path_safe(args.source, args.target, surface_id=args.surface)
     elif args.command == "production-change-gate":
         value = production_change_gate(
             args.target,
