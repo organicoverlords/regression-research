@@ -182,16 +182,20 @@ def _read_bank_file(path: Path) -> list[dict[str, Any]]:
     return entries
 
 
+def _canonical_data_bank_path() -> Path:
+    override = os.environ.get("VAULT_CANONICAL_ROOT")
+    root = Path(override).expanduser() if override else Path.home() / "Desktop" / "vault"
+    return root / "memory" / "memory-bank.jsonl"
+
+
 def _is_canonical_bank(path: Path) -> bool:
-    try:
-        return path.resolve() == DEFAULT_BANK.resolve()
-    except OSError:
-        return False
+    return _uses_default_local_overlay(path)
 
 
 def _uses_default_local_overlay(path: Path) -> bool:
     try:
-        return path.resolve() == DEFAULT_BANK.resolve()
+        resolved = path.resolve()
+        return resolved in {DEFAULT_BANK.resolve(), _canonical_data_bank_path().resolve()}
     except OSError:
         return False
 
