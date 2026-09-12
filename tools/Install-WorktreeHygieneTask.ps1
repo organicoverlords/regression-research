@@ -1,6 +1,6 @@
 param(
     [string]$TaskName = 'VaultWorktreeHygiene',
-    [int]$IntervalMinutes = 1
+    [int]$IntervalMinutes = 5
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -65,7 +65,7 @@ $manifest = [ordered]@{
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $runtime 'manifest.json') -Encoding UTF8
 
 $action = New-ScheduledTaskAction -Execute $pythonw -Argument $argument -WorkingDirectory $runtime
-$trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(1)) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes)
+$trigger = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes($IntervalMinutes)) -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
 $userId = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 $principal = New-ScheduledTaskPrincipal -UserId $userId -LogonType Interactive -RunLevel Limited
