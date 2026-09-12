@@ -220,12 +220,62 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["evidence"]["transport_source_count"],1)
             self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
 
+
+    def test_explicit_activity_target_survives_without_workspace_or_branch_inference(self):
+        now=datetime(2026,9,11,4,20,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            clone=root/"clone-a"
+            clone.mkdir(parents=True)
+            receipts=root/"shared-process-receipts"
+            receipts.mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+            rows=[
+                {"at":(now-timedelta(seconds=8)).isoformat(),"event":"connection_open","server_pid":201,"local_port":3011},
+                {"at":(now-timedelta(seconds=7)).isoformat(),"event":"process_started","caller_id":"caller_explicit","process_id":"p-explicit","pid":101,"cwd":r"C:\work\P3 Lane War","activity_target":{"type":"card","id":"p3-lane-war","project":"p3","secret":"MUST_NOT_LEAK"},"action_class":"test","payload":"MUST_NOT_LEAK"},
+                {"at":(now-timedelta(seconds=6)).isoformat(),"event":"process_read","caller_id":"caller_explicit","owner_caller_id":"caller_explicit","process_id":"p-explicit","pid":101},
+                {"at":(now-timedelta(seconds=5)).isoformat(),"event":"process_started","caller_id":"caller_lookalike","process_id":"p-lookalike","pid":102,"cwd":r"C:\work\p3-lane-war"},
+                {"at":(now-timedelta(seconds=4)).isoformat(),"event":"process_read","caller_id":"caller_lookalike","owner_caller_id":"caller_lookalike","process_id":"p-lookalike","pid":102},
+                {"at":(now-timedelta(seconds=3.8)).isoformat(),"event":"process_started","caller_id":"caller_cleared","process_id":"p-clear-old","pid":104,"cwd":r"C:\work\p3","activity_target":{"type":"card","id":"p3-lane-war","project":"p3"},"action_class":"test"},
+                {"at":(now-timedelta(seconds=3.5)).isoformat(),"event":"process_started","caller_id":"caller_cleared","process_id":"p-clear-new","pid":105,"cwd":r"C:\work\p3"},
+                {"at":(now-timedelta(seconds=3.2)).isoformat(),"event":"process_read","caller_id":"caller_cleared","owner_caller_id":"caller_cleared","process_id":"p-clear-new","pid":105},
+                {"at":(now-timedelta(seconds=3)).isoformat(),"event":"process_started","caller_id":"caller_bad","process_id":"p-bad","pid":103,"cwd":r"C:\work\p3-lane-war","activity_target":{"type":"card","id":"bad id with spaces"},"action_class":"run arbitrary command"},
+                {"at":(now-timedelta(seconds=2)).isoformat(),"event":"process_read","caller_id":"caller_bad","owner_caller_id":"caller_bad","process_id":"p-bad","pid":103},
+            ]
+            (clone/"transport.jsonl").write_text("\n".join(json.dumps(row) for row in rows)+"\n",encoding="utf-8")
+            (receipts/"p-explicit.json").write_text(json.dumps({"activity_target":{"type":"card","id":"p3-lane-war","project":"p3","secret":"RECEIPT_SECRET"},"action_class":"test","command":"Write-Output safe","started_at":(now-timedelta(seconds=7)).isoformat()}),encoding="utf-8")
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                snapshot=build_live_swarm_snapshot(now=now)
+            callers={row["caller_id"]:row for lane in snapshot["lanes"] for row in lane["callers"]}
+            self.assertEqual(callers["caller_explicit"]["activity_target"],{"type":"card","id":"p3-lane-war","project":"p3"})
+            self.assertEqual(callers["caller_explicit"]["action_class"],"test")
+            self.assertNotIn("activity_target",callers["caller_lookalike"])
+            self.assertNotIn("action_class",callers["caller_lookalike"])
+            self.assertNotIn("activity_target",callers["caller_bad"])
+            self.assertNotIn("action_class",callers["caller_bad"])
+            self.assertNotIn("activity_target",callers["caller_cleared"])
+            self.assertNotIn("action_class",callers["caller_cleared"])
+            encoded=json.dumps(snapshot)
+            self.assertNotIn("MUST_NOT_LEAK",encoded)
+            self.assertNotIn("RECEIPT_SECRET",encoded)
+            compact=compact_for_bootstrap(snapshot)
+            compact_callers={row["caller_id"]:row for lane in compact["lanes"] for row in lane["callers"]}
+            self.assertEqual(compact_callers["caller_explicit"]["activity_target"],{"type":"card","id":"p3-lane-war","project":"p3"})
+            self.assertEqual(compact_callers["caller_explicit"]["action_class"],"test")
+            self.assertNotIn("activity_target",compact_callers["caller_lookalike"])
+
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
-        snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
+        snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"activity_target":{"type":"node","id":"p3-stack","project":"p3"},"action_class":"verify","secret":"drop-me"}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
         compact=compact_for_bootstrap(snapshot)
         self.assertEqual(compact["summary"]["recent_callers"],3)
         self.assertEqual(compact["lanes"][0]["busy"][0]["scope_count"],5)
         self.assertNotIn("scopes",compact["lanes"][0]["busy"][0])
+        self.assertEqual(compact["lanes"][0]["callers"][0]["activity_target"],{"type":"node","id":"p3-stack","project":"p3"})
+        self.assertEqual(compact["lanes"][0]["callers"][0]["action_class"],"verify")
+        self.assertNotIn("secret",compact["lanes"][0]["callers"][0])
 
 
 if __name__ == "__main__":

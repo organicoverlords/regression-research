@@ -16,6 +16,32 @@ MAX_TRANSPORT_SOURCE_CANDIDATES = 64
 MAX_TRANSPORT_SOURCES = 16
 TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
 TRANSPORT_KIND = "MCPv4"
+_ACTIVITY_TOKEN_RE = re.compile(r"^[A-Za-z0-9._/:_-]+$")
+
+
+def _activity_token(value: Any, max_length: int) -> str | None:
+    if not isinstance(value, str):
+        return None
+    token = value.strip()
+    if not token or len(token) > max_length or not _ACTIVITY_TOKEN_RE.fullmatch(token):
+        return None
+    return token
+
+
+def _activity_target(value: Any) -> dict[str, str] | None:
+    if not isinstance(value, dict):
+        return None
+    kind = _activity_token(value.get("type"), 16)
+    if kind not in {"card", "node", "project"}:
+        return None
+    identity = _activity_token(value.get("id"), 160)
+    if not identity:
+        return None
+    result = {"type": kind, "id": identity}
+    project = _activity_token(value.get("project"), 80)
+    if project:
+        result["project"] = project
+    return result
 
 
 def _dt(value: Any) -> datetime | None:
@@ -400,10 +426,12 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             continue
         at = _dt(row.get("at")); ev = row.get("event"); pid = row.get("process_id")
         if at:
-            item = callers.setdefault(str(c), {"first":at,"last":at,"starts":0,"reads":0,"pids":[],"cwd":None})
+            item = callers.setdefault(str(c), {"first":at,"last":at,"starts":0,"reads":0,"pids":[],"cwd":None,"activity_target":None,"action_class":None})
             item["first"] = min(item["first"], at); item["last"] = max(item["last"], at)
             if ev == "process_started":
                 item["starts"] += 1; item["cwd"] = row.get("cwd") or item["cwd"]
+                item["activity_target"] = _activity_target(row.get("activity_target"))
+                item["action_class"] = _activity_token(row.get("action_class"), 64)
                 if pid and pid not in item["pids"]: item["pids"].append(pid)
             elif ev == "process_read": item["reads"] += 1
         if pid:
@@ -426,6 +454,8 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         worktree = _git_identity(target, git_cache) if target else None
         if not worktree:
             worktree = _git_identity(item["cwd"], git_cache); basis = "launch_cwd" if worktree else None
+        activity_target = _activity_target(receipt.get("activity_target")) or item.get("activity_target")
+        action_class = _activity_token(receipt.get("action_class"), 64) or item.get("action_class")
         proc = processes.get(pid,{}) if pid else {}
         st = proc.get("start") or _dt(receipt.get("started_at")); en = proc.get("end") or _dt(receipt.get("finished_at"))
         latest = None
@@ -440,6 +470,8 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "worktree":worktree,
             "worktree_evidence":basis,
             "latest_process":latest,
+            **({"activity_target": activity_target} if activity_target else {}),
+            **({"action_class": action_class} if action_class else {}),
             "command":" ".join(command.split())[:120],
         }
 
@@ -547,7 +579,7 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
     for lane in list(snapshot.get("lanes") or [])[:lane_limit]:
         lanes.append({
             "basis":lane.get("basis"),"workspace":lane.get("workspace"),"worktree":lane.get("worktree"),
-            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process") if c.get(k) is not None} for c in lane.get("callers",[])],
+            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","activity_target","action_class") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
     return {"summary":snapshot.get("summary",{}),"evidence":snapshot.get("evidence",{}),"lanes":lanes,"lanes_truncated":len(snapshot.get("lanes") or [])>len(lanes),"elapsed_ms":snapshot.get("elapsed_ms")}
