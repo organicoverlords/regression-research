@@ -2314,61 +2314,6 @@ def _compact_json_bytes(value: Any) -> int:
     return len(json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 
 
-_BOOTSTRAP_MCP_ACTIVITY_DUPLICATE_FIELDS = (
-    "source_age_seconds",
-    "transport",
-    "transport_source_count",
-    "active_session_count",
-    "active_sessions",
-    "workspace_counts",
-    "activity_summary",
-)
-
-
-def _deduplicate_bootstrap_runtime_views(glance: dict[str, Any]) -> bool:
-    """Replace only provably duplicate runtime projections with canonical live-swarm refs."""
-    live_swarm = glance.get("live_swarm")
-    if not isinstance(live_swarm, dict) or not live_swarm.get("available"):
-        return False
-
-    changed = False
-    mcp = glance.get("mcp")
-    if isinstance(mcp, dict):
-        canonical_projection = _bootstrap_mcp_from_live_swarm(live_swarm)
-        deduplicated_mcp_fields = []
-        for key in _BOOTSTRAP_MCP_ACTIVITY_DUPLICATE_FIELDS:
-            if key in mcp and key in canonical_projection and mcp.get(key) == canonical_projection.get(key):
-                mcp.pop(key, None)
-                deduplicated_mcp_fields.append(key)
-        if deduplicated_mcp_fields:
-            mcp["activity_ref"] = "#/live_swarm"
-            changed = True
-
-    workers = glance.get("workers")
-    current_activity = workers.get("current_activity") if isinstance(workers, dict) else None
-    if isinstance(current_activity, dict):
-        summary = live_swarm.get("summary") if isinstance(live_swarm.get("summary"), dict) else {}
-        evidence = live_swarm.get("evidence") if isinstance(live_swarm.get("evidence"), dict) else {}
-        canonical_worker_fields = {
-            "recent_callers": summary.get("recent_callers"),
-            "lanes": summary.get("lanes"),
-            "busy_owners": summary.get("busy_owners"),
-            "activity_window_seconds": evidence.get("activity_window_seconds"),
-            "observation_window_complete": evidence.get("observation_window_complete"),
-            "source_age_seconds": evidence.get("source_age_seconds"),
-        }
-        deduplicated_worker_fields = []
-        for key, canonical_value in canonical_worker_fields.items():
-            if key in current_activity and current_activity.get(key) == canonical_value:
-                current_activity.pop(key, None)
-                deduplicated_worker_fields.append(key)
-        if deduplicated_worker_fields:
-            current_activity["runtime_ref"] = "#/live_swarm"
-            changed = True
-
-    return changed
-
-
 def _bound_bootstrap_mcp_service_health_sources(
     glance: dict[str, Any], limit: int = BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
 ) -> bool:
@@ -2403,14 +2348,12 @@ def _fit_bootstrap_glance_budget(
         **source,
         "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
     }
-    deduplicated = _deduplicate_bootstrap_runtime_views(bounded)
     source_details_compacted = _bound_bootstrap_mcp_service_health_sources(bounded)
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {
             "max_bytes": budget,
             "compaction_target_bytes": compaction_target,
-            "deduplicated": deduplicated,
             "compacted": source_details_compacted,
         }
 
@@ -3559,7 +3502,7 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
                 "caller_id": caller.get("caller_id"),
                 "activity_age_seconds": caller.get("last_activity_age_seconds"),
                 "cwd": worktree.get("path"),
-                "workspace": caller.get("workspace") or lane.get("workspace"),
+                "workspace": caller.get("workspace"),
                 "busy_titles": owners,
             })
     sessions.sort(key=lambda item: float(item.get("activity_age_seconds") or 1e9))

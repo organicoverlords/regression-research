@@ -550,4 +550,4 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
             "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
-    return {"available":snapshot.get("available"),"summary":snapshot.get("summary",{}),"evidence":snapshot.get("evidence",{}),"lanes":lanes,"lanes_truncated":len(snapshot.get("lanes") or [])>len(lanes),"elapsed_ms":snapshot.get("elapsed_ms")}
+    return {"summary":snapshot.get("summary",{}),"evidence":snapshot.get("evidence",{}),"lanes":lanes,"lanes_truncated":len(snapshot.get("lanes") or [])>len(lanes),"elapsed_ms":snapshot.get("elapsed_ms")}
