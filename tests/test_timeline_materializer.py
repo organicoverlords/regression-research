@@ -20,6 +20,7 @@ from tools.timeline_materializer import (
     DEFAULT_RUNNER_LOG_EVENTS,
     HISTORICAL_EVIDENCE_FLOOR,
     SCHEMA,
+    ROOT,
     build_parser,
     build_work_graph,
     build_worker_archive_summary,
@@ -36,6 +37,8 @@ from tools.timeline_materializer import (
     mcp_replacement_events,
     query_materialized,
     runner_log_events,
+    timeline_read_state_root,
+    timeline_state_root,
     _bootstrap_correction_trigger_projection,
     _github_read_cli,
     _github_refresh_limit,
@@ -43,7 +46,11 @@ from tools.timeline_materializer import (
     _lesson_packet,
     _materialized_source_since,
     _merge_materialized_events,
+    _mcp_runtime_evidence_paths,
+    _mcp_transport_events,
+    _mcp_watchdog_events,
     _query_concepts,
+    _query_index_event_meta,
     _query_index_opaque_label,
     _repair_legacy_capped_github_comments,
     _run_json,
@@ -52,6 +59,14 @@ from tools.timeline_materializer import (
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_canonical_timeline_state_is_external_while_test_roots_remain_isolated(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            external = timeline_state_root(ROOT)
+            self.assertEqual(external, Path(d) / "VaultTimeline")
+            isolated_root = Path(d) / "fixture-vault"
+            self.assertEqual(timeline_state_root(isolated_root), isolated_root / ".state" / "timeline")
+            self.assertEqual(timeline_read_state_root(isolated_root), isolated_root / ".state" / "timeline")
+
     def test_query_index_opaque_label_only_materializes_human_labels_for_opaque_identities(self):
         self.assertEqual(_query_index_opaque_label({"id": "worker:abc", "display_label": "Repo Worker Alder #S2", "title": "fallback"}), "Repo Worker Alder #S2")
         self.assertEqual(_query_index_opaque_label({"id": "mem-20260912-abc", "title": "Lightweight asshole correction marker"}), "Lightweight asshole correction marker")
@@ -78,6 +93,71 @@ class TimelineMaterializerTests(unittest.TestCase):
         all_tokens = set().union(*(tokens for _, tokens in fields))
         for token in ("manual", "marker", "proof", "regression", "route", "problem", "wrapper", "anomaly", "finished", "library"):
             self.assertIn(token, all_tokens)
+
+    def test_mcp_runtime_discovery_materializes_current_transport_receipts_and_watchdog(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            local = Path(d)
+            instance = local / "ChatGPTMcpClean" / "minimal-connectors" / "home-direct-current"
+            instance.mkdir(parents=True)
+            request_id = "req-current"
+            process_id = "proc-current"
+            transport_rows = [
+                {"at": "2026-09-12T00:00:00Z", "server_pid": 12, "event": "request_start", "request_id": request_id, "caller_id": "caller-a", "connection_id": "conn-a", "method": "POST", "path": "/mcp"},
+                {"at": "2026-09-12T00:00:00.100Z", "server_pid": 12, "event": "process_started", "request_id": request_id, "process_id": process_id, "caller_id": "caller-a"},
+                {"at": "2026-09-12T00:00:00.500Z", "server_pid": 12, "event": "response_finish", "request_id": request_id, "caller_id": "caller-a", "connection_id": "conn-a", "method": "POST", "path": "/mcp", "mcp_method": "tools/call", "mcp_tool": "start_process", "status": 200, "duration_ms": 500.0},
+                {"at": "2026-09-12T00:00:00.510Z", "server_pid": 12, "event": "process_receipt_persisted", "request_id": request_id, "process_id": process_id},
+                {"at": "2026-09-12T00:00:01Z", "server_pid": 12, "event": "request_start", "request_id": "health", "method": "GET", "path": "/health"},
+                {"at": "2026-09-12T00:00:01.010Z", "server_pid": 12, "event": "response_finish", "request_id": "health", "method": "GET", "path": "/health", "status": 200},
+            ]
+            (instance / "transport.jsonl").write_text("".join(json.dumps(row) + "\n" for row in transport_rows), encoding="utf-8")
+            (instance / "stall-watchdog.jsonl").write_text(json.dumps({
+                "at": "2026-09-12T00:00:02Z", "event": "stall_begin", "server_pid": 12,
+                "backend_generation": "g-current", "main_heartbeat_gap_ms": 1700,
+                "host_cpu_pct": 100, "system_free_memory_pct": 7.0,
+            }) + "\n", encoding="utf-8")
+            receipts = local / "ChatGPTMcpClean" / "minimal-connectors" / "shared-process-receipts"
+            receipts.mkdir(parents=True)
+            (receipts / f"{process_id}.json").write_text(json.dumps({
+                "process_id": process_id, "caller_id": "caller-a",
+                "started_at": "2026-09-12T00:00:00.100Z", "finished_at": "2026-09-12T00:00:00.500Z",
+                "exit_code": 0, "cwd": "C:/vault", "command": "python tools/check.py",
+            }), encoding="utf-8")
+
+            events, coverage = mcp_events(
+                since=datetime(2026, 9, 11, tzinfo=timezone.utc),
+                root=Path("C:/vault"),
+                project_to_slug={},
+            )
+        transport = next(event for event in events if event.get("authority") == "LOCAL_MCP_TRANSPORT_LOG")
+        self.assertEqual(transport["tool"], "start_process")
+        self.assertEqual(transport["status"], 200)
+        self.assertEqual(transport["process_id"], process_id)
+        self.assertIn(f"process:{process_id}", transport["anchors"])
+        watchdog = next(event for event in events if event.get("authority") == "LOCAL_MCP_STALL_WATCHDOG")
+        self.assertEqual(watchdog["watchdog_event"], "stall_begin")
+        self.assertEqual(watchdog["main_heartbeat_gap_ms"], 1700)
+        receipt = next(event for event in events if event.get("authority") == "LOCAL_MCP_PROCESS_RECEIPT")
+        self.assertEqual(receipt["process_id"], process_id)
+        self.assertEqual(coverage["transport_events"], 1)
+        self.assertEqual(coverage["watchdog_events"], 1)
+        self.assertGreaterEqual(coverage["receipts"], 1)
+        transport_coverage = next(row for row in coverage["transport"] if row["path"].endswith("home-direct-current\\transport.jsonl"))
+        self.assertEqual(transport_coverage["health_rows_skipped"], 1)
+
+    def test_query_index_event_meta_preserves_runtime_authority_and_details(self):
+        meta = _query_index_event_meta({
+            "source_type": "MCP_EVENT", "project": "chatgptmcpclean",
+            "event_at": "2026-09-12T00:00:00Z", "title": "MCP transport upload_local_file: status 200",
+            "summary": "transport request", "authority": "LOCAL_MCP_TRANSPORT_LOG",
+            "tool": "upload_local_file", "status": 200, "duration_ms": 12.5,
+            "backend_generation": "g1", "process_id": "p1",
+        })
+        self.assertEqual(meta["source_type"], "MCP_EVENT")
+        self.assertEqual(meta["project"], "chatgptmcpclean")
+        self.assertEqual(meta["authority"], "LOCAL_MCP_TRANSPORT_LOG")
+        self.assertEqual(meta["details"]["tool"], "upload_local_file")
+        self.assertEqual(meta["details"]["status"], 200)
+        self.assertTrue({"upload", "local", "file"}.issubset(set(meta["terms"])))
 
     def test_github_read_cli_prefers_gh_swarm_on_path(self):
         def which(name):

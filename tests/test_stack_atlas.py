@@ -2173,6 +2173,87 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual({hit["label"] for hit in hits}, {"Lightweight asshole correction marker", "Repo Worker Alder #S2"})
         self.assertEqual({hit["kind"] for hit in hits}, {"vault_memory", "worker_report"})
 
+    def test_timeline_discovery_exact_missing_memory_is_reference_only_not_fabricated_object(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T03:20:00+03:00"
+            memory_id = "mem-20260912-dce895b5"
+            commit_id = "git:vault:" + "a" * 40
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 1, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": [commit_id],
+                    "postings": {"mem": [0], "20260912": [0], "dce895b5": [0]},
+                    "weight_codes": {"mem": bytes([5]), "20260912": bytes([5]), "dce895b5": bytes([5])},
+                    "anchors": [[]],
+                    "branch_refs": [["main"]],
+                    "event_meta": [{
+                        "source_type": "GIT_COMMIT", "project": "vault", "event_at": "2026-09-12T00:00:00Z",
+                        "title": f"Reference {memory_id}", "summary": "memory correction reference", "authority": "LOCAL_GIT_HISTORY",
+                        "terms": ["mem", "20260912", "dce895b5"], "details": {},
+                    }],
+                }, handle)
+            hits, coverage = _timeline_discovery_hits(memory_id, limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual(hits[0]["kind"], "referenced_identity")
+        self.assertEqual(hits[0]["reference"], memory_id)
+        self.assertFalse(hits[0]["materialized_object_present"])
+        self.assertEqual(hits[0]["authority"], "SEARCH_REFERENCE_ONLY_NOT_OBJECT_TRUTH")
+        self.assertTrue(any(row.get("kind") == "git_commit" for row in hits[0]["referenced_by"]))
+
+    def test_timeline_discovery_evidence_cluster_mixes_runtime_git_github_and_worker_without_merging_truth(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T03:20:00+03:00"
+            worker_id = "worker:" + "b" * 64
+            ids = [
+                "mcp-transport:stable:req1",
+                "git:chatgptmcpclean:" + "a" * 40,
+                "github-issue:organicoverlords/chatgpt-mcp-clean#999:2026-09-12T00:01:00Z",
+                worker_id,
+            ]
+            times = ["2026-09-12T00:00:00Z", "2026-09-12T00:00:30Z", "2026-09-12T00:01:00Z", "2026-09-12T00:01:30Z"]
+            source_types = ["MCP_EVENT", "GIT_COMMIT", "GITHUB_ISSUE", "WORKER_REPORT"]
+            titles = ["MCP marker upload status 200", "marker upload implementation", "marker upload acceptance", "marker upload acceptance report"]
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 4, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"marker": [0, 1, 2, 3], "upload": [0, 1, 2, 3]},
+                    "weight_codes": {"marker": bytes([5, 5, 5, 5]), "upload": bytes([5, 5, 5, 5])},
+                    "anchors": [["process:p1"], ["gitsha:" + "a" * 40], ["github:organicoverlords/chatgpt-mcp-clean#999"], []],
+                    "branch_refs": [[], ["fix/marker-upload"], [], []],
+                    "opaque_labels": {worker_id: "manual marker upload acceptance"},
+                    "event_meta": [
+                        {"source_type": source_types[i], "project": "chatgptmcpclean", "event_at": times[i], "title": titles[i], "summary": titles[i], "authority": f"AUTH_{source_types[i]}", "terms": ["marker", "upload"], "details": {"tool": "upload_local_file", "status": 200} if i == 0 else {}}
+                        for i in range(4)
+                    ],
+                }, handle)
+            hits, coverage = _timeline_discovery_hits("marker upload", limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        clusters = coverage["evidence_clusters"]
+        self.assertTrue(clusters)
+        cluster = clusters[0]
+        self.assertEqual(cluster["authority"], "SEARCH_CORRELATION_ONLY_NOT_SHARED_TRUTH")
+        kinds = {member["kind"] for member in cluster["members"]}
+        self.assertTrue({"mcp_event", "git_commit", "github_issue", "worker_report"}.issubset(kinds))
+        git_member = next(member for member in cluster["members"] if member["kind"] == "git_commit")
+        self.assertIn("fix/marker-upload", git_member["branches"])
+        runtime_member = next(member for member in cluster["members"] if member["kind"] == "mcp_event")
+        self.assertEqual(runtime_member["details"]["tool"], "upload_local_file")
+        self.assertEqual(runtime_member["details"]["status"], 200)
+        self.assertTrue(all(member["relationship"] in {"seed", "same_project_time_window", "shared_anchor"} for member in cluster["members"]))
+
     def test_timeline_discovery_resolves_exact_manual_worker_report_hash_or_path(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

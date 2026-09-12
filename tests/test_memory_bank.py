@@ -411,6 +411,32 @@ class MemoryBankValidationTests(unittest.TestCase):
         self.assertEqual(saved_overlay[0]["id"], saved["id"])
         self.assertIn("MEMORY_RECENT_PROJECTION NOT_PROVEN: locked", errors.getvalue())
 
+    def test_synced_overlay_remains_durable_when_checkout_seed_moves_backward(self):
+        seed_entry = self.valid()
+        published = dict(seed_entry)
+        published["id"] = "mem-20260912-published1"
+        published["text"] = "Published memory must survive checkout changes"
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            seed = root / "repo" / "memory" / "memory-bank.jsonl"
+            overlay = root / "state" / "memory-bank.local.jsonl"
+            seed.parent.mkdir(parents=True)
+            overlay.parent.mkdir(parents=True)
+            seed.write_text(json.dumps(seed_entry) + "\n" + json.dumps(published) + "\n", encoding="utf-8")
+            overlay.write_text(json.dumps(published) + "\n", encoding="utf-8")
+            with patch("tools.memory_bank.DEFAULT_BANK", seed), patch(
+                "tools.memory_bank.DEFAULT_LOCAL_BANK", overlay
+            ), patch("tools.memory_bank.sync_bank", return_value={
+                "status": "PROVEN", "pulled": 0, "pending_push": 0, "pushed": 0,
+                "aligned_head": False, "checkout_mutated": False,
+            }):
+                memory_bank._sync_default_overlay_locked(seed, strict=True)
+                self.assertEqual([row["id"] for row in load_bank(overlay)], [published["id"]])
+                # Simulate switching the serving checkout to an older branch/commit whose tracked seed lacks the published memory.
+                seed.write_text(json.dumps(seed_entry) + "\n", encoding="utf-8")
+                effective = load_bank(seed)
+        self.assertEqual([row["id"] for row in effective], [seed_entry["id"], published["id"]])
+
     def test_default_bank_overlay_conflict_fails_closed_on_read(self):
         seed_entry = self.valid()
         conflicting = dict(seed_entry)

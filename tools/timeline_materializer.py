@@ -25,17 +25,51 @@ try:
         build_overview,
         load_bank,
     )
+    from .memory_git_sync import MemorySyncError, local_memory_replica_entries, merge_bank_entries
     from .memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from .repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_bank import DEFAULT_MANUAL_WORKER_HISTORY, DEFAULT_WORKER_HISTORY, build_overview, load_bank
+    from memory_git_sync import MemorySyncError, local_memory_replica_entries, merge_bank_entries
     from memory_timeline import _event_anchors, build_continuity_graph, build_timeline, build_timeline_snapshots, is_forensic_error_event
     from repo_timeline import RepoSpec, collect_repo_history, discover_repo_specs, tracked_artifact_events
     from worker_report_history import worker_history_events
 
 ROOT = Path(__file__).resolve().parents[1]
-STATE_ROOT = ROOT / ".state" / "timeline"
+
+def _external_timeline_state_root() -> Path:
+    override = os.environ.get("VAULT_TIMELINE_STATE_ROOT")
+    if override:
+        return Path(override).expanduser()
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        return Path(local_app_data) / "VaultTimeline"
+    return Path.home() / ".local" / "state" / "vault-timeline"
+
+def legacy_timeline_state_root(root: Path = ROOT) -> Path:
+    return Path(root) / ".state" / "timeline"
+
+def timeline_state_root(root: Path = ROOT) -> Path:
+    root = Path(root)
+    if os.environ.get("VAULT_TIMELINE_STATE_ROOT"):
+        return _external_timeline_state_root()
+    try:
+        canonical = root.resolve() == ROOT.resolve()
+    except OSError:
+        canonical = False
+    return _external_timeline_state_root() if canonical else legacy_timeline_state_root(root)
+
+def timeline_read_state_root(root: Path = ROOT) -> Path:
+    canonical = timeline_state_root(root)
+    if (canonical / "timeline-store.json").is_file():
+        return canonical
+    legacy = legacy_timeline_state_root(root)
+    if legacy != canonical and (legacy / "timeline-store.json").is_file():
+        return legacy
+    return canonical
+
+STATE_ROOT = timeline_state_root(ROOT)
 STORE_PATH = STATE_ROOT / "timeline-store.json"
 QUERY_INDEX_PATH = STATE_ROOT / "timeline-query-index.pkl"
 QUERY_CACHE_ROOT = STATE_ROOT / "query-results"
@@ -267,7 +301,7 @@ def _read_query_index(path: Path, *, generated_at: str) -> dict[str, Any] | None
 
 def _store_generation_token(root: Path) -> str | None:
     try:
-        stat = (root / ".state" / "timeline" / STORE_PATH.name).stat()
+        stat = (timeline_read_state_root(root) / STORE_PATH.name).stat()
     except OSError:
         return None
     return f"{stat.st_mtime_ns}:{stat.st_size}"
@@ -842,6 +876,299 @@ def _safe_refs_from_text(text: Any) -> tuple[list[str], list[str]]:
     return refs, numbers
 
 
+def _mcp_project_name(mcp_root: Path) -> str:
+    name = mcp_root.name.casefold()
+    if "mcp" in name:
+        return "chatgptmcpclean"
+    return name or "mcp"
+
+
+def _mcp_transport_events(log_path: Path, *, since: datetime, project: str = "chatgptmcpclean", source_label: str | None = None, tail_bytes: int = 8 * 1024 * 1024) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    path = log_path
+    coverage = {"path": str(path), "rows": 0, "events": 0, "health_rows_skipped": 0, "tail_bytes": tail_bytes, "tail_truncated": False}
+    try:
+        coverage["tail_truncated"] = path.stat().st_size > tail_bytes
+    except OSError:
+        return [], coverage
+    grouped: dict[str, dict[str, Any]] = {}
+    for raw in _read_tail(path, tail_bytes).decode("utf-8", "replace").splitlines():
+        try:
+            row = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        coverage["rows"] += 1
+        at = row.get("at")
+        if not _event_time_ok(at, since):
+            continue
+        request_id = str(row.get("request_id") or "")
+        if not request_id:
+            continue
+        item = grouped.setdefault(request_id, {"first": row, "last": row, "finish": None, "process_id": None})
+        item["last"] = row
+        if row.get("event") == "response_finish":
+            item["finish"] = row
+        if row.get("process_id"):
+            item["process_id"] = row.get("process_id")
+    source_label = source_label or path.parent.name or "runtime"
+    events: list[dict[str, Any]] = []
+    for request_id, item in grouped.items():
+        first = item["first"]
+        observed_last = item["last"]
+        last = item.get("finish") or observed_last
+        path_value = str(last.get("path") or first.get("path") or "")
+        tool = last.get("mcp_tool") or first.get("mcp_tool")
+        method = last.get("mcp_method") or first.get("mcp_method")
+        status = last.get("status")
+        # Health polling is useful as coverage/health context but would swamp discovery.
+        # Keep failures; summarize successful /health traffic only in coverage.
+        if path_value == "/health" and not tool and not method and (status is None or int(status) < 400):
+            coverage["health_rows_skipped"] += 1
+            continue
+        label = str(tool or method or path_value or last.get("method") or "request")
+        event_at = observed_last.get("at") or last.get("at") or first.get("at")
+        anchors = [f"mcp-transport:{request_id}"]
+        process_id = item.get("process_id")
+        if process_id:
+            anchors.append(f"process:{process_id}")
+        caller_id = last.get("caller_id") or first.get("caller_id")
+        connection_id = last.get("connection_id") or first.get("connection_id")
+        if caller_id:
+            anchors.append(f"caller:{caller_id}")
+        if connection_id:
+            anchors.append(f"connection:{connection_id}")
+        events.append({
+            "id": f"mcp-transport:{source_label}:{request_id}",
+            "source_type": "MCP_EVENT",
+            "authority": "LOCAL_MCP_TRANSPORT_LOG",
+            "event_at": event_at,
+            "recorded_at": event_at,
+            "project": project,
+            "projects": [project],
+            "title": f"MCP transport {label}: status {status if status is not None else 'unknown'}",
+            "summary": f"transport request path={path_value or 'unknown'} duration_ms={last.get('duration_ms')} status={status}",
+            "mcp_root": str(path.parent),
+            "mcp_event": "transport_request",
+            "request_id": request_id,
+            "tool": tool,
+            "mcp_method": method,
+            "http_method": last.get("method") or first.get("method"),
+            "path": path_value,
+            "status": status,
+            "duration_ms": last.get("duration_ms"),
+            "response_bytes": last.get("response_bytes"),
+            "process_id": process_id,
+            "caller_id": caller_id,
+            "connection_id": connection_id,
+            "session_id": last.get("session_id") or first.get("session_id"),
+            "server_pid": last.get("server_pid") or first.get("server_pid"),
+            "anchors": anchors,
+            "refs": [str(value) for value in (process_id, caller_id, connection_id) if value],
+            "thread_id": f"mcp-transport:{tool or method or path_value or 'request'}",
+            "thread_source": "MCP_TRANSPORT_LOG",
+        })
+    coverage["events"] = len(events)
+    return events, coverage
+
+
+def _mcp_watchdog_events(log_path: Path, *, since: datetime, project: str = "chatgptmcpclean", source_label: str | None = None, tail_bytes: int = 2 * 1024 * 1024) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    path = log_path
+    coverage = {"path": str(path), "rows": 0, "events": 0, "tail_bytes": tail_bytes, "tail_truncated": False}
+    try:
+        coverage["tail_truncated"] = path.stat().st_size > tail_bytes
+    except OSError:
+        return [], coverage
+    source_label = source_label or path.parent.name or "runtime"
+    events: list[dict[str, Any]] = []
+    for raw in _read_tail(path, tail_bytes).decode("utf-8", "replace").splitlines():
+        try:
+            row = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        coverage["rows"] += 1
+        at = row.get("at")
+        if not _event_time_ok(at, since):
+            continue
+        event = str(row.get("event") or "watchdog")
+        server_pid = row.get("server_pid")
+        generation = row.get("backend_generation")
+        summary_parts = [f"event={event}"]
+        for key in ("main_heartbeat_gap_ms", "observed_stall_ms", "host_cpu_pct", "process_cpu_pct_machine", "system_free_memory_pct", "major_page_fault_delta"):
+            if row.get(key) is not None:
+                summary_parts.append(f"{key}={row.get(key)}")
+        anchors = [f"mcp-watchdog-pid:{server_pid}"] if server_pid is not None else []
+        if generation:
+            anchors.append(f"mcp-generation:{generation}")
+        events.append({
+            "id": f"mcp-watchdog:{source_label}:{server_pid}:{event}:{at}",
+            "source_type": "MCP_EVENT",
+            "authority": "LOCAL_MCP_STALL_WATCHDOG",
+            "event_at": at,
+            "recorded_at": at,
+            "project": project,
+            "projects": [project],
+            "title": f"MCP watchdog {event}: pid {server_pid}",
+            "summary": "; ".join(summary_parts),
+            "mcp_root": str(path.parent),
+            "mcp_event": "stall_watchdog",
+            "watchdog_event": event,
+            "server_pid": server_pid,
+            "backend_generation": generation,
+            "runtime_instance_id": row.get("runtime_instance_id"),
+            "runtime_source_commit": row.get("runtime_source_commit"),
+            "main_heartbeat_gap_ms": row.get("main_heartbeat_gap_ms"),
+            "observed_stall_ms": row.get("observed_stall_ms"),
+            "host_cpu_pct": row.get("host_cpu_pct"),
+            "process_cpu_pct_machine": row.get("process_cpu_pct_machine"),
+            "system_free_memory_pct": row.get("system_free_memory_pct"),
+            "major_page_fault_delta": row.get("major_page_fault_delta"),
+            "anchors": anchors,
+            "refs": [str(generation)] if generation else [],
+            "thread_id": f"mcp-watchdog:{server_pid}",
+            "thread_source": "MCP_STALL_WATCHDOG",
+        })
+    coverage["events"] = len(events)
+    return events, coverage
+
+
+def _mcp_runtime_evidence_paths(local: Path, *, since: datetime, limit: int = 64) -> dict[str, list[Path]]:
+    """Discover bounded runtime evidence paths, never repository contents."""
+    transport: set[Path] = set()
+    watchdog: set[Path] = set()
+    receipt_dirs: set[Path] = set()
+
+    clean = local / "ChatGPTMcpClean"
+    legacy_state = clean / ".state"
+    if (legacy_state / "transport.jsonl").is_file():
+        transport.add(legacy_state / "transport.jsonl")
+    if (legacy_state / "stall-watchdog.jsonl").is_file():
+        watchdog.add(legacy_state / "stall-watchdog.jsonl")
+    minimal = clean / "minimal-connectors"
+    if minimal.is_dir():
+        shared = minimal / "shared-process-receipts"
+        if shared.is_dir():
+            receipt_dirs.add(shared)
+        try:
+            for child in minimal.iterdir():
+                if not child.is_dir():
+                    continue
+                if (child / "transport.jsonl").is_file():
+                    transport.add(child / "transport.jsonl")
+                if (child / "stall-watchdog.jsonl").is_file():
+                    watchdog.add(child / "stall-watchdog.jsonl")
+        except OSError:
+            pass
+
+    frozen = local / "ChatGPTMcpFrozen"
+    if frozen.is_dir():
+        try:
+            for deployment in frozen.iterdir():
+                state = deployment / "state"
+                if not state.is_dir():
+                    continue
+                for instance in state.iterdir():
+                    if not instance.is_dir():
+                        continue
+                    if (instance / "transport.jsonl").is_file():
+                        transport.add(instance / "transport.jsonl")
+                    if (instance / "stall-watchdog.jsonl").is_file():
+                        watchdog.add(instance / "stall-watchdog.jsonl")
+        except OSError:
+            pass
+
+    try:
+        candidates = [path for path in local.iterdir() if path.is_dir() and path.name.startswith("ChatGPTMcpCandidate")]
+    except OSError:
+        candidates = []
+    for candidate in candidates:
+        receipts = candidate / "minimal-connectors" / "shared-process-receipts"
+        if receipts.is_dir():
+            receipt_dirs.add(receipts)
+
+    def newest(paths: set[Path]) -> list[Path]:
+        ranked: list[tuple[float, str, Path]] = []
+        cutoff = since.timestamp() if since.tzinfo is not None else since.replace(tzinfo=timezone.utc).timestamp()
+        for path in paths:
+            try:
+                stamp = path.stat().st_mtime
+            except OSError:
+                continue
+            if stamp < cutoff:
+                continue
+            ranked.append((stamp, str(path).casefold(), path))
+        ranked.sort(reverse=True)
+        return [row[2] for row in ranked[: max(1, int(limit))]]
+
+    return {"transport": newest(transport), "watchdog": newest(watchdog), "receipt_dirs": newest(receipt_dirs)}
+
+
+def _mcp_receipt_events(
+    receipts_root: Path,
+    *,
+    since: datetime,
+    vault_root: Path,
+    project_to_slug: dict[str, str],
+    source_label: str | None = None,
+    limit: int = 2000,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    source_label = source_label or receipts_root.parent.name or "receipts"
+    coverage = {"path": str(receipts_root), "candidates": 0, "events": 0, "limit": limit, "saturated": False}
+    try:
+        all_receipts = sorted(receipts_root.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        all_receipts = []
+    coverage["candidates"] = len(all_receipts)
+    coverage["saturated"] = len(all_receipts) > limit
+    events: list[dict[str, Any]] = []
+    for path in all_receipts[:limit]:
+        row = _read_json(path)
+        if not row:
+            continue
+        event_at = row.get("finished_at") or row.get("started_at")
+        if not _event_time_ok(event_at, since):
+            continue
+        command = str(row.get("command") or "")
+        cwd = row.get("cwd")
+        project = _project_from_path(cwd, vault_root)
+        sha_refs, numbers = _safe_refs_from_text(command)
+        anchors = [f"process:{row.get('process_id') or path.stem}"]
+        anchors.extend(f"gitsha:{sha}" for sha in sha_refs)
+        slug = project_to_slug.get(project or "")
+        if slug:
+            anchors.extend(f"github:{slug}#{number}" for number in numbers)
+        command_kind = "other"
+        low = command.casefold()
+        for name, marker in (("git", "git "), ("github", "gh "), ("test", "pytest"), ("test", "unittest"), ("build", "build"), ("python", "python"), ("powershell", "powershell")):
+            if marker in low:
+                command_kind = name
+                break
+        events.append({
+            "id": f"mcp-process:{source_label}:{row.get('process_id') or path.stem}",
+            "source_type": "MCP_EVENT",
+            "authority": "LOCAL_MCP_PROCESS_RECEIPT",
+            "event_at": event_at,
+            "recorded_at": event_at,
+            "project": project,
+            "projects": [project] if project else [],
+            "title": f"MCP process {command_kind}: exit {row.get('exit_code')}",
+            "summary": "bounded process receipt metadata; raw command intentionally not copied",
+            "mcp_root": str(receipts_root),
+            "mcp_event": "process_receipt",
+            "process_id": row.get("process_id"),
+            "caller_id": row.get("caller_id"),
+            "exit_code": row.get("exit_code"),
+            "signal": row.get("signal"),
+            "cwd": cwd,
+            "command_kind": command_kind,
+            "command_fingerprint": hashlib.sha256(command.encode("utf-8", "replace")).hexdigest()[:16] if command else None,
+            "refs": [*sha_refs, *[f"#{number}" for number in numbers]],
+            "anchors": sorted(set(anchors)),
+            "thread_id": f"mcp-process:{project or 'unknown'}",
+            "thread_source": "MCP_PROCESS_RECEIPT",
+        })
+    coverage["events"] = len(events)
+    return events, coverage
+
+
 def mcp_events(
     *,
     since: datetime,
@@ -852,7 +1179,8 @@ def mcp_events(
     mcp_roots = [local / "ChatGPTMcpClean", local / "ChatGPTMcpMinimal"]
     events: list[dict[str, Any]] = []
     coverage = {
-        "roots": [], "request_logs": 0, "receipts": 0, "errors": [],
+        "roots": [], "request_logs": 0, "receipts": 0, "transport_events": 0, "watchdog_events": 0, "errors": [],
+        "transport": [], "watchdog": [],
         "request_tail_bytes": 8 * 1024 * 1024,
         "request_tail_truncated": False,
         "receipt_limit_per_root": 2000,
@@ -897,10 +1225,13 @@ def mcp_events(
             anchors = [f"mcp-request:{request_id}"]
             if process_id:
                 anchors.append(f"process:{process_id}")
+            project = _mcp_project_name(mcp_root)
             events.append({
                 "id": f"mcp-request:{mcp_root.name}:{request_id}",
                 "source_type": "MCP_EVENT",
                 "authority": "LOCAL_MCP_REQUEST_LOG",
+                "project": project,
+                "projects": [project],
                 "event_at": item["last"],
                 "recorded_at": item["last"],
                 "title": f"MCP {tool}: status {status if status is not None else 'unknown'}",
@@ -977,6 +1308,57 @@ def mcp_events(
                 "thread_source": "MCP_PROCESS_RECEIPT",
             })
             coverage["receipts"] += 1
+
+    runtime_paths = _mcp_runtime_evidence_paths(local, since=since)
+    coverage["runtime_evidence_paths"] = {
+        key: [str(path) for path in value]
+        for key, value in runtime_paths.items()
+    }
+    seen_event_ids = {str(event.get("id") or "") for event in events}
+    for log_path in runtime_paths["transport"]:
+        parsed, parsed_coverage = _mcp_transport_events(
+            log_path,
+            since=since,
+            project="chatgptmcpclean",
+            source_label=log_path.parent.name,
+        )
+        coverage["transport"].append(parsed_coverage)
+        coverage["transport_events"] += len(parsed)
+        for event in parsed:
+            if str(event.get("id") or "") not in seen_event_ids:
+                events.append(event)
+                seen_event_ids.add(str(event.get("id") or ""))
+    for log_path in runtime_paths["watchdog"]:
+        parsed, parsed_coverage = _mcp_watchdog_events(
+            log_path,
+            since=since,
+            project="chatgptmcpclean",
+            source_label=log_path.parent.name,
+        )
+        coverage["watchdog"].append(parsed_coverage)
+        coverage["watchdog_events"] += len(parsed)
+        for event in parsed:
+            if str(event.get("id") or "") not in seen_event_ids:
+                events.append(event)
+                seen_event_ids.add(str(event.get("id") or ""))
+    coverage["shared_receipt_dirs"] = []
+    for receipts_root in runtime_paths["receipt_dirs"]:
+        parsed, parsed_coverage = _mcp_receipt_events(
+            receipts_root,
+            since=since,
+            vault_root=root,
+            project_to_slug=project_to_slug,
+            source_label=receipts_root.parent.name,
+            limit=coverage["receipt_limit_per_root"],
+        )
+        coverage["shared_receipt_dirs"].append(parsed_coverage)
+        coverage["receipt_candidates"] += int(parsed_coverage.get("candidates") or 0)
+        coverage["receipts_saturated"] = bool(coverage["receipts_saturated"] or parsed_coverage.get("saturated"))
+        coverage["receipts"] += len(parsed)
+        for event in parsed:
+            if str(event.get("id") or "") not in seen_event_ids:
+                events.append(event)
+                seen_event_ids.add(str(event.get("id") or ""))
 
     coverage["events"] = len(events)
     return events, coverage
@@ -2149,7 +2531,7 @@ def materialize(
     started = time.perf_counter()
     now = now or datetime.now().astimezone()
     horizon_since = HISTORICAL_EVIDENCE_FLOOR if days is None else now - timedelta(days=max(1, int(days)))
-    state_root = state_root or (root / ".state" / "timeline")
+    state_root = state_root or timeline_state_root(root)
     store_path = state_root / STORE_PATH.name
     query_index_path = state_root / QUERY_INDEX_PATH.name
     bootstrap_path = state_root / BOOTSTRAP_PATH.name
@@ -2174,7 +2556,16 @@ def materialize(
         }
     try:
         os.write(lock_fd, f"{os.getpid()}\n".encode("ascii"))
+        previous_state_source = "NONE"
         previous = None if rebuild else _read_json(store_path)
+        if previous is not None:
+            previous_state_source = "CANONICAL_EXTERNAL_STATE"
+        elif not rebuild:
+            legacy_store = legacy_timeline_state_root(root) / STORE_PATH.name
+            if legacy_store != store_path:
+                previous = _read_json(legacy_store)
+                if previous is not None:
+                    previous_state_source = "LEGACY_CHECKOUT_STATE_MIGRATION_SOURCE"
         previous_timeline = previous.get("timeline") if isinstance(previous, dict) and isinstance(previous.get("timeline"), dict) else None
         incremental = bool(previous_timeline and isinstance(previous_timeline.get("events"), list))
         refresh_mode = "INCREMENTAL" if incremental else "BACKFILL"
@@ -2196,6 +2587,21 @@ def materialize(
         specs = discover_repo_specs(vault_root=root)
         project_to_slug, _ = _repo_maps(specs)
         entries = load_bank(root / "memory" / "memory-bank.jsonl")
+        replica_entries, memory_replica_coverage = local_memory_replica_entries(repo_root=root)
+        if replica_entries:
+            try:
+                entries = merge_bank_entries(entries, replica_entries)
+            except MemorySyncError as exc:
+                memory_replica_coverage = {
+                    **memory_replica_coverage,
+                    "status": "CONFLICT",
+                    "error": str(exc),
+                    "included": False,
+                }
+            else:
+                memory_replica_coverage = {**memory_replica_coverage, "included": True}
+        else:
+            memory_replica_coverage = {**memory_replica_coverage, "included": False}
 
         # One-time bounded self-heal for materialized Git rows created before commit
         # bodies/changed paths were indexed. Re-read only affected repo streams inside
@@ -2302,6 +2708,7 @@ def materialize(
         ]
 
         delta_coverage = {
+            "memory_replica": memory_replica_coverage,
             "repos": repo_report.get("coverage", {}),
             "workers": {"bounded": False, "included": True, "events": len(worker_delta)},
             "artifacts": {
@@ -2354,6 +2761,9 @@ def materialize(
             **delta_coverage,
             "materializer": {
                 "mode": refresh_mode,
+                "state_root": str(state_root),
+                "state_authority": "LOCAL_DERIVED_STATE_OUTSIDE_CANONICAL_CHECKOUT" if state_root == timeline_state_root(root) else "EXPLICIT_OR_TEST_STATE_ROOT",
+                "previous_state_source": previous_state_source,
                 "horizon_days": days,
                 "overlap_minutes": DEFAULT_OVERLAP_MINUTES,
                 "source_since": {name: value.isoformat() for name, value in source_since.items()},
@@ -2389,6 +2799,9 @@ def materialize(
         timeline["materialized"] = {
             "schema": SCHEMA,
             "generated_at": now.isoformat(),
+            "state_root": str(state_root),
+            "state_authority": "LOCAL_DERIVED_STATE_OUTSIDE_CANONICAL_CHECKOUT" if state_root == timeline_state_root(root) else "EXPLICIT_OR_TEST_STATE_ROOT",
+            "previous_state_source": previous_state_source,
             "horizon_days": days,
             "refresh_minutes": DEFAULT_REFRESH_MINUTES,
             "refresh_mode": refresh_mode,
@@ -2436,6 +2849,7 @@ def materialize(
         query_anchors: list[list[str]] = []
         query_branch_refs: list[list[str]] = []
         query_opaque_labels: dict[str, str] = {}
+        query_event_meta: list[dict[str, Any]] = []
         for index, event in enumerate(query_events.values()):
             best_weight_by_token: dict[str, float] = {}
             for weight, tokens in _event_query_fields(event):
@@ -2447,6 +2861,7 @@ def materialize(
                 weight_codes[token].append(_QUERY_WEIGHT_TO_CODE[weight])
             query_anchors.append(_event_anchors(event))
             query_branch_refs.append(_event_branch_refs(event))
+            query_event_meta.append(_query_index_event_meta(event))
             opaque_label = _query_index_opaque_label(event)
             if opaque_label:
                 query_opaque_labels[str(event.get("id") or "")] = opaque_label
@@ -2459,6 +2874,7 @@ def materialize(
             "anchors": query_anchors,
             "branch_refs": query_branch_refs,
             "opaque_labels": query_opaque_labels,
+            "event_meta": query_event_meta,
         })
 
         overview = build_overview(entries, limit=20, include_timeline_snapshots=False, now=now)
@@ -2540,11 +2956,11 @@ def materialize(
 
 
 def load_materialized(*, root: Path = ROOT) -> dict[str, Any] | None:
-    return _read_json(root / ".state" / "timeline" / STORE_PATH.name)
+    return _read_json(timeline_read_state_root(root) / STORE_PATH.name)
 
 
 def load_bootstrap_projection(*, root: Path = ROOT) -> dict[str, Any] | None:
-    return _read_json(root / ".state" / "timeline" / BOOTSTRAP_PATH.name)
+    return _read_json(timeline_read_state_root(root) / BOOTSTRAP_PATH.name)
 
 
 def materialized_health(payload: dict[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
@@ -2646,6 +3062,51 @@ def _query_concepts(query: str) -> tuple[frozenset[str], ...]:
 
 def _query_tokens(value: Any) -> set[str]:
     return set(_QUERY_TOKEN_RE.findall(str(value or "").casefold()))
+
+
+_QUERY_INDEX_DETAIL_KEYS = (
+    "mcp_event", "tool", "mcp_method", "status", "duration_ms", "response_bytes",
+    "process_id", "caller_id", "connection_id", "server_pid", "backend_generation",
+    "watchdog_event", "main_heartbeat_gap_ms", "observed_stall_ms", "host_cpu_pct",
+    "process_cpu_pct_machine", "system_free_memory_pct", "major_page_fault_delta",
+    "workflow", "conclusion", "head_ref", "head_sha", "url", "runner", "error_count",
+    "warning_count", "job_marker_count", "diag_path", "memory_status", "disk_status",
+    "physical_free_gb", "commit_headroom_gb", "vram_free_mb", "gpu_utilization_pct",
+    "scope", "outcome", "finding_tags", "state",
+)
+
+
+def _query_index_event_meta(event: dict[str, Any]) -> dict[str, Any]:
+    project = str(event.get("project") or "").casefold().strip()
+    if not project and event.get("source_type") == "MCP_EVENT":
+        raw_root = str(event.get("mcp_root") or "")
+        if raw_root:
+            project = _mcp_project_name(Path(raw_root))
+    details = {
+        key: event.get(key)
+        for key in _QUERY_INDEX_DETAIL_KEYS
+        if event.get(key) not in (None, "", [], {})
+    }
+    terms = sorted({
+        token for token in _query_tokens(" ".join([
+            str(event.get("title") or ""),
+            str(event.get("summary") or ""),
+            str(event.get("scope") or ""),
+            str(event.get("outcome") or ""),
+            " ".join(str(value) for value in event.get("refs", []) or []),
+        ]))
+        if len(token) >= 3 and token not in _QUERY_STOP_WORDS and not token.isdigit()
+    })[:64]
+    return {
+        "source_type": str(event.get("source_type") or ""),
+        "project": project,
+        "event_at": event.get("event_at"),
+        "title": event.get("title"),
+        "summary": event.get("summary"),
+        "authority": event.get("authority"),
+        "terms": terms,
+        "details": details,
+    }
 
 
 def _event_query_fields(event: dict[str, Any]) -> list[tuple[float, set[str]]]:
@@ -2995,7 +3456,7 @@ def _query_cache_key(generated_at: str, *, query: str, view: str, project: str |
 
 
 def _read_query_result_cache(root: Path, key: str) -> tuple[dict[str, Any] | None, float | None]:
-    path = root / ".state" / "timeline" / QUERY_CACHE_ROOT.name / f"{key}.json"
+    path = timeline_state_root(root) / QUERY_CACHE_ROOT.name / f"{key}.json"
     try:
         age = max(0.0, time.time() - path.stat().st_mtime)
         if age > QUERY_RESULT_CACHE_SECONDS:
@@ -3007,7 +3468,7 @@ def _read_query_result_cache(root: Path, key: str) -> tuple[dict[str, Any] | Non
 
 
 def _write_query_result_cache(root: Path, key: str, result: dict[str, Any]) -> None:
-    cache_root = root / ".state" / "timeline" / QUERY_CACHE_ROOT.name
+    cache_root = timeline_state_root(root) / QUERY_CACHE_ROOT.name
     path = cache_root / f"{key}.json"
     try:
         _atomic_json(path, result)
@@ -3433,7 +3894,7 @@ def query_materialized(
     if not isinstance(timeline, dict):
         return None
     query_index = _read_query_index(
-        root / ".state" / "timeline" / QUERY_INDEX_PATH.name,
+        timeline_read_state_root(root) / QUERY_INDEX_PATH.name,
         generated_at=str(payload.get("generated_at") or ""),
     )
     event_rows = [*(timeline.get("events", []) or []), *(timeline.get("historical_evidence_events", []) or [])]
@@ -3816,7 +4277,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Materialize the Vault multi-source timeline and work graph.")
     sub = parser.add_subparsers(dest="command", required=True)
     refresh = sub.add_parser("refresh")
-    refresh.add_argument("--root", type=Path, default=ROOT, help="Vault root to aggregate into .state/timeline")
+    refresh.add_argument("--root", type=Path, default=ROOT, help="Vault root to aggregate; canonical derived state lives outside the checkout")
     refresh.add_argument("--days", type=int, default=DEFAULT_DAYS, help="optional explicit materialization window; default retains history regardless of age")
     refresh.add_argument("--repo-events", type=int, default=DEFAULT_REPO_EVENTS)
     refresh.add_argument("--artifact-events", type=int, default=DEFAULT_ARTIFACT_EVENTS)
@@ -3831,7 +4292,7 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--root", type=Path, default=ROOT, help="Vault root the scheduled serving copy should materialize")
     sub.add_parser("task-status")
     query = sub.add_parser("query")
-    query.add_argument("--root", type=Path, default=ROOT, help="Vault root containing .state/timeline")
+    query.add_argument("--root", type=Path, default=ROOT, help="Vault root whose canonical external timeline state should be queried")
     query.add_argument("query", nargs="?", default="")
     query.add_argument("--view", choices=("general", "project", "errors"), default="general")
     query.add_argument("--project")
