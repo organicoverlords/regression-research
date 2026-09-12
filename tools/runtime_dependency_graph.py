@@ -47,6 +47,32 @@ SURFACES: dict[str, dict[str, Any]] = {
         ],
         "recovery": ["reinstall with tools/install_bootstrap_snapshot_task.ps1 after validating source", "preserve %LOCALAPPDATA%/VaultBootstrapSnapshot rollback copies before replacing a live runtime file"],
     },
+    "vault.checkout_sync": {
+        "label": "Vault canonical serving checkout remote-ref/convergence owner",
+        "components": ["vault_checkout_sync", "stack_atlas"],
+        "aliases": ["VaultCheckoutSync", "vault checkout sync", "serving checkout", "canonical vault checkout", "origin/main refresh", "cached origin main", "vault main sync"],
+        "tasks": ["VaultCheckoutSync"],
+        "pairs": [],
+        "sources": [
+            ("sync", "tools/Sync-VaultCheckout.ps1"),
+            ("installer", "tools/Install-VaultCheckoutSyncTask.ps1"),
+        ],
+        "outputs": [],
+        "consumers": [
+            ("origin_main", "cached refs/remotes/origin/main authority"),
+            ("serving_checkout", r"C:\Users\Lauri\Desktop\vault canonical serving/read checkout"),
+        ],
+        "edges": [
+            ("source:installer", "task:VaultCheckoutSync", "INSTALLS"),
+            ("task:VaultCheckoutSync", "source:sync", "EXECUTES"),
+            ("task:VaultCheckoutSync", "consumer:origin_main", "REFRESHES_CACHED_REF"),
+            ("consumer:origin_main", "consumer:serving_checkout", "FAST_FORWARD_SOURCE_FOR"),
+        ],
+        "recovery": [
+            "install the hidden exact VaultCheckoutSync task only after production/change-gate review",
+            "default sync is fail-closed for dirty/ahead/diverged/wrong-branch worktrees; -Repair preserves exact WIP before convergence",
+        ],
+    },
     "vault.timeline_materializer": {
         "label": "Vault materialized Timeline scheduled runtime",
         "components": ["timeline_materializer", "memory_bank", "stack_atlas"],
