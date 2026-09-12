@@ -3250,6 +3250,23 @@ class TestVaultServingCheckoutConvergence(unittest.TestCase):
             self.assertNotEqual(code, 0)
             self.assertEqual(wrong["status"], "WRONG_BRANCH")
 
+    @unittest.skipUnless(os.name == "nt", "Vault serving checkout sync is a Windows scheduled-task contract")
+    def test_sync_wrong_branch_still_refreshes_cached_remote_without_touching_worktree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, seed, live = self._init_remote_pair(Path(tmp))
+            self._git(live, "switch", "-q", "-c", "scratch")
+            scratch_head = self._git(live, "rev-parse", "HEAD")
+            remote_head = self._advance_remote(seed, "remote-refresh.txt", "remote refresh\n")
+
+            code, wrong = self._run_sync(live)
+
+            self.assertNotEqual(code, 0)
+            self.assertEqual(wrong["status"], "WRONG_BRANCH")
+            self.assertEqual(self._git(live, "rev-parse", "--abbrev-ref", "HEAD"), "scratch")
+            self.assertEqual(self._git(live, "rev-parse", "HEAD"), scratch_head)
+            self.assertEqual(self._git(live, "rev-parse", "origin/main"), remote_head)
+            self.assertEqual(self._git(live, "status", "--porcelain"), "")
+
     def test_installer_is_hidden_one_minute_fail_closed_default(self):
         text = (ROOT / "tools" / "Install-VaultCheckoutSyncTask.ps1").read_text(encoding="utf-8-sig")
         self.assertIn("'VaultCheckoutSync'", text)

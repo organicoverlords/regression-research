@@ -307,6 +307,9 @@ COMPONENT_ALIASES = {
     "bootstrap snapshot": "bootstrap_snapshot",
     "vault bootstrap snapshot": "bootstrap_snapshot",
     "bootstrap producer": "bootstrap_snapshot",
+    "vault checkout sync": "vault_checkout_sync",
+    "vaultcheckoutsync": "vault_checkout_sync",
+    "serving checkout": "vault_checkout_sync",
     "timeline materializer": "timeline_materializer",
     "vault timeline materializer": "timeline_materializer",
 }
@@ -629,6 +632,18 @@ COMPONENTS.update({
         "dependents": ["stack_atlas", "chatgpt_session", "execution_workers"],
         "runbook": ["organicoverlords/regression-research#987", "organicoverlords/regression-research#1025"],
     },
+    "vault_checkout_sync": {
+        "role": "runtime:canonical-vault-serving-checkout-sync",
+        "capabilities": ["source_read", "runtime_validate", "repository_mutate"],
+        "canonical_sources": ["tools/Sync-VaultCheckout.ps1", "tools/Install-VaultCheckoutSyncTask.ps1"],
+        "live_status": ["exact Windows task VaultCheckoutSync", r"C:\Users\Lauri\Desktop\vault", "cached refs/remotes/origin/main"],
+        "supervisor": "Windows Task Scheduler when installed; exact sync script owns fetch/convergence semantics",
+        "self_heal": "fetch refreshes cached origin/main even when worktree convergence fails closed; clean-behind can fast-forward",
+        "independent_recovery": ["tools/Install-VaultCheckoutSyncTask.ps1", "tools/Sync-VaultCheckout.ps1 -Repair after attribution/authorization"],
+        "resources": [r"C:\Users\Lauri\Desktop\vault", "refs/remotes/origin/main", "preserve/vault-live-*"],
+        "dependents": ["stack_atlas", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#1021"],
+    },
     "timeline_materializer": {
         "role": "runtime:materialized-history-producer",
         "capabilities": ["source_read", "runtime_validate"],
@@ -832,7 +847,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "boundary": "Unified discovery starts with Stack Atlas find. Memory/timeline commands are second-stage historical drill-down only; never recursive Vault scans or current-state inference.",
     },
     "runtime.deployment_graph": {
-        "owner_components": ["stack_atlas", "bootstrap_snapshot", "timeline_materializer"],
+        "owner_components": ["stack_atlas", "bootstrap_snapshot", "vault_checkout_sync", "timeline_materializer"],
         "triggers": [
             "runtime graph", "deployment graph", "dependency graph", "runtime dependency",
             "deployed script", "runtime copy", "scheduled task", "scheduler task",

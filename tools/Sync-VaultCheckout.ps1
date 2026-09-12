@@ -54,6 +54,13 @@ try {
     $inside = Git-Text @('rev-parse','--is-inside-work-tree')
     if ($inside -ne 'true') { throw "$RepoRoot is not a Git worktree" }
 
+    # Refresh the cached remote-main authority before any worktree coherence gate.
+    # Fetch mutates refs only, not the checked-out branch/index/worktree, so a dirty or
+    # wrong-branch serving checkout can still keep origin/main current while remaining fail-closed.
+    if (-not $SkipFetch) {
+        [void](Git-Text @('fetch','--prune',$Remote,$Branch))
+    }
+
     $branchName = Git-Text @('rev-parse','--abbrev-ref','HEAD')
     $headBefore = Git-Text @('rev-parse','HEAD')
     $statusBefore = Git-Text @('status','--porcelain=v1','--untracked-files=normal')
@@ -93,10 +100,6 @@ try {
             throw "wrong-branch repair failed to establish clean $Branch; branch=$branchName dirty=$dirtyBefore"
         }
         $wrongBranchRepaired = $true
-    }
-
-    if (-not $SkipFetch) {
-        [void](Git-Text @('fetch','--prune',$Remote,$Branch))
     }
 
     $remoteRef = "$Remote/$Branch"

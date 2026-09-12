@@ -159,6 +159,25 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
             self.assertEqual(Path(by_key["runtime:repo_timeline"]["resolved_path"]), runtime_tools / "repo_timeline.py")
             self.assertEqual(by_key["runtime:worker_history"]["deployment"]["status"], "MATCH")
 
+    def test_checkout_sync_surface_exposes_exact_missing_task_and_source_chain(self):
+        task_rows = {
+            "VaultCheckoutSync": {
+                "TaskName": "VaultCheckoutSync", "Exists": False, "Actions": [],
+            }
+        }
+        hits, coverage = search_runtime_dependency_graph(
+            "VaultCheckoutSync origin/main refresh", root=Path.cwd(), limit=3,
+            task_rows=task_rows, probe_live=True,
+        )
+        self.assertEqual([hit["surface_id"] for hit in hits], ["vault.checkout_sync"])
+        surface = hits[0]
+        self.assertEqual(surface["status"], "DEGRADED")
+        by_key = {node["key"]: node for node in surface["nodes"]}
+        self.assertFalse(by_key["task:VaultCheckoutSync"]["observation"]["exists"])
+        self.assertTrue(by_key["source:sync"]["resolved_path"].endswith("tools\\Sync-VaultCheckout.ps1"))
+        self.assertTrue(any(edge["relation"] == "REFRESHES_CACHED_REF" for edge in surface["edges"]))
+        self.assertFalse(coverage["broad_task_enumeration"])
+
     def test_search_and_component_lookup_use_same_runtime_surface_model(self):
         with patch("tools.runtime_dependency_graph.probe_tasks", return_value=({}, {"status": "INJECTED", "broad_enumeration": False})):
             hits, coverage = search_runtime_dependency_graph(
