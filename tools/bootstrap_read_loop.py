@@ -235,6 +235,38 @@ def _git_ref_file_bytes(repo_root: Path, source_ref: str, relative_path: str) ->
     return source.stdout
 
 
+def _overwrite_locked_deployed_file_bytes(destination: Path, desired: bytes) -> None:
+    """Repair a Windows destination that is readable/writable but not replaceable.
+
+    Long-lived readers such as Desktop Commander can keep a file handle without
+    FILE_SHARE_DELETE.  In that state os.replace is denied even though an in-place
+    write is allowed.  Preserve the prior bytes in memory, perform one bounded
+    write+truncate+fsync, verify exact desired bytes, and restore the prior bytes
+    if verification or writing fails.
+    """
+    previous = destination.read_bytes()
+    try:
+        with destination.open('r+b', buffering=0) as stream:
+            stream.seek(0)
+            stream.write(desired)
+            stream.truncate()
+            stream.flush()
+            os.fsync(stream.fileno())
+        if destination.read_bytes() != desired:
+            raise RuntimeError(f'locked deployed file verification failed: {destination}')
+    except BaseException:
+        try:
+            with destination.open('r+b', buffering=0) as stream:
+                stream.seek(0)
+                stream.write(previous)
+                stream.truncate()
+                stream.flush()
+                os.fsync(stream.fileno())
+        except BaseException:
+            pass
+        raise
+
+
 def _replace_deployed_file_bytes(destination: Path, desired: bytes) -> bool:
     destination = destination.resolve()
     try:
@@ -250,7 +282,14 @@ def _replace_deployed_file_bytes(destination: Path, desired: bytes) -> bool:
             stream.write(desired)
             stream.flush()
             os.fsync(stream.fileno())
-        _replace_snapshot(temporary, destination)
+        try:
+            _replace_snapshot(temporary, destination)
+        except PermissionError:
+            if os.name != 'nt' or not destination.exists():
+                raise
+            _overwrite_locked_deployed_file_bytes(destination, desired)
+        if destination.read_bytes() != desired:
+            raise RuntimeError(f'deployed file verification failed: {destination}')
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
