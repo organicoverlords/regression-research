@@ -160,9 +160,9 @@ def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
 
 
 try:
-    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+    from tools.live_swarm import build_live_swarm_snapshot
 except ModuleNotFoundError:
-    from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+    from live_swarm import build_live_swarm_snapshot
 
 try:
     from tools.memory_recent_projection import default_local_bank_path, read_current_projection
@@ -219,9 +219,8 @@ BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
-BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES = 15_000
-BOOTSTRAP_GLANCE_MAX_BYTES = 25_000
-BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT = 4
+BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES = 50_000
+BOOTSTRAP_GLANCE_MAX_BYTES = 50_000
 BOOTSTRAP_INTEGRITY_WARNING = (
     "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
     "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
@@ -2369,32 +2368,14 @@ def _deduplicate_bootstrap_runtime_views(glance: dict[str, Any]) -> bool:
     return changed
 
 
-def _bound_bootstrap_mcp_service_health_sources(
-    glance: dict[str, Any], limit: int = BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
-) -> bool:
-    """Keep MCP source detail useful but bounded while preserving aggregate health counts."""
-    mcp = glance.get("mcp")
-    service_health = mcp.get("service_health") if isinstance(mcp, dict) else None
-    sources = service_health.get("sources") if isinstance(service_health, dict) else None
-    if not isinstance(sources, list):
-        return False
-    detail_limit = max(0, int(limit))
-    service_health["source_detail_limit"] = detail_limit
-    service_health["sources_truncated"] = len(sources) > detail_limit
-    if len(sources) <= detail_limit:
-        return False
-    service_health["sources"] = sources[:detail_limit]
-    return True
-
-
 def _fit_bootstrap_glance_budget(
     glance: dict[str, Any],
     max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES,
     compaction_target_bytes: int = BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
 ) -> dict[str, Any]:
-    """Compact toward the legacy target while enforcing a larger hard payload ceiling."""
+    """Deduplicate exact runtime repeats, then fail closed instead of stripping unique data."""
     budget = max(2_048, int(max_bytes))
-    compaction_target = max(2_048, min(budget, int(compaction_target_bytes)))
+    legacy_target = max(2_048, min(budget, int(compaction_target_bytes)))
     source = json.loads(json.dumps(glance, ensure_ascii=False))
     source.pop("bootstrap_warning", None)
     source.pop("bootstrap_end", None)
@@ -2404,184 +2385,23 @@ def _fit_bootstrap_glance_budget(
         "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
     }
     deduplicated = _deduplicate_bootstrap_runtime_views(bounded)
-    source_details_compacted = _bound_bootstrap_mcp_service_health_sources(bounded)
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {
             "max_bytes": budget,
-            "compaction_target_bytes": compaction_target,
+            "compaction_target_bytes": legacy_target,
             "deduplicated": deduplicated,
-            "compacted": source_details_compacted,
-        }
-
-    if _compact_json_bytes(bounded) <= compaction_target:
-        return bounded
-
-    recovery = bounded.get("mcp_recovery_state")
-    if isinstance(recovery, dict):
-        conditions = recovery.get("conditions")
-        if isinstance(conditions, list):
-            recovery["conditions"] = [
-                {key: item.get(key) for key in ("type", "status", "reason") if key in item}
-                for item in conditions
-                if isinstance(item, dict)
-            ]
-        invariants = recovery.get("recovery_invariants")
-        if isinstance(invariants, list):
-            recovery["recovery_invariants"] = [_clip_bootstrap_text(item, 96) for item in invariants]
-        for key in ("preservation_rule", "authorization_rule"):
-            if isinstance(recovery.get(key), str):
-                recovery[key] = _clip_bootstrap_text(recovery[key], 96)
-        safety_rules = recovery.get("replacement_safety_rules")
-        if isinstance(safety_rules, list):
-            recovery["replacement_safety_rules"] = [_clip_bootstrap_text(item, 96) for item in safety_rules]
-        latest_restore = recovery.get("latest_topology_restore")
-        if isinstance(latest_restore, dict):
-            recovery["latest_topology_restore"] = {
-                key: latest_restore.get(key)
-                for key in ("incident_id", "before_transport", "after_transport", "backend_artifact_matches_selected_recovery", "failed_replacement_status", "fresh_mcp_process_call")
-                if key in latest_restore
-            }
-
-
-    if _compact_json_bytes(bounded) > compaction_target:
-        freshness = bounded.get("source_freshness")
-        if isinstance(freshness, dict):
-            freshness.pop("meaning", None)
-            freshness.pop("cache", None)
-            sources = freshness.get("sources")
-            if isinstance(sources, dict):
-                for item in sources.values():
-                    if not isinstance(item, dict):
-                        continue
-                    for key in ("path", "last_update_commit", "last_updated_at", "local_last_committed_at", "local_matches_remote_main"):
-                        item.pop(key, None)
-
-    workers = bounded.get("workers")
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(workers, dict):
-        sanity = workers.get("manual_sanity")
-        if isinstance(sanity, dict):
-            workers["manual_sanity"] = {
-                key: sanity.get(key)
-                for key in (
-                    "available", "baseline_id", "status", "score_delta", "direction", "post_run_count",
-                    "minimum_post_runs_for_provisional", "minimum_post_runs_for_comparable",
-                )
-                if key in sanity
-            }
-
-    mcp = bounded.get("mcp")
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(mcp, dict):
-        activity = mcp.get("activity_summary")
-        if isinstance(activity, dict):
-            mcp["activity_summary"] = {
-                key: activity.get(key)
-                for key in ("activity_window_seconds", "activity_window_complete", "starts", "reads", "exits", "kills", "nonzero_exits", "last_event_at")
-                if key in activity
-            }
-        mcp.pop("cache", None)
-
-    sessions = mcp.get("active_sessions") if isinstance(mcp, dict) else None
-    while _compact_json_bytes(bounded) > compaction_target and isinstance(sessions, list) and sessions:
-        sessions.pop()
-        bounded["mcp"]["active_sessions_truncated"] = True
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
-        for key in ("attention", "stale_reports"):
-            items = bounded["workers"].get(key)
-            if isinstance(items, list) and len(items) > 1:
-                bounded["workers"][key] = items[:1]
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
-        workers = bounded["workers"]
-        recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
-        workers["recurring_scheduler_recovery"] = {key: recovery.get(key) for key in (
-            "status", "authority", "expected_recurring_workers", "observed_worker_reports", "recent_start_evidence",
-            "running_with_start_receipt", "running_without_start_receipt", "suspect_count", "recovery_candidate_count",
-        ) if key in recovery}
-        workers.pop("archive_sample", None)
-        workers.pop("attention", None)
-        workers.pop("stale_reports", None)
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("swarm_topology"), dict):
-        topo = bounded["swarm_topology"]
-        handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
-        routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
-        manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
-        execution_nodes = topo.get("execution_nodes") if isinstance(topo.get("execution_nodes"), dict) else {}
-        raw_nodes = execution_nodes.get("nodes") if isinstance(execution_nodes.get("nodes"), dict) else {}
-        compact_nodes = {
-            node_id: {
-                key: node.get(key)
-                for key in ("display_name", "user_alias", "route_label", "machine_class", "gpu")
-                if isinstance(node, dict) and node.get(key) is not None
-            }
-            for node_id, node in raw_nodes.items()
-            if isinstance(node_id, str) and isinstance(node, dict)
-        }
-        compact_execution_nodes = {
-            key: execution_nodes.get(key)
-            for key in ("authority", "available", "status", "local_node_id", "local_observed_hostname")
-            if key in execution_nodes
-        }
-        if compact_nodes:
-            compact_execution_nodes["nodes"] = compact_nodes
-        bounded["swarm_topology"] = {
-            key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
-        }
-        bounded["swarm_topology"]["routine_recurring_recovery"] = {
-            key: routine_recovery.get(key)
-            for key in ("authority", "scheduler_role", "operator_handoff_role", "user_role")
-            if key in routine_recovery
-        }
-        bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
-        bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
-        bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
-
-    live_swarm = bounded.get("live_swarm")
-    while _compact_json_bytes(bounded) > compaction_target and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
-        live_swarm["lanes"].pop()
-        live_swarm["lanes_truncated"] = True
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("commands"), dict):
-        commands = bounded["commands"]
-        compact_commands = {
-            "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
-            "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
-            "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
-            "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
-            "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
-            "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
-            "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
-            "tiny3d_asset_library": "lookup tiny3d_library",
-        }
-        bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("paths"), dict):
-        paths = bounded["paths"]
-        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log") if key in paths}
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("mcp_recovery_state"), dict):
-        recovery = bounded["mcp_recovery_state"]
-        bounded["mcp_recovery_state"] = {
-            key: recovery.get(key)
-            for key in (
-                "available", "read_state", "authority", "recovery_target_deployment_id",
-                "recovery_target_generation", "recovery_selected_at", "scope", "details_path",
-                "status", "path", "selected_recovery_target", "conditions",
-            )
-            if recovery.get(key) not in (None, "", [], {})
+            "compacted": False,
+            "lossy_compaction": False,
+            "policy": "deduplicate_only_fail_closed",
         }
 
     final_bytes = _compact_json_bytes(bounded)
     if final_bytes > budget:
         raise ValueError(
-            f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
-            f"bytes={final_bytes} target={compaction_target} budget={budget}"
+            "BOOTSTRAP_BUDGET_EXCEEDED_WITHOUT_LOSSY_COMPACTION "
+            f"bytes={final_bytes} budget={budget}"
         )
-
-    if isinstance(bootstrap, dict):
-        bootstrap["payload_budget"]["compacted"] = True
     return bounded
 
 
@@ -3825,7 +3645,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "timeline_task_status": r"python C:\Users\Lauri\Desktop\vault\tools\timeline_materializer.py task-status",
         },
         "bootstrap": bootstrap,
-        "live_swarm": compact_for_bootstrap(live_swarm, lane_limit=4),
+        "live_swarm": live_swarm,
         "mcp": mcp,
         "vault": vault,
         "github": github,
