@@ -50,12 +50,21 @@ def _external_timeline_state_root() -> Path:
 def legacy_timeline_state_root(root: Path = ROOT) -> Path:
     return Path(root) / ".state" / "timeline"
 
+def _canonical_vault_data_root() -> Path:
+    override = os.environ.get("VAULT_CANONICAL_ROOT")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / "Desktop" / "vault"
+
 def timeline_state_root(root: Path = ROOT) -> Path:
     root = Path(root)
+    # State ownership follows the canonical Vault data root, not whichever code
+    # checkout happens to execute the materializer. Explicit state override wins.
     if os.environ.get("VAULT_TIMELINE_STATE_ROOT"):
         return _external_timeline_state_root()
     try:
-        canonical = root.resolve() == ROOT.resolve()
+        resolved = root.resolve()
+        canonical = resolved == ROOT.resolve() or resolved == _canonical_vault_data_root().resolve()
     except OSError:
         canonical = False
     return _external_timeline_state_root() if canonical else legacy_timeline_state_root(root)
