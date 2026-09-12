@@ -1,14 +1,32 @@
+import ast
 import os
 import subprocess
 from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from tools import cleanup_converger, stack_atlas
+from tools import bootstrap_read_loop, cleanup_converger, stack_atlas
 
 
 @unittest.skipUnless(os.name == "nt", "Windows-only console-window regression")
 class HiddenSubprocessWindowTests(unittest.TestCase):
+    def test_bootstrap_read_loop_direct_runs_hide_console_children(self):
+        source = Path(bootstrap_read_loop.__file__).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "subprocess"
+            and node.func.attr == "run"
+        ]
+        self.assertGreater(len(calls), 0)
+        for call in calls:
+            keywords = {keyword.arg for keyword in call.keywords if keyword.arg is not None}
+            self.assertIn("creationflags", keywords)
+
     def test_stack_atlas_shared_runner_hides_console_children(self):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
         with patch.object(stack_atlas.subprocess, "run", return_value=completed) as run:
