@@ -149,11 +149,22 @@
     "closure_state": "REPAIRED_PENDING_DURABILITY",
     "repair_binding_required": true,
     "repair_binding": {
-      "status": "PENDING_OBSERVATION",
-      "evidence_ref": "02 Evidence/SW-V2-20260913-004_visible-context.json"
+      "status": "SCORED_PASS",
+      "kind": "assistant_reply",
+      "evidence_ref": "02 Evidence/SW-V2-20260913-004_visible-context.json",
+      "item_index": 5,
+      "authority_item_indexes": [],
+      "sha256": "8a6afe9588a4d828e8dec28bc83726c4c3bbed4a2c679d0604b1e1ac46886358",
+      "score": {
+        "status": "PASS",
+        "violations": []
+      }
     },
     "repair_authority": {
       "mode": "NOT_REQUIRED"
     }
+  },
+  "repair_candidate": {
+    "action": "Jatkoin alkuperäistä työtä, runneriin koskematta. KONE/OMEN/CI-routingiin ei tehty muutoksia, serving Vault ja `.agents` ovat edelleen puhtaat, eikä mitään tästä WIP:stä ole pushattu tai landattu.\n\nPaikallinen V2-ketju on nyt huomattavasti kovempi: repairin pitää olla oikeasti käyttäjälle näytetty teksti, authority-sensitive repair vaatii normaalin owner/gaten riippumattoman PASS-todisteen **ja tuo todiste pitää persistoidä näkyvään evidence-artifaktiin** — pelkkä candidateen kirjoitettu `authority_proof` ei enää kelpaa. Myös CLI tukee nyt tätä `--authority-evidence-file`-polulla. SW-V2-003:n vanha väärä runner-repair säilytettiin byte-for-byte historiassa, mutta merkittiin 004:n supersedaamaksi; 004:n tuleva memory supersedaa myös `mem-sw-v2-20260913-003`, ja testillä on todistettu että supersedattu lesson poistuu normaalista recallista mutta säilyy historiassa.\n\nAgents-puolella upstream muuttui samalla, joten rebasasin paikalliset muutokset uudelle mainille: #401 on nyt coherent **v88**, #402 sen päällä **v89**. Diagnostic-correction- ja headless-tool-commentary-testit ovat vihreät.\n\nViimeinen laaja Vault-kierros ennen aivan viimeistä CLI-lisäystä oli **75 passed + 4 subtests**, lisäksi **30 unittestiä OK**. Viimeisen CLI-lisäyksen oma closure-suite on **15/15 vihreä**. Ainoa tekemättä jäänyt proof on koko 75-testisen focused-suiten uusi ajo juuri tämän viimeisen CLI-commitin jälkeen; työkaluaika loppui siihen. SW-V2-004 pysyy tarkoituksella `REPAIRED_PENDING_DURABILITY`-tilassa: en fabricoinut puuttuvaa näkyvää repair-observationia enkä kirjoittanut canonical memoryä.\n\nVault-WIP on nyt **8 local commitia origin/mainin edellä**, Agents #401 yksi commit mainin edellä ja #402 yksi commit #401:n päällä. Seuraava varsinainen raja tämän jälkeen on landing/live-authorization; siihen en koskenut."
   }
 }

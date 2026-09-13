@@ -30,6 +30,11 @@
       "kind": "rule_snapshot",
       "source": "RULES.md + AGENTS.md",
       "content": "Exact-fact guidance requires answering the exact factual question first, while manual-go correction guidance says resume a concrete useful action first and treats explaining the prior failure as non-progress; an explicit diagnostic correction question is therefore ambiguously ordered."
+    },
+    {
+      "kind": "assistant_reply",
+      "source": "current-visible-context",
+      "content": "Jatkoin alkuperäistä työtä, runneriin koskematta. KONE/OMEN/CI-routingiin ei tehty muutoksia, serving Vault ja `.agents` ovat edelleen puhtaat, eikä mitään tästä WIP:stä ole pushattu tai landattu.\n\nPaikallinen V2-ketju on nyt huomattavasti kovempi: repairin pitää olla oikeasti käyttäjälle näytetty teksti, authority-sensitive repair vaatii normaalin owner/gaten riippumattoman PASS-todisteen **ja tuo todiste pitää persistoidä näkyvään evidence-artifaktiin** — pelkkä candidateen kirjoitettu `authority_proof` ei enää kelpaa. Myös CLI tukee nyt tätä `--authority-evidence-file`-polulla. SW-V2-003:n vanha väärä runner-repair säilytettiin byte-for-byte historiassa, mutta merkittiin 004:n supersedaamaksi; 004:n tuleva memory supersedaa myös `mem-sw-v2-20260913-003`, ja testillä on todistettu että supersedattu lesson poistuu normaalista recallista mutta säilyy historiassa.\n\nAgents-puolella upstream muuttui samalla, joten rebasasin paikalliset muutokset uudelle mainille: #401 on nyt coherent **v88**, #402 sen päällä **v89**. Diagnostic-correction- ja headless-tool-commentary-testit ovat vihreät.\n\nViimeinen laaja Vault-kierros ennen aivan viimeistä CLI-lisäystä oli **75 passed + 4 subtests**, lisäksi **30 unittestiä OK**. Viimeisen CLI-lisäyksen oma closure-suite on **15/15 vihreä**. Ainoa tekemättä jäänyt proof on koko 75-testisen focused-suiten uusi ajo juuri tämän viimeisen CLI-commitin jälkeen; työkaluaika loppui siihen. SW-V2-004 pysyy tarkoituksella `REPAIRED_PENDING_DURABILITY`-tilassa: en fabricoinut puuttuvaa näkyvää repair-observationia enkä kirjoittanut canonical memoryä.\n\nVault-WIP on nyt **8 local commitia origin/mainin edellä**, Agents #401 yksi commit mainin edellä ja #402 yksi commit #401:n päällä. Seuraava varsinainen raja tämän jälkeen on landing/live-authorization; siihen en koskenut."
     }
   ]
 }

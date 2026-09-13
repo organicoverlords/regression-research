@@ -1614,7 +1614,6 @@
       "duplicate_status": "canonical",
       "superseded_by": null,
       "missing": [
-        "repair_observation_pending",
         "canonical_memory_pending"
       ],
       "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed."
