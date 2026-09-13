@@ -1006,7 +1006,9 @@ class StackAtlasTests(unittest.TestCase):
                 watch = _bootstrap_fleet_watch(now)
 
         self.assertEqual(watch["scheduler_probe"], "required_before_scheduler_mutation")
-        self.assertFalse(watch["scheduler_mutation_authorized"])
+        self.assertFalse(watch["local_evidence_scheduler_mutation_authorized"])
+        self.assertTrue(watch["same_partition_peer_reenable_after_live_scheduler_confirmation"])
+        self.assertNotIn("scheduler_mutation_authorized", watch)
         self.assertTrue(watch["recovery_candidates_require_live_scheduler_probe"])
         self.assertEqual(watch["observed_worker_reports"], len(CANONICAL_RECURRING_WORKERS) - 1)
         self.assertEqual(watch["status"], "SUSPECT_DEGRADED")
@@ -1348,7 +1350,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(degraded["running_without_start_receipt"], 1)
         self.assertEqual(degraded["recovery_candidate_count"], 1)
         self.assertEqual(degraded["scheduler_probe"], "required_before_scheduler_mutation")
-        self.assertFalse(degraded["scheduler_mutation_authorized"])
+        self.assertFalse(degraded["local_evidence_scheduler_mutation_authorized"])
+        self.assertTrue(degraded["same_partition_peer_reenable_after_live_scheduler_confirmation"])
+        self.assertNotIn("scheduler_mutation_authorized", degraded)
         self.assertTrue(degraded["recovery_candidates"][0]["requires_live_scheduler_probe"])
 
     def test_fleet_watch_suppresses_duplicate_reenable_after_recent_worker_success(self):
