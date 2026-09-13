@@ -18,6 +18,7 @@ class Tiny3DAtlasProjectionTests(unittest.TestCase):
             "asset_id": asset_id,
             "directory_name": asset_id,
             "display_name": "Character Angular Android Blade Herald",
+            "search_aliases": ["basalt ferns", "Nature Mossige Basaltkivet Ja Saniaiset"],
             "asset_dir": str(asset_dir),
             "proof": {
                 "strongest_state": "TINY3D_VERIFIED",
@@ -78,6 +79,14 @@ class Tiny3DAtlasProjectionTests(unittest.TestCase):
             self.assertEqual(entry["proof"]["independent_review_state"], "NOT_RECORDED")
             self.assertEqual(entry["reopen"]["inspect_command"][2], "show")
             self.assertEqual(before, (cache_path.read_bytes(), showroom_path.read_bytes()))
+
+    def test_search_alias_matches_materialized_catalogue_record(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            asset_id, _, _, _ = self._fixture(root)
+            result = project_current("basalt ferns", root)
+            self.assertEqual(result["count"], 1)
+            self.assertEqual(result["entries"][0]["asset_id"], asset_id)
 
     def test_signature_mismatch_hides_cached_proof_as_current_truth(self):
         with tempfile.TemporaryDirectory() as raw:
