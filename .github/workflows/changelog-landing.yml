@@ -72,7 +72,9 @@ jobs:
         shell: bash
         env:
           VERIFY_AREAS: ${{ needs.classify.outputs.portable_areas }}
-        run: python3 tools/verify.py --areas "$VERIFY_AREAS"
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-compile --target "$RUNNER_TEMP/verify-python" "pytest==8.3.5"
+          PYTHONPATH="$RUNNER_TEMP/verify-python${PYTHONPATH:+:$PYTHONPATH}" python3 tools/verify.py --areas "$VERIFY_AREAS"
 
   windows:
     name: windows

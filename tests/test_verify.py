@@ -294,6 +294,8 @@ class VerifyTests(unittest.TestCase):
         self.assertNotIn("runs-on: [self-hosted, regression-research]", text)
         self.assertNotIn("shell: python", text)
         self.assertGreaterEqual(text.count("shell: bash"), 3)
+        self.assertIn("python3 -m pip install --disable-pip-version-check --no-compile --target \"$RUNNER_TEMP/verify-python\" \"pytest==8.3.5\"", text)
+        self.assertIn("PYTHONPATH=\"$RUNNER_TEMP/verify-python${PYTHONPATH:+:$PYTHONPATH}\" python3 tools/verify.py", text)
         self.assertIn("python3 tools/verify.py", text)
         self.assertIn("python tools/verify.py --areas $env:VERIFY_AREAS", text)
         self.assertIn("needs.classify.outputs.needs_windows == 'true'", text)
