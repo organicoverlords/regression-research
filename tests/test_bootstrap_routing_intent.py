@@ -78,7 +78,7 @@ def test_bootstrap_no_compaction_preserves_execution_roles_and_policy():
     assert "mandatory_windows_ci_light" in nodes["nodes"]["kone-gpu-desktop"]["roles"]
     assert "default_execution" in nodes["nodes"]["omen-linux-laptop"]["roles"]
     assert bounded["workers"] == {"marker": "keep"}
-    assert bounded["bootstrap"]["payload_budget"]["mode"] == "HARD_CAP_NO_COMPACTION"
+    assert bounded["bootstrap"]["payload_budget"]["mode"] == "BUDGET_NO_SIZE_COMPACTION"
     assert bounded["bootstrap"]["payload_budget"]["compacted"] is False
 
 

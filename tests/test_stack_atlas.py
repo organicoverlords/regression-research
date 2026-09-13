@@ -555,8 +555,10 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(next(reversed(glance)), "bootstrap_end")
         self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(glance["bootstrap"]["payload_budget"]["mode"], "HARD_CAP_NO_COMPACTION")
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
         self.assertFalse(glance["bootstrap"]["payload_budget"]["compacted"])
+        self.assertFalse(glance["bootstrap"]["payload_budget"]["over_budget"])
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["runtime_action"], "OBSERVE_ONLY_NO_FAIL")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["growth_policy"], BOOTSTRAP_GLANCE_GROWTH_POLICY)
         self.assertNotIn("compaction_target_bytes", glance["bootstrap"]["payload_budget"])
         self.assertIn("trend", glance["pc"]["disk"])
@@ -663,16 +665,19 @@ class StackAtlasTests(unittest.TestCase):
         path_call.assert_called_once_with("node-a", "node-b", surface_id="surface-y")
         self.assertEqual(json.loads(path_output.getvalue()), path_value)
 
-    def test_bootstrap_hard_cap_rejects_oversize_without_compaction(self):
+    def test_bootstrap_budget_reports_oversize_without_runtime_failure_or_compaction(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "memory_overview": {"important": "keep-me"},
             "synthetic_oversize": "x" * BOOTSTRAP_GLANCE_MAX_BYTES,
         }
         original = json.loads(json.dumps(glance))
-        with self.assertRaisesRegex(ValueError, "BOOTSTRAP_HARD_CAP_EXCEEDED_NO_COMPACTION"):
-            _fit_bootstrap_glance_budget(glance)
+        fitted = _fit_bootstrap_glance_budget(glance)
         self.assertEqual(glance, original)
+        self.assertEqual(fitted["synthetic_oversize"], glance["synthetic_oversize"])
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["over_budget"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["runtime_action"], "OBSERVE_ONLY_NO_FAIL")
+        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
     def test_bootstrap_under_cap_is_not_compacted(self):
         glance = {
             "bootstrap": {"status": "OK"},
@@ -686,9 +691,9 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["synthetic_uncompacted_detail"], glance["synthetic_uncompacted_detail"])
         self.assertEqual(fitted["live_swarm"], glance["live_swarm"])
         self.assertEqual(fitted["memory_overview"], glance["memory_overview"])
-        self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "HARD_CAP_NO_COMPACTION")
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
         self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
-    def test_bootstrap_hard_cap_is_user_approved_28k_and_fail_closed(self):
+    def test_bootstrap_budget_is_user_approved_28k_with_ci_growth_guard(self):
         self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 28_000)
         self.assertEqual(BOOTSTRAP_GLANCE_GROWTH_POLICY, "EXPLICIT_USER_AUTHORIZATION_REQUIRED")
         fitted = _fit_bootstrap_glance_budget({"bootstrap": {"status": "OK"}, "probe": "x" * 20_000})
@@ -734,7 +739,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(len(health["sources"]), BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
         self.assertEqual([item["instance"] for item in health["sources"]], [f"source-{i}" for i in range(BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)])
         self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
-        self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "HARD_CAP_NO_COMPACTION")
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
 
     def test_bootstrap_budget_preserves_manual_sanity_without_compaction(self):
         glance = {

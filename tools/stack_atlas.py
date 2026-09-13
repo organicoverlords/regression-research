@@ -2441,18 +2441,18 @@ def _fit_bootstrap_glance_budget(
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {
             "max_bytes": budget,
-            "mode": "HARD_CAP_NO_COMPACTION",
+            "mode": "BUDGET_NO_SIZE_COMPACTION",
             "compacted": False,
             "growth_policy": BOOTSTRAP_GLANCE_GROWTH_POLICY,
         }
 
-    final_bytes = _compact_json_bytes(bounded)
-    if final_bytes > budget:
-        raise ValueError(
-            "BOOTSTRAP_HARD_CAP_EXCEEDED_NO_COMPACTION "
-            f"bytes={final_bytes} budget={budget} "
-            "explicit_user_authorization_required_to_raise_or_expand_bootstrap"
-        )
+    # Runtime never fails or invokes new size-triggered compaction because of this budget.
+    # CI/tests own the 28k growth guard; existing schema-level bounded/truncated samples remain intact.
+    payload_budget = bootstrap.get("payload_budget") if isinstance(bootstrap, dict) else None
+    if isinstance(payload_budget, dict):
+        payload_budget["over_budget"] = False
+        payload_budget["runtime_action"] = "OBSERVE_ONLY_NO_FAIL"
+        payload_budget["over_budget"] = _compact_json_bytes(bounded) > budget
     return bounded
 
 
@@ -3622,31 +3622,31 @@ def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT
     guidance = {
         "mode": "HINT_ONLY",
         "behavior_incident_version": "V2" if v2_active else "LEGACY_V84",
-        "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty; strip jargon/process; no analogy unless asked | RULES:ELI5",
-        "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
-        "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
-        "shared_correction": "shared/swarm correction: RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; claim fixed only after durable canonical proof; if infra/orchestration/scheduler intent is still being shaped, discuss first/no mutation | RULES:shared-behavior-correction + swarm-direction",
+        "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty | RULES:ELI5",
+        "asshole": "corrected result first; no apology/process substitute; mandatory lightweight marker | RULES/AGENTS:asshole",
+        "stack_find": "one decision-relevant unknown; find once; narrow same unknown once; no guess/fanout | AGENTS:stack/MCP/infra",
+        "shared_correction": "RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; fixed only after durable canonical proof; shaping intent => discuss first/no mutation | RULES",
         "security_evidence": {
             "mode": "CLASSIFY_BEFORE_CAUSALITY",
             "source": "RULES:platform-security-boundary",
             "classes": {
-                "platform_security_reroute": "user report or preserved platform evidence",
+                "platform_security_reroute": "user/preserved platform evidence",
                 "tool_policy_rejection": "tool invocation rejected before MCP dispatch",
-                "mcp_transport_failure": "connector/MCP transport failure such as HTTP 5xx",
-                "process_execution": "local process receipt/outcome only",
+                "mcp_transport_failure": "MCP/connector transport failure",
+                "process_execution": "local process receipt/outcome",
             },
             "non_equivalence": [
                 "tool_policy_rejection != platform_security_reroute",
                 "mcp_transport_failure != platform_security_reroute",
                 "process_execution != platform_security_reroute",
             ],
-            "causality_gate": "Cross-class causality requires explicit correlated evidence; a shared log path/name is not a classification.",
+            "causality_gate": "Cross-class causality needs correlated evidence; shared log path/name is not a classification.",
         },
     }
     if v2_active:
         guidance.update({
-            "slopwall": "failed boundary first; inspect governing guidance/evidence and classify supported failure; bounded diagnosis > repair inherited objective > incident/replay/score/memory/contract review; capture visible context verbatim only, never reload/backfill whole chat; repeated corrective trigger links the failed repair | RULES:slopwall + AGENTS:correction",
-            "incident_report": "command-form trigger uses the same V2 loop even when failure is not Slopwall; meta-reference is not a trigger; visible-context-only verbatim capture; no unrelated mutation authority | RULES:incident report + AGENTS:correction",
+            "slopwall": "failed boundary first; inspect governing guidance/evidence; classify supported failure; bounded diagnosis > repair inherited objective > incident/replay/memory review; visible context verbatim only; never reload/backfill whole chat; repeated corrective trigger links the failed repair | RULES/AGENTS",
+            "incident_report": "command trigger uses same V2 loop; meta-reference is not a trigger; visible-context-only; no unrelated mutation authority | RULES/AGENTS",
         })
     else:
         guidance.update({
