@@ -184,6 +184,50 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
             self.assertEqual(Path(by_key["runtime:repo_timeline"]["resolved_path"]), runtime_tools / "repo_timeline.py")
             self.assertEqual(by_key["runtime:worker_history"]["deployment"]["status"], "MATCH")
 
+    def test_timeline_archive_runtime_uses_clean_filtered_pinned_comparison(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.email", "test@example.com"], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "user.name", "Test"], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "core.autocrlf", "true"], check=True)
+            source_names = [
+                "timeline_materializer.py", "memory_bank.py", "memory_git_sync.py",
+                "memory_timeline.py", "repo_timeline.py", "worker_report_history.py",
+            ]
+            tools = root / "tools"
+            tools.mkdir()
+            for name in source_names:
+                (tools / name).write_bytes((f"{name}-one\n{name}-two\n").encode())
+            subprocess.run(["git", "-C", str(root), "add", "tools"], check=True)
+            subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", "timeline runtime fixture"], check=True)
+            pin = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+
+            runtime_tools = root / "runtime" / pin / "tools"
+            runtime_tools.mkdir(parents=True)
+            for name in source_names:
+                committed = subprocess.check_output(["git", "-C", str(root), "show", f"{pin}:tools/{name}"])
+                (runtime_tools / name).write_bytes(committed.replace(b"\n", b"\r\n"))
+            task_rows = {
+                "Vault Timeline Materializer": {
+                    "TaskName": "Vault Timeline Materializer", "Exists": True, "State": "Ready", "LastTaskResult": 0,
+                    "Actions": [{"Execute": "pythonw.exe", "Arguments": str(runtime_tools / "timeline_materializer.py"), "WorkingDirectory": str(root)}],
+                }
+            }
+            surface = build_surface(
+                "vault.timeline_materializer", root=root, task_rows=task_rows,
+                task_coverage={"status": "INJECTED", "broad_enumeration": False},
+            )
+        self.assertEqual(surface["status"], "OK")
+        runtime_nodes = [node for node in surface["nodes"] if node["key"].startswith("runtime:")]
+        self.assertEqual(len(runtime_nodes), 6)
+        for node in runtime_nodes:
+            deployment = node["deployment"]
+            self.assertEqual(deployment["status"], "MATCH", node["key"])
+            self.assertEqual(deployment["pinned_commit"], pin)
+            self.assertEqual(deployment["comparison_mode"], "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB")
+            self.assertEqual(deployment["deployment_mechanism"], "COMMIT_ADDRESSED_WORKTREE_COPY")
+
     def test_git_ref_runtime_comparison_uses_exact_blob_bytes_not_autocrlf_filters(self):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -237,6 +281,29 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
         self.assertEqual(result["runtime_clean_blob"], filtered)
         self.assertEqual(result["runtime_comparison_blob"], filtered)
         self.assertEqual(result["comparison_mode"], "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB")
+        self.assertEqual(result["deployment_mechanism"], "COMMIT_ADDRESSED_WORKTREE_COPY")
+
+    def test_pinned_worktree_copy_accepts_exact_pinned_blob_before_clean_filter(self):
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            subprocess.run(["git", "-C", str(root), "config", "core.autocrlf", "true"], check=True)
+            pin = "c" * 40
+            runtime = root / "runtime" / pin / "legacy-crlf.py"
+            runtime.parent.mkdir(parents=True)
+            runtime.write_bytes(b"line-one\r\nline-two\r\n")
+            exact = subprocess.check_output(
+                ["git", "-C", str(root), "hash-object", "--no-filters", str(runtime)], text=True
+            ).strip()
+            filtered = subprocess.check_output(
+                ["git", "-C", str(root), "hash-object", "--path=tools/legacy-crlf.py", str(runtime)], text=True
+            ).strip()
+            self.assertNotEqual(exact, filtered)
+            with patch("tools.runtime_dependency_graph._git_blob_oid", return_value=exact):
+                result = _comparison(root, "tools/legacy-crlf.py", runtime, "pinned_worktree_copy")
+        self.assertEqual(result["status"], "MATCH")
+        self.assertEqual(result["runtime_comparison_blob"], exact)
+        self.assertEqual(result["comparison_mode"], "EXACT_RUNTIME_BYTES_VS_PINNED_GIT_BLOB")
         self.assertEqual(result["deployment_mechanism"], "COMMIT_ADDRESSED_WORKTREE_COPY")
 
     def test_worktree_hygiene_surface_maps_immutable_bundle_and_health_result_without_false_drift(self):
@@ -304,7 +371,7 @@ class RuntimeDependencyGraphTests(unittest.TestCase):
                     self.assertEqual(deployment["pinned_commit"], pin)
                     self.assertEqual(
                         deployment["comparison_mode"],
-                        "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB",
+                        "EXACT_RUNTIME_BYTES_VS_PINNED_GIT_BLOB",
                     )
                 self.assertEqual(Path(by_key["output:latest"]["resolved_path"]), latest)
                 self.assertEqual(
