@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from pathlib import Path
 
 import pytest
@@ -206,3 +208,24 @@ def test_source_message_must_match_verbatim_visible_evidence() -> None:
     raw["incident_event"]["source_message"] = "slopwall but changed after capture"
     with pytest.raises(SlopwallV2Error, match="source_message must be preserved verbatim"):
         validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_legacy_coverage_audit_preserves_confirmed_lower_bound_without_backfill() -> None:
+    audit = json.loads((ROOT / "02 Evidence/2026-09-13_slopwall-v2_legacy-coverage-audit.json").read_text(encoding="utf-8"))
+    source = json.loads((ROOT / "02 Evidence/2026-08-26_slopwall_event_index.json").read_text(encoding="utf-8-sig"))
+    assert audit["authority"] == "DERIVED_MIGRATION_AUDIT_NOT_NEW_EVENT_AUTHORITY"
+    assert "No conversation reload" in audit["scope"]
+    assert audit["summary"]["source_coverage_state"] == "NOT_PROVEN"
+    assert audit["summary"]["canonical_events"] == len(source["events"]) == 39
+    assert audit["summary"]["safe_legacy_manifest_events_without_chat_reload"] == 39
+    assert audit["summary"]["all_events_have_provenance"] is True
+    assert audit["summary"]["all_events_have_context_before"] is True
+    assert audit["summary"]["all_events_have_context_after"] is True
+    assert audit["summary"]["all_events_have_scores"] is True
+    assert {item["event_id"] for item in audit["events"]} == {item["event_id"] for item in source["events"]}
+    for item in audit["events"]:
+        assert item["verbatim_user_corrections"]
+        assert item["canonical_event_record"].startswith("02 Evidence/2026-08-26_slopwall_event_index.json#event_id=")
+        assert "SYNTHESIZE" not in item["v2_migration_disposition"].replace("DO_NOT_SYNTHESIZE", "")
+    assert "No date/topic similarity binding" in audit["binding_policy"]["forbidden"]
+    assert "no retrospective report/replay/memory fabrication" in audit["binding_policy"]["forbidden"]
