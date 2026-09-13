@@ -7,6 +7,8 @@ Scope: current stack recovery posture, shared guidance quality, recent work effe
 
 **Sanity snapshot: 7/10 — recovering and materially improved, but not a good point for another broad stack-wide change.**
 
+**Confidence: medium-high.** The score itself has not improved in the continuation audit, but uncertainty has narrowed: the Timeline drift signal is now root-caused as a comparison false-positive, while the disk-loss producer is explicitly bounded as UNATTRIBUTED rather than guessed.
+
 The important distinction is that the current stack is not broadly broken: MCP is live, the current serving route is explicit, rollback lanes exist, shared rules are coherent/current, and recent work has removed a large amount of obvious lifecycle slop. The remaining risk is concentrated rather than mysterious: historical/discovery freshness is not fully clean, continuation behavior still fragments too often, and machine headroom—especially disk—is under pressure.
 
 **Nexus is explicitly out of scope for activation/deployment in this recovery phase.** Nexus #16/#23 being implementation/proof complete does not create a reason to deploy it. The user explicitly wants recovery and current-state understanding first, after the earlier period where too many stack changes interacted at once.
@@ -19,9 +21,9 @@ This score is only an audit shorthand. It is not product/runtime authority, must
 |---|---:|---|
 | Live path + rollback safety | 2/2 | MCP live on the named current route; current topology is explicit; independent previous/secondary rollback generations exist; recovery policy is restore-first. |
 | Shared guidance / guardrails | 2/2 | RULES/AGENTS coherent at v87, source freshness clean, restore-first/proof-before-claim/unified-discovery/shared-convergence rules are present. |
-| Discovery + historical context | 1/2 | Exact gh-buffer identity hole found and repaired under #1127, but materialized history is stale during this audit and Timeline runtime graph reports drift that needs owner-level reconciliation. |
+| Discovery + historical context | 1/2 | Exact gh-buffer identity hole is fixed in PR #1131; Timeline runtime drift was root-caused as a comparison false-positive and fixed in PR #1140, but both are unmerged and materialized history freshness still needs current proof. |
 | Work behavior / convergence | 1/2 | Manual lifecycle anomaly diagnostic improved strongly, but go/continue fragmentation remains high and the last 24h still contains many regression/Slopwall cases. |
-| Machine/resource headroom | 1/2 | Commit headroom is still healthy and MCP is live, but physical RAM is tight and C: is 90.2% used with ~18.9 GB free-space loss over ~23h. |
+| Machine/resource headroom | 1/2 | Commit headroom remains usable and MCP is live, but physical RAM is tight and C: is ~90% used. The ~19.4 GB/22.9h historical loss was bounded under #1143 and remains UNATTRIBUTED; no unsafe reclaim was performed. |
 
 Interpretation: **7/10 = controlled enough for surgical work; not evidence for broad simultaneous changes.** Re-score only from current authoritative evidence; do not carry the number forward when its inputs are stale.
 
@@ -94,13 +96,15 @@ Root cause: `find` treated gh-buffer as cache-only. A cold exact identity was in
 
 End-to-end proof during this audit: `find "organicoverlords/regression-research#1127"` performed one bounded proxy lookup and returned `organicoverlords/regression-research#1127` as an exact `github_cache_hit` with score 100.
 
-### 2. Timeline/history freshness is not clean
+### 2. Timeline runtime drift was a false-positive; history freshness remains separate
 
-During this audit, Stack Atlas reported the materialized Timeline/history index stale/invalid for discovery. The exact scheduled task exists, is enabled, and most recently reported result 0, but the deployment graph also flags drift for parts of the pinned Timeline runtime.
+Owner-level reconciliation produced issue #1135 and PR #1140. The scheduled `Vault Timeline Materializer` task is Ready with `LastTaskResult=0`. The runtime is commit-addressed and produced by `git archive` + `Expand-Archive` on Windows.
 
-Important: scheduler success is not proof that the current query index is fresh/coherent. Conversely, a derived drift label is not enough to mutate the runtime. This needs one owner-level reconciliation of scheduled runtime bytes, publication/read-state pointer, and current query-index generation.
+The graph bug was narrower than a runtime failure: five runtime files had CRLF-transformed bytes while their Git-clean-filtered blobs matched the pinned commit; `repo_timeline.py` already matched the pinned blob exactly because that historical blob itself contains CRLF. The old `tracking=pinned` classification therefore fabricated DRIFT for the transformed members.
 
-Until that is reconciled, **absence from `find` history is not proof that an event did not happen.**
+PR #1140 reuses the existing `pinned_worktree_copy` semantics and makes it exact-first, clean-filter fallback. Validation: runtime-graph suite 14/14 PASS, repository verifier PASS, and the current live Timeline surface projects `OK` with all six runtime files MATCH without reinstalling/rebuilding the task or touching Timeline data.
+
+This removes the runtime-drift suspicion, but it does **not** prove the materialized query index is currently fresh. History freshness remains its own read-state question. Until fresh current proof exists, absence from `find` history is still not proof that an event did not happen.
 
 ### 3. Continuation/convergence remains weaker than lifecycle hygiene
 
@@ -108,19 +112,21 @@ The existing manual diagnostics show much less explicit lifecycle slop but signi
 
 Do not add duration incentives or force workers to “stay busy”. The audit should classify actual short continuation endings against stop reason + MCP execution + repo/GitHub convergence evidence and fix only a proven recurring cause.
 
-### 4. Disk pressure is a near-term operational constraint
+### 4. Disk pressure is real; the historical producer is UNATTRIBUTED
 
-Current KONE C: state: about **46.8 GB free, 90.2% used**, with about **18.9 GB lost over ~23h**. Physical RAM is also tight (~0.8 GB free) although commit headroom remains ~15.8 GB, so this is not commit exhaustion.
+Issue #1143 bounded the loss rather than guessing its owner. Exact bootstrap observations show **65.62 GB free at 2026-09-12 08:18Z → 46.18 GB at 2026-09-13 07:11Z**, a **19.44 GB loss over ~22.9h**. The strongest step was **63.54 → 55.56 GB from 16:52Z to 17:53Z**, about 7.98 GB in one hour.
 
-Before heavy builds, broad parallel experiments, or another stack-wide rollout, identify the live owner of disk growth and reclaim only owner-proven regeneratable output. Do not turn this into generic cleanup.
+P3 Android work is temporally adjacent, but causal checks were negative: current AgentScratch is ~0.288 GB; named P3 hot slots ~0.109 GB; current P3 Intermediate+Binaries+DerivedDataCache ~0.357 GB; targeted history had no process-level `git lfs`, `P3HotWorkspaces`, or `AgentScratch` evidence in the largest-drop window; RunUAT/BuildCookRun matches were issue prose only. Raw MCP process receipts for the relevant historical window are no longer retained, while materialized history keeps insufficient process metadata.
+
+#1143 was therefore closed **UNATTRIBUTED** with an explicit missing-evidence statement. No deletion/reclaim was performed. This is a better recovery outcome than attributing the loss to P3 or running a broad C: sweep without provenance. If a new loss recurs, investigate it while raw process receipts are still live.
 
 ### 5. Regression-research CI is intentionally fail-closed during #1120
 
-PR #1131 exposed a current required-check queue: the existing workflow still requests `[self-hosted, Windows, X64, regression-research]`, while live RR-KONE-02 is online/idle with only `self-hosted, Windows, X64, kone-ci-light`.
+The transition now has PR #1137, **“Split substantive verification onto OMEN”**, exact head `5d292697`. Its workflow/verifier slice routes substantive verification to OMEN labels and keeps only `windows_ui` on the explicit `kone-ci-light` lane; OMEN commands use `bash` + `python3`. Local proof on that PR is green and the PR is mergeable.
 
-This is **not an accidental runner outage**. Existing issue #1120 owns the transition. Its current evidence says the generic `regression-research` label was deliberately removed from KONE after a substantive verify job was accepted there, because the user direction now permits KONE only for extremely-light mandatory Windows CI. The intended substantive runner is OMEN, but its regression-research runner is still staged/unregistered. Therefore generic verify jobs are intentionally queuing rather than violating the execution-node policy.
+Live runner registration still shows only **RR-KONE-02**, online/idle with labels `self-hosted`, `Windows`, `X64`, `kone-ci-light`. No OMEN regression-research runner is registered yet. Therefore #1137 `classify`, #1131 `verify`, and #1140 `verify` are queued behind the same intentional fail-closed transition.
 
-This is a good recovery property—fail closed rather than silently spill work—but it is also a real current integration gate. #1131 must not bypass it; after #1120 lands, #1131 should reconcile/rebase onto the new workflow and rerun the exact-head required proof.
+This is **not an accidental runner outage** and should not be bypassed. #1120 remains the owner of OMEN runner provisioning; KONE must not regain the generic `regression-research` label merely to make checks green. Once OMEN registration is live and #1137 proves the new workflow, queued PRs should rerun/rebase against that canonical CI path.
 
 ## Why this event chain was unnecessarily hard to reconstruct
 
@@ -158,9 +164,9 @@ For now this can remain an on-demand Vault report. If repeated audits prove that
 
 ## Recommended next order
 
-1. Land #1127 and keep `find` exact-identity discovery bounded.
-2. Reconcile the Timeline scheduled runtime/read-state staleness/drift at its existing owner; do not redesign Timeline.
-3. Identify the current disk-growth owner before heavy/broad work.
+1. Let #1120 finish OMEN runner provisioning and prove PR #1137 without restoring generic substantive CI to KONE.
+2. After the canonical CI route is live, rerun/land the already-proven bounded fixes: #1131 (`find` exact identity) and #1140 (Timeline false-drift comparison).
+3. Treat #1143 as a closed historical UNATTRIBUTED disk finding; for any new disk drop, capture the producer while raw process receipts are still retained rather than widening to generic cleanup.
 4. Audit short go/continue endings using MCP + repo/GitHub evidence; repair only a recurring proven cause.
 5. Re-run this five-axis sanity snapshot before any materially broad stack/control-plane change.
 6. Keep Nexus deployment out of scope until the recovery/current-state decision is explicitly revisited by the user.
