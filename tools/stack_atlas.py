@@ -536,6 +536,8 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "canonical_sources": [
             r"C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1",
             r"C:\Users\Lauri\.agents\Start-GitHubRunnerHidden.ps1",
+            "organicoverlords/agents:Install-GitHubRunnerOmen.sh",
+            LINUX_OMEN_CONTRACT,
         ],
         "live_status": [
             r"powershell -NoProfile -File C:\Users\Lauri\.agents\Manage-GitHubRunner.ps1 -RunnerRoot <runner-root> -Action Status",
@@ -552,6 +554,13 @@ COMPONENTS: dict[str, dict[str, Any]] = {
                 "misconfigured": "task action no longer matches the canonical launcher/root",
                 "not_installed": "no task is registered",
             },
+        },
+        "remote_linux_provisioning": {
+            "node": "omen-linux-laptop",
+            "installer": "organicoverlords/agents:Install-GitHubRunnerOmen.sh",
+            "credential_route": "authenticated Windows gh mints the short-lived repo runner registration token; the same local control process injects it directly over authenticated SSH as GITHUB_RUNNER_REGISTRATION_TOKEN; never expose it to model/tool text or logs",
+            "gh_buffer_boundary": "OMEN gh-buffer is read-only acceleration only; it is not runner registration or credential transport and does not block runner provisioning",
+            "post_registration": "the persistent OMEN systemd user runner service uses its registered runner credentials; no registration token is retained",
         },
         "supervisor": "Start-GitHubRunnerHidden.ps1 only after an explicit successful task start",
         "self_heal": "bounded broker/listener recovery after successful launch only; Task Scheduler restart-on-failure loops are not a recovery mechanism",

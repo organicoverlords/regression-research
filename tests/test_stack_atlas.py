@@ -2734,6 +2734,14 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("AutostartOn", details["control"]["actions"])
         self.assertEqual(details["control"]["intent_semantics"]["off"], "task disabled intentionally")
         self.assertIn("-Action Status", " ".join(details["live_status"]))
+        remote = details["remote_linux_provisioning"]
+        self.assertEqual(remote["node"], "omen-linux-laptop")
+        self.assertIn("Install-GitHubRunnerOmen.sh", remote["installer"])
+        self.assertIn("authenticated Windows gh", remote["credential_route"])
+        self.assertIn("directly over authenticated SSH", remote["credential_route"])
+        self.assertIn("never expose", remote["credential_route"])
+        self.assertIn("read-only acceleration only", remote["gh_buffer_boundary"])
+        self.assertIn("does not block runner provisioning", remote["gh_buffer_boundary"])
         self.assertIn("restart-on-failure loops are not a recovery mechanism", details["self_heal"])
 
     def test_pid_is_lookup_key_not_component_identity(self):
