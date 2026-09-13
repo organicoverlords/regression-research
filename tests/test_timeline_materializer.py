@@ -141,7 +141,7 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(coverage["transport_events"], 1)
         self.assertEqual(coverage["watchdog_events"], 1)
         self.assertGreaterEqual(coverage["receipts"], 1)
-        transport_coverage = next(row for row in coverage["transport"] if row["path"].endswith("home-direct-current\\transport.jsonl"))
+        transport_coverage = next(row for row in coverage["transport"] if str(row["path"]).replace("\\", "/").endswith("home-direct-current/transport.jsonl"))
         self.assertEqual(transport_coverage["health_rows_skipped"], 1)
 
     def test_query_index_event_meta_preserves_runtime_authority_and_details(self):
