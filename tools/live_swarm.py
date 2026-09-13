@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 ACTIVITY_WINDOW_SECONDS = 300
+ACTIVITY_COUNT_WINDOWS = (("15s", 15), ("60s", 60), ("2m", 120), ("5m", 300), ("15m", 900), ("30m", 1800))
 OBSERVATION_WINDOW_MINUTES = 30.0
 EXECUTION_REFERENCE_MINUTES = 27.0
 MAX_TRANSPORT_BYTES = 8 * 1024 * 1024
@@ -335,8 +336,17 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     if not sources and not discovery.get("candidate_count"):
         return {
             "schema":"live-swarm.v1", "available":False, "lanes":[],
-            "summary":{"recent_callers":0,"lanes":0},
-            "evidence":{"transport":TRANSPORT_KIND,"transport_source_count":0},
+            "summary":{
+                "recent_callers":0,
+                "active_callers":{label:0 for label,_ in ACTIVITY_COUNT_WINDOWS},
+                "lanes":0,
+            },
+            "evidence":{
+                "transport":TRANSPORT_KIND,
+                "transport_source_count":0,
+                "active_callers_complete_through_seconds":0,
+                "active_callers_semantics":"unique_non_observer_callers_with_process_started_or_process_read_in_window",
+            },
         }
 
     rows: list[dict[str, Any]] = []
@@ -369,6 +379,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     rows.sort(key=lambda row: _dt(row.get("at")) or datetime.min.replace(tzinfo=timezone.utc))
     latest_transport_at = max((latest for _, latest in sources), default=None)
     callers: dict[str, dict[str, Any]] = {}
+    caller_activity_at: dict[str, datetime] = {}
     processes: dict[str, dict[str, Any]] = {}
     activity_counts = {"starts":0,"reads":0,"exits":0,"kills":0,"nonzero_exits":0}
     last_event_at = None
@@ -404,13 +415,26 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             item["first"] = min(item["first"], at); item["last"] = max(item["last"], at)
             if ev == "process_started":
                 item["starts"] += 1; item["cwd"] = row.get("cwd") or item["cwd"]
+                caller_activity_at[str(c)] = max(caller_activity_at.get(str(c), at), at)
                 if pid and pid not in item["pids"]: item["pids"].append(pid)
-            elif ev == "process_read": item["reads"] += 1
+            elif ev == "process_read":
+                item["reads"] += 1
+                caller_activity_at[str(c)] = max(caller_activity_at.get(str(c), at), at)
         if pid:
             proc = processes.setdefault(pid, {})
             if ev == "process_started": proc.update(start=at, cwd=row.get("cwd"))
             elif ev in ("process_exit_observed","process_killed"): proc.update(end=at, exit_code=row.get("exit_code"))
-    callers = {c:i for c,i in callers.items() if (i["starts"] or i["reads"]) and i["last"] >= active_cutoff}
+    active_callers = {
+        label: sum(1 for at in caller_activity_at.values() if at >= now - timedelta(seconds=seconds))
+        for label, seconds in ACTIVITY_COUNT_WINDOWS
+    }
+    active_callers_complete_through_seconds = (
+        int(OBSERVATION_WINDOW_MINUTES * 60) if complete else ACTIVITY_WINDOW_SECONDS if activity_complete else 0
+    )
+    callers = {
+        c:i for c,i in callers.items()
+        if (activity_at := caller_activity_at.get(c)) is not None and activity_at >= active_cutoff
+    }
 
     receipts = root / "shared-process-receipts"
     git_cache: dict[str, Any] = {}
@@ -433,7 +457,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             latest = {"end_observed":bool(en),"elapsed_seconds":round(((en or now)-st).total_seconds(),1),"semantics":"duration" if en else "since_start_no_end_observed"}
         details[c] = {
             "caller_id":c,
-            "last_activity_age_seconds":round((now-item["last"]).total_seconds(),1),
+            "last_activity_age_seconds":round((now-caller_activity_at[c]).total_seconds(),1),
             "observed_span_minutes":round((now-item["first"]).total_seconds()/60,1),
             "observed_span_lower_bound":bool(not complete or item["first"] <= cutoff + timedelta(seconds=2)),
             "workspace":_workspace(worktree["path"] if worktree else item["cwd"]),
@@ -508,7 +532,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     result={
         "schema":"live-swarm.v1","available":True,"generated_at":now.isoformat(),
         "summary":{
-            "recent_callers":len(details),"lanes":len(lane_list),
+            "recent_callers":len(details),"active_callers":active_callers,"lanes":len(lane_list),
             "worktree_lanes":sum(1 for l in lane_list if l["basis"]=="worktree"),
             "busy_only_lanes":sum(1 for l in lane_list if l["basis"]=="busy_owner"),
             "activity_only_lanes":sum(1 for l in lane_list if l["basis"]=="caller_activity"),
@@ -520,6 +544,8 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "source_age_seconds":round(max(0.0,(now-latest_transport_at).total_seconds()),1) if latest_transport_at else None,
             "activity_window_seconds":ACTIVITY_WINDOW_SECONDS,"observation_window_minutes":OBSERVATION_WINDOW_MINUTES,
             "activity_window_complete":activity_complete,"observation_window_complete":complete,"sample_bytes":sample_bytes,
+            "active_callers_complete_through_seconds":active_callers_complete_through_seconds,
+            "active_callers_semantics":"unique_non_observer_callers_with_process_started_or_process_read_in_window",
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
             "execution_reference_minutes":EXECUTION_REFERENCE_MINUTES,
             "execution_reference_semantics":"orientation_only_not_remaining_time",

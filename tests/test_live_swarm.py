@@ -51,6 +51,14 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(len(out),4)
 
 
+    def test_unavailable_snapshot_keeps_activity_window_shape_without_claiming_completeness(self):
+        now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            snapshot=build_live_swarm_snapshot(now=now)
+        self.assertFalse(snapshot["available"])
+        self.assertEqual(snapshot["summary"]["active_callers"],{"15s":0,"60s":0,"2m":0,"5m":0,"15m":0,"30m":0})
+        self.assertEqual(snapshot["evidence"]["active_callers_complete_through_seconds"],0)
+
     def test_activity_window_completeness_is_distinct_from_observation_window(self):
         now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as td:
@@ -77,6 +85,7 @@ class LiveSwarmTests(unittest.TestCase):
                 enough=build_live_swarm_snapshot(now=now)
             self.assertFalse(enough["evidence"]["observation_window_complete"])
             self.assertTrue(enough["evidence"]["activity_window_complete"])
+            self.assertEqual(enough["evidence"]["active_callers_complete_through_seconds"],300)
             self.assertTrue(enough["transport_sources"][0]["activity_window_complete"])
 
             with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}), \
@@ -84,6 +93,7 @@ class LiveSwarmTests(unittest.TestCase):
                 truncated=build_live_swarm_snapshot(now=now)
             self.assertFalse(truncated["evidence"]["observation_window_complete"])
             self.assertFalse(truncated["evidence"]["activity_window_complete"])
+            self.assertEqual(truncated["evidence"]["active_callers_complete_through_seconds"],0)
             self.assertFalse(truncated["transport_sources"][0]["activity_window_complete"])
 
     def test_stale_candidate_overflow_does_not_poison_complete_window(self):
@@ -191,6 +201,32 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(source_by_instance["home-direct-test"]["server_pid"],202)
             self.assertEqual(source_by_instance["home-direct-test"]["local_port"],3022)
             self.assertNotIn("caller_stale",callers)
+
+    def test_snapshot_counts_unique_mcp_callers_across_recent_windows(self):
+        now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            source=root/"clone-a"
+            source.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+            rows=[]
+            for caller,seconds_ago in (("c15",5),("c60",30),("c2m",90),("c5m",240),("c15m",600),("c30m",1200),("c_exit",600)):
+                rows.append({"at":(now-timedelta(seconds=seconds_ago)).isoformat(),"event":"process_started","caller_id":caller,"process_id":caller,"cwd":fr"C:\work\{caller}"})
+            rows.append({"at":(now-timedelta(seconds=4)).isoformat(),"event":"process_exit_observed","caller_id":"c_exit","process_id":"c_exit","exit_code":0})
+            rows.sort(key=lambda row: row["at"])
+            (source/"transport.jsonl").write_text("\n".join(json.dumps(row) for row in rows)+"\n",encoding="utf-8")
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                snapshot=build_live_swarm_snapshot(now=now)
+            self.assertEqual(snapshot["summary"]["active_callers"],{
+                "15s":1,"60s":2,"2m":3,"5m":4,"15m":6,"30m":7,
+            })
+            self.assertEqual(snapshot["summary"]["recent_callers"],4)
+            self.assertEqual(snapshot["evidence"]["active_callers_complete_through_seconds"],1800)
+            self.assertEqual(snapshot["evidence"]["active_callers_semantics"],"unique_non_observer_callers_with_process_started_or_process_read_in_window")
 
     def test_snapshot_uses_newer_rotated_archive_for_same_mcpv4_instance(self):
         now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
