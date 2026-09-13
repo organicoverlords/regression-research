@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from tools.replay_scoring import _shared_rule_change_assertion, score_fixture, validate_fixture
@@ -51,6 +53,7 @@ def test_behavior_regression_owner_is_first_feature_hit() -> None:
     assert owner["id"] == "assistant_behavior_regressions"
     assert any("assistant-behavior-regression.md" in item for item in owner["canonical_sources"])
     assert any("behavior_incident_capture.py" in item for item in owner["canonical_sources"])
+    assert any("behavior_incident_close.py" in item for item in owner["canonical_sources"])
     assert any("slopwall_v2.py" in item for item in owner["canonical_sources"])
     hits = find_features("assistant acceptance contract replay fixture deterministic regression scoring")
     assert hits[0]["id"] == "assistant.behavior_regressions"
@@ -62,3 +65,20 @@ def test_behavior_regression_owner_is_first_feature_hit() -> None:
     assert any("behavior_incident_capture.py --help" in item for item in capture_hits[0]["entrypoints"])
     assert "explicit agent-visible context only" in capture_hits[0]["boundary"]
     assert "never retrieves whole-chat history" in capture_hits[0]["boundary"]
+    closure_hits = find_features("canonical memory closure")
+    assert closure_hits[0]["id"] == "assistant.behavior_regressions"
+    assert any("behavior_incident_close.py --help" in item for item in closure_hits[0]["entrypoints"])
+
+
+def test_behavior_incident_cli_entrypoints_are_directly_executable() -> None:
+    for relative in ("tools/behavior_incident_capture.py", "tools/behavior_incident_close.py", "tools/slopwall_v2.py"):
+        proc = subprocess.run(
+            [sys.executable, relative, "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        assert proc.returncode == 0, f"{relative}: {proc.stderr}"
+        assert "usage:" in proc.stdout

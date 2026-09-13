@@ -151,5 +151,23 @@
       "evidence_ref": "02 Evidence/2026-09-13_SW-V2-20260913-001_visible-context.json"
     },
     "replay_ref": "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json"
+  },
+  "memory_candidate": {
+    "kind": "correction",
+    "scope": "assistant-orchestration/slopwall-v2",
+    "tags": [
+      "slopwall",
+      "regression",
+      "rule-conflict",
+      "authority-selection",
+      "replay"
+    ],
+    "title": "Slopwall semantics must come from preserved incident/replay authority before shared-rule mutation",
+    "text": "The assistant promoted an inferred mandatory-learning definition of Slopwall into shared RULES/AGENTS/bootstrap before reading preserved Slopwall history, then later misframed the repair as silent by default. The preserved evidence shows Slopwall is a user-triggered response/task-quality regression loop: inspect the failed boundary and governing guidance, materially repair the inherited objective, preserve incident + replay + bounded score/confidence, and use compact memory as a pointer/lesson. A bad answer alone does not justify another rule; shared-rule mutation requires evidence of a real gap/conflict. Repeated corrective Slopwall creates a linked new failure event rather than overwriting the previous one.",
+    "interpretation": "This correction indexes the proven Slopwall semantics regression and the reusable authority-selection lesson without making memory the behavior authority.",
+    "confidence": 95,
+    "confidence_reason": "The preserved pre-removal Slopwall artifacts, v84 rule/bootstrap state, and replay controls directly support the rule-conflict diagnosis.",
+    "project": "regression-research",
+    "supersedes": []
   }
 }

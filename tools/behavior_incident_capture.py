@@ -7,7 +7,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from tools.slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
+try:
+    from tools.slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
+except ImportError:
+    from slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -131,6 +134,10 @@ Title: {memory['title']}
 
 Text: {memory['text']}
 
+Interpretation: {memory['interpretation']}
+Confidence: {memory['confidence']}
+Confidence reason: {memory['confidence_reason']}
+
 State: PENDING_CANONICAL_MEMORY - this file is a handoff/index candidate, not a canonical memory-bank entry and not closure proof.
 """
 
@@ -146,6 +153,20 @@ def build_artifacts(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any
     _require(isinstance(replay, dict), "replay object is required")
     _require(isinstance(visible, list) and visible, "visible_evidence must be a non-empty list")
     _require(isinstance(memory, dict), "memory object is required")
+    for key in ("scope", "title", "text", "interpretation", "confidence_reason"):
+        _require(isinstance(memory.get(key), str) and memory[key].strip(), f"memory.{key} is required")
+    _require(
+        isinstance(memory.get("tags"), list)
+        and memory["tags"]
+        and all(isinstance(item, str) and item.strip() for item in memory["tags"]),
+        "memory.tags must contain non-empty strings",
+    )
+    _require(
+        isinstance(memory.get("confidence"), int)
+        and not isinstance(memory["confidence"], bool)
+        and 0 <= memory["confidence"] <= 100,
+        "memory.confidence must be an integer from 0 to 100",
+    )
     _require(isinstance(spec.get("date"), str) and spec["date"].strip(), "date is required")
 
     event_id = str(event.get("event_id") or "").strip()
@@ -245,6 +266,18 @@ def build_artifacts(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any
         "discriminating_evidence": replay["discriminating_evidence"],
         "completion_condition": replay["completion_condition"],
         "scoring": replay["scoring"],
+        "memory_candidate": {
+            "kind": "correction",
+            "scope": memory["scope"],
+            "tags": list(memory["tags"]),
+            "title": memory["title"],
+            "text": memory["text"],
+            "interpretation": memory["interpretation"],
+            "confidence": memory["confidence"],
+            "confidence_reason": memory["confidence_reason"],
+            "project": memory.get("project"),
+            "supersedes": list(memory.get("supersedes") or []),
+        },
         "incident_event": incident_event,
     }
 

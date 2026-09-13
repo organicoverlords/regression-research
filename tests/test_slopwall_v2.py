@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from tools.memory_bank import append_entry, load_bank
 from tools.slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -136,16 +137,21 @@ def closed_fixture(tmp_path: Path) -> dict:
     replay.write_text(json.dumps(raw), encoding="utf-8")
 
     bank = tmp_path / "memory/memory-bank.jsonl"
-    bank.parent.mkdir(parents=True, exist_ok=True)
-    bank.write_text(json.dumps({
-        "id": "mem-test-slopwall-v2",
-        "kind": "correction",
-        "state": "PROVEN",
-        "tags": ["slopwall"],
-        "text": f"Event {event_id} regression lesson.",
-        "evidence": [raw["source_report"], event["replay_ref"], event["capture"]["evidence_ref"]],
-        "source_messages": [event["source_message"]],
-    }) + "\n", encoding="utf-8")
+    if not any(item.get("id") == "mem-test-slopwall-v2" for item in load_bank(bank)):
+        append_entry(bank, {
+            "id": "mem-test-slopwall-v2",
+            "kind": "correction",
+            "scope": "assistant-response-quality/test",
+            "state": "PROVEN",
+            "tags": ["slopwall", "assistant-recorded", "verbatim-source"],
+            "text": f"Event {event_id} regression lesson.",
+            "evidence": [raw["source_report"], event["replay_ref"], event["capture"]["evidence_ref"]],
+            "supersedes": [],
+            "source_messages": [event["source_message"]],
+            "interpretation": "This is the canonical memory binding for the closed test incident.",
+            "confidence": 95,
+            "confidence_reason": "The test fixture contains exact report, replay, visible evidence, and source-message bindings.",
+        })
     return raw
 
 

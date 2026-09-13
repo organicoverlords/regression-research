@@ -81,6 +81,9 @@ def capture_spec(event_id: str = "SW-V2-TEST-MAT-001") -> dict:
             "tags": ["slopwall", "regression"],
             "title": f"Bounded correction for {event_id}",
             "text": "The reusable lesson is to apply the known correction and advance the inherited objective instead of replacing repair with process explanation.",
+            "interpretation": "The event records a correction-binding failure and preserves the reusable objective-preservation lesson.",
+            "confidence": 95,
+            "confidence_reason": "The trigger, failed boundary, governing rule, and repaired counterfactual are all present in the bounded visible evidence.",
         },
     }
 

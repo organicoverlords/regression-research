@@ -342,6 +342,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
             r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
             r"C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py",
             r"C:\Users\Lauri\Desktop\vault\tools\behavior_incident_capture.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\behavior_incident_close.py",
             r"C:\Users\Lauri\Desktop\vault\tools\slopwall_v2.py",
             r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
             r"C:\Users\Lauri\Desktop\vault\tools\verify.py",
@@ -349,6 +350,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "live_status": [
             "provider-free replay scoring against tracked fixtures",
             "bounded transactional behavior-incident capture from explicit visible context",
+            "resumable canonical-memory closure through memory_bank owner",
             "repository verification for fixture/scorer regression coverage",
         ],
         "supervisor": "none; repository-owned deterministic tests",
@@ -356,7 +358,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "independent_recovery": ["Git history preserves incident reports, fixtures, scorer and tests"],
         "resources": ["incident reports", "visible-context capture bundles", "replay fixtures", "behavior-contract assertions", "deterministic scorer"],
         "dependents": ["agent_rules", "memory_bank"],
-        "runbook": [r"04 Operating Contracts\assistant-behavior-regression.md", r"tools\behavior_incident_capture.py", r"tools\slopwall_v2.py", r"tools\replay_scoring.py"],
+        "runbook": [r"04 Operating Contracts\assistant-behavior-regression.md", r"tools\behavior_incident_capture.py", r"tools\behavior_incident_close.py", r"tools\slopwall_v2.py", r"tools\replay_scoring.py"],
     },
     "busy_coordinator": {
         "role": "coordination_authority",
@@ -819,17 +821,18 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": [
             "behavior regression", "assistant regression", "behavior contract", "acceptance contract",
             "replay fixture", "replay scoring", "regression scoring", "correction binding",
-            "slopwall replay", "incident replay", "incident report", "behavior incident capture", "visible context capture", "executable behavior contract",
+            "slopwall replay", "incident replay", "incident report", "behavior incident capture", "incident closure", "canonical memory closure", "visible context capture", "executable behavior contract",
         ],
         "entrypoints": [
             r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
             r"python C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py --help",
             r"python C:\Users\Lauri\Desktop\vault\tools\behavior_incident_capture.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\behavior_incident_close.py --help",
             r"python C:\Users\Lauri\Desktop\vault\tools\slopwall_v2.py --help",
             r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
             r"python C:\Users\Lauri\Desktop\vault\tools\verify.py --all",
         ],
-        "boundary": "Rules/prose state desired behavior but do not prove regression resistance. Behavior-incident capture consumes explicit agent-visible context only and transactionally materializes evidence/report/replay/pending-memory/provenance; it never retrieves whole-chat history or writes canonical memory. Incident reports preserve what failed; replay fixtures encode bounded historical failure/success controls; deterministic scoring/verification tests candidate next actions. Reuse an existing behavior contract when it covers the failure. Promote a new shared behavior contract only when evidence proves a reusable uncovered invariant; do not turn every incident into another global rule or registry entry.",
+        "boundary": "Rules/prose state desired behavior but do not prove regression resistance. Behavior-incident capture consumes explicit agent-visible context only and transactionally materializes evidence/report/replay/pending-memory/provenance; it never retrieves whole-chat history or writes canonical memory. Closure delegates canonical memory to `memory_bank` under a deterministic event ID and resumably finalizes replay/provenance. Incident reports preserve what failed; replay fixtures encode bounded historical failure/success controls; deterministic scoring/verification tests candidate next actions. Reuse an existing behavior contract when it covers the failure. Promote a new shared behavior contract only when evidence proves a reusable uncovered invariant; do not turn every incident into another global rule or registry entry.",
     },
     "orchestration.operator": {
         "owner_components": ["agent_rules"],

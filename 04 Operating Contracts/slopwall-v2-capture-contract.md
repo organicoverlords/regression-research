@@ -49,8 +49,10 @@ A corrective behavior-incident event is not `CLOSED` until all four exist:
 ## Closure-state semantics
 
 - `OPEN`: analysis/repair is still active; no memory pointer is required yet.
-- `REPAIRED_PENDING_DURABILITY`: the repaired result exists and report/replay exist, but canonical memory has not landed. A bounded `memory/reports/...` handoff may hold the proposed searchable lesson, and it must bind the same `event_id`, source report, and replay. It is not canonical memory and cannot close the event.
-- `CLOSED`: requires a canonical `memory/memory-bank.jsonl#mem-...` entry in state `PROVEN`. That exact memory entry must bind the same `event_id` and list the event's source report, replay fixture, and visible-context evidence as evidence. A non-empty string or pending Markdown file is never sufficient proof of closure.
+- `REPAIRED_PENDING_DURABILITY`: the repaired result exists and report/replay exist, but canonical memory has not landed. A bounded `memory/reports/...` handoff may hold the proposed searchable lesson, while the replay also carries it as structured `memory_candidate`. The handoff must bind the same `event_id`, source report, and replay. It is not canonical memory and cannot close the event.
+- `CLOSED`: requires a canonical `memory/memory-bank.jsonl#mem-...` entry in state `PROVEN`. That exact memory entry must bind the same `event_id` and list the event's source report, replay fixture, and visible-context evidence as evidence. A non-empty string or pending Markdown file is never sufficient proof of closure. `tools/behavior_incident_close.py` delegates the memory write to `memory_bank.py`; it never edits the JSONL directly.
+
+Closure is resumable rather than pretending to be one cross-owner atomic transaction. Canonical memory is written first under a deterministic event-derived ID; replay and provenance are finalized together second. If finalization fails, do not delete the memory. Leave the event pending and rerun closure: exact memory is reused, while conflicting content under the same deterministic ID fails closed.
 
 The replay fixture/event manifest remains the machine-readable closure surface; the memory bank remains retrieval/indexing. Neither one replaces the raw visible-context evidence or the incident report.
 
@@ -99,6 +101,7 @@ If the user sends another explicit corrective `slopwall` or `incident report` be
 Reuse current owners where possible:
 
 - `tools/behavior_incident_capture.py` as the bounded capture materializer: explicit visible-context spec in; raw evidence + report + replay + pending-memory handoff + provenance out, with preflight, staging validation, and rollback-capable commit; no transcript retrieval and no canonical-memory write;
+- `tools/behavior_incident_close.py` as the resumable closure owner: structured replay `memory_candidate` in; canonical `memory_bank.py` record first; replay/provenance `CLOSED` finalization second; no direct JSONL write and no transcript retrieval;
 - `01 Reports/` for incident records;
 - `03 Fixtures and Experiments/` + `tools/replay_scoring.py` for replay and executable behavior contracts;
 - `tools/slopwall_v2.py` for identity, closure state, linkage, score/confidence, rule-change gate, contract-review disposition, and artifact-reference validation;

@@ -5,7 +5,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from tools.replay_scoring import FixtureError, validate_fixture
+try:
+    from tools.replay_scoring import FixtureError, validate_fixture
+except ImportError:
+    from replay_scoring import FixtureError, validate_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 TRIGGER_FORMS = {
@@ -190,15 +193,15 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
         _require(memory_ref.startswith("memory/memory-bank.jsonl#mem-"), f"{event_id}: CLOSED event requires canonical memory/memory-bank.jsonl#mem-... ref")
         bank_ref, memory_id = memory_ref.split("#", 1)
         bank_path = checked_repo_file(bank_ref, "canonical memory bank")
-        matched_memory = None
-        for line in bank_path.read_text(encoding="utf-8-sig").splitlines():
-            try:
-                item = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if item.get("id") == memory_id:
-                matched_memory = item
-                break
+        try:
+            from tools.memory_bank import BankError, load_bank
+        except ImportError:
+            from memory_bank import BankError, load_bank
+        try:
+            bank_entries = load_bank(bank_path)
+        except BankError as exc:
+            raise SlopwallV2Error(f"{event_id}: canonical memory bank could not be loaded: {exc}") from exc
+        matched_memory = next((item for item in bank_entries if item.get("id") == memory_id), None)
         _require(isinstance(matched_memory, dict), f"{event_id}: canonical memory id not found: {memory_id}")
         _require(matched_memory.get("state") == "PROVEN", f"{event_id}: canonical memory must be PROVEN")
         serialized_memory = json.dumps(matched_memory, ensure_ascii=False)

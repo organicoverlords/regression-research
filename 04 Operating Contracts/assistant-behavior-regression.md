@@ -20,6 +20,9 @@ The layers have different jobs:
 Use the existing surfaces instead of creating a second registry:
 
 - `tools/replay_scoring.py` — provider-free deterministic assertion implementation and fixture validation;
+- `tools/behavior_incident_capture.py` - bounded visible-context capture materializer; no conversation reconstruction and no canonical-memory write;
+- `tools/behavior_incident_close.py` - resumable canonical-memory closure owner using `memory_bank.py`, followed by replay/provenance finalization;
+- `tools/slopwall_v2.py` - behavior-incident identity, linkage, scoring, and closure validator;
 - `03 Fixtures and Experiments/` — tracked replay instances and positive/negative controls;
 - `tools/verify.py` and focused tests — repository regression verification;
 - `01 Reports/` / evidence — forensic source for incidents;
@@ -85,3 +88,5 @@ Stack Atlas should navigate `behavior contract`, `replay fixture`, `replay scori
 Behavior-incident capture never requires a whole-conversation reload. Raw incident evidence is the relevant material already visible to the agent, preserved verbatim. Additional retrieval is allowed only when needed to diagnose or repair the incident, not to reconstruct unseen transcript history for archival completeness.
 
 `tools/behavior_incident_capture.py` consumes an explicit visible-context capture spec. It preflights destination/provenance collisions, validates the complete generated bundle in staging, then commits evidence + report + replay + pending-memory handoff + provenance as one rollback-capable write set. It never calls transcript/conversation retrieval and never writes `memory/memory-bank.jsonl`; canonical memory remains a separate closure step.
+
+`tools/behavior_incident_close.py` owns that separate closure step. It uses a deterministic event-derived memory ID and the public `memory_bank.append_entry/load_bank` interfaces. Canonical memory is recorded first; replay and provenance are finalized to `CLOSED` second. If repository finalization fails, the memory is retained and rerun reuses the exact same memory instead of deleting or duplicating durable evidence.

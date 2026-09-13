@@ -207,6 +207,7 @@ def verify_stack() -> None:
             "tools/replay_scoring.py",
             "tools/slopwall_v2.py",
             "tools/behavior_incident_capture.py",
+            "tools/behavior_incident_close.py",
         ]
     )
     run(
@@ -232,6 +233,7 @@ def verify_stack() -> None:
             "tests/test_behavior_regression_contract.py",
             "tests/test_slopwall_v2.py",
             "tests/test_behavior_incident_capture.py",
+            "tests/test_behavior_incident_close.py",
         ]
     )
     print("ASSISTANT_STACK_POLICY_PROVEN")
