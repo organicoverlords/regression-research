@@ -78,11 +78,52 @@ def test_authority_sensitive_repair_requires_normal_owner_gate_proof(tmp_path: P
     }
     scored_with_authority = score_fixture(replay, candidate, candidate_name="valid-authority", root=tmp_path)
     assert scored_with_authority["passed"] is True
-    bound = bind_repair(replay_path, observation=candidate["action"], candidate=candidate, root=tmp_path)
+    authority_evidence = [{
+        "kind": "authority_evidence",
+        "ref": "runtime:runner-owner-gate-pass",
+        "source": "runner-owner-runtime-receipt",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "status": "PASS",
+        "content": "The normal runner owner/gate independently accepted the mutation.",
+    }]
+    bound = bind_repair(
+        replay_path, observation=candidate["action"], candidate=candidate,
+        authority_evidence=authority_evidence, root=tmp_path,
+    )
     assert bound["passed"] is True
     rebound = json.loads(replay_path.read_text(encoding="utf-8"))
     assert rebound["incident_event"]["repair_binding"]["status"] == "SCORED_PASS"
     assert rebound["repair_candidate"]["authority_proof"]["owner"] == "runner-owner"
+    binding = rebound["incident_event"]["repair_binding"]
+    assert len(binding["authority_item_indexes"]) == 1
+    evidence = json.loads((tmp_path / rebound["incident_event"]["capture"]["evidence_ref"]).read_text(encoding="utf-8"))
+    authority_item = evidence["items"][binding["authority_item_indexes"][0]]
+    assert authority_item["ref"] == "runtime:runner-owner-gate-pass"
+    assert authority_item["kind"] == "authority_evidence"
+
+
+def test_authority_proof_without_persisted_owner_gate_evidence_is_rejected(tmp_path: Path) -> None:
+    spec = capture_spec("SW-V2-TEST-CLOSE-AUTH-NO-EVIDENCE")
+    spec["event"]["repair_authority"] = {
+        "mode": "REQUIRED",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "corrective_trigger_is_authority": False,
+    }
+    result = materialize_capture(spec, root=tmp_path)
+    replay_path = tmp_path / result["replay_ref"]
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    candidate = dict(replay["success_candidate"])
+    candidate["authority_proof"] = {
+        "status": "PASS",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "basis": "normal_owner_gate",
+        "evidence_refs": ["runtime:runner-owner-gate-pass"],
+    }
+    with pytest.raises(BehaviorIncidentCloseError, match="persisted authority evidence"):
+        bind_repair(replay_path, observation=candidate["action"], candidate=candidate, root=tmp_path)
 
 
 def test_corrective_trigger_cannot_be_authority_proof(tmp_path: Path) -> None:

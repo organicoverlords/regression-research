@@ -245,13 +245,21 @@ def _require_canonical_artifacts(root: Path, refs: list[str]) -> None:
 
 
 
-def _verify_repair_authority(event: dict[str, Any], candidate: dict[str, Any], event_id: str) -> None:
+def _verify_repair_authority(
+    event: dict[str, Any],
+    candidate: dict[str, Any],
+    event_id: str,
+    *,
+    evidence_items: list[Any] | None = None,
+    require_persisted: bool = True,
+) -> list[int]:
     required = event.get("repair_authority")
     _require(isinstance(required, dict), f"{event_id}: repair_authority is required")
     mode = required.get("mode")
     _require(mode in {"NOT_REQUIRED", "REQUIRED"}, f"{event_id}: invalid repair_authority mode")
     if mode != "REQUIRED":
-        return
+        return []
+
     proof = candidate.get("authority_proof")
     _require(isinstance(proof, dict), f"{event_id}: authority-sensitive repair requires independent authority proof")
     refs = proof.get("evidence_refs")
@@ -260,7 +268,32 @@ def _verify_repair_authority(event: dict[str, Any], candidate: dict[str, Any], e
     _require(proof.get("owner") == required.get("owner"), f"{event_id}: repair authority owner mismatch")
     _require(proof.get("gate") == required.get("gate"), f"{event_id}: repair authority gate mismatch")
     _require(isinstance(refs, list) and refs and all(isinstance(ref, str) and ref.strip() for ref in refs), f"{event_id}: repair authority proof needs evidence_refs")
+    _require(len(set(refs)) == len(refs), f"{event_id}: repair authority evidence_refs must be unique")
     _require(basis not in {"slopwall", "incident_report", "incident report", "corrective_trigger", "corrective trigger"} and bool(basis), f"{event_id}: corrective trigger is not repair authority")
+    if not require_persisted:
+        return []
+    _require(isinstance(evidence_items, list), f"{event_id}: authority-sensitive repair requires persisted authority evidence")
+
+    wanted = set(refs)
+    seen: set[str] = set()
+    indexes: list[int] = []
+    for index, item in enumerate(evidence_items):
+        if not isinstance(item, dict) or item.get("kind") != "authority_evidence":
+            continue
+        ref = item.get("ref")
+        if ref not in wanted:
+            continue
+        _require(ref not in seen, f"{event_id}: duplicate persisted authority evidence ref: {ref}")
+        _require(item.get("status") == "PASS", f"{event_id}: persisted authority evidence must PASS: {ref}")
+        _require(item.get("owner") == required.get("owner"), f"{event_id}: persisted authority evidence owner mismatch: {ref}")
+        _require(item.get("gate") == required.get("gate"), f"{event_id}: persisted authority evidence gate mismatch: {ref}")
+        _require(isinstance(item.get("source"), str) and item["source"].strip(), f"{event_id}: persisted authority evidence source is required: {ref}")
+        _require(isinstance(item.get("content"), str) and item["content"].strip(), f"{event_id}: persisted authority evidence content is required: {ref}")
+        seen.add(ref)
+        indexes.append(index)
+    _require(seen == wanted, f"{event_id}: authority proof refs are not backed by persisted owner/gate evidence")
+    return indexes
+
 
 def bind_repair(
     replay_path: Path,
@@ -268,6 +301,7 @@ def bind_repair(
     observation: str,
     candidate: dict[str, Any],
     kind: str = "assistant_reply",
+    authority_evidence: list[dict[str, Any]] | None = None,
     root: Path = ROOT,
 ) -> dict[str, Any]:
     root = root.resolve()
@@ -283,16 +317,10 @@ def bind_repair(
     event_id = str(event.get("event_id") or "").strip()
     _require(event.get("repair_binding_required") is True, f"{event_id}: replay does not require repair binding")
     _require(event.get("closure_state") != "CLOSED", f"{event_id}: CLOSED event cannot accept a new repair observation")
-    _verify_repair_authority(event, candidate, event_id)
     try:
         validate_slopwall_fixture(raw, root=root, filename=replay_path.name)
     except SlopwallV2Error as exc:
         raise BehaviorIncidentCloseError(f"{event_id}: replay/event validation failed before repair binding: {exc}") from exc
-
-    try:
-        scored = score_fixture(raw, candidate, candidate_name="observed_repair", root=root)
-    except FixtureError as exc:
-        raise BehaviorIncidentCloseError(f"{event_id}: repair candidate could not be scored: {exc}") from exc
 
     evidence_ref = str((event.get("capture") or {}).get("evidence_ref") or "")
     evidence_path = _safe_repo_file(root, root / evidence_ref, "visible evidence")
@@ -304,6 +332,8 @@ def bind_repair(
     if existing.get("status") in {"SCORED_PASS", "SCORED_FAIL"}:
         same = existing.get("sha256") == digest and raw.get("repair_candidate") == candidate
         _require(same, f"{event_id}: repair observation already bound with different content")
+        persisted_indexes = _verify_repair_authority(event, candidate, event_id, evidence_items=evidence["items"])
+        _require(persisted_indexes == list(existing.get("authority_item_indexes") or []), f"{event_id}: persisted authority evidence binding changed")
         return {
             "status": "ALREADY_BOUND",
             "event_id": event_id,
@@ -313,6 +343,23 @@ def bind_repair(
         }
 
     new_evidence = copy.deepcopy(evidence)
+    required_authority = (event.get("repair_authority") or {}).get("mode") == "REQUIRED"
+    _verify_repair_authority(event, candidate, event_id, require_persisted=False)
+    if required_authority:
+        _require(isinstance(authority_evidence, list) and authority_evidence, f"{event_id}: authority-sensitive repair requires persisted authority evidence")
+        for authority_item in authority_evidence:
+            _require(isinstance(authority_item, dict), f"{event_id}: authority evidence item must be an object")
+            _require(authority_item.get("kind") == "authority_evidence", f"{event_id}: authority evidence item kind must be authority_evidence")
+            new_evidence["items"].append(copy.deepcopy(authority_item))
+    else:
+        _require(authority_evidence in (None, []), f"{event_id}: authority evidence supplied for NOT_REQUIRED repair")
+
+    authority_indexes = _verify_repair_authority(event, candidate, event_id, evidence_items=new_evidence["items"])
+    try:
+        scored = score_fixture(raw, candidate, candidate_name="observed_repair", root=root)
+    except FixtureError as exc:
+        raise BehaviorIncidentCloseError(f"{event_id}: repair candidate could not be scored: {exc}") from exc
+
     item = {"kind": kind, "source": "current-visible-context", "content": observation}
     new_evidence["items"].append(item)
     item_index = len(new_evidence["items"]) - 1
@@ -326,6 +373,7 @@ def bind_repair(
         "kind": kind,
         "evidence_ref": evidence_ref,
         "item_index": item_index,
+        "authority_item_indexes": authority_indexes,
         "sha256": digest,
         "score": {"status": scored["status"], "violations": list(scored["violations"])},
     }
@@ -373,25 +421,28 @@ def _verify_repair_binding(raw: dict[str, Any], *, root: Path) -> dict[str, Any]
     _require(binding.get("status") == "SCORED_PASS", f"{event_id}: closure blocked until the actual visible repair is bound and scores PASS")
     candidate = raw.get("repair_candidate")
     _require(isinstance(candidate, dict), f"{event_id}: closure requires the bound repair_candidate")
-    _verify_repair_authority(event, candidate, event_id)
+
+    evidence_ref = str(binding.get("evidence_ref") or "")
+    evidence_path = _safe_repo_file(root, root / evidence_ref, "bound repair evidence")
+    evidence = _load_json(evidence_path, "bound repair evidence")
+    items = evidence.get("items")
+    _require(isinstance(items, list), f"{event_id}: bound repair evidence items are missing")
+    authority_indexes = _verify_repair_authority(event, candidate, event_id, evidence_items=items)
+    _require(authority_indexes == list(binding.get("authority_item_indexes") or []), f"{event_id}: bound authority evidence indexes changed")
+
     try:
         scored = score_fixture(raw, candidate, candidate_name="bound_repair", root=root)
     except FixtureError as exc:
         raise BehaviorIncidentCloseError(f"{event_id}: bound repair could not be rescored: {exc}") from exc
     _require(scored["passed"], f"{event_id}: bound repair no longer passes replay scoring: {', '.join(scored['violations'])}")
 
-    evidence_ref = str(binding.get("evidence_ref") or "")
-    evidence_path = _safe_repo_file(root, root / evidence_ref, "bound repair evidence")
-    evidence = _load_json(evidence_path, "bound repair evidence")
-    items = evidence.get("items")
     index = binding.get("item_index")
-    _require(isinstance(items, list) and isinstance(index, int) and 0 <= index < len(items), f"{event_id}: bound repair evidence item is missing")
+    _require(isinstance(index, int) and 0 <= index < len(items), f"{event_id}: bound repair evidence item is missing")
     content = items[index].get("content") if isinstance(items[index], dict) else None
     _require(isinstance(content, str), f"{event_id}: bound repair evidence content is missing")
     digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
     _require(digest == binding.get("sha256"), f"{event_id}: bound repair evidence hash mismatch")
     return scored
-
 
 def plan_closure(replay_path: Path, *, root: Path = ROOT, bank_path: Path | None = None) -> dict[str, Any]:
     root = root.resolve()
