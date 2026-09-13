@@ -564,6 +564,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         },
         "supervisor": "Start-GitHubRunnerHidden.ps1 only after an explicit successful task start",
         "self_heal": "bounded broker/listener recovery after successful launch only; Task Scheduler restart-on-failure loops are not a recovery mechanism",
+        "recovery_precondition": "offline/failed health is evidence only, not desired-state authority; confirm the runner node's current canonical role and intended enabled/running state before Start/On/reconfigure. KONE is never restored as general capacity: only its mandatory windows-ci-light role can justify KONE runner recovery.",
         "independent_recovery": ["other online compatible runners"],
         "resources": ["runner work directory", "explicit scheduled task state"],
         "dependents": ["github_actions"],
@@ -1220,6 +1221,7 @@ def _bootstrap_execution_node_topology() -> dict[str, Any]:
         "status": status,
         "schema": EXECUTION_NODE_TOPOLOGY_SCHEMA,
         "contract": payload.get("contract"),
+        "routing_policy": payload.get("routing_policy") if isinstance(payload.get("routing_policy"), dict) else {},
         "local_node_id": local_node_id,
         "nodes": projected,
     }
@@ -2548,7 +2550,7 @@ def _fit_bootstrap_glance_budget(
         compact_nodes = {
             node_id: {
                 key: node.get(key)
-                for key in ("display_name", "user_alias", "route_label", "machine_class", "gpu")
+                for key in ("display_name", "user_alias", "route_label", "machine_class", "gpu", "roles")
                 if isinstance(node, dict) and node.get(key) is not None
             }
             for node_id, node in raw_nodes.items()
@@ -2556,7 +2558,7 @@ def _fit_bootstrap_glance_budget(
         }
         compact_execution_nodes = {
             key: execution_nodes.get(key)
-            for key in ("authority", "available", "status", "local_node_id", "local_observed_hostname")
+            for key in ("authority", "available", "status", "routing_policy", "local_node_id", "local_observed_hostname")
             if key in execution_nodes
         }
         if compact_nodes:
@@ -3788,6 +3790,7 @@ def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT
         "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
         "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
         "shared_correction": "shared/swarm correction: RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; claim fixed only after durable canonical proof; if infra/orchestration/scheduler intent is still being shaped, discuss first/no mutation | RULES:shared-behavior-correction + swarm-direction",
+        "machine_routing": "OMEN is default/required substantive execution; KONE is mandatory windows-ci-light only and never capacity fallback; health/offline does not override intended role | execution-node-topology + swarm-routing-cohort",
         "security_evidence": {
             "mode": "CLASSIFY_BEFORE_CAUSALITY",
             "source": "RULES:platform-security-boundary",

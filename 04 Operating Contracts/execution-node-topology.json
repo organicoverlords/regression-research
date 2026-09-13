@@ -2,6 +2,14 @@
   "schema": "swarm.execution-node-topology.v1",
   "authority": "CANONICAL_EXECUTION_NODE_IDENTITY",
   "contract": "Route labels describe compatibility/routing. node_id identifies the physical or logical execution node. Never infer laptop/desktop/GPU-machine identity from a route label alone.",
+  "routing_policy": {
+    "authority": "CURRENT_USER_DIRECTION_AND_SWARM_ROUTING_COHORT",
+    "default_execution_node": "omen-linux-laptop",
+    "substantive_execution": "OMEN_REQUIRED",
+    "kone_execution": "MANDATORY_WINDOWS_CI_LIGHT_ONLY",
+    "kone_capacity_fallback": false,
+    "recovery_semantics": "Health/offline state does not override intended machine role; confirm desired role before recovery."
+  },
   "nodes": {
     "kone-gpu-desktop": {
       "display_name": "KONE GPU desktop",
