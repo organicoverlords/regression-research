@@ -7,6 +7,7 @@ from tools.recurring_slot_registry import (
     bind_slot,
     clear_slot,
     load_slot_snapshot,
+    reconcile_partition,
 )
 
 
@@ -47,6 +48,110 @@ class RecurringSlotRegistryTests(unittest.TestCase):
             duplicate = bind_slot("S2/2", automation_id, root=root)
             self.assertFalse(duplicate["ok"])
             self.assertEqual(duplicate["status"], "AUTOMATION_ALREADY_BOUND")
+
+    def test_reconcile_partition_atomically_replaces_all_slots_and_preserves_other_partition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for index in range(1, 6):
+                self.assertTrue(bind_slot(f"S1/{index}", str(index) * 32, label=f"Old S1 {index}", root=root)["ok"])
+                self.assertTrue(bind_slot(f"S2/{index}", chr(96 + index) * 32, label=f"S2 {index}", root=root)["ok"])
+            before = load_slot_snapshot(root)
+            s2_before = {
+                slot_id: before["bindings_by_slot"][slot_id]
+                for slot_id in RECURRING_WORKER_SLOTS["S2"]
+            }
+            replacement_ids = ("6", "7", "8", "9", "f")
+            desired = {
+                f"S1/{index}": {
+                    "automation_id": replacement_ids[index - 1] * 32,
+                    "label": f"New S1 {index}",
+                }
+                for index in range(1, 6)
+            }
+            result = reconcile_partition(
+                "S1",
+                desired,
+                expected_updated_at=before["updated_at"],
+                root=root,
+            )
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["status"], "PARTITION_RECONCILED")
+            after = load_slot_snapshot(root)
+            self.assertEqual(after["partitions"]["S1"]["bound_count"], 5)
+            self.assertEqual(after["bound_count"], 10)
+            self.assertEqual(
+                {slot_id: after["bindings_by_slot"][slot_id] for slot_id in RECURRING_WORKER_SLOTS["S2"]},
+                s2_before,
+            )
+            for slot_id, expected in desired.items():
+                self.assertEqual(after["bindings_by_slot"][slot_id]["automation_id"], expected["automation_id"])
+                self.assertEqual(after["bindings_by_slot"][slot_id]["label"], expected["label"])
+
+    def test_reconcile_partition_rejects_partial_snapshot_without_writing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertTrue(bind_slot("S1/1", "1" * 32, root=root)["ok"])
+            before = load_slot_snapshot(root)
+            result = reconcile_partition(
+                "S1",
+                {"S1/1": {"automation_id": "2" * 32}},
+                expected_updated_at=before["updated_at"],
+                root=root,
+            )
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["status"], "PARTITION_BINDINGS_INCOMPLETE")
+            self.assertEqual(load_slot_snapshot(root)["updated_at"], before["updated_at"])
+            self.assertEqual(load_slot_snapshot(root)["bindings_by_slot"]["S1/1"]["automation_id"], "1" * 32)
+
+    def test_reconcile_partition_requires_compare_and_swap_for_existing_registry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertTrue(bind_slot("S1/1", "1" * 32, root=root)["ok"])
+            desired = {
+                f"S1/{index}": {"automation_id": str(index) * 32}
+                for index in range(1, 6)
+            }
+            result = reconcile_partition("S1", desired, root=root)
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["status"], "EXPECTED_UPDATED_AT_REQUIRED")
+
+    def test_reconcile_partition_rejects_stale_compare_and_swap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertTrue(bind_slot("S1/1", "1" * 32, root=root)["ok"])
+            stale_updated_at = load_slot_snapshot(root)["updated_at"]
+            self.assertTrue(bind_slot("S2/1", "a" * 32, root=root)["ok"])
+            desired = {
+                f"S1/{index}": {"automation_id": str(index) * 32}
+                for index in range(1, 6)
+            }
+            result = reconcile_partition(
+                "S1",
+                desired,
+                expected_updated_at=stale_updated_at,
+                root=root,
+            )
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["status"], "REGISTRY_CHANGED_BEFORE_RECONCILE")
+
+    def test_reconcile_partition_rejects_cross_partition_automation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shared_id = "a" * 32
+            self.assertTrue(bind_slot("S2/1", shared_id, root=root)["ok"])
+            before = load_slot_snapshot(root)
+            desired = {
+                f"S1/{index}": {"automation_id": (shared_id if index == 1 else str(index) * 32)}
+                for index in range(1, 6)
+            }
+            result = reconcile_partition(
+                "S1",
+                desired,
+                expected_updated_at=before["updated_at"],
+                root=root,
+            )
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["status"], "AUTOMATION_BOUND_CROSS_PARTITION")
 
     def test_topology_has_exactly_five_stable_slots_per_partition(self):
         self.assertEqual(tuple(RECURRING_WORKER_SLOTS), ("S1", "S2"))

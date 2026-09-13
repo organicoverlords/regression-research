@@ -245,6 +245,147 @@ def bind_slot(
     }
 
 
+def reconcile_partition(
+    partition: str,
+    bindings: dict[str, dict[str, Any]],
+    *,
+    expected_updated_at: str | None = None,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    """Atomically replace one partition's complete slot binding set.
+
+    The caller must supply all five stable slots for the partition from one
+    explicitly verified scheduler snapshot.  The other partition is preserved.
+    ``expected_updated_at`` provides a compare-and-swap guard against replacing
+    newer operational state that appeared after the scheduler snapshot/recon.
+    """
+    part = str(partition or "").strip().upper()
+    if part not in RECURRING_WORKER_SLOTS:
+        return {"ok": False, "status": "INVALID_PARTITION", "partition": part}
+    if not isinstance(bindings, dict):
+        return {"ok": False, "status": "INVALID_BINDINGS", "partition": part}
+
+    expected_slots = set(RECURRING_WORKER_SLOTS[part])
+    supplied_slots = set(bindings)
+    if supplied_slots != expected_slots:
+        return {
+            "ok": False,
+            "status": "PARTITION_BINDINGS_INCOMPLETE",
+            "partition": part,
+            "missing_slots": sorted(expected_slots - supplied_slots),
+            "unexpected_slots": sorted(supplied_slots - expected_slots),
+        }
+
+    normalized: dict[str, dict[str, Any]] = {}
+    seen_automation_ids: dict[str, str] = {}
+    for slot_id in RECURRING_WORKER_SLOTS[part]:
+        raw = bindings.get(slot_id)
+        binding, binding_error = _normalize_binding(slot_id, raw)
+        if binding_error or binding is None:
+            return {
+                "ok": False,
+                "status": "INVALID_BINDING",
+                "partition": part,
+                "slot_id": slot_id,
+                "error": binding_error or "binding is required",
+            }
+        automation_id = binding["automation_id"]
+        if automation_id in seen_automation_ids:
+            return {
+                "ok": False,
+                "status": "DUPLICATE_AUTOMATION_ID",
+                "partition": part,
+                "automation_id": automation_id,
+                "slots": [seen_automation_ids[automation_id], slot_id],
+            }
+        seen_automation_ids[automation_id] = slot_id
+        normalized[slot_id] = binding
+
+    snapshot = load_slot_snapshot(root)
+    if snapshot["status"] not in {"OK", "MISSING"}:
+        return {"ok": False, "status": "REGISTRY_INVALID", "error": snapshot.get("error")}
+    if snapshot["status"] == "OK" and expected_updated_at is None:
+        return {
+            "ok": False,
+            "status": "EXPECTED_UPDATED_AT_REQUIRED",
+            "actual_updated_at": snapshot.get("updated_at"),
+        }
+    if expected_updated_at is not None and snapshot.get("updated_at") != expected_updated_at:
+        return {
+            "ok": False,
+            "status": "REGISTRY_CHANGED_BEFORE_RECONCILE",
+            "expected_updated_at": expected_updated_at,
+            "actual_updated_at": snapshot.get("updated_at"),
+        }
+
+    for automation_id in seen_automation_ids:
+        existing_slot = snapshot["automation_to_slot"].get(automation_id)
+        if existing_slot is not None and _SLOT_TO_PARTITION[existing_slot] != part:
+            return {
+                "ok": False,
+                "status": "AUTOMATION_BOUND_CROSS_PARTITION",
+                "automation_id": automation_id,
+                "existing_slot": existing_slot,
+            }
+
+    path = registry_path(root)
+    raw_payload = _empty_payload()
+    if snapshot["status"] == "OK":
+        try:
+            raw_payload = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            return {"ok": False, "status": "REGISTRY_CHANGED_DURING_RECONCILE"}
+        if raw_payload.get("updated_at") != snapshot.get("updated_at"):
+            return {
+                "ok": False,
+                "status": "REGISTRY_CHANGED_DURING_RECONCILE",
+                "expected_updated_at": snapshot.get("updated_at"),
+                "actual_updated_at": raw_payload.get("updated_at"),
+            }
+    elif path.exists():
+        return {"ok": False, "status": "REGISTRY_CHANGED_DURING_RECONCILE"}
+
+    previous_bindings = {
+        slot_id: snapshot["bindings_by_slot"].get(slot_id)
+        for slot_id in RECURRING_WORKER_SLOTS[part]
+    }
+    now = datetime.now(timezone.utc).isoformat()
+    raw_bindings = raw_payload.setdefault("bindings", {})
+    for slot_id in RECURRING_WORKER_SLOTS[part]:
+        binding = normalized[slot_id]
+        raw_bindings[slot_id] = {
+            "automation_id": binding["automation_id"],
+            "label": binding.get("label"),
+            "bound_at": now,
+            "first_expected_start_at": binding.get("first_expected_start_at"),
+        }
+    raw_payload["schema"] = REGISTRY_SCHEMA
+    raw_payload["authority"] = "MUTABLE_OPERATIONAL_SLOT_BINDINGS_NOT_LIVENESS"
+    raw_payload["updated_at"] = now
+    _write_payload(path, raw_payload)
+
+    result = load_slot_snapshot(root)
+    if result["status"] != "OK":
+        return {
+            "ok": False,
+            "status": "POST_WRITE_INVALID",
+            "partition": part,
+            "error": result.get("error"),
+        }
+    return {
+        "ok": True,
+        "status": "PARTITION_RECONCILED",
+        "partition": part,
+        "previous_bindings": previous_bindings,
+        "bindings": {
+            slot_id: result["bindings_by_slot"][slot_id]
+            for slot_id in RECURRING_WORKER_SLOTS[part]
+        },
+        "updated_at": result.get("updated_at"),
+        "registry_path": str(path),
+    }
+
+
 def clear_slot(
     slot_id: str,
     *,
@@ -293,13 +434,28 @@ def main() -> int:
     clear = sub.add_parser("clear")
     clear.add_argument("--slot", required=True, choices=tuple(_SLOT_TO_PARTITION))
     clear.add_argument("--expected-automation-id")
+    reconcile = sub.add_parser("reconcile")
+    reconcile.add_argument("--partition", required=True, choices=tuple(RECURRING_WORKER_SLOTS))
+    reconcile.add_argument("--bindings-file", required=True, type=Path)
+    reconcile.add_argument("--expected-updated-at", required=True)
     args = parser.parse_args()
     if args.command == "list":
         result = load_slot_snapshot()
     elif args.command == "bind":
         result = bind_slot(args.slot, args.automation_id, label=args.label, replace_current=args.replace_current, first_expected_start_at=args.first_expected_start_at)
-    else:
+    elif args.command == "clear":
         result = clear_slot(args.slot, expected_automation_id=args.expected_automation_id)
+    else:
+        try:
+            bindings = json.loads(args.bindings_file.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            result = {"ok": False, "status": "INVALID_BINDINGS_FILE", "error": str(exc)}
+        else:
+            result = reconcile_partition(
+                args.partition,
+                bindings,
+                expected_updated_at=args.expected_updated_at,
+            )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok", result.get("status") in {"OK", "MISSING"}) else 1
 
