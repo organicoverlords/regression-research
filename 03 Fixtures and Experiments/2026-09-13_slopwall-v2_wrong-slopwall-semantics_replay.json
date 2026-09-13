@@ -88,7 +88,7 @@
       }
     ],
     "parent_event_id": null,
-    "memory_ref": "memory/reports/2026-09-13_slopwall-v2_wrong-slopwall-semantics_pending-memory.md",
+    "memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-001",
     "evidence_confidence": "B",
     "scores": {
       "information_slop": 3,
@@ -141,7 +141,7 @@
       },
       "first_supported_divergence": "The assistant chose the newly inferred durability-centered interpretation as behavior authority before loading the preserved historical Slopwall event/replay authority."
     },
-    "closure_state": "REPAIRED_PENDING_DURABILITY",
+    "closure_state": "CLOSED",
     "capture": {
       "scope": "VISIBLE_CONTEXT_ONLY",
       "verbatim": true,
