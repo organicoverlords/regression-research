@@ -1637,6 +1637,25 @@
       "missing": [],
       "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed. Canonical behavior-incident memory closure is bound to memory/memory-bank.jsonl#mem-sw-v2-20260913-002.",
       "canonical_memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-002"
+    },
+    {
+      "incident_id": "RR-OPTIONAL-REMOTE-TOOL-20260913",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-09-13_manual_worker_optional_github_tool_selection_regression.md",
+      "title": "Manual worker optional GitHub tool-selection regression",
+      "date": "2026-09-13",
+      "evidence_type": "evidence_bounded_behavior_regression",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-13_manual_worker_optional_github_tool_selection.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "fleet_usage_percentage_not_independently_measured"
+      ],
+      "notes": "Preserves the user-observed optional GitHub-plugin selection drift without promoting the approximate usage percentage to measured telemetry. Existing local-first guidance remains authority; executable replay tests tool-selection consumption."
     }
   ],
   "orphan_evidence": [

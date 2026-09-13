@@ -32,6 +32,11 @@ STACK_PATHS = {
     "tests/test_replay_scoring.py",
     "tests/test_behavior_regression_contract.py",
     "tests/test_manual_go_replay.py",
+    "01 Reports/2026-09-13_manual_worker_optional_github_tool_selection_regression.md",
+    "03 Fixtures and Experiments/2026-09-13_manual_worker_optional_github_tool_selection.json",
+    "tests/test_optional_remote_tool_selection.py",
+    "tests/fixtures/tool-result-answer-boundary.json",
+    "tests/test_tool_result_answer_boundary.py",
     "03 Fixtures and Experiments/2026-09-07_0221_EEST_go-issue-completion-stop_next_action.json",
     "tests/test_slopwall_v2.py",
     "04 Operating Contracts/assistant-behavior-regression.md",
@@ -228,6 +233,7 @@ def verify_stack() -> None:
             "tests.test_issue122_forensic_integrity",
             "tests.test_issue123_current_vault_history_boundary",
             "tests.test_issue123_response_shape",
+            "tests.test_tool_result_answer_boundary",
             "tests.test_north_star_entry",
             "-v",
         ]
@@ -236,6 +242,7 @@ def verify_stack() -> None:
         [
             "tests/test_behavior_regression_contract.py",
             "tests/test_manual_go_replay.py",
+            "tests/test_optional_remote_tool_selection.py",
             "tests/test_slopwall_v2.py",
             "tests/test_behavior_incident_capture.py",
             "tests/test_behavior_incident_close.py",

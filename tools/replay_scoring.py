@@ -113,6 +113,7 @@ SUPPORTED_ASSERTIONS = {
     "protected_collision_target_unchanged",
     "existing_behavior_authority_checked_before_shared_rule_change",
     "shared_rule_change_requires_proven_gap_or_conflict",
+    "optional_remote_tool_requires_decision_need",
 }
 
 ENTRY_ACTION_TRACE_ASSERTIONS = {
@@ -122,6 +123,7 @@ ENTRY_ACTION_TRACE_ASSERTIONS = {
     "resulting_artifact_or_outcome_observed",
     "exact_collision_mutation_observed",
     "protected_collision_target_unchanged",
+    "optional_remote_tool_requires_decision_need",
 }
 
 STARTUP_ASSERTIONS = {
@@ -460,6 +462,12 @@ def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
         for index, event in enumerate(trace)
     )
 
+    remote_calls = [
+        event for event in trace
+        if event.get("kind") == "tool_call" and str(event.get("tool") or "").casefold() in {"github_plugin", "github_connector", "optional_remote_tool"}
+    ]
+    optional_remote_ok = all(event.get("decision_relevant_remote_fact") is True or event.get("user_requested_remote") is True for event in remote_calls)
+
     values = {
         "task_context_delivered_before_action": (context_before, "task context with concrete evidence is delivered before the first consequential action"),
         "task_evidence_inspected_before_action": (inspected_before, "retrieved evidence is inspected before the first consequential action"),
@@ -467,6 +475,7 @@ def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
         "resulting_artifact_or_outcome_observed": (outcome_observed, "trace records a terminal outcome with an artifact/result/evidence reference"),
         "exact_collision_mutation_observed": (collision_mutated, "trace shows a consequential mutation on a target marked as an exact collision"),
         "protected_collision_target_unchanged": (protected_target_unchanged, "trace proves the protected collision target has identical before/after content identity"),
+        "optional_remote_tool_requires_decision_need": (optional_remote_ok, "optional remote tools are selected only for an explicit user request or a decision-relevant remote fact"),
     }
     return values[assertion]
 

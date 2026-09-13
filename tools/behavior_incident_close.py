@@ -257,6 +257,7 @@ def bind_repair(
     _require(kind in {"assistant_reply", "assistant_action"}, "repair observation kind must be assistant_reply or assistant_action")
     _require(isinstance(observation, str) and observation.strip(), "repair observation must be non-empty visible content")
     _require(isinstance(candidate, dict) and isinstance(candidate.get("action"), str) and candidate["action"].strip(), "repair candidate.action is required")
+    _require(candidate["action"].strip() == observation.strip(), "repair candidate.action must equal the observed visible repair content")
 
     replay_path = _safe_repo_file(root, replay_path, "replay")
     raw = _load_json(replay_path, "replay")

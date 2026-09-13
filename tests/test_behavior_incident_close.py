@@ -39,6 +39,16 @@ def prepared_incident(tmp_path: Path, event_id: str = "SW-V2-TEST-CLOSE-001", *,
 
 
 
+def test_repair_candidate_must_equal_observed_visible_content(tmp_path: Path) -> None:
+    _, replay_path = prepared_incident(tmp_path, "SW-V2-TEST-CLOSE-MISMATCH", bind=False)
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    candidate = replay["success_candidate"]
+    with pytest.raises(BehaviorIncidentCloseError, match="must equal the observed visible repair content"):
+        bind_repair(replay_path, observation="A different user-visible reply.", candidate=candidate, root=tmp_path)
+    unchanged = json.loads(replay_path.read_text(encoding="utf-8"))
+    assert unchanged["incident_event"]["repair_binding"]["status"] == "PENDING_OBSERVATION"
+
+
 def test_unbound_repair_blocks_closure_before_memory(tmp_path: Path) -> None:
     _, replay_path = prepared_incident(tmp_path, "SW-V2-TEST-CLOSE-UNBOUND", bind=False)
     with pytest.raises(BehaviorIncidentCloseError, match="actual visible repair"):
