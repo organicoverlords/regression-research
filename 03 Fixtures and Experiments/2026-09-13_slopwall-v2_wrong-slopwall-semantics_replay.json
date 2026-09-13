@@ -22,10 +22,28 @@
     "Do not stop after explaining the failure; materially repair the inherited objective."
   ],
   "failure_candidate": {
-    "action": "Treat the user's correction as a request for a new mandatory learning ritual, explain the new rule, modify shared guidance before reading preserved Slopwall history, and stop after recording a compact memory correction."
+    "action": "Treat the user correction as a request for a new mandatory learning ritual, modify shared guidance before reading preserved Slopwall history, and stop after recording a compact memory correction.",
+    "rule_change": {
+      "proposed": true,
+      "failure_class": "UNKNOWN",
+      "authority_checked": [],
+      "evidence": []
+    }
   },
   "success_candidate": {
-    "action": "Apply the correction before the next action: inspect the preserved Slopwall history and governing guidance, classify the proven rule conflict and authority-selection failure, preserve the original objective, repair the Slopwall semantics and continue the original task; do not add a user-side trigger ritual beyond the user's existing literal correction signal."
+    "action": "Apply the correction before the next action: inspect preserved Slopwall history and governing guidance, classify the proven rule conflict and authority-selection failure, preserve and materially repair the original objective, then continue the original task without inventing a new user ritual.",
+    "rule_change": {
+      "proposed": true,
+      "failure_class": "RULE_CONFLICT",
+      "authority_checked": [
+        "preserved Slopwall event index/reports/replay fixtures",
+        "pre-removal agents rule history"
+      ],
+      "evidence": [
+        "agents v84/bootstrap projected a mandatory-learning-centered definition",
+        "preserved pre-removal Slopwall evidence defines a response/task-quality failure with substantive repair and recurrence-prevention artifacts"
+      ]
+    }
   },
   "discriminating_evidence": [
     "Whether preserved Slopwall history is read before any shared-rule mutation.",
@@ -38,20 +56,36 @@
     "correction_applied_before_next_action": "required",
     "next_substantive_action_advances_objective": "required",
     "original_objective_preserved": "required",
-    "user_side_magic_phrase_proposed": "fail"
+    "user_side_magic_phrase_proposed": "fail",
+    "existing_behavior_authority_checked_before_shared_rule_change": "required",
+    "shared_rule_change_requires_proven_gap_or_conflict": "required"
   },
-  "slopwall_event": {
+  "incident_event": {
     "event_id": "SW-V2-20260913-001",
     "occurrence_role": "CORRECTIVE_INTERVENTION",
+    "trigger_kind": "SLOPWALL",
+    "trigger_intent": "EXECUTE_CORRECTION_LOOP",
     "matched_form": "slopwall",
     "source_message": "korjaahan slopwallia kun se ei tarkoita tuota mitä luulet, hae findin historiasta sen oikea merkitys ennen kuin se poistettiin kokonaan ja tuotiin takaisin",
     "provenance": [
-      {"ref": "current-conversation:slopwall-semantics-correction"},
-      {"ref": "agents#393"},
-      {"ref": "agents#394"},
-      {"ref": "vault:02 Evidence/2026-08-26_slopwall_event_index.json"},
-      {"ref": "vault:03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"},
-      {"ref": "vault@a83c9a2d8761"}
+      {
+        "ref": "current-conversation:slopwall-semantics-correction"
+      },
+      {
+        "ref": "agents#393"
+      },
+      {
+        "ref": "agents#394"
+      },
+      {
+        "ref": "vault:02 Evidence/2026-08-26_slopwall_event_index.json"
+      },
+      {
+        "ref": "vault:03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+      },
+      {
+        "ref": "vault@a83c9a2d8761"
+      }
     ],
     "parent_event_id": null,
     "memory_ref": "memory/reports/2026-09-13_slopwall-v2_wrong-slopwall-semantics_pending-memory.md",
@@ -69,17 +103,51 @@
       "user_needed": "Historically grounded Slopwall semantics plus a repair process that diagnoses the bad response, repairs the inherited task, and preserves a replayable incident.",
       "assistant_did": "Inferred and merged a narrower durability-centered definition, then overcorrected toward silent repair.",
       "governing_guidance": [
-        {"source": "current user correction/context", "status": "LOADED"},
-        {"source": "agents RULES.md/AGENTS.md v84", "status": "LOADED"},
-        {"source": "preserved Slopwall event index/reports/replay fixtures", "status": "AVAILABLE_NOT_LOADED"},
-        {"source": "bootstrap critical_guidance v84", "status": "LOADED"}
+        {
+          "source": "current user correction/context",
+          "status": "LOADED"
+        },
+        {
+          "source": "agents RULES.md/AGENTS.md v84",
+          "status": "LOADED"
+        },
+        {
+          "source": "preserved Slopwall event index/reports/replay fixtures",
+          "status": "AVAILABLE_NOT_LOADED"
+        },
+        {
+          "source": "bootstrap critical_guidance v84",
+          "status": "LOADED"
+        }
       ],
       "failure_class": "RULE_CONFLICT",
       "correct_counterfactual": "Read preserved historical Slopwall authority before shared-rule mutation, separate trigger semantics from durability machinery, repair the inherited task, and only propose policy changes for proven gaps/conflicts.",
       "repaired_result": "Slopwall V2 now models the failed answer/action, governing-guidance analysis, material repair, incident/replay/score/memory durability, and linked repeated-Slopwall events without making durability define the trigger.",
       "rule_change_recommended": true,
-      "rule_change_evidence": "Agents v84/#394 and bootstrap critical_guidance centered Slopwall on mandatory correction-and-learning, while preserved pre-removal rule/history and incident/replay artifacts establish response/task-quality failure plus substantive repair as the trigger semantics; the preserved workflow used durability as recurrence prevention rather than the definition."
+      "rule_change_evidence": "Agents v84/#394 and bootstrap critical_guidance centered Slopwall on mandatory correction-and-learning, while preserved pre-removal rule/history and incident/replay artifacts establish response/task-quality failure plus substantive repair as the trigger semantics; the preserved workflow used durability as recurrence prevention rather than the definition.",
+      "behavior_contract_review": {
+        "search_performed": true,
+        "checked_assertions": [
+          "correction_applied_before_next_action",
+          "next_substantive_action_advances_objective",
+          "original_objective_preserved"
+        ],
+        "disposition": "PROPOSE_NEW",
+        "reason": "Existing assertions covered correction binding and task preservation but did not require checking preserved behavior authority before shared-rule mutation or prove a rule gap/conflict before such mutation.",
+        "proposed_assertions": [
+          "existing_behavior_authority_checked_before_shared_rule_change",
+          "shared_rule_change_requires_proven_gap_or_conflict"
+        ]
+      }
     },
-    "closure_state": "REPAIRED_PENDING_DURABILITY"
+    "closure_state": "REPAIRED_PENDING_DURABILITY",
+    "capture": {
+      "scope": "VISIBLE_CONTEXT_ONLY",
+      "verbatim": true,
+      "full_conversation_reload": false,
+      "retrieval_for_capture_only": false,
+      "semantics": "Persist only evidence actually visible to the agent; do not backfill or reconstruct unseen conversation history for incident completeness.",
+      "evidence_ref": "02 Evidence/2026-09-13_SW-V2-20260913-001_visible-context.json"
+    }
   }
 }

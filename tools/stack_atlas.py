@@ -316,6 +316,14 @@ COMPONENT_ALIASES = {
     "worktree hygiene task": "worktree_hygiene",
     "timeline materializer": "timeline_materializer",
     "vault timeline materializer": "timeline_materializer",
+    "behavior regressions": "assistant_behavior_regressions",
+    "behavior regression": "assistant_behavior_regressions",
+    "replay scoring": "assistant_behavior_regressions",
+    "replay fixture": "assistant_behavior_regressions",
+    "behavior contract": "assistant_behavior_regressions",
+    "acceptance contract": "assistant_behavior_regressions",
+    "slopwall replay": "assistant_behavior_regressions",
+    "incident report": "assistant_behavior_regressions",
 }
 
 ATLAS_CONTRACT = {
@@ -327,6 +335,26 @@ ATLAS_CONTRACT = {
     "live_status": "fetch from the named live authority at use time; Atlas never promotes cached status to current truth",
 }
 COMPONENTS: dict[str, dict[str, Any]] = {
+    "assistant_behavior_regressions": {
+        "role": "assistant_behavior_regression_owner",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
+            r"C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py",
+            r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
+            r"C:\Users\Lauri\Desktop\vault\tools\verify.py",
+        ],
+        "live_status": [
+            "provider-free replay scoring against tracked fixtures",
+            "repository verification for fixture/scorer regression coverage",
+        ],
+        "supervisor": "none; repository-owned deterministic tests",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["Git history preserves incident reports, fixtures, scorer and tests"],
+        "resources": ["incident reports", "replay fixtures", "behavior-contract assertions", "deterministic scorer"],
+        "dependents": ["agent_rules", "memory_bank"],
+        "runbook": [r"04 Operating Contracts\assistant-behavior-regression.md", r"tools\replay_scoring.py"],
+    },
     "busy_coordinator": {
         "role": "coordination_authority",
         "capabilities": ["coordination"],
@@ -783,6 +811,21 @@ MCP_SHARED_PRODUCTION_COMPONENTS = frozenset({
 
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "assistant.behavior_regressions": {
+        "owner_components": ["assistant_behavior_regressions", "agent_rules", "memory_bank"],
+        "triggers": [
+            "behavior regression", "assistant regression", "behavior contract", "acceptance contract",
+            "replay fixture", "replay scoring", "regression scoring", "correction binding",
+            "slopwall replay", "incident replay", "incident report", "executable behavior contract",
+        ],
+        "entrypoints": [
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
+            r"python C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py --help",
+            r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
+            r"python C:\Users\Lauri\Desktop\vault\tools\verify.py --all",
+        ],
+        "boundary": "Rules/prose state desired behavior but do not prove regression resistance. Incident reports preserve what failed; replay fixtures encode bounded historical failure/success controls; deterministic scoring/verification tests candidate next actions. Reuse an existing behavior contract when it covers the failure. Promote a new shared behavior contract only when evidence proves a reusable uncovered invariant; do not turn every incident into another global rule or registry entry.",
+    },
     "orchestration.operator": {
         "owner_components": ["agent_rules"],
         "triggers": ["orchestrator", "designated orchestrator", "operator", "operator role", "orchestration policy"],

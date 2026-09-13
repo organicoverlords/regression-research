@@ -30,11 +30,20 @@ def fixture() -> dict:
             "next_substantive_action_advances_objective": "required",
             "original_objective_preserved": "required",
         },
-        "slopwall_event": {
+        "incident_event": {
             "event_id": "SW-V2-TEST-001",
             "occurrence_role": "CORRECTIVE_INTERVENTION",
+            "trigger_kind": "SLOPWALL",
+            "trigger_intent": "EXECUTE_CORRECTION_LOOP",
             "matched_form": "slopwall",
             "source_message": "slopwall",
+            "capture": {
+                "scope": "VISIBLE_CONTEXT_ONLY",
+                "verbatim": True,
+                "full_conversation_reload": False,
+                "retrieval_for_capture_only": False,
+                "evidence_ref": "tests/fixtures/slopwall-v2-visible-context-test.json",
+            },
             "provenance": [{"ref": "conversation:test-turn"}],
             "parent_event_id": None,
             "memory_ref": "mem-test-slopwall-v2",
@@ -56,6 +65,13 @@ def fixture() -> dict:
                 "correct_counterfactual": "Apply the existing rule and advance the inherited task.",
                 "repaired_result": "The inherited task advances with corrected substance.",
                 "rule_change_recommended": False,
+                "behavior_contract_review": {
+                    "search_performed": True,
+                    "checked_assertions": ["original_objective_preserved"],
+                    "disposition": "REUSE_EXISTING",
+                    "reason": "The existing objective-preservation assertion covers this bounded failure.",
+                    "reused_assertions": ["original_objective_preserved"],
+                },
             },
             "closure_state": "CLOSED",
         },
@@ -68,44 +84,125 @@ def test_complete_fixture_validates() -> None:
 
 def test_literal_signal_is_required() -> None:
     raw = fixture()
-    raw["slopwall_event"]["source_message"] = "please improve that"
+    raw["incident_event"]["source_message"] = "please improve that"
     with pytest.raises(SlopwallV2Error, match="occur literally"):
         validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
 
 
 def test_d_confidence_is_unscorable() -> None:
     raw = fixture()
-    raw["slopwall_event"]["evidence_confidence"] = "D"
-    raw["slopwall_event"]["scores"] = None
-    raw["slopwall_event"]["severity_100"] = None
+    raw["incident_event"]["evidence_confidence"] = "D"
+    raw["incident_event"]["scores"] = None
+    raw["incident_event"]["severity_100"] = None
     validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
 
 
 def test_repeated_slopwall_can_link_parent() -> None:
     raw = fixture()
-    raw["slopwall_event"]["event_id"] = "SW-V2-TEST-002"
-    raw["slopwall_event"]["parent_event_id"] = "SW-V2-TEST-001"
+    raw["incident_event"]["event_id"] = "SW-V2-TEST-002"
+    raw["incident_event"]["parent_event_id"] = "SW-V2-TEST-001"
     validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
 
 
 def test_closed_event_requires_memory_pointer() -> None:
     raw = fixture()
-    raw["slopwall_event"]["memory_ref"] = ""
+    raw["incident_event"]["memory_ref"] = ""
     with pytest.raises(SlopwallV2Error, match="memory_ref"):
         validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
 
 
 def test_rule_change_cannot_be_inferred_from_plain_failure() -> None:
     raw = fixture()
-    raw["slopwall_event"]["analysis"]["rule_change_recommended"] = True
+    raw["incident_event"]["analysis"]["rule_change_recommended"] = True
     with pytest.raises(SlopwallV2Error, match="RULE_GAP or RULE_CONFLICT"):
         validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
 
 
 def test_proven_rule_gap_can_recommend_change_with_evidence() -> None:
     raw = fixture()
-    analysis = raw["slopwall_event"]["analysis"]
+    analysis = raw["incident_event"]["analysis"]
     analysis["failure_class"] = "RULE_GAP"
     analysis["rule_change_recommended"] = True
     analysis["rule_change_evidence"] = "The loaded canonical rule omitted the decision boundary that failed."
     validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_behavior_contract_search_is_required() -> None:
+    raw = fixture()
+    raw["incident_event"]["analysis"]["behavior_contract_review"]["search_performed"] = False
+    with pytest.raises(SlopwallV2Error, match="search must be performed"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_proposed_behavior_contract_must_be_bound_to_fixture_scoring() -> None:
+    raw = fixture()
+    review = raw["incident_event"]["analysis"]["behavior_contract_review"]
+    review["disposition"] = "PROPOSE_NEW"
+    review.pop("reused_assertions")
+    review["proposed_assertions"] = ["shared_rule_change_requires_proven_gap_or_conflict"]
+    with pytest.raises(SlopwallV2Error, match="bound into fixture scoring"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_behavior_contract_can_guard_violation_without_shared_rule_change() -> None:
+    raw = fixture()
+    raw["scoring"]["shared_rule_change_requires_proven_gap_or_conflict"] = "required"
+    analysis = raw["incident_event"]["analysis"]
+    assert analysis["failure_class"] == "RULE_VIOLATION"
+    assert analysis["rule_change_recommended"] is False
+    review = analysis["behavior_contract_review"]
+    review["disposition"] = "PROPOSE_NEW"
+    review.pop("reused_assertions")
+    review["proposed_assertions"] = ["shared_rule_change_requires_proven_gap_or_conflict"]
+    review["reason"] = "A deterministic regression guard is useful even though the prose rule itself is already correct."
+    validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_incident_report_is_an_explicit_full_loop_trigger() -> None:
+    raw = fixture()
+    event = raw["incident_event"]
+    event["event_id"] = "INC-V2-TEST-001"
+    event["trigger_kind"] = "INCIDENT_REPORT"
+    event["matched_form"] = "incident report"
+    event["source_message"] = "incident report"
+    validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_meta_reference_cannot_claim_trigger_without_corrective_intent() -> None:
+    raw = fixture()
+    event = raw["incident_event"]
+    event["event_id"] = "INC-V2-TEST-002"
+    event["trigger_kind"] = "INCIDENT_REPORT"
+    event["matched_form"] = "incident report"
+    event["source_message"] = "mita incident report tarkoittaa?"
+    event["trigger_intent"] = "META_REFERENCE"
+    with pytest.raises(SlopwallV2Error, match="explicit corrective command"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_full_conversation_reload_is_forbidden() -> None:
+    raw = fixture()
+    raw["incident_event"]["capture"]["full_conversation_reload"] = True
+    with pytest.raises(SlopwallV2Error, match="full conversation reload/backfill is forbidden"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_retrieval_solely_to_expand_capture_is_forbidden() -> None:
+    raw = fixture()
+    raw["incident_event"]["capture"]["retrieval_for_capture_only"] = True
+    with pytest.raises(SlopwallV2Error, match="retrieval solely to expand incident capture is forbidden"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_visible_context_evidence_pointer_is_required() -> None:
+    raw = fixture()
+    raw["incident_event"]["capture"].pop("evidence_ref")
+    with pytest.raises(SlopwallV2Error, match="capture.evidence_ref is required"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+
+
+def test_source_message_must_match_verbatim_visible_evidence() -> None:
+    raw = fixture()
+    raw["incident_event"]["source_message"] = "slopwall but changed after capture"
+    with pytest.raises(SlopwallV2Error, match="source_message must be preserved verbatim"):
+        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")

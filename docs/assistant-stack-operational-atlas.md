@@ -12,6 +12,7 @@ Use `find <query>` when you know the need but not the component. Search this der
 
 | Feature | Owner components | Entrypoints | Boundary |
 | --- | --- | --- | --- |
+| `assistant.behavior_regressions` | assistant_behavior_regressions, agent_rules, memory_bank | C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md; python C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py --help; C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments; python C:\Users\Lauri\Desktop\vault\tools\verify.py --all | Rules/prose state desired behavior but do not prove regression resistance. Incident reports preserve what failed; replay fixtures encode bounded historical failure/success controls; deterministic scoring/verification tests candidate next actions. Reuse an existing behavior contract when it covers the failure. Promote a new shared behavior contract only when evidence proves a reusable uncovered invariant; do not turn every incident into another global rule or registry entry. |
 | `orchestration.operator` | agent_rules | C:\Users\Lauri\.agents\RULES.md; python tools\stack_atlas.py lookup agent_rules | Navigation to the designated main-chat/operator behavior owner only. The orchestrator is a role governed by canonical agent_rules, not a daemon or separate runtime/control-plane component; live project/runtime evidence and BusyCoordinator remain their own authorities. |
 | `production.change_gate` | agent_rules, busy_coordinator, vps_edge_ingress, mcp_front_door | python tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>; PASS requires --independent-rollback-verified --offpath-proof-verified plus either --routine-scoped-advance for an already-established reversible serving advance or --explicit-user-authorization for a scope-widening/destructive/topology change | Read-only preflight for shared production/control-plane mutation. A routine already-scoped reversible serving advance does not require redundant per-cutover user approval; arbitrary new, scope-widening, destructive, credential/permission, scheduler/fleet, or topology/control-plane mutation still requires explicit user authorization. |
 | `mcp.edge_monitoring` | vps_edge_ingress | https://5-61-91-127.sslip.io/edge-status; python tools\stack_atlas.py lookup vps_edge_ingress; %LOCALAPPDATA%\McpVpsEdge\provision_edge_extras.py | Observer semantics only: healthy/primary_healthy describe the automatic WireGuard primary path, while SSH 3101-3104 contribute only recovery_available/fallback health. WireGuard freshness is explicit in wireguard_handshake_age_seconds and wireguard_peer_fresh. Observation never authorizes automatic SSH failover or serving-path mutation. |
@@ -40,6 +41,19 @@ Use `find <query>` when you know the need but not the component. Search this der
 | `execution.transport` | vps_edge_ingress, mcp_minimal_clone, mcp_front_door | preferred MCPv3 binding when healthy and exposed; Remote Desktop Commander approved standby break-glass fallback whenever preferred MCPv3 is unavailable; fallback-only/not primary, not forbidden; retry failed routes only on changed state or new evidence | Routing precedence is governed by shared RULES.md. Transport only; tool availability does not confer ownership, scheduling, or product authority. MCPv3 health does not retire, obsolete, or authorize deletion of the Commander fallback; preserve its recovery path unless current user/live authority explicitly changes that contract. |
 
 ## Components
+
+### `assistant_behavior_regressions`
+
+- Role: `assistant_behavior_regression_owner`
+- Capabilities: source_read, runtime_validate
+- Canonical sources: C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md; C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py; C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments; C:\Users\Lauri\Desktop\vault\tools\verify.py
+- Live status: provider-free replay scoring against tracked fixtures; repository verification for fixture/scorer regression coverage
+- Independent recovery: Git history preserves incident reports, fixtures, scorer and tests
+- Resources: incident reports; replay fixtures; behavior-contract assertions; deterministic scorer
+- Dependents: agent_rules; memory_bank
+- Runbook: 04 Operating Contracts\assistant-behavior-regression.md; tools\replay_scoring.py
+- Supervisor: none; repository-owned deterministic tests
+- Self-heal: not_applicable
 
 ### `busy_coordinator`
 

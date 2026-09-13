@@ -1576,6 +1576,27 @@
         "contract_snapshot_not_linked"
       ],
       "notes": "Indexes the Render Lite navigation-regression report. The report points to the private owning repository and runtime/browser observations; no unavailable raw transcript, local evidence file, or contract snapshot is invented here."
+    },
+    {
+      "incident_id": "SW-V2-20260913-001",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-09-13_slopwall-v2_wrong-slopwall-semantics_rule-conflict_incident.md",
+      "title": "Slopwall V2 incident - wrong Slopwall semantics promoted into canonical rules",
+      "date": "2026-09-13",
+      "evidence_type": "evidence_bounded_behavior_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/2026-09-13_SW-V2-20260913-001_visible-context.json",
+        "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "full_conversation_not_loaded_by_design",
+        "searchable_memory_pointer_pending_non_live_v2_design"
+      ],
+      "notes": "V2 design incident. Raw evidence is intentionally bounded to agent-visible context and preserved verbatim; no full conversation reload/backfill is required or claimed. Replay fixture carries the event manifest and behavior-contract review."
     }
   ],
   "orphan_evidence": [
