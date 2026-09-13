@@ -452,6 +452,77 @@ def _overlay_current_memory(payload: dict, repo_root: Path) -> dict:
     return view
 
 
+def _serialized_snapshot_bytes(payload: dict) -> int:
+    return len(json.dumps(payload, separators=(',', ':'), ensure_ascii=False).encode('utf-8'))
+
+
+def _enforce_persisted_payload_budget(payload: dict) -> dict:
+    """Apply the advertised bootstrap budget after producer-side memory overlay.
+
+    Stack Atlas fits its own bootstrap-glance output before this producer overlays the
+    freshest local memory titles. The persisted snapshot is the actual user-facing
+    payload, so its exact serialized bytes must remain the final budget authority.
+    Only the duplicated recent-title drill-down is reduced here; aggregate/historical
+    memory data and unrelated live/runtime evidence are left untouched.
+    """
+    bootstrap = payload.get('bootstrap') if isinstance(payload.get('bootstrap'), dict) else None
+    budget = bootstrap.get('payload_budget') if isinstance(bootstrap, dict) and isinstance(bootstrap.get('payload_budget'), dict) else None
+    if budget is None:
+        return payload
+
+    max_bytes = budget.get('max_bytes')
+    stability_ceiling = budget.get('stability_ceiling_bytes')
+    max_bytes = int(max_bytes) if isinstance(max_bytes, int) and not isinstance(max_bytes, bool) else None
+    stability_ceiling = int(stability_ceiling) if isinstance(stability_ceiling, int) and not isinstance(stability_ceiling, bool) else None
+
+    view = dict(payload)
+    bootstrap_view = dict(bootstrap)
+    budget_view = dict(budget)
+    bootstrap_view['payload_budget'] = budget_view
+    view['bootstrap'] = bootstrap_view
+
+    overview = view.get('memory_overview')
+    recent = None
+    recent_source = None
+    configured_recent_limit = 0
+    if isinstance(overview, dict):
+        overview = dict(overview)
+        view['memory_overview'] = overview
+        raw_recent = overview.get('recent')
+        if isinstance(raw_recent, list):
+            recent = list(raw_recent)
+            configured_recent_limit = len(recent)
+            overview['recent'] = recent
+        raw_source = overview.get('recent_source')
+        if isinstance(raw_source, dict):
+            recent_source = dict(raw_source)
+            overview['recent_source'] = recent_source
+
+    if stability_ceiling is not None and _serialized_snapshot_bytes(view) > stability_ceiling and recent is not None:
+        if recent_source is None:
+            recent_source = {}
+            overview['recent_source'] = recent_source
+        recent_source['budget_limited'] = True
+        recent_source['configured_limit'] = configured_recent_limit
+        while recent and _serialized_snapshot_bytes(view) > stability_ceiling:
+            recent.pop()
+        recent_source['returned'] = len(recent)
+        while recent and _serialized_snapshot_bytes(view) > stability_ceiling:
+            recent.pop()
+            recent_source['returned'] = len(recent)
+
+    if stability_ceiling is not None:
+        budget_view['headroom_target_met'] = _serialized_snapshot_bytes(view) <= stability_ceiling
+
+    final_bytes = _serialized_snapshot_bytes(view)
+    if max_bytes is not None and final_bytes > max_bytes:
+        raise RuntimeError(
+            f'bootstrap snapshot exceeds advertised payload max after current-memory overlay: '
+            f'bytes={final_bytes} max_bytes={max_bytes}'
+        )
+    return view
+
+
 def _replace_snapshot(temporary: Path, destination: Path, *, retry_seconds: float = 0.5) -> None:
     deadline = time.monotonic() + max(0.0, retry_seconds)
     delay = 0.005
@@ -485,6 +556,41 @@ def _write_json_atomic(destination: Path, payload: dict) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _snapshot_budget_observation(repo_root: Path) -> dict:
+    """Return bounded facts about the exact current persisted bootstrap payload."""
+    path = _snapshot_dir(repo_root) / 'latest.json'
+    try:
+        raw = path.read_bytes()
+        payload = json.loads(raw.decode('utf-8-sig'))
+    except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {'available': False}
+    if not isinstance(payload, dict):
+        return {'available': False}
+    bootstrap = payload.get('bootstrap') if isinstance(payload.get('bootstrap'), dict) else {}
+    budget = bootstrap.get('payload_budget') if isinstance(bootstrap.get('payload_budget'), dict) else {}
+    end = payload.get('bootstrap_end') if isinstance(payload.get('bootstrap_end'), dict) else {}
+    observation = {
+        'available': True,
+        'bytes': len(raw),
+        'bootstrap_end_status': end.get('status'),
+    }
+    for key in ('max_bytes', 'compaction_target_bytes', 'headroom_reserve_bytes', 'stability_ceiling_bytes'):
+        value = budget.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            observation[key] = value
+    for key in ('compacted', 'headroom_compacted'):
+        value = budget.get(key)
+        if isinstance(value, bool):
+            observation[key] = value
+    max_bytes = observation.get('max_bytes')
+    if isinstance(max_bytes, int):
+        observation['headroom_bytes'] = max_bytes - len(raw)
+    stability_ceiling = observation.get('stability_ceiling_bytes')
+    if isinstance(stability_ceiling, int):
+        observation['headroom_target_met'] = len(raw) <= stability_ceiling
+    return observation
+
+
 def _write_producer_status(repo_root: Path, *, mode: str, detail: str = '', exit_code: int = 0) -> None:
     try:
         _write_json_atomic(_snapshot_dir(repo_root) / PRODUCER_STATUS_NAME, {
@@ -493,6 +599,7 @@ def _write_producer_status(repo_root: Path, *, mode: str, detail: str = '', exit
             'mode': mode,
             'exit_code': int(exit_code),
             'detail': detail[-1000:],
+            'snapshot': _snapshot_budget_observation(repo_root),
         })
     except OSError:
         pass
@@ -799,6 +906,7 @@ def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False, a
             return True
         raise RuntimeError(detail)
     payload = _overlay_current_memory(payload, repo_root)
+    payload = _enforce_persisted_payload_budget(payload)
     encoded = json.dumps(payload, separators=(',', ':'), ensure_ascii=False)
     if len(encoded.encode('utf-8')) > 64 * 1024:
         raise RuntimeError('bootstrap snapshot exceeds 64 KiB producer limit')
