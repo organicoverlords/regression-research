@@ -427,6 +427,37 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["evidence"]["transport_source_count"],1)
             self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
 
+    def test_bootstrap_compaction_omits_no_recent_actor_rows_but_keeps_summary(self):
+        snapshot={
+            "summary":{
+                "recurring_actor_evidence":{
+                    "available":True,
+                    "slot_registry_status":"OK",
+                    "bound_actors":10,
+                    "evidence_states":{"NO_RECENT_EVIDENCE":10},
+                    "unbound_slots":[],
+                    "semantics":"long full live-swarm semantics should not consume bootstrap budget",
+                }
+            },
+            "evidence":{"recurring_actor_evidence_semantics":"full live-swarm semantics only"},
+            "elapsed_ms":1.0,
+            "recurring_actors":[
+                {"slot_id":f"S1/{i}","actor":f"S1/W{i}","evidence_state":"NO_RECENT_EVIDENCE"}
+                for i in range(1,6)
+            ] + [
+                {"slot_id":f"S2/{i}","actor":f"S2/W{i}","evidence_state":"NO_RECENT_EVIDENCE"}
+                for i in range(1,6)
+            ],
+            "lanes":[],
+        }
+        compact=compact_for_bootstrap(snapshot)
+        self.assertEqual(compact["recurring_actors"],[])
+        self.assertEqual(compact["summary"]["recurring_actor_evidence"]["bound_actors"],10)
+        self.assertEqual(compact["summary"]["recurring_actor_evidence"]["evidence_states"]["NO_RECENT_EVIDENCE"],10)
+        self.assertNotIn("semantics",compact["summary"]["recurring_actor_evidence"])
+        self.assertNotIn("slot_registry_status",compact["summary"]["recurring_actor_evidence"])
+        self.assertNotIn("recurring_actor_evidence_semantics",compact["evidence"])
+
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
         snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"recurring_actors":[{"slot_id":"S2/2","actor":"S2/Spruce","evidence_state":"RECENT_COORDINATION_ONLY","coordination":{"latest_owner":"o","latest_scope":"secret/coordination/scope","checkpoint":"secret checkpoint"}}],"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"],"identity":{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_coordination"}}]}]}
         compact=compact_for_bootstrap(snapshot)
