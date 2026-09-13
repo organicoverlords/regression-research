@@ -23,12 +23,15 @@ class RouteDecisionTests(unittest.TestCase):
         f=facts(); self.assertEqual(m.choose_route("lowvram",f,{})[0],"windows"); self.assertEqual(m.choose_route("windows-only",f,{})[0],"windows")
     def test_omen_default(self):
         for kind in ("portable","portable-light","heavy","p3-runtime"): self.assertEqual(m.choose_route(kind,facts(),{})[0],"omen")
-    def test_windows_fallback(self):
-        f=facts(omen=False,vps=False); route,reason=m.choose_route("portable",f,{})
-        self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
-    def test_windows_fallback_does_not_use_generic_disk_admission(self):
-        f=facts(omen=False,vps=False,windows_disk=1); route,reason=m.choose_route("portable",f,{})
-        self.assertEqual(route,"windows"); self.assertIn("OMEN_UNAVAILABLE",reason)
+    def test_general_work_blocks_when_omen_is_unavailable(self):
+        for kind in ("portable","portable-light","heavy","p3-runtime"):
+            route,reason=m.choose_route(kind,facts(omen=False,vps=False),{})
+            self.assertEqual(route,"blocked")
+            self.assertIn("OMEN_UNAVAILABLE",reason)
+    def test_general_work_never_uses_windows_as_capacity_fallback(self):
+        route,reason=m.choose_route("portable",facts(omen=False,vps=False,windows_disk=120),{})
+        self.assertEqual(route,"blocked")
+        self.assertIn("OMEN_UNAVAILABLE",reason)
     def test_windows_pinned_work_ignores_generic_disk_threshold(self):
         for kind in ("lowvram","windows-only"):
             route,reason=m.choose_route(kind,facts(windows_disk=1),{})
@@ -36,9 +39,9 @@ class RouteDecisionTests(unittest.TestCase):
             self.assertIn(reason,("LOWVRAM_PINNED_WINDOWS","WINDOWS_ONLY"))
     def test_vps_light_requires_explicit_execution_capability(self):
         f=facts(mem=1,vps=True)
-        self.assertEqual(m.choose_route("portable-light",f,{})[0],"windows")
+        self.assertEqual(m.choose_route("portable-light",f,{})[0],"blocked")
         self.assertEqual(m.choose_route("portable-light",f,{},allow_vps=True)[0],"vps")
-        self.assertEqual(m.choose_route("heavy",f,{},allow_vps=True)[0],"windows")
+        self.assertEqual(m.choose_route("heavy",f,{},allow_vps=True)[0],"blocked")
     def test_leases_are_observability_not_capacity(self):
         leases={str(i):{"route":"omen","kind":"heavy" if i==0 else "portable-light"} for i in range(12)}
         self.assertEqual(m.choose_route("heavy",facts(),leases)[0],"omen")
@@ -47,14 +50,14 @@ class RouteDecisionTests(unittest.TestCase):
     def test_lane1_activity_does_not_change_machine_route(self):
         self.assertEqual(m.choose_route("p3-runtime",facts(lane1=True),{})[0],"omen")
     def test_dedicated_nvme_uses_modest_hard_floor(self):
-        self.assertEqual(m.choose_route("heavy",facts(disk=15),{})[0],"windows")
+        self.assertEqual(m.choose_route("heavy",facts(disk=15),{})[0],"blocked")
         self.assertEqual(m.choose_route("heavy",facts(disk=16),{})[0],"omen")
         self.assertEqual(m.choose_route("p3-runtime",facts(disk=12),{})[0],"omen")
     def test_runtime_checks_root_and_nvme_tiers(self):
         route,reason=m.choose_route("p3-runtime",facts(root_disk=11,nvme_disk=60),{})
-        self.assertEqual(route,"windows"); self.assertIn("ROOT_DISK_LOW",reason)
+        self.assertEqual(route,"blocked"); self.assertIn("ROOT_DISK_LOW",reason)
         route,reason=m.choose_route("p3-runtime",facts(root_disk=60,nvme_disk=11),{})
-        self.assertEqual(route,"windows"); self.assertIn("NVME_DISK_LOW",reason)
+        self.assertEqual(route,"blocked"); self.assertIn("NVME_DISK_LOW",reason)
         self.assertEqual(m.choose_route("portable",facts(root_disk=1,nvme_disk=60),{})[0],"omen")
 
     def test_state_roundtrip_release(self):
@@ -93,23 +96,23 @@ class RouteDecisionTests(unittest.TestCase):
             s["assignments"]["legacy"]={"work_id":"legacy","route":"vps","kind":"portable-light","reason":"OMEN_UNAVAILABLE_VPS_LIGHT_OVERFLOW","expires_at":"2099-01-01T00:00:00Z"}
             s["probe"]={**facts(omen=False,vps=True),"observed_at":m.iso(m.utc_now())}
             m.save_state(p,s)
-            rerouted=m.route_work(p,"legacy","portable-light",600,False)
-            self.assertFalse(rerouted["reused"])
-            self.assertEqual(rerouted["route"],"windows")
-            self.assertIn("WINDOWS_FALLBACK",rerouted["reason"])
-    def test_low_disk_windows_assignment_is_reused_while_node_available(self):
+            with self.assertRaisesRegex(ValueError,"SWARM_ROUTE_NO_SAFE_NODE"):
+                m.route_work(p,"legacy","portable-light",600,False)
+    def test_legacy_windows_fallback_does_not_renew_under_new_policy_epoch(self):
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/"state.json"; s=m.empty_state()
-            s["assignments"]["old-windows"]={"work_id":"old-windows","route":"windows","kind":"portable","reason":"OMEN_UNAVAILABLE_WINDOWS_FALLBACK","policy_epoch":m.POLICY_EPOCH,"expires_at":"2099-01-01T00:00:00Z"}
+            original_expiry="2099-01-01T00:00:00Z"
+            s["assignments"]["old-windows"]={"work_id":"old-windows","route":"windows","kind":"portable","reason":"OMEN_UNAVAILABLE_WINDOWS_FALLBACK","policy_epoch":m.POLICY_EPOCH-1,"expires_at":original_expiry}
             m.save_state(p,s)
-            original_windows=m.probe_windows; original_all=m.probe_all
+            original_windows=m.probe_windows
             try:
-                m.probe_windows=lambda: {"available":True,"disk_free_gb":1}
-                m.probe_all=lambda: (_ for _ in ()).throw(AssertionError("valid sticky Windows assignment must not reroute from generic disk telemetry"))
+                m.probe_windows=lambda: {"available":True,"disk_free_gb":120}
                 result=m.route_work(p,"old-windows","portable",600,False)
             finally:
-                m.probe_windows=original_windows; m.probe_all=original_all
-            self.assertTrue(result["reused"]); self.assertEqual(result["route"],"windows")
+                m.probe_windows=original_windows
+            self.assertTrue(result["reused"])
+            self.assertTrue(result["policy_migration_pending"])
+            self.assertEqual(result["expires_at"],original_expiry)
 
     def test_current_epoch_assignment_renews(self):
         with tempfile.TemporaryDirectory() as td:

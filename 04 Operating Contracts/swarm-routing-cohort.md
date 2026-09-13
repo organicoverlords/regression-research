@@ -11,7 +11,7 @@ Make one machine-routing decision for a stable work identity and reuse it across
 - `lowvram` and `windows-only`: Windows.
 - `portable`, `heavy`, and `p3-runtime`: OMEN first.
 - `portable-light`: OMEN first. The `p3-vps-light` runner may take overflow only for a caller that explicitly opts in with `--allow-vps` and owns a supported execution adapter. Generic routing and `swarm_exec.py` do not opt in, so they fall back to Windows rather than emit an unexecutable VPS assignment.
-- Windows is the general fallback only after the cohort has fresh evidence that OMEN is unavailable or saturated for the requested class.
+- General swarm work does **not** fall back to KONE. If OMEN is unavailable or cannot safely admit the work, the work blocks/waits unless an explicit supported non-KONE lane applies. KONE execution is reserved for extremely light mandatory Windows CI; existing MCP/control transport and LowVRAM service ownership are not general worker execution.
 - A valid assignment is sticky for its `work-id`. Another worker joining the same work reuses it rather than choosing a machine independently.
 - Physical/session ownership is stronger than fungible compute fallback. For work that belongs to an exact machine or its visible desktop/session, pass `--owner-node-id <node-id>`. An explicit owner never falls back to another node when its transport is unavailable; it stays owner-bound and fails closed. An explicit owner correction supersedes a stale sticky decision for that work ID.
 - Laptop-desktop/UI work (for example an editor already open on the laptop desktop) must use `--owner-node-id omen-linux-laptop`; never substitute KONE merely because the OMEN SSH probe is unavailable. KONE remains `kone-gpu-desktop`.
@@ -60,4 +60,4 @@ The VPS remains the persistent edge/coordination machine. Its compute surface is
 
 ## Windows role
 
-Windows remains MCP/control transport, LowVRAM owner, GitHub-authenticated coordination host, and Windows-specific validation host. It is not the default general execution machine while OMEN has capacity. Generic Linux-compatible source/test work must use `swarm_exec.py` when no repository-specific OMEN entrypoint exists; the helper snapshots the current non-ignored Git working copy to `/mnt/ue/worker-workspaces/<work-id>` and executes it there in one SSH session. A non-OMEN cohort assignment is returned explicitly rather than being silently executed on Windows.
+Windows remains MCP/control transport, LowVRAM service owner, GitHub-authenticated coordination host, and the host for extremely light mandatory Windows-only CI. It is **not** a general worker-execution fallback. Generic Linux-compatible source/test work must use `swarm_exec.py` when no repository-specific OMEN entrypoint exists; if OMEN cannot safely admit it, the work blocks/waits rather than spilling onto KONE. Heavy, portable, runtime, repository maintenance, and ordinary test work must not be placed on KONE.

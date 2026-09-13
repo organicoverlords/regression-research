@@ -9,7 +9,7 @@ SCHEMA = "swarm.routing.cohort.v1"
 KINDS = ("lowvram", "windows-only", "portable", "portable-light", "heavy", "p3-runtime")
 DEFAULT_TTL_SECONDS = 1800
 PROBE_TTL_SECONDS = 45
-POLICY_EPOCH = 3
+POLICY_EPOCH = 4
 WORK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#@+-]{0,191}$")
 OMEN_HOST = "192.168.0.128"
 OMEN_HOST_KEY_ALIAS = "192.168.0.128"
@@ -292,8 +292,7 @@ def choose_route(kind,facts,assignments,allow_vps=False):
     ok,reason=omen_admissible(kind,facts.get("omen",{}),assignments)
     if ok: return "omen",reason
     if kind=="portable-light" and allow_vps and facts.get("vps",{}).get("available"): return "vps",reason+"_VPS_LIGHT_OVERFLOW"
-    if windows_ok: return "windows",reason+"_WINDOWS_FALLBACK"
-    return "blocked",reason+"_"+windows_reason
+    return "blocked",reason
 
 def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_node_id=None,allow_vps=False):
     if kind not in KINDS: raise ValueError("SWARM_ROUTE_BAD_KIND")
@@ -345,9 +344,6 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
             windows_ok,windows_reason=windows_admissible(probe.get("windows",{}))
             if not windows_ok:
                 route="blocked"; reason=windows_reason
-        if route=="blocked":
-            save_state(state_path,state)
-            raise ValueError(f"SWARM_ROUTE_NO_SAFE_NODE kind={kind} reason={reason}")
         recovery=None
         if not owner_node_id and route!="omen" and reason.startswith("OMEN_") and "_DISK_LOW" in reason:
             recovery=reclaim_omen_scratch(kind)
@@ -356,6 +352,9 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
                 probe={**probe,"observed_at":iso(utc_now()),"omen":refreshed}
                 state["probe"]=probe
                 route,reason=choose_route(kind,probe,state["assignments"],allow_vps=allow_vps)
+        if route=="blocked":
+            save_state(state_path,state)
+            raise ValueError(f"SWARM_ROUTE_NO_SAFE_NODE kind={kind} reason={reason}")
         identity=_identity_from_probe(route,probe)
         a={"schema":SCHEMA,"policy_epoch":POLICY_EPOCH,"decision_id":str(uuid.uuid4()),"work_id":work_id,"kind":kind,"route":route,"reason":reason,"assigned_at":iso(now),"expires_at":iso(now+dt.timedelta(seconds=ttl_seconds)),"probe_observed_at":probe.get("observed_at"),**identity}
         if owner_node_id: a["owner_node_id"]=owner_node_id
