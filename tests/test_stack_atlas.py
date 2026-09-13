@@ -141,32 +141,27 @@ class StackAtlasTests(unittest.TestCase):
             self.assertIn("AGENTS:uncertainty", drifted["missing"])
             self.assertIn("AGENTS:inherit", drifted["missing"])
 
-    def test_bootstrap_critical_guidance_projects_canonical_triggers(self):
+    def test_bootstrap_critical_guidance_projects_prevention_and_recovery_without_phrase_matching(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
-            (root / "RULES.md").write_text(
-                "ELI5 means strip away everything that does not help the user understand the decisive facts, live truth, error, or next action\n"
-                "lightweight durable mistake/regression marker and retrieval tag\n"
-                "Re-read the relevant canonical `RULES.md`/`AGENTS.md` section(s) implicated by the mistake\n"
-                "This lightweight record is mandatory for literal `asshole`\n",
-                encoding="utf-8",
-            )
-            (root / "AGENTS.md").write_text(
-                "Phrase each `find` around one decision-relevant unknown\n"
-                "If the result is noisy, narrow that same unknown once rather than launching parallel searches\n"
-                "Literal `asshole` is a separate lightweight durability marker\n"
-                "identify the lost core proposition/decision/action/evidence and what displaced it\n",
-                encoding="utf-8",
-            )
+            (root / "RULES.md").write_text("canonical rules can be reworded freely\n", encoding="utf-8")
+            (root / "AGENTS.md").write_text("canonical agents guidance can be reworded freely\n", encoding="utf-8")
             guidance = _bootstrap_critical_guidance(root)
-            self.assertEqual(guidance["status"], "ENFORCED")
-            self.assertEqual(guidance["authority"], "PROJECTION_ONLY_CANONICAL_RULES")
-            self.assertIn("no analogy unless explicitly requested", guidance["eli5"])
-            self.assertIn("recover lost core and displacement", guidance["slopwall"])
-            self.assertIn("tagged asshole", guidance["asshole"])
-            self.assertIn("one focused natural-language find", guidance["stack_find"])
-            self.assertIn("narrow that same unknown once", guidance["stack_find"])
+            self.assertEqual(guidance["mode"], "HINT_ONLY")
+            self.assertIn("material data/constraints/uncertainty", guidance["eli5"])
+            self.assertIn("RULES:ELI5", guidance["eli5"])
+            self.assertIn("no filler/process/proxy displacement", guidance["slopwall"])
+            self.assertIn("mandatory correction before final", guidance["slopwall"])
+            self.assertIn("corrected result first", guidance["asshole"])
+            self.assertIn("mandatory lightweight marker", guidance["asshole"])
+            self.assertIn("one decision-relevant unknown", guidance["stack_find"])
+            self.assertIn("narrow same unknown once", guidance["stack_find"])
             self.assertNotIn("missing", guidance)
+
+            (root / "AGENTS.md").unlink()
+            missing = _bootstrap_critical_guidance(root)
+            self.assertEqual(missing["mode"], "UNAVAILABLE")
+            self.assertEqual(missing["missing"], ["serving_rules_unreadable"])
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
@@ -478,7 +473,7 @@ class StackAtlasTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "OK")
         self.assertIn("critical_guidance", glance["bootstrap"])
-        self.assertEqual(glance["bootstrap"]["critical_guidance"]["authority"], "PROJECTION_ONLY_CANONICAL_RULES")
+        self.assertEqual(glance["bootstrap"]["critical_guidance"]["mode"], "HINT_ONLY")
         self.assertNotIn("notable_conditions", glance)
         self.assertEqual(glance["memory_overview"]["timeline_materialized"]["backfill_incomplete_sources"], ["github", "runner_logs"])
 
