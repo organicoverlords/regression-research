@@ -2267,7 +2267,7 @@ def _lock_owner_liveness(path: Path) -> bool | None:
         first_line = path.read_text(encoding="ascii").splitlines()[0].strip()
         return _pid_liveness(int(first_line))
     except (OSError, ValueError, IndexError):
-        return False
+        return None
 
 
 def _acquire_lock(path: Path) -> int | None:
@@ -2276,8 +2276,7 @@ def _acquire_lock(path: Path) -> int | None:
         return os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
         try:
-            age = time.time() - path.stat().st_mtime
-            if age > LOCK_STALE_MINUTES * 60 and _lock_owner_liveness(path) is False:
+            if _lock_owner_liveness(path) is False:
                 path.unlink(missing_ok=True)
                 return os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except OSError:
