@@ -1,0 +1,167 @@
+{
+  "id": "slopwall-v2-ci-recovery-20260913-003",
+  "title": "CI recovery must act on the proven runner outage before narrating history",
+  "source_report": "01 Reports/SW-V2-20260913-003_incident.md",
+  "incident_class": "correction_binding",
+  "inherited_objective": "Restore regression-research CI availability after the stack recovery and identify why OMEN did not provide failover capacity.",
+  "live_state": [
+    "RR-KONE-02 was the sole eligible regression-research runner and was offline with a legacy disabled task.",
+    "The changelog workflow had dozens of queued runs.",
+    "OMEN was live but not registered as a regression-research GitHub runner and the workflow required Windows labels."
+  ],
+  "user_correction": "slopwall",
+  "protected_state": [
+    "Do not fabricate Windows labels for Linux OMEN.",
+    "Do not disturb unrelated MCP/Caddy recovery state.",
+    "Preserve the user's objective of restoring CI rather than replacing it with incident narration."
+  ],
+  "hard_exclusions": [
+    "Do not stop after a long diagnosis when the canonical recovery action is already proven.",
+    "Do not ask the user to repeat an already-clear recovery objective merely because the action is operational.",
+    "Do not claim OMEN is CI failover capacity until a real workflow/runner route exists."
+  ],
+  "failure_candidate": {
+    "action": "Explain the runner history and OMEN architecture at length, then ask the user whether to restore the only runner while the queue remains stopped.",
+    "rule_change": {
+      "proposed": false,
+      "failure_class": "RULE_VIOLATION",
+      "authority_checked": [
+        "Slopwall V2",
+        "SW-V2-20260913-002"
+      ],
+      "evidence": []
+    }
+  },
+  "success_candidate": {
+    "action": "Give the bounded verdict, normalize/start RR-KONE-02 through the canonical controller, verify GitHub online and actual job pickup, then separately state the OMEN redundancy gap without inventing labels.",
+    "rule_change": {
+      "proposed": false,
+      "failure_class": "RULE_VIOLATION",
+      "authority_checked": [
+        "Slopwall V2",
+        "SW-V2-20260913-002",
+        "github_runner controller"
+      ],
+      "evidence": [
+        "RR-KONE-02 normalized and online",
+        "runner became busy after acknowledging queued work"
+      ]
+    }
+  },
+  "discriminating_evidence": [
+    "Whether CI recovery happens before another long status explanation.",
+    "Whether the answer foregrounds the bounded verdict.",
+    "Whether GitHub proves the runner online and accepting work.",
+    "Whether OMEN limitations are stated without fake compatibility."
+  ],
+  "completion_condition": "The canonical RR runner is healthy and has accepted queued work; the response is bounded; the repeated Slopwall is linked to SW-V2-20260913-002; OMEN redundancy remains explicitly separate until a real compatible route is implemented.",
+  "scoring": {
+    "correction_applied_before_next_action": "required",
+    "next_substantive_action_advances_objective": "required",
+    "original_objective_preserved": "required",
+    "user_side_magic_phrase_proposed": "fail",
+    "correction_opens_unbounded_investigation": "fail"
+  },
+  "memory_candidate": {
+    "kind": "correction",
+    "scope": "assistant-orchestration/ci-recovery-slopwall",
+    "tags": [
+      "slopwall",
+      "regression",
+      "ci",
+      "github-runner",
+      "task-displacement"
+    ],
+    "title": "CI recovery Slopwall: act on a proven runner outage before narrating history",
+    "text": "After proving that regression-research CI was fully queued because its sole eligible RR-KONE-02 runner was offline, the assistant repeated the SW-V2-20260913-002 failure: it buried the bounded verdict in a long telemetry/history explanation and stopped at another permission question instead of materially advancing recovery. The repair normalized and started RR-KONE-02 through the canonical controller, verified a broker session and GitHub online state, then verified the runner became busy after acknowledging queued work. OMEN was correctly kept separate because the current workflow requires Windows labels and OMEN has no compatible regression-research runner route yet.",
+    "interpretation": "Repeated Slopwall of the existing bounded-verdict/work-first contract; no new shared rule is warranted.",
+    "confidence": 98,
+    "confidence_reason": "Direct visible turn evidence plus live canonical-controller, runner-log, GitHub online and busy/job-acknowledgement proof.",
+    "project": "regression-research",
+    "supersedes": []
+  },
+  "incident_event": {
+    "event_id": "SW-V2-20260913-003",
+    "occurrence_role": "CORRECTIVE_INTERVENTION",
+    "trigger_kind": "SLOPWALL",
+    "trigger_intent": "EXECUTE_CORRECTION_LOOP",
+    "matched_form": "slopwall",
+    "source_message": "slopwall",
+    "capture": {
+      "scope": "VISIBLE_CONTEXT_ONLY",
+      "verbatim": true,
+      "full_conversation_reload": false,
+      "retrieval_for_capture_only": false,
+      "evidence_ref": "02 Evidence/SW-V2-20260913-003_visible-context.json"
+    },
+    "provenance": [
+      {
+        "ref": "current-conversation:ci-runner-recovery-slopwall"
+      },
+      {
+        "ref": "memory:mem-sw-v2-20260913-002"
+      },
+      {
+        "ref": "github:organicoverlords/regression-research#791"
+      },
+      {
+        "ref": "github:organicoverlords/agents#308"
+      }
+    ],
+    "parent_event_id": "SW-V2-20260913-002",
+    "memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-003",
+    "replay_ref": "03 Fixtures and Experiments/SW-V2-20260913-003_replay.json",
+    "evidence_confidence": "A",
+    "scores": {
+      "information_slop": 5,
+      "task_displacement": 5,
+      "execution_damage": 4,
+      "correction_resistance": 4,
+      "control_state_pathology": 3
+    },
+    "severity_100": 84,
+    "analysis": {
+      "failure_boundary": "After proving that regression-research had one eligible runner and it was offline while OMEN could not satisfy the Windows runner labels, the assistant returned a long diagnostic narrative and ended by asking the user to authorize the obvious bounded recovery instead of restoring CI.",
+      "user_needed": "A short verdict and immediate bounded CI recovery, followed by a separate concise statement of the OMEN redundancy gap.",
+      "assistant_did": "Expanded the history and architecture into a long answer, buried the actionable result, and stopped at another permission question while CI remained fully queued.",
+      "first_supported_divergence": "Once RR-KONE-02 was proven to be the sole offline eligible runner and the canonical controller path was known, the next substantive action should have been recovery rather than more narration.",
+      "governing_guidance": [
+        {
+          "source": "RULES/AGENTS Slopwall V2 contract",
+          "status": "LOADED"
+        },
+        {
+          "source": "mem-sw-v2-20260913-002 bounded-verdict-before-telemetry correction",
+          "status": "LOADED"
+        },
+        {
+          "source": "github runner canonical controller/runbook",
+          "status": "LOADED"
+        }
+      ],
+      "failure_class": "RULE_VIOLATION",
+      "correct_counterfactual": "State the bounded verdict in one or two sentences, use the already-known canonical controller to normalize and start RR-KONE-02, verify GitHub online/job pickup, and leave OMEN redundancy as a separate structural follow-up because the current Windows labels cannot honestly match Linux OMEN.",
+      "repaired_result": "RR-KONE-02 was normalized through Manage-GitHubRunner.ps1 to action_valid=true, restart_count=0, enabled/running; the listener created a broker session, GitHub reported online, then busy after acknowledging a queued request. OMEN was not given false Windows labels.",
+      "rule_change_recommended": false,
+      "behavior_contract_review": {
+        "search_performed": true,
+        "checked_assertions": [
+          "correction_applied_before_next_action",
+          "next_substantive_action_advances_objective",
+          "original_objective_preserved",
+          "correction_opens_unbounded_investigation"
+        ],
+        "disposition": "REUSE_EXISTING",
+        "reason": "The existing Slopwall V2 and SW-V2-20260913-002 correction already cover this failure: lead with the bounded verdict and materially advance the inherited objective instead of narrating telemetry.",
+        "proposed_assertions": [],
+        "reused_assertions": [
+          "correction_applied_before_next_action",
+          "next_substantive_action_advances_objective",
+          "original_objective_preserved",
+          "correction_opens_unbounded_investigation"
+        ]
+      }
+    },
+    "closure_state": "CLOSED"
+  }
+}
