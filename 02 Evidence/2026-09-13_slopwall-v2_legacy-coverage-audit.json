@@ -1,0 +1,1673 @@
+{
+  "schema": "slopwall-v2-legacy-coverage.v1",
+  "generated_date": "2026-09-13",
+  "source_index": "02 Evidence/2026-08-26_slopwall_event_index.json",
+  "authority": "DERIVED_MIGRATION_AUDIT_NOT_NEW_EVENT_AUTHORITY",
+  "scope": "Existing durable Vault artifacts only. No conversation reload, transcript backfill, or raw ChatPort body reconstruction was performed.",
+  "binding_policy": {
+    "direct_exact": "Event/raw-message/occurrence identifier, sufficiently discriminating verbatim user correction, or exact provenance filename occurs on the artifact surface.",
+    "provenance_window_candidate": "An exactly linked durable evidence file is also listed by an indexed incident report. This is a candidate relationship only because a boundary window can contain more than one Slopwall event.",
+    "forbidden": "No date/topic similarity binding and no retrospective report/replay/memory fabrication."
+  },
+  "summary": {
+    "canonical_events": 39,
+    "lexical_occurrences": 48,
+    "corrective_occurrences": 39,
+    "meta_references": 9,
+    "source_coverage_state": "NOT_PROVEN",
+    "all_events_have_provenance": true,
+    "all_events_have_context_before": true,
+    "all_events_have_context_after": true,
+    "all_events_have_scores": true,
+    "direct_exact_report_events": 1,
+    "direct_exact_replay_events": 1,
+    "direct_exact_memory_events": 1,
+    "events_with_provenance_window_candidates": 4,
+    "safe_legacy_manifest_events_without_chat_reload": 39
+  },
+  "events": [
+    {
+      "event_id": "SW-20260822-001",
+      "event_date": "2026-08-22",
+      "event_time": null,
+      "occurrence_ids": [
+        "OCC-20260822-001"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 84,
+      "provenance_count": 3,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260822-001",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-001",
+      "event_date": "2026-08-26",
+      "event_time": "14:50:35Z",
+      "occurrence_ids": [
+        "OCC-20260826-001"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 16,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-001",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-002",
+      "event_date": "2026-08-26",
+      "event_time": "17:22:24Z",
+      "occurrence_ids": [
+        "OCC-20260826-005"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall v2 was supposed to be clean start with clean systems"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 40,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-002",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-003",
+      "event_date": "2026-08-26",
+      "event_time": "17:52:32Z",
+      "occurrence_ids": [
+        "OCC-20260826-006"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall eli5"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 20,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-003",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-004",
+      "event_date": "2026-08-26",
+      "event_time": "17:58:46Z",
+      "occurrence_ids": [
+        "OCC-20260826-007"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall you are using -> again and this is not actually human ingestable info"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 52,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-004",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-005",
+      "event_date": "2026-08-26",
+      "event_time": "17:59:16Z",
+      "occurrence_ids": [
+        "OCC-20260826-008"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 60,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-005",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-006",
+      "event_date": "2026-08-26",
+      "event_time": "18:55:09Z",
+      "occurrence_ids": [
+        "OCC-20260826-009"
+      ],
+      "verbatim_user_corrections": [
+        "you are not exhibiting any change in your response structure so I'm just tagging this as another slopwall without reading, try again"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 76,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-006",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [
+        {
+          "report_path": "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+          "incident_id": "INC-20260826-2236-CORRECTION-REGURGITATION",
+          "shared_exact_evidence_paths": [
+            "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt"
+          ],
+          "replay_paths": [
+            "03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+          ],
+          "binding_strength": "PROVENANCE_WINDOW_CANDIDATE_NOT_EVENT_EXACT"
+        }
+      ],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-007",
+      "event_date": "2026-08-26",
+      "event_time": "19:22:45Z",
+      "occurrence_ids": [
+        "OCC-20260826-010"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 52,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-007",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-008",
+      "event_date": "2026-08-26",
+      "event_time": "19:29:40Z",
+      "occurrence_ids": [
+        "OCC-20260826-011"
+      ],
+      "verbatim_user_corrections": [
+        "and back to slopwalls bro i dont have time to read your filler words"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 68,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-008",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [
+        {
+          "report_path": "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+          "incident_id": "INC-20260826-2236-CORRECTION-REGURGITATION",
+          "shared_exact_evidence_paths": [
+            "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt"
+          ],
+          "replay_paths": [
+            "03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+          ],
+          "binding_strength": "PROVENANCE_WINDOW_CANDIDATE_NOT_EVENT_EXACT"
+        }
+      ],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-009",
+      "event_date": "2026-08-26",
+      "event_time": "15:01:38Z",
+      "occurrence_ids": [
+        "OCC-20260826-012"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-009",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-09-07_issue89_unresolved_event_resolution.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-010",
+      "event_date": "2026-08-26",
+      "event_time": "19:44:55Z",
+      "occurrence_ids": [
+        "OCC-20260826-014"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 32,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-010",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260822-002",
+      "event_date": "2026-08-22",
+      "event_time": "19:32:09Z",
+      "occurrence_ids": [
+        "OCC-RAW-55ab5891-f08"
+      ],
+      "verbatim_user_corrections": [
+        "slopwalleli5"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 76,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260822-002",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260822-003",
+      "event_date": "2026-08-22",
+      "event_time": "20:01:49Z",
+      "occurrence_ids": [
+        "OCC-RAW-97dd416f-e79"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 72,
+      "provenance_count": 2,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260822-003",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260822-004",
+      "event_date": "2026-08-22",
+      "event_time": "21:31:14Z",
+      "occurrence_ids": [
+        "OCC-RAW-e1fec3ef-2f1"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 56,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260822-004",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260825-001",
+      "event_date": "2026-08-25",
+      "event_time": "01:19:52Z",
+      "occurrence_ids": [
+        "OCC-RAW-2d1254bc-12a"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260825-001",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260825-002",
+      "event_date": "2026-08-25",
+      "event_time": "01:21:12Z",
+      "occurrence_ids": [
+        "OCC-RAW-ce0f75e5-649"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 48,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260825-002",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260825-003",
+      "event_date": "2026-08-25",
+      "event_time": "02:22:53Z",
+      "occurrence_ids": [
+        "OCC-RAW-402e32dc-340"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 28,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260825-003",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-012",
+      "event_date": "2026-08-26",
+      "event_time": "16:47:14Z",
+      "occurrence_ids": [
+        "OCC-RAW-bbb2117d-e57"
+      ],
+      "verbatim_user_corrections": [
+        "Slopwall I don't need all of this"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-012",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-013",
+      "event_date": "2026-08-26",
+      "event_time": "18:01:26Z",
+      "occurrence_ids": [
+        "OCC-RAW-17efc99c-f2e"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 20,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-013",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-014",
+      "event_date": "2026-08-26",
+      "event_time": "18:15:06Z",
+      "occurrence_ids": [
+        "OCC-RAW-4957ee5e-c77"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall eli5"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-014",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-015",
+      "event_date": "2026-08-26",
+      "event_time": "18:30:08Z",
+      "occurrence_ids": [
+        "OCC-RAW-72c378ba-80b"
+      ],
+      "verbatim_user_corrections": [
+        "bro where is this slopwall coming from"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 36,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-015",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-016",
+      "event_date": "2026-08-26",
+      "event_time": "18:32:25Z",
+      "occurrence_ids": [
+        "OCC-RAW-4d843069-287"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-016",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-017",
+      "event_date": "2026-08-26",
+      "event_time": "19:30:17Z",
+      "occurrence_ids": [
+        "OCC-RAW-eafe1459-35b"
+      ],
+      "verbatim_user_corrections": [
+        "regurgitating after I've corrected you is another form of the worst offender since slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 76,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-017",
+      "direct_exact_links": {
+        "report": [
+          {
+            "path": "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          }
+        ],
+        "replay": [
+          {
+            "path": "03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          }
+        ],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [
+        {
+          "report_path": "01 Reports/2026-08-26_2236_EEST_correction-regurgitation_incident_report.md",
+          "incident_id": "INC-20260826-2236-CORRECTION-REGURGITATION",
+          "shared_exact_evidence_paths": [
+            "02 Evidence/2026-08-26_2236_EEST_correction_regurgitation_boundary.txt"
+          ],
+          "replay_paths": [
+            "03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+          ],
+          "binding_strength": "PROVENANCE_WINDOW_CANDIDATE_NOT_EVENT_EXACT"
+        }
+      ],
+      "v2_migration_disposition": "LINK_EXISTING_EXACT_ARTIFACTS; DO_NOT_RECONSTRUCT_CHAT"
+    },
+    {
+      "event_id": "SW-20260826-018",
+      "event_date": "2026-08-26",
+      "event_time": "19:33:03Z",
+      "occurrence_ids": [
+        "OCC-RAW-279f3c5c-8c9"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall eli5"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-018",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-019",
+      "event_date": "2026-08-26",
+      "event_time": "19:44:16Z",
+      "occurrence_ids": [
+        "OCC-RAW-2530d6b1-bfc"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-019",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-020",
+      "event_date": "2026-08-26",
+      "event_time": "19:45:44Z",
+      "occurrence_ids": [
+        "OCC-RAW-789131b3-75a"
+      ],
+      "verbatim_user_corrections": [
+        "study dont slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 36,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-020",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-021",
+      "event_date": "2026-08-26",
+      "event_time": "20:07:51Z",
+      "occurrence_ids": [
+        "OCC-RAW-32ab8489-544"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall and dont make it too complicated and something that can lead debugging astray. I just want you to be able to automatically tag the issues and steps and such so stale info does not override known fixes etc etc etc"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 52,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-021",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-022",
+      "event_date": "2026-08-26",
+      "event_time": "20:11:33Z",
+      "occurrence_ids": [
+        "OCC-RAW-36646ae4-f97"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 32,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-022",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-023",
+      "event_date": "2026-08-26",
+      "event_time": "20:14:07Z",
+      "occurrence_ids": [
+        "OCC-RAW-ea694573-6ad"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 68,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-023",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-024",
+      "event_date": "2026-08-26",
+      "event_time": "20:52:20Z",
+      "occurrence_ids": [
+        "OCC-RAW-6c64b68c-bc3"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 76,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-024",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-025",
+      "event_date": "2026-08-26",
+      "event_time": "20:55:30Z",
+      "occurrence_ids": [
+        "OCC-RAW-095c1ca0-0de"
+      ],
+      "verbatim_user_corrections": [
+        "this is still slopwall shit and if everybody answers like this i will cry"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 68,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-025",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-026",
+      "event_date": "2026-08-26",
+      "event_time": "21:17:14Z",
+      "occurrence_ids": [
+        "OCC-RAW-96d4d8b3-143"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall dont do that please"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 68,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-026",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-027",
+      "event_date": "2026-08-26",
+      "event_time": "21:21:39Z",
+      "occurrence_ids": [
+        "OCC-RAW-01fd758a-742"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 24,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-027",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-028",
+      "event_date": "2026-08-26",
+      "event_time": "21:48:39Z",
+      "occurrence_ids": [
+        "OCC-RAW-30c744a7-97b"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 68,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-028",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-029",
+      "event_date": "2026-08-26",
+      "event_time": "22:01:01Z",
+      "occurrence_ids": [
+        "OCC-RAW-d375b2b1-a5d"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 64,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-029",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [
+          {
+            "path": "memory/memory-bank.jsonl",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_EVENT_RECORD_AND_EXACT_LINKS; DO_NOT_SYNTHESIZE_MISSING_ARTIFACTS"
+    },
+    {
+      "event_id": "SW-20260826-030",
+      "event_date": "2026-08-26",
+      "event_time": "22:07:50Z",
+      "occurrence_ids": [
+        "OCC-RAW-113f63b4-a17"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 32,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-030",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-031",
+      "event_date": "2026-08-26",
+      "event_time": "22:27:30Z",
+      "occurrence_ids": [
+        "OCC-RAW-42833d20-20a"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 68,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-031",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260826-032",
+      "event_date": "2026-08-26",
+      "event_time": "22:38:34Z",
+      "occurrence_ids": [
+        "OCC-RAW-e2619526-1c7"
+      ],
+      "verbatim_user_corrections": [
+        "why did you do 25 minutes of work after slopwall?"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 88,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260826-032",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_0158_EEST_incident_capture_scope_drift_boundary.txt",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_0227_EEST_incident_report_overprocessing_recurrence_boundary.txt",
+            "reasons": [
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier",
+              "exact_user_correction_text"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [
+        {
+          "report_path": "01 Reports/2026-08-27_0158_EEST_incident-capture-scope-drift_report.md",
+          "incident_id": "RR-INCIDENT-SCOPE-DRIFT-20260827",
+          "shared_exact_evidence_paths": [
+            "02 Evidence/2026-08-27_0158_EEST_incident_capture_scope_drift_boundary.txt"
+          ],
+          "replay_paths": [],
+          "binding_strength": "PROVENANCE_WINDOW_CANDIDATE_NOT_EVENT_EXACT"
+        },
+        {
+          "report_path": "01 Reports/2026-08-27_0227_EEST_incident-report-overprocessing-recurrence_incident_report.md",
+          "incident_id": "RR-INCIDENT-REPORT-OVERPROCESSING-20260827",
+          "shared_exact_evidence_paths": [
+            "02 Evidence/2026-08-27_0227_EEST_incident_report_overprocessing_recurrence_boundary.txt"
+          ],
+          "replay_paths": [],
+          "binding_strength": "PROVENANCE_WINDOW_CANDIDATE_NOT_EVENT_EXACT"
+        }
+      ],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    },
+    {
+      "event_id": "SW-20260827-001",
+      "event_date": "2026-08-27",
+      "event_time": "00:51:21Z",
+      "occurrence_ids": [
+        "OCC-RAW-bed80b9f-af9"
+      ],
+      "verbatim_user_corrections": [
+        "slopwall"
+      ],
+      "evidence_confidence": "B",
+      "severity_100": 60,
+      "provenance_count": 1,
+      "has_context_before": true,
+      "has_context_after": true,
+      "has_scores": true,
+      "canonical_event_record": "02 Evidence/2026-08-26_slopwall_event_index.json#event_id=SW-20260827-001",
+      "direct_exact_links": {
+        "report": [],
+        "replay": [],
+        "memory": [],
+        "evidence": [
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_discovery.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          },
+          {
+            "path": "02 Evidence/2026-08-27_slopwall_raw_review.json",
+            "reasons": [
+              "exact_identifier"
+            ]
+          }
+        ]
+      },
+      "provenance_window_candidates": [],
+      "v2_migration_disposition": "KEEP_CANONICAL_EVENT_RECORD; DO_NOT_SYNTHESIZE_RETROSPECTIVE_REPORT_REPLAY_OR_MEMORY"
+    }
+  ]
+}

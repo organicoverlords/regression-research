@@ -23,11 +23,18 @@ STACK_PATHS = {
     "docs/assistant-stack-operational-atlas.md",
     "tests/fixtures/stack-atlas-pid-29864.json",
     "tests/test_stack_atlas.py",
+    "tests/test_slopwall_v2_bootstrap.py",
     "tests/test_issue693_fresh_worker_entry.py",
     "tests/fixtures/issue693_fresh_worker_entry.json",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
+    "tools/slopwall_v2.py",
     "tests/test_replay_scoring.py",
+    "tests/test_behavior_regression_contract.py",
+    "tests/test_slopwall_v2.py",
+    "04 Operating Contracts/assistant-behavior-regression.md",
+    "04 Operating Contracts/slopwall-v2-capture-contract.md",
+    "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json",
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
@@ -199,6 +206,9 @@ def verify_stack() -> None:
                     "tools/stack_atlas.py",
             "tools/tiny3d_atlas_projection.py",
             "tools/replay_scoring.py",
+            "tools/slopwall_v2.py",
+            "tools/behavior_incident_capture.py",
+            "tools/behavior_incident_close.py",
         ]
     )
     run(
@@ -207,6 +217,7 @@ def verify_stack() -> None:
             "-m",
             "unittest",
             "tests.test_stack_atlas",
+            "tests.test_slopwall_v2_bootstrap",
             "tests.test_replay_scoring",
             "tests.test_tiny3d_atlas_projection",
             "tests.test_issue693_fresh_worker_entry",
@@ -217,6 +228,14 @@ def verify_stack() -> None:
             "tests.test_issue123_response_shape",
             "tests.test_north_star_entry",
             "-v",
+        ]
+    )
+    run_pytest(
+        [
+            "tests/test_behavior_regression_contract.py",
+            "tests/test_slopwall_v2.py",
+            "tests/test_behavior_incident_capture.py",
+            "tests/test_behavior_incident_close.py",
         ]
     )
     print("ASSISTANT_STACK_POLICY_PROVEN")

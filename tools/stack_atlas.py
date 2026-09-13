@@ -316,6 +316,14 @@ COMPONENT_ALIASES = {
     "worktree hygiene task": "worktree_hygiene",
     "timeline materializer": "timeline_materializer",
     "vault timeline materializer": "timeline_materializer",
+    "behavior regressions": "assistant_behavior_regressions",
+    "behavior regression": "assistant_behavior_regressions",
+    "replay scoring": "assistant_behavior_regressions",
+    "replay fixture": "assistant_behavior_regressions",
+    "behavior contract": "assistant_behavior_regressions",
+    "acceptance contract": "assistant_behavior_regressions",
+    "slopwall replay": "assistant_behavior_regressions",
+    "incident report": "assistant_behavior_regressions",
 }
 
 ATLAS_CONTRACT = {
@@ -327,6 +335,31 @@ ATLAS_CONTRACT = {
     "live_status": "fetch from the named live authority at use time; Atlas never promotes cached status to current truth",
 }
 COMPONENTS: dict[str, dict[str, Any]] = {
+    "assistant_behavior_regressions": {
+        "role": "assistant_behavior_regression_owner",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
+            r"C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\behavior_incident_capture.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\behavior_incident_close.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\slopwall_v2.py",
+            r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
+            r"C:\Users\Lauri\Desktop\vault\tools\verify.py",
+        ],
+        "live_status": [
+            "provider-free replay scoring against tracked fixtures",
+            "bounded transactional behavior-incident capture from explicit visible context",
+            "resumable canonical-memory closure through memory_bank owner",
+            "repository verification for fixture/scorer regression coverage",
+        ],
+        "supervisor": "none; repository-owned deterministic tests",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["Git history preserves incident reports, fixtures, scorer and tests"],
+        "resources": ["incident reports", "visible-context capture bundles", "replay fixtures", "behavior-contract assertions", "deterministic scorer"],
+        "dependents": ["agent_rules", "memory_bank"],
+        "runbook": [r"04 Operating Contracts\assistant-behavior-regression.md", r"tools\behavior_incident_capture.py", r"tools\behavior_incident_close.py", r"tools\slopwall_v2.py", r"tools\replay_scoring.py"],
+    },
     "busy_coordinator": {
         "role": "coordination_authority",
         "capabilities": ["coordination"],
@@ -783,6 +816,24 @@ MCP_SHARED_PRODUCTION_COMPONENTS = frozenset({
 
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "assistant.behavior_regressions": {
+        "owner_components": ["assistant_behavior_regressions", "agent_rules", "memory_bank"],
+        "triggers": [
+            "behavior regression", "assistant regression", "behavior contract", "acceptance contract",
+            "replay fixture", "replay scoring", "regression scoring", "correction binding",
+            "slopwall replay", "incident replay", "incident report", "behavior incident capture", "incident closure", "canonical memory closure", "visible context capture", "executable behavior contract",
+        ],
+        "entrypoints": [
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
+            r"python C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\behavior_incident_capture.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\behavior_incident_close.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\slopwall_v2.py --help",
+            r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
+            r"python C:\Users\Lauri\Desktop\vault\tools\verify.py --all",
+        ],
+        "boundary": "Rules/prose state desired behavior but do not prove regression resistance. Behavior-incident capture consumes explicit agent-visible context only and transactionally materializes evidence/report/replay/pending-memory/provenance; it never retrieves whole-chat history or writes canonical memory. Closure delegates canonical memory to `memory_bank` under a deterministic event ID and resumably finalizes replay/provenance. Incident reports preserve what failed; replay fixtures encode bounded historical failure/success controls; deterministic scoring/verification tests candidate next actions. Reuse an existing behavior contract when it covers the failure. Promote a new shared behavior contract only when evidence proves a reusable uncovered invariant; do not turn every incident into another global rule or registry entry.",
+    },
     "orchestration.operator": {
         "owner_components": ["agent_rules"],
         "triggers": ["orchestrator", "designated orchestrator", "operator", "operator role", "orchestration policy"],
@@ -3555,7 +3606,35 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
     return {"status": "MISMATCH", "version": None, "rules_version": rules_version, "agents_version": agents_version}
 
 
-_SLOPWALL_RULES_INVARIANTS = {
+_SLOPWALL_V2_RULES_INVARIANTS = {
+    "investigation": "response/task-quality regression investigation",
+    "failed_boundary": "Treat the immediately preceding assistant reply/action or repair attempt as the failed boundary",
+    "guidance": "which governing user/system/shared rules or evidence were loaded or otherwise available",
+    "divergence": "the first supported divergence",
+    "classification": "rule violation, rule missed/not loaded, rule gap/conflict, authority selection, or ordinary reasoning/action selection",
+    "diagnosis": "Expose a bounded useful diagnosis to the user",
+    "repair": "materially answer/execute the inherited objective better",
+    "durability": "incident record, replay fixture, bounded score/confidence",
+    "memory_contract": "searchable memory pointer, and behavior-contract review",
+    "capture": "Capture is visible-context only",
+    "no_backfill": "never load, reconstruct, export, or backfill the whole conversation",
+    "incident_report": "`incident report`, when the user uses it as a command about the preceding assistant/system failure, starts the **same V2 behavior-incident loop**",
+    "meta_not_trigger": "A meta-reference or question about the phrase `incident report` is not a trigger",
+}
+_SLOPWALL_V2_AGENTS_INVARIANTS = {
+    "loop": "explicit `slopwall` and command-form `incident report` enter the V2 behavior-incident loop",
+    "failed_boundary": "first establish the immediately preceding failed reply/action/repair as the failure boundary",
+    "diagnosis": "Give the user the bounded useful diagnosis",
+    "repair": "then materially repair/resume the inherited objective",
+    "durability": "incident record/report, replay fixture, bounded score/confidence or `UNSCORABLE`",
+    "capture": "Raw capture is `VISIBLE_CONTEXT_ONLY`",
+    "no_backfill": "Never load/reconstruct/backfill the whole conversation just to complete an incident",
+    "retrigger": "If another corrective trigger arrives before closure, make the failed repair a linked child event",
+}
+
+# Temporary rollout compatibility: Vault can land before the shared V2 rules without
+# degrading bootstrap or projecting semantics that are not yet canonical.
+_SLOPWALL_LEGACY_RULES_INVARIANTS = {
     "incident": "`slopwall` is a **mandatory correction-and-learning incident**",
     "reread": "re-read this canonical Slopwall rule and the matching AGENTS.md correction owner before finalizing the correction",
     "compare": "compare the failed reply/action directly against the inherited objective",
@@ -3568,7 +3647,7 @@ _SLOPWALL_RULES_INVARIANTS = {
     "lost_core_record": "The durable correction must name the lost core and the displacement",
     "not_length": "A slopwall is not defined by length",
 }
-_SLOPWALL_AGENTS_INVARIANTS = {
+_SLOPWALL_LEGACY_AGENTS_INVARIANTS = {
     "learning_loop": "literal `slopwall` additionally requires a bounded durable learning loop",
     "reread": "re-read the canonical Slopwall rule plus this correction owner",
     "lost_core": "identify the lost core proposition/decision/action/evidence and what displaced it",
@@ -3579,40 +3658,84 @@ _SLOPWALL_AGENTS_INVARIANTS = {
 }
 
 
+def _missing_behavior_invariants(rules: str, agents: str, rules_invariants: dict[str, str], agents_invariants: dict[str, str]) -> list[str]:
+    return [
+        *(f"RULES:{key}" for key, phrase in rules_invariants.items() if phrase not in rules),
+        *(f"AGENTS:{key}" for key, phrase in agents_invariants.items() if phrase not in agents),
+    ]
+
+
 def _bootstrap_slopwall_contract(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
-    """Project the serving Slopwall process into every fresh-chat bootstrap."""
+    """Project only the behavior-incident semantics actually present in serving shared rules."""
     root = Path(agent_rules_root)
     try:
         rules = (root / "RULES.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
     except OSError:
-        return {"status": "MISSING", "trigger": "literal_slopwall", "missing": ["serving_rules_unreadable"]}
+        return {"status": "MISSING", "trigger": "behavior_incident", "missing": ["serving_rules_unreadable"]}
 
-    missing = [
-        *(f"RULES:{key}" for key, phrase in _SLOPWALL_RULES_INVARIANTS.items() if phrase not in rules),
-        *(f"AGENTS:{key}" for key, phrase in _SLOPWALL_AGENTS_INVARIANTS.items() if phrase not in agents),
+    v2_missing = _missing_behavior_invariants(rules, agents, _SLOPWALL_V2_RULES_INVARIANTS, _SLOPWALL_V2_AGENTS_INVARIANTS)
+    if not v2_missing:
+        return {
+            "status": "ENFORCED",
+            "version": "V2",
+            "triggers": ["slopwall", "incident_report"],
+            "capture": "VISIBLE_CONTEXT_ONLY + verbatim + no_full_conversation_reload_or_backfill",
+            "process": "failed_boundary > inspect_governing_guidance_and_evidence > supported_failure_class > bounded_user_visible_diagnosis > repair_inherited_objective > persist_incident_replay_score_memory_contract_review; repeated_trigger_links_failed_repair",
+        }
+
+    legacy_missing = _missing_behavior_invariants(rules, agents, _SLOPWALL_LEGACY_RULES_INVARIANTS, _SLOPWALL_LEGACY_AGENTS_INVARIANTS)
+    if not legacy_missing:
+        return {
+            "status": "ENFORCED",
+            "version": "LEGACY_V84",
+            "triggers": ["slopwall"],
+            "process": "reread_canonical_rule > compare_failed_answer_to_objective > recover_lost_core > identify_displacement > best_supported_mechanism > condition/action_prevention > repair_task > mandatory_durable_correction; not brevity/apology",
+            "transition": "legacy accepted only until serving shared rules expose the V2 behavior-incident contract",
+        }
+
+    v2_rules_missing = [
+        f"RULES:{key}" for key, phrase in _SLOPWALL_V2_RULES_INVARIANTS.items() if phrase not in rules
     ]
-    contract = {
-        "status": "ENFORCED" if not missing else "DRIFTED",
-        "process": "reread_canonical_rule > compare_failed_answer_to_objective > recover_lost_core > identify_displacement > best_supported_mechanism > condition/action_prevention > repair_task > mandatory_durable_correction; not brevity/apology",
+    legacy_rules_missing = [
+        f"RULES:{key}" for key, phrase in _SLOPWALL_LEGACY_RULES_INVARIANTS.items() if phrase not in rules
+    ]
+    if not v2_rules_missing:
+        return {
+            "status": "DRIFTED",
+            "version": "V2",
+            "missing": v2_missing,
+            "legacy_missing": legacy_missing,
+        }
+    if not legacy_rules_missing:
+        return {
+            "status": "DRIFTED",
+            "version": "LEGACY_V84",
+            "missing": legacy_missing,
+            "v2_missing": v2_missing,
+        }
+    return {
+        "status": "DRIFTED",
+        "version": "UNKNOWN",
+        "missing": v2_missing,
+        "legacy_missing": legacy_missing,
     }
-    if missing:
-        contract["missing"] = missing
-    return contract
 
 
 def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
-    """Project prevention hints plus pointers back to the canonical rules."""
+    """Project compact hints that follow the behavior contract actually present in serving shared rules."""
     root = Path(agent_rules_root)
     try:
-        (root / "RULES.md").read_text(encoding="utf-8")
-        (root / "AGENTS.md").read_text(encoding="utf-8")
+        rules = (root / "RULES.md").read_text(encoding="utf-8")
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
     except OSError:
         return {"mode": "UNAVAILABLE", "missing": ["serving_rules_unreadable"]}
-    return {
+
+    v2_active = not _missing_behavior_invariants(rules, agents, _SLOPWALL_V2_RULES_INVARIANTS, _SLOPWALL_V2_AGENTS_INVARIANTS)
+    guidance = {
         "mode": "HINT_ONLY",
+        "behavior_incident_version": "V2" if v2_active else "LEGACY_V84",
         "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty; strip jargon/process; no analogy unless asked | RULES:ELI5",
-        "slopwall": "keep inherited objective/core foregrounded; no filler/process/proxy displacement | RULES:slopwall + AGENTS:correction; repair first; mandatory correction before final",
         "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
         "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
         "shared_correction": "shared/swarm correction: RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; claim fixed only after durable canonical proof; if infra/orchestration/scheduler intent is still being shaped, discuss first/no mutation | RULES:shared-behavior-correction + swarm-direction",
@@ -3633,6 +3756,17 @@ def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT
             "causality_gate": "Cross-class causality requires explicit correlated evidence; a shared log path/name is not a classification.",
         },
     }
+    if v2_active:
+        guidance.update({
+            "slopwall": "failed boundary first; inspect governing guidance/evidence and classify supported failure; bounded diagnosis > repair inherited objective > incident/replay/score/memory/contract review; capture visible context verbatim only, never reload/backfill whole chat; repeated corrective trigger links the failed repair | RULES:slopwall + AGENTS:correction",
+            "incident_report": "command-form trigger uses the same V2 loop even when failure is not Slopwall; meta-reference is not a trigger; visible-context-only verbatim capture; no unrelated mutation authority | RULES:incident report + AGENTS:correction",
+        })
+    else:
+        guidance.update({
+            "slopwall": "keep inherited objective/core foregrounded; no filler/process/proxy displacement | RULES:slopwall + AGENTS:correction; repair first; mandatory correction before final",
+            "incident_report": "not a canonical trigger under the currently serving legacy behavior contract; do not infer V2 semantics before shared rules land",
+        })
+    return guidance
 
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
