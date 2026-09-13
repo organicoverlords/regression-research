@@ -9,7 +9,7 @@ from pathlib import Path
 
 from tools.live_swarm import (
     _action_mode, _actor_candidate_map, _canonical_actor_specs, _command_target, _git_identity, _read_window,
-    _recurring_actor_evidence, _repo_root, _resolve_busy_identity, _resolve_caller_identity, _workspace,
+    _recurring_actor_evidence, _repo_root, _report_identity_candidates, _resolve_busy_identity, _resolve_caller_identity, _workspace,
     build_live_swarm_snapshot, compact_for_bootstrap,
     identify_current_actor,
 )
@@ -134,6 +134,37 @@ class LiveSwarmTests(unittest.TestCase):
         self.assertEqual(by_actor["S2/Juniper"]["evidence_state"],"NO_RECENT_EVIDENCE")
         self.assertNotIn("health",by_actor["S2/Juniper"])
         self.assertNotIn("liveness",by_actor["S2/Juniper"])
+
+    def test_report_self_metadata_exact_automation_id_can_attribute_current_actor(self):
+        specs=[
+            {"actor":"S1/Alder","partition":"s1","slot_id":"S1/5","automation_id":"6aa5be5a9ebc8191a8d136b23e5a4666","name":"alder","name_unique":True},
+            {"actor":"S2/Alder","partition":"s2","slot_id":"S2/5","automation_id":"6a9ee46471a88191b478716a47a38cc4","name":"alder","name_unique":False},
+        ]
+        command=(
+            r"$p='C:\Users\Lauri\Desktop\vault\worker-reports\current\6aa5be5a9ebc8191a8d136b23e5a4666.md'; "
+            "@'\nautomation_id: 6aa5be5a9ebc8191a8d136b23e5a4666\ndisplay_label: Repo Worker Alder S1 New\n'@"
+        )
+        detail={"caller_id":"caller_worker","worktree":None,"_identity_command":command}
+        identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
+        self.assertEqual(identity["actor"],"S1/Alder")
+        self.assertEqual(identity["source"],"resolved")
+        self.assertEqual(identity["resolved_by"],["report_self_metadata"])
+
+    def test_mutating_exact_current_report_path_can_attribute_without_embedded_metadata(self):
+        specs=[{"actor":"S2/Rowan","partition":"s2","slot_id":"S2/1","automation_id":"6a9ee44357908191a11023d4ff0b5b82","name":"rowan","name_unique":True}]
+        command=r"$p='C:\Users\Lauri\Desktop\vault\worker-reports\current\6a9ee44357908191a11023d4ff0b5b82.md'; $start=(Select-String -LiteralPath $p -Pattern '^started_at:')"
+        detail={"caller_id":"caller_worker","worktree":None,"action_class":"mutate","_identity_command":command}
+        identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
+        self.assertEqual(identity["actor"],"S2/Rowan")
+        self.assertEqual(identity["resolved_by"],["report_mutation_target"])
+
+    def test_report_path_read_without_matching_self_metadata_does_not_attribute(self):
+        specs=[{"actor":"S1/Alder","partition":"s1","slot_id":"S1/5","automation_id":"6aa5be5a9ebc8191a8d136b23e5a4666","name":"alder","name_unique":True}]
+        command=r"Get-Content C:\Users\Lauri\Desktop\vault\worker-reports\current\6aa5be5a9ebc8191a8d136b23e5a4666.md -Raw"
+        self.assertEqual(_report_identity_candidates({"action_class":"inspect","_identity_command":command},specs),{})
+        detail={"caller_id":"caller_reader","worktree":None,"_identity_command":command}
+        identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
+        self.assertEqual(identity["status"],"UNATTRIBUTED")
 
     def test_explicit_actor_wins_resolver_mismatch_without_health_failure(self):
         now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)

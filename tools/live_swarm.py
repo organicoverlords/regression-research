@@ -338,18 +338,19 @@ def _actor_specs_from_slot_snapshot(snapshot: dict[str, Any]) -> list[dict[str, 
     if snapshot.get("status") != "OK":
         return []
 
-    raw: list[tuple[str, str, str]] = []
+    raw: list[tuple[str, str, str, str]] = []
     for binding in snapshot.get("bound_workers", []):
         if not isinstance(binding, dict):
             continue
         partition = str(binding.get("partition") or "").strip().upper()
         slot_id = str(binding.get("slot_id") or "").strip().upper()
+        automation_id = str(binding.get("automation_id") or "").strip().casefold()
         name = _actor_name_from_binding_label(str(binding.get("label") or ""), partition)
         if partition and slot_id and name:
-            raw.append((partition, slot_id, name))
+            raw.append((partition, slot_id, name, automation_id))
 
     counts: dict[str, int] = {}
-    for _, _, name in raw:
+    for _, _, name, _ in raw:
         key = name.casefold()
         counts[key] = counts.get(key, 0) + 1
     return [
@@ -357,16 +358,40 @@ def _actor_specs_from_slot_snapshot(snapshot: dict[str, Any]) -> list[dict[str, 
             "actor": f"{partition}/{name}",
             "partition": partition.casefold(),
             "slot_id": slot_id,
+            "automation_id": automation_id,
             "name": name.casefold(),
             "name_unique": counts.get(name.casefold(), 0) == 1,
         }
-        for partition, slot_id, name in raw
+        for partition, slot_id, name, automation_id in raw
     ]
 
 
 def _canonical_actor_specs(root: Path | None = None) -> list[dict[str, Any]]:
     actor_root = root or _repo_root()
     return _actor_specs_from_slot_snapshot(load_slot_snapshot(actor_root))
+
+
+def _report_identity_candidates(detail: dict[str, Any], specs: list[dict[str, Any]]) -> dict[str, set[str]]:
+    """Use exact current-report writes/self-metadata as optional identity evidence, never liveness."""
+    command_text = str(detail.get("_identity_command") or "")
+    if not command_text:
+        return {}
+    action = re.sub(r"[^a-z0-9]+", "_", str(detail.get("action_class") or "").casefold()).strip("_")
+    mutating_action = action == "mutate" or action.startswith("mutate_") or action in {"write", "report_write", "report_update"}
+    candidates: dict[str, set[str]] = {}
+    for spec in specs:
+        automation_id = str(spec.get("automation_id") or "").strip().casefold()
+        if not re.fullmatch(r"[0-9a-f]{32}", automation_id):
+            continue
+        report_pattern = rf"worker-reports[\\/]+current[\\/]+{re.escape(automation_id)}\.md"
+        if not re.search(report_pattern, command_text, flags=re.I):
+            continue
+        metadata_pattern = rf"automation_id\s*:\s*{re.escape(automation_id)}(?:\s|$)"
+        has_self_metadata = bool(re.search(metadata_pattern, command_text, flags=re.I))
+        if mutating_action or has_self_metadata:
+            source = "report_mutation_target" if mutating_action else "report_self_metadata"
+            candidates.setdefault(str(spec["actor"]), set()).add(source)
+    return candidates
 
 
 def _actor_candidate_map(detail: dict[str, Any], busy_entries: list[dict[str, Any]], specs: list[dict[str, Any]]) -> dict[str, set[str]]:
@@ -383,7 +408,7 @@ def _actor_candidate_map(detail: dict[str, Any], busy_entries: list[dict[str, An
         for scope in scopes:
             if scope:
                 evidence_texts.append(("busy_scope", str(scope)))
-    candidates: dict[str, set[str]] = {}
+    candidates = _report_identity_candidates(detail, specs)
     for source, text in evidence_texts:
         tokens = set(re.sub(r"[^a-z0-9]+", " ", text.casefold()).split())
         for spec in specs:
@@ -798,6 +823,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "action_class":str(action_class) if action_class else None,
             "activity_target":activity_target if isinstance(activity_target, dict) else None,
             "command":" ".join(command.split())[:120],
+            "_identity_command":command,
         }
 
     busy_path = _local_appdata_root() / "ChatGPTMcpClean" / ".state" / "busy-claims.json"
@@ -862,6 +888,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             busy_entry["identity"] = _resolve_busy_identity(busy_entry, actor_specs)
         for caller in lane["callers"]:
             caller["identity"] = _resolve_caller_identity(caller, lane["busy"], now=now, specs=actor_specs)
+            caller.pop("_identity_command", None)
         caller_ages = [float(c["last_activity_age_seconds"]) for c in lane["callers"] if c.get("last_activity_age_seconds") is not None]
         if any(age <= 60 for age in caller_ages): lane["state"] = "ACTIVE"
         elif caller_ages: lane["state"] = "RECENT"
