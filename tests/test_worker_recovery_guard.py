@@ -36,7 +36,7 @@ class WorkerRecoveryGuardTests(unittest.TestCase):
 
     def _watch(self, *, candidates, scope="S2"):
         return {
-            "status": "SUSPECT_DEGRADED" if candidates else "CURRENT_LOCAL_EVIDENCE",
+            "status": "LOCAL_RECOVERY_EVIDENCE",
             "authority": "local_worker_reports_and_machine_start_receipts",
             "subscription_scope": scope,
             "recovery_candidates": candidates,

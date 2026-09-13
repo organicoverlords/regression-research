@@ -731,7 +731,7 @@ COMPONENTS.update({
     "swarm_topology": {
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
-        "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\recurring_slot_registry.py list", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
+        "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\recurring_slot_registry.py list"],
         "supervisor": "recurring workers own only bounded same-partition sibling re-enable; supervising/manual ChatGPT owns guarded fallback; operator handoff is administrative fallback",
         "self_heal": "bounded_same_partition_peer_reenable_with_supervising_fallback",
         "independent_recovery": [
@@ -1045,7 +1045,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["swarm_topology"],
         "triggers": ["swarm topology", "five recurring workers", "max five recurring workers", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\recurring_slot_registry.py list", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "The canonical recurring topology is S1/1..S1/5 plus S2/1..S2/5: ten stable capacity slots. Worker names and ChatGPT automation IDs are mutable slot bindings, not permanent topology identities, and an unbound slot is not a liveness alarm or scheduler authority. Activity in one partition never authorizes scheduler mutation in the other. The scheduler provides recurrence only. A recurring worker may never administer itself and may only perform one targeted idempotent is_enabled=true on the exact current binding of a same-partition sibling after the bounded fleet-watch plus corroborating live-scheduler recovery gate. All other scheduler administration remains supervising/manual or explicit operator fallback. Current activity/liveness remains live MCP/runtime evidence.",
+        "boundary": "The canonical recurring topology is S1/1..S1/5 plus S2/1..S2/5: ten stable capacity slots. Worker names and ChatGPT automation IDs are mutable slot bindings, not permanent topology identities, and an unbound slot is not a liveness alarm or scheduler authority. Activity in one partition never authorizes scheduler mutation in the other. The scheduler provides recurrence only. A recurring worker may never administer itself and may only perform one targeted idempotent is_enabled=true on the exact current binding of a same-partition sibling after the bounded fleet-watch plus corroborating live-scheduler recovery gate. All other scheduler administration remains supervising/manual or explicit operator fallback. Fleet-watch local lifecycle gaps are scheduler-probe navigation only, never worker liveness or swarm-health verdicts. Current activity/liveness remains live MCP/runtime evidence.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
@@ -1664,11 +1664,11 @@ def _bootstrap_fleet_watch(
     partition: str | None = None,
     worker_id: str | None = None,
 ) -> dict[str, Any]:
-    """Compact fleet-cadence signal from local reports/start receipts only.
+    """Compact scheduler-probe navigation from local run-lifecycle evidence only.
 
     Bootstrap uses the canonical partition-local recurring-worker view. Timed workers pass their own automation id
-    so cadence candidates remain inside that worker's subscription partition. Local reports/start receipts are
-    diagnostic evidence only and never authorize scheduler mutation by themselves.
+    so scheduler-probe candidates remain inside that worker's subscription partition. Local reports/start receipts are
+    run-lifecycle navigation evidence only: they do not provide worker liveness/swarm health and never authorize scheduler mutation.
     """
     current_time = now or datetime.now(timezone.utc)
     if current_time.tzinfo is None:
@@ -1834,7 +1834,7 @@ def _bootstrap_fleet_watch(
                 remember_recovery(match.group("sibling").lower(), actor_started_at, actor_id, actor_label)
 
     workers: list[dict[str, Any]] = []
-    suspects: list[dict[str, Any]] = []
+    lifecycle_gaps: list[dict[str, Any]] = []
     for worker_id, label in selected_workers:
         report_path = current_root / f"{worker_id}.md"
         fields: dict[str, str] = {}
@@ -1869,16 +1869,16 @@ def _bootstrap_fleet_watch(
                 cadence_state = "NO_LOCAL_START_EVIDENCE"
         elif state == "RUNNING" and not receipt_present:
             cadence_state = (
-                "RUNNING_WITHOUT_START_RECEIPT"
+                "RUNNING_REPORT_WITHOUT_START_RECEIPT"
                 if age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_START_RECEIPT_GRACE_MINUTES
                 else "START_RECEIPT_PENDING"
             )
         elif state == "RUNNING" and receipt_present:
             freshness_age = activity_age_minutes if activity_age_minutes is not None else age_minutes
             cadence_state = (
-                "RUNNING_WITH_START_RECEIPT"
+                "RUNNING_REPORT_WITH_START_RECEIPT"
                 if freshness_age is not None and freshness_age <= BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES
-                else "STALE_RUNNING_ACTIVITY"
+                else "STALE_RUNNING_REPORT_EVIDENCE"
             )
         elif age_minutes is not None and age_minutes > BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES:
             cadence_state = "MISSED_EXPECTED_HOURLY_CADENCE"
@@ -1901,19 +1901,19 @@ def _bootstrap_fleet_watch(
             "start_receipt_present": receipt_present,
         }
         workers.append(row)
-        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_WITHOUT_START_RECEIPT", "STALE_RUNNING_ACTIVITY"}:
+        if cadence_state in {"NO_LOCAL_START_EVIDENCE", "MISSED_EXPECTED_HOURLY_CADENCE", "RUNNING_REPORT_WITHOUT_START_RECEIPT", "STALE_RUNNING_REPORT_EVIDENCE"}:
             recent_recovery = recent_recoveries.get(worker_id)
-            recovery_actionable = recent_recovery is None
-            recovery_status = "RECOVERY_NEEDED" if recovery_actionable else "RECOVERY_PENDING"
+            probe_actionable = recent_recovery is None
+            scheduler_probe_status = "SCHEDULER_PROBE_NEEDED" if probe_actionable else "SCHEDULER_PROBE_PENDING"
             pending_until = None
             if recent_recovery is not None:
                 recovered_at = _parse_event_time(recent_recovery.get("recovered_at"))
                 if recovered_at is not None and started is not None and started > recovered_at:
                     # A newer local start consumed the older recovery; a later missed cadence
-                    # is a fresh failure and must be actionable again.
+                    # is a fresh scheduler-probe condition and must be eligible again.
                     recent_recovery = None
-                    recovery_actionable = True
-                    recovery_status = "RECOVERY_NEEDED"
+                    probe_actionable = True
+                    scheduler_probe_status = "SCHEDULER_PROBE_NEEDED"
                 elif recovered_at is not None and started is not None:
                     elapsed = max(0.0, (recovered_at - started).total_seconds())
                     hourly_steps = int(elapsed // 3600.0) + 1
@@ -1922,17 +1922,17 @@ def _bootstrap_fleet_watch(
                         minutes=BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES
                     )
                     if current_time > pending_until:
-                        recovery_actionable = True
-                        recovery_status = "RECOVERY_RETRY_NEEDED"
+                        probe_actionable = True
+                        scheduler_probe_status = "SCHEDULER_PROBE_RETRY_NEEDED"
                 elif recovered_at is not None:
                     pending_until = recovered_at + timedelta(
                         minutes=BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES
                     )
                     if current_time > pending_until:
-                        recovery_actionable = True
-                        recovery_status = "RECOVERY_RETRY_NEEDED"
+                        probe_actionable = True
+                        scheduler_probe_status = "SCHEDULER_PROBE_RETRY_NEEDED"
 
-            suspect = {
+            gap = {
                 "worker": label,
                 "automation_id": worker_id,
                 "slot_id": SLOT_BY_WORKER_ID.get(worker_id),
@@ -1941,14 +1941,14 @@ def _bootstrap_fleet_watch(
                 "start_age_minutes": row["start_age_minutes"],
                 "activity_age_minutes": row["activity_age_minutes"],
                 "reason": cadence_state,
-                "recovery_status": recovery_status,
-                "recovery_actionable": recovery_actionable,
+                "scheduler_probe_status": scheduler_probe_status,
+                "probe_actionable": probe_actionable,
             }
             if recent_recovery is not None:
-                suspect["last_recovery"] = recent_recovery
+                gap["last_recovery"] = recent_recovery
             if pending_until is not None:
-                suspect["recovery_pending_until"] = pending_until.isoformat()
-            suspects.append(suspect)
+                gap["scheduler_probe_pending_until"] = pending_until.isoformat()
+            lifecycle_gaps.append(gap)
     recovery_candidates = [
         {
             "worker": item["worker"],
@@ -1958,12 +1958,15 @@ def _bootstrap_fleet_watch(
             "reason": item["reason"],
             "requires_live_scheduler_probe": True,
         }
-        for item in suspects
-        if item.get("recovery_actionable")
+        for item in lifecycle_gaps
+        if item.get("probe_actionable")
     ]
     return {
-        "status": "SUSPECT_DEGRADED" if suspects else "CURRENT_LOCAL_EVIDENCE",
-        "authority": "local_worker_reports_and_machine_start_receipts_over_current_slot_bindings",
+        "status": "LOCAL_RECOVERY_EVIDENCE",
+        "authority": "local_run_lifecycle_evidence_over_current_slot_bindings_for_scheduler_probe_navigation",
+        "evidence_semantics": "local_run_lifecycle_gaps_for_scheduler_probe_navigation_not_worker_liveness_or_swarm_health",
+        "health_verdict": "NOT_PROVIDED",
+        "liveness_authority": "live_swarm_runtime_evidence",
         "slot_registry_status": slot_snapshot.get("status"),
         "slot_registry_path": slot_snapshot.get("path"),
         "subscription_scope": requested_partition or "ALL",
@@ -1975,15 +1978,18 @@ def _bootstrap_fleet_watch(
         "bound_recurring_workers": len(selected_workers),
         "bound_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
         "observed_worker_reports": sum(1 for row in workers if row.get("report_present")),
-        "running_with_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITH_START_RECEIPT"),
+        "running_report_with_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_REPORT_WITH_START_RECEIPT"),
         "recent_start_evidence": sum(1 for row in workers if row.get("cadence_state") == "RECENT_START_EVIDENCE"),
         "first_start_pending": sum(1 for row in workers if row.get("cadence_state") == "FIRST_START_PENDING"),
         "start_receipt_pending": sum(1 for row in workers if row.get("cadence_state") == "START_RECEIPT_PENDING"),
-        "running_without_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITHOUT_START_RECEIPT"),
-        "suspect_count": len(suspects),
-        "suspect_workers": suspects,
+        "running_report_without_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_REPORT_WITHOUT_START_RECEIPT"),
+        "lifecycle_gap_count": len(lifecycle_gaps),
+        "lifecycle_gaps": lifecycle_gaps,
+        "scheduler_probe_candidate_count": len(recovery_candidates),
+        "scheduler_probe_candidates": recovery_candidates,
         "recovery_candidate_count": len(recovery_candidates),
         "recovery_candidates": recovery_candidates,
+        "recovery_candidate_semantics": "compatibility_alias_for_scheduler_probe_candidates_not_a_liveness_or_health_verdict",
         "local_evidence_scheduler_mutation_authorized": False,
         "same_partition_peer_reenable_after_live_scheduler_confirmation": bool(recovery_candidates),
         "peer_reenable_semantics": "local candidate only; one idempotent is_enabled=true is permitted only after an exact live scheduler read confirms the same-partition target is disabled and the documented startup-failure signature still matches",
