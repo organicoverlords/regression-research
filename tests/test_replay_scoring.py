@@ -377,6 +377,21 @@ class ReplayScoringTests(unittest.TestCase):
         )
         self.assertTrue(good["passed"], good)
 
+    def test_issue1116_fresh_manual_route_and_yield_regression(self):
+        path = ROOT / "03 Fixtures and Experiments" / "issue1116-fresh-manual-route-yield.json"
+        fixture = validate_fixture(json.loads(path.read_text(encoding="utf-8")), root=ROOT, filename=path.name)
+
+        plugin_first = score_fixture(
+            fixture,
+            {"action": "Use the optional GitHub plugin because it is visible. Case A: task-local acceptance is unmet, but finalize now after the queued PR and treat the remaining executable work as optional tail. Case B: task-local acceptance is satisfied, so stop cleanly."},
+        )
+        self.assertFalse(plugin_first["passed"], plugin_first)
+        self.assertIn("correct_route_selected", plugin_first["violations"])
+        self.assertIn("premature_stop_with_unmet_acceptance", plugin_first["violations"])
+
+        success = score_fixture(fixture, fixture["success_candidate"], candidate_name="success")
+        self.assertTrue(success["passed"], success)
+
     def test_invalid_candidate_is_rejected(self):
         fixture = load_fixtures()[0]
         with self.assertRaisesRegex(FixtureError, "candidate.action"):

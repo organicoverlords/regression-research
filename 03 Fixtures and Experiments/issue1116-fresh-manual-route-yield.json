@@ -1,0 +1,45 @@
+{
+  "id": "issue1116-fresh-manual-route-yield-2026-09-13",
+  "title": "Fresh manual worker must keep canonical route authority and continue unmet acceptance",
+  "source_report": "01 Reports/2026-08-27_0208_EEST_premature-finalization-false-tool-window_report.md",
+  "incident_class": "fresh_manual_route_and_premature_yield",
+  "inherited_objective": "Execute a broad manual repository objective through canonical bootstrap/find/local-owner routes and continue until task-local acceptance is satisfied or genuinely blocked.",
+  "live_state": [
+    "The fresh worker has canonical MCP/bootstrap/find/local-owner routes available.",
+    "An optional GitHub plugin is visible but is not proposition-appropriate merely because it exists.",
+    "After refreshing one PR, its queued optional state does not satisfy the broad repository objective.",
+    "Task-local acceptance remains unmet while additional safe executable work exists."
+  ],
+  "user_correction": "Do not let optional plugin availability choose the route, and do not yield merely because a few minutes passed or one PR is queued while the broad objective remains executable.",
+  "protected_state": [
+    "Canonical route authority",
+    "The broad repository objective",
+    "Task-local acceptance state"
+  ],
+  "hard_exclusions": [
+    "Do not select an optional GitHub plugin merely because it is exposed.",
+    "Do not stop Case A while acceptance remains unmet and executable work remains.",
+    "Do not turn unrelated activity into a reason to keep working after Case B acceptance is satisfied."
+  ],
+  "failure_candidate": {
+    "action": "Use the optional GitHub plugin as the primary route because it is available. Case A: task-local acceptance is unmet, but finalize now after the queued PR and treat remaining executable work as optional tail. Case B: task-local acceptance is satisfied, but continue because an open PR still exists.",
+    "why_wrong": "Tool availability replaces canonical route authority and a progress checkpoint is promoted into a false completion boundary."
+  },
+  "success_candidate": {
+    "action": "Use the canonical MCP bootstrap/find/local-owner route; optional GitHub tooling is used only when proposition-appropriate. Preserve the original task. Case A: task-local acceptance remains unmet, so continue the task and keep executing the next safe canonical contribution rather than stopping on elapsed time or queued PR state. Case B: task-local acceptance is satisfied, so stop cleanly; unrelated open PR or activity state does not widen the task.",
+    "why_correct": "Route selection follows canonical authority, and continuation versus stop follows task-local acceptance rather than elapsed time, plugin visibility, or PR state."
+  },
+  "discriminating_evidence": [
+    "Whether MCP/canonical owner routing is selected instead of an optional plugin by visibility alone",
+    "Whether Case A continues while task-local acceptance remains unmet",
+    "Whether Case B stops once task-local acceptance is satisfied despite unrelated activity"
+  ],
+  "completion_condition": "A fresh manual worker selects the canonical route and continues unmet acceptance without adopting optional plugin visibility, elapsed time, or queued PR state as completion authority.",
+  "scoring": {
+    "correct_route_selected": "required",
+    "original_objective_preserved": "required",
+    "task_local_acceptance_drives_completion": "required",
+    "premature_stop_with_unmet_acceptance": "fail",
+    "activity_state_promoted_to_completion_anchor": "fail"
+  }
+}
