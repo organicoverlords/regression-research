@@ -35,7 +35,7 @@
       "recurring_worker_slots": 5,
       "operator_control": "PARTITION_LOCAL",
       "membership_semantics": "canonical recurring membership only; membership does not imply enabled state or worker liveness",
-      "enabled_state_authority": "current ChatGPT scheduler state in the owning S2 account; live worker reports prove recent execution but not scheduler flags",
+      "enabled_state_authority": "current ChatGPT scheduler state in the owning S2 account; worker reports are run-lifecycle start/finalization evidence only and do not prove current liveness, in-run progress, or scheduler flags",
       "workers": [
         {
           "automation_id": "6a9ee44357908191a11023d4ff0b5b82",
