@@ -1,0 +1,30 @@
+{
+  "schema": "behavior-incident-visible-context.v2",
+  "event_id": "SW-V2-20260913-005",
+  "capture_scope": "VISIBLE_CONTEXT_ONLY",
+  "verbatim": true,
+  "full_conversation_reload": false,
+  "retrieval_for_capture_only": false,
+  "items": [
+    {
+      "role": "user",
+      "ref": "current-conversation:correction-trigger",
+      "content": "slopwall"
+    },
+    {
+      "role": "assistant",
+      "ref": "current-conversation:failed-topology-claim",
+      "content": "Canonical contract sanoo nyt edelleen **S1 = 5 slotia + S2 = 5 slotia = global max 10**. Se on suoraan ristiriidassa nykyisen tavoitteesi **max 5 recurring workeria yhteensä** kanssa."
+    },
+    {
+      "role": "user",
+      "ref": "current-conversation:user-topology-correction",
+      "content": "mistä vielä keksit tuon 5 max workers se on per subscription >_> 10 workeriä pidetään aina ylhäällä ja ne herättelee toisiaan jos droppailee toolsit yms"
+    },
+    {
+      "role": "user",
+      "ref": "current-conversation:emoticon-clarification",
+      "content": ">_> oli hymiö"
+    }
+  ]
+}
