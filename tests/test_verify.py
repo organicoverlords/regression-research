@@ -60,7 +60,9 @@ class VerifyTests(unittest.TestCase):
             "tools/repo_timeline.py": ["memory", "windows_ui"],
             "tools/timeline_materializer.py": ["memory", "windows_ui"],
             "tools/worker_report_history.py": ["worker_reports", "windows_ui"],
+            "tools/windows_ui_probe.py": ["windows_ui"],
             "tests/test_hidden_subprocess_windows.py": ["windows_ui"],
+            "tests/test_windows_ui_probe.py": ["windows_ui"],
         }
         for path, areas in expected.items():
             with self.subTest(path=path):
@@ -181,9 +183,26 @@ class VerifyTests(unittest.TestCase):
     def test_windows_ui_verification_executes_behavioral_contract(self, run_command):
         verify_windows_ui()
         commands = [call.args[0] for call in run_command.call_args_list]
-        self.assertIn([sys.executable, "-m", "py_compile", "tests/test_hidden_subprocess_windows.py"], commands)
         self.assertIn(
-            [sys.executable, "-m", "unittest", "tests.test_hidden_subprocess_windows", "-v"],
+            [
+                sys.executable,
+                "-m",
+                "py_compile",
+                "tools/windows_ui_probe.py",
+                "tests/test_hidden_subprocess_windows.py",
+                "tests/test_windows_ui_probe.py",
+            ],
+            commands,
+        )
+        self.assertIn(
+            [
+                sys.executable,
+                "-m",
+                "unittest",
+                "tests.test_hidden_subprocess_windows",
+                "tests.test_windows_ui_probe",
+                "-v",
+            ],
             commands,
         )
 

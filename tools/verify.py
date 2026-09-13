@@ -127,7 +127,9 @@ WINDOW_UI_PATHS = {
     "tools/Install-VaultCheckoutSyncTask.ps1",
     "tools/Install-WorktreeHygieneTask.ps1",
     "tools/install_bootstrap_snapshot_task.ps1",
+    "tools/windows_ui_probe.py",
     "tests/test_hidden_subprocess_windows.py",
+    "tests/test_windows_ui_probe.py",
 }
 
 
@@ -293,8 +295,26 @@ def verify_routing() -> None:
 
 
 def verify_windows_ui() -> None:
-    run([sys.executable, "-m", "py_compile", "tests/test_hidden_subprocess_windows.py"])
-    run([sys.executable, "-m", "unittest", "tests.test_hidden_subprocess_windows", "-v"])
+    run(
+        [
+            sys.executable,
+            "-m",
+            "py_compile",
+            "tools/windows_ui_probe.py",
+            "tests/test_hidden_subprocess_windows.py",
+            "tests/test_windows_ui_probe.py",
+        ]
+    )
+    run(
+        [
+            sys.executable,
+            "-m",
+            "unittest",
+            "tests.test_hidden_subprocess_windows",
+            "tests.test_windows_ui_probe",
+            "-v",
+        ]
+    )
     print("WINDOWS_BACKGROUND_UI_CONTRACT_PROVEN")
 
 
