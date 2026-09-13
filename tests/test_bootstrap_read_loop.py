@@ -188,8 +188,12 @@ def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_he
 
     producer_source = REPO_ROOT / 'tools' / 'bootstrap_read_loop.py'
     helper_source = REPO_ROOT / 'tools' / 'memory_recent_projection.py'
+    live_swarm_source = REPO_ROOT / 'tools' / 'live_swarm.py'
+    slot_registry_source = REPO_ROOT / 'tools' / 'recurring_slot_registry.py'
     shutil.copy2(producer_source, tools / 'bootstrap_read_loop.py')
     shutil.copy2(helper_source, tools / 'memory_recent_projection.py')
+    shutil.copy2(live_swarm_source, tools / 'live_swarm.py')
+    shutil.copy2(slot_registry_source, tools / 'recurring_slot_registry.py')
     subprocess.run(['git', 'init', '-q'], cwd=alternate, check=True)
     subprocess.run(['git', 'add', 'tools'], cwd=alternate, check=True)
     subprocess.run(
@@ -201,7 +205,7 @@ def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_he
     subprocess.run(['git', 'update-ref', 'refs/remotes/origin/main', canonical_commit], cwd=alternate, check=True)
     deployed_source = {
         name: subprocess.check_output(['git', 'show', f'refs/remotes/origin/main:tools/{name}'], cwd=alternate)
-        for name in ('bootstrap_read_loop.py', 'memory_recent_projection.py', 'stack_atlas.py')
+        for name in ('bootstrap_read_loop.py', 'memory_recent_projection.py', 'stack_atlas.py', 'live_swarm.py', 'recurring_slot_registry.py')
     }
 
     # Commit a different feature HEAD. The scheduled runtime must ignore it.
@@ -214,6 +218,12 @@ def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_he
     )
     (tools / 'bootstrap_read_loop.py').write_bytes(
         (tools / 'bootstrap_read_loop.py').read_bytes() + b'\n# feature branch producer marker\n'
+    )
+    (tools / 'live_swarm.py').write_text(
+        "raise RuntimeError('feature branch live_swarm loaded')\n", encoding='utf-8'
+    )
+    (tools / 'recurring_slot_registry.py').write_text(
+        "raise RuntimeError('feature branch slot registry loaded')\n", encoding='utf-8'
     )
     subprocess.run(['git', 'add', 'tools'], cwd=alternate, check=True)
     subprocess.run(
@@ -235,6 +245,12 @@ def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_he
         "'source_marker':'stale-runtime','memory_overview':{'recent':[]},"
         "'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))\n",
         encoding='utf-8',
+    )
+    (runtime / 'live_swarm.py').write_text(
+        "raise RuntimeError('stale runtime live_swarm loaded before self-heal')\n", encoding='utf-8'
+    )
+    (runtime / 'recurring_slot_registry.py').write_text(
+        "raise RuntimeError('stale runtime slot registry loaded before self-heal')\n", encoding='utf-8'
     )
 
     # Dirty worktree bytes must not be promoted either.
@@ -263,6 +279,8 @@ def test_deployed_producer_bundle_repairs_from_cached_origin_main_not_feature_he
     assert producer_runtime.read_bytes() == deployed_source['bootstrap_read_loop.py']
     assert (runtime / 'memory_recent_projection.py').read_bytes() == deployed_source['memory_recent_projection.py']
     assert atlas_runtime.read_bytes() == deployed_source['stack_atlas.py']
+    assert (runtime / 'live_swarm.py').read_bytes() == deployed_source['live_swarm.py']
+    assert (runtime / 'recurring_slot_registry.py').read_bytes() == deployed_source['recurring_slot_registry.py']
     assert b'feature branch producer marker' in (tools / 'bootstrap_read_loop.py').read_bytes()
     assert b'dirty working tree marker' in (tools / 'bootstrap_read_loop.py').read_bytes()
 
