@@ -15,7 +15,7 @@ from typing import Any
 
 try:
     from .memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from .memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_memory_ineligibility, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from .memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from .memory_recent_projection import write_recent_projection
     from .memory_classification import classify_entry, infer_single_project
@@ -24,7 +24,7 @@ try:
     from .worker_report_history import worker_history_events
 except ImportError:
     from memory_git_sync import MemorySyncError, sync_bank, sync_lock
-    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
+    from memory_context import DEFAULT_CONTEXT_CHARS, build_context_pack, context_memory_eligible, context_memory_ineligibility, context_selectors, entry_context_labels, entry_matches_selectors, context_residual_query
     from memory_lifecycle import is_expired, parse_expiry, parse_iso_datetime
     from memory_recent_projection import write_recent_projection
     from memory_classification import classify_entry, infer_single_project
@@ -884,18 +884,57 @@ def search_memory_entries(entries: list[dict[str, Any]], query: str, *, scope: s
 def search_context_memory(
     entries: list[dict[str, Any]], query: str, *, scope: str | None = None,
     tags: list[str] | None = None, limit: int = MAX_RECALL_LIMIT,
+    diagnostics: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Return bounded evidence context without promoting stored memory into behavior authority."""
     effective_limit = min(MAX_RECALL_LIMIT, max(1, int(limit)))
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics.update({
+            "provisional_matches": 0,
+            "status_matches": 0,
+            "unanchored_matches": 0,
+            "diagnostic_scan_truncated": False,
+        })
     if _is_entry_id(query):
         return search_memory_entries(entries, query, scope=scope, tags=tags, limit=effective_limit)
     selectors = context_selectors(query)
-    filtered = [
-        entry for entry in entries
-        if entry_matches_selectors(entry, selectors) and context_memory_eligible(entry)
-    ]
+    matching = [entry for entry in entries if entry_matches_selectors(entry, selectors)]
+    filtered = [entry for entry in matching if context_memory_eligible(entry)]
     projects = selectors.get("projects") or set()
     residual = context_residual_query(query)
+
+    if diagnostics is not None:
+        diagnostic_candidates: list[dict[str, Any]] = []
+        original_by_id: dict[str, dict[str, Any]] = {}
+        for entry in matching:
+            reason = context_memory_ineligibility(entry)
+            if reason is None or entry.get("state") == "REJECTED":
+                continue
+            ranked_entry = entry
+            if reason == "status":
+                # Status records are intentionally historical and excluded by ordinary
+                # hybrid recall. A rank-only shadow lets diagnostics report a relevant
+                # status match without ever promoting it into task context.
+                ranked_entry = dict(entry)
+                ranked_entry["kind"] = "lesson"
+            diagnostic_candidates.append(ranked_entry)
+            original_by_id[str(ranked_entry.get("id") or "")] = entry
+        min_tokens = 1 if projects else 2
+        if diagnostic_candidates and len(_tokens(residual)) >= min_tokens:
+            diagnostic_hits = search_memory_entries(
+                diagnostic_candidates, residual, scope=scope, tags=tags,
+                limit=MAX_RECALL_LIMIT, history=False, strict_admission=True,
+            )
+            for ranked_entry in diagnostic_hits:
+                original = original_by_id.get(str(ranked_entry.get("id") or ""), ranked_entry)
+                reason = context_memory_ineligibility(original)
+                key = f"{reason}_matches" if reason else ""
+                if key in diagnostics:
+                    diagnostics[key] += 1
+            diagnostics["diagnostic_scan_truncated"] = (
+                len(diagnostic_candidates) > MAX_RECALL_LIMIT and len(diagnostic_hits) >= MAX_RECALL_LIMIT
+            )
 
     if not projects:
         residual_tokens = _tokens(residual)
@@ -961,6 +1000,7 @@ def search_context_memory(
         )
     return [*project_hits, *ambient_hits][:effective_limit]
 
+
 def _materialized_context_query_eligible(query: str) -> bool:
     if _is_entry_id(query):
         return False
@@ -969,10 +1009,16 @@ def _materialized_context_query_eligible(query: str) -> bool:
     return len(residual_tokens) >= 2 or (bool(selectors.get("projects")) and len(residual_tokens) >= 1)
 
 
-def _materialized_lesson_history(query: str, *, root: Path, limit: int = 2) -> list[dict[str, Any]]:
+def _materialized_lesson_history(
+    query: str, *, root: Path, limit: int = 2, status: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Return bounded labeled lesson priors from the existing materialized timeline only."""
     effective_limit = min(2, max(0, int(limit)))
+    if status is not None:
+        status.clear()
     if effective_limit == 0 or not _materialized_context_query_eligible(query):
+        if status is not None:
+            status.update({"status": "SKIPPED", "result": "SKIPPED"})
         return []
     try:
         from .timeline_materializer import query_materialized
@@ -981,13 +1027,26 @@ def _materialized_lesson_history(query: str, *, root: Path, limit: int = 2) -> l
     try:
         report = query_materialized(root=root, query=query, limit=max(3, effective_limit))
     except (OSError, TypeError, ValueError):
+        if status is not None:
+            status.update({"status": "UNAVAILABLE", "result": "UNAVAILABLE"})
         return []
     if not isinstance(report, dict):
+        if status is not None:
+            status.update({"status": "UNAVAILABLE", "result": "UNAVAILABLE"})
         return []
+    materialized = report.get("materialized") if isinstance(report.get("materialized"), dict) else {}
+    if status is not None:
+        status.update({
+            key: value for key, value in {
+                "status": materialized.get("status") or "UNKNOWN",
+                "result": "NO_MATCH",
+                "as_of": materialized.get("as_of"),
+                "absence_semantics": materialized.get("absence_semantics"),
+            }.items() if value not in (None, "")
+        })
     packet = report.get("lesson_packet")
     if not isinstance(packet, dict) or packet.get("status") != "READY":
         return []
-    materialized = report.get("materialized") if isinstance(report.get("materialized"), dict) else {}
     out: list[dict[str, Any]] = []
     for item in list(packet.get("items") or [])[:effective_limit]:
         if not isinstance(item, dict):
@@ -1015,6 +1074,8 @@ def _materialized_lesson_history(query: str, *, root: Path, limit: int = 2) -> l
             "materialized_as_of": materialized.get("as_of"),
         }
         out.append({key: value for key, value in prior.items() if value not in (None, "", [], {})})
+    if status is not None and out:
+        status["result"] = "MATCH"
     return out
 
 
@@ -1494,11 +1555,17 @@ def _main() -> int:
             _print_json(recent_title_entries(entries, limit=args.limit))
             return 0
         if args.command == "context":
-            selected = search_context_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit)
+            search_omitted: dict[str, Any] = {}
+            selected = search_context_memory(
+                entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, diagnostics=search_omitted
+            )
             hits = [annotate_memory(entry) for entry in selected]
+            source_status: dict[str, Any] = {}
             if args.bank.resolve() == DEFAULT_BANK.resolve() and not _is_entry_id(args.query):
                 vault_root = Path(__file__).resolve().parents[1]
-                hits.extend(_materialized_lesson_history(args.query, root=vault_root, limit=min(2, args.limit)))
+                hits.extend(_materialized_lesson_history(
+                    args.query, root=vault_root, limit=min(2, args.limit), status=source_status
+                ))
             if args.with_history and not _is_entry_id(args.query):
                 report = conversation_history_report(args.query, limit=min(3, args.limit))
                 summary = _conversation_summary_entry(args.query, report.get("summary") or {})
@@ -1506,7 +1573,10 @@ def _main() -> int:
                     hits.append(summary)
                 hits.extend(list(report.get("hits") or [])[:2])
             timeline = build_recurrence_context(entries, args.query)
-            _print_json(build_context_pack(args.query, hits, timeline=timeline, max_chars=args.max_chars))
+            _print_json(build_context_pack(
+                args.query, hits, timeline=timeline, max_chars=args.max_chars,
+                pre_omitted=search_omitted, source_status=source_status or None,
+            ))
             return 0
         if args.command == "search":
             _print_json([annotate_memory(entry) for entry in search_all_memory(entries, args.query, scope=args.scope, tags=args.tag, limit=args.limit, history=args.history)])

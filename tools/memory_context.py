@@ -204,7 +204,7 @@ def _fit_sections(pack: dict[str, Any], max_chars: int) -> dict[str, Any]:
             return pack
 
 
-def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: Iterable[dict[str, Any]] | None = None, max_chars: int = DEFAULT_CONTEXT_CHARS) -> dict[str, Any]:
+def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: Iterable[dict[str, Any]] | None = None, max_chars: int = DEFAULT_CONTEXT_CHARS, pre_omitted: dict[str, Any] | None = None, source_status: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a bounded evidence package; stored Vault records never become runtime behavior authority."""
     query = " ".join(str(query or "").split())
     if not query:
@@ -212,11 +212,12 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
 
     durable: list[dict[str, Any]] = []
     historical: list[dict[str, Any]] = []
-    omitted_provisional = 0
-    omitted_status = 0
-    omitted_unanchored = 0
-    omitted_project_mismatch = 0
-    omitted_role_mismatch = 0
+    seeded_omitted = dict(pre_omitted or {})
+    omitted_provisional = int(seeded_omitted.get("provisional_matches") or 0)
+    omitted_status = int(seeded_omitted.get("status_matches") or 0)
+    omitted_unanchored = int(seeded_omitted.get("unanchored_matches") or 0)
+    omitted_project_mismatch = int(seeded_omitted.get("project_mismatch_matches") or 0)
+    omitted_role_mismatch = int(seeded_omitted.get("role_mismatch_matches") or 0)
     selectors = context_selectors(query)
     query_projects = selectors["projects"]
     query_roles = selectors["roles"]
@@ -263,4 +264,8 @@ def build_context_pack(query: str, hits: Iterable[dict[str, Any]], *, timeline: 
         },
         "truncated": False,
     }
+    if "diagnostic_scan_truncated" in seeded_omitted:
+        pack["omitted"]["diagnostic_scan_truncated"] = bool(seeded_omitted["diagnostic_scan_truncated"])
+    if source_status:
+        pack["source_status"] = dict(source_status)
     return _fit_sections(pack, max_chars)

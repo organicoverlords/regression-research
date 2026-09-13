@@ -84,6 +84,67 @@ class MaterializedContextPriorTests(unittest.TestCase):
         self.assertEqual(pack["historical_evidence"][0]["source_event_id"], "github-pr:repo#778")
         materialized.assert_called_once()
 
+    def test_materialized_diagnostics_distinguish_stale_no_match_from_unavailable(self):
+        stale_report = {
+            "materialized": {
+                "status": "STALE",
+                "as_of": "2026-09-09T02:00:00Z",
+                "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE",
+            },
+            "lesson_packet": {"status": "EMPTY", "items": []},
+        }
+        stale_status = {}
+        with tempfile.TemporaryDirectory() as d, patch(
+            "tools.timeline_materializer.query_materialized", return_value=stale_report
+        ):
+            self.assertEqual(
+                _materialized_lesson_history("camera framing", root=Path(d), limit=2, status=stale_status), []
+            )
+        self.assertEqual(stale_status["status"], "STALE")
+        self.assertEqual(stale_status["result"], "NO_MATCH")
+        self.assertEqual(stale_status["absence_semantics"], "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE")
+
+        unavailable_status = {}
+        with tempfile.TemporaryDirectory() as d, patch(
+            "tools.timeline_materializer.query_materialized", side_effect=OSError("missing projection")
+        ):
+            self.assertEqual(
+                _materialized_lesson_history("camera framing", root=Path(d), limit=2, status=unavailable_status), []
+            )
+        self.assertEqual(unavailable_status, {"status": "UNAVAILABLE", "result": "UNAVAILABLE"})
+
+    def test_context_cli_surfaces_ineligible_and_stale_source_without_promoting_either(self):
+        provisional = {
+            "id": "mem-provisional", "timestamp": "2026-09-09T01:00:00+03:00", "kind": "lesson",
+            "scope": "global", "tags": [], "title": "camera framing", "text": "camera framing",
+            "state": "PROVISIONAL", "evidence": ["incident:provisional"], "supersedes": [],
+        }
+        stale_report = {
+            "materialized": {
+                "status": "STALE",
+                "as_of": "2026-09-09T02:00:00Z",
+                "absence_semantics": "NO_MATCH_IS_NOT_PROOF_OF_ABSENCE",
+            },
+            "lesson_packet": {"status": "EMPTY", "items": []},
+        }
+        output = io.StringIO()
+        with (
+            patch("sys.argv", ["memory_bank.py", "context", "camera framing"]),
+            patch("tools.memory_bank.load_bank", return_value=[provisional]),
+            patch("tools.memory_bank.build_recurrence_context", return_value=[]),
+            patch("tools.timeline_materializer.query_materialized", return_value=stale_report),
+            redirect_stdout(output),
+        ):
+            self.assertEqual(_main(), 0)
+        pack = json.loads(output.getvalue())
+        self.assertEqual(pack["durable_memory"], [])
+        self.assertEqual(pack["historical_evidence"], [])
+        self.assertEqual(pack["omitted"]["provisional_matches"], 1)
+        self.assertFalse(pack["omitted"]["diagnostic_scan_truncated"])
+        self.assertEqual(pack["source_status"]["status"], "STALE")
+        self.assertEqual(pack["source_status"]["result"], "NO_MATCH")
+        self.assertFalse(pack["truncated"])
+
     def test_trivial_context_does_not_open_materialized_reader(self):
         with tempfile.TemporaryDirectory() as d, patch("tools.timeline_materializer.query_materialized") as query:
             self.assertEqual(_materialized_lesson_history("go", root=Path(d), limit=2), [])
