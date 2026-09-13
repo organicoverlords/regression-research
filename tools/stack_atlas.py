@@ -202,6 +202,7 @@ P3_VISUAL_EVIDENCE_ROOT = r"G:\Oma Drive\P3 Visual Evidence\p3"
 P3_VISUAL_EVIDENCE_INDEX = P3_VISUAL_EVIDENCE_ROOT + r"\index-v1.json"
 P3_VISUAL_EVIDENCE_QUERY = r"$i=Get-Content 'G:\Oma Drive\P3 Visual Evidence\p3\index-v1.json' -Raw | ConvertFrom-Json; $i.entries | Where-Object { $_.search_text -match '<query>' } | Select-Object -First 10"
 MCP_CURRENT_TOPOLOGY_PATH = ROOT / "04 Operating Contracts" / "mcp-current-topology.json"
+CHATGPT_S2_CURRENT_SURFACE_PATH = ROOT / "04 Operating Contracts" / "chatgpt-s2-current-surface.json"
 MCP_RECOVERY_STATE_PATH = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "mcp-recovery-state.json"
 MCP_SECURITY_ROUTING_LOG_PATH = ATLAS_LIVE_ROOT / "02 Evidence" / "mcp-security-routing-events.jsonl"
 LINUX_OMEN_CONTRACT = str(ATLAS_LIVE_ROOT / "04 Operating Contracts" / "linux-omen-execution-node.md")
@@ -256,6 +257,10 @@ COMPONENT_ALIASES = {
     "worker topology": "swarm_topology",
     "subscription topology": "swarm_topology",
     "mcp": "mcp_minimal_clone",
+    "s2 surface": "chatgpt_s2_surface",
+    "s2 plugins": "chatgpt_s2_surface",
+    "s2 connectors": "chatgpt_s2_surface",
+    "chatgpt s2": "chatgpt_s2_surface",
     "mcpv3": "vps_edge_ingress",
     "coordinator": "busy_coordinator",
     "busy": "busy_coordinator",
@@ -440,6 +445,25 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         "resources": ["91-159-12-133.sslip.io HTTPS", "local Caddy", "current main/peer backend endpoints from mcp-current-topology.v1", "separate oauth.json stores", "transport.jsonl", "shared-process-receipts", "process-control", "exact-byte file-transfer resource handler"],
         "dependents": ["chatgpt_process_transport"],
         "runbook": [str(MCP_CURRENT_TOPOLOGY_PATH), MCP_ROOT + r"\AGENTS.md", str(MCP_RECOVERY_STATE_PATH)],
+    },
+    "chatgpt_s2_surface": {
+        "role": "partition_local_chatgpt_product_surface",
+        "capabilities": ["source_read"],
+        "canonical_sources": [str(CHATGPT_S2_CURRENT_SURFACE_PATH)],
+        "live_status": [
+            "current S2 account/chat connector and tool exposure is loaded from chatgpt-s2-current-surface.json at lookup time",
+            "installed connector state and current-chat tool exposure are separate facts",
+            "this surface is intentionally excluded from bootstrap.v1 detail and is not MCP serving-topology or scheduler authority",
+        ],
+        "supervisor": "partition-local supervising chat",
+        "self_heal": "none_read_only_state_record",
+        "independent_recovery": [
+            "refresh the observed surface record from current ChatGPT connector/tool evidence; do not mutate connectors, OAuth, scheduler, or MCP routing merely to make the record match"
+        ],
+        "resources": ["installed ChatGPT connectors", "api_tool resource exposure", "MCP process/file-transfer tool resources"],
+        "dependents": [],
+        "runbook": [str(CHATGPT_S2_CURRENT_SURFACE_PATH)],
+        "boundary": "Partition-local observed product surface only. It records what S2 has installed and what this chat exposes; it does not define S1 state, MCP serving identity, connector routing, scheduler state, or bootstrap payload content.",
     },
     "vps_edge_ingress": {
         "role": "public_mcp_edge_and_observer",
@@ -893,6 +917,12 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["chatgpt plugin tools", "chatgpt plugin command", "mcp plugin tools", "process tool profile", "plugin tool contract", "image metadata", "library upload", "CHATGPT_LIBRARY_UPLOAD", "busy_list plugin", "view_image plugin", "open_visual_proof"],
         "entrypoints": ["python tools\\stack_atlas.py lookup mcp_minimal_clone", MCP_ROOT + r"\config\process-tool-contract.json", MCP_CURRENT_FROZEN_ROOT + r"\runtime\src\lib\file-transfer.ts", str(MCP_CURRENT_TOPOLOGY_PATH)],
         "boundary": "The GPT1 ChatGPT connector exposes exactly five process-profile tools: start_process, read_output, kill_process, upload_local_file, and download_chatgpt_file. upload_local_file returns a same-turn exact-original image resource for native vision while its inline thumbnail is UI-only. busy_*, view_image, and visual-proof actions remain excluded. An already-open chat may retain a cached three-tool schema; verify live backend identity before changing OAuth or routing.",
+    },
+    "chatgpt.s2_current_surface": {
+        "owner_components": ["chatgpt_s2_surface"],
+        "triggers": ["s2 current surface", "s2 plugins", "s2 connectors", "s2 gmail", "s2 google drive", "s2 calendar", "s2 mcpvisual", "s2 mcpv4", "s2 api_tool", "current chat tools"],
+        "entrypoints": [str(CHATGPT_S2_CURRENT_SURFACE_PATH), "python tools\\stack_atlas.py lookup chatgpt_s2_surface"],
+        "boundary": "On-demand S2 ChatGPT product/connector/tool inventory. Detailed connector and resource data stays in the dedicated current-surface contract and is deliberately not copied into bootstrap.v1.",
     },
     "mcp.recovery_state": {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress"],
@@ -4162,6 +4192,24 @@ def _mcp_component_current_topology_projection() -> dict[str, Any]:
     }
 
 
+def _chatgpt_s2_current_surface_projection() -> dict[str, Any]:
+    path = CHATGPT_S2_CURRENT_SURFACE_PATH
+    if not path.exists():
+        return {"status": "UNKNOWN_SOURCE_UNAVAILABLE", "read_state": "MISSING", "source": str(path)}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"status": "UNKNOWN_SOURCE_UNAVAILABLE", "read_state": "ERROR", "source": str(path), "error": str(exc)}
+    if not isinstance(raw, dict) or raw.get("schema") != "chatgpt-partition-current-surface.v1" or raw.get("partition") != "S2":
+        return {
+            "status": "UNKNOWN_SOURCE_UNAVAILABLE",
+            "read_state": "ERROR",
+            "source": str(path),
+            "error": "invalid chatgpt-partition-current-surface.v1 S2 contract",
+        }
+    return {"status": "OK", "read_state": "OK", "source": str(path), **raw}
+
+
 def component_details(name: str) -> dict[str, Any]:
     requested = name
     name = COMPONENT_ALIASES.get(name.casefold(), name)
@@ -4169,6 +4217,8 @@ def component_details(name: str) -> dict[str, Any]:
         spec = dict(COMPONENTS[name])
         if name == "mcp_minimal_clone":
             spec["current_topology"] = _mcp_component_current_topology_projection()
+        if name == "chatgpt_s2_surface":
+            spec["current_surface"] = _chatgpt_s2_current_surface_projection()
         return {"id": name, "requested_as": requested, **spec, "authority": ATLAS_CONTRACT["authority"]}
     raise KeyError(requested)
 

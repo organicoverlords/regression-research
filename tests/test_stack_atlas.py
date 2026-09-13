@@ -3324,6 +3324,26 @@ class ChatgptPluginSurfaceVisibilityTests(unittest.TestCase):
         self.assertTrue(any(item.endswith(r"\src\lib\file-transfer.ts") for item in sources))
         self.assertFalse(any("visual-proof-app.ts" in item for item in sources))
 
+    def test_s2_current_surface_is_on_demand_and_not_bootstrap_detail(self):
+        details = component_details("chatgpt_s2_surface")
+        surface = details["current_surface"]
+        self.assertEqual(surface["status"], "OK")
+        self.assertEqual(surface["schema"], "chatgpt-partition-current-surface.v1")
+        self.assertEqual(surface["partition"], "S2")
+        installed = {item["name"]: item["status"] for item in surface["account_connectors"]["installed"]}
+        self.assertEqual(installed["Gmail"], "installed")
+        self.assertEqual(installed["Google Drive"], "installed")
+        self.assertIn("Google Calendar", surface["known_not_installed"])
+        exposed = {item["name"]: item["function_count"] for item in surface["current_chat_tool_resources"]}
+        self.assertEqual(exposed["Gmail"], 21)
+        self.assertEqual(exposed["MCPVisual"], 5)
+        self.assertEqual(exposed["mcpv4"], 5)
+        self.assertEqual(exposed["files"], 5)
+        self.assertEqual(find_features("s2 plugins gmail mcpvisual current chat tools")[0]["id"], "chatgpt.s2_current_surface")
+        glance = build_live_bootstrap_glance()
+        self.assertNotIn("chatgpt_s2_current_surface", glance)
+        self.assertNotIn("current_chat_tool_resources", json.dumps(glance))
+
     def test_current_topology_contract_matches_atlas_and_excludes_old_gpt1_route(self):
         contract = json.loads((ROOT / "04 Operating Contracts" / "mcp-current-topology.json").read_text(encoding="utf-8"))
         details = component_details("mcp_minimal_clone")

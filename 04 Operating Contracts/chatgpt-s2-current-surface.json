@@ -1,0 +1,109 @@
+{
+  "schema": "chatgpt-partition-current-surface.v1",
+  "authority": "CURRENT_OBSERVED_PARTITION_CHAT_SURFACE",
+  "partition": "S2",
+  "observed_at": "2026-09-13T09:27:38.106327+00:00",
+  "observation_scope": "Current S2 ChatGPT account/chat surface visible to this supervising chat. Installed connector status and currently exposed tool resources are separate facts. This file is not MCP serving-topology, scheduler, or bootstrap authority.",
+  "account_connectors": {
+    "installed": [
+      {
+        "name": "Gmail",
+        "plugin_id": "plugin_connector_1p_95d39881713c8191931482a62d6edff9",
+        "status": "installed",
+        "capabilities": [
+          "search/read mail and threads",
+          "read attachments",
+          "draft/send/forward mail",
+          "labels/archive/trash"
+        ]
+      },
+      {
+        "name": "Google Drive",
+        "plugin_id": "plugin_connector_1p_ab21a553bfbc81919ea8fd1858e3ffa7",
+        "status": "installed",
+        "capabilities": [
+          "find/read Drive files",
+          "create/edit Google Docs, Sheets, and Slides",
+          "review/respond to comments",
+          "organize/share files"
+        ]
+      }
+    ],
+    "not_installed": [
+      {
+        "name": "Google Calendar",
+        "plugin_id": "plugin_connector_1p_f8509de903288191b14a160c6c5d20b0",
+        "status": "not_installed",
+        "last_suggested": "never",
+        "capabilities": [
+          "read schedules and meetings",
+          "availability",
+          "create/reschedule/cancel/RSVP"
+        ]
+      }
+    ],
+    "semantics": "Installed means account-level connector availability observed in current ChatGPT context; it does not imply that connector actions are exposed in every chat.",
+    "coverage": "Known connector states surfaced in the current ChatGPT context; not asserted to be an exhaustive account-wide connector inventory."
+  },
+  "current_chat_tool_resources": [
+    {
+      "name": "Gmail",
+      "transport": "api_tool",
+      "status": "exposed",
+      "function_count": 21,
+      "notes": "Gmail connector actions are currently in scope."
+    },
+    {
+      "name": "files",
+      "transport": "api_tool",
+      "status": "exposed",
+      "function_count": 5,
+      "notes": "Conversation-file search/read/find/list/materialize surface."
+    },
+    {
+      "name": "mcpv4",
+      "transport": "api_tool",
+      "status": "exposed",
+      "function_count": 5,
+      "functions": [
+        "start_process",
+        "read_output",
+        "kill_process",
+        "upload_local_file",
+        "download_chatgpt_file"
+      ]
+    },
+    {
+      "name": "MCPVisual",
+      "transport": "api_tool",
+      "status": "exposed",
+      "function_count": 5,
+      "functions": [
+        "start_process",
+        "read_output",
+        "kill_process",
+        "upload_local_file",
+        "download_chatgpt_file"
+      ],
+      "notes": "MCP + vision/file-transfer resource surface."
+    }
+  ],
+  "installed_but_not_exposed_in_current_api_tool_scope": [
+    "Google Drive"
+  ],
+  "known_not_installed": [
+    "Google Calendar"
+  ],
+  "mcp_reference": {
+    "current_topology_contract": "04 Operating Contracts/mcp-current-topology.json",
+    "stable_public_origin": "https://91-159-12-133.sslip.io",
+    "stable_backend": "127.0.0.1:3066",
+    "stable_commit": "c8e3f1f5c76738aade528e1f3ce0a480f59de5db",
+    "peer_public_origin": "https://pr237.91-159-12-133.sslip.io",
+    "peer_backend": "127.0.0.1:3052",
+    "peer_commit": "eac78448c3d0c85e983864a2609dc099d6260672",
+    "semantics": "Reference only; mcp-current-topology.v1 remains serving authority."
+  },
+  "bootstrap_policy": "Do not project this detailed partition surface into bootstrap.v1. Atlas/lookup may expose it on demand; bootstrap remains a bounded orientation glance.",
+  "tool_resource_scope": "api_tool resources exposed to this chat only; built-in ChatGPT tools outside api_tool are intentionally not inventoried here."
+}
