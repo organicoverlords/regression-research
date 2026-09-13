@@ -114,6 +114,14 @@ Current KONE C: state: about **46.8 GB free, 90.2% used**, with about **18.9 GB 
 
 Before heavy builds, broad parallel experiments, or another stack-wide rollout, identify the live owner of disk growth and reclaim only owner-proven regeneratable output. Do not turn this into generic cleanup.
 
+### 5. Regression-research CI is intentionally fail-closed during #1120
+
+PR #1131 exposed a current required-check queue: the existing workflow still requests `[self-hosted, Windows, X64, regression-research]`, while live RR-KONE-02 is online/idle with only `self-hosted, Windows, X64, kone-ci-light`.
+
+This is **not an accidental runner outage**. Existing issue #1120 owns the transition. Its current evidence says the generic `regression-research` label was deliberately removed from KONE after a substantive verify job was accepted there, because the user direction now permits KONE only for extremely-light mandatory Windows CI. The intended substantive runner is OMEN, but its regression-research runner is still staged/unregistered. Therefore generic verify jobs are intentionally queuing rather than violating the execution-node policy.
+
+This is a good recovery property—fail closed rather than silently spill work—but it is also a real current integration gate. #1131 must not bypass it; after #1120 lands, #1131 should reconcile/rebase onto the new workflow and rerun the exact-head required proof.
+
 ## Why this event chain was unnecessarily hard to reconstruct
 
 The reconstruction started from remembered terms such as `intent`, `epoch`, “yhteinen suunta”, Ponytail and YAGNI. The actual behavior evolved across multiple owners and dates rather than one named feature:
