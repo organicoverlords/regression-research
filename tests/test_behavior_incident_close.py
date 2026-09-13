@@ -11,7 +11,7 @@ import tools.behavior_incident_close as close_mod
 from tests.test_behavior_incident_capture import capture_spec
 from tools.behavior_incident_capture import materialize_capture
 from tools.behavior_incident_close import BehaviorIncidentCloseError, bind_repair, close_incident, plan_closure
-from tools.memory_bank import append_entry, load_bank, search_memory_entries
+from tools.memory_bank import MAX_TITLE_CHARS, append_entry, load_bank, search_memory_entries
 from tools.replay_scoring import score_fixture
 from tools.slopwall_v2 import validate_slopwall_fixture
 
@@ -297,6 +297,16 @@ def test_close_is_idempotent_after_closed_state(tmp_path: Path) -> None:
     repaired_provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     assert "searchable_memory_pointer_pending_non_live_v2_design" not in repaired_provenance["entries"][0]["missing"]
     assert len(load_bank(tmp_path / "memory/memory-bank.jsonl")) == 1
+
+
+def test_plan_closure_rejects_oversized_memory_title_before_bank_write(tmp_path: Path) -> None:
+    _, replay_path = prepared_incident(tmp_path, "SW-V2-TEST-CLOSE-TITLE-LIMIT")
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    replay["memory_candidate"]["title"] = "x" * (MAX_TITLE_CHARS + 1)
+    replay_path.write_text(json.dumps(replay, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    with pytest.raises(BehaviorIncidentCloseError, match=f"memory_candidate.title exceeds {MAX_TITLE_CHARS} characters"):
+        plan_closure(replay_path, root=tmp_path)
+    assert not (tmp_path / "memory/memory-bank.jsonl").exists()
 
 
 def test_missing_structured_memory_candidate_fails_before_bank_write(tmp_path: Path) -> None:

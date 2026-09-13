@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from tools.memory_bank import MAX_TITLE_CHARS
     from tools.slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
 except ImportError:
+    from memory_bank import MAX_TITLE_CHARS
     from slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -167,6 +169,7 @@ def build_artifacts(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any
     _require(isinstance(memory, dict), "memory object is required")
     for key in ("scope", "title", "text", "interpretation", "confidence_reason"):
         _require(isinstance(memory.get(key), str) and memory[key].strip(), f"memory.{key} is required")
+    _require(len(memory["title"]) <= MAX_TITLE_CHARS, f"memory.title exceeds {MAX_TITLE_CHARS} characters")
     _require(
         isinstance(memory.get("tags"), list)
         and memory["tags"]

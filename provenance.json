@@ -1602,7 +1602,7 @@
       "incident_id": "SW-V2-20260913-004",
       "incident_id_status": "assigned",
       "report_path": "01 Reports/SW-V2-20260913-004_incident.md",
-      "title": "Systemic Slopwall diagnosis must reconcile current operational owners before blaming behavior contracts",
+      "title": "Systemic Slopwall diagnosis must reconcile current owners before blaming behavior contracts",
       "date": "2026-09-13",
       "evidence_type": "evidence_bounded_behavior_incident",
       "raw_transcripts": [],
