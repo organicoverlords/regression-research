@@ -19,6 +19,18 @@ ssh -F NUL -4 -i "$env:USERPROFILE\.ssh\chatgpt-linux-aatuska-ed25519" -o BatchM
 
 Never read, print, commit, or copy the private key contents. The key path is only a route pointer.
 
+## GitHub Actions runner provisioning / credential boundary
+
+OMEN is an approved repo-scoped GitHub Actions execution node. The canonical Linux installer is `organicoverlords/agents:Install-GitHubRunnerOmen.sh` (introduced by agents PR #293). It installs the pinned Actions runner under `/mnt/ue/ci-runners/...` and a persistent `systemd --user` service.
+
+Runner registration must **not** move a GitHub registration token through ChatGPT/model text, MCP tool arguments, logs, receipts, or `gh-buffer`. The supported control path is:
+
+1. the authenticated Windows control host uses its existing GitHub CLI authority to mint the short-lived repository runner registration token;
+2. the same local control process passes that token directly over the already authenticated SSH hop as the remote installer's `GITHUB_RUNNER_REGISTRATION_TOKEN` environment value;
+3. `Install-GitHubRunnerOmen.sh` consumes it without printing or persisting it; after registration, the runner service operates from its own GitHub runner credentials.
+
+`gh-buffer` is a separate concern. Its OMEN remote lane is intentionally read-only GitHub acceleration and is **not** the runner-registration or credential-transfer mechanism. A read-only `gh-buffer` lane therefore does not mean OMEN runner provisioning is blocked. Before declaring provisioning unavailable, check the existing repo runner inventory, Windows GitHub CLI authentication, this installer, and the proven SSH route.
+
 ## Network observations
 
 - Linux hostname: `aatuska-OMEN-by-HP-Laptop-15-dc0xxx`
