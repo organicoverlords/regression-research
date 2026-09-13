@@ -3621,6 +3621,7 @@ def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT
         "slopwall": "keep inherited objective/core foregrounded; no filler/process/proxy displacement | RULES:slopwall + AGENTS:correction; repair first; mandatory correction before final",
         "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
         "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
+        "shared_correction": "shared/swarm correction: RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; claim fixed only after durable canonical proof; if infra/orchestration/scheduler intent is still being shaped, discuss first/no mutation | RULES:shared-behavior-correction + swarm-direction",
         "security_evidence": {
             "mode": "CLASSIFY_BEFORE_CAUSALITY",
             "source": "RULES:platform-security-boundary",

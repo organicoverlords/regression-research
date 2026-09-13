@@ -156,6 +156,10 @@ class StackAtlasTests(unittest.TestCase):
             self.assertIn("mandatory lightweight marker", guidance["asshole"])
             self.assertIn("one decision-relevant unknown", guidance["stack_find"])
             self.assertIn("narrow same unknown once", guidance["stack_find"])
+            self.assertIn("RULE_GAP vs RULE_VIOLATION", guidance["shared_correction"])
+            self.assertIn("no 'this chat/from now on' promise", guidance["shared_correction"])
+            self.assertIn("durable canonical proof", guidance["shared_correction"])
+            self.assertIn("discuss first/no mutation", guidance["shared_correction"])
             security = guidance["security_evidence"]
             self.assertEqual(security["mode"], "CLASSIFY_BEFORE_CAUSALITY")
             self.assertEqual(security["source"], "RULES:platform-security-boundary")
