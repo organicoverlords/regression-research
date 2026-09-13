@@ -135,12 +135,12 @@ SURFACES: dict[str, dict[str, Any]] = {
         "aliases": ["timeline", "Vault Timeline Materializer", "materialized timeline", "timeline runtime", "timeline_materializer", "VaultTimeline", "query index", "timeline store"],
         "tasks": ["Vault Timeline Materializer"],
         "pairs": [
-            ("entry", "tools/timeline_materializer.py", "$TASK:Vault Timeline Materializer:timeline_materializer.py", "pinned"),
-            ("memory_bank", "tools/memory_bank.py", "$SIBLING:entry:memory_bank.py", "pinned"),
-            ("memory_sync", "tools/memory_git_sync.py", "$SIBLING:entry:memory_git_sync.py", "pinned"),
-            ("memory_timeline", "tools/memory_timeline.py", "$SIBLING:entry:memory_timeline.py", "pinned"),
-            ("repo_timeline", "tools/repo_timeline.py", "$SIBLING:entry:repo_timeline.py", "pinned"),
-            ("worker_history", "tools/worker_report_history.py", "$SIBLING:entry:worker_report_history.py", "pinned"),
+            ("entry", "tools/timeline_materializer.py", "$TASK:Vault Timeline Materializer:timeline_materializer.py", "pinned_worktree_copy"),
+            ("memory_bank", "tools/memory_bank.py", "$SIBLING:entry:memory_bank.py", "pinned_worktree_copy"),
+            ("memory_sync", "tools/memory_git_sync.py", "$SIBLING:entry:memory_git_sync.py", "pinned_worktree_copy"),
+            ("memory_timeline", "tools/memory_timeline.py", "$SIBLING:entry:memory_timeline.py", "pinned_worktree_copy"),
+            ("repo_timeline", "tools/repo_timeline.py", "$SIBLING:entry:repo_timeline.py", "pinned_worktree_copy"),
+            ("worker_history", "tools/worker_report_history.py", "$SIBLING:entry:worker_report_history.py", "pinned_worktree_copy"),
         ],
         "sources": [],
         "outputs": [("store", r"%LOCALAPPDATA%\VaultTimeline\timeline-store.json"), ("index", r"%LOCALAPPDATA%\VaultTimeline\timeline-query-index.pkl"), ("status", r"%LOCALAPPDATA%\VaultTimeline\status.json")],
@@ -477,8 +477,12 @@ def _comparison(root: Path, source_rel: str, runtime: Path | None, tracking: str
         comparison_runtime_blob = runtime_clean_blob
         comparison_mode = "GIT_CLEAN_FILTERED_RUNTIME_VS_WORKTREE_SOURCE"
     elif tracking == "pinned_worktree_copy":
-        comparison_runtime_blob = runtime_clean_blob
-        comparison_mode = "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB"
+        if desired_blob is not None and runtime_exact_blob == desired_blob:
+            comparison_runtime_blob = runtime_exact_blob
+            comparison_mode = "EXACT_RUNTIME_BYTES_VS_PINNED_GIT_BLOB"
+        else:
+            comparison_runtime_blob = runtime_clean_blob
+            comparison_mode = "GIT_CLEAN_FILTERED_RUNTIME_VS_PINNED_GIT_BLOB"
     else:
         comparison_runtime_blob = runtime_exact_blob
         comparison_mode = "EXACT_RUNTIME_BYTES_VS_GIT_BLOB"
