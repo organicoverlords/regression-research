@@ -92,7 +92,7 @@
       }
     ],
     "parent_event_id": null,
-    "memory_ref": "memory/reports/SW-V2-20260913-004_pending-memory.md",
+    "memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-004",
     "replay_ref": "03 Fixtures and Experiments/SW-V2-20260913-004_replay.json",
     "evidence_confidence": "A",
     "scores": {
@@ -146,7 +146,7 @@
         ]
       }
     },
-    "closure_state": "REPAIRED_PENDING_DURABILITY",
+    "closure_state": "CLOSED",
     "repair_binding_required": true,
     "repair_binding": {
       "status": "SCORED_PASS",
