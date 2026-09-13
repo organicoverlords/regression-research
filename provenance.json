@@ -1673,6 +1673,29 @@
       "superseded_by": null,
       "missing": [],
       "notes": "Bounded evidence for agents#402. Separates ordinary headless commentary from required foreground/material notices and from client-rendered tool-status UI."
+    },
+    {
+      "incident_id": "SW-V2-20260913-003",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/SW-V2-20260913-003_incident.md",
+      "title": "CI recovery Slopwall: act on a proven runner outage before narrating history",
+      "date": "2026-09-13",
+      "evidence_type": "evidence_bounded_behavior_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/SW-V2-20260913-003_visible-context.json",
+        "03 Fixtures and Experiments/SW-V2-20260913-003_replay.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "superseded",
+      "superseded_by": "SW-V2-20260913-004",
+      "missing": [
+        "repair_binding_absent_under_hardened_v2",
+        "authority_proof_absent_for_runner_mutation",
+        "superseding_memory_pending"
+      ],
+      "notes": "Historical SW-V2-003 artifacts preserved byte-for-byte from closed PR #1117 head e3ef11fcd1f03f06e9bb07cfa00ab6a8faa25837. The event/memory conclusion is superseded by SW-V2-20260913-004: the corrective trigger did not authorize the runner mutation, and the old CLOSED state predates actual-repair/authority closure guards. Preserve history; do not delete or treat this replay as current authority.",
+      "canonical_memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-003"
     }
   ],
   "orphan_evidence": [
