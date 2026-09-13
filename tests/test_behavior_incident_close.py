@@ -10,7 +10,7 @@ import tools.behavior_incident_close as close_mod
 from tests.test_behavior_incident_capture import capture_spec
 from tools.behavior_incident_capture import materialize_capture
 from tools.behavior_incident_close import BehaviorIncidentCloseError, bind_repair, close_incident, plan_closure
-from tools.memory_bank import append_entry, load_bank
+from tools.memory_bank import append_entry, load_bank, search_memory_entries
 from tools.replay_scoring import score_fixture
 from tools.slopwall_v2 import validate_slopwall_fixture
 
@@ -209,6 +209,36 @@ def test_close_records_canonical_memory_and_closes_replay_and_provenance(tmp_pat
     assert entry["canonical_memory_ref"] == closed["memory_ref"]
     assert "canonical_memory_pending" not in entry["missing"]
     assert "searchable_memory_pointer_pending_non_live_v2_design" not in entry["missing"]
+
+
+def test_closed_correction_supersedes_old_memory_from_ordinary_recall(tmp_path: Path) -> None:
+    _, replay_path = prepared_incident(tmp_path, "SW-V2-TEST-CLOSE-SUPERSEDES")
+    bank_path = tmp_path / "memory/memory-bank.jsonl"
+    append_entry(bank_path, {
+        "id": "mem-old-runner-lesson",
+        "timestamp": "2026-09-12T12:00:00+03:00",
+        "kind": "correction",
+        "scope": "assistant-orchestration/runner-recovery",
+        "tags": ["slopwall", "regression"],
+        "title": "Old runner recovery lesson",
+        "text": "Legacy runner recovery trigger lesson that should be superseded.",
+        "state": "PROVEN",
+        "evidence": ["legacy:runner-recovery"],
+        "supersedes": [],
+    })
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    replay["memory_candidate"]["supersedes"] = ["mem-old-runner-lesson"]
+    replay_path.write_text(json.dumps(replay, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+    closed = close_incident(replay_path, root=tmp_path)
+    assert closed["status"] == "CLOSED"
+    entries = load_bank(bank_path)
+    new_memory = next(item for item in entries if item["id"] == closed["memory_id"])
+    assert new_memory["supersedes"] == ["mem-old-runner-lesson"]
+    ordinary = search_memory_entries(entries, "Legacy runner recovery trigger lesson", history=False)
+    historical = search_memory_entries(entries, "Legacy runner recovery trigger lesson", history=True)
+    assert all(item["id"] != "mem-old-runner-lesson" for item in ordinary)
+    assert any(item["id"] == "mem-old-runner-lesson" for item in historical)
 
 
 def test_close_is_idempotent_after_closed_state(tmp_path: Path) -> None:
