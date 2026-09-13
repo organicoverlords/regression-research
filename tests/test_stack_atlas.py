@@ -57,6 +57,7 @@ from tools.stack_atlas import (
     unified_find,
     _timeline_discovery_hits,
     _live_discovery_hits,
+    _github_repo_hints_for_find,
     full_inventory,
     main as stack_atlas_main,
     production_change_gate,
@@ -2438,6 +2439,28 @@ class StackAtlasTests(unittest.TestCase):
         self.assertFalse(result["coverage"]["runtime_graph"]["broad_task_enumeration"])
         self.assertEqual(find_features("commander fallback", limit=2), atlas_before)
         self.assertIn("Discovery only", result["boundary"])
+
+    def test_find_repo_hints_use_matching_project_not_generic_repo(self):
+        hits = [
+            {
+                "id": "project.current_truth",
+                "triggers": ["current truth", "project state"],
+                "entrypoints": ["organicoverlords/agents@main docs/repos/<repo>"],
+            },
+            {
+                "id": "project.nexus_navigation",
+                "triggers": ["nexus", "nexus canvas"],
+                "entrypoints": ["gh issue list -R organicoverlords/nexus"],
+            },
+        ]
+        self.assertEqual(
+            _github_repo_hints_for_find("nexus #16 #23 implementation", hits),
+            ["organicoverlords/nexus"],
+        )
+        self.assertEqual(
+            _github_repo_hints_for_find("organicoverlords/nexus#16", []),
+            ["organicoverlords/nexus"],
+        )
 
     def test_runtime_deployment_graph_is_discoverable_inside_unified_find_model(self):
         feature = find_features("runtime deployment graph", limit=3)[0]
