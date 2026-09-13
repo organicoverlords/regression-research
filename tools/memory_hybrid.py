@@ -155,6 +155,9 @@ _PROOF_HISTORY_SURFACE_TOKENS = {
 
 def _query_word_tokens(value: str) -> list[str]:
     tokens = _word_tokens(value)
+    token_set = set(tokens)
+    if {"reset", "active", "browsers"} <= token_set:
+        tokens = ["browser" if token == "browsers" else token for token in tokens]
     if "proof" not in tokens:
         return tokens
     tokens = [_PROOF_VISUAL_QUERY_ALIASES.get(token, token) for token in tokens]
