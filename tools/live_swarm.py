@@ -9,6 +9,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    from tools.recurring_slot_registry import load_slot_snapshot
+except ModuleNotFoundError:  # direct ``python tools/live_swarm.py`` execution
+    from recurring_slot_registry import load_slot_snapshot
+
 ACTIVITY_WINDOW_SECONDS = 300
 ACTIVITY_COUNT_WINDOWS = (("15s", 15), ("60s", 60), ("2m", 120), ("5m", 300), ("15m", 900), ("30m", 1800))
 ACTIVITY_BUCKET_WINDOWS = (("0_15s", 0, 15), ("15_60s", 15, 60), ("1_2m", 60, 120), ("2_5m", 120, 300), ("5_15m", 300, 900), ("15_30m", 900, 1800))
@@ -317,38 +322,43 @@ def identify_current_actor(actor: str, *, now: datetime | None = None, parent_pi
     return {"status": "BOUND", "bound": True, **payload}
 
 
-def _canonical_actor_specs() -> list[dict[str, Any]]:
-    path = Path(__file__).resolve().parent.parent / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8-sig"))
-    except Exception:
+def _actor_name_from_binding_label(label: str, partition: str) -> str:
+    name = re.sub(r"^Repo\s+Worker\s+", "", str(label or "").strip(), flags=re.I)
+    part = re.escape(str(partition or "").strip())
+    if part:
+        name = re.sub(rf"\s+#?{part}(?:\s+New)?\s*$", "", name, flags=re.I)
+    return name.strip()
+
+
+def _canonical_actor_specs(root: Path | None = None) -> list[dict[str, Any]]:
+    actor_root = root or Path(__file__).resolve().parent.parent
+    snapshot = load_slot_snapshot(actor_root)
+    if snapshot.get("status") != "OK":
         return []
-    subscriptions = payload.get("subscriptions") if isinstance(payload, dict) else None
-    if not isinstance(subscriptions, dict):
-        return []
-    raw: list[tuple[str, str]] = []
-    for partition, spec in subscriptions.items():
-        workers = spec.get("workers") if isinstance(spec, dict) else None
-        if not isinstance(workers, list):
+
+    raw: list[tuple[str, str, str]] = []
+    for binding in snapshot.get("bound_workers", []):
+        if not isinstance(binding, dict):
             continue
-        for worker in workers:
-            label = str((worker or {}).get("label") or "") if isinstance(worker, dict) else ""
-            name = re.sub(r"^Repo\s+Worker\s+", "", label, flags=re.I)
-            name = re.sub(r"\s*#S\d+\s*$", "", name, flags=re.I).strip()
-            if name:
-                raw.append((str(partition), name))
+        partition = str(binding.get("partition") or "").strip().upper()
+        slot_id = str(binding.get("slot_id") or "").strip().upper()
+        name = _actor_name_from_binding_label(str(binding.get("label") or ""), partition)
+        if partition and slot_id and name:
+            raw.append((partition, slot_id, name))
+
     counts: dict[str, int] = {}
-    for _, name in raw:
+    for _, _, name in raw:
         key = name.casefold()
         counts[key] = counts.get(key, 0) + 1
     return [
         {
             "actor": f"{partition}/{name}",
             "partition": partition.casefold(),
+            "slot_id": slot_id,
             "name": name.casefold(),
             "name_unique": counts.get(name.casefold(), 0) == 1,
         }
-        for partition, name in raw
+        for partition, slot_id, name in raw
     ]
 
 
