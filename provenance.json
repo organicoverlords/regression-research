@@ -1613,10 +1613,9 @@
       "contract_snapshots": [],
       "duplicate_status": "canonical",
       "superseded_by": null,
-      "missing": [
-        "canonical_memory_pending"
-      ],
-      "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed."
+      "missing": [],
+      "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed. Canonical behavior-incident memory closure is bound to memory/memory-bank.jsonl#mem-sw-v2-20260913-004.",
+      "canonical_memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-004"
     },
     {
       "incident_id": "SW-V2-20260913-002",
