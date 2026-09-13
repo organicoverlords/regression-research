@@ -485,6 +485,41 @@ def _write_json_atomic(destination: Path, payload: dict) -> None:
             temporary.unlink(missing_ok=True)
 
 
+def _snapshot_budget_observation(repo_root: Path) -> dict:
+    """Return bounded facts about the exact current persisted bootstrap payload."""
+    path = _snapshot_dir(repo_root) / 'latest.json'
+    try:
+        raw = path.read_bytes()
+        payload = json.loads(raw.decode('utf-8-sig'))
+    except (FileNotFoundError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {'available': False}
+    if not isinstance(payload, dict):
+        return {'available': False}
+    bootstrap = payload.get('bootstrap') if isinstance(payload.get('bootstrap'), dict) else {}
+    budget = bootstrap.get('payload_budget') if isinstance(bootstrap.get('payload_budget'), dict) else {}
+    end = payload.get('bootstrap_end') if isinstance(payload.get('bootstrap_end'), dict) else {}
+    observation = {
+        'available': True,
+        'bytes': len(raw),
+        'bootstrap_end_status': end.get('status'),
+    }
+    for key in ('max_bytes', 'compaction_target_bytes', 'headroom_reserve_bytes', 'stability_ceiling_bytes'):
+        value = budget.get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            observation[key] = value
+    for key in ('compacted', 'headroom_compacted'):
+        value = budget.get(key)
+        if isinstance(value, bool):
+            observation[key] = value
+    max_bytes = observation.get('max_bytes')
+    if isinstance(max_bytes, int):
+        observation['headroom_bytes'] = max_bytes - len(raw)
+    stability_ceiling = observation.get('stability_ceiling_bytes')
+    if isinstance(stability_ceiling, int):
+        observation['headroom_target_met'] = len(raw) <= stability_ceiling
+    return observation
+
+
 def _write_producer_status(repo_root: Path, *, mode: str, detail: str = '', exit_code: int = 0) -> None:
     try:
         _write_json_atomic(_snapshot_dir(repo_root) / PRODUCER_STATUS_NAME, {
@@ -493,6 +528,7 @@ def _write_producer_status(repo_root: Path, *, mode: str, detail: str = '', exit
             'mode': mode,
             'exit_code': int(exit_code),
             'detail': detail[-1000:],
+            'snapshot': _snapshot_budget_observation(repo_root),
         })
     except OSError:
         pass

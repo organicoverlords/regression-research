@@ -476,6 +476,67 @@ def test_glance_timeout_is_bounded_without_pipe_eof_wait(tmp_path: Path) -> None
     assert elapsed < 4.0
 
 
+def test_producer_status_computes_unmet_headroom_from_persisted_bytes(tmp_path: Path) -> None:
+    destination = tmp_path / '.state' / 'bootstrap' / 'latest.json'
+    payload = {
+        'schema': 'bootstrap.v1',
+        'generated_at': '2026-09-13T09:00:00+00:00',
+        'bootstrap': {'status': 'OK', 'payload_budget': {
+            'max_bytes': 25000,
+            'headroom_reserve_bytes': 4000,
+            'stability_ceiling_bytes': 21000,
+            'headroom_target_met': True,
+        }},
+        'synthetic_irreducible': 'x' * 22000,
+        'bootstrap_end': {'status': 'COMPLETE', 'schema': 'bootstrap.v1'},
+    }
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(payload, separators=(',', ':')), encoding='utf-8')
+
+    observation = bootstrap_read_loop._snapshot_budget_observation(tmp_path)
+
+    assert observation['available'] is True
+    assert observation['bytes'] == len(destination.read_bytes())
+    assert observation['bytes'] > observation['stability_ceiling_bytes']
+    assert observation['headroom_target_met'] is False
+    assert observation['headroom_bytes'] == 25000 - observation['bytes']
+
+
+def test_full_producer_status_exposes_persisted_payload_headroom(tmp_path: Path) -> None:
+    alternate = tmp_path / 'alternate'
+    tools = alternate / 'tools'
+    tools.mkdir(parents=True)
+    (tools / 'stack_atlas.py').write_text(
+        "import json; from datetime import datetime, timezone; "
+        "print(json.dumps({'schema':'bootstrap.v1','generated_at':datetime.now(timezone.utc).isoformat(),"
+        "'bootstrap':{'status':'OK','payload_budget':{'max_bytes':25000,'compaction_target_bytes':15000,"
+        "'headroom_reserve_bytes':4000,'stability_ceiling_bytes':21000,'compacted':True,'headroom_compacted':True}},"
+        "'memory_overview':{'recent':[]},'bootstrap_end':{'status':'COMPLETE','schema':'bootstrap.v1'}}))",
+        encoding='utf-8',
+    )
+    _, overlay = _memory_files(alternate, tmp_path)
+
+    cp = _run_once(alternate, overlay)
+
+    assert cp.returncode == 0, cp.stderr
+    destination = alternate / '.state' / 'bootstrap' / 'latest.json'
+    persisted = destination.read_bytes()
+    status_path = destination.parent / 'producer-status.json'
+    status = json.loads(status_path.read_text(encoding='utf-8'))
+    observation = status['snapshot']
+    assert status['mode'] == 'FULL'
+    assert observation['available'] is True
+    assert observation['bytes'] == len(persisted)
+    assert observation['bootstrap_end_status'] == 'COMPLETE'
+    assert observation['max_bytes'] == 25000
+    assert observation['stability_ceiling_bytes'] == 21000
+    assert observation['headroom_reserve_bytes'] == 4000
+    assert observation['headroom_bytes'] == 25000 - len(persisted)
+    assert observation['headroom_target_met'] is True
+    assert observation['headroom_compacted'] is True
+    assert len(status_path.read_bytes()) < 2048
+
+
 def test_skip_if_fresh_avoids_bootstrap_glance(tmp_path: Path) -> None:
     from datetime import datetime, timezone
 
@@ -493,6 +554,11 @@ def test_skip_if_fresh_avoids_bootstrap_glance(tmp_path: Path) -> None:
     original = {
         'schema': 'bootstrap.v1',
         'generated_at': datetime.now(timezone.utc).isoformat(),
+        'bootstrap': {'status': 'OK', 'payload_budget': {
+            'max_bytes': 25000, 'compaction_target_bytes': 15000,
+            'headroom_reserve_bytes': 4000, 'stability_ceiling_bytes': 21000,
+            'compacted': True, 'headroom_compacted': False,
+        }},
         'bootstrap_end': {'status': 'COMPLETE', 'schema': 'bootstrap.v1'},
     }
     destination.write_text(json.dumps(original), encoding='utf-8')
@@ -502,6 +568,12 @@ def test_skip_if_fresh_avoids_bootstrap_glance(tmp_path: Path) -> None:
     assert cp.returncode == 0, cp.stderr
     assert not marker.exists()
     assert json.loads(destination.read_text(encoding='utf-8')) == original
+    status = json.loads((destination.parent / 'producer-status.json').read_text(encoding='utf-8'))
+    assert status['mode'] == 'SKIPPED_FRESH'
+    observation = status['snapshot']
+    assert observation['bytes'] == len(destination.read_bytes())
+    assert observation['headroom_bytes'] == 25000 - len(destination.read_bytes())
+    assert observation['headroom_target_met'] is True
 
 
 def test_skip_if_fresh_refreshes_stale_snapshot(tmp_path: Path) -> None:
