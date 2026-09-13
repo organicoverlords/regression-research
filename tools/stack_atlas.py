@@ -3499,6 +3499,9 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
                 "activity_age_seconds": caller.get("last_activity_age_seconds"),
                 "cwd": worktree.get("path"),
                 "workspace": caller.get("workspace"),
+                "mode": caller.get("mode"),
+                "action_class": caller.get("action_class"),
+                "activity_target": caller.get("activity_target"),
                 "busy_titles": owners,
             })
     sessions.sort(key=lambda item: float(item.get("activity_age_seconds") or 1e9))
@@ -3524,6 +3527,8 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
             "semantics": "bootstrap_detail_bound_not_evidence_truncation",
         },
         "workspace_counts": summary.get("workspace_counts", {}),
+        "caller_modes": summary.get("caller_modes", {}),
+        "activity_buckets": summary.get("activity_buckets", {}),
         "activity_summary": {
             **activity,
             "activity_window_seconds": 300,

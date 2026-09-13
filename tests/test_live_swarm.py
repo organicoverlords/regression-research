@@ -7,7 +7,7 @@ from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tools.live_swarm import _command_target, _git_identity, _read_window, _workspace, build_live_swarm_snapshot, compact_for_bootstrap
+from tools.live_swarm import _action_mode, _command_target, _git_identity, _read_window, _workspace, build_live_swarm_snapshot, compact_for_bootstrap
 
 
 class LiveSwarmTests(unittest.TestCase):
@@ -18,6 +18,13 @@ class LiveSwarmTests(unittest.TestCase):
         path,basis=_command_target("git -C 'C:\\repo\\p3' status")
         self.assertEqual(path, r"C:\repo\p3")
         self.assertEqual(basis, "command_git_c")
+
+    def test_action_mode_requires_explicit_plan_label(self):
+        self.assertEqual(_action_mode("package_plan"), "PLAN_ONLY")
+        self.assertEqual(_action_mode("content-plan"), "PLAN_ONLY")
+        self.assertEqual(_action_mode("plan_only"), "PLAN_ONLY")
+        self.assertEqual(_action_mode("repo_mutation"), "UNKNOWN")
+        self.assertEqual(_action_mode("planonly_evidence_probe"), "UNKNOWN")
 
     def test_workspace_is_orientation_not_identity(self):
         self.assertEqual(_workspace(r"C:\Users\Lauri\Desktop\tiny3d-x"), "Tiny3D")
@@ -215,7 +222,10 @@ class LiveSwarmTests(unittest.TestCase):
             (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
             rows=[]
             for caller,seconds_ago in (("c15",5),("c60",30),("c2m",90),("c5m",240),("c15m",600),("c30m",1200),("c_exit",600)):
-                rows.append({"at":(now-timedelta(seconds=seconds_ago)).isoformat(),"event":"process_started","caller_id":caller,"process_id":caller,"cwd":fr"C:\work\{caller}"})
+                row={"at":(now-timedelta(seconds=seconds_ago)).isoformat(),"event":"process_started","caller_id":caller,"process_id":caller,"cwd":fr"C:\work\{caller}"}
+                if caller=="c15": row.update(action_class="package_plan",activity_target={"type":"project","id":"plan-target","project":"p3"})
+                elif caller=="c60": row.update(action_class="repo_mutation",activity_target={"type":"card","id":"42","project":"p3"})
+                rows.append(row)
             rows.append({"at":(now-timedelta(seconds=4)).isoformat(),"event":"process_exit_observed","caller_id":"c_exit","process_id":"c_exit","exit_code":0})
             rows.sort(key=lambda row: row["at"])
             (source/"transport.jsonl").write_text("\n".join(json.dumps(row) for row in rows)+"\n",encoding="utf-8")
@@ -225,8 +235,18 @@ class LiveSwarmTests(unittest.TestCase):
                 "15s":1,"60s":2,"2m":3,"5m":4,"15m":6,"30m":7,
             })
             self.assertEqual(snapshot["summary"]["recent_callers"],4)
+            self.assertEqual(snapshot["summary"]["activity_buckets"],{
+                "0_15s":1,"15_60s":1,"1_2m":1,"2_5m":1,"5_15m":2,"15_30m":1,
+            })
+            self.assertEqual(snapshot["summary"]["caller_modes"],{"PLAN_ONLY":1,"UNKNOWN":3})
+            caller_by_id={caller["caller_id"]:caller for caller in snapshot["callers"]}
+            self.assertEqual(caller_by_id["c15"]["mode"],"PLAN_ONLY")
+            self.assertEqual(caller_by_id["c15"]["action_class"],"package_plan")
+            self.assertEqual(caller_by_id["c15"]["activity_target"],{"type":"project","id":"plan-target","project":"p3"})
+            self.assertEqual(caller_by_id["c60"]["mode"],"UNKNOWN")
             self.assertEqual(snapshot["evidence"]["active_callers_complete_through_seconds"],1800)
             self.assertEqual(snapshot["evidence"]["active_callers_semantics"],"unique_non_observer_callers_with_process_started_or_process_read_in_window")
+            self.assertIn("PLAN_ONLY_only_when",snapshot["evidence"]["caller_mode_semantics"])
 
     def test_snapshot_uses_newer_rotated_archive_for_same_mcpv4_instance(self):
         now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
@@ -257,10 +277,14 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
 
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
-        snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
+        snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
         compact=compact_for_bootstrap(snapshot)
         self.assertEqual(compact["summary"]["recent_callers"],3)
         self.assertEqual(compact["lanes"][0]["busy"][0]["scope_count"],5)
+        self.assertEqual(compact["lanes"][0]["state"],"ACTIVE")
+        self.assertEqual(compact["lanes"][0]["callers"][0]["mode"],"PLAN_ONLY")
+        self.assertNotIn("action_class",compact["lanes"][0]["callers"][0])
+        self.assertNotIn("activity_target",compact["lanes"][0]["callers"][0])
         self.assertNotIn("scopes",compact["lanes"][0]["busy"][0])
         self.assertNotIn("lanes_truncated",compact)
         self.assertEqual(compact["lane_details"], {

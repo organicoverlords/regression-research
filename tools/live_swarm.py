@@ -10,6 +10,7 @@ from typing import Any
 
 ACTIVITY_WINDOW_SECONDS = 300
 ACTIVITY_COUNT_WINDOWS = (("15s", 15), ("60s", 60), ("2m", 120), ("5m", 300), ("15m", 900), ("30m", 1800))
+ACTIVITY_BUCKET_WINDOWS = (("0_15s", 0, 15), ("15_60s", 15, 60), ("1_2m", 60, 120), ("2_5m", 120, 300), ("5_15m", 300, 900), ("15_30m", 900, 1800))
 OBSERVATION_WINDOW_MINUTES = 30.0
 EXECUTION_REFERENCE_MINUTES = 27.0
 MAX_TRANSPORT_BYTES = 8 * 1024 * 1024
@@ -24,6 +25,14 @@ def _dt(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def _action_mode(action_class: Any) -> str:
+    """Return PLAN_ONLY only for explicitly plan-labelled action classes; never infer execution."""
+    normalized = re.sub(r"[^a-z0-9]+", "_", str(action_class or "").casefold()).strip("_")
+    if normalized in {"plan", "planning", "plan_only", "planonly"} or normalized.endswith("_plan"):
+        return "PLAN_ONLY"
+    return "UNKNOWN"
 
 
 def _read_window(path: Path, cutoff: datetime, max_bytes: int = MAX_TRANSPORT_BYTES) -> tuple[list[dict[str, Any]], bool, int]:
@@ -411,23 +420,33 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             continue
         at = _dt(row.get("at")); ev = row.get("event"); pid = row.get("process_id")
         if at:
-            item = callers.setdefault(str(c), {"first":at,"last":at,"starts":0,"reads":0,"pids":[],"cwd":None})
+            item = callers.setdefault(str(c), {"first":at,"last":at,"starts":0,"reads":0,"pids":[],"cwd":None,"activity_pid":None})
             item["first"] = min(item["first"], at); item["last"] = max(item["last"], at)
+            previous_activity = caller_activity_at.get(str(c))
             if ev == "process_started":
                 item["starts"] += 1; item["cwd"] = row.get("cwd") or item["cwd"]
-                caller_activity_at[str(c)] = max(caller_activity_at.get(str(c), at), at)
+                if previous_activity is None or at >= previous_activity: item["activity_pid"] = pid
+                caller_activity_at[str(c)] = max(previous_activity or at, at)
                 if pid and pid not in item["pids"]: item["pids"].append(pid)
             elif ev == "process_read":
                 item["reads"] += 1
-                caller_activity_at[str(c)] = max(caller_activity_at.get(str(c), at), at)
+                if previous_activity is None or at >= previous_activity: item["activity_pid"] = pid
+                caller_activity_at[str(c)] = max(previous_activity or at, at)
         if pid:
             proc = processes.setdefault(pid, {})
-            if ev == "process_started": proc.update(start=at, cwd=row.get("cwd"))
+            if ev == "process_started": proc.update(start=at, cwd=row.get("cwd"), action_class=row.get("action_class"), activity_target=row.get("activity_target"))
             elif ev in ("process_exit_observed","process_killed"): proc.update(end=at, exit_code=row.get("exit_code"))
     active_callers = {
         label: sum(1 for at in caller_activity_at.values() if at >= now - timedelta(seconds=seconds))
         for label, seconds in ACTIVITY_COUNT_WINDOWS
     }
+    activity_buckets = {}
+    for label, lower, upper in ACTIVITY_BUCKET_WINDOWS:
+        activity_buckets[label] = sum(
+            1
+            for at in caller_activity_at.values()
+            if (age := max(0.0, (now - at).total_seconds())) <= upper and (lower == 0 or age > lower)
+        )
     active_callers_complete_through_seconds = (
         int(OBSERVATION_WINDOW_MINUTES * 60) if complete else ACTIVITY_WINDOW_SECONDS if activity_complete else 0
     )
@@ -440,17 +459,19 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     git_cache: dict[str, Any] = {}
     details: dict[str, dict[str, Any]] = {}
     for c,item in callers.items():
-        pid = item["pids"][-1] if item["pids"] else None
+        pid = item.get("activity_pid") or (item["pids"][-1] if item["pids"] else None)
         receipt = {}; command = ""
         if pid:
             try: receipt = json.loads((receipts / f"{pid}.json").read_text(encoding="utf-8-sig"))
             except Exception: receipt = {}
             command = str(receipt.get("command") or "")
+        proc = processes.get(pid,{}) if pid else {}
+        action_class = proc.get("action_class") or receipt.get("action_class")
+        activity_target = proc.get("activity_target") or receipt.get("activity_target")
         target,basis = _command_target(command)
         worktree = _git_identity(target, git_cache) if target else None
         if not worktree:
             worktree = _git_identity(item["cwd"], git_cache); basis = "launch_cwd" if worktree else None
-        proc = processes.get(pid,{}) if pid else {}
         st = proc.get("start") or _dt(receipt.get("started_at")); en = proc.get("end") or _dt(receipt.get("finished_at"))
         latest = None
         if st:
@@ -464,6 +485,9 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "worktree":worktree,
             "worktree_evidence":basis,
             "latest_process":latest,
+            "mode":_action_mode(action_class),
+            "action_class":str(action_class) if action_class else None,
+            "activity_target":activity_target if isinstance(activity_target, dict) else None,
             "command":" ".join(command.split())[:120],
         }
 
@@ -522,21 +546,32 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "checkpoint":next((str(j.get("checkpoint")) for j in owner_jobs if j.get("checkpoint")),None),
         })
     lane_list=list(lanes.values())
+    for lane in lane_list:
+        caller_ages = [float(c["last_activity_age_seconds"]) for c in lane["callers"] if c.get("last_activity_age_seconds") is not None]
+        if any(age <= 60 for age in caller_ages): lane["state"] = "ACTIVE"
+        elif caller_ages: lane["state"] = "RECENT"
+        elif lane["busy"]: lane["state"] = "BUSY_NO_RECENT_MCP_ACTIVITY"
+        else: lane["state"] = "UNKNOWN"
     lane_list.sort(key=lambda lane:min(
         [float(c["last_activity_age_seconds"]) for c in lane["callers"] if c.get("last_activity_age_seconds") is not None]
         +[float(b["last_update_age_seconds"]) for b in lane["busy"] if b.get("last_update_age_seconds") is not None]+[1e9]
     ))
+    caller_list=sorted(details.values(), key=lambda item: float(item.get("last_activity_age_seconds") or 1e9))
+    caller_modes={"PLAN_ONLY":sum(1 for d in caller_list if d.get("mode")=="PLAN_ONLY"),"UNKNOWN":sum(1 for d in caller_list if d.get("mode")!="PLAN_ONLY")}
+    lane_states: dict[str,int]={}
+    for lane in lane_list:
+        state=str(lane.get("state") or "UNKNOWN"); lane_states[state]=lane_states.get(state,0)+1
     workspace_counts: dict[str,int]={}
     for d in details.values():
         w=d.get("workspace") or "Unknown"; workspace_counts[w]=workspace_counts.get(w,0)+1
     result={
         "schema":"live-swarm.v1","available":True,"generated_at":now.isoformat(),
         "summary":{
-            "recent_callers":len(details),"active_callers":active_callers,"lanes":len(lane_list),
+            "recent_callers":len(details),"active_callers":active_callers,"activity_buckets":activity_buckets,"caller_modes":caller_modes,"lanes":len(lane_list),
             "worktree_lanes":sum(1 for l in lane_list if l["basis"]=="worktree"),
             "busy_only_lanes":sum(1 for l in lane_list if l["basis"]=="busy_owner"),
             "activity_only_lanes":sum(1 for l in lane_list if l["basis"]=="caller_activity"),
-            "busy_owners":len(owners),"busy_scopes":len(jobs),"workspace_counts":workspace_counts,
+            "busy_owners":len(owners),"busy_scopes":len(jobs),"lane_states":lane_states,"workspace_counts":workspace_counts,
         },
         "evidence":{
             "transport":TRANSPORT_KIND,
@@ -546,12 +581,15 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "activity_window_complete":activity_complete,"observation_window_complete":complete,"sample_bytes":sample_bytes,
             "active_callers_complete_through_seconds":active_callers_complete_through_seconds,
             "active_callers_semantics":"unique_non_observer_callers_with_process_started_or_process_read_in_window",
+            "activity_buckets_semantics":"non_overlapping_unique_callers_by_latest_process_started_or_process_read_age",
+            "caller_mode_semantics":"PLAN_ONLY_only_when_latest_activity_process_action_class_is_explicitly_plan_labelled; otherwise_UNKNOWN",
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
             "execution_reference_minutes":EXECUTION_REFERENCE_MINUTES,
             "execution_reference_semantics":"orientation_only_not_remaining_time",
             "observer_callers_excluded":sorted(observer_callers),
             "activity_summary":{**activity_counts,"last_event_at":last_event_at.isoformat() if last_event_at else None},
         },
+        "callers":caller_list,
         "transport_sources":source_details,
         "transport_source_discovery":{
             "bytes":discovery.get("discovery_bytes"),
@@ -574,8 +612,8 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
     lanes=[]
     for lane in source_lanes[:lane_limit]:
         lanes.append({
-            "basis":lane.get("basis"),"workspace":lane.get("workspace"),"worktree":lane.get("worktree"),
-            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process") if c.get(k) is not None} for c in lane.get("callers",[])],
+            "basis":lane.get("basis"),"state":lane.get("state"),"workspace":lane.get("workspace"),"worktree":lane.get("worktree"),
+            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","mode") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
     return {

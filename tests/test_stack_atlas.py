@@ -178,7 +178,7 @@ class StackAtlasTests(unittest.TestCase):
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
             "available": True,
-            "summary": {"recent_callers": 2, "workspace_counts": {"Vault": 2}},
+            "summary": {"recent_callers": 2, "workspace_counts": {"Vault": 2}, "caller_modes": {"PLAN_ONLY": 1, "UNKNOWN": 1}, "activity_buckets": {"0_15s": 1, "15_60s": 1}},
             "evidence": {
                 "transport": "MCPv4",
                 "transport_source_count": 2,
@@ -187,7 +187,11 @@ class StackAtlasTests(unittest.TestCase):
                 "activity_window_complete": True,
                 "activity_summary": {"starts": 2, "reads": 2},
             },
-            "lanes": [],
+            "lanes": [{
+                "worktree": {"path": "C:/Vault"},
+                "busy": [],
+                "callers": [{"caller_id": "caller-plan", "last_activity_age_seconds": 3, "workspace": "Vault", "mode": "PLAN_ONLY", "action_class": "content_plan", "activity_target": {"type": "project", "id": "p3"}}],
+            }],
         }
         projected = _bootstrap_mcp_from_live_swarm(snapshot)
         self.assertEqual(projected["transport"], "MCPv4")
@@ -195,6 +199,11 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(projected["active_session_count"], 2)
         self.assertEqual(projected["active_session_count_status"], "COMPLETE")
         self.assertEqual(projected["activity_evidence_status"], "FRESH")
+        self.assertEqual(projected["caller_modes"], {"PLAN_ONLY": 1, "UNKNOWN": 1})
+        self.assertEqual(projected["activity_buckets"], {"0_15s": 1, "15_60s": 1})
+        self.assertEqual(projected["active_sessions"][0]["mode"], "PLAN_ONLY")
+        self.assertEqual(projected["active_sessions"][0]["action_class"], "content_plan")
+        self.assertEqual(projected["active_sessions"][0]["activity_target"]["id"], "p3")
 
     def test_cleanup_convergence_is_discoverable_and_operator_only(self):
         result = find_features("cleanup worktree convergence")[0]
