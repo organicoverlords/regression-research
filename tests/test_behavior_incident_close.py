@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -147,6 +148,47 @@ def test_corrective_trigger_cannot_be_authority_proof(tmp_path: Path) -> None:
     }
     with pytest.raises(BehaviorIncidentCloseError, match="corrective trigger is not repair authority"):
         bind_repair(replay_path, observation=candidate["action"], candidate=candidate, root=tmp_path)
+
+
+def test_bind_repair_cli_forwards_authority_evidence_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    observation_path = tmp_path / "observation.txt"
+    candidate_path = tmp_path / "candidate.json"
+    authority_path = tmp_path / "authority.json"
+    replay_path = tmp_path / "replay.json"
+    observation_path.write_text("Observed repaired action.", encoding="utf-8")
+    candidate_path.write_text(json.dumps({"action": "Observed repaired action."}), encoding="utf-8")
+    authority_items = [{
+        "kind": "authority_evidence",
+        "ref": "runtime:gate-pass",
+        "source": "normal-owner",
+        "owner": "normal-owner",
+        "gate": "normal-gate",
+        "status": "PASS",
+        "content": "Normal owner gate passed.",
+    }]
+    authority_path.write_text(json.dumps(authority_items), encoding="utf-8")
+    seen: dict[str, object] = {}
+
+    def fake_bind(replay: Path, **kwargs):
+        seen["replay"] = replay
+        seen.update(kwargs)
+        return {"status": "BOUND", "passed": True}
+
+    monkeypatch.setattr(close_mod, "bind_repair", fake_bind)
+    monkeypatch.setattr(sys, "argv", [
+        "behavior_incident_close.py", "bind-repair", str(replay_path),
+        "--observation-file", str(observation_path),
+        "--candidate-file", str(candidate_path),
+        "--authority-evidence-file", str(authority_path),
+        "--kind", "assistant_action",
+    ])
+    assert close_mod.main() == 0
+    assert seen["replay"] == replay_path
+    assert seen["observation"] == "Observed repaired action."
+    assert seen["candidate"] == {"action": "Observed repaired action."}
+    assert seen["authority_evidence"] == authority_items
+    assert seen["kind"] == "assistant_action"
+    assert json.loads(capsys.readouterr().out)["status"] == "BOUND"
 
 
 def test_unbound_repair_blocks_closure_before_memory(tmp_path: Path) -> None:

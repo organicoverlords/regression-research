@@ -568,6 +568,7 @@ def main() -> int:
     bind_parser.add_argument("replay", type=Path)
     bind_parser.add_argument("--observation-file", type=Path, required=True)
     bind_parser.add_argument("--candidate-file", type=Path, required=True)
+    bind_parser.add_argument("--authority-evidence-file", type=Path, help="JSON array of persisted normal owner/gate evidence for authority-sensitive repairs")
     bind_parser.add_argument("--kind", choices=("assistant_reply", "assistant_action"), default="assistant_reply")
     close_parser = sub.add_parser("close")
     close_parser.add_argument("replay", type=Path)
@@ -581,7 +582,14 @@ def main() -> int:
     if args.command == "bind-repair":
         observation = args.observation_file.read_text(encoding="utf-8-sig")
         candidate = json.loads(args.candidate_file.read_text(encoding="utf-8-sig"))
-        result = bind_repair(args.replay, observation=observation, candidate=candidate, kind=args.kind)
+        authority_evidence = None
+        if args.authority_evidence_file is not None:
+            authority_evidence = json.loads(args.authority_evidence_file.read_text(encoding="utf-8-sig"))
+            _require(isinstance(authority_evidence, list), "--authority-evidence-file must contain a JSON array")
+        result = bind_repair(
+            args.replay, observation=observation, candidate=candidate, kind=args.kind,
+            authority_evidence=authority_evidence,
+        )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     result = close_incident(args.replay, publish=args.publish)
