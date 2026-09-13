@@ -114,6 +114,7 @@ SUPPORTED_ASSERTIONS = {
     "existing_behavior_authority_checked_before_shared_rule_change",
     "shared_rule_change_requires_proven_gap_or_conflict",
     "optional_remote_tool_requires_decision_need",
+    "routine_headless_tool_commentary_absent",
 }
 
 ENTRY_ACTION_TRACE_ASSERTIONS = {
@@ -124,6 +125,7 @@ ENTRY_ACTION_TRACE_ASSERTIONS = {
     "exact_collision_mutation_observed",
     "protected_collision_target_unchanged",
     "optional_remote_tool_requires_decision_need",
+    "routine_headless_tool_commentary_absent",
 }
 
 STARTUP_ASSERTIONS = {
@@ -468,6 +470,10 @@ def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
     ]
     optional_remote_ok = all(event.get("decision_relevant_remote_fact") is True or event.get("user_requested_remote") is True for event in remote_calls)
 
+    allowed_commentary_reasons = {"foreground_notice", "clarification", "permission", "material_blocker", "material_decision"}
+    commentary_events = [event for event in trace if event.get("kind") == "commentary"]
+    routine_commentary_ok = all(str(event.get("reason") or "") in allowed_commentary_reasons for event in commentary_events)
+
     values = {
         "task_context_delivered_before_action": (context_before, "task context with concrete evidence is delivered before the first consequential action"),
         "task_evidence_inspected_before_action": (inspected_before, "retrieved evidence is inspected before the first consequential action"),
@@ -476,6 +482,7 @@ def _entry_action_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
         "exact_collision_mutation_observed": (collision_mutated, "trace shows a consequential mutation on a target marked as an exact collision"),
         "protected_collision_target_unchanged": (protected_target_unchanged, "trace proves the protected collision target has identical before/after content identity"),
         "optional_remote_tool_requires_decision_need": (optional_remote_ok, "optional remote tools are selected only for an explicit user request or a decision-relevant remote fact"),
+        "routine_headless_tool_commentary_absent": (routine_commentary_ok, "routine headless tool execution does not emit user-facing progress commentary"),
     }
     return values[assertion]
 

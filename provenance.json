@@ -1656,6 +1656,23 @@
         "fleet_usage_percentage_not_independently_measured"
       ],
       "notes": "Preserves the user-observed optional GitHub-plugin selection drift without promoting the approximate usage percentage to measured telemetry. Existing local-first guidance remains authority; executable replay tests tool-selection consumption."
+    },
+    {
+      "incident_id": "RR-HEADLESS-TOOL-COMMENTARY-20260913",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/2026-09-13_headless_tool_commentary_rule_gap.md",
+      "title": "Headless tool commentary rule gap",
+      "date": "2026-09-13",
+      "evidence_type": "evidence_bounded_behavior_regression",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "03 Fixtures and Experiments/2026-09-13_headless_tool_commentary_boundary.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [],
+      "notes": "Bounded evidence for agents#402. Separates ordinary headless commentary from required foreground/material notices and from client-rendered tool-status UI."
     }
   ],
   "orphan_evidence": [
