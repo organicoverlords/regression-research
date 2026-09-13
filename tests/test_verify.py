@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_routing, verify_stack, verify_windows_ui, verify_worker_reports
+from tools.verify import changed_files, run_pytest, select_areas, split_areas, verify_busy, verify_memory, verify_routing, verify_stack, verify_windows_ui, verify_worker_reports
 
 
 class VerifyTests(unittest.TestCase):
@@ -233,8 +233,8 @@ class VerifyTests(unittest.TestCase):
         workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "changelog-landing.yml"
         text = workflow.read_text(encoding="utf-8")
         timeout_lines = [line.strip() for line in text.splitlines() if line.strip().startswith("timeout-minutes:")]
-        self.assertEqual(len(timeout_lines), 1)
-        self.assertGreaterEqual(int(timeout_lines[0].split(":", 1)[1].strip()), 10)
+        self.assertEqual(len(timeout_lines), 4)
+        self.assertTrue(all(int(line.split(":", 1)[1].strip()) >= 10 for line in timeout_lines))
 
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
@@ -244,6 +244,41 @@ class VerifyTests(unittest.TestCase):
 
     def test_all_runs_every_area(self):
         self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"])
+
+    def test_area_split_keeps_windows_only_checks_off_linux_capable_lane(self):
+        self.assertEqual(
+            split_areas(["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"]),
+            {
+                "areas": ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"],
+                "portable_areas": ["stack", "memory", "conversation", "busy", "worker_reports", "routing"],
+                "windows_areas": ["windows_ui"],
+                "needs_windows": True,
+            },
+        )
+        self.assertEqual(
+            split_areas(["conversation", "routing"]),
+            {
+                "areas": ["conversation", "routing"],
+                "portable_areas": ["conversation", "routing"],
+                "windows_areas": [],
+                "needs_windows": False,
+            },
+        )
+
+    def test_changelog_landing_preserves_windows_gate_but_allows_repo_runner_redundancy(self):
+        workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "changelog-landing.yml"
+        text = workflow.read_text(encoding="utf-8")
+        self.assertGreaterEqual(text.count("runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]"), 3)
+        self.assertIn("runs-on: [self-hosted, Windows, X64, kone-ci-light]", text)
+        self.assertNotIn("runs-on: [self-hosted, Windows, X64, regression-research]", text)
+        self.assertNotIn("runs-on: [self-hosted, regression-research]", text)
+        self.assertNotIn("shell: python", text)
+        self.assertGreaterEqual(text.count("shell: bash"), 3)
+        self.assertIn("python3 tools/verify.py", text)
+        self.assertIn("python tools/verify.py --areas $env:VERIFY_AREAS", text)
+        self.assertIn("needs.classify.outputs.needs_windows == 'true'", text)
+        self.assertIn("needs.windows.result == 'skipped'", text)
+        self.assertIn("name: verify", text)
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):

@@ -11,23 +11,89 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    runs-on: [self-hosted, Windows, X64, regression-research]
+  classify:
+    name: classify
+    runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]
+    timeout-minutes: 10
+    outputs:
+      portable_areas: ${{ steps.plan.outputs.portable_areas }}
+      windows_areas: ${{ steps.plan.outputs.windows_areas }}
+      needs_windows: ${{ steps.plan.outputs.needs_windows }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: plan
+        name: Classify verification areas
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          BASE_REF_NAME: ${{ github.base_ref }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          event = os.environ["EVENT_NAME"]
+          if event == "pull_request":
+              base = f"origin/{os.environ['BASE_REF_NAME']}"
+          elif event == "push" and os.environ["EVENT_REF"] == "refs/heads/main":
+              base = "HEAD^"
+          else:
+              base = "origin/main"
+          result = subprocess.run(
+              ["python3", "tools/verify.py", "--base-ref", base, "--plan-json"],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          plan = json.loads(result.stdout)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("portable_areas=" + ",".join(plan["portable_areas"]) + "\n")
+              output.write("windows_areas=" + ",".join(plan["windows_areas"]) + "\n")
+              output.write("needs_windows=" + str(plan["needs_windows"]).lower() + "\n")
+          PY
+
+  portable:
+    name: portable
+    needs: classify
+    runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Run deterministic changed-area verification
+      - name: Run portable deterministic verification
+        shell: bash
+        env:
+          VERIFY_AREAS: ${{ needs.classify.outputs.portable_areas }}
+        run: python3 tools/verify.py --areas "$VERIFY_AREAS"
+
+  windows:
+    name: windows
+    needs: classify
+    if: ${{ needs.classify.outputs.needs_windows == 'true' }}
+    runs-on: [self-hosted, Windows, X64, kone-ci-light]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run Windows-only deterministic verification
         shell: pwsh
-        run: |
-          $event = "${{ github.event_name }}"
-          $ref = "${{ github.ref }}"
-          if ($event -eq "pull_request") {
-            $base = "origin/${{ github.base_ref }}"
-          } elseif ($event -eq "push" -and $ref -eq "refs/heads/main") {
-            $base = "HEAD^"
-          } else {
-            $base = "origin/main"
-          }
-          python tools/verify.py --base-ref $base
+        env:
+          VERIFY_AREAS: ${{ needs.classify.outputs.windows_areas }}
+        run: python tools/verify.py --areas $env:VERIFY_AREAS
+
+  verify:
+    name: verify
+    needs: [classify, portable, windows]
+    if: ${{ always() && needs.classify.result == 'success' && needs.portable.result == 'success' && (needs.windows.result == 'success' || needs.windows.result == 'skipped') }}
+    runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]
+    timeout-minutes: 10
+    steps:
+      - name: Confirm repository verification
+        shell: bash
+        run: echo "REPOSITORY_VERIFY_PASS"
