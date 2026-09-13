@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.memory_git_sync import BRANCH, MemorySyncError, _align_checkout, _ensure_remote_branch, _git, _memory_commit_message, _remote_branch_exists, _validate_sync_branch, _write_bank, merge_bank_entries
+from tools.memory_git_sync import (
+    BRANCH, MemorySyncError, _ensure_remote_branch, _git, _memory_commit_message,
+    _remote_branch_exists, _validate_sync_branch, _write_bank, local_memory_replica_entries,
+    merge_bank_entries, sync_bank,
+)
 
 
 class MemoryGitSyncTests(unittest.TestCase):
@@ -49,6 +53,19 @@ class MemoryGitSyncTests(unittest.TestCase):
         git.assert_called_once_with("ls-remote", "--exit-code", "--heads", "origin", "refs/heads/memory/live", check=False)
 
 
+    def test_git_child_launch_uses_window_suppression_kwargs(self):
+        completed = subprocess.CompletedProcess([], 0, "", "")
+        with patch(
+            "tools.memory_git_sync._subprocess_window_kwargs",
+            return_value={"creationflags": 0x08000000},
+        ) as window_kwargs, patch(
+            "tools.memory_git_sync.subprocess.run", return_value=completed
+        ) as run:
+            _git("status", check=False)
+        window_kwargs.assert_called_once_with()
+        self.assertEqual(run.call_args.kwargs["creationflags"], 0x08000000)
+
+
     def test_remote_branch_probe_uses_ghbuf_when_available(self):
         existing = subprocess.CompletedProcess([], 0, "deadbeef\trefs/heads/memory/live\n", "")
         with patch("tools.memory_git_sync._ghbuf_bin", return_value="C:/ghbuf.exe"), patch(
@@ -63,6 +80,11 @@ class MemoryGitSyncTests(unittest.TestCase):
                 "origin", "refs/heads/memory/live",
             ],
         )
+        if __import__("tools.memory_git_sync", fromlist=["IS_WINDOWS"]).IS_WINDOWS:
+            self.assertEqual(
+                run.call_args.kwargs["creationflags"],
+                getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
 
     def test_remote_branch_probe_falls_back_after_ghbuf_operational_error(self):
         proxy_error = subprocess.CompletedProcess([], 1, "", "proxy unavailable")
@@ -125,36 +147,56 @@ class MemoryGitSyncTests(unittest.TestCase):
             self.assertEqual(bank.read_text(encoding="utf-8"), '{"id":"old"}\n')
             self.assertTrue(bank.with_name(bank.name + ".sync-tmp").exists())
 
-    def test_align_checkout_fast_forwards_memory_commit_preserving_other_dirty_work(self):
+    def test_sync_bank_never_moves_or_rewrites_checkout(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            repo = root / "repo"
+            repo.mkdir()
+            _git("init", "-b", "topic", cwd=repo)
+            _git("config", "user.email", "memory-sync@example.invalid", cwd=repo)
+            _git("config", "user.name", "memory-sync-test", cwd=repo)
+            tracked = repo / "tracked.txt"
+            tracked.write_text("base\n", encoding="utf-8")
+            _git("add", "tracked.txt", cwd=repo)
+            _git("commit", "-m", "base", cwd=repo)
+            head_before = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+            tracked.write_text("dirty user work\n", encoding="utf-8")
+            bank = root / "memory-bank.jsonl"
+            bank.write_text('{"id":"local","text":"local"}\n', encoding="utf-8")
+            with patch("tools.memory_git_sync._remote_state", return_value=("remote-head", [{"id": "remote", "text": "remote"}])):
+                result = sync_bank(bank, publish=False)
+            self.assertEqual(_git("rev-parse", "HEAD", cwd=repo).stdout.strip(), head_before)
+            self.assertEqual(_git("symbolic-ref", "--short", "HEAD", cwd=repo).stdout.strip(), "topic")
+            self.assertEqual(tracked.read_text(encoding="utf-8"), "dirty user work\n")
+            self.assertFalse(result["checkout_mutated"])
+            self.assertFalse(result["aligned_head"])
+            self.assertEqual([row["id"] for row in __import__("json").loads("[" + bank.read_text(encoding="utf-8").strip().replace("}\n{", "},{") + "]")], ["remote", "local"])
+
+    def test_local_memory_replica_reader_uses_only_local_ref_and_leaves_checkout_untouched(self):
         with tempfile.TemporaryDirectory() as raw:
             repo = Path(raw)
-            _git("init", "-b", "memory/live", cwd=repo)
+            _git("init", "-b", "main", cwd=repo)
             _git("config", "user.email", "memory-sync@example.invalid", cwd=repo)
             _git("config", "user.name", "memory-sync-test", cwd=repo)
             bank = repo / "memory" / "memory-bank.jsonl"
             bank.parent.mkdir(parents=True)
-            bank.write_text('{"id":"old"}\n', encoding="utf-8", newline="\n")
-            agents = repo / "AGENTS.md"
-            agents.write_text("base\n", encoding="utf-8")
-            _git("add", "memory/memory-bank.jsonl", "AGENTS.md", cwd=repo)
+            bank.write_text('{"id":"base","text":"base"}\n', encoding="utf-8")
+            _git("add", "memory/memory-bank.jsonl", cwd=repo)
             _git("commit", "-m", "base", cwd=repo)
             base = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
-
-            bank.write_text('{"id":"old"}\n{"id":"new"}\n', encoding="utf-8", newline="\n")
-            _git("add", "memory/memory-bank.jsonl", cwd=repo)
-            _git("commit", "-m", "remote memory", cwd=repo)
-            target = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+            bank.write_text('{"id":"base","text":"base"}\n{"id":"mem-historical","text":"historical"}\n', encoding="utf-8")
+            _git("commit", "-am", "memory replica", cwd=repo)
+            replica_head = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+            # local remote-tracking ref; no network
+            _git("update-ref", "refs/remotes/origin/memory/live", replica_head, cwd=repo)
             _git("reset", "--hard", base, cwd=repo)
-            _git("remote", "add", "origin", str(repo), cwd=repo)
-            _git("update-ref", "refs/remotes/origin/memory/live", target, cwd=repo)
-            _git("branch", "--set-upstream-to", "origin/memory/live", "memory/live", cwd=repo)
-
-            agents.write_text("dirty policy work\n", encoding="utf-8")
-            bank.write_text('{"id":"old"}\n{"id":"new"}\n', encoding="utf-8", newline="\n")
-            self.assertTrue(_align_checkout(target, bank, repo_root=repo))
-            self.assertEqual(_git("rev-parse", "HEAD", cwd=repo).stdout.strip(), target)
-            self.assertEqual(agents.read_text(encoding="utf-8"), "dirty policy work\n")
-            self.assertEqual(_git("status", "--porcelain", cwd=repo).stdout.splitlines(), [" M AGENTS.md"])
+            head_before = _git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+            entries, coverage = local_memory_replica_entries(repo_root=repo)
+            self.assertEqual([row["id"] for row in entries], ["base", "mem-historical"])
+            self.assertEqual(coverage["status"], "OK")
+            self.assertFalse(coverage["network_fanout"])
+            self.assertFalse(coverage["checkout_mutated"])
+            self.assertEqual(_git("rev-parse", "HEAD", cwd=repo).stdout.strip(), head_before)
 
     def test_git_output_is_decoded_as_utf8(self):
         with tempfile.TemporaryDirectory() as raw:

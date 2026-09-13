@@ -20,7 +20,9 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
+    BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
     BOOTSTRAP_GLANCE_MAX_BYTES,
+    BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     CANONICAL_RECURRING_WORKERS,
     CANONICAL_RECURRING_WORKER_PARTITIONS,
@@ -33,6 +35,7 @@ from tools.stack_atlas import (
     find_features,
     unified_find,
     _timeline_discovery_hits,
+    _live_discovery_hits,
     full_inventory,
     main as stack_atlas_main,
     production_change_gate,
@@ -61,6 +64,7 @@ from tools.stack_atlas import (
     _bootstrap_mcp_from_live_swarm,
     _bootstrap_agent_contract_version,
     _bootstrap_slopwall_contract,
+    _bootstrap_critical_guidance,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,16 +95,22 @@ class StackAtlasTests(unittest.TestCase):
             root = Path(d)
             (root / "RULES.md").write_text(
                 "`slopwall` is a **mandatory correction-and-learning incident**\n"
-                "identify the concrete failed behavior or decision\n"
-                "infer the best-supported mechanism\n"
+                "re-read this canonical Slopwall rule and the matching AGENTS.md correction owner before finalizing the correction\n"
+                "compare the failed reply/action directly against the inherited objective\n"
+                "identify the concrete core proposition, decision, action, or evidence the user needed foregrounded\n"
+                "identify what displaced that core\n"
+                "infer the best-supported mechanism or decision failure\n"
                 "derive one reusable prevention lesson\n"
                 "persist one compact durable correction\n"
                 "The durable correction is mandatory for literal `slopwall`\n"
+                "The durable correction must name the lost core and the displacement\n"
                 "A slopwall is not defined by length\n",
                 encoding="utf-8",
             )
             (root / "AGENTS.md").write_text(
                 "literal `slopwall` additionally requires a bounded durable learning loop\n"
+                "re-read the canonical Slopwall rule plus this correction owner\n"
+                "identify the lost core proposition/decision/action/evidence and what displaced it\n"
                 "The Slopwall record is mandatory\n"
                 "do not store merely `be concise`, `answer better`\n"
                 "bounded uncertainty instead of fabricating a root cause\n"
@@ -109,9 +119,12 @@ class StackAtlasTests(unittest.TestCase):
             )
             contract = _bootstrap_slopwall_contract(root)
             self.assertEqual(contract["status"], "ENFORCED")
-            self.assertIn("failed_behavior", contract["process"])
+            self.assertIn("reread_canonical_rule", contract["process"])
+            self.assertIn("recover_lost_core", contract["process"])
+            self.assertIn("identify_displacement", contract["process"])
             self.assertIn("best_supported_mechanism", contract["process"])
             self.assertIn("condition/action_prevention", contract["process"])
+            self.assertIn("repair_task", contract["process"])
             self.assertIn("mandatory_durable_correction", contract["process"])
             self.assertIn("not brevity/apology", contract["process"])
             self.assertNotIn("missing", contract)
@@ -123,13 +136,53 @@ class StackAtlasTests(unittest.TestCase):
             )
             drifted = _bootstrap_slopwall_contract(root)
             self.assertEqual(drifted["status"], "DRIFTED")
+            self.assertIn("AGENTS:reread", drifted["missing"])
+            self.assertIn("AGENTS:lost_core", drifted["missing"])
             self.assertIn("AGENTS:uncertainty", drifted["missing"])
             self.assertIn("AGENTS:inherit", drifted["missing"])
+
+    def test_bootstrap_critical_guidance_projects_prevention_and_recovery_without_phrase_matching(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "RULES.md").write_text("canonical rules can be reworded freely\n", encoding="utf-8")
+            (root / "AGENTS.md").write_text("canonical agents guidance can be reworded freely\n", encoding="utf-8")
+            guidance = _bootstrap_critical_guidance(root)
+            self.assertEqual(guidance["mode"], "HINT_ONLY")
+            self.assertIn("material data/constraints/uncertainty", guidance["eli5"])
+            self.assertIn("RULES:ELI5", guidance["eli5"])
+            self.assertIn("no filler/process/proxy displacement", guidance["slopwall"])
+            self.assertIn("mandatory correction before final", guidance["slopwall"])
+            self.assertIn("corrected result first", guidance["asshole"])
+            self.assertIn("mandatory lightweight marker", guidance["asshole"])
+            self.assertIn("one decision-relevant unknown", guidance["stack_find"])
+            self.assertIn("narrow same unknown once", guidance["stack_find"])
+            self.assertIn("RULE_GAP vs RULE_VIOLATION", guidance["shared_correction"])
+            self.assertIn("no 'this chat/from now on' promise", guidance["shared_correction"])
+            self.assertIn("durable canonical proof", guidance["shared_correction"])
+            self.assertIn("discuss first/no mutation", guidance["shared_correction"])
+            security = guidance["security_evidence"]
+            self.assertEqual(security["mode"], "CLASSIFY_BEFORE_CAUSALITY")
+            self.assertEqual(security["source"], "RULES:platform-security-boundary")
+            self.assertEqual(
+                security["classes"]["tool_policy_rejection"],
+                "tool invocation rejected before MCP dispatch",
+            )
+            self.assertIn(
+                "tool_policy_rejection != platform_security_reroute",
+                security["non_equivalence"],
+            )
+            self.assertIn("shared log path/name is not a classification", security["causality_gate"])
+            self.assertNotIn("missing", guidance)
+
+            (root / "AGENTS.md").unlink()
+            missing = _bootstrap_critical_guidance(root)
+            self.assertEqual(missing["mode"], "UNAVAILABLE")
+            self.assertEqual(missing["missing"], ["serving_rules_unreadable"])
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
             "available": True,
-            "summary": {"recent_callers": 2, "workspace_counts": {"Vault": 2}},
+            "summary": {"recent_callers": 2, "workspace_counts": {"Vault": 2}, "caller_modes": {"PLAN_ONLY": 1, "UNKNOWN": 1}, "activity_buckets": {"0_15s": 1, "15_60s": 1}},
             "evidence": {
                 "transport": "MCPv4",
                 "transport_source_count": 2,
@@ -138,7 +191,11 @@ class StackAtlasTests(unittest.TestCase):
                 "activity_window_complete": True,
                 "activity_summary": {"starts": 2, "reads": 2},
             },
-            "lanes": [],
+            "lanes": [{
+                "worktree": {"path": "C:/Vault"},
+                "busy": [],
+                "callers": [{"caller_id": "caller-plan", "last_activity_age_seconds": 3, "workspace": "Vault", "mode": "PLAN_ONLY", "action_class": "content_plan", "activity_target": {"type": "project", "id": "p3"}}],
+            }],
         }
         projected = _bootstrap_mcp_from_live_swarm(snapshot)
         self.assertEqual(projected["transport"], "MCPv4")
@@ -146,6 +203,11 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(projected["active_session_count"], 2)
         self.assertEqual(projected["active_session_count_status"], "COMPLETE")
         self.assertEqual(projected["activity_evidence_status"], "FRESH")
+        self.assertEqual(projected["caller_modes"], {"PLAN_ONLY": 1, "UNKNOWN": 1})
+        self.assertEqual(projected["activity_buckets"], {"0_15s": 1, "15_60s": 1})
+        self.assertEqual(projected["active_sessions"][0]["mode"], "PLAN_ONLY")
+        self.assertEqual(projected["active_sessions"][0]["action_class"], "content_plan")
+        self.assertEqual(projected["active_sessions"][0]["activity_target"]["id"], "p3")
 
     def test_cleanup_convergence_is_discoverable_and_operator_only(self):
         result = find_features("cleanup worktree convergence")[0]
@@ -327,6 +389,43 @@ class StackAtlasTests(unittest.TestCase):
         size = len(json.dumps(compact, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
         self.assertLessEqual(size, BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES)
 
+    def test_bootstrap_memory_overview_prefers_canonical_external_projection_over_stale_legacy_copy(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / "vault"
+            external = Path(d) / "VaultTimeline"
+            legacy = root / ".state" / "timeline"
+            external.mkdir(parents=True)
+            legacy.mkdir(parents=True)
+            (external / "timeline-store.json").write_text("{}", encoding="utf-8")
+            now = datetime.now(timezone.utc)
+
+            def projection(path: Path, *, marker: str, generated_at: datetime) -> None:
+                path.write_text(json.dumps({
+                    "schema": "vault.timeline.bootstrap.v1",
+                    "generated_at": generated_at.isoformat(),
+                    "overview": {
+                        "contract": "history only",
+                        "eligible_entries": 1,
+                        "timeline_snapshots": {"authority": "DERIVED_HISTORY_ONLY", "windows": []},
+                        "incident_rollups": [],
+                        "recent": [],
+                        "projects": [{"name": marker, "count": 1}],
+                        "recurring_tags": [],
+                        "timeline_materialized": {"as_of": generated_at.isoformat()},
+                    },
+                }), encoding="utf-8")
+
+            projection(legacy / "bootstrap-memory-overview.json", marker="legacy-stale", generated_at=now - timedelta(hours=12))
+            projection(external / "bootstrap-memory-overview.json", marker="canonical-live", generated_at=now)
+            with patch.dict(os.environ, {"VAULT_TIMELINE_STATE_ROOT": str(external)}), \
+                    patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                    patch("tools.memory_bank.build_overview", side_effect=AssertionError("bootstrap must not rebuild timeline")):
+                compact = _bootstrap_memory_overview()
+
+        self.assertEqual(compact["projects"][0]["name"], "canonical-live")
+        self.assertEqual(compact["timeline_materialized"]["status"], "FRESH")
+
     def test_bootstrap_memory_overview_overlays_current_recent_projection_without_rebuilding_history(self):
         from datetime import datetime, timezone
         with tempfile.TemporaryDirectory() as d:
@@ -398,6 +497,8 @@ class StackAtlasTests(unittest.TestCase):
              patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "OK")
+        self.assertIn("critical_guidance", glance["bootstrap"])
+        self.assertEqual(glance["bootstrap"]["critical_guidance"]["mode"], "HINT_ONLY")
         self.assertNotIn("notable_conditions", glance)
         self.assertEqual(glance["memory_overview"]["timeline_materialized"]["backfill_incomplete_sources"], ["github", "runner_logs"])
 
@@ -428,17 +529,24 @@ class StackAtlasTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
         self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 15_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 25_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES, 15_000)
         self.assertEqual(next(iter(glance)), "bootstrap_warning")
         self.assertEqual(next(reversed(glance)), "bootstrap_end")
         self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["compaction_target_bytes"], BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
         self.assertGreaterEqual(glance["mcp"]["active_session_count"], len(glance["mcp"]["active_sessions"]))
         self.assertEqual(glance["mcp"]["active_session_count_semantics"], "recent_callers_with_process_start_or_read_in_activity_window_not_current_running_processes")
-        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_detail_limit"])
+        self.assertLessEqual(len(glance["mcp"]["active_sessions"]), glance["mcp"]["active_session_details"]["limit"])
+        self.assertEqual(glance["mcp"]["active_session_details"]["returned"], len(glance["mcp"]["active_sessions"]))
+        self.assertNotIn("active_sessions_truncated", glance["mcp"])
+        self.assertNotIn("lanes_truncated", glance["live_swarm"])
+        self.assertEqual(glance["live_swarm"]["lane_details"]["returned"], len(glance["live_swarm"]["lanes"]))
+        self.assertEqual(glance["live_swarm"]["lane_details"]["semantics"], "bootstrap_detail_bound_not_evidence_truncation")
         self.assertIn("workspace_counts", glance["mcp"])
         for session in glance["mcp"]["active_sessions"]:
             self.assertIn("caller_id", session)
@@ -473,11 +581,23 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(contract["version"], contract["agents_version"])
         slopwall = glance["bootstrap"]["slopwall_contract"]
         self.assertEqual(slopwall["status"], "ENFORCED")
-        self.assertIn("failed_behavior", slopwall["process"])
-        self.assertIn("best_supported_mechanism", slopwall["process"])
-        self.assertIn("condition/action_prevention", slopwall["process"])
-        self.assertIn("mandatory_durable_correction", slopwall["process"])
-        self.assertIn("not brevity/apology", slopwall["process"])
+        self.assertIn(slopwall["version"], {"LEGACY_V84", "V2"})
+        if slopwall["version"] == "V2":
+            self.assertEqual(slopwall["triggers"], ["slopwall", "incident_report"])
+            self.assertIn("VISIBLE_CONTEXT_ONLY", slopwall["capture"])
+            self.assertIn("no_full_conversation_reload_or_backfill", slopwall["capture"])
+            self.assertIn("failed_boundary", slopwall["process"])
+            self.assertIn("inspect_governing_guidance_and_evidence", slopwall["process"])
+            self.assertIn("bounded_user_visible_diagnosis", slopwall["process"])
+            self.assertIn("repair_inherited_objective", slopwall["process"])
+            self.assertIn("persist_incident_replay_score_memory_contract_review", slopwall["process"])
+        else:
+            self.assertIn("recover_lost_core", slopwall["process"])
+            self.assertIn("identify_displacement", slopwall["process"])
+            self.assertIn("best_supported_mechanism", slopwall["process"])
+            self.assertIn("condition/action_prevention", slopwall["process"])
+            self.assertIn("mandatory_durable_correction", slopwall["process"])
+            self.assertIn("not brevity/apology", slopwall["process"])
         self.assertNotIn("mcp_hour", glance["commands"])
         self.assertIn("production_change_gate", glance["commands"])
         self.assertIn("memory_overview", glance["commands"])
@@ -500,6 +620,25 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(raw.startswith(b'{"bootstrap_warning":'))
         self.assertTrue(raw.rstrip().endswith(b'"bootstrap_end":{"status":"COMPLETE","schema":"bootstrap.v1"}}'))
         self.assertEqual(json.loads(raw), glance)
+
+    def test_runtime_graph_cli_routes_explain_and_path_commands(self):
+        explain_value = {"schema": "stack-atlas.runtime-explain.v1", "status": "OK"}
+        explain_output = io.StringIO()
+        with patch("sys.argv", ["stack_atlas.py", "runtime-explain", "node-x", "--surface", "surface-x"]), \
+                patch("tools.stack_atlas._runtime_graph_explain_safe", return_value=explain_value) as explain_call, \
+                redirect_stdout(explain_output):
+            self.assertEqual(stack_atlas_main(), 0)
+        explain_call.assert_called_once_with("node-x", surface_id="surface-x")
+        self.assertEqual(json.loads(explain_output.getvalue()), explain_value)
+
+        path_value = {"schema": "stack-atlas.runtime-path.v1", "status": "OK", "distance": 2}
+        path_output = io.StringIO()
+        with patch("sys.argv", ["stack_atlas.py", "runtime-path", "node-a", "node-b", "--surface", "surface-y"]), \
+                patch("tools.stack_atlas._runtime_graph_path_safe", return_value=path_value) as path_call, \
+                redirect_stdout(path_output):
+            self.assertEqual(stack_atlas_main(), 0)
+        path_call.assert_called_once_with("node-a", "node-b", surface_id="surface-y")
+        self.assertEqual(json.loads(path_output.getvalue()), path_value)
 
     def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
         glance = {
@@ -567,6 +706,107 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
         self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
         self.assertEqual(fitted["memory_overview"], memory_before)
+
+    def test_bootstrap_soft_target_preserves_bounded_live_status_detail_under_hard_cap(self):
+        lanes = [{"basis": "worktree", "workspace": f"w{i}", "worktree": {"path": f"C:/w{i}"}, "callers": [{"caller_id": f"c{i}"}], "busy": []} for i in range(4)]
+        sessions = [{"caller_id": f"c{i}", "cwd": f"C:/w{i}", "workspace": f"w{i}", "busy_titles": []} for i in range(3)]
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "live_swarm": {
+                "summary": {"recent_callers": 4, "lanes": 4},
+                "evidence": {"activity_window_complete": True, "observation_window_complete": True},
+                "lanes": lanes,
+                "lane_details": {"policy": "most_recent", "limit": 4, "returned": 4, "total": 4, "bounded": False, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
+            },
+            "mcp": {
+                "active_session_count": 4, "active_session_count_status": "COMPLETE",
+                "active_sessions": sessions,
+                "active_session_details": {"policy": "most_recent", "limit": 3, "returned": 3, "total": 4, "bounded": True, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
+            },
+            "synthetic_uncompacted_detail": "x" * 16_000,
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertGreater(size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        self.assertEqual(len(fitted["live_swarm"]["lanes"]), 4)
+        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 3)
+        self.assertNotIn("lanes_truncated", fitted["live_swarm"])
+        self.assertNotIn("active_sessions_truncated", fitted["mcp"])
+        self.assertTrue(fitted["mcp"]["active_session_details"]["bounded"])
+
+    def test_bootstrap_hard_cap_does_not_relax_existing_compaction_target(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "mcp_recovery_state": {
+                "conditions": [
+                    {
+                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
+                        "message": "detail " * 400, "observed_generation": "g" * 500,
+                    }
+                    for i in range(5)
+                ],
+            },
+        }
+        raw_size = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertGreater(raw_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertLess(raw_size, BOOTSTRAP_GLANCE_MAX_BYTES)
+        fitted = _fit_bootstrap_glance_budget(glance)
+        fitted_size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+        self.assertLessEqual(fitted_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["max_bytes"], 25_000)
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["compaction_target_bytes"], 15_000)
+        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
+
+    def test_bootstrap_compaction_keeps_stack_commands_directly_executable(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "commands": {
+                "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+                "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+                "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+                "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
+                "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
+                "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+                "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
+                "tiny3d_asset_library": "lookup tiny3d_library",
+            },
+            "paths": {
+                "rules": r"C:\Users\Lauri\.agents\RULES.md",
+                "agents": r"C:\Users\Lauri\.agents\AGENTS.md",
+                "vault": r"C:\Users\Lauri\Desktop\vault",
+                "synthetic_bloat": "x" * 20_000,
+            },
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        commands = fitted["commands"]
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(commands["live_swarm"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm")
+        self.assertEqual(commands["stack_find"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>")
+        self.assertEqual(commands["memory_overview"], r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview")
+        self.assertLessEqual(
+            len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8")),
+            BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
+        )
+
+    def test_bootstrap_mcp_service_health_source_detail_is_bounded(self):
+        glance = {
+            "bootstrap": {"status": "OK"},
+            "mcp": {"active_session_count": 2, "service_health": {
+                "available": True, "status": "LIVE", "source_count": 10, "live_source_count": 10,
+                "sources": [{"instance": f"source-{i}", "status": "LIVE", "backend_generation": "g" * 80} for i in range(10)],
+            }},
+        }
+        fitted = _fit_bootstrap_glance_budget(glance)
+        health = fitted["mcp"]["service_health"]
+        self.assertEqual(health["source_count"], 10)
+        self.assertEqual(health["live_source_count"], 10)
+        self.assertEqual(health["source_detail_limit"], BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
+        self.assertTrue(health["sources_truncated"])
+        self.assertEqual(len(health["sources"]), BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
+        self.assertEqual([item["instance"] for item in health["sources"]], [f"source-{i}" for i in range(BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)])
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
 
     def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
         glance = {
@@ -639,6 +879,23 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(allowed["verdict"], "PASS")
         self.assertEqual(allowed["reasons"], [])
         self.assertTrue(allowed["target"]["shared_production"])
+
+    def test_production_change_gate_covers_bootstrap_control_plane_components(self):
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        for target, scope in (
+            ("bootstrap_snapshot", "vault:bootstrap-snapshot:runtime-bundle"),
+            ("vault_checkout_sync", "vault:checkout-sync:scheduled-task"),
+            ("worktree_hygiene", "vault:worktree-hygiene:scheduled-task"),
+        ):
+            gate = production_change_gate(
+                target, actor="ChatGPT:test", busy_scope=scope,
+                explicit_user_authorization=True, independent_rollback_verified=True,
+                offpath_proof_verified=True, busy_status=busy,
+            )
+            self.assertEqual(gate["verdict"], "PASS", gate)
+            self.assertTrue(gate["target"]["shared_production"])
+            self.assertEqual(gate["reasons"], [])
+            self.assertEqual(gate["live_dependencies"], {})
 
     def test_production_change_gate_blocks_without_independent_rollback(self):
         mcp = {
@@ -1293,6 +1550,24 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(workers["generated_at"], now.isoformat())
             self.assertEqual(Path(workers["projection_path"]), metrics)
             self.assertIn("historical context only", workers["historical_timeline_semantics"])
+
+    def test_worker_status_does_not_promote_fleet_watch_into_bootstrap_liveness(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics = root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": "2026-09-13T03:00:00+00:00", "window_hours": 24.0, "latest_reports": [],
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                 patch("tools.stack_atlas._bootstrap_manual_sanity", return_value={"available": False}), \
+                 patch("tools.stack_atlas._bootstrap_fleet_watch", side_effect=AssertionError("worker status must not infer liveness from fleet-watch")) as fleet_watch:
+                workers = _bootstrap_worker_status()
+            fleet_watch.assert_not_called()
+        self.assertTrue(workers["available"])
+        self.assertNotIn("fleet_watch", workers)
+        self.assertNotIn("recurring_scheduler_recovery", workers)
 
     def test_worker_direct_metrics_preserve_archived_quality_not_liveness_semantics(self):
         from datetime import datetime, timedelta, timezone
@@ -1987,7 +2262,9 @@ class StackAtlasTests(unittest.TestCase):
         timeline = find_features("vault timeline")[0]
         self.assertEqual(timeline["id"], "vault.history")
         self.assertEqual(timeline["owner_components"], ["memory_bank"])
-        self.assertIn("memory_bank.py timeline", timeline["entrypoints"])
+        self.assertTrue(timeline["entrypoints"][0].startswith("python tools\\stack_atlas.py find"))
+        self.assertTrue(any("drill-down only:" in entry and "memory_bank.py timeline" in entry for entry in timeline["entrypoints"]))
+        self.assertIn("Unified discovery starts with Stack Atlas find", timeline["boundary"])
         self.assertIn("never recursive Vault scans", timeline["boundary"])
 
         checkpoint = find_features("checkpoint resume")[0]
@@ -2011,8 +2288,12 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(reports["id"], "worker.reports")
         self.assertIn("worker_reports", reports["owner_components"])
         self.assertIn("PENDING_REVIEW", reports["boundary"])
+        self.assertIn("not live progress telemetry", reports["boundary"])
+        self.assertIn("may be updated at material natural checkpoints", reports["boundary"])
         self.assertIn("reviewed.json", " ".join(component_details("worker_reports")["live_status"]))
         self.assertIn(r"C:\P3Proofs", " ".join(component_details("worker_reports")["live_status"]))
+        self.assertIn("not live progress telemetry", " ".join(component_details("worker_reports")["live_status"]))
+        self.assertIn("may be updated at material natural checkpoints", " ".join(component_details("worker_reports")["live_status"]))
         self.assertIn("worker-reports/current/<automation-id>.md", " ".join(component_details("worker_reports")["resources"]))
         self.assertIn("history/_reports", " ".join(component_details("worker_reports")["resources"]))
         self.assertNotIn("metrics.json", " ".join(component_details("worker_reports")["resources"]))
@@ -2053,19 +2334,94 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn(expected, details["canonical_sources"])
         self.assertTrue(Path(expected).exists())
 
-    def test_unified_find_composes_atlas_live_and_materialized_history_without_changing_find_features(self):
+    def test_unified_find_composes_atlas_live_history_and_runtime_graph_without_changing_find_features(self):
         atlas_before = find_features("commander fallback", limit=2)
         live = [{"kind": "live_workspace", "workspace": "ponytail-upstream-read-20260911"}]
         history = [{"kind": "github_issue", "reference": "organicoverlords/regression-research#861"}]
+        runtime_graph = [{"surface_id": "vault.bootstrap_snapshot", "status": "OK"}]
         with patch("tools.stack_atlas._live_discovery_hits", return_value=(live, {"status": "OK"})), \
-                patch("tools.stack_atlas._timeline_discovery_hits", return_value=(history, {"status": "OK"})):
+                patch("tools.stack_atlas._timeline_discovery_hits", return_value=(history, {"status": "OK"})), \
+                patch("tools.stack_atlas._search_gh_buffer_cache", return_value=([], {"status": "OK"})), \
+                patch("tools.stack_atlas._runtime_graph_search_safe", return_value=(runtime_graph, {"status": "OK", "broad_task_enumeration": False})):
             result = unified_find("commander fallback", limit=2)
         self.assertEqual(result["schema"], "stack-atlas.discovery.v1")
         self.assertEqual(result["atlas_hits"], atlas_before)
         self.assertEqual(result["live_hits"], live)
         self.assertEqual(result["history_hits"], history)
+        self.assertEqual(result["runtime_graph_hits"], runtime_graph)
+        self.assertFalse(result["coverage"]["runtime_graph"]["broad_task_enumeration"])
         self.assertEqual(find_features("commander fallback", limit=2), atlas_before)
         self.assertIn("Discovery only", result["boundary"])
+
+    def test_runtime_deployment_graph_is_discoverable_inside_unified_find_model(self):
+        feature = find_features("runtime deployment graph", limit=3)[0]
+        self.assertEqual(feature["id"], "runtime.deployment_graph")
+        self.assertIn("one unified find surface", feature["boundary"])
+        self.assertIn("No recursive scan", feature["boundary"])
+
+    def test_bootstrap_snapshot_lookup_attaches_same_runtime_graph_surface(self):
+        graph = {
+            "schema": "stack-atlas.runtime-deployment-graph.v1",
+            "surfaces": [{"surface_id": "vault.bootstrap_snapshot", "status": "OK"}],
+            "coverage": {"status": "OK"},
+        }
+        with patch("tools.stack_atlas._runtime_graph_for_components_safe", return_value=graph) as runtime_graph:
+            result = atlas_lookup("bootstrap snapshot")
+        self.assertEqual(result["id"], "bootstrap_snapshot")
+        self.assertEqual(result["runtime_graph"], graph)
+        runtime_graph.assert_called_once_with(["bootstrap_snapshot"])
+
+    def test_worktree_hygiene_lookup_attaches_runtime_graph_surface(self):
+        graph = {
+            "schema": "stack-atlas.runtime-deployment-graph.v1",
+            "surfaces": [{"surface_id": "vault.worktree_hygiene", "status": "OK"}],
+            "coverage": {"status": "OK"},
+        }
+        with patch("tools.stack_atlas._runtime_graph_for_components_safe", return_value=graph) as runtime_graph:
+            result = atlas_lookup("worktree hygiene")
+        self.assertEqual(result["id"], "worktree_hygiene")
+        self.assertIn("VaultWorktreeHygiene", " ".join(result["live_status"]))
+        self.assertEqual(result["runtime_graph"], graph)
+        runtime_graph.assert_called_once_with(["worktree_hygiene"])
+
+    def test_live_discovery_distinguishes_busy_handoff_from_runtime_caller_activity(self):
+        snapshot = {
+            "available": True,
+            "evidence": {"source_age_seconds": 1.0, "busy_source_age_seconds": 2.0, "activity_window_seconds": 300, "observation_window_complete": True},
+            "lanes": [
+                {
+                    "lane_id": "busy:issue301",
+                    "workspace": None,
+                    "worktree": None,
+                    "busy": [{
+                        "owner": "ChatGPT:issue301-image-library-work-20260912",
+                        "checkpoint": "Issue #301 image/video/zip Library + Work fix",
+                        "scopes": ["repo:ChatGPTMcpClean:file:src/lib/file-transfer.ts"],
+                        "last_update_age_seconds": 3.0,
+                    }],
+                    "callers": [],
+                },
+                {
+                    "lane_id": "wt:mcp",
+                    "workspace": "MCP",
+                    "worktree": {"branch": "fix/242-stall-watchdog", "path": "C:/work/ChatGPTMcpClean"},
+                    "busy": [],
+                    "callers": [{"caller_id": "caller_watchdog", "command": "output schema probe", "last_activity_age_seconds": 4.0}],
+                },
+            ],
+        }
+        busy_hits, coverage = _live_discovery_hits("issue 301 library", snapshot=snapshot)
+        self.assertEqual(busy_hits[0]["kind"], "busy_handoff")
+        self.assertEqual(busy_hits[0]["authority"], "BUSY_COORDINATION_EVIDENCE")
+        self.assertEqual(busy_hits[0]["liveness_semantics"], "not_worker_liveness_or_progress")
+        self.assertEqual(coverage["busy_semantics"], "coordination_handoff_only_not_worker_liveness_or_progress")
+        caller_hits, _ = _live_discovery_hits("stall watchdog output schema", snapshot=snapshot)
+        self.assertEqual(caller_hits[0]["kind"], "caller_activity")
+        self.assertEqual(caller_hits[0]["authority"], "LIVE_MCP_RUNTIME_EVIDENCE")
+        semantic_hits, _ = _live_discovery_hits("MCP kuvahommeli", snapshot=snapshot)
+        self.assertEqual(semantic_hits[0]["kind"], "busy_handoff")
+        self.assertIn("image", semantic_hits[0]["matched_terms"])
+        self.assertIn("mcp", semantic_hits[0]["matched_terms"])
 
     def test_timeline_discovery_index_dedupes_issue_snapshots_and_artifact_lineage(self):
         with tempfile.TemporaryDirectory() as d:
@@ -2106,6 +2462,164 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual([hit["kind"] for hit in hits], ["github_issue", "tracked_artifact"])
         self.assertEqual(hits[0]["reference"], "organicoverlords/regression-research#861")
         self.assertEqual(hits[1]["reference"], "01 Reports/2026-09-09_issue-861_busy-dual-runtime-yagni-audit.md")
+
+    def test_timeline_discovery_surfaces_opaque_labels_from_query_index_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T02:11:56+03:00"
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 2, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            ids = ["mem-20260912-abc", "worker:deadbeef"]
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"asshole": [0, 1]},
+                    "weight_codes": {"asshole": bytes([5, 5])},
+                    "anchors": [[], []],
+                    "opaque_labels": {ids[0]: "Lightweight asshole correction marker", ids[1]: "Repo Worker Alder #S2"},
+                }, handle)
+            hits, coverage = _timeline_discovery_hits("asshole", limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual({hit["label"] for hit in hits}, {"Lightweight asshole correction marker", "Repo Worker Alder #S2"})
+        self.assertEqual({hit["kind"] for hit in hits}, {"vault_memory", "worker_report"})
+
+    def test_timeline_discovery_exact_missing_memory_is_reference_only_not_fabricated_object(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T03:20:00+03:00"
+            memory_id = "mem-20260912-dce895b5"
+            commit_id = "git:vault:" + "a" * 40
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 1, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": [commit_id],
+                    "postings": {"mem": [0], "20260912": [0], "dce895b5": [0]},
+                    "weight_codes": {"mem": bytes([5]), "20260912": bytes([5]), "dce895b5": bytes([5])},
+                    "anchors": [[]],
+                    "branch_refs": [["main"]],
+                    "event_meta": [{
+                        "source_type": "GIT_COMMIT", "project": "vault", "event_at": "2026-09-12T00:00:00Z",
+                        "title": f"Reference {memory_id}", "summary": "memory correction reference", "authority": "LOCAL_GIT_HISTORY",
+                        "terms": ["mem", "20260912", "dce895b5"], "details": {},
+                    }],
+                }, handle)
+            hits, coverage = _timeline_discovery_hits(memory_id, limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual(hits[0]["kind"], "referenced_identity")
+        self.assertEqual(hits[0]["reference"], memory_id)
+        self.assertFalse(hits[0]["materialized_object_present"])
+        self.assertEqual(hits[0]["authority"], "SEARCH_REFERENCE_ONLY_NOT_OBJECT_TRUTH")
+        self.assertTrue(any(row.get("kind") == "git_commit" for row in hits[0]["referenced_by"]))
+
+    def test_timeline_discovery_evidence_cluster_mixes_runtime_git_github_and_worker_without_merging_truth(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T03:20:00+03:00"
+            worker_id = "worker:" + "b" * 64
+            ids = [
+                "mcp-transport:stable:req1",
+                "git:chatgptmcpclean:" + "a" * 40,
+                "github-issue:organicoverlords/chatgpt-mcp-clean#999:2026-09-12T00:01:00Z",
+                worker_id,
+            ]
+            times = ["2026-09-12T00:00:00Z", "2026-09-12T00:00:30Z", "2026-09-12T00:01:00Z", "2026-09-12T00:01:30Z"]
+            source_types = ["MCP_EVENT", "GIT_COMMIT", "GITHUB_ISSUE", "WORKER_REPORT"]
+            titles = ["MCP marker upload status 200", "marker upload implementation", "marker upload acceptance", "marker upload acceptance report"]
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 4, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"marker": [0, 1, 2, 3], "upload": [0, 1, 2, 3]},
+                    "weight_codes": {"marker": bytes([5, 5, 5, 5]), "upload": bytes([5, 5, 5, 5])},
+                    "anchors": [["process:p1"], ["gitsha:" + "a" * 40], ["github:organicoverlords/chatgpt-mcp-clean#999"], []],
+                    "branch_refs": [[], ["fix/marker-upload"], [], []],
+                    "opaque_labels": {worker_id: "manual marker upload acceptance"},
+                    "event_meta": [
+                        {"source_type": source_types[i], "project": "chatgptmcpclean", "event_at": times[i], "title": titles[i], "summary": titles[i], "authority": f"AUTH_{source_types[i]}", "terms": ["marker", "upload"], "details": {"tool": "upload_local_file", "status": 200} if i == 0 else {}}
+                        for i in range(4)
+                    ],
+                }, handle)
+            hits, coverage = _timeline_discovery_hits("marker upload", limit=5, root=root)
+        self.assertEqual(coverage["status"], "OK")
+        clusters = coverage["evidence_clusters"]
+        self.assertTrue(clusters)
+        cluster = clusters[0]
+        self.assertEqual(cluster["authority"], "SEARCH_CORRELATION_ONLY_NOT_SHARED_TRUTH")
+        kinds = {member["kind"] for member in cluster["members"]}
+        self.assertTrue({"mcp_event", "git_commit", "github_issue", "worker_report"}.issubset(kinds))
+        git_member = next(member for member in cluster["members"] if member["kind"] == "git_commit")
+        self.assertIn("fix/marker-upload", git_member["branches"])
+        runtime_member = next(member for member in cluster["members"] if member["kind"] == "mcp_event")
+        self.assertEqual(runtime_member["details"]["tool"], "upload_local_file")
+        self.assertEqual(runtime_member["details"]["status"], 200)
+        self.assertTrue(all(member["relationship"] in {"seed", "same_project_time_window", "shared_anchor"} for member in cluster["members"]))
+
+    def test_timeline_discovery_resolves_exact_manual_worker_report_hash_or_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T03:20:00+03:00"
+            worker_hash = "229f46e6d59fdafe226c05834a8d022cb6e0bea4fa02029efb11357a56e6ecf2"
+            worker_id = f"worker:{worker_hash}"
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 1, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": [worker_id],
+                    "postings": {},
+                    "weight_codes": {},
+                    "anchors": [[]],
+                    "opaque_labels": {worker_id: "manual marker handoff report repair"},
+                }, handle)
+            hits, coverage = _timeline_discovery_hits(
+                f"worker-reports/manual/history/_reports/{worker_hash}.md", limit=5, root=root
+            )
+        self.assertEqual(coverage["status"], "OK")
+        self.assertEqual(hits[0]["kind"], "worker_report")
+        self.assertEqual(hits[0]["reference"], worker_id)
+        self.assertEqual(hits[0]["label"], "manual marker handoff report repair")
+        self.assertGreaterEqual(hits[0]["score"], 100.0)
+
+    def test_timeline_discovery_boosts_explicit_issue_number_over_textual_neighbor(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            state = root / ".state" / "timeline"
+            state.mkdir(parents=True)
+            generated = "2026-09-12T02:22:00+03:00"
+            (state / "status.json").write_text(json.dumps({"generated_at": generated, "events": 2, "truncated": False, "saturated_sources": []}), encoding="utf-8")
+            ids = [
+                "github-issue:organicoverlords/chatgpt-mcp-clean#301:2026-09-12T00:00:00Z",
+                "github-issue:organicoverlords/chatgpt-mcp-clean#248:2026-09-11T00:00:00Z",
+            ]
+            import pickle
+            with (state / "timeline-query-index.pkl").open("wb") as handle:
+                pickle.dump({
+                    "schema": "vault.timeline.query-index.v1",
+                    "generated_at": generated,
+                    "ids": ids,
+                    "postings": {"issue": [0, 1], "301": [0], "library": [0, 1], "file": [1], "transfer": [1]},
+                    "weight_codes": {"issue": bytes([2, 2]), "301": bytes([2]), "library": bytes([3, 5]), "file": bytes([5]), "transfer": bytes([5])},
+                    "anchors": [["github:organicoverlords/chatgpt-mcp-clean#301"], ["github:organicoverlords/chatgpt-mcp-clean#248"]],
+                }, handle)
+            hits, _ = _timeline_discovery_hits("issue 301 library file transfer", limit=5, root=root)
+        self.assertEqual(hits[0]["reference"], "organicoverlords/chatgpt-mcp-clean#301")
 
     def test_feature_search_is_bounded_and_non_authoritative(self):
         self.assertEqual(find_features(""), [])
@@ -2981,11 +3495,31 @@ class TestVaultServingCheckoutConvergence(unittest.TestCase):
             self.assertNotEqual(code, 0)
             self.assertEqual(wrong["status"], "WRONG_BRANCH")
 
+    @unittest.skipUnless(os.name == "nt", "Vault serving checkout sync is a Windows scheduled-task contract")
+    def test_sync_wrong_branch_still_refreshes_cached_remote_without_touching_worktree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, seed, live = self._init_remote_pair(Path(tmp))
+            self._git(live, "switch", "-q", "-c", "scratch")
+            scratch_head = self._git(live, "rev-parse", "HEAD")
+            remote_head = self._advance_remote(seed, "remote-refresh.txt", "remote refresh\n")
+
+            code, wrong = self._run_sync(live)
+
+            self.assertNotEqual(code, 0)
+            self.assertEqual(wrong["status"], "WRONG_BRANCH")
+            self.assertEqual(self._git(live, "rev-parse", "--abbrev-ref", "HEAD"), "scratch")
+            self.assertEqual(self._git(live, "rev-parse", "HEAD"), scratch_head)
+            self.assertEqual(self._git(live, "rev-parse", "origin/main"), remote_head)
+            self.assertEqual(self._git(live, "status", "--porcelain"), "")
+
     def test_installer_is_hidden_one_minute_fail_closed_default(self):
         text = (ROOT / "tools" / "Install-VaultCheckoutSyncTask.ps1").read_text(encoding="utf-8-sig")
         self.assertIn("'VaultCheckoutSync'", text)
         self.assertIn("[int]$IntervalMinutes = 1", text)
-        self.assertIn("-WindowStyle Hidden", text)
+        self.assertIn("Get-Command pythonw.exe", text)
+        self.assertIn("subprocess.STARTF_USESHOWWINDOW", text)
+        self.assertIn("subprocess.SW_HIDE", text)
+        self.assertIn("subprocess.CREATE_NEW_CONSOLE", text)
         self.assertIn("-MultipleInstances IgnoreNew", text)
         self.assertIn("-RunLevel Limited", text)
         self.assertIn("tools\\Sync-VaultCheckout.ps1", text)

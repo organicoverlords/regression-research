@@ -108,6 +108,14 @@ class WorkerReportHistoryTests(unittest.TestCase):
         self.assertIn("worker_report_history.py create-manual", contract)
         self.assertIn("Do not handcraft manual run IDs or current report paths", contract)
 
+    def test_fresh_worker_contract_has_toolchain_generic_library_inbox_fallback(self):
+        contract = (Path(__file__).resolve().parents[1] / "04 Operating Contracts" / "fresh-worker-generation-launch.md").read_text(encoding="utf-8-sig")
+        self.assertIn("failure of the required normal durable/reporting toolchain, not MCP loss specifically", contract)
+        self.assertIn("GitHub, MCPv4, MCPVisual, Remote Desktop Commander, user-manual PowerShell", contract)
+        self.assertIn("handoff_state: TOOLCHAIN_RECOVERY_PENDING", contract)
+        self.assertIn("`/Inbox` is recovery state, not the final archive", contract)
+        self.assertIn("never authorizes scheduler mutation, prompt patching, or repurposing another scheduled worker as a courier", contract)
+        self.assertIn("a fully reconciled healthy state has an empty `/Inbox`", contract)
     def test_manual_current_audit_never_treats_open_file_as_liveness(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

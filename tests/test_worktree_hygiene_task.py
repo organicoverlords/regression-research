@@ -1,4 +1,4 @@
-﻿import unittest
+import unittest
 from unittest.mock import patch
 
 from tools.worktree_hygiene_task import MAX_AUXILIARY, MAX_DIRTY, classify_health
@@ -19,11 +19,23 @@ class WorktreeHygieneTaskTests(unittest.TestCase):
             "degraded",
         )
 
-    def test_installer_default_cadence_is_one_minute(self):
+    def test_installer_default_cadence_is_five_minutes_and_runtime_is_immutable(self):
         installer = (__import__("pathlib").Path(__file__).resolve().parents[1] / "tools" / "Install-WorktreeHygieneTask.ps1").read_text(encoding="utf-8-sig")
-        self.assertIn("[int]$IntervalMinutes = 1", installer)
+        self.assertIn("[int]$IntervalMinutes = 5", installer)
         self.assertIn("if ($IntervalMinutes -lt 1)", installer)
-        self.assertNotIn("[int]$IntervalMinutes = 15", installer)
+        self.assertIn("merge-base --is-ancestor $sourceCommit origin/main", installer)
+        self.assertIn("VaultWorktreeHygiene\\runtime", installer)
+        self.assertIn("Hygiene runtime source differs from committed snapshot", installer)
+        self.assertIn("source_commit = $sourceCommit", installer)
+        self.assertIn("Existing $TaskName task uses an unknown action; preserved without changes", installer)
+        self.assertIn("$legacyMutableRoot = 'C:\\Users\\Lauri\\Desktop\\vault'", installer)
+        self.assertIn("AddMinutes($IntervalMinutes)", installer)
+
+    def test_installer_preserves_existing_disabled_state_during_runtime_cutover(self):
+        installer = (__import__("pathlib").Path(__file__).resolve().parents[1] / "tools" / "Install-WorktreeHygieneTask.ps1").read_text(encoding="utf-8-sig")
+        self.assertIn("$wasEnabled = [bool]$existing.Settings.Enabled", installer)
+        self.assertIn("if (-not $wasEnabled) { Disable-ScheduledTask -TaskName $TaskName", installer)
+        self.assertIn("preserved_enabled_state = $wasEnabled", installer)
 
 
 if __name__ == "__main__":

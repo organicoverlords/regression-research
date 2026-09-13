@@ -8,15 +8,11 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-try:
-    from tools.memory_recent_projection import default_local_bank_path, read_current_projection
-except ImportError:
-    from memory_recent_projection import default_local_bank_path, read_current_projection
-
 HERE = Path(__file__).resolve().parent
 DEFAULT_REPO_ROOT = HERE.parent
 MEMORY_RECENT_LIMIT = 3
 PRODUCER_STATUS_NAME = 'producer-status.json'
+BOOTSTRAP_DEPLOYMENT_SOURCE_REF = 'refs/remotes/origin/main'
 
 
 BOOTSTRAP_GLANCE_TIMEOUT_SECONDS = 30.0
@@ -214,13 +210,8 @@ def _read_capture(stream) -> str:
     return stream.read().decode('utf-8', errors='replace')
 
 
-def _sync_deployed_atlas_from_head(repo_root: Path, atlas: Path) -> bool:
-    """Refresh an external deployed Stack Atlas from canonical Git HEAD, never dirty worktree bytes."""
+def _git_ref_file_bytes(repo_root: Path, source_ref: str, relative_path: str) -> bytes | None:
     repo_root = repo_root.resolve()
-    atlas = atlas.resolve()
-    canonical = (repo_root / 'tools' / 'stack_atlas.py').resolve()
-    if atlas == canonical:
-        return False
     probe = subprocess.run(
         ['git', '-C', str(repo_root), 'rev-parse', '--is-inside-work-tree'],
         stdout=subprocess.PIPE,
@@ -228,36 +219,129 @@ def _sync_deployed_atlas_from_head(repo_root: Path, atlas: Path) -> bool:
         text=True,
         encoding='utf-8',
         errors='replace',
+        creationflags=_creationflags(),
     )
     if probe.returncode != 0 or probe.stdout.strip() != 'true':
-        return False
+        return None
     source = subprocess.run(
-        ['git', '-C', str(repo_root), 'show', 'HEAD:tools/stack_atlas.py'],
+        ['git', '-C', str(repo_root), 'show', f'{source_ref}:{relative_path}'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        creationflags=_creationflags(),
     )
     if source.returncode != 0 or not source.stdout:
         detail = source.stderr.decode('utf-8', errors='replace')[-500:]
-        raise RuntimeError(f'unable to read canonical HEAD Stack Atlas: {detail}')
-    desired = source.stdout
+        raise RuntimeError(f'unable to read bootstrap deployment source {source_ref}:{relative_path}: {detail}')
+    return source.stdout
+
+
+def _overwrite_locked_deployed_file_bytes(destination: Path, desired: bytes) -> None:
+    """Repair a Windows destination that is readable/writable but not replaceable.
+
+    Long-lived readers such as Desktop Commander can keep a file handle without
+    FILE_SHARE_DELETE.  In that state os.replace is denied even though an in-place
+    write is allowed.  Preserve the prior bytes in memory, perform one bounded
+    write+truncate+fsync, verify exact desired bytes, and restore the prior bytes
+    if verification or writing fails.
+    """
+    previous = destination.read_bytes()
     try:
-        if atlas.read_bytes() == desired:
+        with destination.open('r+b', buffering=0) as stream:
+            stream.seek(0)
+            stream.write(desired)
+            stream.truncate()
+            stream.flush()
+            os.fsync(stream.fileno())
+        if destination.read_bytes() != desired:
+            raise RuntimeError(f'locked deployed file verification failed: {destination}')
+    except BaseException:
+        try:
+            with destination.open('r+b', buffering=0) as stream:
+                stream.seek(0)
+                stream.write(previous)
+                stream.truncate()
+                stream.flush()
+                os.fsync(stream.fileno())
+        except BaseException:
+            pass
+        raise
+
+
+def _replace_deployed_file_bytes(destination: Path, desired: bytes) -> bool:
+    destination = destination.resolve()
+    try:
+        if destination.read_bytes() == desired:
             return False
     except FileNotFoundError:
         pass
-    atlas.parent.mkdir(parents=True, exist_ok=True)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode='w+b', dir=atlas.parent, suffix='.tmp', delete=False) as stream:
+        with tempfile.NamedTemporaryFile(mode='w+b', dir=destination.parent, suffix='.tmp', delete=False) as stream:
             temporary = Path(stream.name)
             stream.write(desired)
             stream.flush()
             os.fsync(stream.fileno())
-        _replace_snapshot(temporary, atlas)
+        try:
+            _replace_snapshot(temporary, destination)
+        except PermissionError:
+            if os.name != 'nt' or not destination.exists():
+                raise
+            _overwrite_locked_deployed_file_bytes(destination, desired)
+        if destination.read_bytes() != desired:
+            raise RuntimeError(f'deployed file verification failed: {destination}')
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
     return True
+
+
+def _sync_deployed_file_from_source_ref(
+    repo_root: Path, destination: Path, relative_path: str, *, source_ref: str = BOOTSTRAP_DEPLOYMENT_SOURCE_REF
+) -> bool:
+    repo_root = repo_root.resolve()
+    destination = destination.resolve()
+    canonical = (repo_root / Path(relative_path)).resolve()
+    if destination == canonical:
+        return False
+    desired = _git_ref_file_bytes(repo_root, source_ref, relative_path)
+    if desired is None:
+        return False
+    return _replace_deployed_file_bytes(destination, desired)
+
+
+def _sync_deployed_atlas_from_source_ref(repo_root: Path, atlas: Path) -> bool:
+    """Refresh deployed Stack Atlas from cached origin/main, never live branch/worktree bytes."""
+    return _sync_deployed_file_from_source_ref(repo_root, atlas, 'tools/stack_atlas.py')
+
+
+def _sync_deployed_runtime_bundle_from_source_ref(repo_root: Path, atlas: Path | None) -> dict[str, bool]:
+    """Self-heal the scheduled AppData producer bundle from cached origin/main.
+
+    The installer deploys producer/helper/Atlas into one runtime directory. Once this
+    generation is installed, every primary run repairs all three committed bytes from
+    the cached remote-main ref before doing useful work. VaultCheckoutSync owns refreshing
+    that ref without mutating a dirty/wrong-branch serving checkout. The current process may continue on its already-loaded producer
+    code for this one run; the next scheduled run necessarily starts from the repaired
+    producer. Dirty worktree bytes are never used by this repair path.
+    """
+    if atlas is None:
+        return {}
+    producer = Path(__file__).resolve()
+    atlas = atlas.resolve()
+    runtime_dir = producer.parent
+    canonical_producer = (repo_root.resolve() / 'tools' / 'bootstrap_read_loop.py').resolve()
+    if producer == canonical_producer or atlas.parent != runtime_dir:
+        return {}
+    targets = (
+        ('producer', producer, 'tools/bootstrap_read_loop.py'),
+        ('memory_helper', runtime_dir / 'memory_recent_projection.py', 'tools/memory_recent_projection.py'),
+        ('atlas', atlas, 'tools/stack_atlas.py'),
+    )
+    return {
+        name: _sync_deployed_file_from_source_ref(repo_root, destination, relative_path)
+        for name, destination, relative_path in targets
+    }
 
 
 def _run_bootstrap_glance(repo_root: Path, atlas: Path, *, timeout_seconds: float = BOOTSTRAP_GLANCE_TIMEOUT_SECONDS) -> subprocess.CompletedProcess[str]:
@@ -329,7 +413,18 @@ def _run_bootstrap_glance(repo_root: Path, atlas: Path, *, timeout_seconds: floa
                     pass
 
 
+def _memory_projection_api():
+    # Keep this import after deployed-bundle self-heal so a stale AppData helper is
+    # replaced before Python loads it into the scheduled producer process.
+    try:
+        from tools.memory_recent_projection import default_local_bank_path, read_current_projection
+    except ImportError:
+        from memory_recent_projection import default_local_bank_path, read_current_projection
+    return default_local_bank_path, read_current_projection
+
+
 def _load_current_memory_projection(repo_root: Path) -> dict | None:
+    default_local_bank_path, read_current_projection = _memory_projection_api()
     seed_path = repo_root / 'memory' / 'memory-bank.jsonl'
     overlay_path = default_local_bank_path()
     return read_current_projection(seed_path=seed_path, overlay_path=overlay_path)
@@ -666,7 +761,7 @@ def emit_snapshot(repo_root: Path = DEFAULT_REPO_ROOT, *, quiet: bool = False, a
     repo_root = repo_root.resolve()
     atlas = (atlas_path or (repo_root / 'tools' / 'stack_atlas.py')).resolve()
     if atlas_path is not None:
-        _sync_deployed_atlas_from_head(repo_root, atlas)
+        _sync_deployed_atlas_from_source_ref(repo_root, atlas)
     cp = _run_bootstrap_glance(repo_root, atlas)
     if cp.returncode != 0:
         detail = (cp.stderr or f'bootstrap-glance exited {cp.returncode}')[-1000:]
@@ -757,6 +852,7 @@ def main() -> int:
         started = time.monotonic()
         ok = False
         try:
+            _sync_deployed_runtime_bundle_from_source_ref(repo_root, atlas_path)
             if heartbeat_if_older is not None:
                 ok = publish_watchdog_heartbeat(
                     repo_root, older_than_seconds=heartbeat_if_older, quiet=args.quiet

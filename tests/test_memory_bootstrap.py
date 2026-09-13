@@ -35,16 +35,13 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("Never create or enable a sixth worker inside either partition", text)
 
         self.assertIn("The scheduler provides recurrence only", text)
-        self.assertIn("Use current direction and live state; task memory is conditional evidence", text)
+        self.assertIn("Use current direction and live state; unified `find` is the first discovery surface", text)
         self.assertIn("memory_bank.py context <query>", text)
-        self.assertIn("only when a specific historical fact", text)
-        self.assertIn("memory_bank.py timeline <query>", text)
-        self.assertIn("memory/timeline remains conditional rather than mandatory ceremony", text)
-        self.assertIn("Historical memory/timeline is evidence, never current truth", text)
-        self.assertNotIn("even when the task appears new", text)
-        self.assertNotIn("run both targeted context and timeline", text)
-        self.assertIn("Do not turn this into a broad Vault scan", text)
-        self.assertNotIn("Do not make Atlas, Vault, reports, history, or scheduler metadata a generic startup gate", text)
+        self.assertIn("at most one `timeline <query>` only as drill-down", text)
+        self.assertIn("when a concrete historical fact remains materially unknown", text)
+        self.assertIn("Historical search evidence is never current truth", text)
+        self.assertNotIn("task memory is conditional evidence", text)
+        self.assertNotIn("memory/timeline remains conditional rather than mandatory ceremony", text)
         self.assertIn("Recurring workers observe fleet health but never administer scheduler state", text)
         self.assertIn("must never administer itself", text)
         self.assertIn("authorize no scheduler write by that worker", text)
@@ -68,8 +65,21 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertIn("A manual report is accounting/feedback evidence, not liveness", text)
         self.assertNotIn("metrics.json.latest_reports", text)
         self.assertNotIn("PENDING_REVIEW", text)
-        self.assertNotIn("Remote Desktop Commander", text)
+        self.assertIn("Last-resort Library Inbox durability", text)
         self.assertNotIn("first-launch proof", text.lower())
+
+    def test_timed_worker_current_report_is_lifecycle_snapshot_not_live_progress(self):
+        contract = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
+        self.assertIn("The `current` path is a run-lifecycle location, not live progress telemetry", contract)
+        self.assertIn("the RUNNING file begins as the start snapshot", contract)
+        self.assertIn("Update the current report at natural checkpoints", contract)
+        self.assertIn("do not infer continuous activity, liveness, or current progress", contract)
+
+        topology = json.loads((ROOT / "04 Operating Contracts/chatgpt-swarm-topology.json").read_text(encoding="utf-8"))
+        authority = topology["subscriptions"]["S2"]["enabled_state_authority"]
+        self.assertIn("run-lifecycle start/finalization evidence only", authority)
+        self.assertIn("do not prove current liveness, in-run progress, or scheduler flags", authority)
+        self.assertNotIn("live worker reports prove recent execution", authority)
 
 if __name__ == "__main__":
     unittest.main()

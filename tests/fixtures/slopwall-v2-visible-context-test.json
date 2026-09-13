@@ -1,0 +1,18 @@
+{
+  "schema": "behavior-incident-visible-context.v2-test",
+  "capture_scope": "VISIBLE_CONTEXT_ONLY",
+  "verbatim": true,
+  "full_conversation_reload": false,
+  "items": [
+    {
+      "kind": "user_message",
+      "source": "synthetic-test",
+      "content": "slopwall"
+    },
+    {
+      "kind": "user_message",
+      "source": "synthetic-test",
+      "content": "incident report"
+    }
+  ]
+}

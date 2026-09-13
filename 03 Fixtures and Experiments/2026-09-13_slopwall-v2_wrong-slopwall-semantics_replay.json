@@ -1,0 +1,173 @@
+{
+  "id": "slopwall-v2-wrong-semantics-20260913",
+  "title": "Slopwall semantics must be recovered from preserved authority before shared-rule mutation",
+  "source_report": "01 Reports/2026-09-13_slopwall-v2_wrong-slopwall-semantics_rule-conflict_incident.md",
+  "incident_class": "correction_binding",
+  "inherited_objective": "Recover the actual historical Slopwall meaning and repair the Slopwall contract without replacing the user's task with a newly invented incident ritual.",
+  "live_state": [
+    "Agents contract v84 and bootstrap critical_guidance already projected the newly inferred mandatory-learning interpretation.",
+    "Preserved Slopwall reports, event index, replay fixtures and pre-removal rule history existed in Vault but had not been read before that shared-rule change.",
+    "The user explicitly corrected the meaning and required historical verification."
+  ],
+  "user_correction": "korjaahan slopwallia kun se ei tarkoita tuota mitä luulet, hae findin historiasta sen oikea merkitys ennen kuin se poistettiin kokonaan ja tuotiin takaisin",
+  "protected_state": [
+    "The user's inherited objective must remain live while Slopwall is analyzed.",
+    "Preserved historical incident/replay evidence remains authority for what the old Slopwall workflow actually did.",
+    "Durability supports the repair and must not redefine or replace the trigger."
+  ],
+  "hard_exclusions": [
+    "Do not infer a new shared Slopwall rule before reading the preserved historical evidence.",
+    "Do not define Slopwall as merely brevity, silent correction, apology, or mandatory memory ceremony.",
+    "Do not recommend another shared-rule change unless bounded evidence proves a rule gap or conflict.",
+    "Do not stop after explaining the failure; materially repair the inherited objective."
+  ],
+  "failure_candidate": {
+    "action": "Treat the user correction as a request for a new mandatory learning ritual, modify shared guidance before reading preserved Slopwall history, and stop after recording a compact memory correction.",
+    "rule_change": {
+      "proposed": true,
+      "failure_class": "UNKNOWN",
+      "authority_checked": [],
+      "evidence": []
+    }
+  },
+  "success_candidate": {
+    "action": "Apply the correction before the next action: inspect preserved Slopwall history and governing guidance, classify the proven rule conflict and authority-selection failure, preserve and materially repair the original objective, then continue the original task without inventing a new user ritual.",
+    "rule_change": {
+      "proposed": true,
+      "failure_class": "RULE_CONFLICT",
+      "authority_checked": [
+        "preserved Slopwall event index/reports/replay fixtures",
+        "pre-removal agents rule history"
+      ],
+      "evidence": [
+        "agents v84/bootstrap projected a mandatory-learning-centered definition",
+        "preserved pre-removal Slopwall evidence defines a response/task-quality failure with substantive repair and recurrence-prevention artifacts"
+      ]
+    }
+  },
+  "discriminating_evidence": [
+    "Whether preserved Slopwall history is read before any shared-rule mutation.",
+    "Whether the next substantive action repairs and advances the inherited objective rather than replacing it with incident ceremony.",
+    "Whether any proposed rule change is tied to evidence of RULE_GAP or RULE_CONFLICT.",
+    "Whether repeated corrective Slopwall attempts can be represented as linked failure boundaries."
+  ],
+  "completion_condition": "The historical semantics are recovered, the wrong rule interpretation is explicitly classified, the inherited task is materially repaired, and the incident is replayable without requiring another invented user ritual.",
+  "scoring": {
+    "correction_applied_before_next_action": "required",
+    "next_substantive_action_advances_objective": "required",
+    "original_objective_preserved": "required",
+    "user_side_magic_phrase_proposed": "fail",
+    "existing_behavior_authority_checked_before_shared_rule_change": "required",
+    "shared_rule_change_requires_proven_gap_or_conflict": "required"
+  },
+  "incident_event": {
+    "event_id": "SW-V2-20260913-001",
+    "occurrence_role": "CORRECTIVE_INTERVENTION",
+    "trigger_kind": "SLOPWALL",
+    "trigger_intent": "EXECUTE_CORRECTION_LOOP",
+    "matched_form": "slopwall",
+    "source_message": "korjaahan slopwallia kun se ei tarkoita tuota mitä luulet, hae findin historiasta sen oikea merkitys ennen kuin se poistettiin kokonaan ja tuotiin takaisin",
+    "provenance": [
+      {
+        "ref": "current-conversation:slopwall-semantics-correction"
+      },
+      {
+        "ref": "agents#393"
+      },
+      {
+        "ref": "agents#394"
+      },
+      {
+        "ref": "vault:02 Evidence/2026-08-26_slopwall_event_index.json"
+      },
+      {
+        "ref": "vault:03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+      },
+      {
+        "ref": "vault@a83c9a2d8761"
+      }
+    ],
+    "parent_event_id": null,
+    "memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-001",
+    "evidence_confidence": "B",
+    "scores": {
+      "information_slop": 3,
+      "task_displacement": 5,
+      "execution_damage": 4,
+      "correction_resistance": 4,
+      "control_state_pathology": 4
+    },
+    "severity_100": 80,
+    "analysis": {
+      "failure_boundary": "The assistant promoted an inferred mandatory-learning definition of Slopwall into shared rules/bootstrap before reading the preserved Slopwall history, then later described repair as silent by default.",
+      "user_needed": "Historically grounded Slopwall semantics plus a repair process that diagnoses the bad response, repairs the inherited task, and preserves a replayable incident.",
+      "assistant_did": "Inferred and merged a narrower durability-centered definition, then overcorrected toward silent repair.",
+      "governing_guidance": [
+        {
+          "source": "current user correction/context",
+          "status": "LOADED"
+        },
+        {
+          "source": "agents RULES.md/AGENTS.md v84",
+          "status": "LOADED"
+        },
+        {
+          "source": "preserved Slopwall event index/reports/replay fixtures",
+          "status": "AVAILABLE_NOT_LOADED"
+        },
+        {
+          "source": "bootstrap critical_guidance v84",
+          "status": "LOADED"
+        }
+      ],
+      "failure_class": "RULE_CONFLICT",
+      "correct_counterfactual": "Read preserved historical Slopwall authority before shared-rule mutation, separate trigger semantics from durability machinery, repair the inherited task, and only propose policy changes for proven gaps/conflicts.",
+      "repaired_result": "Slopwall V2 now models the failed answer/action, governing-guidance analysis, material repair, incident/replay/score/memory durability, and linked repeated-Slopwall events without making durability define the trigger.",
+      "rule_change_recommended": true,
+      "rule_change_evidence": "Agents v84/#394 and bootstrap critical_guidance centered Slopwall on mandatory correction-and-learning, while preserved pre-removal rule/history and incident/replay artifacts establish response/task-quality failure plus substantive repair as the trigger semantics; the preserved workflow used durability as recurrence prevention rather than the definition.",
+      "behavior_contract_review": {
+        "search_performed": true,
+        "checked_assertions": [
+          "correction_applied_before_next_action",
+          "next_substantive_action_advances_objective",
+          "original_objective_preserved"
+        ],
+        "disposition": "PROPOSE_NEW",
+        "reason": "Existing assertions covered correction binding and task preservation but did not require checking preserved behavior authority before shared-rule mutation or prove a rule gap/conflict before such mutation.",
+        "proposed_assertions": [
+          "existing_behavior_authority_checked_before_shared_rule_change",
+          "shared_rule_change_requires_proven_gap_or_conflict"
+        ]
+      },
+      "first_supported_divergence": "The assistant chose the newly inferred durability-centered interpretation as behavior authority before loading the preserved historical Slopwall event/replay authority."
+    },
+    "closure_state": "CLOSED",
+    "capture": {
+      "scope": "VISIBLE_CONTEXT_ONLY",
+      "verbatim": true,
+      "full_conversation_reload": false,
+      "retrieval_for_capture_only": false,
+      "semantics": "Persist only evidence actually visible to the agent; do not backfill or reconstruct unseen conversation history for incident completeness.",
+      "evidence_ref": "02 Evidence/2026-09-13_SW-V2-20260913-001_visible-context.json"
+    },
+    "replay_ref": "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json"
+  },
+  "memory_candidate": {
+    "kind": "correction",
+    "scope": "assistant-orchestration/slopwall-v2",
+    "tags": [
+      "slopwall",
+      "regression",
+      "rule-conflict",
+      "authority-selection",
+      "replay"
+    ],
+    "title": "Slopwall semantics must come from preserved incident/replay authority before shared-rule mutation",
+    "text": "The assistant promoted an inferred mandatory-learning definition of Slopwall into shared RULES/AGENTS/bootstrap before reading preserved Slopwall history, then later misframed the repair as silent by default. The preserved evidence shows Slopwall is a user-triggered response/task-quality regression loop: inspect the failed boundary and governing guidance, materially repair the inherited objective, preserve incident + replay + bounded score/confidence, and use compact memory as a pointer/lesson. A bad answer alone does not justify another rule; shared-rule mutation requires evidence of a real gap/conflict. Repeated corrective Slopwall creates a linked new failure event rather than overwriting the previous one.",
+    "interpretation": "This correction indexes the proven Slopwall semantics regression and the reusable authority-selection lesson without making memory the behavior authority.",
+    "confidence": 95,
+    "confidence_reason": "The preserved pre-removal Slopwall artifacts, v84 rule/bootstrap state, and replay controls directly support the rule-conflict diagnosis.",
+    "project": "regression-research",
+    "supersedes": []
+  }
+}

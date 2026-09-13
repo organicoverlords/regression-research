@@ -7,10 +7,56 @@ from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tools.live_swarm import _command_target, _git_identity, _read_window, _workspace, build_live_swarm_snapshot, compact_for_bootstrap
+from tools.live_swarm import (
+    _action_mode, _actor_candidate_map, _command_target, _git_identity, _read_window,
+    _resolve_caller_identity, _workspace, build_live_swarm_snapshot, compact_for_bootstrap,
+    identify_current_actor,
+)
 
 
 class LiveSwarmTests(unittest.TestCase):
+
+    def test_actor_candidate_requires_partition_for_duplicate_names(self):
+        specs=[
+            {"actor":"S1/Alder","partition":"s1","name":"alder","name_unique":False},
+            {"actor":"S2/Alder","partition":"s2","name":"alder","name_unique":False},
+            {"actor":"S2/Spruce","partition":"s2","name":"spruce","name_unique":True},
+        ]
+        detail={"worktree":{"branch":"chatgpt/3013-cohort-pressure-retry-spruce-s2","path":r"C:\\wt\\spruce-s2"}}
+        got=_actor_candidate_map(detail,[{"owner":"ChatGPT-alder-s2-run11"}],specs)
+        self.assertEqual(got,{"S2/Alder":{"busy_owner"},"S2/Spruce":{"worktree_branch","worktree_path"}})
+
+    def test_explicit_actor_wins_resolver_mismatch_without_health_failure(self):
+        now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
+        detail={"caller_id":"caller_abc123","worktree":{"branch":"chatgpt/rowan-s2","path":r"C:\\wt\\rowan-s2"}}
+        specs=[{"actor":"S2/Rowan","partition":"s2","name":"rowan","name_unique":True}]
+        with patch("tools.live_swarm._load_explicit_actor_binding",return_value={"actor":"manual/reviewer","bound_at":now.isoformat(),"age_seconds":0}):
+            identity=_resolve_caller_identity(detail,[],now=now,specs=specs)
+        self.assertEqual(identity["status"],"ATTRIBUTED")
+        self.assertEqual(identity["actor"],"manual/reviewer")
+        self.assertEqual(identity["source"],"self_declared")
+        self.assertEqual(identity["diagnostic"],"RESOLVER_MISMATCH")
+        self.assertEqual(identity["resolver_candidates"][0]["actor"],"S2/Rowan")
+
+    def test_unattributed_actor_is_normal_state(self):
+        now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
+        detail={"caller_id":"caller_abc123","worktree":None}
+        with patch("tools.live_swarm._load_explicit_actor_binding",return_value=None):
+            identity=_resolve_caller_identity(detail,[],now=now,specs=[])
+        self.assertEqual(identity,{"status":"UNATTRIBUTED","actor":None,"source":None})
+
+    def test_identify_current_actor_persists_per_caller_binding(self):
+        now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}), \
+             patch("tools.live_swarm._find_current_caller_id",return_value="caller_abc123"):
+            result=identify_current_actor("manual/reviewer",now=now,parent_pid=123)
+            self.assertTrue(result["bound"])
+            self.assertEqual(result["caller_id"],"caller_abc123")
+            path=Path(td)/"ChatGPTMcpClean"/".state"/"swarm-actor-bindings"/"caller_abc123.json"
+            payload=json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["actor"],"manual/reviewer")
+            self.assertEqual(payload["source"],"self_declared")
+
     def test_command_target_prefers_explicit_execution_surface(self):
         path,basis=_command_target("$wt='C:\\work\\tiny3d-wt'; Set-Location $wt; python test.py")
         self.assertEqual(path, r"C:\work\tiny3d-wt")
@@ -18,6 +64,13 @@ class LiveSwarmTests(unittest.TestCase):
         path,basis=_command_target("git -C 'C:\\repo\\p3' status")
         self.assertEqual(path, r"C:\repo\p3")
         self.assertEqual(basis, "command_git_c")
+
+    def test_action_mode_requires_explicit_plan_label(self):
+        self.assertEqual(_action_mode("package_plan"), "PLAN_ONLY")
+        self.assertEqual(_action_mode("content-plan"), "PLAN_ONLY")
+        self.assertEqual(_action_mode("plan_only"), "PLAN_ONLY")
+        self.assertEqual(_action_mode("repo_mutation"), "UNKNOWN")
+        self.assertEqual(_action_mode("planonly_evidence_probe"), "UNKNOWN")
 
     def test_workspace_is_orientation_not_identity(self):
         self.assertEqual(_workspace(r"C:\Users\Lauri\Desktop\tiny3d-x"), "Tiny3D")
@@ -51,6 +104,14 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(len(out),4)
 
 
+    def test_unavailable_snapshot_keeps_activity_window_shape_without_claiming_completeness(self):
+        now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            snapshot=build_live_swarm_snapshot(now=now)
+        self.assertFalse(snapshot["available"])
+        self.assertEqual(snapshot["summary"]["active_callers"],{"15s":0,"60s":0,"2m":0,"5m":0,"15m":0,"30m":0})
+        self.assertEqual(snapshot["evidence"]["active_callers_complete_through_seconds"],0)
+
     def test_activity_window_completeness_is_distinct_from_observation_window(self):
         now=datetime(2026,9,10,3,0,0,tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as td:
@@ -77,6 +138,7 @@ class LiveSwarmTests(unittest.TestCase):
                 enough=build_live_swarm_snapshot(now=now)
             self.assertFalse(enough["evidence"]["observation_window_complete"])
             self.assertTrue(enough["evidence"]["activity_window_complete"])
+            self.assertEqual(enough["evidence"]["active_callers_complete_through_seconds"],300)
             self.assertTrue(enough["transport_sources"][0]["activity_window_complete"])
 
             with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}), \
@@ -84,6 +146,7 @@ class LiveSwarmTests(unittest.TestCase):
                 truncated=build_live_swarm_snapshot(now=now)
             self.assertFalse(truncated["evidence"]["observation_window_complete"])
             self.assertFalse(truncated["evidence"]["activity_window_complete"])
+            self.assertEqual(truncated["evidence"]["active_callers_complete_through_seconds"],0)
             self.assertFalse(truncated["transport_sources"][0]["activity_window_complete"])
 
     def test_stale_candidate_overflow_does_not_poison_complete_window(self):
@@ -192,6 +255,45 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(source_by_instance["home-direct-test"]["local_port"],3022)
             self.assertNotIn("caller_stale",callers)
 
+    def test_snapshot_counts_unique_mcp_callers_across_recent_windows(self):
+        now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td:
+            local=Path(td)
+            root=local/"ChatGPTMcpClean"/"minimal-connectors"
+            source=root/"clone-a"
+            source.mkdir(parents=True)
+            (root/"shared-process-receipts").mkdir()
+            state=local/"ChatGPTMcpClean"/".state"
+            state.mkdir()
+            (state/"busy-claims.json").write_text(json.dumps({"coordinator":{"jobs":{}}}),encoding="utf-8")
+            rows=[]
+            for caller,seconds_ago in (("c15",5),("c60",30),("c2m",90),("c5m",240),("c15m",600),("c30m",1200),("c_exit",600)):
+                row={"at":(now-timedelta(seconds=seconds_ago)).isoformat(),"event":"process_started","caller_id":caller,"process_id":caller,"cwd":fr"C:\work\{caller}"}
+                if caller=="c15": row.update(action_class="package_plan",activity_target={"type":"project","id":"plan-target","project":"p3"})
+                elif caller=="c60": row.update(action_class="repo_mutation",activity_target={"type":"card","id":"42","project":"p3"})
+                rows.append(row)
+            rows.append({"at":(now-timedelta(seconds=4)).isoformat(),"event":"process_exit_observed","caller_id":"c_exit","process_id":"c_exit","exit_code":0})
+            rows.sort(key=lambda row: row["at"])
+            (source/"transport.jsonl").write_text("\n".join(json.dumps(row) for row in rows)+"\n",encoding="utf-8")
+            with patch.dict("os.environ",{"LOCALAPPDATA":str(local)}):
+                snapshot=build_live_swarm_snapshot(now=now)
+            self.assertEqual(snapshot["summary"]["active_callers"],{
+                "15s":1,"60s":2,"2m":3,"5m":4,"15m":6,"30m":7,
+            })
+            self.assertEqual(snapshot["summary"]["recent_callers"],4)
+            self.assertEqual(snapshot["summary"]["activity_buckets"],{
+                "0_15s":1,"15_60s":1,"1_2m":1,"2_5m":1,"5_15m":2,"15_30m":1,
+            })
+            self.assertEqual(snapshot["summary"]["caller_modes"],{"PLAN_ONLY":1,"UNKNOWN":3})
+            caller_by_id={caller["caller_id"]:caller for caller in snapshot["callers"]}
+            self.assertEqual(caller_by_id["c15"]["mode"],"PLAN_ONLY")
+            self.assertEqual(caller_by_id["c15"]["action_class"],"package_plan")
+            self.assertEqual(caller_by_id["c15"]["activity_target"],{"type":"project","id":"plan-target","project":"p3"})
+            self.assertEqual(caller_by_id["c60"]["mode"],"UNKNOWN")
+            self.assertEqual(snapshot["evidence"]["active_callers_complete_through_seconds"],1800)
+            self.assertEqual(snapshot["evidence"]["active_callers_semantics"],"unique_non_observer_callers_with_process_started_or_process_read_in_window")
+            self.assertIn("PLAN_ONLY_only_when",snapshot["evidence"]["caller_mode_semantics"])
+
     def test_snapshot_uses_newer_rotated_archive_for_same_mcpv4_instance(self):
         now=datetime(2026,9,9,1,30,0,tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as td:
@@ -221,11 +323,20 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
 
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
-        snapshot={"summary":{"recent_callers":3,"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
+        snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
         compact=compact_for_bootstrap(snapshot)
         self.assertEqual(compact["summary"]["recent_callers"],3)
         self.assertEqual(compact["lanes"][0]["busy"][0]["scope_count"],5)
+        self.assertEqual(compact["lanes"][0]["state"],"ACTIVE")
+        self.assertEqual(compact["lanes"][0]["callers"][0]["mode"],"PLAN_ONLY")
+        self.assertNotIn("action_class",compact["lanes"][0]["callers"][0])
+        self.assertNotIn("activity_target",compact["lanes"][0]["callers"][0])
         self.assertNotIn("scopes",compact["lanes"][0]["busy"][0])
+        self.assertNotIn("lanes_truncated",compact)
+        self.assertEqual(compact["lane_details"], {
+            "policy":"most_recent", "limit":8, "returned":1, "total":1, "bounded":False,
+            "semantics":"bootstrap_detail_bound_not_evidence_truncation",
+        })
 
 
 if __name__ == "__main__":

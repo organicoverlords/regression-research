@@ -11,6 +11,7 @@ from tools.memory_timeline import build_continuity_graph
 from tools.repo_timeline import RepoSpec
 from tools.timeline_materializer import (
     BOOTSTRAP_SCHEMA,
+    DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND,
     DEFAULT_DELTA_REPO_EVENTS_PER_REPO,
     DEFAULT_GITHUB_EVENTS_PER_KIND,
     DEFAULT_MAX_EVENTS,
@@ -19,6 +20,7 @@ from tools.timeline_materializer import (
     DEFAULT_RUNNER_LOG_EVENTS,
     HISTORICAL_EVIDENCE_FLOOR,
     SCHEMA,
+    ROOT,
     build_parser,
     build_work_graph,
     build_worker_archive_summary,
@@ -35,16 +37,128 @@ from tools.timeline_materializer import (
     mcp_replacement_events,
     query_materialized,
     runner_log_events,
+    timeline_read_state_root,
+    timeline_state_root,
     _bootstrap_correction_trigger_projection,
     _github_read_cli,
+    _github_refresh_limit,
+    _event_query_fields,
     _lesson_packet,
+    _materialized_source_since,
     _merge_materialized_events,
+    _mcp_runtime_evidence_paths,
+    _mcp_transport_events,
+    _mcp_watchdog_events,
+    _query_concepts,
+    _query_index_event_meta,
+    _query_index_opaque_label,
+    _repair_legacy_capped_github_comments,
     _run_json,
     _run_process,
 )
 
 
 class TimelineMaterializerTests(unittest.TestCase):
+    def test_canonical_timeline_state_is_external_while_test_roots_remain_isolated(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            external = timeline_state_root(ROOT)
+            self.assertEqual(external, Path(d) / "VaultTimeline")
+            isolated_root = Path(d) / "fixture-vault"
+            self.assertEqual(timeline_state_root(isolated_root), isolated_root / ".state" / "timeline")
+            self.assertEqual(timeline_read_state_root(isolated_root), isolated_root / ".state" / "timeline")
+
+    def test_query_index_opaque_label_only_materializes_human_labels_for_opaque_identities(self):
+        self.assertEqual(_query_index_opaque_label({"id": "worker:abc", "display_label": "Repo Worker Alder #S2", "title": "fallback"}), "Repo Worker Alder #S2")
+        self.assertEqual(_query_index_opaque_label({"id": "mem-20260912-abc", "title": "Lightweight asshole correction marker"}), "Lightweight asshole correction marker")
+        self.assertIsNone(_query_index_opaque_label({"id": "github-issue:org/repo#1:now", "title": "Issue title"}))
+        self.assertEqual(len(_query_index_opaque_label({"id": "worker:long", "title": "x" * 400})), 180)
+
+    def test_nexus_query_concept_includes_devboard_without_singularizing_to_nexu(self):
+        concepts = _query_concepts("nexus")
+        self.assertEqual(len(concepts), 1)
+        self.assertIn("nexus", concepts[0])
+        self.assertIn("devboard", concepts[0])
+        self.assertNotIn("nexu", concepts[0])
+
+    def test_worker_query_fields_include_manual_report_identity_and_findings(self):
+        fields = _event_query_fields({
+            "source_type": "WORKER_REPORT",
+            "title": "marker upload acceptance",
+            "display_label": "manual-marker-handoff",
+            "run_id": "manual-20260912-marker-handoff",
+            "state": "RUN_FINISHED",
+            "finding_tags": ["proof", "regression", "route_problem", "wrapper_anomaly"],
+            "stop_reason": "UI Library acceptance not proven",
+        })
+        all_tokens = set().union(*(tokens for _, tokens in fields))
+        for token in ("manual", "marker", "proof", "regression", "route", "problem", "wrapper", "anomaly", "finished", "library"):
+            self.assertIn(token, all_tokens)
+
+    def test_mcp_runtime_discovery_materializes_current_transport_receipts_and_watchdog(self):
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"LOCALAPPDATA": d}):
+            local = Path(d)
+            instance = local / "ChatGPTMcpClean" / "minimal-connectors" / "home-direct-current"
+            instance.mkdir(parents=True)
+            request_id = "req-current"
+            process_id = "proc-current"
+            transport_rows = [
+                {"at": "2026-09-12T00:00:00Z", "server_pid": 12, "event": "request_start", "request_id": request_id, "caller_id": "caller-a", "connection_id": "conn-a", "method": "POST", "path": "/mcp"},
+                {"at": "2026-09-12T00:00:00.100Z", "server_pid": 12, "event": "process_started", "request_id": request_id, "process_id": process_id, "caller_id": "caller-a"},
+                {"at": "2026-09-12T00:00:00.500Z", "server_pid": 12, "event": "response_finish", "request_id": request_id, "caller_id": "caller-a", "connection_id": "conn-a", "method": "POST", "path": "/mcp", "mcp_method": "tools/call", "mcp_tool": "start_process", "status": 200, "duration_ms": 500.0},
+                {"at": "2026-09-12T00:00:00.510Z", "server_pid": 12, "event": "process_receipt_persisted", "request_id": request_id, "process_id": process_id},
+                {"at": "2026-09-12T00:00:01Z", "server_pid": 12, "event": "request_start", "request_id": "health", "method": "GET", "path": "/health"},
+                {"at": "2026-09-12T00:00:01.010Z", "server_pid": 12, "event": "response_finish", "request_id": "health", "method": "GET", "path": "/health", "status": 200},
+            ]
+            (instance / "transport.jsonl").write_text("".join(json.dumps(row) + "\n" for row in transport_rows), encoding="utf-8")
+            (instance / "stall-watchdog.jsonl").write_text(json.dumps({
+                "at": "2026-09-12T00:00:02Z", "event": "stall_begin", "server_pid": 12,
+                "backend_generation": "g-current", "main_heartbeat_gap_ms": 1700,
+                "host_cpu_pct": 100, "system_free_memory_pct": 7.0,
+            }) + "\n", encoding="utf-8")
+            receipts = local / "ChatGPTMcpClean" / "minimal-connectors" / "shared-process-receipts"
+            receipts.mkdir(parents=True)
+            (receipts / f"{process_id}.json").write_text(json.dumps({
+                "process_id": process_id, "caller_id": "caller-a",
+                "started_at": "2026-09-12T00:00:00.100Z", "finished_at": "2026-09-12T00:00:00.500Z",
+                "exit_code": 0, "cwd": "C:/vault", "command": "python tools/check.py",
+            }), encoding="utf-8")
+
+            events, coverage = mcp_events(
+                since=datetime(2026, 9, 11, tzinfo=timezone.utc),
+                root=Path("C:/vault"),
+                project_to_slug={},
+            )
+        transport = next(event for event in events if event.get("authority") == "LOCAL_MCP_TRANSPORT_LOG")
+        self.assertEqual(transport["tool"], "start_process")
+        self.assertEqual(transport["status"], 200)
+        self.assertEqual(transport["process_id"], process_id)
+        self.assertIn(f"process:{process_id}", transport["anchors"])
+        watchdog = next(event for event in events if event.get("authority") == "LOCAL_MCP_STALL_WATCHDOG")
+        self.assertEqual(watchdog["watchdog_event"], "stall_begin")
+        self.assertEqual(watchdog["main_heartbeat_gap_ms"], 1700)
+        receipt = next(event for event in events if event.get("authority") == "LOCAL_MCP_PROCESS_RECEIPT")
+        self.assertEqual(receipt["process_id"], process_id)
+        self.assertEqual(coverage["transport_events"], 1)
+        self.assertEqual(coverage["watchdog_events"], 1)
+        self.assertGreaterEqual(coverage["receipts"], 1)
+        transport_coverage = next(row for row in coverage["transport"] if row["path"].endswith("home-direct-current\\transport.jsonl"))
+        self.assertEqual(transport_coverage["health_rows_skipped"], 1)
+
+    def test_query_index_event_meta_preserves_runtime_authority_and_details(self):
+        meta = _query_index_event_meta({
+            "source_type": "MCP_EVENT", "project": "chatgptmcpclean",
+            "event_at": "2026-09-12T00:00:00Z", "title": "MCP transport upload_local_file: status 200",
+            "summary": "transport request", "authority": "LOCAL_MCP_TRANSPORT_LOG",
+            "tool": "upload_local_file", "status": 200, "duration_ms": 12.5,
+            "backend_generation": "g1", "process_id": "p1",
+        })
+        self.assertEqual(meta["source_type"], "MCP_EVENT")
+        self.assertEqual(meta["project"], "chatgptmcpclean")
+        self.assertEqual(meta["authority"], "LOCAL_MCP_TRANSPORT_LOG")
+        self.assertEqual(meta["details"]["tool"], "upload_local_file")
+        self.assertEqual(meta["details"]["status"], 200)
+        self.assertTrue({"upload", "local", "file"}.issubset(set(meta["terms"])))
+
     def test_github_read_cli_prefers_gh_swarm_on_path(self):
         def which(name):
             return "C:/tools/gh-swarm.exe" if name == "gh-swarm" else "C:/tools/gh.exe"
@@ -146,6 +260,33 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertIn("identify the concrete mistake", projected["asshole"])
         self.assertIn("smaller than `slopwall`", projected["asshole"])
         self.assertEqual(projected["authority"], "DERIVED_PROJECTION_ONLY")
+
+    def test_github_retry_uses_backfill_limit_in_incremental_mode(self):
+        previous = {"ingestion": {"backfill_incomplete_sources": ["github"]}}
+        self.assertEqual(
+            _github_refresh_limit(incremental=True, requested_limit=25000, previous=previous),
+            25000,
+        )
+        self.assertEqual(
+            _github_refresh_limit(incremental=True, requested_limit=25000, previous={"ingestion": {}}),
+            DEFAULT_DELTA_GITHUB_EVENTS_PER_KIND,
+        )
+        self.assertEqual(
+            _github_refresh_limit(incremental=False, requested_limit=25000, previous=previous),
+            25000,
+        )
+
+    def test_incomplete_historical_source_retries_from_history_floor(self):
+        previous = {
+            "generated_at": "2026-09-12T02:55:18+03:00",
+            "source_watermarks": {"github": "2026-09-12T02:55:18+03:00"},
+            "ingestion": {"backfill_incomplete_sources": ["github"]},
+        }
+        horizon = datetime(2026, 9, 1, tzinfo=timezone.utc)
+        since = _materialized_source_since(previous, "github", horizon_since=horizon)
+        self.assertEqual(since, horizon)
+        full_history = _materialized_source_since(previous, "github", horizon_since=HISTORICAL_EVIDENCE_FLOOR)
+        self.assertEqual(full_history, HISTORICAL_EVIDENCE_FLOOR)
 
     def test_default_backfill_capacity_covers_current_large_history_shape(self):
         self.assertGreaterEqual(DEFAULT_REPO_EVENTS, 5000)
@@ -432,11 +573,11 @@ class TimelineMaterializerTests(unittest.TestCase):
             self.assertEqual(legacy["free_gb"], 61.5)
             self.assertIsNone(legacy["commit_headroom_gb"])
 
-    def test_github_adapter_projects_issues_prs_and_actions_without_body_fetches(self):
+    def test_github_adapter_projects_issue_pr_bodies_and_comments_in_batch(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))
         now = "2026-09-06T05:00:00Z"
-        issue = [{"number": 803, "title": "Milestone", "state": "OPEN", "createdAt": now, "updatedAt": now, "closedAt": None, "url": "https://example/803"}]
-        pr = [{"number": 1884, "title": "Avatar wait", "state": "MERGED", "createdAt": now, "updatedAt": now, "closedAt": now, "mergedAt": now, "url": "https://example/1884", "headRefName": "topic", "baseRefName": "main", "headRefOid": "a" * 40}]
+        issue = [{"number": 803, "title": "Milestone", "state": "OPEN", "createdAt": now, "updatedAt": now, "closedAt": None, "url": "https://example/803", "body": "MCP image resource handoff", "comments": [{"body": "exact original image is visible"}]}]
+        pr = [{"number": 1884, "title": "Avatar wait", "state": "MERGED", "createdAt": now, "updatedAt": now, "closedAt": now, "mergedAt": now, "url": "https://example/1884", "headRefName": "topic", "baseRefName": "main", "headRefOid": "a" * 40, "body": "Library transport", "comments": [{"body": "same-turn native vision"}]}]
         run = [{"databaseId": 99, "workflowName": "verify", "status": "completed", "conclusion": "success", "createdAt": now, "updatedAt": now, "headSha": "a" * 40, "headBranch": "topic", "event": "pull_request", "displayTitle": "Avatar wait", "url": "https://example/run/99"}]
         with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/p3"), patch(
             "tools.timeline_materializer._run_json", side_effect=[(issue, None), (pr, None), (run, None), ([], None)]
@@ -458,11 +599,80 @@ class TimelineMaterializerTests(unittest.TestCase):
         self.assertEqual(repo_cov["limit_per_kind"], repo_cov["issues"]["limit"])
         self.assertEqual(repo_cov["saturated_kinds"], [])
         self.assertFalse(coverage["saturated"])
+        issue_event = next(event for event in events if event["source_type"] == "GITHUB_ISSUE")
+        pr_event = next(event for event in events if event["source_type"] == "GITHUB_PR")
+        self.assertEqual(issue_event["github_comment_count"], 1)
+        self.assertIn("exact original image", issue_event["_search_text"])
+        self.assertEqual(pr_event["github_comment_count"], 1)
+        self.assertIn("same-turn native vision", pr_event["_search_text"])
         commands = [" ".join(call.args[0]) for call in run_json.call_args_list]
-        self.assertTrue(all("body" not in command for command in commands))
+        self.assertEqual(run_json.call_args_list[0].kwargs.get("timeout"), 120)
+        self.assertEqual(run_json.call_args_list[1].kwargs.get("timeout"), 120)
+        self.assertIsNone(run_json.call_args_list[2].kwargs.get("timeout"))
+        self.assertTrue(all("body,comments" in command for command in commands[:2]))
         self.assertTrue(all("updated:>=2026-09-05T00:00:00Z" in command for command in commands[:2]))
         self.assertIn("created >=2026-09-05T00:00:00Z", commands[2])
         self.assertNotIn("--created", commands[3])
+
+    def test_legacy_capped_comment_self_heal_dedupes_thread_fetches(self):
+        snapshots = [
+            {
+                "id": "github-issue:organicoverlords/tiny3d#442:a",
+                "source_type": "GITHUB_ISSUE", "github_repo": "organicoverlords/tiny3d",
+                "github_kind": "issue", "github_number": 442, "github_comment_count": 100,
+                "event_at": "2026-09-11T23:49:55Z",
+            },
+            {
+                "id": "github-issue:organicoverlords/tiny3d#442:b",
+                "source_type": "GITHUB_ISSUE", "github_repo": "organicoverlords/tiny3d",
+                "github_kind": "issue", "github_number": 442, "github_comment_count": 100,
+                "event_at": "2026-09-11T23:49:07Z",
+            },
+        ]
+        detail = {"body": "full", "comments": [{"body": f"c{i}"} for i in range(206)]}
+        with patch("tools.timeline_materializer._run_json", return_value=(detail, None)) as run_json:
+            repaired, errors = _repair_legacy_capped_github_comments(snapshots)
+        self.assertEqual(errors, [])
+        self.assertEqual(len(repaired), 2)
+        self.assertTrue(all(row["github_comments_complete"] for row in repaired))
+        self.assertTrue(all(row["github_comment_count"] == 206 for row in repaired))
+        self.assertEqual(run_json.call_count, 1)
+        self.assertIn("issue view 442", " ".join(run_json.call_args.args[0]))
+
+    def test_github_adapter_completes_threads_that_hit_nested_comment_cap(self):
+        spec = RepoSpec("mcp", Path("C:/fake/mcp"))
+        now = "2026-09-06T05:00:00Z"
+        capped_comments = [{"body": f"c{i}"} for i in range(100)]
+        full_issue_comments = [{"body": f"issue-{i}"} for i in range(206)]
+        full_pr_comments = [{"body": f"pr-{i}"} for i in range(131)]
+        issue = [{
+            "number": 442, "title": "Deep issue", "state": "OPEN", "createdAt": now, "updatedAt": now,
+            "closedAt": None, "url": "https://example/442", "body": "base issue", "comments": capped_comments,
+        }]
+        issue_detail = {"body": "full issue", "comments": full_issue_comments}
+        pr = [{
+            "number": 244, "title": "Deep PR", "state": "MERGED", "createdAt": now, "updatedAt": now,
+            "closedAt": now, "mergedAt": now, "url": "https://example/244", "headRefName": "topic",
+            "baseRefName": "main", "headRefOid": "a" * 40, "body": "base pr", "comments": capped_comments,
+        }]
+        pr_detail = {"body": "full pr", "comments": full_pr_comments}
+        with patch("tools.timeline_materializer._github_slug", return_value="organicoverlords/chatgpt-mcp-clean"), patch(
+            "tools.timeline_materializer._run_json",
+            side_effect=[(issue, None), (issue_detail, None), (pr, None), (pr_detail, None), ([], None), ([], None)],
+        ) as run_json:
+            events, coverage = github_events([spec], since=datetime(2026, 9, 5, tzinfo=timezone.utc))
+        issue_event = next(event for event in events if event["source_type"] == "GITHUB_ISSUE")
+        pr_event = next(event for event in events if event["source_type"] == "GITHUB_PR")
+        self.assertEqual(issue_event["github_comment_count"], 206)
+        self.assertEqual(pr_event["github_comment_count"], 131)
+        self.assertTrue(issue_event["github_comments_complete"])
+        self.assertTrue(pr_event["github_comments_complete"])
+        self.assertEqual(coverage["errors"], [])
+        commands = [" ".join(call.args[0]) for call in run_json.call_args_list]
+        self.assertIn("issue view 442", commands[1])
+        self.assertIn("pr view 244", commands[3])
+        self.assertEqual(run_json.call_args_list[1].kwargs.get("timeout"), 120)
+        self.assertEqual(run_json.call_args_list[3].kwargs.get("timeout"), 120)
 
     def test_github_adapter_marks_per_kind_saturation_at_query_limit(self):
         spec = RepoSpec("p3", Path("C:/fake/p3"))

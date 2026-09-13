@@ -23,11 +23,18 @@ STACK_PATHS = {
     "docs/assistant-stack-operational-atlas.md",
     "tests/fixtures/stack-atlas-pid-29864.json",
     "tests/test_stack_atlas.py",
+    "tests/test_slopwall_v2_bootstrap.py",
     "tests/test_issue693_fresh_worker_entry.py",
     "tests/fixtures/issue693_fresh_worker_entry.json",
     "04 Operating Contracts/fresh-worker-generation-launch.md",
     "tools/replay_scoring.py",
+    "tools/slopwall_v2.py",
     "tests/test_replay_scoring.py",
+    "tests/test_behavior_regression_contract.py",
+    "tests/test_slopwall_v2.py",
+    "04 Operating Contracts/assistant-behavior-regression.md",
+    "04 Operating Contracts/slopwall-v2-capture-contract.md",
+    "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json",
     "tests/test_north_star_entry.py",
     "03 Fixtures and Experiments/issue122-acceptance-boundary-classification.json",
     "tests/test_issue122_acceptance_boundary_replay.py",
@@ -106,6 +113,32 @@ VERIFIER_PATHS = {
     ".github/workflows/changelog-landing.yml",
 }
 
+ROUTING_PATHS = {
+    "tools/swarm_route.py",
+    "tests/test_swarm_route.py",
+    "tests/test_swarm_route_node_identity.py",
+}
+
+WINDOW_UI_PATHS = {
+    "tools/stack_atlas.py",
+    "tools/bootstrap_read_loop.py",
+    "tools/cleanup_converger.py",
+    "tools/memory_git_sync.py",
+    "tools/repo_timeline.py",
+    "tools/runtime_dependency_graph.py",
+    "tools/timeline_materializer.py",
+    "tools/worker_report_history.py",
+    "tools/worktree_hygiene_guard.py",
+    "tools/Sync-VaultCheckout.ps1",
+    "tools/Install-TimelineMaterializerTask.ps1",
+    "tools/Install-VaultCheckoutSyncTask.ps1",
+    "tools/Install-WorktreeHygieneTask.ps1",
+    "tools/install_bootstrap_snapshot_task.ps1",
+    "tools/windows_ui_probe.py",
+    "tests/test_hidden_subprocess_windows.py",
+    "tests/test_windows_ui_probe.py",
+}
+
 
 def changed_files(base_ref: str) -> set[str]:
     commands = [
@@ -126,7 +159,7 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "memory", "conversation", "busy", "worker_reports"]
+        return ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"]
     selected = []
     if changed & STACK_PATHS or any(
         Path(path).parent.as_posix() == "03 Fixtures and Experiments" and path.endswith(".json")
@@ -141,6 +174,10 @@ def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
         selected.append("worker_reports")
     if any(path.startswith(BUSY_PATH_PREFIX) for path in changed):
         selected.append("busy")
+    if changed & ROUTING_PATHS:
+        selected.append("routing")
+    if changed & WINDOW_UI_PATHS:
+        selected.append("windows_ui")
     return selected
 
 
@@ -169,6 +206,9 @@ def verify_stack() -> None:
                     "tools/stack_atlas.py",
             "tools/tiny3d_atlas_projection.py",
             "tools/replay_scoring.py",
+            "tools/slopwall_v2.py",
+            "tools/behavior_incident_capture.py",
+            "tools/behavior_incident_close.py",
         ]
     )
     run(
@@ -177,6 +217,7 @@ def verify_stack() -> None:
             "-m",
             "unittest",
             "tests.test_stack_atlas",
+            "tests.test_slopwall_v2_bootstrap",
             "tests.test_replay_scoring",
             "tests.test_tiny3d_atlas_projection",
             "tests.test_issue693_fresh_worker_entry",
@@ -187,6 +228,14 @@ def verify_stack() -> None:
             "tests.test_issue123_response_shape",
             "tests.test_north_star_entry",
             "-v",
+        ]
+    )
+    run_pytest(
+        [
+            "tests/test_behavior_regression_contract.py",
+            "tests/test_slopwall_v2.py",
+            "tests/test_behavior_incident_capture.py",
+            "tests/test_behavior_incident_close.py",
         ]
     )
     print("ASSISTANT_STACK_POLICY_PROVEN")
@@ -258,6 +307,36 @@ def verify_worker_reports() -> None:
     print("MANUAL_WORK_DISPOSITION_PROVEN")
 
 
+def verify_routing() -> None:
+    run([sys.executable, "-m", "py_compile", "tools/swarm_route.py"])
+    run([sys.executable, "-m", "unittest", "tests.test_swarm_route", "tests.test_swarm_route_node_identity", "-v"])
+    print("SWARM_ROUTING_POLICY_PROVEN")
+
+
+def verify_windows_ui() -> None:
+    run(
+        [
+            sys.executable,
+            "-m",
+            "py_compile",
+            "tools/windows_ui_probe.py",
+            "tests/test_hidden_subprocess_windows.py",
+            "tests/test_windows_ui_probe.py",
+        ]
+    )
+    run(
+        [
+            sys.executable,
+            "-m",
+            "unittest",
+            "tests.test_hidden_subprocess_windows",
+            "tests.test_windows_ui_probe",
+            "-v",
+        ]
+    )
+    print("WINDOWS_BACKGROUND_UI_CONTRACT_PROVEN")
+
+
 def verify_conversation() -> None:
     run(
         [
@@ -324,6 +403,10 @@ def main() -> int:
             verify_busy()
         elif area == "worker_reports":
             verify_worker_reports()
+        elif area == "routing":
+            verify_routing()
+        elif area == "windows_ui":
+            verify_windows_ui()
 
     if not areas:
         print("CHANGED_AREA_CHECKS_SKIPPED")

@@ -24,6 +24,16 @@ try:
 except ModuleNotFoundError:
     from yard_inbox_bridge import count_pending as _yard_inbox_check
 
+try:
+    from tools.live_swarm_search import search_live_swarm as _search_live_swarm
+except ModuleNotFoundError:
+    from live_swarm_search import search_live_swarm as _search_live_swarm
+
+try:
+    from tools.unified_search_sources import search_gh_buffer_cache as _search_gh_buffer_cache
+except ModuleNotFoundError:
+    from unified_search_sources import search_gh_buffer_cache as _search_gh_buffer_cache
+
 def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
     """Best-effort bounded tree termination for a task-owned Windows child."""
     if process.poll() is not None:
@@ -150,9 +160,9 @@ def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
 
 
 try:
-    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
 except ModuleNotFoundError:
-    from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+    from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
 
 try:
     from tools.memory_recent_projection import default_local_bank_path, read_current_projection
@@ -209,7 +219,9 @@ BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
-BOOTSTRAP_GLANCE_MAX_BYTES = 15_000
+BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES = 15_000
+BOOTSTRAP_GLANCE_MAX_BYTES = 25_000
+BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT = 4
 BOOTSTRAP_INTEGRITY_WARNING = (
     "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
     "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
@@ -292,6 +304,26 @@ COMPONENT_ALIASES = {
     "repo rules": "repo_rule_pointer",
     "atlas": "stack_atlas",
     "stack atlas": "stack_atlas",
+    "bootstrap snapshot": "bootstrap_snapshot",
+    "vault bootstrap snapshot": "bootstrap_snapshot",
+    "bootstrap producer": "bootstrap_snapshot",
+    "vault checkout sync": "vault_checkout_sync",
+    "vaultcheckoutsync": "vault_checkout_sync",
+    "serving checkout": "vault_checkout_sync",
+    "worktree hygiene": "worktree_hygiene",
+    "vault worktree hygiene": "worktree_hygiene",
+    "vaultworktreehygiene": "worktree_hygiene",
+    "worktree hygiene task": "worktree_hygiene",
+    "timeline materializer": "timeline_materializer",
+    "vault timeline materializer": "timeline_materializer",
+    "behavior regressions": "assistant_behavior_regressions",
+    "behavior regression": "assistant_behavior_regressions",
+    "replay scoring": "assistant_behavior_regressions",
+    "replay fixture": "assistant_behavior_regressions",
+    "behavior contract": "assistant_behavior_regressions",
+    "acceptance contract": "assistant_behavior_regressions",
+    "slopwall replay": "assistant_behavior_regressions",
+    "incident report": "assistant_behavior_regressions",
 }
 
 ATLAS_CONTRACT = {
@@ -303,6 +335,31 @@ ATLAS_CONTRACT = {
     "live_status": "fetch from the named live authority at use time; Atlas never promotes cached status to current truth",
 }
 COMPONENTS: dict[str, dict[str, Any]] = {
+    "assistant_behavior_regressions": {
+        "role": "assistant_behavior_regression_owner",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": [
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
+            r"C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\behavior_incident_capture.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\behavior_incident_close.py",
+            r"C:\Users\Lauri\Desktop\vault\tools\slopwall_v2.py",
+            r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
+            r"C:\Users\Lauri\Desktop\vault\tools\verify.py",
+        ],
+        "live_status": [
+            "provider-free replay scoring against tracked fixtures",
+            "bounded transactional behavior-incident capture from explicit visible context",
+            "resumable canonical-memory closure through memory_bank owner",
+            "repository verification for fixture/scorer regression coverage",
+        ],
+        "supervisor": "none; repository-owned deterministic tests",
+        "self_heal": "not_applicable",
+        "independent_recovery": ["Git history preserves incident reports, fixtures, scorer and tests"],
+        "resources": ["incident reports", "visible-context capture bundles", "replay fixtures", "behavior-contract assertions", "deterministic scorer"],
+        "dependents": ["agent_rules", "memory_bank"],
+        "runbook": [r"04 Operating Contracts\assistant-behavior-regression.md", r"tools\behavior_incident_capture.py", r"tools\behavior_incident_close.py", r"tools\slopwall_v2.py", r"tools\replay_scoring.py"],
+    },
     "busy_coordinator": {
         "role": "coordination_authority",
         "capabilities": ["coordination"],
@@ -584,6 +641,7 @@ COMPONENTS.update({
         "canonical_sources": [
             "organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md",
             r"C:\\Users\\Lauri\\Desktop\\vault\\tools\\stack_atlas.py",
+            r"C:\\Users\\Lauri\\Desktop\\vault\\tools\\runtime_dependency_graph.py",
             r"C:\\Users\\Lauri\\Desktop\\vault\\docs\\assistant-stack-operational-atlas.md",
         ],
         "live_status": [
@@ -595,9 +653,74 @@ COMPONENTS.update({
         "independent_recovery": [
             "read canonical agent rules, project direction, and named live/source authorities directly; Atlas unavailability is not a permission gate"
         ],
-        "resources": ["Stack Atlas North Star", "derived component map", "feature index", "generated operational manual"],
+        "resources": ["Stack Atlas North Star", "derived component map", "feature index", "runtime deployment graph", "generated operational manual"],
         "dependents": ["chatgpt_session", "execution_workers"],
         "runbook": ["organicoverlords/agents@main docs/repos/regression-research/STACK_ATLAS_NORTH_STAR.md"],
+    },
+    "bootstrap_snapshot": {
+        "role": "runtime:persistent-bootstrap-producer",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": ["tools/install_bootstrap_snapshot_task.ps1", "tools/bootstrap_read_loop.py", "tools/memory_recent_projection.py", "tools/stack_atlas.py"],
+        "live_status": ["exact Windows tasks VaultBootstrapSnapshot + VaultBootstrapSnapshotWatchdog", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\bootstrap_read_loop.py", r"%LOCALAPPDATA%\VaultBootstrapSnapshot\stack_atlas.py", r"C:\Users\Lauri\Desktop\vault\.state\bootstrap\latest.json"],
+        "supervisor": "Windows Task Scheduler; producer owns bounded Atlas child lifecycle",
+        "self_heal": "scheduled producer bundle repairs producer/helper/Atlas from cached refs/remotes/origin/main; VaultCheckoutSync owns refreshing that ref; watchdog can publish an honest degraded heartbeat",
+        "independent_recovery": ["tools/install_bootstrap_snapshot_task.ps1", r"%LOCALAPPDATA%\VaultBootstrapSnapshot rollback-* copies"],
+        "resources": [r"%LOCALAPPDATA%\VaultBootstrapSnapshot", "refs/remotes/origin/main", r".state\bootstrap\latest.json", r".state\bootstrap\producer-status.json", "MCP persistent process_id=bootstrap"],
+        "dependents": ["stack_atlas", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#987", "organicoverlords/regression-research#1025"],
+    },
+    "vault_checkout_sync": {
+        "role": "runtime:canonical-vault-serving-checkout-sync",
+        "capabilities": ["source_read", "runtime_validate", "repository_mutate"],
+        "canonical_sources": ["tools/Sync-VaultCheckout.ps1", "tools/Install-VaultCheckoutSyncTask.ps1"],
+        "live_status": ["exact Windows task VaultCheckoutSync", r"C:\Users\Lauri\Desktop\vault", "cached refs/remotes/origin/main"],
+        "supervisor": "Windows Task Scheduler when installed; exact sync script owns fetch/convergence semantics",
+        "self_heal": "fetch refreshes cached origin/main even when worktree convergence fails closed; clean-behind can fast-forward",
+        "independent_recovery": ["tools/Install-VaultCheckoutSyncTask.ps1", "tools/Sync-VaultCheckout.ps1 -Repair after attribution/authorization"],
+        "resources": [r"C:\Users\Lauri\Desktop\vault", "refs/remotes/origin/main", "preserve/vault-live-*"],
+        "dependents": ["bootstrap_snapshot", "stack_atlas", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#1021"],
+    },
+    "worktree_hygiene": {
+        "role": "runtime:scheduled-worktree-hygiene-control-plane",
+        "capabilities": ["source_read", "runtime_validate", "repository_mutate"],
+        "canonical_sources": [
+            "tools/Install-WorktreeHygieneTask.ps1",
+            "tools/worktree_hygiene_task.py",
+            "tools/worktree_hygiene_guard.py",
+            "tools/cleanup_converger.py",
+            "tools/live_swarm.py",
+        ],
+        "live_status": [
+            "exact Windows task VaultWorktreeHygiene",
+            r"%LOCALAPPDATA%\VaultWorktreeHygiene\runtime\<commit>\worktree_hygiene_task.py",
+            r"%LOCALAPPDATA%\VaultWorktreeHygiene\latest.json",
+        ],
+        "supervisor": "Windows Task Scheduler; commit-addressed runtime bundle performs bounded fail-closed hygiene",
+        "self_heal": "task reruns every minute and writes health state; runtime version changes only through the validated installer",
+        "independent_recovery": [
+            "tools/Install-WorktreeHygieneTask.ps1 from a clean commit contained in cached origin/main",
+            r"preserve existing %LOCALAPPDATA%\VaultWorktreeHygiene\runtime\<commit> snapshots for rollback",
+        ],
+        "resources": [
+            r"%LOCALAPPDATA%\VaultWorktreeHygiene",
+            r"C:\Users\Lauri\Desktop\vault and C:\Users\Lauri\.agents worktree metadata",
+            "Busy Coordinator exact repo/worktree scopes",
+        ],
+        "dependents": ["stack_atlas", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#900", "organicoverlords/regression-research#1047"],
+    },
+    "timeline_materializer": {
+        "role": "runtime:materialized-history-producer",
+        "capabilities": ["source_read", "runtime_validate"],
+        "canonical_sources": ["tools/timeline_materializer.py", "tools/memory_bank.py", "tools/memory_git_sync.py", "tools/memory_timeline.py", "tools/repo_timeline.py", "tools/worker_report_history.py"],
+        "live_status": ["exact Windows task Vault Timeline Materializer", r"%LOCALAPPDATA%\VaultTimeline\timeline-store.json", r"%LOCALAPPDATA%\VaultTimeline\timeline-query-index.pkl", r"%LOCALAPPDATA%\VaultTimeline\status.json"],
+        "supervisor": "Windows Task Scheduler; commit-addressed runtime owns periodic materialization",
+        "self_heal": "derived state is rebuildable from canonical/history sources",
+        "independent_recovery": ["python tools\timeline_materializer.py refresh --rebuild", "validated runtime install-task path"],
+        "resources": [r"%LOCALAPPDATA%\VaultTimeline", "materialized Timeline/query index"],
+        "dependents": ["stack_atlas", "memory_bank", "chatgpt_session", "execution_workers"],
+        "runbook": ["organicoverlords/regression-research#820"],
     },
     "chatgpt_memory": {
         "role": "context:disabled-product-memory", "capabilities": ["memory_read"],
@@ -618,7 +741,7 @@ COMPONENTS.update({
     "worker_reports": {
         "role": "projection:worker-self-report", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
-        "live_status": [r"read current/<automation-id>.md snapshots directly for recent worker output; use immutable worker-reports\history\_reports metadata only for past-run chronology; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "live_status": [r"current/<automation-id>.md is a run-lifecycle start/finalization snapshot, not live progress telemetry; it may be updated at material natural checkpoints, but checkpoint cadence or staleness is not in-run liveness/progress authority. Use MCP/runtime/Git/Busy/CI/artifact evidence for in-run progress and liveness; use immutable worker-reports\history\_reports metadata only for past-run chronology; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
         "resources": ["worker-reports/current/<automation-id>.md", "worker-reports/history/_reports/*.json"], "dependents": ["chatgpt_session"],
@@ -678,6 +801,9 @@ COMPONENTS.update({
 SHARED_PRODUCTION_COMPONENTS = frozenset({
     "agent_rules",
     "busy_coordinator",
+    "bootstrap_snapshot",
+    "vault_checkout_sync",
+    "worktree_hygiene",
     "vps_edge_ingress",
     "mcp_front_door",
     "mcp_minimal_clone",
@@ -690,6 +816,24 @@ MCP_SHARED_PRODUCTION_COMPONENTS = frozenset({
 
 
 FEATURE_INDEX: dict[str, dict[str, Any]] = {
+    "assistant.behavior_regressions": {
+        "owner_components": ["assistant_behavior_regressions", "agent_rules", "memory_bank"],
+        "triggers": [
+            "behavior regression", "assistant regression", "behavior contract", "acceptance contract",
+            "replay fixture", "replay scoring", "regression scoring", "correction binding",
+            "slopwall replay", "incident replay", "incident report", "behavior incident capture", "incident closure", "canonical memory closure", "visible context capture", "executable behavior contract",
+        ],
+        "entrypoints": [
+            r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\assistant-behavior-regression.md",
+            r"python C:\Users\Lauri\Desktop\vault\tools\replay_scoring.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\behavior_incident_capture.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\behavior_incident_close.py --help",
+            r"python C:\Users\Lauri\Desktop\vault\tools\slopwall_v2.py --help",
+            r"C:\Users\Lauri\Desktop\vault\03 Fixtures and Experiments",
+            r"python C:\Users\Lauri\Desktop\vault\tools\verify.py --all",
+        ],
+        "boundary": "Rules/prose state desired behavior but do not prove regression resistance. Behavior-incident capture consumes explicit agent-visible context only and transactionally materializes evidence/report/replay/pending-memory/provenance; it never retrieves whole-chat history or writes canonical memory. Closure delegates canonical memory to `memory_bank` under a deterministic event ID and resumably finalizes replay/provenance. Incident reports preserve what failed; replay fixtures encode bounded historical failure/success controls; deterministic scoring/verification tests candidate next actions. Reuse an existing behavior contract when it covers the failure. Promote a new shared behavior contract only when evidence proves a reusable uncovered invariant; do not turn every incident into another global rule or registry entry.",
+    },
     "orchestration.operator": {
         "owner_components": ["agent_rules"],
         "triggers": ["orchestrator", "designated orchestrator", "operator", "operator role", "orchestration policy"],
@@ -775,7 +919,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
         "triggers": ["security reroute", "security routing", "security rerouting", "reroute happened", "routing happened"],
         "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_RECOVERY_STATE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
-        "boundary": "When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
+        "boundary": "This is a mixed historical evidence log, not a single event class: preserve each record's explicit classification and never treat membership in this file as proof of a platform reroute. When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Tool-policy rejection, MCP/transport failure, process execution outcome, and user/preserved platform reroute evidence remain non-interchangeable. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
     },
     "vault.overview": {
         "owner_components": ["memory_bank"],
@@ -786,8 +930,23 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "vault.history": {
         "owner_components": ["memory_bank"],
         "triggers": ["history", "timeline", "chronology", "incident", "past decision", "context", "recent titles"],
-        "entrypoints": ["memory_bank.py search", "memory_bank.py search --history", "memory_bank.py context", "memory_bank.py timeline", "memory_bank.py recent-titles"],
-        "boundary": "History/evidence only; use targeted indexed reads, never recursive Vault scans or current-state inference.",
+        "entrypoints": ["python tools\\stack_atlas.py find <natural-language-query>", "drill-down only: python tools\\memory_bank.py context <query>", "drill-down only: python tools\\memory_bank.py timeline <query>", "exact-known-memory only: python tools\\memory_bank.py recent-titles"],
+        "boundary": "Unified discovery starts with Stack Atlas find. Memory/timeline commands are second-stage historical drill-down only; never recursive Vault scans or current-state inference.",
+    },
+    "runtime.deployment_graph": {
+        "owner_components": ["stack_atlas", "bootstrap_snapshot", "vault_checkout_sync", "worktree_hygiene", "timeline_materializer"],
+        "triggers": [
+            "runtime graph", "deployment graph", "dependency graph", "runtime dependency",
+            "deployed script", "runtime copy", "scheduled task", "scheduler task",
+            "runtime drift", "deployment drift", "what actually runs", "what runs this",
+        ],
+        "entrypoints": [
+            "python tools\\stack_atlas.py find <natural-language-query>",
+            "exact owner drill-down: python tools\\stack_atlas.py lookup <component-or-feature>",
+            "node evidence: python tools\\stack_atlas.py runtime-explain <node-id-or-term>",
+            "directed dependency path: python tools\\stack_atlas.py runtime-path <from> <to>",
+        ],
+        "boundary": "Runtime/deployment structure is an evidence class inside the one unified find surface, not a second search system. It maps bounded declared source -> deployed artifact -> exact scheduler/task entrypoint -> output/consumer relationships and labels observed drift. Edges carry provenance separately from live verification; runtime-explain/runtime-path require explicit disambiguation instead of silently selecting ambiguous nodes. No recursive scan, broad Scheduled Task enumeration, clustering, or separate runtime registry service; current liveness and mutation truth remain with the returned named owner/runtime evidence.",
     },
     "project.current_truth": {
         "owner_components": ["agent_rules", "north_star", "local_git", "github"],
@@ -899,7 +1058,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["worker_reports"],
         "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
-        "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+        "boundary": "Run-lifecycle self-report/navigation surface, not live progress telemetry. A current RUNNING report starts as the run-start snapshot and may be updated at material natural checkpoints; never infer in-run activity or progress from checkpoint cadence, fields, or mtime. Visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; use repo/runtime/CI/artifact evidence for actual execution and liveness.",
     },
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
@@ -1910,7 +2069,6 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
         "historical_timeline_semantics": "timeline worker reports are historical context only and are not used for this current worker-quality block",
     }
-    result["fleet_watch"] = _bootstrap_fleet_watch(now)
     result["manual_sanity"] = _bootstrap_manual_sanity()
     return result
 
@@ -2206,9 +2364,32 @@ def _compact_json_bytes(value: Any) -> int:
     return len(json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
 
 
-def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES) -> dict[str, Any]:
-    """Bound the whole bootstrap payload while preserving live truth and drill-down routes."""
+def _bound_bootstrap_mcp_service_health_sources(
+    glance: dict[str, Any], limit: int = BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
+) -> bool:
+    """Keep MCP source detail useful but bounded while preserving aggregate health counts."""
+    mcp = glance.get("mcp")
+    service_health = mcp.get("service_health") if isinstance(mcp, dict) else None
+    sources = service_health.get("sources") if isinstance(service_health, dict) else None
+    if not isinstance(sources, list):
+        return False
+    detail_limit = max(0, int(limit))
+    service_health["source_detail_limit"] = detail_limit
+    service_health["sources_truncated"] = len(sources) > detail_limit
+    if len(sources) <= detail_limit:
+        return False
+    service_health["sources"] = sources[:detail_limit]
+    return True
+
+
+def _fit_bootstrap_glance_budget(
+    glance: dict[str, Any],
+    max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES,
+    compaction_target_bytes: int = BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
+) -> dict[str, Any]:
+    """Compact toward the legacy target while enforcing a larger hard payload ceiling."""
     budget = max(2_048, int(max_bytes))
+    compaction_target = max(2_048, min(budget, int(compaction_target_bytes)))
     source = json.loads(json.dumps(glance, ensure_ascii=False))
     source.pop("bootstrap_warning", None)
     source.pop("bootstrap_end", None)
@@ -2217,11 +2398,16 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         **source,
         "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
     }
+    source_details_compacted = _bound_bootstrap_mcp_service_health_sources(bounded)
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
-        bootstrap["payload_budget"] = {"max_bytes": budget, "compacted": False}
+        bootstrap["payload_budget"] = {
+            "max_bytes": budget,
+            "compaction_target_bytes": compaction_target,
+            "compacted": source_details_compacted,
+        }
 
-    if _compact_json_bytes(bounded) <= budget:
+    if _compact_json_bytes(bounded) <= compaction_target:
         return bounded
 
     recovery = bounded.get("mcp_recovery_state")
@@ -2251,7 +2437,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             }
 
 
-    if _compact_json_bytes(bounded) > budget:
+    if _compact_json_bytes(bounded) > compaction_target:
         freshness = bounded.get("source_freshness")
         if isinstance(freshness, dict):
             freshness.pop("meaning", None)
@@ -2265,7 +2451,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
                         item.pop(key, None)
 
     workers = bounded.get("workers")
-    if _compact_json_bytes(bounded) > budget and isinstance(workers, dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(workers, dict):
         sanity = workers.get("manual_sanity")
         if isinstance(sanity, dict):
             workers["manual_sanity"] = {
@@ -2278,7 +2464,7 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             }
 
     mcp = bounded.get("mcp")
-    if _compact_json_bytes(bounded) > budget and isinstance(mcp, dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(mcp, dict):
         activity = mcp.get("activity_summary")
         if isinstance(activity, dict):
             mcp["activity_summary"] = {
@@ -2288,29 +2474,22 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
             }
         mcp.pop("cache", None)
 
-    sessions = mcp.get("active_sessions") if isinstance(mcp, dict) else None
-    while _compact_json_bytes(bounded) > budget and isinstance(sessions, list) and sessions:
-        sessions.pop()
-        bounded["mcp"]["active_sessions_truncated"] = True
+    # Active-session detail is an intentionally bounded work/status view.
+    # Preserve the configured sample while the payload remains under the hard budget.
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
         for key in ("attention", "stale_reports"):
             items = bounded["workers"].get(key)
             if isinstance(items, list) and len(items) > 1:
                 bounded["workers"][key] = items[:1]
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("workers"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
         workers = bounded["workers"]
-        recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
-        workers["recurring_scheduler_recovery"] = {key: recovery.get(key) for key in (
-            "status", "authority", "expected_recurring_workers", "observed_worker_reports", "recent_start_evidence",
-            "running_with_start_receipt", "running_without_start_receipt", "suspect_count", "recovery_candidate_count",
-        ) if key in recovery}
         workers.pop("archive_sample", None)
         workers.pop("attention", None)
         workers.pop("stale_reports", None)
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("swarm_topology"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("swarm_topology"), dict):
         topo = bounded["swarm_topology"]
         handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
         routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
@@ -2345,41 +2524,44 @@ def _fit_bootstrap_glance_budget(glance: dict[str, Any], max_bytes: int = BOOTST
         bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
         bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
 
-    live_swarm = bounded.get("live_swarm")
-    while _compact_json_bytes(bounded) > budget and isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) and live_swarm["lanes"]:
-        live_swarm["lanes"].pop()
-        live_swarm["lanes_truncated"] = True
+    # Live-swarm lanes are a bounded work/status view, not an evidence-completeness signal.
+    # Preserve the configured recent lane sample while the payload remains under the hard budget.
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("commands"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("commands"), dict):
         commands = bounded["commands"]
         compact_commands = {
-            "bootstrap": "stack_atlas.py bootstrap-glance",
-            "live_swarm": "stack_atlas.py live-swarm",
-            "fleet_watch": "stack_atlas.py fleet-watch --worker-id <own-automation-id>",
-            "stack_owner": "stack_atlas.py lookup <id-or-alias>",
-            "stack_find": "stack_atlas.py find <query>",
-            "production_change_gate": "stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
-            "memory_overview": "memory_bank.py overview",
+            "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
+            "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
+            "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
+            "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
+            "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
+            "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
+            "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
             "tiny3d_asset_library": "lookup tiny3d_library",
         }
         bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("paths"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("paths"), dict):
         paths = bounded["paths"]
-        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log") if key in paths}
+        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log", "issue_first_work_intake") if key in paths}
 
-    if _compact_json_bytes(bounded) > budget and isinstance(bounded.get("mcp_recovery_state"), dict):
+    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("mcp_recovery_state"), dict):
         recovery = bounded["mcp_recovery_state"]
         bounded["mcp_recovery_state"] = {
             key: recovery.get(key)
-            for key in ("status", "path", "selected_recovery_target")
+            for key in (
+                "available", "read_state", "authority", "recovery_target_deployment_id",
+                "recovery_target_generation", "recovery_selected_at", "scope", "details_path",
+                "status", "path", "selected_recovery_target", "conditions",
+            )
             if recovery.get(key) not in (None, "", [], {})
         }
 
-    if _compact_json_bytes(bounded) > budget:
+    final_bytes = _compact_json_bytes(bounded)
+    if final_bytes > budget:
         raise ValueError(
             f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
-            f"bytes={_compact_json_bytes(bounded)} budget={budget}"
+            f"bytes={final_bytes} target={compaction_target} budget={budget}"
         )
 
     if isinstance(bootstrap, dict):
@@ -2614,7 +2796,11 @@ def _compact_memory_overview(report: dict[str, Any], limit: int = 3) -> dict[str
 
 def _bootstrap_memory_overview() -> dict[str, Any]:
     """Read the periodic Vault timeline projection; never rebuild timeline sources here."""
-    path = ATLAS_LIVE_ROOT / ".state" / "timeline" / "bootstrap-memory-overview.json"
+    try:
+        from tools.timeline_materializer import BOOTSTRAP_PATH, materialized_health, timeline_read_state_root
+    except ImportError:
+        from timeline_materializer import BOOTSTRAP_PATH, materialized_health, timeline_read_state_root
+    path = timeline_read_state_root(ATLAS_LIVE_ROOT) / BOOTSTRAP_PATH.name
     base_missing = {
         "contract": "Periodic Vault timeline projection only; bootstrap never scans Git, GitHub, workers, reports, MCP logs, or artifact history to rebuild it.",
         "eligible_entries": 0,
@@ -2658,10 +2844,6 @@ def _bootstrap_memory_overview() -> dict[str, Any]:
     # and evidence-completeness semantics are owned by the materializer so overview,
     # timeline queries, and bootstrap cannot drift apart.
     overview = json.loads(json.dumps(raw["overview"], ensure_ascii=False))
-    try:
-        from tools.timeline_materializer import materialized_health
-    except ImportError:
-        from timeline_materializer import materialized_health
     materialized = overview.get("timeline_materialized")
     materialized = dict(materialized) if isinstance(materialized, dict) else {}
     materialized.update(materialized_health(raw, now=datetime.now().astimezone()))
@@ -3362,6 +3544,9 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
                 "activity_age_seconds": caller.get("last_activity_age_seconds"),
                 "cwd": worktree.get("path"),
                 "workspace": caller.get("workspace"),
+                "mode": caller.get("mode"),
+                "action_class": caller.get("action_class"),
+                "activity_target": caller.get("activity_target"),
                 "busy_titles": owners,
             })
     sessions.sort(key=lambda item: float(item.get("activity_age_seconds") or 1e9))
@@ -3378,9 +3563,17 @@ def _bootstrap_mcp_from_live_swarm(snapshot: dict[str, Any]) -> dict[str, Any]:
         "active_session_count_status": "COMPLETE" if complete else "LOWER_BOUND",
         "active_session_count_semantics": MCP_ACTIVE_SESSION_COUNT_SEMANTICS,
         "active_sessions": sessions[:BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT],
-        "active_session_detail_limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
-        "active_sessions_truncated": len(sessions) > BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+        "active_session_details": {
+            "policy": "most_recent",
+            "limit": BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+            "returned": min(len(sessions), BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT),
+            "total": len(sessions),
+            "bounded": len(sessions) > BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT,
+            "semantics": "bootstrap_detail_bound_not_evidence_truncation",
+        },
         "workspace_counts": summary.get("workspace_counts", {}),
+        "caller_modes": summary.get("caller_modes", {}),
+        "activity_buckets": summary.get("activity_buckets", {}),
         "activity_summary": {
             **activity,
             "activity_window_seconds": 300,
@@ -3413,17 +3606,51 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
     return {"status": "MISMATCH", "version": None, "rules_version": rules_version, "agents_version": agents_version}
 
 
-_SLOPWALL_RULES_INVARIANTS = {
+_SLOPWALL_V2_RULES_INVARIANTS = {
+    "investigation": "response/task-quality regression investigation",
+    "failed_boundary": "Treat the immediately preceding assistant reply/action or repair attempt as the failed boundary",
+    "guidance": "which governing user/system/shared rules or evidence were loaded or otherwise available",
+    "divergence": "the first supported divergence",
+    "classification": "rule violation, rule missed/not loaded, rule gap/conflict, authority selection, or ordinary reasoning/action selection",
+    "diagnosis": "Expose a bounded useful diagnosis to the user",
+    "repair": "materially answer/execute the inherited objective better",
+    "durability": "incident record, replay fixture, bounded score/confidence",
+    "memory_contract": "searchable memory pointer, and behavior-contract review",
+    "capture": "Capture is visible-context only",
+    "no_backfill": "never load, reconstruct, export, or backfill the whole conversation",
+    "incident_report": "`incident report`, when the user uses it as a command about the preceding assistant/system failure, starts the **same V2 behavior-incident loop**",
+    "meta_not_trigger": "A meta-reference or question about the phrase `incident report` is not a trigger",
+}
+_SLOPWALL_V2_AGENTS_INVARIANTS = {
+    "loop": "explicit `slopwall` and command-form `incident report` enter the V2 behavior-incident loop",
+    "failed_boundary": "first establish the immediately preceding failed reply/action/repair as the failure boundary",
+    "diagnosis": "Give the user the bounded useful diagnosis",
+    "repair": "then materially repair/resume the inherited objective",
+    "durability": "incident record/report, replay fixture, bounded score/confidence or `UNSCORABLE`",
+    "capture": "Raw capture is `VISIBLE_CONTEXT_ONLY`",
+    "no_backfill": "Never load/reconstruct/backfill the whole conversation just to complete an incident",
+    "retrigger": "If another corrective trigger arrives before closure, make the failed repair a linked child event",
+}
+
+# Temporary rollout compatibility: Vault can land before the shared V2 rules without
+# degrading bootstrap or projecting semantics that are not yet canonical.
+_SLOPWALL_LEGACY_RULES_INVARIANTS = {
     "incident": "`slopwall` is a **mandatory correction-and-learning incident**",
-    "failure": "identify the concrete failed behavior or decision",
-    "mechanism": "infer the best-supported mechanism",
+    "reread": "re-read this canonical Slopwall rule and the matching AGENTS.md correction owner before finalizing the correction",
+    "compare": "compare the failed reply/action directly against the inherited objective",
+    "lost_core": "identify the concrete core proposition, decision, action, or evidence the user needed foregrounded",
+    "displacement": "identify what displaced that core",
+    "mechanism": "infer the best-supported mechanism or decision failure",
     "lesson": "derive one reusable prevention lesson",
     "durability": "persist one compact durable correction",
     "mandatory": "The durable correction is mandatory for literal `slopwall`",
+    "lost_core_record": "The durable correction must name the lost core and the displacement",
     "not_length": "A slopwall is not defined by length",
 }
-_SLOPWALL_AGENTS_INVARIANTS = {
+_SLOPWALL_LEGACY_AGENTS_INVARIANTS = {
     "learning_loop": "literal `slopwall` additionally requires a bounded durable learning loop",
+    "reread": "re-read the canonical Slopwall rule plus this correction owner",
+    "lost_core": "identify the lost core proposition/decision/action/evidence and what displaced it",
     "record": "The Slopwall record is mandatory",
     "specific": "do not store merely `be concise`, `answer better`",
     "uncertainty": "bounded uncertainty instead of fabricating a root cause",
@@ -3431,26 +3658,115 @@ _SLOPWALL_AGENTS_INVARIANTS = {
 }
 
 
+def _missing_behavior_invariants(rules: str, agents: str, rules_invariants: dict[str, str], agents_invariants: dict[str, str]) -> list[str]:
+    return [
+        *(f"RULES:{key}" for key, phrase in rules_invariants.items() if phrase not in rules),
+        *(f"AGENTS:{key}" for key, phrase in agents_invariants.items() if phrase not in agents),
+    ]
+
+
 def _bootstrap_slopwall_contract(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
-    """Project the serving Slopwall process into every fresh-chat bootstrap."""
+    """Project only the behavior-incident semantics actually present in serving shared rules."""
     root = Path(agent_rules_root)
     try:
         rules = (root / "RULES.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
     except OSError:
-        return {"status": "MISSING", "trigger": "literal_slopwall", "missing": ["serving_rules_unreadable"]}
+        return {"status": "MISSING", "trigger": "behavior_incident", "missing": ["serving_rules_unreadable"]}
 
-    missing = [
-        *(f"RULES:{key}" for key, phrase in _SLOPWALL_RULES_INVARIANTS.items() if phrase not in rules),
-        *(f"AGENTS:{key}" for key, phrase in _SLOPWALL_AGENTS_INVARIANTS.items() if phrase not in agents),
+    v2_missing = _missing_behavior_invariants(rules, agents, _SLOPWALL_V2_RULES_INVARIANTS, _SLOPWALL_V2_AGENTS_INVARIANTS)
+    if not v2_missing:
+        return {
+            "status": "ENFORCED",
+            "version": "V2",
+            "triggers": ["slopwall", "incident_report"],
+            "capture": "VISIBLE_CONTEXT_ONLY + verbatim + no_full_conversation_reload_or_backfill",
+            "process": "failed_boundary > inspect_governing_guidance_and_evidence > supported_failure_class > bounded_user_visible_diagnosis > repair_inherited_objective > persist_incident_replay_score_memory_contract_review; repeated_trigger_links_failed_repair",
+        }
+
+    legacy_missing = _missing_behavior_invariants(rules, agents, _SLOPWALL_LEGACY_RULES_INVARIANTS, _SLOPWALL_LEGACY_AGENTS_INVARIANTS)
+    if not legacy_missing:
+        return {
+            "status": "ENFORCED",
+            "version": "LEGACY_V84",
+            "triggers": ["slopwall"],
+            "process": "reread_canonical_rule > compare_failed_answer_to_objective > recover_lost_core > identify_displacement > best_supported_mechanism > condition/action_prevention > repair_task > mandatory_durable_correction; not brevity/apology",
+            "transition": "legacy accepted only until serving shared rules expose the V2 behavior-incident contract",
+        }
+
+    v2_rules_missing = [
+        f"RULES:{key}" for key, phrase in _SLOPWALL_V2_RULES_INVARIANTS.items() if phrase not in rules
     ]
-    contract = {
-        "status": "ENFORCED" if not missing else "DRIFTED",
-        "process": "resume_task > failed_behavior > best_supported_mechanism > condition/action_prevention > mandatory_durable_correction; not brevity/apology",
+    legacy_rules_missing = [
+        f"RULES:{key}" for key, phrase in _SLOPWALL_LEGACY_RULES_INVARIANTS.items() if phrase not in rules
+    ]
+    if not v2_rules_missing:
+        return {
+            "status": "DRIFTED",
+            "version": "V2",
+            "missing": v2_missing,
+            "legacy_missing": legacy_missing,
+        }
+    if not legacy_rules_missing:
+        return {
+            "status": "DRIFTED",
+            "version": "LEGACY_V84",
+            "missing": legacy_missing,
+            "v2_missing": v2_missing,
+        }
+    return {
+        "status": "DRIFTED",
+        "version": "UNKNOWN",
+        "missing": v2_missing,
+        "legacy_missing": legacy_missing,
     }
-    if missing:
-        contract["missing"] = missing
-    return contract
+
+
+def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
+    """Project compact hints that follow the behavior contract actually present in serving shared rules."""
+    root = Path(agent_rules_root)
+    try:
+        rules = (root / "RULES.md").read_text(encoding="utf-8")
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+    except OSError:
+        return {"mode": "UNAVAILABLE", "missing": ["serving_rules_unreadable"]}
+
+    v2_active = not _missing_behavior_invariants(rules, agents, _SLOPWALL_V2_RULES_INVARIANTS, _SLOPWALL_V2_AGENTS_INVARIANTS)
+    guidance = {
+        "mode": "HINT_ONLY",
+        "behavior_incident_version": "V2" if v2_active else "LEGACY_V84",
+        "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty; strip jargon/process; no analogy unless asked | RULES:ELI5",
+        "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
+        "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
+        "shared_correction": "shared/swarm correction: RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; claim fixed only after durable canonical proof; if infra/orchestration/scheduler intent is still being shaped, discuss first/no mutation | RULES:shared-behavior-correction + swarm-direction",
+        "security_evidence": {
+            "mode": "CLASSIFY_BEFORE_CAUSALITY",
+            "source": "RULES:platform-security-boundary",
+            "classes": {
+                "platform_security_reroute": "user report or preserved platform evidence",
+                "tool_policy_rejection": "tool invocation rejected before MCP dispatch",
+                "mcp_transport_failure": "connector/MCP transport failure such as HTTP 5xx",
+                "process_execution": "local process receipt/outcome only",
+            },
+            "non_equivalence": [
+                "tool_policy_rejection != platform_security_reroute",
+                "mcp_transport_failure != platform_security_reroute",
+                "process_execution != platform_security_reroute",
+            ],
+            "causality_gate": "Cross-class causality requires explicit correlated evidence; a shared log path/name is not a classification.",
+        },
+    }
+    if v2_active:
+        guidance.update({
+            "slopwall": "failed boundary first; inspect governing guidance/evidence and classify supported failure; bounded diagnosis > repair inherited objective > incident/replay/score/memory/contract review; capture visible context verbatim only, never reload/backfill whole chat; repeated corrective trigger links the failed repair | RULES:slopwall + AGENTS:correction",
+            "incident_report": "command-form trigger uses the same V2 loop even when failure is not Slopwall; meta-reference is not a trigger; visible-context-only verbatim capture; no unrelated mutation authority | RULES:incident report + AGENTS:correction",
+        })
+    else:
+        guidance.update({
+            "slopwall": "keep inherited objective/core foregrounded; no filler/process/proxy displacement | RULES:slopwall + AGENTS:correction; repair first; mandatory correction before final",
+            "incident_report": "not a canonical trigger under the currently serving legacy behavior contract; do not infer V2 semantics before shared rules land",
+        })
+    return guidance
 
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
@@ -3480,6 +3796,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     mcp_recovery_state = _bootstrap_mcp_recovery_orientation(_bootstrap_mcp_recovery_state())
     agent_contract = _bootstrap_agent_contract_version()
     slopwall_contract = _bootstrap_slopwall_contract()
+    critical_guidance = _bootstrap_critical_guidance()
     notable_conditions: list[str] = []
     if agent_contract["status"] != "COHERENT":
         notable_conditions.append(f"agent_contract_version_{str(agent_contract['status']).casefold()}")
@@ -3523,16 +3840,11 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "activity_window_seconds": live_evidence.get("activity_window_seconds"),
             "observation_window_complete": live_evidence.get("observation_window_complete"),
             "source_age_seconds": live_evidence.get("source_age_seconds"),
+            "identity": live_summary.get("identity"),
         }
         manual_live_identity = _bootstrap_active_manual_run_identities(manual_current, live_swarm)
         if manual_live_identity.get("runs"):
             worker_glance["current_activity"]["manual_run"] = manual_live_identity["runs"][0]
-        scheduler_recovery = workers.get("fleet_watch") if isinstance(workers, dict) and isinstance(workers.get("fleet_watch"), dict) else None
-        if scheduler_recovery is not None:
-            worker_glance["recurring_scheduler_recovery"] = {
-                **scheduler_recovery,
-                "authority": "partition_local_reports_and_start_receipts_not_swarm_liveness",
-            }
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
     vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
@@ -3543,14 +3855,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"vault_{vault_health.casefold()}")
     if github_health != "OK":
         notable_conditions.append(f"github_{github_health.casefold()}")
-    scheduler_recovery = worker_glance.get("recurring_scheduler_recovery") if isinstance(worker_glance, dict) else None
-    if isinstance(scheduler_recovery, dict) and scheduler_recovery.get("status") == "SUSPECT_DEGRADED":
-        labels = [
-            str(item.get("worker") or "").replace("Repo Worker ", "").casefold()
-            for item in scheduler_recovery.get("suspect_workers", [])
-            if isinstance(item, dict) and str(item.get("worker") or "").strip()
-        ]
-        notable_conditions.append("recurring_scheduler_recovery_suspect" + ("_" + "_".join(labels) if labels else ""))
     timeline_materialized = memory_overview.get("timeline_materialized", {}) if isinstance(memory_overview, dict) else {}
     if isinstance(timeline_materialized, dict):
         timeline_status = str(timeline_materialized.get("status") or "").upper()
@@ -3580,6 +3884,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
         "agent_contract": agent_contract,
         "slopwall_contract": slopwall_contract,
+        "critical_guidance": critical_guidance,
         "visual_acceptance": {
             "status": "HARD_GATE",
             "rule": "Inspect the exact candidate pixels/frames before visual success or user handoff.",
@@ -3655,7 +3960,7 @@ def _bootstrap_worker_activity_from_mcp(mcp: dict[str, Any] | Any) -> dict[str, 
         "observed_session_count": int(mcp.get("active_session_count") or 0),
         "observed_session_count_status": mcp.get("active_session_count_status"),
         "workspace_counts": mcp.get("workspace_counts", {}),
-        "sessions_truncated": bool(mcp.get("active_sessions_truncated")),
+        "session_details": mcp.get("active_session_details"),
     }
 
 
@@ -3747,6 +4052,76 @@ def _tiny3d_lookup_projection(query: str) -> dict[str, Any]:
         }
 
 
+def _runtime_graph_for_components_safe(component_ids: Iterable[str]) -> dict[str, Any]:
+    """Load deployment-graph code only for lookup/find so bootstrap-glance has no new runtime import."""
+    try:
+        from tools.runtime_dependency_graph import runtime_graph_for_components
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import runtime_graph_for_components
+        except ModuleNotFoundError as exc:
+            return {
+                "schema": "stack-atlas.runtime-deployment-graph.v1",
+                "authority": "DERIVED_DEPLOYMENT_NAVIGATION",
+                "surfaces": [],
+                "coverage": {"status": "UNAVAILABLE", "error": str(exc)},
+            }
+    return runtime_graph_for_components(component_ids, root=ATLAS_LIVE_ROOT)
+
+
+def _runtime_graph_search_safe(query: str, limit: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Fail-soft bounded runtime/deployment discovery; no broad scheduler enumeration."""
+    try:
+        from tools.runtime_dependency_graph import search_runtime_dependency_graph
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import search_runtime_dependency_graph
+        except ModuleNotFoundError as exc:
+            return [], {
+                "status": "UNAVAILABLE",
+                "authority": "DERIVED_DEPLOYMENT_NAVIGATION",
+                "error": str(exc),
+                "network_fanout": False,
+                "broad_task_enumeration": False,
+            }
+    return search_runtime_dependency_graph(query, root=ATLAS_LIVE_ROOT, limit=limit)
+
+
+def _runtime_graph_explain_safe(term: str, surface_id: str | None = None) -> dict[str, Any]:
+    """Bounded runtime/deployment node explanation with ambiguity-explicit resolution."""
+    try:
+        from tools.runtime_dependency_graph import explain_runtime_dependency_node
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import explain_runtime_dependency_node
+        except ModuleNotFoundError as exc:
+            return {
+                "schema": "stack-atlas.runtime-explain.v1",
+                "status": "UNAVAILABLE",
+                "query": term,
+                "coverage": {"status": "UNAVAILABLE", "error": str(exc)},
+            }
+    return explain_runtime_dependency_node(term, root=ATLAS_LIVE_ROOT, surface_id=surface_id)
+
+
+def _runtime_graph_path_safe(source: str, target: str, surface_id: str | None = None) -> dict[str, Any]:
+    """Bounded deterministic directed path over the runtime/deployment graph."""
+    try:
+        from tools.runtime_dependency_graph import runtime_dependency_path
+    except ModuleNotFoundError:
+        try:
+            from runtime_dependency_graph import runtime_dependency_path
+        except ModuleNotFoundError as exc:
+            return {
+                "schema": "stack-atlas.runtime-path.v1",
+                "status": "UNAVAILABLE",
+                "source_query": source,
+                "target_query": target,
+                "coverage": {"status": "UNAVAILABLE", "error": str(exc)},
+            }
+    return runtime_dependency_path(source, target, root=ATLAS_LIVE_ROOT, surface_id=surface_id)
+
+
 def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
     """Resolve a stack component or exact feature target, optionally with bounded Tiny3D evidence."""
     requested = name
@@ -3771,6 +4146,12 @@ def atlas_lookup(name: str, *, query: str | None = None) -> dict[str, Any]:
             raise ValueError("lookup --query is supported only for tiny3d_library/asset catalogue/showroom targets")
         result = dict(result)
         result["current_projection"] = _tiny3d_lookup_projection(query)
+
+    component_ids = [result["id"]] if result.get("id") in COMPONENTS else list(result.get("owner_components") or [])
+    runtime_graph = _runtime_graph_for_components_safe(component_ids)
+    if runtime_graph.get("surfaces"):
+        result = dict(result)
+        result["runtime_graph"] = runtime_graph
     return result
 
 
@@ -3899,14 +4280,41 @@ FEATURE_QUERY_SYNONYMS: dict[str, set[str]] = {
 }
 
 
+def _shared_query_concepts(query: str) -> list[set[str]]:
+    try:
+        from tools.timeline_materializer import _query_concepts
+    except ImportError:
+        try:
+            from timeline_materializer import _query_concepts
+        except ImportError:
+            _query_concepts = None
+    if _query_concepts is not None:
+        return [set(concept) for concept in _query_concepts(query)]
+    concepts: list[set[str]] = []
+    for raw in re.findall(r"[a-z0-9åäö]+", query.casefold()):
+        if raw in FEATURE_QUERY_STOPWORDS:
+            continue
+        variants = {raw}
+        if len(raw) > 4 and raw.endswith("ies"):
+            variants.add(raw[:-3] + "y")
+        elif len(raw) > 4 and raw.endswith("s") and not raw.endswith("ss"):
+            variants.add(raw[:-1])
+        concepts.append(variants)
+    return concepts
+
+
 def _feature_query_terms(query: str) -> tuple[list[str], set[str]]:
     base = [
-        term for term in re.findall(r"[a-z0-9]+", query.casefold())
+        term for term in re.findall(r"[a-z0-9åäö]+", query.casefold())
         if term and term not in FEATURE_QUERY_STOPWORDS
     ]
     expanded = set(base)
     for term in base:
         expanded.update(FEATURE_QUERY_SYNONYMS.get(term, set()))
+    for concept in _shared_query_concepts(query):
+        if concept & FEATURE_QUERY_STOPWORDS:
+            continue
+        expanded.update(concept)
     return base, expanded
 
 
@@ -4001,14 +4409,19 @@ DISCOVERY_AUTHORITY = "DISCOVERY_NAVIGATION_ONLY_NOT_CURRENT_TRUTH"
 _TIMELINE_QUERY_INDEX_SCHEMA = "vault.timeline.query-index.v1"
 _TIMELINE_WEIGHT_CODE = {1: 0.7, 2: 1.2, 3: 2.0, 4: 2.2, 5: 4.0}
 _DISCOVERY_SOURCE_BONUS = {
+    "mcp_event": 7.0,
     "github_issue": 6.0,
     "github_pr": 5.5,
+    "github_action": 5.0,
     "tracked_artifact": 5.0,
+    "runner_log": 4.8,
     "local_artifact": 4.5,
     "library_artifact": 4.5,
     "git_commit": 3.0,
+    "machine_observation": 2.0,
     "vault_memory": 2.0,
     "worker_report": 1.0,
+    "coordinator_event": 0.5,
 }
 
 
@@ -4023,20 +4436,7 @@ def _discovery_root() -> Path:
 
 
 def _discovery_query_terms(query: str) -> list[set[str]]:
-    base_terms, _ = _feature_query_terms(query)
-    concepts: list[set[str]] = []
-    seen: set[tuple[str, ...]] = set()
-    for raw in base_terms:
-        variants = {raw}
-        if len(raw) > 4 and raw.endswith("ies"):
-            variants.add(raw[:-3] + "y")
-        elif len(raw) > 4 and raw.endswith("s") and not raw.endswith("ss"):
-            variants.add(raw[:-1])
-        key = tuple(sorted(variants))
-        if key not in seen:
-            seen.add(key)
-            concepts.append(variants)
-    return concepts
+    return _shared_query_concepts(query)
 
 
 def _minimum_discovery_matches(concept_count: int) -> int:
@@ -4049,7 +4449,11 @@ def _minimum_discovery_matches(concept_count: int) -> int:
     return 4
 
 
-def _history_discovery_identity(event_id: str, anchors: list[str]) -> tuple[str, str, str] | None:
+def _history_discovery_identity(
+    event_id: str,
+    anchors: list[str],
+    source_type: str | None = None,
+) -> tuple[str, str, str] | None:
     match = re.match(r"^github-issue:([^#]+)#(\d+):", event_id)
     if match:
         ref = f"{match.group(1)}#{match.group(2)}"
@@ -4079,18 +4483,50 @@ def _history_discovery_identity(event_id: str, anchors: list[str]) -> tuple[str,
         return "vault_memory", f"vault_memory:{event_id.casefold()}", event_id
     if event_id.startswith("worker:"):
         return "worker_report", f"worker_report:{event_id.casefold()}", event_id
+
+    source_kind = {
+        "MCP_EVENT": "mcp_event",
+        "GITHUB_ACTION": "github_action",
+        "GITHUB_ACTION_SUMMARY": "github_action_summary",
+        "RUNNER_LOG": "runner_log",
+        "MACHINE_OBSERVATION": "machine_observation",
+        "COORDINATOR_EVENT": "coordinator_event",
+    }.get(str(source_type or "").upper())
+    if source_kind:
+        return source_kind, f"{source_kind}:{event_id.casefold()}", event_id
+
     for anchor in anchors:
         match = re.match(r"^github:([^#]+)#(\d+)$", str(anchor))
         if match:
             ref = f"{match.group(1)}#{match.group(2)}"
             return "github_ref", f"github_ref:{ref.casefold()}", ref
+    if source_type:
+        generic_kind = re.sub(r"[^a-z0-9]+", "_", str(source_type).casefold()).strip("_") or "history_event"
+        return generic_kind, f"{generic_kind}:{event_id.casefold()}", event_id
     return None
+
+
+def _discovery_event_timestamp(value: Any) -> float | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        stamp = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return stamp.timestamp()
 
 
 def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     started = time.perf_counter()
     root = root or _discovery_root()
-    state = root / ".state" / "timeline"
+    try:
+        from .timeline_materializer import timeline_read_state_root
+    except ImportError:
+        from timeline_materializer import timeline_read_state_root
+    state = timeline_read_state_root(root)
     status_path = state / "status.json"
     index_path = state / "timeline-query-index.pkl"
     coverage: dict[str, Any] = {
@@ -4118,11 +4554,19 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         or not isinstance(index.get("weight_codes"), dict)
         or not isinstance(index.get("anchors"), list)
         or len(index["ids"]) != len(index["anchors"])
+        or (index.get("branch_refs") is not None and (not isinstance(index.get("branch_refs"), list) or len(index["ids"]) != len(index["branch_refs"])))
+        or (index.get("event_meta") is not None and (not isinstance(index.get("event_meta"), list) or len(index["ids"]) != len(index["event_meta"])))
     ):
         coverage.update({"status": "INVALID_OR_STALE_INDEX", "generated_at": generated_at})
         coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
         return [], coverage
 
+    normalized_query = str(query).casefold()
+    explicit_issue_numbers = set(re.findall(r"\bissue\s*#?\s*(\d+)\b", normalized_query))
+    explicit_pr_numbers = set(re.findall(r"\b(?:pr|pull\s+request)\s*#?\s*(\d+)\b", normalized_query))
+    explicit_worker_hashes = set(re.findall(r"(?<![0-9a-f])([0-9a-f]{64})(?![0-9a-f])", normalized_query))
+    exact_worker_ids = {f"worker:{value}" for value in explicit_worker_hashes}
+    explicit_memory_ids = set(re.findall(r"\b(mem-\d{8}-[a-z0-9]{8,})\b", normalized_query))
     concepts = _discovery_query_terms(query)
     if not concepts:
         coverage.update({"status": "OK", "generated_at": generated_at, "candidate_count": 0})
@@ -4132,8 +4576,18 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
     postings = index["postings"]
     weight_codes = index["weight_codes"]
     anchors_by_position = index["anchors"]
+    branch_refs_by_position = index.get("branch_refs") if isinstance(index.get("branch_refs"), list) else [[] for _ in ids]
+    event_meta_by_position = index.get("event_meta") if isinstance(index.get("event_meta"), list) else [{} for _ in ids]
+    opaque_labels = index.get("opaque_labels") if isinstance(index.get("opaque_labels"), dict) else {}
     best_by_concept: list[dict[int, float]] = []
-    candidate_positions: set[int] = set()
+    exact_worker_positions = {
+        position for position, event_id in enumerate(ids) if str(event_id) in exact_worker_ids
+    }
+    exact_memory_positions = {
+        position for position, event_id in enumerate(ids) if str(event_id).casefold() in explicit_memory_ids
+    }
+    exact_identity_positions = exact_worker_positions | exact_memory_positions
+    candidate_positions: set[int] = set(exact_identity_positions)
     for concept in concepts:
         best: dict[int, float] = {}
         for token in concept:
@@ -4151,31 +4605,61 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         best_by_concept.append(best)
 
     minimum_matches = _minimum_discovery_matches(len(concepts))
-    ranked: list[tuple[float, str, str, str, list[str]]] = []
+    ranked: list[tuple[float, str, str, str, list[str], int]] = []
+    label_by_stable_key: dict[str, str] = {}
+    branches_by_stable_key: dict[str, list[str]] = {}
+    meta_by_stable_key: dict[str, dict[str, Any]] = {}
     for position in candidate_positions:
         matched = sum(1 for weights in best_by_concept if weights.get(position, 0.0) > 0.0)
-        if matched < minimum_matches:
+        exact_worker_match = position in exact_worker_positions
+        exact_memory_match = position in exact_memory_positions
+        exact_identity_match = exact_worker_match or exact_memory_match
+        if matched < minimum_matches and not exact_identity_match:
             continue
         event_id = str(ids[position])
-        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:6]
-        identity = _history_discovery_identity(event_id, anchors)
+        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:24]
+        meta = event_meta_by_position[position] if isinstance(event_meta_by_position[position], dict) else {}
+        identity = _history_discovery_identity(event_id, anchors, str(meta.get("source_type") or ""))
         if identity is None:
             continue
         kind, stable_key, reference = identity
+        opaque_label = str(opaque_labels.get(event_id) or meta.get("title") or "").strip()
+        if opaque_label and stable_key not in label_by_stable_key:
+            label_by_stable_key[stable_key] = opaque_label
+        if stable_key not in meta_by_stable_key:
+            meta_by_stable_key[stable_key] = meta
+        branch_refs = [str(value) for value in (branch_refs_by_position[position] or []) if str(value).strip()]
+        if branch_refs and stable_key not in branches_by_stable_key:
+            branches_by_stable_key[stable_key] = branch_refs[:12]
         score = sum(weights.get(position, 0.0) for weights in best_by_concept)
+        if exact_identity_match:
+            score += 100.0
         score += _DISCOVERY_SOURCE_BONUS.get(kind, 0.0)
         score += matched / max(1, len(concepts))
-        ranked.append((score, stable_key, kind, reference, anchors))
+        identity_text = ""
+        if kind in {"github_issue", "github_pr"}:
+            identity_text = reference.rsplit("#", 1)[0]
+        elif kind == "git_commit":
+            identity_text = reference.split("@", 1)[0]
+        else:
+            identity_text = str(meta.get("project") or "")
+        identity_tokens = set(re.findall(r"[a-z0-9]+", identity_text.casefold()))
+        score += 4.0 * sum(1 for concept in concepts if identity_tokens & concept)
+        reference_number = reference.rsplit("#", 1)[-1] if "#" in reference else ""
+        if kind == "github_issue" and reference_number in explicit_issue_numbers:
+            score += 25.0
+        if kind == "github_pr" and reference_number in explicit_pr_numbers:
+            score += 25.0
+        ranked.append((score, stable_key, kind, reference, anchors, position))
 
     ranked.sort(key=lambda item: (-item[0], item[1]))
     effective_limit = max(1, int(limit))
-    selected_rows: list[tuple[float, str, str, str, list[str]]] = []
+    selected_rows: list[tuple[float, str, str, str, list[str], int]] = []
     selected_keys: set[str] = set()
     selected_kinds: set[str] = set()
-    # Discovery should expose different evidence classes before filling the rest
-    # with near-duplicate snapshots from one class (for example many PRs).
+    # Show different evidence classes before filling with multiple members from one class.
     for row in ranked:
-        _, stable_key, kind, _, _ = row
+        _, stable_key, kind, _, _, _ = row
         if stable_key in selected_keys or kind in selected_kinds:
             continue
         selected_rows.append(row)
@@ -4193,8 +4677,44 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
             if len(selected_rows) >= effective_limit:
                 break
 
+    def render_position(position: int, *, relationship: str | None = None, time_delta_seconds: float | None = None, shared_anchors: list[str] | None = None) -> dict[str, Any] | None:
+        event_id = str(ids[position])
+        anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()][:24]
+        meta = event_meta_by_position[position] if isinstance(event_meta_by_position[position], dict) else {}
+        identity = _history_discovery_identity(event_id, anchors, str(meta.get("source_type") or ""))
+        if identity is None:
+            return None
+        kind, _, reference = identity
+        item: dict[str, Any] = {
+            "kind": kind,
+            "reference": reference,
+            "source_type": meta.get("source_type"),
+            "event_at": meta.get("event_at"),
+            "project": meta.get("project"),
+            "source_authority": meta.get("authority"),
+        }
+        title = str(meta.get("title") or opaque_labels.get(event_id) or "").strip()
+        if title:
+            item["label"] = title
+        if meta.get("summary"):
+            item["summary"] = meta.get("summary")
+        branches = [str(value) for value in (branch_refs_by_position[position] or []) if str(value).strip()]
+        if branches:
+            item["branches"] = branches[:12]
+        details = meta.get("details") if isinstance(meta.get("details"), dict) else {}
+        if details:
+            item["details"] = details
+        if relationship:
+            item["relationship"] = relationship
+        if time_delta_seconds is not None:
+            item["time_delta_seconds"] = round(time_delta_seconds, 3)
+        if shared_anchors:
+            item["shared_anchors"] = shared_anchors[:8]
+        return item
+
     hits: list[dict[str, Any]] = []
-    for score, _, kind, reference, anchors in selected_rows:
+    for score, stable_key, kind, reference, anchors, position in selected_rows:
+        meta = meta_by_stable_key.get(stable_key, {})
         hit = {
             "kind": kind,
             "reference": reference,
@@ -4202,9 +4722,134 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
             "live_truth_required": True,
             "score": round(score, 3),
         }
+        if label_by_stable_key.get(stable_key):
+            hit["label"] = label_by_stable_key[stable_key]
+        if branches_by_stable_key.get(stable_key):
+            hit["branches"] = branches_by_stable_key[stable_key]
         if anchors:
-            hit["anchors"] = anchors
+            hit["anchors"] = anchors[:8]
+        for key in ("source_type", "event_at", "project", "authority", "summary"):
+            value = meta.get(key)
+            if value not in (None, "", [], {}):
+                hit["source_authority" if key == "authority" else key] = value
+        details = meta.get("details") if isinstance(meta.get("details"), dict) else {}
+        if details:
+            hit["details"] = details
         hits.append(hit)
+
+    # Evidence windows are correlation/navigation only. They deliberately expose nearby
+    # runtime/Git/GitHub/CI/worker evidence without asserting that all members are one job.
+    evidence_clusters: list[dict[str, Any]] = []
+    source_priority = {
+        "MCP_EVENT": 0,
+        "GIT_COMMIT": 1,
+        "GITHUB_ISSUE": 2,
+        "GITHUB_PR": 2,
+        "GITHUB_ACTION": 3,
+        "RUNNER_LOG": 4,
+        "WORKER_REPORT": 5,
+        "TRACKED_ARTIFACT": 6,
+        "LOCAL_ARTIFACT": 6,
+        "LIBRARY_ARTIFACT": 6,
+        "MACHINE_OBSERVATION": 7,
+        "COORDINATOR_EVENT": 8,
+    }
+    for _, _, seed_kind, seed_reference, seed_anchors, seed_position in selected_rows[:3]:
+        seed_meta = event_meta_by_position[seed_position] if isinstance(event_meta_by_position[seed_position], dict) else {}
+        seed_project = str(seed_meta.get("project") or "")
+        seed_ts = _discovery_event_timestamp(seed_meta.get("event_at"))
+        seed_anchor_set = set(seed_anchors)
+        related_by_key: dict[str, tuple[tuple[int, float, str], int, str, float | None, list[str]]] = {}
+        for position, raw_meta in enumerate(event_meta_by_position):
+            if position == seed_position or not isinstance(raw_meta, dict):
+                continue
+            event_id = str(ids[position])
+            anchors = [str(value) for value in (anchors_by_position[position] or []) if str(value).strip()]
+            identity = _history_discovery_identity(event_id, anchors, str(raw_meta.get("source_type") or ""))
+            if identity is None:
+                continue
+            kind, stable_key, _ = identity
+            shared = sorted(seed_anchor_set & set(anchors))
+            candidate_ts = _discovery_event_timestamp(raw_meta.get("event_at"))
+            delta = abs(seed_ts - candidate_ts) if seed_ts is not None and candidate_ts is not None else None
+            same_project = bool(seed_project and seed_project == str(raw_meta.get("project") or ""))
+            if shared:
+                relationship = "shared_anchor"
+                relation_rank = 0
+            elif same_project and delta is not None and delta <= 180.0:
+                relationship = "same_project_time_window"
+                relation_rank = 1
+            else:
+                continue
+            priority = source_priority.get(str(raw_meta.get("source_type") or ""), 9)
+            rank_key = (relation_rank, delta if delta is not None else 10**9, f"{priority}:{stable_key}")
+            prior = related_by_key.get(stable_key)
+            if prior is None or rank_key < prior[0]:
+                related_by_key[stable_key] = (rank_key, position, relationship, delta, shared)
+        related_rows = sorted(related_by_key.values(), key=lambda row: (row[0][0], source_priority.get(str((event_meta_by_position[row[1]] or {}).get("source_type") or ""), 9), row[0][1], row[0][2]))
+        selected_related: list[tuple[tuple[int, float, str], int, str, float | None, list[str]]] = []
+        seen_types: set[str] = set()
+        for row in related_rows:
+            source_type = str((event_meta_by_position[row[1]] or {}).get("source_type") or "")
+            if source_type in seen_types:
+                continue
+            selected_related.append(row)
+            seen_types.add(source_type)
+            if len(selected_related) >= 8:
+                break
+        if len(selected_related) < 12:
+            for row in related_rows:
+                if row in selected_related:
+                    continue
+                selected_related.append(row)
+                if len(selected_related) >= 12:
+                    break
+        seed_member = render_position(seed_position, relationship="seed")
+        members = [seed_member] if seed_member else []
+        for _, position, relationship, delta, shared in selected_related:
+            rendered = render_position(position, relationship=relationship, time_delta_seconds=delta, shared_anchors=shared)
+            if rendered:
+                members.append(rendered)
+        if len(members) > 1:
+            evidence_clusters.append({
+                "authority": "SEARCH_CORRELATION_ONLY_NOT_SHARED_TRUTH",
+                "seed_kind": seed_kind,
+                "seed_reference": seed_reference,
+                "project": seed_project or None,
+                "time_window_seconds": 180,
+                "members": members,
+            })
+
+    materialized_memory_ids = {str(event_id).casefold() for event_id in ids if str(event_id).startswith("mem-")}
+    missing_memory_ids = sorted(explicit_memory_ids - materialized_memory_ids)
+    if missing_memory_ids:
+        referenced_by = [
+            {"kind": hit.get("kind"), "reference": hit.get("reference"), "score": hit.get("score")}
+            for hit in hits[:8]
+        ]
+        reference_only_hits = [
+            {
+                "kind": "referenced_identity",
+                "identity_kind": "vault_memory",
+                "reference": memory_id,
+                "authority": "SEARCH_REFERENCE_ONLY_NOT_OBJECT_TRUTH",
+                "materialized_object_present": False,
+                "note": "Exact memory identity is referenced by materialized evidence but is not present as a current materialized memory object.",
+                "referenced_by": referenced_by,
+                "score": 150.0,
+            }
+            for memory_id in missing_memory_ids
+        ]
+        hits = [*reference_only_hits, *hits][:effective_limit]
+
+    source_latest_at: dict[str, str] = {}
+    for meta in event_meta_by_position:
+        if not isinstance(meta, dict):
+            continue
+        source_type = str(meta.get("source_type") or "")
+        event_at = str(meta.get("event_at") or "")
+        if source_type and event_at and event_at > source_latest_at.get(source_type, ""):
+            source_latest_at[source_type] = event_at
     coverage.update({
         "status": "OK",
         "generated_at": generated_at,
@@ -4213,6 +4858,9 @@ def _timeline_discovery_hits(query: str, limit: int = 5, *, root: Path | None = 
         "events": status.get("events"),
         "truncated": bool(status.get("truncated")),
         "saturated_sources": list(status.get("saturated_sources") or []),
+        "source_latest_at": dict(sorted(source_latest_at.items())),
+        "evidence_cluster_semantics": "SEARCH_CORRELATION_ONLY_NOT_SHARED_TRUTH",
+        "evidence_clusters": evidence_clusters,
     })
     coverage["latency_ms"] = round((time.perf_counter() - started) * 1000, 1)
     return hits, coverage
@@ -4225,55 +4873,27 @@ def _live_discovery_hits(query: str, limit: int = 5, *, snapshot: dict[str, Any]
     except (OSError, ValueError, TypeError) as exc:
         return [], {
             "status": "UNAVAILABLE",
-            "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+            "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
             "error": str(exc),
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
     if not isinstance(snapshot, dict) or not snapshot.get("available"):
         return [], {
             "status": "UNAVAILABLE",
-            "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+            "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
         }
-    terms = set(_feature_query_terms(query)[0])
-    hits: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for lane in snapshot.get("lanes", []) or []:
-        if not isinstance(lane, dict):
-            continue
-        worktree = lane.get("worktree") if isinstance(lane.get("worktree"), dict) else {}
-        workspace = str(lane.get("workspace") or "")
-        path = str(worktree.get("path") or "")
-        branch = str(worktree.get("branch") or "")
-        hay_tokens = set(re.findall(r"[a-z0-9]+", " ".join((workspace, path, branch)).casefold()))
-        if terms and not (terms & hay_tokens):
-            continue
-        stable = (path or workspace or str(lane.get("lane_id") or "")).casefold()
-        if not stable or stable in seen:
-            continue
-        seen.add(stable)
-        caller_ages = [
-            float(caller.get("last_activity_age_seconds"))
-            for caller in lane.get("callers", []) or []
-            if isinstance(caller, dict) and isinstance(caller.get("last_activity_age_seconds"), (int, float))
-        ]
-        hit = {
-            "kind": "live_workspace",
-            "workspace": workspace or None,
-            "worktree": {key: worktree.get(key) for key in ("path", "branch", "head") if worktree.get(key)},
-            "authority": "LIVE_MCP_ACTIVITY_NAVIGATION_HINT",
-            "ownership_semantics": "not_ownership_or_progress_by_itself",
-        }
-        if caller_ages:
-            hit["last_activity_age_seconds"] = round(min(caller_ages), 1)
-        hits.append({key: value for key, value in hit.items() if value not in (None, "", {})})
-        if len(hits) >= max(1, int(limit)):
-            break
+    hits = _search_live_swarm(
+        snapshot, query, limit=max(1, int(limit)), query_concepts=_shared_query_concepts(query)
+    )
     evidence = snapshot.get("evidence") if isinstance(snapshot.get("evidence"), dict) else {}
     return hits, {
         "status": "OK",
-        "authority": "LIVE_MCP_RUNTIME_EVIDENCE",
+        "authority": "MIXED_LIVE_SWARM_NAVIGATION_EVIDENCE",
+        "busy_semantics": "coordination_handoff_only_not_worker_liveness_or_progress",
+        "caller_semantics": "live_mcp_runtime_activity_within_snapshot_window",
         "source_age_seconds": evidence.get("source_age_seconds"),
+        "busy_source_age_seconds": evidence.get("busy_source_age_seconds"),
         "activity_window_seconds": evidence.get("activity_window_seconds"),
         "observation_window_complete": evidence.get("observation_window_complete"),
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
@@ -4291,13 +4911,20 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             "atlas_hits": [],
             "live_hits": [],
             "history_hits": [],
+            "git_hits": [],
+            "runtime_hits": [],
+            "runtime_graph_hits": [],
+            "github_cache_hits": [],
+            "evidence_clusters": [],
             "coverage": {},
         }
     started = time.perf_counter()
     atlas_hits = find_features(query, effective_limit)
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         history_future = pool.submit(_timeline_discovery_hits, query, effective_limit)
         live_future = pool.submit(_live_discovery_hits, query, effective_limit)
+        github_cache_future = pool.submit(_search_gh_buffer_cache, query, effective_limit)
+        runtime_graph_future = pool.submit(_runtime_graph_search_safe, query, min(3, effective_limit))
         try:
             history_hits, history_coverage = history_future.result()
         except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
@@ -4306,6 +4933,21 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             live_hits, live_coverage = live_future.result()
         except Exception as exc:  # Discovery is fail-soft; owner lookup remains usable.
             live_hits, live_coverage = [], {"status": "ERROR", "error": str(exc)}
+        try:
+            github_cache_hits, github_cache_coverage = github_cache_future.result()
+        except Exception as exc:
+            github_cache_hits, github_cache_coverage = [], {"status": "ERROR", "error": str(exc), "network_fanout": False}
+        try:
+            runtime_graph_hits, runtime_graph_coverage = runtime_graph_future.result()
+        except Exception as exc:
+            runtime_graph_hits, runtime_graph_coverage = [], {"status": "ERROR", "error": str(exc), "network_fanout": False, "broad_task_enumeration": False}
+    git_hits = [
+        hit for hit in history_hits
+        if hit.get("kind") == "git_commit" or bool(hit.get("branches"))
+    ]
+    runtime_kinds = {"mcp_event", "runner_log", "github_action", "github_action_summary", "machine_observation", "coordinator_event"}
+    runtime_hits = [hit for hit in history_hits if hit.get("kind") in runtime_kinds]
+    evidence_clusters = list(history_coverage.get("evidence_clusters") or [])
     return {
         "schema": DISCOVERY_SCHEMA,
         "query": query,
@@ -4313,12 +4955,26 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
         "atlas_hits": atlas_hits,
         "live_hits": live_hits,
         "history_hits": history_hits,
+        "git_hits": git_hits,
+        "runtime_hits": runtime_hits,
+        "runtime_graph_hits": runtime_graph_hits,
+        "github_cache_hits": github_cache_hits,
+        "evidence_clusters": evidence_clusters,
         "coverage": {
             "atlas": {"status": "OK", "authority": ATLAS_CONTRACT["authority"]},
             "live": live_coverage,
             "history": history_coverage,
+            "git": {
+                "status": history_coverage.get("status"),
+                "authority": "DERIVED_MATERIALIZED_LOCAL_GIT_HISTORY",
+                "read_mode": "MATERIALIZED_QUERY_INDEX_ONLY",
+                "network_fanout": False,
+                "repo_content_scan": False,
+            },
+            "github_cache": github_cache_coverage,
+            "runtime_graph": runtime_graph_coverage,
         },
-        "boundary": "Discovery only. Verify current issue/PR/repo/runtime state through its named owner before making a current-state claim or mutation.",
+        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan, broad Scheduled Task enumeration, or GitHub network fanout. Local Git commits/branches, MCP/runtime receipts and transport/watchdog events, CI/runner evidence, worker reports, artifacts, materialized history, and bounded deployment/runtime graph slices are searched locally. GitHub detail comes from materialized history plus the local gh-buffer cache. Evidence clusters are correlation windows only, never shared truth; runtime graph observations label exact local task/file state but do not replace the owning runtime authority.",
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
     }
 
@@ -4624,6 +5280,8 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("bootstrap-glance")
     sub.add_parser("live-swarm")
+    identify = sub.add_parser("identify-actor")
+    identify.add_argument("actor")
     fleet = sub.add_parser("fleet-watch")
     fleet.add_argument("--partition", choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS))
     fleet.add_argument("--worker-id")
@@ -4636,6 +5294,13 @@ def main() -> int:
     lookup = sub.add_parser("lookup")
     lookup.add_argument("target")
     lookup.add_argument("--query", help="bounded current Tiny3D asset/name query for tiny3d_library-style targets")
+    runtime_explain = sub.add_parser("runtime-explain")
+    runtime_explain.add_argument("node")
+    runtime_explain.add_argument("--surface")
+    runtime_path = sub.add_parser("runtime-path")
+    runtime_path.add_argument("source")
+    runtime_path.add_argument("target")
+    runtime_path.add_argument("--surface")
     blast = sub.add_parser("blast-radius")
     blast.add_argument("--pid", type=int, required=True)
     blast.add_argument("--snapshot", type=Path)
@@ -4653,6 +5318,8 @@ def main() -> int:
         value = build_live_bootstrap_glance()
     elif args.command == "live-swarm":
         value = build_live_swarm_snapshot()
+    elif args.command == "identify-actor":
+        value = identify_current_actor(args.actor)
     elif args.command == "fleet-watch":
         value = _bootstrap_fleet_watch(partition=args.partition, worker_id=args.worker_id)
     elif args.command == "inventory":
@@ -4675,6 +5342,10 @@ def main() -> int:
             parser.error(f"unknown Atlas lookup target: {args.target}")
         except ValueError as exc:
             parser.error(str(exc))
+    elif args.command == "runtime-explain":
+        value = _runtime_graph_explain_safe(args.node, surface_id=args.surface)
+    elif args.command == "runtime-path":
+        value = _runtime_graph_path_safe(args.source, args.target, surface_id=args.surface)
     elif args.command == "production-change-gate":
         value = production_change_gate(
             args.target,

@@ -18,6 +18,18 @@ Artifact bytes remain in ChatGPT Library/conversation storage unless a separate 
 4. It writes `02 Evidence/chatgpt_artifact_occurrences.jsonl`, which is already consumed by the canonical timeline materializer.
 5. The periodic timeline materializer makes the observation queryable. Old durable Library proof remains in the bounded historical-evidence section even after it ages outside the high-volume active horizon.
 
+## Unified discovery projection
+
+`python tools\stack_atlas.py find <natural-language-query>` is the canonical first search surface over this materialized Library evidence and the other local evidence classes. A single query may correlate Library occurrences with local Git commits/branch refs, cached/materialized GitHub issue/PR/body/comments, MCP process receipts and transport/watchdog events, runner/CI/machine/coordinator observations, worker reports, Vault memories/timeline, Atlas owner navigation, and live-swarm hints. This is discovery correlation only: every hit keeps its source authority, timestamp, identity, and verdict. A search evidence cluster never becomes incident/work identity, liveness proof, visual acceptance, or shared truth.
+
+The search path must not fall back to repository-content grep, recursive repo/Vault scans, or GitHub network fanout. Once discovery resolves an exact owner/path, targeted source reads and implementation tracing are allowed. Bootstrap stays intentionally smaller: it may expose current machine/route/topology/recovery/live-swarm and source freshness/health, but it must not embed Library chronology or the other detailed search histories.
+
+## Timeline state and durability ownership
+
+The canonical memory/timeline runtime must not use an active Git checkout as mutable storage. New durable memory is appended to the external local journal under `%LOCALAPPDATA%\VaultMemory`; the tracked `memory/memory-bank.jsonl` is a seed and `origin/memory/live` is a Git replica/history surface. Publishing that replica may use a detached temporary worktree, but it must never fast-forward, reset, switch, or rewrite the operator/serving checkout. A published local memory remains in the local journal even if the checked-out seed later moves backward.
+
+The rebuildable timeline store, query index, caches, status, and lock live under `%LOCALAPPDATA%\VaultTimeline`, outside every Vault worktree. The legacy `<vault>\.state\timeline` path is migration/read fallback only. Scheduled materialization runs from `%LOCALAPPDATA%\VaultTimeline\runtime\<commit>`: a commit-addressed `git archive` snapshot installed only from a commit contained in cached `origin/main`. The scheduled action never follows a mutable branch/worktree. Search may merge the local journal with the locally fetched `origin/memory/live` replica so an exact historical `mem-*` identity remains retrievable even when the current checkout seed no longer contains it; no network fetch or checkout mutation is part of the search path.
+
 Example:
 
 ```powershell
@@ -36,6 +48,6 @@ For a RED ALERT or other operator-caused interruption where the active tool/conn
 
 1. Use the existing ChatGPT Library artifact path to preserve an interim incident report with the incident ID, exact user report, known event/report times, observed impact, actions attempted, and last verified live state. Unknown times or states remain unknown.
 2. When Vault-capable tools return, before resuming the interrupted engineering task, create or update the canonical incident report under `01 Reports`.
-3. Run the existing timeline materializer so the outage, restoration, and report are visible through the existing timeline/bootstrap surfaces. Do not create a parallel incident, blocker, scheduler, or monitoring system for this purpose.
+3. Run the existing timeline materializer so the outage, restoration, and report are visible through unified `stack_atlas.py find` and targeted timeline drill-down. Bootstrap may expose only source freshness/health for this history, not the incident chronology itself. Do not create a parallel incident, blocker, scheduler, or monitoring system for this purpose.
 4. Never leave an incident chronology ending at tool loss when later evidence establishes the restoration or failure outcome; close the gap in the Vault report when tools return.
 5. This continuity rule does not authorize any production mutation. It only preserves evidence when the normal Vault write path is temporarily unavailable.

@@ -11,24 +11,52 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) { $RepoRoot = Split-Path -Parent $PSScriptRoot }
 
+function ConvertTo-NativeArgument {
+    param([Parameter(Mandatory=$true)][AllowEmptyString()][string]$Value)
+    if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') { return $Value }
+    $builder = New-Object System.Text.StringBuilder
+    [void]$builder.Append('"')
+    $slashes = 0
+    foreach ($ch in $Value.ToCharArray()) {
+        if ($ch -eq '\') {
+            $slashes++
+            continue
+        }
+        if ($ch -eq '"') {
+            if ($slashes -gt 0) { [void]$builder.Append(('\' * ($slashes * 2))) }
+            [void]$builder.Append('\"')
+            $slashes = 0
+            continue
+        }
+        if ($slashes -gt 0) {
+            [void]$builder.Append(('\' * $slashes))
+            $slashes = 0
+        }
+        [void]$builder.Append($ch)
+    }
+    if ($slashes -gt 0) { [void]$builder.Append(('\' * ($slashes * 2))) }
+    [void]$builder.Append('"')
+    $builder.ToString()
+}
+
 function Invoke-GitText {
     param(
         [Parameter(Mandatory=$true)][string[]]$GitArgs,
         [switch]$AllowFailure
     )
+    $outFile = Join-Path ([IO.Path]::GetTempPath()) ("vault-sync-gitout-" + [Guid]::NewGuid().ToString('N'))
     $errFile = Join-Path ([IO.Path]::GetTempPath()) ("vault-sync-giterr-" + [Guid]::NewGuid().ToString('N'))
-    $savedPreference = $ErrorActionPreference
     try {
-        $ErrorActionPreference = 'Continue'
-        $output = @(& git -C $RepoRoot @GitArgs 2> $errFile)
-        $code = $LASTEXITCODE
+        $git = (Get-Command git.exe -ErrorAction Stop).Source
+        $nativeArgs = @('-C', $RepoRoot) + $GitArgs | ForEach-Object { ConvertTo-NativeArgument ([string]$_) }
+        $process = Start-Process -FilePath $git -ArgumentList ($nativeArgs -join ' ') -WindowStyle Hidden -Wait -PassThru -RedirectStandardOutput $outFile -RedirectStandardError $errFile
+        $code = $process.ExitCode
+        $text = if (Test-Path -LiteralPath $outFile) { [IO.File]::ReadAllText($outFile).Trim() } else { '' }
         $stderr = if (Test-Path -LiteralPath $errFile) { [IO.File]::ReadAllText($errFile).Trim() } else { '' }
     }
     finally {
-        $ErrorActionPreference = $savedPreference
-        Remove-Item -LiteralPath $errFile -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $outFile,$errFile -Force -ErrorAction SilentlyContinue
     }
-    $text = (($output | ForEach-Object { [string]$_ }) -join "`n").Trim()
     if ($code -ne 0 -and -not $AllowFailure) {
         $detail = @($text,$stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         throw "git $($GitArgs -join ' ') failed ($code): $($detail -join ' | ')"
@@ -54,6 +82,13 @@ try {
     $inside = Git-Text @('rev-parse','--is-inside-work-tree')
     if ($inside -ne 'true') { throw "$RepoRoot is not a Git worktree" }
 
+    # Refresh the cached remote-main authority before any worktree coherence gate.
+    # Fetch mutates refs only, not the checked-out branch/index/worktree, so a dirty or
+    # wrong-branch serving checkout can still keep origin/main current while remaining fail-closed.
+    if (-not $SkipFetch) {
+        [void](Git-Text @('fetch','--prune',$Remote,$Branch))
+    }
+
     $branchName = Git-Text @('rev-parse','--abbrev-ref','HEAD')
     $headBefore = Git-Text @('rev-parse','HEAD')
     $statusBefore = Git-Text @('status','--porcelain=v1','--untracked-files=normal')
@@ -62,6 +97,7 @@ try {
     $wrongBranchBefore = $null
     $wrongBranchHeadBefore = $null
     $wrongBranchRepaired = $false
+    $wrongBranchDirtyRepair = $false
     if ($branchName -ne $Branch) {
         if (-not $Repair) {
             Write-ResultAndExit -Result ([ordered]@{
@@ -69,34 +105,31 @@ try {
                 head = $headBefore; dirty = $dirtyBefore; action = 'none'; repair = 'rerun with -Repair after attribution/authorization'
             }) -Code 4
         }
-        if ($dirtyBefore) {
-            Write-ResultAndExit -Result ([ordered]@{
-                ok = $false; status = 'WRONG_BRANCH_DIRTY_BLOCKED'; branch = $branchName; expected_branch = $Branch
-                head = $headBefore; dirty = $true; action = 'none'; repair = 'preserve/finish dirty branch work before serving-checkout switch'
-            }) -Code 4
-        }
         $expectedLocal = Invoke-GitText -GitArgs @('rev-parse','--verify',"refs/heads/$Branch") -AllowFailure
         if ($expectedLocal.Code -ne 0) {
             Write-ResultAndExit -Result ([ordered]@{
                 ok = $false; status = 'EXPECTED_BRANCH_MISSING'; branch = $branchName; expected_branch = $Branch
-                head = $headBefore; dirty = $false; action = 'none'
+                head = $headBefore; dirty = $dirtyBefore; action = 'none'
             }) -Code 4
         }
         $wrongBranchBefore = $branchName
         $wrongBranchHeadBefore = $headBefore
-        [void](Git-Text @('switch',$Branch))
-        $branchName = Git-Text @('rev-parse','--abbrev-ref','HEAD')
-        $headBefore = Git-Text @('rev-parse','HEAD')
-        $statusBefore = Git-Text @('status','--porcelain=v1','--untracked-files=normal')
-        $dirtyBefore = -not [string]::IsNullOrWhiteSpace($statusBefore)
-        if ($branchName -ne $Branch -or $dirtyBefore) {
-            throw "wrong-branch repair failed to establish clean $Branch; branch=$branchName dirty=$dirtyBefore"
+        if ($dirtyBefore) {
+            # A repair is explicitly preserve-first. Keep the dirty wrong-branch tree intact
+            # until the preservation commit/branch below has been verified byte-for-byte.
+            $wrongBranchDirtyRepair = $true
         }
-        $wrongBranchRepaired = $true
-    }
-
-    if (-not $SkipFetch) {
-        [void](Git-Text @('fetch','--prune',$Remote,$Branch))
+        else {
+            [void](Git-Text @('switch',$Branch))
+            $branchName = Git-Text @('rev-parse','--abbrev-ref','HEAD')
+            $headBefore = Git-Text @('rev-parse','HEAD')
+            $statusBefore = Git-Text @('status','--porcelain=v1','--untracked-files=normal')
+            $dirtyBefore = -not [string]::IsNullOrWhiteSpace($statusBefore)
+            if ($branchName -ne $Branch -or $dirtyBefore) {
+                throw "wrong-branch repair failed to establish clean $Branch; branch=$branchName dirty=$dirtyBefore"
+            }
+            $wrongBranchRepaired = $true
+        }
     }
 
     $remoteRef = "$Remote/$Branch"
@@ -184,6 +217,22 @@ try {
     $preservedTree = Git-Text @('rev-parse',"$preserveBranch`^{tree}")
     if ($preservedTree -ne $worktreeTree) { throw 'preservation branch tree does not match captured worktree tree' }
 
+    if ($wrongBranchDirtyRepair) {
+        # Preservation has succeeded. Restore the original branch to its committed HEAD,
+        # remove only the already-preserved untracked paths, then switch the serving
+        # checkout to the canonical branch without moving the original branch ref.
+        [void](Git-Text @('reset','--hard',$wrongBranchHeadBefore))
+        foreach ($relative in $initialUntracked) {
+            if ([string]::IsNullOrWhiteSpace($relative)) { continue }
+            $candidate = Join-Path $RepoRoot $relative
+            if (Test-Path -LiteralPath $candidate) { Remove-Item -LiteralPath $candidate -Recurse -Force }
+        }
+        [void](Git-Text @('switch',$Branch))
+        $branchName = Git-Text @('rev-parse','--abbrev-ref','HEAD')
+        if ($branchName -ne $Branch) { throw "wrong-branch repair failed to switch to $Branch" }
+        $wrongBranchRepaired = $true
+    }
+
     [void](Git-Text @('reset','--hard',$remoteRef))
     foreach ($relative in $initialUntracked) {
         if ([string]::IsNullOrWhiteSpace($relative)) { continue }
@@ -203,8 +252,9 @@ try {
     Write-ResultAndExit -Result ([ordered]@{
         ok = $true; status = 'REPAIRED'; branch = $branchName; head_before = $headBefore; head = $headAfter
         remote_head = $remoteHead; ahead_before = $ahead; behind_before = $behind; dirty_before = $dirtyBefore; dirty = $false
+        wrong_branch_before = $wrongBranchBefore; wrong_branch_head_before = $wrongBranchHeadBefore
         preservation_branch = $preserveBranch; preservation_commit = $preserveCommit; index_preservation_commit = $indexCommit
-        action = 'preserve-then-reset-to-remote'
+        action = $(if ($wrongBranchDirtyRepair) { 'preserve-wrong-branch-dirty-then-switch-reset-to-remote' } else { 'preserve-then-reset-to-remote' })
     }) -Code 0
 }
 catch {

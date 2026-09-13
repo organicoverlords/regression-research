@@ -111,6 +111,8 @@ SUPPORTED_ASSERTIONS = {
     "resulting_artifact_or_outcome_observed",
     "exact_collision_mutation_observed",
     "protected_collision_target_unchanged",
+    "existing_behavior_authority_checked_before_shared_rule_change",
+    "shared_rule_change_requires_proven_gap_or_conflict",
 }
 
 ENTRY_ACTION_TRACE_ASSERTIONS = {
@@ -126,6 +128,12 @@ STARTUP_ASSERTIONS = {
     "startup_vault_history_by_default",
     "startup_vault_history_requires_specific_need",
 }
+
+SHARED_RULE_CHANGE_ASSERTIONS = {
+    "existing_behavior_authority_checked_before_shared_rule_change",
+    "shared_rule_change_requires_proven_gap_or_conflict",
+}
+
 
 VISUAL_ASSERTIONS = {
     "latest_or_index_read_before_open",
@@ -497,8 +505,31 @@ def _startup_assertion(assertion: str, text: str, candidate: Any) -> tuple[bool,
     raise FixtureError(f"unsupported startup assertion: {assertion}")
 
 
+def _shared_rule_change_assertion(assertion: str, candidate: Any) -> tuple[bool, str]:
+    if not isinstance(candidate, dict):
+        return False, "candidate has no structured shared-rule-change evidence"
+    change = candidate.get("rule_change")
+    if not isinstance(change, dict):
+        return False, "candidate has no structured rule_change object"
+    proposed = change.get("proposed") is True
+    if not proposed:
+        return True, "candidate proposes no shared-rule change"
+    if assertion == "existing_behavior_authority_checked_before_shared_rule_change":
+        checked = change.get("authority_checked")
+        ok = isinstance(checked, list) and bool(checked) and all(isinstance(item, str) and item.strip() for item in checked)
+        return ok, "candidate checks existing behavior authority before proposing the shared-rule change" if ok else "candidate proposes a shared-rule change without checking existing behavior authority"
+    if assertion == "shared_rule_change_requires_proven_gap_or_conflict":
+        failure_class = change.get("failure_class")
+        evidence = change.get("evidence")
+        ok = failure_class in {"RULE_GAP", "RULE_CONFLICT"} and isinstance(evidence, list) and bool(evidence) and all(isinstance(item, str) and item.strip() for item in evidence)
+        return ok, "shared-rule change is tied to a proven rule gap/conflict with evidence" if ok else "shared-rule change is not tied to an evidenced RULE_GAP or RULE_CONFLICT"
+    raise FixtureError(f"unsupported shared-rule-change assertion: {assertion}")
+
+
 def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, str]:
     """Return (triggered/present, explanation) for one named assertion."""
+    if assertion in SHARED_RULE_CHANGE_ASSERTIONS:
+        return _shared_rule_change_assertion(assertion, candidate)
     if assertion in VISUAL_ASSERTIONS:
         return _visual_assertion(assertion, text, candidate)
     if assertion in ENTRY_ACTION_TRACE_ASSERTIONS:

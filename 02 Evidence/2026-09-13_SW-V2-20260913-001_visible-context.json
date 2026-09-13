@@ -1,0 +1,20 @@
+{
+  "schema": "behavior-incident-visible-context.v2",
+  "event_id": "SW-V2-20260913-001",
+  "capture_scope": "VISIBLE_CONTEXT_ONLY",
+  "verbatim": true,
+  "full_conversation_reload": false,
+  "note": "This is intentionally not a full transcript. It preserves only incident-relevant material actually visible to the agent.",
+  "items": [
+    {
+      "kind": "user_message",
+      "source": "current-visible-conversation",
+      "content": "korjaahan slopwallia kun se ei tarkoita tuota mitä luulet, hae findin historiasta sen oikea merkitys ennen kuin se poistettiin kokonaan ja tuotiin takaisin"
+    },
+    {
+      "kind": "governing_rule_snapshot",
+      "source": "organicoverlords/agents@96a3097db74ac8d7605cfdb873910e9c7b55998a RULES.md",
+      "content": "- `slopwall` is a **mandatory correction-and-learning incident**, not merely a response-style marker. Treat the immediately preceding assistant reply/action as failed against the inherited objective and first resume the exact requested answer/work with the missing user-relevant substance. On the literal signal, re-read this canonical Slopwall rule and the matching AGENTS.md correction owner before finalizing the correction. Before returning control to the user, compare the failed reply/action directly against the inherited objective and complete this bounded learning loop: (1) identify the concrete core proposition, decision, action, or evidence the user needed foregrounded, (2) identify what displaced that core, such as filler, weak analysis or proxy evidence, wrong-objective work, procedural narration, premature closure, or control-plane/tool drift, (3) infer the best-supported mechanism or decision failure without inventing an unsupported root cause, (4) derive one reusable prevention lesson as an actionable condition/action rule that would have prevented the recurrence, and (5) persist one compact durable correction containing the user's literal `slopwall` signal, the lost core, the rejected behavior/displacement, the diagnosis/mechanism, and the prevention lesson. The durable correction is mandatory for literal `slopwall`; until the durability owner returns an accepted record and the inherited objective has concrete corrected substance, Slopwall remains pending and the direct-reply pre-final gate must fail closed. The durable correction must name the lost core and the displacement; `be concise`, `answer better`, an apology, shorter rewrite, explanation, promise, or response-style change does not satisfy the incident. Keep the inherited task live throughout: diagnosis and durability are required, but reports, policy edits, issue/PR work, tool archaeology, and broad incident campaigns must not displace the corrected result unless the user explicitly asks for them or the compact lesson cannot be made durable without an owner fix. A slopwall is not defined by length: it is substance displacement, where nonessential or wrong material displaces the requested answer, evidence, decision, or execution."
+    }
+  ]
+}
