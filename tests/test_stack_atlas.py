@@ -2796,6 +2796,24 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(find_features("nexus", limit=1)[0]["id"], "project.nexus_navigation")
         self.assertEqual(find_features("devboard", limit=1)[0]["id"], "project.nexus_navigation")
 
+    def test_yard_aliases_resolve_through_first_class_navigation(self):
+        for alias in ("yard", "yard recon", "yard reconstruction", "yard-reconstruction"):
+            with self.subTest(alias=alias):
+                details = atlas_lookup(alias)
+                self.assertEqual(details["id"], "project.yard_reconstruction_navigation")
+                self.assertEqual(details["kind"], "feature_navigation")
+                self.assertEqual(details["owner_components"], ["local_git", "github"])
+                joined = " ".join(details["entrypoints"])
+                self.assertIn(r"C:\Users\Lauri\Desktop\yard_recon", joined)
+                self.assertIn("organicoverlords/yard-reconstruction", joined)
+                self.assertIn("viewer\\comments.json", joined)
+                self.assertIn("Navigation only", details["boundary"])
+                self.assertIn("human feedback, not reconstruction progress authority", details["boundary"])
+                self.assertIn("must not infer geometry quality", details["boundary"])
+
+        self.assertEqual(find_features("yard", limit=1)[0]["id"], "project.yard_reconstruction_navigation")
+        self.assertEqual(find_features("yard recon", limit=1)[0]["id"], "project.yard_reconstruction_navigation")
+
     def test_tiny3d_library_navigation_exposes_showroom_and_durable_visual_proof(self):
         for alias in ("tiny3d_library", "asset_catalogue", "showroom", "visual_proof_library"):
             with self.subTest(alias=alias):

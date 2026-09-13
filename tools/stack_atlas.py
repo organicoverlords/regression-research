@@ -915,6 +915,18 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         ],
         "boundary": "Navigation only. Nexus product direction lives in organicoverlords/agents@main under docs/repos/dev-progress-board; current Nexus repo/worktree state, exact GitHub issue/PR state, and repo-owned runtime evidence remain implementation/runtime authority. Atlas must not infer Nexus liveness, progress, or delivery state from static paths or old board snapshots.",
     },
+    "project.yard_reconstruction_navigation": {
+        "owner_components": ["local_git", "github"],
+        "triggers": ["yard", "yard recon", "yard reconstruction", "yard-reconstruction", "yard repo", "yard viewer"],
+        "entrypoints": [
+            r"C:\Users\Lauri\Desktop\yard_recon",
+            r"git -C C:\Users\Lauri\Desktop\yard_recon status --short --branch",
+            "gh issue list -R organicoverlords/yard-reconstruction",
+            "gh pr list -R organicoverlords/yard-reconstruction",
+            r"C:\Users\Lauri\Desktop\yard_recon\viewer\comments.json",
+        ],
+        "boundary": "Navigation only. Current Yard reconstruction truth lives in the canonical local git checkout, exact organicoverlords/yard-reconstruction issues/PRs, and repo-owned validation/runtime evidence. The viewer comment store is human feedback, not reconstruction progress authority. Atlas must not infer geometry quality, viewer liveness, delivery state, or issue completion from static paths, derived model artifacts, or old reports.",
+    },
     "project.tiny3d_asset_library": {
         "owner_components": ["local_git", "visual_proof"],
         "triggers": [
@@ -3853,6 +3865,10 @@ FEATURE_LOOKUP_ALIASES = {
     "nexus": "project.nexus_navigation",
     "devboard": "project.nexus_navigation",
     "dev progress board": "project.nexus_navigation",
+    "yard": "project.yard_reconstruction_navigation",
+    "yard recon": "project.yard_reconstruction_navigation",
+    "yard reconstruction": "project.yard_reconstruction_navigation",
+    "yard-reconstruction": "project.yard_reconstruction_navigation",
     "tiny3d_library": "project.tiny3d_asset_library",
     "tiny3d library": "project.tiny3d_asset_library",
     "asset_catalogue": "project.tiny3d_asset_library",
