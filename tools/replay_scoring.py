@@ -1074,11 +1074,16 @@ def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: st
         raise FixtureError(f"{fixture.get('id', 'fixture')}: pending capture is not replay-ready")
     text = candidate_text(candidate)
     success_control = fixture["success_candidate"]
-    known_success = (
-        isinstance(candidate, dict)
-        and isinstance(success_control, dict)
-        and candidate.get("action") == success_control.get("action")
-    ) or text == candidate_text(success_control)
+    known_success = text == candidate_text(success_control)
+    event = fixture.get("incident_event")
+    authority_required = (
+        isinstance(event, dict)
+        and isinstance(event.get("repair_authority"), dict)
+        and event["repair_authority"].get("mode") == "REQUIRED"
+    )
+    if authority_required and isinstance(candidate, dict) and isinstance(success_control, dict):
+        candidate_without_authority = {key: value for key, value in candidate.items() if key != "authority_proof"}
+        known_success = candidate_text(candidate_without_authority) == candidate_text(success_control)
     results: list[dict[str, Any]] = []
     violations: list[str] = []
     for name, expected in fixture["scoring"].items():
