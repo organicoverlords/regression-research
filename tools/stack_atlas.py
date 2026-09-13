@@ -751,12 +751,12 @@ COMPONENTS.update({
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
         "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
-        "supervisor": "supervising/manual ChatGPT session owns guarded scheduler recovery; recurring workers observe fleet evidence only; operator handoff is administrative fallback",
-        "self_heal": "supervising_chat_guarded_recovery",
+        "supervisor": "recurring workers own only bounded same-partition sibling re-enable; supervising/manual ChatGPT owns guarded fallback; operator handoff is administrative fallback",
+        "self_heal": "bounded_same_partition_peer_reenable_with_supervising_fallback",
         "independent_recovery": [
             r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
             r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>",
-            "recurring workers never issue scheduler mutations; supervising/manual ChatGPT or explicit operator handoff may perform one guard-authorized targeted is_enabled=true recovery",
+            "recurring workers may perform one exact same-partition targeted is_enabled=true only after the launch-contract fleet-watch + live-scheduler gate; supervising/manual ChatGPT or explicit operator handoff remains the guarded fallback",
         ],
         "resources": ["S1 five recurring slots + S2 five recurring slots (max 5 per partition; 10 total)", "manual/on-demand worker population"],
         "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
@@ -771,10 +771,10 @@ COMPONENTS.update({
     "execution_workers": {
         "role": "executor:bounded", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
         "canonical_sources": ["fresh-worker launch contract", "agent_rules"], "live_status": ["independent execution/activity evidence"],
-        "supervisor": "recurring workers do not administer scheduler state; supervising/manual ChatGPT handles guarded recovery; BusyCoordinator is exact mutation collision control only", "self_heal": "no_worker_scheduler_administration",
+        "supervisor": "recurring workers may only re-enable an exact same-partition sibling after the full recovery gate; supervising/manual ChatGPT handles guarded fallback; BusyCoordinator is exact mutation collision control only", "self_heal": "bounded_same_partition_peer_reenable_only",
         "independent_recovery": [
             r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
-            "hand off actionable fleet-watch evidence to the supervising/manual ChatGPT session; recurring workers never request or perform scheduler writes",
+            "after an actionable same-partition fleet-watch candidate, corroborate that exact target in the live scheduler and perform at most one idempotent is_enabled=true; hand off when the gate cannot be proven",
             "preserve task/checkpoint and use another proven execution route for execution-path failures",
         ],
         "resources": ["claimed scope", "worktree", "execution route"], "dependents": ["chatgpt_session"],
@@ -785,7 +785,7 @@ COMPONENTS.update({
         "live_status": ["current automation enabled/schedule state only; not worker liveness, supervision, or recovery authority"],
         "supervisor": "platform recurrence service only; it does not supervise worker health or own swarm recovery", "self_heal": "not_swarm_supervision",
         "independent_recovery": [
-            "recurring workers never issue scheduler mutations; a supervising/manual ChatGPT session or explicit operator handoff may use fleet-watch plus worker_recovery_guard and issue one targeted is_enabled=true recovery; scheduler listing is not the discovery path",
+            "recurring workers may issue only one exact same-partition is_enabled=true after the launch-contract fleet-watch + live-scheduler gate; supervising/manual ChatGPT or explicit operator handoff may use fleet-watch plus worker_recovery_guard as fallback; scheduler listing is not the discovery path",
             "present-turn work continues without recurrence",
         ], "resources": ["timed recurrence and enabled state only"],
         "dependents": ["execution_workers"], "runbook": ["04 Operating Contracts/fresh-worker-generation-launch.md"],
@@ -1064,7 +1064,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["swarm_topology"],
         "triggers": ["swarm topology", "five recurring workers", "max five recurring workers", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "The current canonical recurring topology has two independent partitions, S1 and S2, with at most five recurring workers in each partition (ten total). Activity in one partition never authorizes pausing or disabling the other partition. Canonical membership does not imply enabled state or liveness. The scheduler provides recurrence only. Recurring workers may inspect bounded fleet evidence but never administer themselves or siblings. Guarded targeted recovery belongs to the supervising/manual ChatGPT session or explicit operator handoff; the user is not the worker supervisor. Current activity/liveness remains live MCP/runtime evidence.",
+        "boundary": "The current canonical recurring topology has two independent partitions, S1 and S2, with at most five recurring workers in each partition (ten total). Activity in one partition never authorizes scheduler mutation in the other. Canonical membership does not imply enabled state or liveness. The scheduler provides recurrence only. A recurring worker may never administer itself and may only perform one targeted idempotent is_enabled=true on an exact canonical same-partition sibling after the bounded fleet-watch plus corroborating live-scheduler recovery gate. All other scheduler administration remains supervising/manual or explicit operator fallback. Current activity/liveness remains live MCP/runtime evidence.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],

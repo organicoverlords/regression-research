@@ -1198,31 +1198,31 @@ class StackAtlasTests(unittest.TestCase):
         self.assertFalse(topology["manual_workers"]["counts_against_recurring_slots"])
         self.assertIn("S1", topology["manual_workers"]["total_swarm_semantics"])
         self.assertIn("S2", topology["manual_workers"]["total_swarm_semantics"])
-    def test_recurring_worker_recovery_is_admin_supervised_and_scheduler_is_recurrence_only(self):
+    def test_recurring_worker_recovery_allows_only_bounded_same_partition_reenable(self):
         topology = component_details("swarm_topology")
         workers = component_details("execution_workers")
         scheduler = component_details("chatgpt_automations")
 
-        self.assertIn("supervising/manual ChatGPT session", topology["supervisor"])
+        self.assertIn("bounded same-partition sibling re-enable", topology["supervisor"])
         self.assertIn("chatgpt_automations", topology["dependents"])
         self.assertNotIn("scheduler", topology["dependents"])
-        self.assertEqual(topology["self_heal"], "supervising_chat_guarded_recovery")
+        self.assertEqual(topology["self_heal"], "bounded_same_partition_peer_reenable_with_supervising_fallback")
         self.assertIn("BusyCoordinator is exact mutation collision control only", workers["supervisor"])
-        self.assertNotIn("BusyCoordinator ownership", workers["supervisor"])
+        self.assertIn("exact same-partition sibling", workers["supervisor"])
         self.assertFalse(any("worker_recovery_guard" in route for route in workers["independent_recovery"]))
-        self.assertTrue(any("never request or perform scheduler writes" in route for route in workers["independent_recovery"]))
+        self.assertTrue(any("idempotent is_enabled=true" in route for route in workers["independent_recovery"]))
         self.assertIn("does not supervise worker health", scheduler["supervisor"])
         self.assertEqual(scheduler["self_heal"], "not_swarm_supervision")
         self.assertTrue(any("worker_recovery_guard.py" in route for route in topology["independent_recovery"]))
-        self.assertTrue(any("recurring workers never issue scheduler mutations" in route for route in topology["independent_recovery"]))
+        self.assertTrue(any("same-partition targeted is_enabled=true" in route for route in topology["independent_recovery"]))
         self.assertTrue(any("worker_recovery_guard" in route for route in scheduler["independent_recovery"]))
-        self.assertTrue(any("recurring workers never issue scheduler mutations" in route for route in scheduler["independent_recovery"]))
-        self.assertFalse(any("same-partition recurring siblings" in route for route in scheduler["independent_recovery"]))
+        self.assertTrue(any("same-partition is_enabled=true" in route for route in scheduler["independent_recovery"]))
 
         timed = find_features("timed runs", limit=5)
         match = next(item for item in timed if item["id"] == "worker.swarm_topology")
         self.assertIn("scheduler provides recurrence only", match["boundary"])
-        self.assertIn("user is not the worker supervisor", match["boundary"])
+        self.assertIn("targeted idempotent is_enabled=true", match["boundary"])
+        self.assertIn("same-partition sibling", match["boundary"])
 
     def test_fleet_watch_models_two_independent_five_worker_partitions(self):
         from datetime import datetime, timedelta, timezone
