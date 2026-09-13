@@ -3694,6 +3694,26 @@ def _bootstrap_slopwall_contract(agent_rules_root: Path | str = AGENT_RULES_ROOT
             "transition": "legacy accepted only until serving shared rules expose the V2 behavior-incident contract",
         }
 
+    v2_rules_missing = [
+        f"RULES:{key}" for key, phrase in _SLOPWALL_V2_RULES_INVARIANTS.items() if phrase not in rules
+    ]
+    legacy_rules_missing = [
+        f"RULES:{key}" for key, phrase in _SLOPWALL_LEGACY_RULES_INVARIANTS.items() if phrase not in rules
+    ]
+    if not v2_rules_missing:
+        return {
+            "status": "DRIFTED",
+            "version": "V2",
+            "missing": v2_missing,
+            "legacy_missing": legacy_missing,
+        }
+    if not legacy_rules_missing:
+        return {
+            "status": "DRIFTED",
+            "version": "LEGACY_V84",
+            "missing": legacy_missing,
+            "v2_missing": v2_missing,
+        }
     return {
         "status": "DRIFTED",
         "version": "UNKNOWN",
