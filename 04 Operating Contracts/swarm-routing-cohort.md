@@ -8,9 +8,10 @@ Make one machine-routing decision for a stable work identity and reuse it across
 
 ## Routing invariant
 
-- `lowvram` and `windows-only`: Windows.
+- `windows-ci-light`: KONE, and only for extremely light mandatory CI that genuinely requires Windows.
+- Legacy worker classes `lowvram` and `windows-only` fail closed. KONE-side persistent service ownership is infrastructure and must use its service-specific owner, not the swarm worker router.
 - `portable`, `heavy`, and `p3-runtime`: OMEN first.
-- `portable-light`: OMEN first. The `p3-vps-light` runner may take overflow only for a caller that explicitly opts in with `--allow-vps` and owns a supported execution adapter. Generic routing and `swarm_exec.py` do not opt in, so they fall back to Windows rather than emit an unexecutable VPS assignment.
+- `portable-light`: OMEN first. The `p3-vps-light` runner may take overflow only for a caller that explicitly opts in with `--allow-vps` and owns a supported execution adapter. Generic routing and `swarm_exec.py` do not opt in; if OMEN cannot admit the work they block/wait rather than use KONE or emit an unexecutable VPS assignment.
 - General swarm work does **not** fall back to KONE. If OMEN is unavailable or cannot safely admit the work, the work blocks/waits unless an explicit supported non-KONE lane applies. KONE execution is reserved for extremely light mandatory Windows CI; existing MCP/control transport and LowVRAM service ownership are not general worker execution.
 - A valid assignment is sticky for its `work-id`. Another worker joining the same work reuses it rather than choosing a machine independently.
 - Physical/session ownership is stronger than fungible compute fallback. For work that belongs to an exact machine or its visible desktop/session, pass `--owner-node-id <node-id>`. An explicit owner never falls back to another node when its transport is unavailable; it stays owner-bound and fails closed. An explicit owner correction supersedes a stale sticky decision for that work ID.

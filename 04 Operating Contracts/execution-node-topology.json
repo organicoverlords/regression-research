@@ -12,7 +12,7 @@
       "os_family": "windows",
       "system_model": "HP Pavilion Gaming Desktop TG01-2xxx",
       "gpu": "NVIDIA GeForce GTX 1660 SUPER",
-      "roles": ["mcp_control_transport", "lowvram", "windows_specific_validation"]
+      "roles": ["mcp_control_transport", "lowvram_service_owner", "mandatory_windows_ci_light"]
     },
     "omen-linux-laptop": {
       "display_name": "OMEN Linux laptop",
