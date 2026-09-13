@@ -401,10 +401,26 @@ def derive_display_title(entry: dict[str, Any]) -> str:
     return text[: MAX_DERIVED_TITLE_CHARS - 1].rstrip() + "…"
 
 
-def _ordinary_recall_eligible(entry: dict[str, Any], superseded: set[str]) -> bool:
+def _classification_map(
+    entries: list[dict[str, Any]],
+    classifications: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, dict[str, Any]]:
+    resolved = dict(classifications or {})
+    for entry in entries:
+        entry_id = str(entry["id"])
+        if entry_id not in resolved:
+            resolved[entry_id] = classify_entry(entry)
+    return resolved
+
+
+def _ordinary_recall_eligible(
+    entry: dict[str, Any],
+    superseded: set[str],
+    classification: dict[str, Any] | None = None,
+) -> bool:
     if entry.get("state") == "REJECTED" or entry.get("id") in superseded or is_expired(entry):
         return False
-    classification = classify_entry(entry)
+    classification = classification if classification is not None else classify_entry(entry)
     if classification["sensitivity"] == "EXCLUDE":
         return False
     if classification["durability"] in {"EPHEMERAL", "HISTORICAL"}:
@@ -419,19 +435,10 @@ def annotate_memory(entry: dict[str, Any]) -> dict[str, Any]:
     return annotated
 
 
-def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None) -> list[dict[str, Any]]:
-    effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, DEFAULT_RECENT_TITLES_LIMIT if limit is None else limit))
-    if effective_limit == 0:
-        return []
-    superseded = {old for entry in entries for old in entry.get("supersedes", [])}
-    current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
-    current.sort(
-        key=lambda entry: (
-            parse_iso_datetime(entry["timestamp"]),
-            entry["id"],
-        ),
-        reverse=True,
-    )
+def _recent_title_entries_from_current(
+    current: list[dict[str, Any]],
+    effective_limit: int,
+) -> list[dict[str, Any]]:
     return [
         {
             "id": entry["id"],
@@ -442,6 +449,32 @@ def recent_title_entries(entries: list[dict[str, Any]], limit: int | None = None
         }
         for entry in current[:effective_limit]
     ]
+
+
+def recent_title_entries(
+    entries: list[dict[str, Any]],
+    limit: int | None = None,
+    *,
+    classifications: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, DEFAULT_RECENT_TITLES_LIMIT if limit is None else limit))
+    if effective_limit == 0:
+        return []
+    classification_by_id = _classification_map(entries, classifications)
+    superseded = {old for entry in entries for old in entry.get("supersedes", [])}
+    current = [
+        entry
+        for entry in entries
+        if _ordinary_recall_eligible(entry, superseded, classification_by_id[str(entry["id"])])
+    ]
+    current.sort(
+        key=lambda entry: (
+            parse_iso_datetime(entry["timestamp"]),
+            entry["id"],
+        ),
+        reverse=True,
+    )
+    return _recent_title_entries_from_current(current, effective_limit)
 
 
 
@@ -458,11 +491,21 @@ def _refresh_recent_titles_projection(path: Path) -> None:
         print(f"MEMORY_RECENT_PROJECTION NOT_PROVEN: {exc}", file=sys.stderr)
 
 
-def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str, Any]:
+def aggregate_memory(
+    entries: list[dict[str, Any]],
+    limit: int = 8,
+    *,
+    classifications: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Build a bounded query-free digest of durable Vault memory evidence."""
     effective_limit = min(MAX_RECENT_TITLES_LIMIT, max(0, limit))
+    classification_by_id = _classification_map(entries, classifications)
     superseded = {old for entry in entries for old in entry.get("supersedes", [])}
-    current = [entry for entry in entries if _ordinary_recall_eligible(entry, superseded)]
+    current = [
+        entry
+        for entry in entries
+        if _ordinary_recall_eligible(entry, superseded, classification_by_id[str(entry["id"])])
+    ]
     current.sort(
         key=lambda entry: (
             parse_iso_datetime(entry["timestamp"]),
@@ -517,13 +560,18 @@ def aggregate_memory(entries: list[dict[str, Any]], limit: int = 8) -> dict[str,
         "schema": "memory-bank.overview.v1",
         "contract": "Aggregated durable/historical evidence only; never current repo, runtime, scheduler, or machine truth.",
         "eligible_entries": len(current),
-        "recent": recent_title_entries(entries, limit=effective_limit),
+        "recent": _recent_title_entries_from_current(current, effective_limit),
         "projects": project_summary,
         "scopes": ranked(scopes),
         "kinds": ranked(kinds),
         "top_tags": ranked(tags),
         "recurring_tags": [item for item in ranked(tags) if item["count"] >= 2],
-        "incident_rollups": build_incident_rollups(current, limit=min(5, effective_limit), member_id_limit=20),
+        "incident_rollups": build_incident_rollups(
+            current,
+            limit=min(5, effective_limit),
+            member_id_limit=20,
+            classifications=classification_by_id,
+        ),
     }
 
 
@@ -689,7 +737,8 @@ def build_overview(
     now: datetime | None = None,
     include_timeline_snapshots: bool = False,
 ) -> dict[str, Any]:
-    overview = aggregate_memory(entries, limit=limit)
+    classification_by_id = _classification_map(entries)
+    overview = aggregate_memory(entries, limit=limit, classifications=classification_by_id)
     overview["worker_findings"] = worker_findings_overview(
         timed_metrics=timed_metrics,
         manual_metrics=manual_metrics,
@@ -707,6 +756,7 @@ def build_overview(
             artifact_events=sources["artifact_events"],
             snapshot_now=sources["now"],
             source_coverage=sources["source_coverage"],
+            classifications=classification_by_id,
         )
         overview["timeline_snapshots"] = timeline["snapshots"]
         overview["timeline_source_health"] = {

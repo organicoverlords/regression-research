@@ -571,6 +571,44 @@ class MemoryBankValidationTests(unittest.TestCase):
 
 
 
+class MemoryBankOverviewClassificationReuseTests(unittest.TestCase):
+    def entry(self, memory_id: str, minute: int) -> dict[str, object]:
+        return {
+            "id": memory_id,
+            "timestamp": f"2026-09-09T12:{minute:02d}:00+03:00",
+            "kind": "lesson",
+            "scope": "assistant-orchestration/test",
+            "tags": ["regression"],
+            "text": f"Durable lesson {memory_id}",
+            "state": "PROVEN",
+            "evidence": [f"github:regression-research#{minute + 1}"],
+            "supersedes": [],
+        }
+
+    def test_build_overview_classifies_each_entry_once_across_projections(self):
+        entries = [self.entry("one", 0), self.entry("two", 1), self.entry("three", 2)]
+        sources = {
+            "since": None,
+            "repo_events": [],
+            "worker_events": [],
+            "artifact_events": [],
+            "now": None,
+            "source_coverage": {},
+        }
+        real_classify = memory_bank.classify_entry
+        with (
+            patch.object(memory_bank, "classify_entry", wraps=real_classify) as classify,
+            patch.object(memory_bank, "_canonical_timeline_sources", return_value=sources),
+            patch.object(memory_bank, "worker_findings_overview", return_value={}),
+        ):
+            report = memory_bank.build_overview(entries, limit=3, include_timeline_snapshots=True)
+
+        self.assertEqual(classify.call_count, len(entries))
+        self.assertEqual(report["eligible_entries"], 3)
+        self.assertEqual([item["id"] for item in report["recent"]], ["three", "two", "one"])
+        self.assertIn("timeline_snapshots", report)
+
+
 class MemoryBankMaterializedOverviewTests(unittest.TestCase):
     def test_overview_orientation_uses_same_materialized_freshness_and_coverage_contract(self):
         with tempfile.TemporaryDirectory() as d:
