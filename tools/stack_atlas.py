@@ -226,6 +226,7 @@ BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
 BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES = 15_000
 BOOTSTRAP_GLANCE_MAX_BYTES = 25_000
+BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES = 4_000
 BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT = 4
 BOOTSTRAP_INTEGRITY_WARNING = (
     "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
@@ -2431,6 +2432,74 @@ def _bound_bootstrap_mcp_service_health_sources(
     return True
 
 
+def _trim_bootstrap_detail_for_headroom(
+    bounded: dict[str, Any],
+    stability_ceiling: int,
+) -> bool:
+    """Recover steady-state headroom by shrinking duplicated drill-down samples only."""
+    changed = False
+
+    def over() -> bool:
+        return _compact_json_bytes(bounded) > stability_ceiling
+
+    mcp = bounded.get("mcp") if isinstance(bounded.get("mcp"), dict) else None
+    sessions = mcp.get("active_sessions") if isinstance(mcp, dict) and isinstance(mcp.get("active_sessions"), list) else None
+    session_details = mcp.get("active_session_details") if isinstance(mcp, dict) and isinstance(mcp.get("active_session_details"), dict) else None
+    service_health = mcp.get("service_health") if isinstance(mcp, dict) and isinstance(mcp.get("service_health"), dict) else None
+    sources = service_health.get("sources") if isinstance(service_health, dict) and isinstance(service_health.get("sources"), list) else None
+
+    live_swarm = bounded.get("live_swarm") if isinstance(bounded.get("live_swarm"), dict) else None
+    actors = live_swarm.get("recurring_actors") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("recurring_actors"), list) else None
+    lanes = live_swarm.get("lanes") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) else None
+    lane_details = live_swarm.get("lane_details") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("lane_details"), dict) else None
+
+    session_configured = int(session_details.get("configured_limit") or session_details.get("limit") or len(sessions or [])) if session_details is not None else 0
+    source_configured = int(service_health.get("configured_source_detail_limit") or service_health.get("source_detail_limit") or len(sources or [])) if service_health is not None else 0
+    lane_configured = int(lane_details.get("configured_limit") or lane_details.get("limit") or len(lanes or [])) if lane_details is not None else 0
+    initial_sessions = len(sessions or [])
+    initial_sources = len(sources or [])
+    initial_actors = len(actors or [])
+    initial_lanes = len(lanes or [])
+
+    # First reduce duplicated compatibility/source samples while keeping at least one useful row.
+    for collection, floor in ((sessions, 1), (sources, 1), (actors, 1), (lanes, 2)):
+        if not isinstance(collection, list):
+            continue
+        while over() and len(collection) > floor:
+            collection.pop()
+
+    # If the reserve still cannot be met, summaries remain authoritative and drill-down can go shallower.
+    for collection, floor in ((sessions, 0), (actors, 0), (sources, 0), (lanes, 1)):
+        if not isinstance(collection, list):
+            continue
+        while over() and len(collection) > floor:
+            collection.pop()
+
+    if sessions is not None and session_details is not None and len(sessions) < initial_sessions:
+        changed = True
+        session_details["configured_limit"] = session_configured
+        session_details["limit"] = len(sessions)
+        session_details["returned"] = len(sessions)
+        session_details["bounded"] = int(session_details.get("total") or 0) > len(sessions)
+        session_details["budget_limited"] = True
+    if sources is not None and service_health is not None and len(sources) < initial_sources:
+        changed = True
+        service_health["configured_source_detail_limit"] = source_configured
+        service_health["source_detail_limit"] = len(sources)
+        service_health["sources_truncated"] = int(service_health.get("source_count") or initial_sources) > len(sources)
+        service_health["budget_limited"] = True
+    if actors is not None and len(actors) < initial_actors:
+        changed = True
+    if lanes is not None and lane_details is not None and len(lanes) < initial_lanes:
+        changed = True
+        lane_details["configured_limit"] = lane_configured
+        lane_details["limit"] = len(lanes)
+        lane_details["returned"] = len(lanes)
+        lane_details["bounded"] = int(lane_details.get("total") or 0) > len(lanes)
+        lane_details["budget_limited"] = True
+
+    return changed
+
 def _fit_bootstrap_glance_budget(
     glance: dict[str, Any],
     max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES,
@@ -2439,6 +2508,8 @@ def _fit_bootstrap_glance_budget(
     """Compact toward the legacy target while enforcing a larger hard payload ceiling."""
     budget = max(2_048, int(max_bytes))
     compaction_target = max(2_048, min(budget, int(compaction_target_bytes)))
+    headroom_reserve = min(BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES, max(0, budget - compaction_target))
+    stability_ceiling = max(compaction_target, budget - headroom_reserve)
     source = json.loads(json.dumps(glance, ensure_ascii=False))
     source.pop("bootstrap_warning", None)
     source.pop("bootstrap_end", None)
@@ -2455,6 +2526,13 @@ def _fit_bootstrap_glance_budget(
             "compaction_target_bytes": compaction_target,
             "compacted": source_details_compacted,
         }
+        if headroom_reserve:
+            bootstrap["payload_budget"].update({
+                "headroom_reserve_bytes": headroom_reserve,
+                "stability_ceiling_bytes": stability_ceiling,
+                "headroom_compacted": False,
+                "headroom_target_met": True,
+            })
 
     if _compact_json_bytes(bounded) <= compaction_target:
         return bounded
@@ -2606,15 +2684,24 @@ def _fit_bootstrap_glance_budget(
             if recovery.get(key) not in (None, "", [], {})
         }
 
+    headroom_compacted = False
+    if headroom_reserve and _compact_json_bytes(bounded) > stability_ceiling:
+        headroom_compacted = _trim_bootstrap_detail_for_headroom(bounded, stability_ceiling)
+    if isinstance(bootstrap, dict):
+        bootstrap["payload_budget"]["compacted"] = True
+        if headroom_reserve:
+            bootstrap["payload_budget"]["headroom_compacted"] = headroom_compacted
+
     final_bytes = _compact_json_bytes(bounded)
+    if isinstance(bootstrap, dict) and headroom_reserve and final_bytes > stability_ceiling:
+        bootstrap["payload_budget"]["headroom_target_met"] = False
+        final_bytes = _compact_json_bytes(bounded)
     if final_bytes > budget:
         raise ValueError(
             f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
             f"bytes={final_bytes} target={compaction_target} budget={budget}"
         )
 
-    if isinstance(bootstrap, dict):
-        bootstrap["payload_budget"]["compacted"] = True
     return bounded
 
 
