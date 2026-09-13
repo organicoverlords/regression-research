@@ -71,5 +71,18 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
         self.assertNotIn("Remote Desktop Commander", text)
         self.assertNotIn("first-launch proof", text.lower())
 
+    def test_timed_worker_current_report_is_lifecycle_snapshot_not_live_progress(self):
+        contract = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
+        self.assertIn("The `current` path is a run-lifecycle location, not live progress telemetry", contract)
+        self.assertIn("the RUNNING file is the start snapshot and may remain unchanged", contract)
+        self.assertIn("Do not checkpoint routine progress into it", contract)
+        self.assertNotIn("Update the current report at natural checkpoints", contract)
+
+        topology = json.loads((ROOT / "04 Operating Contracts/chatgpt-swarm-topology.json").read_text(encoding="utf-8"))
+        authority = topology["subscriptions"]["S2"]["enabled_state_authority"]
+        self.assertIn("run-lifecycle start/finalization evidence only", authority)
+        self.assertIn("do not prove current liveness, in-run progress, or scheduler flags", authority)
+        self.assertNotIn("live worker reports prove recent execution", authority)
+
 if __name__ == "__main__":
     unittest.main()

@@ -708,7 +708,7 @@ COMPONENTS.update({
     "worker_reports": {
         "role": "projection:worker-self-report", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
-        "live_status": [r"read current/<automation-id>.md snapshots directly for recent worker output; use immutable worker-reports\history\_reports metadata only for past-run chronology; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json; reconcile important progress/liveness claims with repo/runtime/CI/artifact evidence"],
+        "live_status": [r"current/<automation-id>.md is a run-lifecycle start/finalization snapshot, not live progress telemetry; a RUNNING file may remain unchanged for the whole run. Use MCP/runtime/Git/Busy/CI/artifact evidence for in-run progress and liveness; use immutable worker-reports\history\_reports metadata only for past-run chronology; when visual_proof_run is present inspect that local run under C:\P3Proofs plus reviewed.json"],
         "supervisor": "none", "self_heal": "not_applicable",
         "independent_recovery": ["read canonical repo/runtime/CI/artifact evidence directly"],
         "resources": ["worker-reports/current/<automation-id>.md", "worker-reports/history/_reports/*.json"], "dependents": ["chatgpt_session"],
@@ -1007,7 +1007,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["worker_reports"],
         "triggers": ["worker report", "worker status", "worker progress", "worker utilization", "stop reason", "tool drop", "liveness", "cedar", "alder", "juniper"],
         "entrypoints": [r"C:\Users\Lauri\Desktop\vault\worker-reports\current\<automation-id>.md", r"C:\Users\Lauri\Desktop\vault\worker-reports\history\_reports\*.json"],
-        "boundary": "Self-report/navigation surface; visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; verify important liveness/progress claims against repo/runtime/CI/artifact evidence.",
+        "boundary": "Run-lifecycle self-report/navigation surface, not live progress telemetry. A current RUNNING report is normally the run-start snapshot and may remain unchanged until finalization; never infer in-run activity or progress from its fields or mtime. Visual proof pointers are PENDING_REVIEW until independent reviewed.json exists; use repo/runtime/CI/artifact evidence for actual execution and liveness.",
     },
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
