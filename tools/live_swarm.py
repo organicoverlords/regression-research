@@ -330,9 +330,7 @@ def _actor_name_from_binding_label(label: str, partition: str) -> str:
     return name.strip()
 
 
-def _canonical_actor_specs(root: Path | None = None) -> list[dict[str, Any]]:
-    actor_root = root or Path(__file__).resolve().parent.parent
-    snapshot = load_slot_snapshot(actor_root)
+def _actor_specs_from_slot_snapshot(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     if snapshot.get("status") != "OK":
         return []
 
@@ -362,6 +360,11 @@ def _canonical_actor_specs(root: Path | None = None) -> list[dict[str, Any]]:
     ]
 
 
+def _canonical_actor_specs(root: Path | None = None) -> list[dict[str, Any]]:
+    actor_root = root or Path(__file__).resolve().parent.parent
+    return _actor_specs_from_slot_snapshot(load_slot_snapshot(actor_root))
+
+
 def _actor_candidate_map(detail: dict[str, Any], busy_entries: list[dict[str, Any]], specs: list[dict[str, Any]]) -> dict[str, set[str]]:
     evidence_texts: list[tuple[str, str]] = []
     worktree = detail.get("worktree") if isinstance(detail.get("worktree"), dict) else {}
@@ -372,6 +375,10 @@ def _actor_candidate_map(detail: dict[str, Any], busy_entries: list[dict[str, An
     for busy in busy_entries:
         if busy.get("owner"):
             evidence_texts.append(("busy_owner", str(busy["owner"])))
+        scopes = busy.get("scopes") if isinstance(busy.get("scopes"), list) else []
+        for scope in scopes:
+            if scope:
+                evidence_texts.append(("busy_scope", str(scope)))
     candidates: dict[str, set[str]] = {}
     for source, text in evidence_texts:
         tokens = set(re.sub(r"[^a-z0-9]+", " ", text.casefold()).split())
@@ -428,6 +435,91 @@ def _resolve_caller_identity(
         result["diagnostic"] = "AMBIGUOUS_RESOLVER_CANDIDATES"
         result["resolver_candidates"] = candidate_rows
     return result
+
+
+def _resolve_busy_identity(busy: dict[str, Any], specs: list[dict[str, Any]]) -> dict[str, Any]:
+    candidates = _actor_candidate_map({"worktree": None}, [busy], specs)
+    candidate_rows = [
+        {"actor": actor, "sources": sorted(sources)}
+        for actor, sources in sorted(candidates.items())
+    ]
+    if len(candidates) == 1:
+        actor, sources = next(iter(candidates.items()))
+        return {
+            "status": "ATTRIBUTED",
+            "actor": actor,
+            "source": "resolved_coordination",
+            "resolved_by": sorted(sources),
+        }
+    result: dict[str, Any] = {"status": "UNATTRIBUTED", "actor": None, "source": None}
+    if candidate_rows:
+        result["diagnostic"] = "AMBIGUOUS_COORDINATION_ACTOR"
+        result["resolver_candidates"] = candidate_rows
+    return result
+
+
+def _recurring_actor_evidence(
+    specs: list[dict[str, Any]],
+    callers: list[dict[str, Any]],
+    lanes: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    busy_entries = [
+        busy
+        for lane in lanes
+        for busy in lane.get("busy", [])
+        if isinstance(busy, dict)
+    ]
+    for spec in sorted(specs, key=lambda item: str(item.get("slot_id") or item.get("actor") or "")):
+        actor = str(spec.get("actor") or "")
+        actor_callers = [
+            caller for caller in callers
+            if (caller.get("identity") or {}).get("status") == "ATTRIBUTED"
+            and (caller.get("identity") or {}).get("actor") == actor
+        ]
+        actor_busy = [
+            busy for busy in busy_entries
+            if (busy.get("identity") or {}).get("status") == "ATTRIBUTED"
+            and (busy.get("identity") or {}).get("actor") == actor
+        ]
+        actor_callers.sort(key=lambda item: float(item["last_activity_age_seconds"]) if item.get("last_activity_age_seconds") is not None else 1e9)
+        actor_busy.sort(key=lambda item: float(item["last_update_age_seconds"]) if item.get("last_update_age_seconds") is not None else 1e9)
+        if actor_callers:
+            evidence_state = "RECENT_ATTRIBUTED_MCP_ACTIVITY"
+        elif actor_busy:
+            evidence_state = "RECENT_COORDINATION_ONLY"
+        else:
+            evidence_state = "NO_RECENT_EVIDENCE"
+        row: dict[str, Any] = {
+            "slot_id": spec.get("slot_id"),
+            "actor": actor,
+            "evidence_state": evidence_state,
+        }
+        if actor_callers:
+            latest = actor_callers[0]
+            worktree = latest.get("worktree") if isinstance(latest.get("worktree"), dict) else {}
+            row["mcp"] = {
+                "caller_count": len(actor_callers),
+                "most_recent_activity_age_seconds": latest.get("last_activity_age_seconds"),
+                "identity_source": (latest.get("identity") or {}).get("source"),
+                "workspace": latest.get("workspace"),
+                "branch": worktree.get("branch"),
+                "activity_target": latest.get("activity_target"),
+            }
+            row["mcp"] = {k: v for k, v in row["mcp"].items() if v is not None}
+        if actor_busy:
+            latest_busy = actor_busy[0]
+            scopes = latest_busy.get("scopes") if isinstance(latest_busy.get("scopes"), list) else []
+            row["coordination"] = {
+                "owner_count": len({str(item.get("owner")) for item in actor_busy if item.get("owner")}),
+                "most_recent_update_age_seconds": latest_busy.get("last_update_age_seconds"),
+                "latest_owner": latest_busy.get("owner"),
+                "latest_scope": next((str(scope) for scope in scopes if scope), None),
+                "checkpoint": latest_busy.get("checkpoint"),
+            }
+            row["coordination"] = {k: v for k, v in row["coordination"].items() if v is not None}
+        rows.append(row)
+    return rows
 
 
 def _workspace(path: str | None) -> str | None:
@@ -759,8 +851,11 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "checkpoint":next((str(j.get("checkpoint")) for j in owner_jobs if j.get("checkpoint")),None),
         })
     lane_list=list(lanes.values())
-    actor_specs = _canonical_actor_specs()
+    slot_snapshot = load_slot_snapshot(Path(__file__).resolve().parent.parent)
+    actor_specs = _actor_specs_from_slot_snapshot(slot_snapshot)
     for lane in lane_list:
+        for busy_entry in lane["busy"]:
+            busy_entry["identity"] = _resolve_busy_identity(busy_entry, actor_specs)
         for caller in lane["callers"]:
             caller["identity"] = _resolve_caller_identity(caller, lane["busy"], now=now, specs=actor_specs)
         caller_ages = [float(c["last_activity_age_seconds"]) for c in lane["callers"] if c.get("last_activity_age_seconds") is not None]
@@ -789,6 +884,25 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     workspace_counts: dict[str,int]={}
     for d in details.values():
         w=d.get("workspace") or "Unknown"; workspace_counts[w]=workspace_counts.get(w,0)+1
+    recurring_actors = _recurring_actor_evidence(actor_specs, caller_list, lane_list)
+    recurring_states: dict[str, int] = {}
+    for row in recurring_actors:
+        state = str(row.get("evidence_state") or "NO_RECENT_EVIDENCE")
+        recurring_states[state] = recurring_states.get(state, 0) + 1
+    unbound_slots = [
+        str(slot.get("slot_id"))
+        for partition in (slot_snapshot.get("partitions") or {}).values()
+        for slot in (partition.get("slots") or [])
+        if isinstance(slot, dict) and not slot.get("bound") and slot.get("slot_id")
+    ] if slot_snapshot.get("status") == "OK" else []
+    recurring_actor_summary = {
+        "slot_registry_status": slot_snapshot.get("status"),
+        "available": slot_snapshot.get("status") == "OK",
+        "bound_actors": len(recurring_actors),
+        "unbound_slots": sorted(unbound_slots),
+        "evidence_states": recurring_states,
+        "semantics": "evidence_fusion_only_not_worker_health; coordination_only_is_not_liveness; no_recent_evidence_is_not_dead_or_scheduler_failure",
+    }
     result={
         "schema":"live-swarm.v1","available":True,"generated_at":now.isoformat(),
         "summary":{
@@ -797,6 +911,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "busy_only_lanes":sum(1 for l in lane_list if l["basis"]=="busy_owner"),
             "activity_only_lanes":sum(1 for l in lane_list if l["basis"]=="caller_activity"),
             "busy_owners":len(owners),"busy_scopes":len(jobs),"lane_states":lane_states,"workspace_counts":workspace_counts,"identity":identity_summary,
+            "recurring_actor_evidence":recurring_actor_summary,
         },
         "evidence":{
             "transport":TRANSPORT_KIND,
@@ -809,6 +924,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "activity_buckets_semantics":"non_overlapping_unique_callers_by_latest_process_started_or_process_read_age",
             "caller_mode_semantics":"PLAN_ONLY_only_when_latest_activity_process_action_class_is_explicitly_plan_labelled; otherwise_UNKNOWN",
             "actor_attribution_semantics":"self_declared_current_caller_binding_wins; passive_resolver_is_corroborating_or_fallback_only; missing_identity_is_not_health_failure",
+            "recurring_actor_evidence_semantics":"bound-slot projection joins attributed MCP activity and deterministic Busy coordination; coordination_only and no_recent_evidence are not liveness or health verdicts",
             "actor_self_identify_command":"python tools/live_swarm.py identify-actor <semantic-actor>",
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
             "execution_reference_minutes":EXECUTION_REFERENCE_MINUTES,
@@ -817,6 +933,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "activity_summary":{**activity_counts,"last_event_at":last_event_at.isoformat() if last_event_at else None},
         },
         "callers":caller_list,
+        "recurring_actors":recurring_actors,
         "transport_sources":source_details,
         "transport_source_discovery":{
             "bytes":discovery.get("discovery_bytes"),
@@ -843,9 +960,30 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
             "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","mode","identity") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
+    source_actors=list(snapshot.get("recurring_actors") or [])
+    state_priority={"RECENT_ATTRIBUTED_MCP_ACTIVITY":0,"RECENT_COORDINATION_ONLY":1,"NO_RECENT_EVIDENCE":2}
+    source_actors.sort(key=lambda row:(state_priority.get(str(row.get("evidence_state")),9),str(row.get("slot_id") or row.get("actor") or "")))
+    actor_limit=4
+    recurring_actors=[]
+    for row in source_actors[:actor_limit]:
+        compact_row={k:row.get(k) for k in ("slot_id","actor","evidence_state") if row.get(k) is not None}
+        if isinstance(row.get("mcp"),dict):
+            compact_row["mcp"]={
+                k:row["mcp"].get(k)
+                for k in ("most_recent_activity_age_seconds","workspace","branch","activity_target")
+                if row["mcp"].get(k) is not None
+            }
+        if isinstance(row.get("coordination"),dict):
+            compact_row["coordination"]={
+                k:row["coordination"].get(k)
+                for k in ("most_recent_update_age_seconds","latest_owner")
+                if row["coordination"].get(k) is not None
+            }
+        recurring_actors.append(compact_row)
     return {
         "summary":snapshot.get("summary",{}),
         "evidence":snapshot.get("evidence",{}),
+        "recurring_actors":recurring_actors,
         "lanes":lanes,
         "lane_details":{
             "policy":"most_recent",
