@@ -1593,10 +1593,10 @@
       "duplicate_status": "canonical",
       "superseded_by": null,
       "missing": [
-        "full_conversation_not_loaded_by_design",
-        "searchable_memory_pointer_pending_non_live_v2_design"
+        "full_conversation_not_loaded_by_design"
       ],
-      "notes": "V2 design incident. Raw evidence is intentionally bounded to agent-visible context and preserved verbatim; no full conversation reload/backfill is required or claimed. Replay fixture carries the event manifest and behavior-contract review."
+      "notes": "V2 design incident. Raw evidence is intentionally bounded to agent-visible context and preserved verbatim; no full conversation reload/backfill is required or claimed. Replay fixture carries the event manifest and behavior-contract review. Canonical behavior-incident memory closure is bound to memory/memory-bank.jsonl#mem-sw-v2-20260913-001.",
+      "canonical_memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-001"
     }
   ],
   "orphan_evidence": [

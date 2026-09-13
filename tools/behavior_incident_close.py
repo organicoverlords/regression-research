@@ -159,7 +159,11 @@ def _closed_payloads(raw: dict[str, Any], provenance: dict[str, Any], provenance
     entry = closed_provenance["entries"][provenance_index]
     missing = entry.get("missing") or []
     _require(isinstance(missing, list), "provenance missing must be an array")
-    entry["missing"] = [item for item in missing if item != "canonical_memory_pending"]
+    memory_pending_markers = {
+        "canonical_memory_pending",
+        "searchable_memory_pointer_pending_non_live_v2_design",
+    }
+    entry["missing"] = [item for item in missing if item not in memory_pending_markers]
     entry["canonical_memory_ref"] = memory_ref
     note = f"Canonical behavior-incident memory closure is bound to {memory_ref}."
     current_notes = str(entry.get("notes") or "").strip()
@@ -241,11 +245,27 @@ def close_incident(replay_path: Path, *, root: Path = ROOT, bank_path: Path | No
     event_id = plan["event_id"]
 
     if event.get("closure_state") == "CLOSED":
+        existing = _find_memory(plan["bank_path"], plan["memory_id"])
+        _require(existing is not None, f"{event_id}: CLOSED event is missing canonical memory")
+        expected_projection = _stable_memory_projection(plan["memory_values"])
+        existing_projection = _stable_memory_projection(existing)
+        _require(existing_projection == expected_projection, f"{event_id}: deterministic memory id already exists with different content")
+        closed_replay, closed_provenance = _closed_payloads(
+            raw,
+            plan["provenance"],
+            plan["provenance_index"],
+            plan["memory_ref"],
+        )
+        replay_bytes = (json.dumps(closed_replay, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        provenance_bytes = (json.dumps(closed_provenance, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        _commit_updates({plan["replay_path"]: replay_bytes, plan["provenance_path"]: provenance_bytes})
         return {
             "status": "ALREADY_CLOSED",
             "event_id": event_id,
             "memory_ref": event["memory_ref"],
+            "memory_id": existing["id"],
             "canonical_memory_written": False,
+            "published": False,
         }
 
     memory_values = plan["memory_values"]

@@ -31,6 +31,10 @@ def test_plan_is_read_only_and_uses_deterministic_memory_id(tmp_path: Path) -> N
 
 def test_close_records_canonical_memory_and_closes_replay_and_provenance(tmp_path: Path) -> None:
     result, replay_path = prepared_incident(tmp_path)
+    provenance_path = tmp_path / "provenance.json"
+    pending_provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    pending_provenance["entries"][0]["missing"].append("searchable_memory_pointer_pending_non_live_v2_design")
+    provenance_path.write_text(json.dumps(pending_provenance, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     closed = close_incident(replay_path, root=tmp_path)
     assert closed["status"] == "CLOSED"
     assert closed["canonical_memory_written"] is True
@@ -54,14 +58,22 @@ def test_close_records_canonical_memory_and_closes_replay_and_provenance(tmp_pat
     entry = provenance["entries"][0]
     assert entry["canonical_memory_ref"] == closed["memory_ref"]
     assert "canonical_memory_pending" not in entry["missing"]
+    assert "searchable_memory_pointer_pending_non_live_v2_design" not in entry["missing"]
 
 
 def test_close_is_idempotent_after_closed_state(tmp_path: Path) -> None:
     _, replay_path = prepared_incident(tmp_path)
     first = close_incident(replay_path, root=tmp_path)
+    provenance_path = tmp_path / "provenance.json"
+    provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    provenance["entries"][0]["missing"].append("searchable_memory_pointer_pending_non_live_v2_design")
+    provenance_path.write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     second = close_incident(replay_path, root=tmp_path)
     assert first["status"] == "CLOSED"
     assert second["status"] == "ALREADY_CLOSED"
+    assert second["canonical_memory_written"] is False
+    repaired_provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    assert "searchable_memory_pointer_pending_non_live_v2_design" not in repaired_provenance["entries"][0]["missing"]
     assert len(load_bank(tmp_path / "memory/memory-bank.jsonl")) == 1
 
 

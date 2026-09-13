@@ -175,10 +175,11 @@ def test_closed_event_rejects_missing_or_pending_memory_pointer(tmp_path: Path) 
         validate_slopwall_fixture(raw, root=tmp_path, filename="test-replay.json")
 
 
-def test_concrete_v2_event_remains_pending_until_canonical_memory() -> None:
+def test_concrete_v2_event_is_closed_after_canonical_memory() -> None:
     path = ROOT / "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
-    assert raw["incident_event"]["closure_state"] == "REPAIRED_PENDING_DURABILITY"
+    assert raw["incident_event"]["closure_state"] == "CLOSED"
+    assert raw["incident_event"]["memory_ref"] == "memory/memory-bank.jsonl#mem-sw-v2-20260913-001"
     validate_slopwall_fixture(raw, root=ROOT, filename=path.name)
 
 
