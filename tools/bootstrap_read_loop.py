@@ -337,6 +337,8 @@ def _sync_deployed_runtime_bundle_from_source_ref(repo_root: Path, atlas: Path |
         ('producer', producer, 'tools/bootstrap_read_loop.py'),
         ('memory_helper', runtime_dir / 'memory_recent_projection.py', 'tools/memory_recent_projection.py'),
         ('atlas', atlas, 'tools/stack_atlas.py'),
+        ('live_swarm', runtime_dir / 'live_swarm.py', 'tools/live_swarm.py'),
+        ('recurring_slot_registry', runtime_dir / 'recurring_slot_registry.py', 'tools/recurring_slot_registry.py'),
     )
     return {
         name: _sync_deployed_file_from_source_ref(repo_root, destination, relative_path)

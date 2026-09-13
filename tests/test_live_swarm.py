@@ -9,7 +9,7 @@ from pathlib import Path
 
 from tools.live_swarm import (
     _action_mode, _actor_candidate_map, _canonical_actor_specs, _command_target, _git_identity, _read_window,
-    _recurring_actor_evidence, _resolve_busy_identity, _resolve_caller_identity, _workspace,
+    _recurring_actor_evidence, _repo_root, _resolve_busy_identity, _resolve_caller_identity, _workspace,
     build_live_swarm_snapshot, compact_for_bootstrap,
     identify_current_actor,
 )
@@ -17,6 +17,10 @@ from tools.live_swarm import (
 
 class LiveSwarmTests(unittest.TestCase):
 
+
+    def test_repo_root_override_keeps_deployed_runtime_bound_to_serving_repo(self):
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"STACK_ATLAS_ROOT_OVERRIDE":td}):
+            self.assertEqual(_repo_root(),Path(td).resolve())
 
     def test_canonical_actor_specs_follow_current_slot_bindings(self):
         with tempfile.TemporaryDirectory() as td:

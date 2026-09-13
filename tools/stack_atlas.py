@@ -165,9 +165,9 @@ def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
 
 
 try:
-    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
-except ModuleNotFoundError:
     from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
+except ModuleNotFoundError:
+    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
 
 try:
     from tools.memory_recent_projection import default_local_bank_path, read_current_projection

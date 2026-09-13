@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from tools.recurring_slot_registry import load_slot_snapshot
-except ModuleNotFoundError:  # direct ``python tools/live_swarm.py`` execution
     from recurring_slot_registry import load_slot_snapshot
+except ModuleNotFoundError:  # imported as ``tools.live_swarm`` from the repository package
+    from tools.recurring_slot_registry import load_slot_snapshot
 
 ACTIVITY_WINDOW_SECONDS = 300
 ACTIVITY_COUNT_WINDOWS = (("15s", 15), ("60s", 60), ("2m", 120), ("5m", 300), ("15m", 900), ("30m", 1800))
@@ -26,6 +26,10 @@ TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
 TRANSPORT_KIND = "MCPv4"
 ACTOR_BINDING_TTL_HOURS = 8.0
 ACTOR_IDENTIFY_LOOKBACK_SECONDS = 120
+
+
+def _repo_root() -> Path:
+    return Path(os.environ.get("STACK_ATLAS_ROOT_OVERRIDE") or Path(__file__).resolve().parent.parent).resolve()
 
 
 def _dt(value: Any) -> datetime | None:
@@ -361,7 +365,7 @@ def _actor_specs_from_slot_snapshot(snapshot: dict[str, Any]) -> list[dict[str, 
 
 
 def _canonical_actor_specs(root: Path | None = None) -> list[dict[str, Any]]:
-    actor_root = root or Path(__file__).resolve().parent.parent
+    actor_root = root or _repo_root()
     return _actor_specs_from_slot_snapshot(load_slot_snapshot(actor_root))
 
 
@@ -851,7 +855,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "checkpoint":next((str(j.get("checkpoint")) for j in owner_jobs if j.get("checkpoint")),None),
         })
     lane_list=list(lanes.values())
-    slot_snapshot = load_slot_snapshot(Path(__file__).resolve().parent.parent)
+    slot_snapshot = load_slot_snapshot(_repo_root())
     actor_specs = _actor_specs_from_slot_snapshot(slot_snapshot)
     for lane in lane_list:
         for busy_entry in lane["busy"]:
