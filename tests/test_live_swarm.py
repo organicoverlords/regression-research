@@ -169,6 +169,9 @@ class LiveSwarmTests(unittest.TestCase):
         path,basis=_command_target("git -C 'C:\\repo\\p3' status")
         self.assertEqual(path, r"C:\repo\p3")
         self.assertEqual(basis, "command_git_c")
+        path,basis=_command_target("python swarm_exec.py --work-id dev-board --kind portable-light --repo-root 'C:\\work\\dev-progress-board-mobile' -- git status")
+        self.assertEqual(path, r"C:\work\dev-progress-board-mobile")
+        self.assertEqual(basis, "command_repo_root")
 
     def test_action_mode_requires_explicit_plan_label(self):
         self.assertEqual(_action_mode("package_plan"), "PLAN_ONLY")
