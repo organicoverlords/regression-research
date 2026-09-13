@@ -9,7 +9,8 @@ from pathlib import Path
 
 from tools.live_swarm import (
     _action_mode, _actor_candidate_map, _canonical_actor_specs, _command_target, _git_identity, _read_window,
-    _resolve_caller_identity, _workspace, build_live_swarm_snapshot, compact_for_bootstrap,
+    _recurring_actor_evidence, _resolve_busy_identity, _resolve_caller_identity, _workspace,
+    build_live_swarm_snapshot, compact_for_bootstrap,
     identify_current_actor,
 )
 
@@ -77,6 +78,58 @@ class LiveSwarmTests(unittest.TestCase):
         detail={"worktree":{"branch":"chatgpt/3013-cohort-pressure-retry-spruce-s2","path":r"C:\\wt\\spruce-s2"}}
         got=_actor_candidate_map(detail,[{"owner":"ChatGPT-alder-s2-run11"}],specs)
         self.assertEqual(got,{"S2/Alder":{"busy_owner"},"S2/Spruce":{"worktree_branch","worktree_path"}})
+
+    def test_busy_scope_can_resolve_coordination_actor_without_claiming_liveness(self):
+        specs=[{"actor":"S2/Spruce","partition":"s2","slot_id":"S2/2","name":"spruce","name_unique":True}]
+        busy={
+            "owner":"ChatGPT-generic-worker",
+            "scopes":["p3:git-ref:refs/heads/chatgpt/3013-retry-spruce-s2"],
+            "last_update_age_seconds":12.0,
+        }
+        identity=_resolve_busy_identity(busy,specs)
+        self.assertEqual(identity["status"],"ATTRIBUTED")
+        self.assertEqual(identity["actor"],"S2/Spruce")
+        self.assertEqual(identity["source"],"resolved_coordination")
+        self.assertEqual(identity["resolved_by"],["busy_scope"])
+
+    def test_ambiguous_busy_identity_stays_unattributed(self):
+        specs=[
+            {"actor":"S1/Alder","partition":"s1","slot_id":"S1/5","name":"alder","name_unique":False},
+            {"actor":"S2/Alder","partition":"s2","slot_id":"S2/5","name":"alder","name_unique":False},
+        ]
+        identity=_resolve_busy_identity({"owner":"ChatGPT-Alder","scopes":[]},specs)
+        self.assertEqual(identity,{"status":"UNATTRIBUTED","actor":None,"source":None})
+
+    def test_recurring_actor_projection_separates_mcp_coordination_and_absence(self):
+        specs=[
+            {"actor":"S1/Hazel","partition":"s1","slot_id":"S1/1","name":"hazel","name_unique":True},
+            {"actor":"S2/Spruce","partition":"s2","slot_id":"S2/2","name":"spruce","name_unique":True},
+            {"actor":"S2/Juniper","partition":"s2","slot_id":"S2/4","name":"juniper","name_unique":True},
+        ]
+        callers=[{
+            "caller_id":"caller_hazel",
+            "last_activity_age_seconds":4.0,
+            "workspace":"Vault",
+            "worktree":{"branch":"chatgpt/hazel-s1-fix","path":r"C:\wt\hazel"},
+            "activity_target":{"type":"card","id":"1132","project":"regression-research"},
+            "identity":{"status":"ATTRIBUTED","actor":"S1/Hazel","source":"resolved"},
+        }]
+        busy={
+            "owner":"ChatGPT-spruce-s2-run",
+            "scopes":["p3:git-ref:refs/heads/chatgpt/spruce-s2-work"],
+            "last_update_age_seconds":9.0,
+            "checkpoint":"working on #3013",
+            "identity":{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_coordination","resolved_by":["busy_owner","busy_scope"]},
+        }
+        rows=_recurring_actor_evidence(specs,callers,[{"busy":[busy]}])
+        by_actor={row["actor"]:row for row in rows}
+        self.assertEqual(by_actor["S1/Hazel"]["evidence_state"],"RECENT_ATTRIBUTED_MCP_ACTIVITY")
+        self.assertEqual(by_actor["S1/Hazel"]["mcp"]["activity_target"]["id"],"1132")
+        self.assertEqual(by_actor["S2/Spruce"]["evidence_state"],"RECENT_COORDINATION_ONLY")
+        self.assertEqual(by_actor["S2/Spruce"]["coordination"]["latest_owner"],"ChatGPT-spruce-s2-run")
+        self.assertEqual(by_actor["S2/Juniper"]["evidence_state"],"NO_RECENT_EVIDENCE")
+        self.assertNotIn("health",by_actor["S2/Juniper"])
+        self.assertNotIn("liveness",by_actor["S2/Juniper"])
 
     def test_explicit_actor_wins_resolver_mismatch_without_health_failure(self):
         now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
@@ -375,7 +428,7 @@ class LiveSwarmTests(unittest.TestCase):
             self.assertEqual(snapshot["transport_sources"][0]["instance"],"clone-a")
 
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
-        snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"]}]}]}
+        snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"recurring_actors":[{"slot_id":"S2/2","actor":"S2/Spruce","evidence_state":"RECENT_COORDINATION_ONLY","coordination":{"latest_owner":"o","latest_scope":"secret/coordination/scope","checkpoint":"secret checkpoint"}}],"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"],"identity":{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_coordination"}}]}]}
         compact=compact_for_bootstrap(snapshot)
         self.assertEqual(compact["summary"]["recent_callers"],3)
         self.assertEqual(compact["lanes"][0]["busy"][0]["scope_count"],5)
@@ -384,6 +437,10 @@ class LiveSwarmTests(unittest.TestCase):
         self.assertNotIn("action_class",compact["lanes"][0]["callers"][0])
         self.assertNotIn("activity_target",compact["lanes"][0]["callers"][0])
         self.assertNotIn("scopes",compact["lanes"][0]["busy"][0])
+        self.assertNotIn("identity",compact["lanes"][0]["busy"][0])
+        self.assertEqual(compact["recurring_actors"][0]["evidence_state"],"RECENT_COORDINATION_ONLY")
+        self.assertNotIn("latest_scope",compact["recurring_actors"][0]["coordination"])
+        self.assertNotIn("checkpoint",compact["recurring_actors"][0]["coordination"])
         self.assertNotIn("lanes_truncated",compact)
         self.assertEqual(compact["lane_details"], {
             "policy":"most_recent", "limit":8, "returned":1, "total":1, "bounded":False,
