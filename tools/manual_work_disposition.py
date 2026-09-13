@@ -7,7 +7,7 @@ import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 BINDING_SCHEMA = "manual-run-binding.v1"
@@ -43,7 +43,7 @@ def _stdout_legacy_report_run_id(stdout: Any) -> str | None:
         if not line.upper().startswith("REPORT="):
             continue
         value = line.split("=", 1)[1].strip().strip('\"')
-        stem = Path(value).stem
+        stem = PureWindowsPath(value).stem if "\\" in value else Path(value).stem
         if RUN_ID_RE.fullmatch(stem):
             return stem
     return None
