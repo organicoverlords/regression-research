@@ -36,6 +36,7 @@ def capture_spec(event_id: str = "SW-V2-TEST-MAT-001") -> dict:
                 "control_state_pathology": 1,
             },
             "severity_100": 36,
+            "repair_authority": {"mode": "NOT_REQUIRED"},
             "analysis": {
                 "failure_boundary": "The prior reply explained the failure and stopped instead of advancing the inherited task.",
                 "user_needed": "A corrected answer that advances the inherited objective.",
@@ -117,6 +118,9 @@ def test_materialize_creates_bound_pending_bundle_without_canonical_memory(tmp_p
     assert event["capture"]["full_conversation_reload"] is False
     assert event["repair_binding_required"] is True
     assert event["repair_binding"]["status"] == "PENDING_OBSERVATION"
+    assert event["repair_authority"] == {"mode": "NOT_REQUIRED"}
+    report_text = (tmp_path / result["report_ref"]).read_text(encoding="utf-8")
+    assert "## Repair authority" in report_text and "`NOT_REQUIRED`" in report_text
     validate_slopwall_fixture(replay, root=tmp_path, filename=Path(result["replay_ref"]).name)
 
     provenance = json.loads((tmp_path / "provenance.json").read_text(encoding="utf-8"))
@@ -124,6 +128,27 @@ def test_materialize_creates_bound_pending_bundle_without_canonical_memory(tmp_p
 
     ok, errors, _ = validate_provenance(tmp_path / "provenance.json")
     assert ok, errors
+
+
+def test_capture_requires_explicit_repair_authority_review(tmp_path: Path) -> None:
+    spec = capture_spec("SW-V2-TEST-AUTH-MISSING")
+    spec["event"].pop("repair_authority")
+    with pytest.raises(BehaviorIncidentCaptureError, match="repair_authority is required"):
+        materialize_capture(spec, root=tmp_path)
+    assert files_under(tmp_path) == set()
+
+
+def test_capture_rejects_corrective_trigger_as_authority(tmp_path: Path) -> None:
+    spec = capture_spec("SW-V2-TEST-AUTH-TRIGGER")
+    spec["event"]["repair_authority"] = {
+        "mode": "REQUIRED",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "corrective_trigger_is_authority": True,
+    }
+    with pytest.raises(BehaviorIncidentCaptureError, match="corrective trigger must not be authority"):
+        materialize_capture(spec, root=tmp_path)
+    assert files_under(tmp_path) == set()
 
 
 def test_invalid_generated_replay_leaves_no_final_artifacts(tmp_path: Path) -> None:

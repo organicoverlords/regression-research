@@ -161,6 +161,14 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
     repair_required = event.get("repair_binding_required", False)
     _require(isinstance(repair_required, bool), f"{event_id}: repair_binding_required must be boolean")
     if repair_required:
+        repair_authority = event.get("repair_authority")
+        _require(isinstance(repair_authority, dict), f"{event_id}: repair_authority is required")
+        authority_mode = repair_authority.get("mode")
+        _require(authority_mode in {"NOT_REQUIRED", "REQUIRED"}, f"{event_id}: invalid repair_authority mode")
+        if authority_mode == "REQUIRED":
+            _require(isinstance(repair_authority.get("owner"), str) and repair_authority["owner"].strip(), f"{event_id}: required repair authority needs owner")
+            _require(isinstance(repair_authority.get("gate"), str) and repair_authority["gate"].strip(), f"{event_id}: required repair authority needs gate")
+            _require(repair_authority.get("corrective_trigger_is_authority") is False, f"{event_id}: corrective trigger cannot be repair authority")
         repair_binding = event.get("repair_binding")
         _require(isinstance(repair_binding, dict), f"{event_id}: repair_binding is required")
         repair_status = repair_binding.get("status")

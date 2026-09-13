@@ -151,6 +151,9 @@
     "repair_binding": {
       "status": "PENDING_OBSERVATION",
       "evidence_ref": "02 Evidence/SW-V2-20260913-004_visible-context.json"
+    },
+    "repair_authority": {
+      "mode": "NOT_REQUIRED"
     }
   }
 }

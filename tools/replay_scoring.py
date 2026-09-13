@@ -1040,12 +1040,45 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     raise FixtureError(f"unsupported scoring assertion: {assertion}")
 
 
+def _repair_authority_assertion(fixture: dict[str, Any], candidate: Any) -> tuple[bool, str] | None:
+    event = fixture.get("incident_event")
+    if not isinstance(event, dict):
+        return None
+    required = event.get("repair_authority")
+    if not isinstance(required, dict) or required.get("mode") != "REQUIRED":
+        return None
+    if not isinstance(candidate, dict):
+        return False, "authority-sensitive repair candidate has no structured authority proof"
+    proof = candidate.get("authority_proof")
+    if not isinstance(proof, dict):
+        return False, "authority-sensitive repair candidate has no independent authority proof"
+    refs = proof.get("evidence_refs")
+    basis = str(proof.get("basis") or "").casefold()
+    forbidden = {"slopwall", "incident_report", "incident report", "corrective_trigger", "corrective trigger"}
+    ok = (
+        proof.get("status") == "PASS"
+        and proof.get("owner") == required.get("owner")
+        and proof.get("gate") == required.get("gate")
+        and isinstance(refs, list)
+        and bool(refs)
+        and all(isinstance(ref, str) and ref.strip() for ref in refs)
+        and basis not in forbidden
+        and bool(basis)
+    )
+    return ok, "repair authority is independently proven by the normal owner/gate" if ok else "repair authority is not independently proven by the required normal owner/gate"
+
+
 def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: str | None = None, root: Path = ROOT) -> dict[str, Any]:
     validate_fixture(fixture, root=root, filename=fixture.get("_path", fixture.get("id", "fixture")))
     if not _is_replay_ready(fixture):
         raise FixtureError(f"{fixture.get('id', 'fixture')}: pending capture is not replay-ready")
     text = candidate_text(candidate)
-    known_success = text == candidate_text(fixture["success_candidate"])
+    success_control = fixture["success_candidate"]
+    known_success = (
+        isinstance(candidate, dict)
+        and isinstance(success_control, dict)
+        and candidate.get("action") == success_control.get("action")
+    ) or text == candidate_text(success_control)
     results: list[dict[str, Any]] = []
     violations: list[str] = []
     for name, expected in fixture["scoring"].items():
@@ -1060,6 +1093,12 @@ def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: st
         results.append(result)
         if not passed:
             violations.append(name)
+    authority = _repair_authority_assertion(fixture, candidate)
+    if authority is not None:
+        passed, explanation = authority
+        results.append({"name": "repair_authority_independently_proven", "expectation": "required", "status": "PASS" if passed else "FAIL", "explanation": explanation})
+        if not passed:
+            violations.append("repair_authority_independently_proven")
     return {
         "fixture_id": fixture["id"],
         "fixture_title": fixture["title"],

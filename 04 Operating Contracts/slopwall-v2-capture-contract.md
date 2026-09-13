@@ -17,7 +17,7 @@ Meta-references or questions about `slopwall` or `incident report` are reference
 
 `slopwall` and `incident report` enter the same full loop: establish the failed boundary, inspect governing guidance/evidence, classify the supported failure mechanism, materially repair the inherited objective, then persist incident + replay + bounded score/confidence + searchable memory and perform behavior-contract review.
 
-The trigger does **not** authorize unrelated scheduler, worker, routing, deployment, shared-rule, or other control-plane mutation. Any such mutation still needs its normal authority/gate. `incident report` requests investigation and repair, not blanket mutation permission.
+The trigger does **not** authorize unrelated scheduler, worker, routing, deployment, shared-rule, or other control-plane mutation. Any such mutation still needs its normal authority/gate. `incident report` requests investigation and repair, not blanket mutation permission. Every new event records `repair_authority.mode` explicitly. `REQUIRED` names the normal owner and gate and cannot score or close until the bound repair candidate carries independent PASS evidence from that owner/gate; `NOT_REQUIRED` states that the repaired reply/action is not claiming an authority-sensitive mutation.
 
 `incident report` is broader than Slopwall: it may capture a permission/control-flow/tooling incident even when the user is not classifying the bad response as Slopwall. The durability and replay machinery is shared so there is only one incident system.
 

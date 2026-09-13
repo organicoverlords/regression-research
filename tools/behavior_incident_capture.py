@@ -64,6 +64,11 @@ def _report_text(spec: dict[str, Any], *, event_id: str, evidence_ref: str, repl
     guidance_lines = "\n".join(f"- `{item['status']}` - {item['source']}" for item in guidance)
     uncertainty = analysis.get("unresolved_uncertainty") or "None beyond the evidence classifications recorded below."
     rule_change = "yes" if analysis.get("rule_change_recommended") else "no"
+    repair_authority = event["repair_authority"]
+    authority_mode = repair_authority["mode"]
+    authority_detail = "No authority-sensitive mutation is claimed by the repair."
+    if authority_mode == "REQUIRED":
+        authority_detail = f"Normal owner `{repair_authority['owner']}` and gate `{repair_authority['gate']}` must independently authorize the repair; the corrective trigger is not authority."
     return f"""# Behavior incident - {event_id}
 
 Status: V2 capture artifact.
@@ -106,6 +111,12 @@ Status: V2 capture artifact.
 ## Repaired result/action
 
 {analysis['repaired_result']}
+
+## Repair authority
+
+- mode: `{authority_mode}`
+
+{authority_detail}
 
 ## Unresolved uncertainty
 
@@ -179,6 +190,15 @@ def build_artifacts(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any
     _require(event.get("full_conversation_reload") is False, "full_conversation_reload must be false")
     _require(event.get("retrieval_for_capture_only") is False, "retrieval_for_capture_only must be false")
 
+    repair_authority = event.get("repair_authority")
+    _require(isinstance(repair_authority, dict), "event.repair_authority is required")
+    authority_mode = repair_authority.get("mode")
+    _require(authority_mode in {"NOT_REQUIRED", "REQUIRED"}, "repair_authority.mode must be NOT_REQUIRED or REQUIRED")
+    if authority_mode == "REQUIRED":
+        _require(isinstance(repair_authority.get("owner"), str) and repair_authority["owner"].strip(), "repair_authority.owner is required when authority is REQUIRED")
+        _require(isinstance(repair_authority.get("gate"), str) and repair_authority["gate"].strip(), "repair_authority.gate is required when authority is REQUIRED")
+        _require(repair_authority.get("corrective_trigger_is_authority") is False, "corrective trigger must not be authority")
+
     analysis = event.get("analysis")
     _require(isinstance(analysis, dict), "event.analysis is required")
     for key in ("failure_boundary", "user_needed", "assistant_did", "first_supported_divergence", "failure_class", "correct_counterfactual", "repaired_result"):
@@ -249,6 +269,7 @@ def build_artifacts(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any
         "scores": event.get("scores"),
         "severity_100": event.get("severity_100"),
         "analysis": incident_analysis,
+        "repair_authority": dict(repair_authority),
         "repair_binding_required": True,
         "repair_binding": {"status": "PENDING_OBSERVATION", "evidence_ref": evidence_ref},
         "closure_state": "REPAIRED_PENDING_DURABILITY",

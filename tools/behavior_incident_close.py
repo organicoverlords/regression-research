@@ -244,6 +244,24 @@ def _require_canonical_artifacts(root: Path, refs: list[str]) -> None:
         _require(show.stdout == local.read_bytes(), f"canonical memory closure blocked: {normalized} differs from origin/main")
 
 
+
+def _verify_repair_authority(event: dict[str, Any], candidate: dict[str, Any], event_id: str) -> None:
+    required = event.get("repair_authority")
+    _require(isinstance(required, dict), f"{event_id}: repair_authority is required")
+    mode = required.get("mode")
+    _require(mode in {"NOT_REQUIRED", "REQUIRED"}, f"{event_id}: invalid repair_authority mode")
+    if mode != "REQUIRED":
+        return
+    proof = candidate.get("authority_proof")
+    _require(isinstance(proof, dict), f"{event_id}: authority-sensitive repair requires independent authority proof")
+    refs = proof.get("evidence_refs")
+    basis = str(proof.get("basis") or "").casefold()
+    _require(proof.get("status") == "PASS", f"{event_id}: repair authority proof must PASS")
+    _require(proof.get("owner") == required.get("owner"), f"{event_id}: repair authority owner mismatch")
+    _require(proof.get("gate") == required.get("gate"), f"{event_id}: repair authority gate mismatch")
+    _require(isinstance(refs, list) and refs and all(isinstance(ref, str) and ref.strip() for ref in refs), f"{event_id}: repair authority proof needs evidence_refs")
+    _require(basis not in {"slopwall", "incident_report", "incident report", "corrective_trigger", "corrective trigger"} and bool(basis), f"{event_id}: corrective trigger is not repair authority")
+
 def bind_repair(
     replay_path: Path,
     *,
@@ -265,6 +283,7 @@ def bind_repair(
     event_id = str(event.get("event_id") or "").strip()
     _require(event.get("repair_binding_required") is True, f"{event_id}: replay does not require repair binding")
     _require(event.get("closure_state") != "CLOSED", f"{event_id}: CLOSED event cannot accept a new repair observation")
+    _verify_repair_authority(event, candidate, event_id)
     try:
         validate_slopwall_fixture(raw, root=root, filename=replay_path.name)
     except SlopwallV2Error as exc:
@@ -354,6 +373,7 @@ def _verify_repair_binding(raw: dict[str, Any], *, root: Path) -> dict[str, Any]
     _require(binding.get("status") == "SCORED_PASS", f"{event_id}: closure blocked until the actual visible repair is bound and scores PASS")
     candidate = raw.get("repair_candidate")
     _require(isinstance(candidate, dict), f"{event_id}: closure requires the bound repair_candidate")
+    _verify_repair_authority(event, candidate, event_id)
     try:
         scored = score_fixture(raw, candidate, candidate_name="bound_repair", root=root)
     except FixtureError as exc:

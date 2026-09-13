@@ -11,6 +11,7 @@ from tests.test_behavior_incident_capture import capture_spec
 from tools.behavior_incident_capture import materialize_capture
 from tools.behavior_incident_close import BehaviorIncidentCloseError, bind_repair, close_incident, plan_closure
 from tools.memory_bank import append_entry, load_bank
+from tools.replay_scoring import score_fixture
 from tools.slopwall_v2 import validate_slopwall_fixture
 
 
@@ -47,6 +48,64 @@ def test_repair_candidate_must_equal_observed_visible_content(tmp_path: Path) ->
         bind_repair(replay_path, observation="A different user-visible reply.", candidate=candidate, root=tmp_path)
     unchanged = json.loads(replay_path.read_text(encoding="utf-8"))
     assert unchanged["incident_event"]["repair_binding"]["status"] == "PENDING_OBSERVATION"
+
+
+def test_authority_sensitive_repair_requires_normal_owner_gate_proof(tmp_path: Path) -> None:
+    spec = capture_spec("SW-V2-TEST-CLOSE-AUTH")
+    spec["event"]["repair_authority"] = {
+        "mode": "REQUIRED",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "corrective_trigger_is_authority": False,
+    }
+    result = materialize_capture(spec, root=tmp_path)
+    replay_path = tmp_path / result["replay_ref"]
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    candidate = dict(replay["success_candidate"])
+    scored_without_authority = score_fixture(replay, candidate, candidate_name="missing-authority", root=tmp_path)
+    assert scored_without_authority["passed"] is False
+    assert "repair_authority_independently_proven" in scored_without_authority["violations"]
+
+    with pytest.raises(BehaviorIncidentCloseError, match="independent authority proof"):
+        bind_repair(replay_path, observation=candidate["action"], candidate=candidate, root=tmp_path)
+
+    candidate["authority_proof"] = {
+        "status": "PASS",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "basis": "normal_owner_gate",
+        "evidence_refs": ["runtime:runner-owner-gate-pass"],
+    }
+    scored_with_authority = score_fixture(replay, candidate, candidate_name="valid-authority", root=tmp_path)
+    assert scored_with_authority["passed"] is True
+    bound = bind_repair(replay_path, observation=candidate["action"], candidate=candidate, root=tmp_path)
+    assert bound["passed"] is True
+    rebound = json.loads(replay_path.read_text(encoding="utf-8"))
+    assert rebound["incident_event"]["repair_binding"]["status"] == "SCORED_PASS"
+    assert rebound["repair_candidate"]["authority_proof"]["owner"] == "runner-owner"
+
+
+def test_corrective_trigger_cannot_be_authority_proof(tmp_path: Path) -> None:
+    spec = capture_spec("SW-V2-TEST-CLOSE-AUTH-TRIGGER")
+    spec["event"]["repair_authority"] = {
+        "mode": "REQUIRED",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "corrective_trigger_is_authority": False,
+    }
+    result = materialize_capture(spec, root=tmp_path)
+    replay_path = tmp_path / result["replay_ref"]
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    candidate = dict(replay["success_candidate"])
+    candidate["authority_proof"] = {
+        "status": "PASS",
+        "owner": "runner-owner",
+        "gate": "runner-start-gate",
+        "basis": "slopwall",
+        "evidence_refs": ["conversation:slopwall"],
+    }
+    with pytest.raises(BehaviorIncidentCloseError, match="corrective trigger is not repair authority"):
+        bind_repair(replay_path, observation=candidate["action"], candidate=candidate, root=tmp_path)
 
 
 def test_unbound_repair_blocks_closure_before_memory(tmp_path: Path) -> None:
