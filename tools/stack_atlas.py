@@ -2498,7 +2498,7 @@ def _fit_bootstrap_glance_budget(
 
     if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("paths"), dict):
         paths = bounded["paths"]
-        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log") if key in paths}
+        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log", "issue_first_work_intake") if key in paths}
 
     if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("mcp_recovery_state"), dict):
         recovery = bounded["mcp_recovery_state"]
@@ -3558,15 +3558,21 @@ def _bootstrap_agent_contract_version(agent_rules_root: Path | str = AGENT_RULES
 
 _SLOPWALL_RULES_INVARIANTS = {
     "incident": "`slopwall` is a **mandatory correction-and-learning incident**",
-    "failure": "identify the concrete failed behavior or decision",
-    "mechanism": "infer the best-supported mechanism",
+    "reread": "re-read this canonical Slopwall rule and the matching AGENTS.md correction owner before finalizing the correction",
+    "compare": "compare the failed reply/action directly against the inherited objective",
+    "lost_core": "identify the concrete core proposition, decision, action, or evidence the user needed foregrounded",
+    "displacement": "identify what displaced that core",
+    "mechanism": "infer the best-supported mechanism or decision failure",
     "lesson": "derive one reusable prevention lesson",
     "durability": "persist one compact durable correction",
     "mandatory": "The durable correction is mandatory for literal `slopwall`",
+    "lost_core_record": "The durable correction must name the lost core and the displacement",
     "not_length": "A slopwall is not defined by length",
 }
 _SLOPWALL_AGENTS_INVARIANTS = {
     "learning_loop": "literal `slopwall` additionally requires a bounded durable learning loop",
+    "reread": "re-read the canonical Slopwall rule plus this correction owner",
+    "lost_core": "identify the lost core proposition/decision/action/evidence and what displaced it",
     "record": "The Slopwall record is mandatory",
     "specific": "do not store merely `be concise`, `answer better`",
     "uncertainty": "bounded uncertainty instead of fabricating a root cause",
@@ -3589,11 +3595,54 @@ def _bootstrap_slopwall_contract(agent_rules_root: Path | str = AGENT_RULES_ROOT
     ]
     contract = {
         "status": "ENFORCED" if not missing else "DRIFTED",
-        "process": "resume_task > failed_behavior > best_supported_mechanism > condition/action_prevention > mandatory_durable_correction; not brevity/apology",
+        "process": "reread_canonical_rule > compare_failed_answer_to_objective > recover_lost_core > identify_displacement > best_supported_mechanism > condition/action_prevention > repair_task > mandatory_durable_correction; not brevity/apology",
     }
     if missing:
         contract["missing"] = missing
     return contract
+
+
+_CRITICAL_GUIDANCE_RULES_INVARIANTS = {
+    "eli5": "ELI5 means strip away everything that does not help the user understand the decisive facts, live truth, error, or next action",
+    "asshole_marker": "lightweight durable mistake/regression marker and retrieval tag",
+    "asshole_reread": "Re-read the relevant canonical `RULES.md`/`AGENTS.md` section(s) implicated by the mistake",
+    "asshole_record": "This lightweight record is mandatory for literal `asshole`",
+}
+_CRITICAL_GUIDANCE_AGENTS_INVARIANTS = {
+    "find_focus": "Phrase each `find` around one decision-relevant unknown",
+    "find_narrow": "If the result is noisy, narrow that same unknown once rather than launching parallel searches",
+    "asshole_durability": "Literal `asshole` is a separate lightweight durability marker",
+    "slopwall_lost_core": "identify the lost core proposition/decision/action/evidence and what displaced it",
+}
+
+
+def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
+    """Project a tiny set of high-value interaction/navigation rules without becoming authority."""
+    root = Path(agent_rules_root)
+    try:
+        rules = (root / "RULES.md").read_text(encoding="utf-8")
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+    except OSError:
+        return {
+            "status": "MISSING",
+            "authority": "PROJECTION_ONLY_CANONICAL_RULES",
+            "missing": ["serving_rules_unreadable"],
+        }
+    missing = [
+        *(f"RULES:{key}" for key, phrase in _CRITICAL_GUIDANCE_RULES_INVARIANTS.items() if phrase not in rules),
+        *(f"AGENTS:{key}" for key, phrase in _CRITICAL_GUIDANCE_AGENTS_INVARIANTS.items() if phrase not in agents),
+    ]
+    guidance = {
+        "status": "ENFORCED" if not missing else "DRIFTED",
+        "authority": "PROJECTION_ONLY_CANONICAL_RULES",
+        "eli5": "facts/live truth/error/next action first; keep decisive raw data and constraints; strip nonessential explanation; no analogy unless explicitly requested",
+        "slopwall": "literal trigger => reread canonical Slopwall rule; compare failed answer to inherited objective; recover lost core and displacement; repair task; persist specific durable correction before final",
+        "asshole": "literal trigger => reread relevant canonical rule; correct/resume task first; persist one compact correction tagged asshole before final; no incident expansion or yield",
+        "stack_find": "unknown owner/WIP/runtime/history => one focused natural-language find for one decision-relevant unknown; if noisy, narrow that same unknown once; lookup smallest owner, then use its canonical interface",
+    }
+    if missing:
+        guidance["missing"] = missing
+    return guidance
 
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
@@ -3623,6 +3672,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
     mcp_recovery_state = _bootstrap_mcp_recovery_orientation(_bootstrap_mcp_recovery_state())
     agent_contract = _bootstrap_agent_contract_version()
     slopwall_contract = _bootstrap_slopwall_contract()
+    critical_guidance = _bootstrap_critical_guidance()
     notable_conditions: list[str] = []
     if agent_contract["status"] != "COHERENT":
         notable_conditions.append(f"agent_contract_version_{str(agent_contract['status']).casefold()}")
@@ -3723,6 +3773,7 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         "bounded_contract": "no_git_fetch_or_github_issue_pr_listing_or_busy_enumeration",
         "agent_contract": agent_contract,
         "slopwall_contract": slopwall_contract,
+        "critical_guidance": critical_guidance,
         "visual_acceptance": {
             "status": "HARD_GATE",
             "rule": "Inspect the exact candidate pixels/frames before visual success or user handoff.",

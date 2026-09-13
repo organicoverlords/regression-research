@@ -64,6 +64,7 @@ from tools.stack_atlas import (
     _bootstrap_mcp_from_live_swarm,
     _bootstrap_agent_contract_version,
     _bootstrap_slopwall_contract,
+    _bootstrap_critical_guidance,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -94,16 +95,22 @@ class StackAtlasTests(unittest.TestCase):
             root = Path(d)
             (root / "RULES.md").write_text(
                 "`slopwall` is a **mandatory correction-and-learning incident**\n"
-                "identify the concrete failed behavior or decision\n"
-                "infer the best-supported mechanism\n"
+                "re-read this canonical Slopwall rule and the matching AGENTS.md correction owner before finalizing the correction\n"
+                "compare the failed reply/action directly against the inherited objective\n"
+                "identify the concrete core proposition, decision, action, or evidence the user needed foregrounded\n"
+                "identify what displaced that core\n"
+                "infer the best-supported mechanism or decision failure\n"
                 "derive one reusable prevention lesson\n"
                 "persist one compact durable correction\n"
                 "The durable correction is mandatory for literal `slopwall`\n"
+                "The durable correction must name the lost core and the displacement\n"
                 "A slopwall is not defined by length\n",
                 encoding="utf-8",
             )
             (root / "AGENTS.md").write_text(
                 "literal `slopwall` additionally requires a bounded durable learning loop\n"
+                "re-read the canonical Slopwall rule plus this correction owner\n"
+                "identify the lost core proposition/decision/action/evidence and what displaced it\n"
                 "The Slopwall record is mandatory\n"
                 "do not store merely `be concise`, `answer better`\n"
                 "bounded uncertainty instead of fabricating a root cause\n"
@@ -112,9 +119,12 @@ class StackAtlasTests(unittest.TestCase):
             )
             contract = _bootstrap_slopwall_contract(root)
             self.assertEqual(contract["status"], "ENFORCED")
-            self.assertIn("failed_behavior", contract["process"])
+            self.assertIn("reread_canonical_rule", contract["process"])
+            self.assertIn("recover_lost_core", contract["process"])
+            self.assertIn("identify_displacement", contract["process"])
             self.assertIn("best_supported_mechanism", contract["process"])
             self.assertIn("condition/action_prevention", contract["process"])
+            self.assertIn("repair_task", contract["process"])
             self.assertIn("mandatory_durable_correction", contract["process"])
             self.assertIn("not brevity/apology", contract["process"])
             self.assertNotIn("missing", contract)
@@ -126,8 +136,37 @@ class StackAtlasTests(unittest.TestCase):
             )
             drifted = _bootstrap_slopwall_contract(root)
             self.assertEqual(drifted["status"], "DRIFTED")
+            self.assertIn("AGENTS:reread", drifted["missing"])
+            self.assertIn("AGENTS:lost_core", drifted["missing"])
             self.assertIn("AGENTS:uncertainty", drifted["missing"])
             self.assertIn("AGENTS:inherit", drifted["missing"])
+
+    def test_bootstrap_critical_guidance_projects_canonical_triggers(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "RULES.md").write_text(
+                "ELI5 means strip away everything that does not help the user understand the decisive facts, live truth, error, or next action\n"
+                "lightweight durable mistake/regression marker and retrieval tag\n"
+                "Re-read the relevant canonical `RULES.md`/`AGENTS.md` section(s) implicated by the mistake\n"
+                "This lightweight record is mandatory for literal `asshole`\n",
+                encoding="utf-8",
+            )
+            (root / "AGENTS.md").write_text(
+                "Phrase each `find` around one decision-relevant unknown\n"
+                "If the result is noisy, narrow that same unknown once rather than launching parallel searches\n"
+                "Literal `asshole` is a separate lightweight durability marker\n"
+                "identify the lost core proposition/decision/action/evidence and what displaced it\n",
+                encoding="utf-8",
+            )
+            guidance = _bootstrap_critical_guidance(root)
+            self.assertEqual(guidance["status"], "ENFORCED")
+            self.assertEqual(guidance["authority"], "PROJECTION_ONLY_CANONICAL_RULES")
+            self.assertIn("no analogy unless explicitly requested", guidance["eli5"])
+            self.assertIn("recover lost core and displacement", guidance["slopwall"])
+            self.assertIn("tagged asshole", guidance["asshole"])
+            self.assertIn("one focused natural-language find", guidance["stack_find"])
+            self.assertIn("narrow that same unknown once", guidance["stack_find"])
+            self.assertNotIn("missing", guidance)
 
     def test_bootstrap_mcp_projection_identifies_mcpv4_multisource_evidence(self):
         snapshot = {
@@ -438,6 +477,8 @@ class StackAtlasTests(unittest.TestCase):
              patch("tools.stack_atlas._bootstrap_mcp_recovery_state", return_value={}):
             glance = build_live_bootstrap_glance()
         self.assertEqual(glance["bootstrap"]["status"], "OK")
+        self.assertIn("critical_guidance", glance["bootstrap"])
+        self.assertEqual(glance["bootstrap"]["critical_guidance"]["authority"], "PROJECTION_ONLY_CANONICAL_RULES")
         self.assertNotIn("notable_conditions", glance)
         self.assertEqual(glance["memory_overview"]["timeline_materialized"]["backfill_incomplete_sources"], ["github", "runner_logs"])
 
@@ -520,7 +561,8 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(contract["version"], contract["agents_version"])
         slopwall = glance["bootstrap"]["slopwall_contract"]
         self.assertEqual(slopwall["status"], "ENFORCED")
-        self.assertIn("failed_behavior", slopwall["process"])
+        self.assertIn("recover_lost_core", slopwall["process"])
+        self.assertIn("identify_displacement", slopwall["process"])
         self.assertIn("best_supported_mechanism", slopwall["process"])
         self.assertIn("condition/action_prevention", slopwall["process"])
         self.assertIn("mandatory_durable_correction", slopwall["process"])
