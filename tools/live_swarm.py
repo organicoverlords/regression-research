@@ -952,6 +952,16 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
 
 def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[str,Any]:
     lane_limit=max(0,int(lane_limit))
+    summary=dict(snapshot.get("summary") or {})
+    recurring_summary=summary.get("recurring_actor_evidence")
+    if isinstance(recurring_summary,dict):
+        summary["recurring_actor_evidence"]={
+            k:recurring_summary.get(k)
+            for k in ("available","bound_actors","unbound_slots","evidence_states")
+            if recurring_summary.get(k) is not None
+        }
+    evidence=dict(snapshot.get("evidence") or {})
+    evidence.pop("recurring_actor_evidence_semantics",None)
     source_lanes=list(snapshot.get("lanes") or [])
     lanes=[]
     for lane in source_lanes[:lane_limit]:
@@ -960,10 +970,13 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
             "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","mode","identity") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
-    source_actors=list(snapshot.get("recurring_actors") or [])
-    state_priority={"RECENT_ATTRIBUTED_MCP_ACTIVITY":0,"RECENT_COORDINATION_ONLY":1,"NO_RECENT_EVIDENCE":2}
+    source_actors=[
+        row for row in list(snapshot.get("recurring_actors") or [])
+        if str(row.get("evidence_state") or "") != "NO_RECENT_EVIDENCE"
+    ]
+    state_priority={"RECENT_ATTRIBUTED_MCP_ACTIVITY":0,"RECENT_COORDINATION_ONLY":1}
     source_actors.sort(key=lambda row:(state_priority.get(str(row.get("evidence_state")),9),str(row.get("slot_id") or row.get("actor") or "")))
-    actor_limit=4
+    actor_limit=2
     recurring_actors=[]
     for row in source_actors[:actor_limit]:
         compact_row={k:row.get(k) for k in ("slot_id","actor","evidence_state") if row.get(k) is not None}
@@ -981,8 +994,8 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
             }
         recurring_actors.append(compact_row)
     return {
-        "summary":snapshot.get("summary",{}),
-        "evidence":snapshot.get("evidence",{}),
+        "summary":summary,
+        "evidence":evidence,
         "recurring_actors":recurring_actors,
         "lanes":lanes,
         "lane_details":{
