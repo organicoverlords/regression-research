@@ -4940,6 +4940,42 @@ def _live_discovery_hits(query: str, limit: int = 5, *, snapshot: dict[str, Any]
     }
 
 
+def _github_repo_hints_for_find(query: str, atlas_hits: list[dict[str, Any]], limit: int = 2) -> list[str]:
+    folded = query.casefold()
+    hints: list[str] = []
+    seen: set[str] = set()
+
+    for match in re.finditer(r"(?<![A-Za-z0-9_.-])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(?=#|\b)", query):
+        repo = match.group(1).strip("/")
+        key = repo.casefold()
+        if key not in seen:
+            seen.add(key)
+            hints.append(repo)
+            if len(hints) >= limit:
+                return hints
+
+    for hit in atlas_hits:
+        triggers = [str(value or "").casefold() for value in (hit.get("triggers") or [])]
+        repo_matches: list[str] = []
+        for entry in hit.get("entrypoints") or []:
+            repo_matches.extend(re.findall(r"organicoverlords/[A-Za-z0-9_.-]+", str(entry), flags=re.IGNORECASE))
+        if not repo_matches:
+            continue
+        trigger_match = any(trigger and trigger in folded for trigger in triggers)
+        short_name_match = any(repo.split("/", 1)[-1].casefold() in folded for repo in repo_matches)
+        if not (trigger_match or short_name_match):
+            continue
+        for repo in repo_matches:
+            key = repo.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            hints.append(repo)
+            if len(hints) >= limit:
+                return hints
+    return hints
+
+
 def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
     query = str(query or "").strip()
     effective_limit = max(1, min(20, int(limit)))
@@ -4960,10 +4996,13 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
         }
     started = time.perf_counter()
     atlas_hits = find_features(query, effective_limit)
+    github_repo_hints = _github_repo_hints_for_find(query, atlas_hits)
     with ThreadPoolExecutor(max_workers=4) as pool:
         history_future = pool.submit(_timeline_discovery_hits, query, effective_limit)
         live_future = pool.submit(_live_discovery_hits, query, effective_limit)
-        github_cache_future = pool.submit(_search_gh_buffer_cache, query, effective_limit)
+        github_cache_future = pool.submit(
+            _search_gh_buffer_cache, query, effective_limit, repo_hints=github_repo_hints
+        )
         runtime_graph_future = pool.submit(_runtime_graph_search_safe, query, min(3, effective_limit))
         try:
             history_hits, history_coverage = history_future.result()
@@ -5014,7 +5053,7 @@ def unified_find(query: str, limit: int = 5) -> dict[str, Any]:
             "github_cache": github_cache_coverage,
             "runtime_graph": runtime_graph_coverage,
         },
-        "boundary": "Discovery only. One local discovery query: no repository-content grep/recursive scan, broad Scheduled Task enumeration, or GitHub network fanout. Local Git commits/branches, MCP/runtime receipts and transport/watchdog events, CI/runner evidence, worker reports, artifacts, materialized history, and bounded deployment/runtime graph slices are searched locally. GitHub detail comes from materialized history plus the local gh-buffer cache. Evidence clusters are correlation windows only, never shared truth; runtime graph observations label exact local task/file state but do not replace the owning runtime authority.",
+        "boundary": "Discovery only. One bounded discovery query: no repository-content grep/recursive scan, broad Scheduled Task enumeration, or broad GitHub network fanout. Local Git commits/branches, MCP/runtime receipts and transport/watchdog events, CI/runner evidence, worker reports, artifacts, materialized history, and bounded deployment/runtime graph slices are searched locally. GitHub detail comes from materialized history plus the local gh-buffer cache; strong exact # references may perform only bounded exact gh-buffer-proxy lookups for the resolved repo identity. Evidence clusters are correlation windows only, never shared truth; runtime graph observations label exact local task/file state but do not replace the owning runtime authority.",
         "latency_ms": round((time.perf_counter() - started) * 1000, 1),
     }
 

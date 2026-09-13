@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import pickle
 import sqlite3
+import subprocess
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from tools.stack_atlas import _timeline_discovery_hits
@@ -84,6 +86,81 @@ class UnifiedSearchSourcesTests(unittest.TestCase):
         self.assertFalse(coverage["repo_content_scan"])
         self.assertEqual(hits[0]["reference"], "organicoverlords/chatgpt-mcp-clean#301")
         self.assertEqual(hits[0]["label"], "Restore Library media persistence for Work")
+
+    def test_gh_buffer_exact_reference_hydrates_cold_cache_through_proxy(self):
+        with tempfile.TemporaryDirectory() as d:
+            cache = Path(d) / "cache.sqlite3"
+            connection = sqlite3.connect(cache)
+            connection.execute("""
+                CREATE TABLE cache_entries (
+                    key TEXT PRIMARY KEY, created_at REAL NOT NULL, expires_at REAL NOT NULL,
+                    returncode INTEGER NOT NULL, stdout BLOB NOT NULL, stderr BLOB NOT NULL,
+                    command_json TEXT NOT NULL, context TEXT NOT NULL
+                )
+            """)
+            connection.commit()
+            connection.close()
+
+            def exact_lookup(args, **kwargs):
+                self.assertIn("gh-buffer-proxy", str(args[0]).replace("\\", "/"))
+                self.assertEqual(args[1:4], ["issue", "view", "16"])
+                payload = {
+                    "number": 16,
+                    "title": "Canonical delivery owner",
+                    "body": "Exact owner body need not repeat every search term.",
+                    "comments": [],
+                    "state": "CLOSED",
+                }
+                logical = args[1:]
+                now = time.time()
+                db = sqlite3.connect(cache)
+                db.execute(
+                    "INSERT INTO cache_entries VALUES (?,?,?,?,?,?,?,?)",
+                    (
+                        "nexus16", now, now + 60, 0, json.dumps(payload).encode(), b"",
+                        json.dumps(logical), "host=github.com\nrepo=organicoverlords/nexus",
+                    ),
+                )
+                db.commit()
+                db.close()
+                return subprocess.CompletedProcess(args, 0, stdout=json.dumps(payload), stderr="")
+
+            with patch("tools.unified_search_sources.shutil.which", return_value=r"C:\tools\gh-buffer-proxy\gh.exe"), \
+                    patch("tools.unified_search_sources.subprocess.run", side_effect=exact_lookup) as run:
+                hits, coverage = search_gh_buffer_cache(
+                    "Nexus #16 implementation",
+                    cache_path=cache,
+                    repo_hints=["organicoverlords/nexus"],
+                )
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(hits[0]["reference"], "organicoverlords/nexus#16")
+        self.assertTrue(hits[0]["exact_reference_match"])
+        self.assertEqual(coverage["exact_lookup"]["status"], "USED")
+        self.assertEqual(coverage["exact_lookup"]["hits"], 1)
+        self.assertEqual(coverage["read_mode"], "READ_ONLY_SQLITE_CACHE_PLUS_BOUNDED_EXACT_GH_BUFFER_LOOKUP")
+
+    def test_gh_buffer_semantic_query_never_hydrates_without_exact_number(self):
+        with tempfile.TemporaryDirectory() as d:
+            cache = Path(d) / "cache.sqlite3"
+            connection = sqlite3.connect(cache)
+            connection.execute("""
+                CREATE TABLE cache_entries (
+                    key TEXT PRIMARY KEY, created_at REAL NOT NULL, expires_at REAL NOT NULL,
+                    returncode INTEGER NOT NULL, stdout BLOB NOT NULL, stderr BLOB NOT NULL,
+                    command_json TEXT NOT NULL, context TEXT NOT NULL
+                )
+            """)
+            connection.commit()
+            connection.close()
+            with patch("tools.unified_search_sources.subprocess.run") as run:
+                hits, coverage = search_gh_buffer_cache(
+                    "Nexus implementation proof",
+                    cache_path=cache,
+                    repo_hints=["organicoverlords/nexus"],
+                )
+        run.assert_not_called()
+        self.assertEqual(hits, [])
+        self.assertEqual(coverage["exact_lookup"]["status"], "NOT_NEEDED")
 
     def test_gh_buffer_batch_list_searches_each_cached_issue_independently(self):
         with tempfile.TemporaryDirectory() as d:
