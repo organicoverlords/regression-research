@@ -3602,47 +3602,21 @@ def _bootstrap_slopwall_contract(agent_rules_root: Path | str = AGENT_RULES_ROOT
     return contract
 
 
-_CRITICAL_GUIDANCE_RULES_INVARIANTS = {
-    "eli5": "ELI5 means strip away everything that does not help the user understand the decisive facts, live truth, error, or next action",
-    "asshole_marker": "lightweight durable mistake/regression marker and retrieval tag",
-    "asshole_reread": "Re-read the relevant canonical `RULES.md`/`AGENTS.md` section(s) implicated by the mistake",
-    "asshole_record": "This lightweight record is mandatory for literal `asshole`",
-}
-_CRITICAL_GUIDANCE_AGENTS_INVARIANTS = {
-    "find_focus": "Phrase each `find` around one decision-relevant unknown",
-    "find_narrow": "If the result is noisy, narrow that same unknown once rather than launching parallel searches",
-    "asshole_durability": "Literal `asshole` is a separate lightweight durability marker",
-    "slopwall_lost_core": "identify the lost core proposition/decision/action/evidence and what displaced it",
-}
-
-
 def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT) -> dict[str, Any]:
-    """Project a tiny set of high-value interaction/navigation rules without becoming authority."""
+    """Project prevention hints plus pointers back to the canonical rules."""
     root = Path(agent_rules_root)
     try:
-        rules = (root / "RULES.md").read_text(encoding="utf-8")
-        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        (root / "RULES.md").read_text(encoding="utf-8")
+        (root / "AGENTS.md").read_text(encoding="utf-8")
     except OSError:
-        return {
-            "status": "MISSING",
-            "authority": "PROJECTION_ONLY_CANONICAL_RULES",
-            "missing": ["serving_rules_unreadable"],
-        }
-    missing = [
-        *(f"RULES:{key}" for key, phrase in _CRITICAL_GUIDANCE_RULES_INVARIANTS.items() if phrase not in rules),
-        *(f"AGENTS:{key}" for key, phrase in _CRITICAL_GUIDANCE_AGENTS_INVARIANTS.items() if phrase not in agents),
-    ]
-    guidance = {
-        "status": "ENFORCED" if not missing else "DRIFTED",
-        "authority": "PROJECTION_ONLY_CANONICAL_RULES",
-        "eli5": "facts/live truth/error/next action first; keep decisive raw data and constraints; strip nonessential explanation; no analogy unless explicitly requested",
-        "slopwall": "literal trigger => reread canonical Slopwall rule; compare failed answer to inherited objective; recover lost core and displacement; repair task; persist specific durable correction before final",
-        "asshole": "literal trigger => reread relevant canonical rule; correct/resume task first; persist one compact correction tagged asshole before final; no incident expansion or yield",
-        "stack_find": "unknown owner/WIP/runtime/history => one focused natural-language find for one decision-relevant unknown; if noisy, narrow that same unknown once; lookup smallest owner, then use its canonical interface",
+        return {"mode": "UNAVAILABLE", "missing": ["serving_rules_unreadable"]}
+    return {
+        "mode": "HINT_ONLY",
+        "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty; strip jargon/process; no analogy unless asked | RULES:ELI5",
+        "slopwall": "keep inherited objective/core foregrounded; no filler/process/proxy displacement | RULES:slopwall + AGENTS:correction; repair first; mandatory correction before final",
+        "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
+        "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
     }
-    if missing:
-        guidance["missing"] = missing
-    return guidance
 
 
 def build_live_bootstrap_glance() -> dict[str, Any]:
