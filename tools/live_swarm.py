@@ -25,6 +25,7 @@ MAX_TRANSPORT_SOURCES = 16
 TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
 TRANSPORT_KIND = "MCPv4"
 ACTOR_BINDING_TTL_HOURS = 8.0
+PASSIVE_ACTOR_BINDING_TTL_MINUTES = 45.0
 ACTOR_IDENTIFY_LOOKBACK_SECONDS = 120
 
 
@@ -248,6 +249,74 @@ def _actor_binding_path(caller_id: str) -> Path | None:
     return _actor_binding_dir() / f"{caller}.json"
 
 
+def _passive_actor_binding_dir() -> Path:
+    return _local_appdata_root() / "ChatGPTMcpClean" / ".state" / "swarm-actor-resolver-cache"
+
+
+def _passive_actor_binding_path(caller_id: str) -> Path | None:
+    caller = str(caller_id or "")
+    if not re.fullmatch(r"caller_[A-Za-z0-9_-]{4,80}", caller):
+        return None
+    return _passive_actor_binding_dir() / f"{caller}.json"
+
+
+def _load_passive_actor_binding(caller_id: str, now: datetime) -> dict[str, Any] | None:
+    path = _passive_actor_binding_path(caller_id)
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return None
+    if not isinstance(payload, dict) or payload.get("caller_id") != caller_id:
+        return None
+    actor = _normalize_actor(payload.get("actor"))
+    observed_at = _dt(payload.get("observed_at"))
+    sources = payload.get("evidence_sources")
+    if actor is None or observed_at is None or not isinstance(sources, list):
+        return None
+    evidence_sources = sorted({str(source) for source in sources if str(source).strip()})
+    if not evidence_sources:
+        return None
+    age = max(0.0, (now - observed_at).total_seconds())
+    if age > PASSIVE_ACTOR_BINDING_TTL_MINUTES * 60:
+        return None
+    return {
+        "actor": actor,
+        "observed_at": observed_at.isoformat(),
+        "age_seconds": round(age, 1),
+        "evidence_sources": evidence_sources,
+    }
+
+
+def _store_passive_actor_binding(caller_id: str, actor: str, sources: set[str], now: datetime) -> None:
+    path = _passive_actor_binding_path(caller_id)
+    normalized = _normalize_actor(actor)
+    evidence_sources = sorted({str(source) for source in sources if str(source).strip()})
+    if path is None or normalized is None or not evidence_sources:
+        return
+    payload = {
+        "schema": "swarm-actor-resolver-cache.v1",
+        "caller_id": caller_id,
+        "actor": normalized,
+        "source": "resolved",
+        "evidence_sources": evidence_sources,
+        "observed_at": now.isoformat(),
+    }
+    temporary: Path | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        temporary.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
+        os.replace(temporary, path)
+    except OSError:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+
 def _load_explicit_actor_binding(caller_id: str, now: datetime) -> dict[str, Any] | None:
     path = _actor_binding_path(caller_id)
     if path is None:
@@ -453,12 +522,24 @@ def _resolve_caller_identity(
         return result
     if len(candidates) == 1:
         actor, sources = next(iter(candidates.items()))
+        _store_passive_actor_binding(caller_id, actor, sources, now)
         return {
             "status": "ATTRIBUTED",
             "actor": actor,
             "source": "resolved",
             "resolved_by": sorted(sources),
         }
+    if not candidate_rows:
+        cached = _load_passive_actor_binding(caller_id, now)
+        current_actors = {str(spec.get("actor")) for spec in specs}
+        if cached and cached["actor"] in current_actors:
+            return {
+                "status": "ATTRIBUTED",
+                "actor": cached["actor"],
+                "source": "resolved_cache",
+                "resolved_by": cached["evidence_sources"],
+                "cache_age_seconds": cached["age_seconds"],
+            }
     result = {"status": "UNATTRIBUTED", "actor": None, "source": None}
     if candidate_rows:
         result["diagnostic"] = "AMBIGUOUS_RESOLVER_CANDIDATES"
@@ -906,6 +987,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
         "unattributed": len(caller_list) - len(attributed),
         "self_declared": sum(1 for d in attributed if (d.get("identity") or {}).get("source") == "self_declared"),
         "resolved": sum(1 for d in attributed if (d.get("identity") or {}).get("source") == "resolved"),
+        "resolved_cached": sum(1 for d in attributed if (d.get("identity") or {}).get("source") == "resolved_cache"),
         "resolver_mismatches": sum(1 for d in attributed if (d.get("identity") or {}).get("diagnostic") == "RESOLVER_MISMATCH"),
         "semantics": "missing_or_ambiguous_actor_attribution_is_normal_and_does_not_degrade_swarm_health",
     }
@@ -954,7 +1036,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "active_callers_semantics":"unique_non_observer_callers_with_process_started_or_process_read_in_window",
             "activity_buckets_semantics":"non_overlapping_unique_callers_by_latest_process_started_or_process_read_age",
             "caller_mode_semantics":"PLAN_ONLY_only_when_latest_activity_process_action_class_is_explicitly_plan_labelled; otherwise_UNKNOWN",
-            "actor_attribution_semantics":"self_declared_current_caller_binding_wins; passive_resolver_is_corroborating_or_fallback_only; missing_identity_is_not_health_failure",
+            "actor_attribution_semantics":"self_declared_current_caller_binding_wins; unique_passive_resolution_refreshes_short_lived_caller_cache; ambiguous_or_missing_identity_is_not_health_failure",
             "recurring_actor_evidence_semantics":"bound-slot projection joins attributed MCP activity and deterministic Busy coordination; coordination_only and no_recent_evidence are not liveness or health verdicts",
             "actor_self_identify_command":"python tools/live_swarm.py identify-actor <semantic-actor>",
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
@@ -996,10 +1078,27 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
     source_lanes=list(snapshot.get("lanes") or [])
     lanes=[]
     for lane in source_lanes[:lane_limit]:
+        compact_callers=[]
+        for caller in lane.get("callers",[]):
+            compact_caller={
+                k:caller.get(k)
+                for k in ("caller_id","last_activity_age_seconds","mode")
+                if caller.get(k) is not None
+            }
+            identity=caller.get("identity")
+            if isinstance(identity,dict):
+                compact_identity={
+                    k:identity.get(k)
+                    for k in ("status","actor","source")
+                    if identity.get(k) is not None
+                }
+                if compact_identity:
+                    compact_caller["identity"]=compact_identity
+            compact_callers.append(compact_caller)
         lanes.append({
             "basis":lane.get("basis"),"state":lane.get("state"),"workspace":lane.get("workspace"),"worktree":lane.get("worktree"),
-            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","mode","identity") if c.get(k) is not None} for c in lane.get("callers",[])],
-            "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
+            "callers":compact_callers,
+            "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
     source_actors=[
         row for row in list(snapshot.get("recurring_actors") or [])

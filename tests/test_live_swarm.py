@@ -9,7 +9,7 @@ from pathlib import Path
 
 from tools.live_swarm import (
     _action_mode, _actor_candidate_map, _canonical_actor_specs, _command_target, _git_identity, _read_window,
-    _recurring_actor_evidence, _repo_root, _report_identity_candidates, _resolve_busy_identity, _resolve_caller_identity, _workspace,
+    _load_passive_actor_binding, _recurring_actor_evidence, _repo_root, _report_identity_candidates, _resolve_busy_identity, _resolve_caller_identity, _store_passive_actor_binding, _workspace,
     build_live_swarm_snapshot, compact_for_bootstrap,
     identify_current_actor,
 )
@@ -145,7 +145,8 @@ class LiveSwarmTests(unittest.TestCase):
             "@'\nautomation_id: 6aa5be5a9ebc8191a8d136b23e5a4666\ndisplay_label: Repo Worker Alder S1 New\n'@"
         )
         detail={"caller_id":"caller_worker","worktree":None,"_identity_command":command}
-        identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
         self.assertEqual(identity["actor"],"S1/Alder")
         self.assertEqual(identity["source"],"resolved")
         self.assertEqual(identity["resolved_by"],["report_self_metadata"])
@@ -154,7 +155,8 @@ class LiveSwarmTests(unittest.TestCase):
         specs=[{"actor":"S2/Rowan","partition":"s2","slot_id":"S2/1","automation_id":"6a9ee44357908191a11023d4ff0b5b82","name":"rowan","name_unique":True}]
         command=r"$p='C:\Users\Lauri\Desktop\vault\worker-reports\current\6a9ee44357908191a11023d4ff0b5b82.md'; $start=(Select-String -LiteralPath $p -Pattern '^started_at:')"
         detail={"caller_id":"caller_worker","worktree":None,"action_class":"mutate","_identity_command":command}
-        identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
         self.assertEqual(identity["actor"],"S2/Rowan")
         self.assertEqual(identity["resolved_by"],["report_mutation_target"])
 
@@ -165,6 +167,64 @@ class LiveSwarmTests(unittest.TestCase):
         detail={"caller_id":"caller_reader","worktree":None,"_identity_command":command}
         identity=_resolve_caller_identity(detail,[],now=datetime.now(timezone.utc),specs=specs)
         self.assertEqual(identity["status"],"UNATTRIBUTED")
+
+    def test_unique_passive_resolution_survives_next_unlabelled_call(self):
+        now=datetime(2026,9,13,8,0,0,tzinfo=timezone.utc)
+        specs=[{"actor":"S1/Maple","partition":"s1","slot_id":"S1/2","name":"maple","name_unique":True}]
+        exact={"caller_id":"caller_cache123","worktree":{"branch":"chatgpt/maple-s1-work","path":r"C:\wt\maple-s1"}}
+        blank={"caller_id":"caller_cache123","worktree":None}
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            first=_resolve_caller_identity(exact,[],now=now,specs=specs)
+            second=_resolve_caller_identity(blank,[],now=now+timedelta(minutes=5),specs=specs)
+        self.assertEqual(first["source"],"resolved")
+        self.assertEqual(second["actor"],"S1/Maple")
+        self.assertEqual(second["source"],"resolved_cache")
+        self.assertEqual(second["resolved_by"],["worktree_branch","worktree_path"])
+        self.assertEqual(second["cache_age_seconds"],300.0)
+
+    def test_unique_current_evidence_replaces_older_passive_cache(self):
+        now=datetime(2026,9,13,8,0,0,tzinfo=timezone.utc)
+        specs=[
+            {"actor":"S1/Maple","partition":"s1","slot_id":"S1/2","name":"maple","name_unique":True},
+            {"actor":"S2/Rowan","partition":"s2","slot_id":"S2/1","name":"rowan","name_unique":True},
+        ]
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            _store_passive_actor_binding("caller_cache123","S1/Maple",{"worktree_branch"},now)
+            detail={"caller_id":"caller_cache123","worktree":{"branch":"chatgpt/rowan-s2-work","path":r"C:\wt\rowan-s2"}}
+            identity=_resolve_caller_identity(detail,[],now=now+timedelta(minutes=1),specs=specs)
+            cached=_load_passive_actor_binding("caller_cache123",now+timedelta(minutes=1))
+        self.assertEqual(identity["actor"],"S2/Rowan")
+        self.assertEqual(identity["source"],"resolved")
+        self.assertEqual(cached["actor"],"S2/Rowan")
+
+    def test_ambiguous_current_evidence_neither_uses_nor_changes_passive_cache(self):
+        now=datetime(2026,9,13,8,0,0,tzinfo=timezone.utc)
+        specs=[
+            {"actor":"S1/Maple","partition":"s1","slot_id":"S1/2","name":"maple","name_unique":True},
+            {"actor":"S2/Rowan","partition":"s2","slot_id":"S2/1","name":"rowan","name_unique":True},
+            {"actor":"S2/Spruce","partition":"s2","slot_id":"S2/2","name":"spruce","name_unique":True},
+        ]
+        detail={"caller_id":"caller_cache123","worktree":{"branch":"chatgpt/rowan-s2-work","path":r"C:\wt\rowan-s2"}}
+        busy=[{"owner":"ChatGPT-spruce-s2-run","scopes":[]}]
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            _store_passive_actor_binding("caller_cache123","S1/Maple",{"worktree_branch"},now)
+            identity=_resolve_caller_identity(detail,busy,now=now+timedelta(minutes=1),specs=specs)
+            cached=_load_passive_actor_binding("caller_cache123",now+timedelta(minutes=1))
+        self.assertEqual(identity["status"],"UNATTRIBUTED")
+        self.assertEqual(identity["diagnostic"],"AMBIGUOUS_RESOLVER_CANDIDATES")
+        self.assertEqual(cached["actor"],"S1/Maple")
+
+    def test_expired_or_rebound_passive_cache_is_neutral(self):
+        now=datetime(2026,9,13,8,0,0,tzinfo=timezone.utc)
+        maple=[{"actor":"S1/Maple","partition":"s1","slot_id":"S1/2","name":"maple","name_unique":True}]
+        rowan=[{"actor":"S2/Rowan","partition":"s2","slot_id":"S2/1","name":"rowan","name_unique":True}]
+        blank={"caller_id":"caller_cache123","worktree":None}
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}):
+            _store_passive_actor_binding("caller_cache123","S1/Maple",{"worktree_branch"},now)
+            expired=_resolve_caller_identity(blank,[],now=now+timedelta(minutes=46),specs=maple)
+            rebound=_resolve_caller_identity(blank,[],now=now+timedelta(minutes=1),specs=rowan)
+        self.assertEqual(expired,{"status":"UNATTRIBUTED","actor":None,"source":None})
+        self.assertEqual(rebound,{"status":"UNATTRIBUTED","actor":None,"source":None})
 
     def test_explicit_actor_wins_resolver_mismatch_without_health_failure(self):
         now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
@@ -494,16 +554,21 @@ class LiveSwarmTests(unittest.TestCase):
         self.assertNotIn("recurring_actor_evidence_semantics",compact["evidence"])
 
     def test_bootstrap_compaction_keeps_counts_and_no_scopes(self):
-        snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"recurring_actors":[{"slot_id":"S2/2","actor":"S2/Spruce","evidence_state":"RECENT_COORDINATION_ONLY","coordination":{"latest_owner":"o","latest_scope":"secret/coordination/scope","checkpoint":"secret checkpoint"}}],"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"],"identity":{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_coordination"}}]}]}
+        snapshot={"summary":{"recent_callers":3,"caller_modes":{"PLAN_ONLY":1,"UNKNOWN":2},"lanes":2,"busy_scopes":5},"evidence":{"source_age_seconds":0.1},"elapsed_ms":10.0,"recurring_actors":[{"slot_id":"S2/2","actor":"S2/Spruce","evidence_state":"RECENT_COORDINATION_ONLY","coordination":{"latest_owner":"o","latest_scope":"secret/coordination/scope","checkpoint":"secret checkpoint"}}],"lanes":[{"basis":"worktree","state":"ACTIVE","workspace":"Tiny3D","worktree":{"path":"C:/wt","branch":"b","head":"1"},"callers":[{"caller_id":"c","last_activity_age_seconds":1,"observed_span_minutes":20,"observed_span_lower_bound":False,"latest_process":{"end_observed":False,"elapsed_seconds":12,"semantics":"since_start_no_end_observed"},"mode":"PLAN_ONLY","action_class":"content_plan","activity_target":{"type":"project","id":"tiny3d"},"identity":{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_cache","resolved_by":["busy_owner"],"cache_age_seconds":10}}],"busy":[{"owner":"o","scope_count":5,"scopes":["secret/path"],"checkpoint":"large checkpoint","identity":{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_coordination"}}]}]}
         compact=compact_for_bootstrap(snapshot)
         self.assertEqual(compact["summary"]["recent_callers"],3)
         self.assertEqual(compact["lanes"][0]["busy"][0]["scope_count"],5)
         self.assertEqual(compact["lanes"][0]["state"],"ACTIVE")
         self.assertEqual(compact["lanes"][0]["callers"][0]["mode"],"PLAN_ONLY")
+        self.assertEqual(compact["lanes"][0]["callers"][0]["identity"],{"status":"ATTRIBUTED","actor":"S2/Spruce","source":"resolved_cache"})
+        self.assertNotIn("observed_span_minutes",compact["lanes"][0]["callers"][0])
+        self.assertNotIn("observed_span_lower_bound",compact["lanes"][0]["callers"][0])
+        self.assertNotIn("latest_process",compact["lanes"][0]["callers"][0])
         self.assertNotIn("action_class",compact["lanes"][0]["callers"][0])
         self.assertNotIn("activity_target",compact["lanes"][0]["callers"][0])
         self.assertNotIn("scopes",compact["lanes"][0]["busy"][0])
         self.assertNotIn("identity",compact["lanes"][0]["busy"][0])
+        self.assertNotIn("checkpoint",compact["lanes"][0]["busy"][0])
         self.assertEqual(compact["recurring_actors"][0]["evidence_state"],"RECENT_COORDINATION_ONLY")
         self.assertNotIn("latest_scope",compact["recurring_actors"][0]["coordination"])
         self.assertNotIn("checkpoint",compact["recurring_actors"][0]["coordination"])
