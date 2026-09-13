@@ -34,6 +34,11 @@ try:
 except ModuleNotFoundError:
     from unified_search_sources import search_gh_buffer_cache as _search_gh_buffer_cache
 
+try:
+    from tools.recurring_slot_registry import RECURRING_WORKER_SLOTS, load_slot_snapshot
+except ModuleNotFoundError:
+    from recurring_slot_registry import RECURRING_WORKER_SLOTS, load_slot_snapshot
+
 def _terminate_windows_process_tree(process: subprocess.Popen[Any], *, timeout_seconds: float = 2.0) -> None:
     """Best-effort bounded tree termination for a task-owned Windows child."""
     if process.poll() is not None:
@@ -235,32 +240,8 @@ BOOTSTRAP_MANUAL_LIVE_IDENTITY_LIMIT = 1
 BOOTSTRAP_MANUAL_MALFORMED_DETAIL_LIMIT = 4
 BOOTSTRAP_MANUAL_RUNNING_RECENT_MINUTES = 30.0
 BOOTSTRAP_MANUAL_REPORT_READ_BYTES = 16 * 1024
-CANONICAL_RECURRING_WORKER_PARTITIONS = {
-    "S1": (
-        ("6a9adbfcc0588191b0af53bdf70fc1fe", "Repo Worker Hazel"),
-        ("6a9adc04e6a881918433be70752b1426", "Repo Worker Maple"),
-        ("6a9adc0dbf6481919c607312a5041d1d", "Repo Worker Pine"),
-        ("6a9adbe27ff08191a918fa3e51aaf9b8", "Repo Worker Aspen"),
-        ("6a9b8fc37c148191a70dc17e1e83eda4", "Repo Worker Alder"),
-    ),
-    "S2": (
-        ("6a9ee44357908191a11023d4ff0b5b82", "Repo Worker Rowan #S2"),
-        ("6a9ee44e36908191aa0f4fd3d8ebad55", "Repo Worker Spruce #S2"),
-        ("6a9ee456182881918005c354563e8638", "Repo Worker Willow #S2"),
-        ("6a9ee45e7c208191aae86087f11875d9", "Repo Worker Juniper #S2"),
-        ("6a9ee46471a88191b478716a47a38cc4", "Repo Worker Alder #S2"),
-    ),
-}
-CANONICAL_RECURRING_WORKERS = tuple(
-    worker
-    for partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.values()
-    for worker in partition_workers
-)
-CANONICAL_RECURRING_WORKER_PARTITION_BY_ID = {
-    worker_id: partition
-    for partition, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
-    for worker_id, _ in partition_workers
-}
+RECURRING_WORKER_PARTITIONS = tuple(RECURRING_WORKER_SLOTS)
+RECURRING_WORKER_SLOT_CAPACITY_TOTAL = sum(len(slots) for slots in RECURRING_WORKER_SLOTS.values())
 BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES = 70.0
 BOOTSTRAP_RECURRING_RECOVERY_COOLDOWN_MINUTES = 70.0
 BOOTSTRAP_RECURRING_RECOVERY_START_GRACE_MINUTES = 10.0
@@ -750,7 +731,7 @@ COMPONENTS.update({
     "swarm_topology": {
         "role": "contract:chatgpt-worker-swarm-topology", "capabilities": ["source_read"],
         "canonical_sources": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\.agents\RULES.md", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
-        "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
+        "live_status": [r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance", r"python C:\Users\Lauri\Desktop\vault\tools\recurring_slot_registry.py list", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>"],
         "supervisor": "recurring workers own only bounded same-partition sibling re-enable; supervising/manual ChatGPT owns guarded fallback; operator handoff is administrative fallback",
         "self_heal": "bounded_same_partition_peer_reenable_with_supervising_fallback",
         "independent_recovery": [
@@ -760,7 +741,7 @@ COMPONENTS.update({
         ],
         "resources": ["S1 five recurring slots + S2 five recurring slots (max 5 per partition; 10 total)", "manual/on-demand worker population"],
         "dependents": ["chatgpt_session", "execution_workers", "chatgpt_automations"],
-        "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md"],
+        "runbook": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\fresh-worker-generation-launch.md", r"python C:\Users\Lauri\Desktop\vault\tools\recurring_slot_registry.py list"],
     },
     "chatgpt_session": {
         "role": "session:user-facing", "capabilities": ["source_read", "repository_mutate", "runtime_validate"],
@@ -1063,8 +1044,8 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
     "worker.swarm_topology": {
         "owner_components": ["swarm_topology"],
         "triggers": ["swarm topology", "five recurring workers", "max five recurring workers", "s1", "s2", "manual workers", "primary operator", "timed runs", "timed workers", "recurring workers", "worker recovery", "sibling recovery", "scheduler recovery", "who fixes workers", "who takes care of workers"],
-        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
-        "boundary": "The current canonical recurring topology has two independent partitions, S1 and S2, with at most five recurring workers in each partition (ten total). Activity in one partition never authorizes scheduler mutation in the other. Canonical membership does not imply enabled state or liveness. The scheduler provides recurrence only. A recurring worker may never administer itself and may only perform one targeted idempotent is_enabled=true on an exact canonical same-partition sibling after the bounded fleet-watch plus corroborating live-scheduler recovery gate. All other scheduler administration remains supervising/manual or explicit operator fallback. Current activity/liveness remains live MCP/runtime evidence.",
+        "entrypoints": [r"C:\Users\Lauri\Desktop\vault\04 Operating Contracts\chatgpt-swarm-topology.json", r"python C:\Users\Lauri\Desktop\vault\tools\recurring_slot_registry.py list", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup swarm_topology", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>", r"python C:\Users\Lauri\Desktop\vault\tools\worker_recovery_guard.py --supervising-chat-partition <S1-or-S2> --target-worker-id <target-worker-id>", r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance"],
+        "boundary": "The canonical recurring topology is S1/1..S1/5 plus S2/1..S2/5: ten stable capacity slots. Worker names and ChatGPT automation IDs are mutable slot bindings, not permanent topology identities, and an unbound slot is not a liveness alarm or scheduler authority. Activity in one partition never authorizes scheduler mutation in the other. The scheduler provides recurrence only. A recurring worker may never administer itself and may only perform one targeted idempotent is_enabled=true on the exact current binding of a same-partition sibling after the bounded fleet-watch plus corroborating live-scheduler recovery gate. All other scheduler administration remains supervising/manual or explicit operator fallback. Current activity/liveness remains live MCP/runtime evidence.",
     },
     "execution.linux_omen_node": {
         "owner_components": ["linux_omen_node"],
@@ -1571,7 +1552,7 @@ def _bootstrap_active_manual_run_identities(manual_current: dict[str, Any], live
 
 
 def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Current user-declared subscription topology plus bounded manual-worker context."""
+    """Current user-declared slot topology plus bounded manual-worker context."""
     current_time = now or datetime.now(timezone.utc)
     if current_time.tzinfo is None:
         current_time = current_time.replace(tzinfo=timezone.utc)
@@ -1595,18 +1576,35 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
     handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
     routine_recovery = payload.get("routine_recurring_recovery") if isinstance(payload.get("routine_recurring_recovery"), dict) else {}
     manual_contract = payload.get("manual_workers") if isinstance(payload.get("manual_workers"), dict) else {}
+    slot_snapshot = load_slot_snapshot(ATLAS_LIVE_ROOT)
+    binding_partitions = {
+        name: {
+            "slot_capacity": data.get("slot_capacity"),
+            "bound_count": data.get("bound_count"),
+            "unbound_count": data.get("unbound_count"),
+            "slots": data.get("slots"),
+        }
+        for name, data in slot_snapshot.get("partitions", {}).items()
+        if isinstance(data, dict)
+    }
     return {
-        "authority": payload.get("authority") or "canonical_recurring_worker_partition_map",
+        "authority": payload.get("authority") or "stable_recurring_worker_slots",
         "read_state": read_state,
         "topology_path": str(topology_path),
-        "chatgpt_subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
-        "recurring_worker_partition_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
-        "recurring_worker_partitions": {
-            name: len(partition_workers)
-            for name, partition_workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
+        "chatgpt_subscription_count": len(RECURRING_WORKER_SLOTS),
+        "recurring_worker_partition_count": len(RECURRING_WORKER_SLOTS),
+        "recurring_worker_partitions": {name: len(slot_ids) for name, slot_ids in RECURRING_WORKER_SLOTS.items()},
+        "recurring_workers_total": RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+        "recurring_workers_total_semantics": "stable_slot_capacity_not_bound_worker_count",
+        "slot_bindings": {
+            "status": slot_snapshot.get("status"),
+            "path": slot_snapshot.get("path"),
+            "bound_count": slot_snapshot.get("bound_count"),
+            "slot_capacity_total": slot_snapshot.get("slot_capacity_total"),
+            "partitions": binding_partitions,
+            "semantics": slot_snapshot.get("semantics"),
         },
-        "recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
-        "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "at most five recurring workers per partition; current canonical partitions S1 and S2",
+        "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five stable recurring slots per partition; bindings may change",
         "subscriptions": subscriptions,
         "routine_recurring_recovery": {
             "authority": routine_recovery.get("authority") or "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
@@ -1628,7 +1626,6 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
             },
         },
     }
-
 
 def _bootstrap_manual_sanity() -> dict[str, Any]:
     path = ATLAS_LIVE_ROOT / "worker-reports" / "manual" / "metrics.json"
@@ -1677,21 +1674,53 @@ def _bootstrap_fleet_watch(
     if current_time.tzinfo is None:
         current_time = current_time.replace(tzinfo=timezone.utc)
 
+    slot_snapshot = load_slot_snapshot(ATLAS_LIVE_ROOT)
+    if slot_snapshot.get("status") != "OK":
+        return {
+            "status": "SLOT_REGISTRY_UNAVAILABLE",
+            "authority": "stable_recurring_slots_plus_local_binding_registry",
+            "slot_registry_status": slot_snapshot.get("status"),
+            "slot_registry_path": slot_snapshot.get("path"),
+            "slot_registry_error": slot_snapshot.get("error"),
+            "scheduler_probe": "not_performed",
+            "local_evidence_scheduler_mutation_authorized": False,
+            "same_partition_peer_reenable_after_live_scheduler_confirmation": False,
+            "semantics": "missing_or_invalid_slot_binding_registry_is_not_liveness_failure_and_never_authorizes_scheduler_mutation",
+        }
+    CANONICAL_RECURRING_WORKER_PARTITIONS = {
+        name: tuple(
+            (row["binding"]["automation_id"], row["binding"].get("label") or row["slot_id"])
+            for row in slot_snapshot["partitions"][name]["slots"]
+            if row.get("binding") is not None
+        )
+        for name in RECURRING_WORKER_SLOTS
+    }
+    CANONICAL_RECURRING_WORKERS = tuple(worker for workers in CANONICAL_RECURRING_WORKER_PARTITIONS.values() for worker in workers)
+    CANONICAL_RECURRING_WORKER_PARTITION_BY_ID = {
+        worker_id: name
+        for name, workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()
+        for worker_id, _label in workers
+    }
+    SLOT_BY_WORKER_ID = {
+        binding["automation_id"]: binding["slot_id"]
+        for binding in slot_snapshot.get("bound_workers", [])
+    }
+
     requested_partition = str(partition or "").strip().upper() or None
     worker_key = str(worker_id or "").strip().lower() or None
     if worker_key is not None:
         worker_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_key)
         if worker_partition is None:
             return {
-                "status": "INVALID_WORKER_ID",
-                "authority": "canonical_recurring_worker_partition_map",
+                "status": "UNBOUND_WORKER_ID",
+                "authority": "stable_recurring_slots_plus_local_binding_registry",
                 "worker_id": worker_key,
                 "scheduler_probe": "not_performed",
             }
         if requested_partition is not None and requested_partition != worker_partition:
             return {
                 "status": "PARTITION_MISMATCH",
-                "authority": "canonical_recurring_worker_partition_map",
+                "authority": "stable_recurring_slots_plus_local_binding_registry",
                 "worker_id": worker_key,
                 "requested_partition": requested_partition,
                 "worker_partition": worker_partition,
@@ -1701,7 +1730,7 @@ def _bootstrap_fleet_watch(
     if requested_partition is not None and requested_partition not in CANONICAL_RECURRING_WORKER_PARTITIONS:
         return {
             "status": "INVALID_PARTITION",
-            "authority": "canonical_recurring_worker_partition_map",
+            "authority": "stable_recurring_slots_plus_local_binding_registry",
             "requested_partition": requested_partition,
             "scheduler_probe": "not_performed",
         }
@@ -1713,28 +1742,19 @@ def _bootstrap_fleet_watch(
     )
     current_root = ATLAS_LIVE_ROOT / "worker-reports" / "current"
     supervision_root = ATLAS_LIVE_ROOT / "worker-reports" / ".supervision"
-    first_expected_start_by_id: dict[str, str] = {}
-    try:
-        topology_payload = json.loads(
-            (ATLAS_LIVE_ROOT / "04 Operating Contracts" / "chatgpt-swarm-topology.json").read_text(encoding="utf-8-sig")
-        )
-        topology_subscriptions = topology_payload.get("subscriptions") if isinstance(topology_payload, dict) else {}
-        if isinstance(topology_subscriptions, dict):
-            for subscription in topology_subscriptions.values():
-                if not isinstance(subscription, dict):
-                    continue
-                for worker in subscription.get("workers", []) if isinstance(subscription.get("workers"), list) else []:
-                    if not isinstance(worker, dict):
-                        continue
-                    candidate_id = str(worker.get("automation_id") or "").strip().lower()
-                    candidate_start = str(worker.get("first_expected_start_at") or "").strip()
-                    if candidate_id and candidate_start:
-                        first_expected_start_by_id[candidate_id] = candidate_start
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
-        pass
+    first_expected_start_by_id: dict[str, str] = {
+        binding["automation_id"]: str(binding.get("first_expected_start_at") or "").strip()
+        for binding in slot_snapshot.get("bound_workers", [])
+        if str(binding.get("first_expected_start_at") or "").strip()
+    }
     partition_summary = {
         name: {
-            "expected_recurring_workers": len(partition_workers),
+            "slot_capacity": len(RECURRING_WORKER_SLOTS[name]),
+            "expected_recurring_workers": len(RECURRING_WORKER_SLOTS[name]),
+            "bound_recurring_workers": len(partition_workers),
+            "unbound_slots": [
+                row["slot_id"] for row in slot_snapshot["partitions"][name]["slots"] if not row.get("bound")
+            ],
             "observed_worker_reports": sum(
                 1 for candidate_id, _ in partition_workers
                 if (current_root / f"{candidate_id}.md").is_file()
@@ -1749,8 +1769,11 @@ def _bootstrap_fleet_watch(
             "subscription_scope": requested_partition or "ALL",
             "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
             "worker_partitions": partition_summary,
-            "expected_recurring_workers": len(selected_workers),
-            "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+            "recurring_slot_capacity": len(RECURRING_WORKER_SLOTS[requested_partition]) if requested_partition else RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+            "expected_recurring_workers": len(RECURRING_WORKER_SLOTS[requested_partition]) if requested_partition else RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+            "expected_recurring_workers_total": RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+            "bound_recurring_workers": len(selected_workers),
+            "bound_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
             "scheduler_probe": "not_performed",
         }
 
@@ -1865,6 +1888,7 @@ def _bootstrap_fleet_watch(
         row = {
             "worker": label,
             "automation_id": worker_id,
+            "slot_id": SLOT_BY_WORKER_ID.get(worker_id),
             "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
             "report_present": report_path.is_file(),
             "state": state,
@@ -1911,6 +1935,7 @@ def _bootstrap_fleet_watch(
             suspect = {
                 "worker": label,
                 "automation_id": worker_id,
+                "slot_id": SLOT_BY_WORKER_ID.get(worker_id),
                 "subscription_partition": CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(worker_id),
                 "started_at": row["started_at"],
                 "start_age_minutes": row["start_age_minutes"],
@@ -1928,6 +1953,7 @@ def _bootstrap_fleet_watch(
         {
             "worker": item["worker"],
             "automation_id": item["automation_id"],
+            "slot_id": item.get("slot_id") or SLOT_BY_WORKER_ID.get(item["automation_id"]),
             "subscription_partition": item.get("subscription_partition") or CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(item["automation_id"]),
             "reason": item["reason"],
             "requires_live_scheduler_probe": True,
@@ -1937,12 +1963,17 @@ def _bootstrap_fleet_watch(
     ]
     return {
         "status": "SUSPECT_DEGRADED" if suspects else "CURRENT_LOCAL_EVIDENCE",
-        "authority": "local_worker_reports_and_machine_start_receipts",
+        "authority": "local_worker_reports_and_machine_start_receipts_over_current_slot_bindings",
+        "slot_registry_status": slot_snapshot.get("status"),
+        "slot_registry_path": slot_snapshot.get("path"),
         "subscription_scope": requested_partition or "ALL",
         "subscription_count": len(CANONICAL_RECURRING_WORKER_PARTITIONS),
         "worker_partitions": partition_summary,
-        "expected_recurring_workers": len(selected_workers),
-        "expected_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
+        "recurring_slot_capacity": len(RECURRING_WORKER_SLOTS[requested_partition]) if requested_partition else RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+        "expected_recurring_workers": len(RECURRING_WORKER_SLOTS[requested_partition]) if requested_partition else RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+        "expected_recurring_workers_total": RECURRING_WORKER_SLOT_CAPACITY_TOTAL,
+        "bound_recurring_workers": len(selected_workers),
+        "bound_recurring_workers_total": len(CANONICAL_RECURRING_WORKERS),
         "observed_worker_reports": sum(1 for row in workers if row.get("report_present")),
         "running_with_start_receipt": sum(1 for row in workers if row.get("cadence_state") == "RUNNING_WITH_START_RECEIPT"),
         "recent_start_evidence": sum(1 for row in workers if row.get("cadence_state") == "RECENT_START_EVIDENCE"),
@@ -1994,9 +2025,10 @@ def _bootstrap_worker_status() -> dict[str, Any]:
     for raw in metrics.get("latest_reports", []) if isinstance(metrics.get("latest_reports"), list) else []:
         if not isinstance(raw, dict):
             continue
-        worker_id = str(raw.get("automation_id") or "").strip()
-        canonical_ids = {item[0] for item in CANONICAL_RECURRING_WORKERS}
-        if not worker_id or worker_id not in canonical_ids or worker_id in latest_by_worker:
+        worker_id = str(raw.get("automation_id") or "").strip().lower()
+        # Archived timed-run quality is historical evidence, not current scheduler
+        # membership. Replacement IDs remain valid history after a slot is rebound.
+        if not worker_id or worker_id in latest_by_worker:
             continue
         finished = _parse_event_time(raw.get("finished_at") or raw.get("archived_at"))
         if finished is None:
@@ -5285,7 +5317,7 @@ def main() -> int:
     identify = sub.add_parser("identify-actor")
     identify.add_argument("actor")
     fleet = sub.add_parser("fleet-watch")
-    fleet.add_argument("--partition", choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS))
+    fleet.add_argument("--partition", choices=tuple(RECURRING_WORKER_SLOTS))
     fleet.add_argument("--worker-id")
     sub.add_parser("inventory")
     manual = sub.add_parser("manual")

@@ -12,11 +12,34 @@ from pathlib import Path
 
 from tools.cleanup_converger import Worktree, eligibility_reason, process_targets_path
 from tools.memory_recent_projection import write_recent_projection
+
+TEST_RECURRING_WORKER_PARTITIONS = {
+    "S1": tuple((str(index) * 32, f"S1 Test Worker {index}") for index in range(1, 6)),
+    "S2": tuple((char * 32, f"S2 Test Worker {index}") for index, char in enumerate("abcde", start=1)),
+}
+TEST_RECURRING_WORKERS = tuple(worker for workers in TEST_RECURRING_WORKER_PARTITIONS.values() for worker in workers)
+
+def _write_test_slot_registry(root: Path) -> None:
+    bindings = {}
+    for partition, workers in TEST_RECURRING_WORKER_PARTITIONS.items():
+        for index, (automation_id, label) in enumerate(workers, start=1):
+            bindings[f"{partition}/{index}"] = {
+                "automation_id": automation_id,
+                "label": label,
+                "bound_at": "2026-09-13T00:00:00+00:00",
+                "first_expected_start_at": None,
+            }
+    path = root / "worker-reports" / ".supervision" / "recurring-slot-bindings.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "schema": "recurring-worker-slot-bindings.v1",
+        "updated_at": "2026-09-13T00:00:00+00:00",
+        "authority": "MUTABLE_OPERATIONAL_SLOT_BINDINGS_NOT_LIVENESS",
+        "bindings": bindings,
+    }), encoding="utf-8")
 from tools.stack_atlas import (
     _run_process,
     _bootstrap_fleet_watch,
-    CANONICAL_RECURRING_WORKERS,
-    CANONICAL_RECURRING_WORKER_PARTITIONS,
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
@@ -24,8 +47,6 @@ from tools.stack_atlas import (
     BOOTSTRAP_GLANCE_MAX_BYTES,
     BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
-    CANONICAL_RECURRING_WORKERS,
-    CANONICAL_RECURRING_WORKER_PARTITIONS,
     blast_radius,
     build_bootstrap_atlas,
     build_live_bootstrap_glance,
@@ -979,15 +1000,16 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             supervision = root / "worker-reports" / ".supervision"
             current.mkdir(parents=True)
-            supervision.mkdir(parents=True)
+            supervision.mkdir(parents=True, exist_ok=True)
             now = datetime.now(timezone.utc)
 
-            missing_id, _ = CANONICAL_RECURRING_WORKERS[0]
-            stale_id, _ = CANONICAL_RECURRING_WORKERS[1]
-            for index, (worker_id, label) in enumerate(CANONICAL_RECURRING_WORKERS[1:], start=1):
+            missing_id, _ = TEST_RECURRING_WORKERS[0]
+            stale_id, _ = TEST_RECURRING_WORKERS[1]
+            for index, (worker_id, label) in enumerate(TEST_RECURRING_WORKERS[1:], start=1):
                 age = 85 if worker_id == stale_id else 20
                 state = "RUNNING" if worker_id == stale_id else "RUN_FINISHED"
                 started = now - timedelta(minutes=age)
@@ -1010,7 +1032,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(watch["same_partition_peer_reenable_after_live_scheduler_confirmation"])
         self.assertNotIn("scheduler_mutation_authorized", watch)
         self.assertTrue(watch["recovery_candidates_require_live_scheduler_probe"])
-        self.assertEqual(watch["observed_worker_reports"], len(CANONICAL_RECURRING_WORKERS) - 1)
+        self.assertEqual(watch["observed_worker_reports"], len(TEST_RECURRING_WORKERS) - 1)
         self.assertEqual(watch["status"], "SUSPECT_DEGRADED")
         suspect_ids = {item["automation_id"] for item in watch["suspect_workers"]}
         self.assertIn(missing_id, suspect_ids)
@@ -1021,13 +1043,14 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             supervision = root / "worker-reports" / ".supervision"
             current.mkdir(parents=True)
-            supervision.mkdir(parents=True)
+            supervision.mkdir(parents=True, exist_ok=True)
             now = datetime.now(timezone.utc)
-            target_id, _ = CANONICAL_RECURRING_WORKERS[0]
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            target_id, _ = TEST_RECURRING_WORKERS[0]
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 started = now - timedelta(minutes=95 if worker_id == target_id else 20)
                 last_activity = now - timedelta(minutes=3) if worker_id == target_id else started
                 state = "RUNNING" if worker_id == target_id else "RUN_FINISHED"
@@ -1226,17 +1249,71 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("targeted idempotent is_enabled=true", match["boundary"])
         self.assertIn("same-partition sibling", match["boundary"])
 
+    def test_fleet_watch_unbound_slot_is_capacity_not_recovery_candidate(self):
+        from datetime import datetime, timedelta, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_test_slot_registry(root)
+            registry = root / "worker-reports" / ".supervision" / "recurring-slot-bindings.json"
+            payload = json.loads(registry.read_text(encoding="utf-8"))
+            payload["bindings"].pop("S1/5")
+            registry.write_text(json.dumps(payload), encoding="utf-8")
+            current = root / "worker-reports" / "current"
+            current.mkdir(parents=True)
+            now = datetime.now(timezone.utc)
+            for worker_id, label in TEST_RECURRING_WORKER_PARTITIONS["S1"][:4]:
+                started = now - timedelta(minutes=20)
+                (current / f"{worker_id}.md").write_text(
+                    f"automation_id: {worker_id}\n"
+                    f"display_label: {label}\n"
+                    f"started_at: {started.isoformat()}\n"
+                    f"last_activity_at: {started.isoformat()}\n"
+                    "state: RUN_FINISHED\n",
+                    encoding="utf-8",
+                )
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                watch = _bootstrap_fleet_watch(now, partition="S1")
+
+        self.assertEqual(watch["status"], "CURRENT_LOCAL_EVIDENCE")
+        self.assertEqual(watch["expected_recurring_workers"], 5)
+        self.assertEqual(watch["bound_recurring_workers"], 4)
+        self.assertEqual(watch["worker_partitions"]["S1"]["unbound_slots"], ["S1/5"])
+        self.assertEqual(watch["recovery_candidate_count"], 0)
+        self.assertEqual(watch["suspect_count"], 0)
+
+    def test_fleet_watch_replacement_binding_accepts_new_id_and_rejects_old_id(self):
+        from datetime import datetime, timezone
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_test_slot_registry(root)
+            old_id = TEST_RECURRING_WORKER_PARTITIONS["S1"][0][0]
+            new_id = "f" * 32
+            registry = root / "worker-reports" / ".supervision" / "recurring-slot-bindings.json"
+            payload = json.loads(registry.read_text(encoding="utf-8"))
+            payload["bindings"]["S1/1"]["automation_id"] = new_id
+            payload["bindings"]["S1/1"]["label"] = "Renamed replacement"
+            registry.write_text(json.dumps(payload), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
+                current = _bootstrap_fleet_watch(datetime.now(timezone.utc), worker_id=new_id)
+                retired = _bootstrap_fleet_watch(datetime.now(timezone.utc), worker_id=old_id)
+
+        self.assertEqual(current["subscription_scope"], "S1")
+        self.assertEqual(current["bound_recurring_workers"], 5)
+        self.assertEqual(retired["status"], "UNBOUND_WORKER_ID")
+        self.assertEqual(retired["scheduler_probe"], "not_performed")
+
     def test_fleet_watch_models_two_independent_five_worker_partitions(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 10, 4, 30, tzinfo=timezone.utc)
-            s1_workers = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]
+            s1_workers = TEST_RECURRING_WORKER_PARTITIONS["S1"]
             missing_id = s1_workers[0][0]
             acting_id = s1_workers[1][0]
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 if worker_id == missing_id:
                     continue
                 started = now - timedelta(minutes=20)
@@ -1253,8 +1330,8 @@ class StackAtlasTests(unittest.TestCase):
                 s1_watch = _bootstrap_fleet_watch(now, worker_id=acting_id)
                 s2_watch = _bootstrap_fleet_watch(now, partition="S2")
 
-        self.assertEqual(len(CANONICAL_RECURRING_WORKER_PARTITIONS), 2)
-        self.assertEqual({name: len(workers) for name, workers in CANONICAL_RECURRING_WORKER_PARTITIONS.items()}, {"S1": 5, "S2": 5})
+        self.assertEqual(len(TEST_RECURRING_WORKER_PARTITIONS), 2)
+        self.assertEqual({name: len(workers) for name, workers in TEST_RECURRING_WORKER_PARTITIONS.items()}, {"S1": 5, "S2": 5})
         self.assertEqual(global_watch["subscription_count"], 2)
         self.assertEqual(global_watch["expected_recurring_workers"], 10)
         self.assertEqual(global_watch["expected_recurring_workers_total"], 10)
@@ -1273,26 +1350,18 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
-            contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
-            contract.parent.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 35, tzinfo=timezone.utc)
-            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][0]
-            actor_id, _ = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][1]
+            target_id, target_label = TEST_RECURRING_WORKER_PARTITIONS["S1"][0]
+            actor_id, _ = TEST_RECURRING_WORKER_PARTITIONS["S1"][1]
             first_expected = now + timedelta(minutes=1)
-            contract.write_text(json.dumps({
-                "subscriptions": {
-                    "S1": {
-                        "workers": [{
-                            "automation_id": target_id,
-                            "label": target_label,
-                            "first_expected_start_at": first_expected.isoformat(),
-                        }]
-                    }
-                }
-            }), encoding="utf-8")
-            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]:
+            registry = root / "worker-reports" / ".supervision" / "recurring-slot-bindings.json"
+            registry_payload = json.loads(registry.read_text(encoding="utf-8"))
+            registry_payload["bindings"]["S1/1"]["first_expected_start_at"] = first_expected.isoformat()
+            registry.write_text(json.dumps(registry_payload), encoding="utf-8")
+            for worker_id, label in TEST_RECURRING_WORKER_PARTITIONS["S1"]:
                 if worker_id == target_id:
                     continue
                 started = now - timedelta(minutes=20)
@@ -1320,11 +1389,12 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 7, 3, 30, tzinfo=timezone.utc)
-            target_id, _ = CANONICAL_RECURRING_WORKERS[0]
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            target_id, _ = TEST_RECURRING_WORKERS[0]
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 started = now - timedelta(minutes=1 if worker_id == target_id else 20)
                 state = "RUNNING" if worker_id == target_id else "RUN_FINISHED"
                 (current / f"{worker_id}.md").write_text(
@@ -1359,13 +1429,14 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime.now(timezone.utc)
-            stale_id, stale_label = CANONICAL_RECURRING_WORKERS[0]
-            actor_id, actor_label = CANONICAL_RECURRING_WORKERS[1]
+            stale_id, stale_label = TEST_RECURRING_WORKERS[0]
+            actor_id, actor_label = TEST_RECURRING_WORKERS[1]
 
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 age = 85 if worker_id == stale_id else 20
                 started = now - timedelta(minutes=age)
                 findings = ""
@@ -1400,13 +1471,14 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime.now(timezone.utc)
-            stale_id, stale_label = CANONICAL_RECURRING_WORKERS[0]
-            actor_id, actor_label = CANONICAL_RECURRING_WORKERS[1]
+            stale_id, stale_label = TEST_RECURRING_WORKERS[0]
+            actor_id, actor_label = TEST_RECURRING_WORKERS[1]
 
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 age = 85 if worker_id == stale_id else 20
                 started = now - timedelta(minutes=age)
                 findings = ""
@@ -1439,14 +1511,15 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 7, 3, 26, tzinfo=timezone.utc)
-            stale_id, stale_label = CANONICAL_RECURRING_WORKERS[0]
-            actor_id, actor_label = CANONICAL_RECURRING_WORKERS[1]
+            stale_id, stale_label = TEST_RECURRING_WORKERS[0]
+            actor_id, actor_label = TEST_RECURRING_WORKERS[1]
             stale_started = datetime(2026, 9, 7, 1, 15, tzinfo=timezone.utc)
             recovered_at = datetime(2026, 9, 7, 3, 10, tzinfo=timezone.utc)
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 started = stale_started if worker_id == stale_id else now - timedelta(minutes=20)
                 findings = ""
                 if worker_id == actor_id:
@@ -1479,14 +1552,15 @@ class StackAtlasTests(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 7, 5, 30, tzinfo=timezone.utc)
-            stale_id, stale_label = CANONICAL_RECURRING_WORKERS[0]
-            actor_id, actor_label = CANONICAL_RECURRING_WORKERS[1]
+            stale_id, stale_label = TEST_RECURRING_WORKERS[0]
+            actor_id, actor_label = TEST_RECURRING_WORKERS[1]
             recovered_at = datetime(2026, 9, 7, 3, 10, tzinfo=timezone.utc)
             newer_start = datetime(2026, 9, 7, 4, 15, tzinfo=timezone.utc)
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 started = newer_start if worker_id == stale_id else now - timedelta(minutes=20)
                 findings = ""
                 if worker_id == actor_id:
@@ -1525,7 +1599,7 @@ class StackAtlasTests(unittest.TestCase):
             now = datetime.now(timezone.utc)
             latest = [
                 {
-                    "automation_id": CANONICAL_RECURRING_WORKERS[index][0], "display_label": CANONICAL_RECURRING_WORKERS[index][1],
+                    "automation_id": TEST_RECURRING_WORKERS[index][0], "display_label": TEST_RECURRING_WORKERS[index][1],
                     "finished_at": now.isoformat(), "duration_minutes": 20.0 + index,
                     "target_utilization_pct": 83.3 + index,
                 }
@@ -1558,8 +1632,9 @@ class StackAtlasTests(unittest.TestCase):
     def test_worker_status_does_not_promote_fleet_watch_into_bootstrap_liveness(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             metrics = root / "worker-reports" / "metrics.json"
-            metrics.parent.mkdir(parents=True)
+            metrics.parent.mkdir(parents=True, exist_ok=True)
             metrics.write_text(json.dumps({
                 "schema": "worker-report-metrics.v1", "population": "timed",
                 "generated_at": "2026-09-13T03:00:00+00:00", "window_hours": 24.0, "latest_reports": [],
@@ -1584,8 +1659,8 @@ class StackAtlasTests(unittest.TestCase):
                 "schema": "worker-report-metrics.v1", "population": "timed",
                 "generated_at": now.isoformat(), "window_hours": 24.0,
                 "latest_reports": [
-                    {"automation_id": CANONICAL_RECURRING_WORKERS[0][0], "display_label": "Recent", "finished_at": (now - timedelta(minutes=30)).isoformat(), "duration_minutes": 12.0, "target_utilization_pct": 50.0},
-                    {"automation_id": CANONICAL_RECURRING_WORKERS[1][0], "display_label": "Stale", "finished_at": (now - timedelta(minutes=120)).isoformat(), "duration_minutes": 4.0, "target_utilization_pct": 16.7},
+                    {"automation_id": TEST_RECURRING_WORKERS[0][0], "display_label": "Recent", "finished_at": (now - timedelta(minutes=30)).isoformat(), "duration_minutes": 12.0, "target_utilization_pct": 50.0},
+                    {"automation_id": TEST_RECURRING_WORKERS[1][0], "display_label": "Stale", "finished_at": (now - timedelta(minutes=120)).isoformat(), "duration_minutes": 4.0, "target_utilization_pct": 16.7},
                 ],
             }), encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
@@ -1805,7 +1880,7 @@ class StackAtlasTests(unittest.TestCase):
                 "schema": "worker-report-metrics.v1", "population": "timed",
                 "generated_at": now.isoformat(), "window_hours": 24.0,
                 "latest_reports": [
-                    {"automation_id": CANONICAL_RECURRING_WORKERS[index][0], "display_label": CANONICAL_RECURRING_WORKERS[index][1], "finished_at": now.isoformat(), "duration_minutes": 20.0, "target_utilization_pct": 83.3}
+                    {"automation_id": TEST_RECURRING_WORKERS[index][0], "display_label": TEST_RECURRING_WORKERS[index][1], "finished_at": now.isoformat(), "duration_minutes": 20.0, "target_utilization_pct": 83.3}
                     for index in range(5)
                 ],
             }), encoding="utf-8")
@@ -3292,10 +3367,10 @@ class TestFleetWatchSubscription(unittest.TestCase):
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 30, tzinfo=timezone.utc)
-            s1 = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]
+            s1 = TEST_RECURRING_WORKER_PARTITIONS["S1"]
             missing_id = s1[0][0]
             actor_id = s1[1][0]
-            for worker_id, label in CANONICAL_RECURRING_WORKERS:
+            for worker_id, label in TEST_RECURRING_WORKERS:
                 if worker_id == missing_id:
                     continue
                 started = now - timedelta(minutes=20)
@@ -3325,15 +3400,15 @@ class TestFleetWatchSubscription(unittest.TestCase):
             contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
             contract.parent.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 35, tzinfo=timezone.utc)
-            target_id, target_label = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][0]
-            actor_id = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"][1][0]
+            target_id, target_label = TEST_RECURRING_WORKER_PARTITIONS["S1"][0]
+            actor_id = TEST_RECURRING_WORKER_PARTITIONS["S1"][1][0]
             first_expected = now + timedelta(minutes=1)
             contract.write_text(json.dumps({"subscriptions": {"S1": {"workers": [{
                 "automation_id": target_id,
                 "label": target_label,
                 "first_expected_start_at": first_expected.isoformat(),
             }]}}}), encoding="utf-8")
-            for worker_id, label in CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]:
+            for worker_id, label in TEST_RECURRING_WORKER_PARTITIONS["S1"]:
                 if worker_id == target_id:
                     continue
                 started = now - timedelta(minutes=20)
