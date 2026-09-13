@@ -74,9 +74,9 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
     def test_timed_worker_current_report_is_lifecycle_snapshot_not_live_progress(self):
         contract = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
         self.assertIn("The `current` path is a run-lifecycle location, not live progress telemetry", contract)
-        self.assertIn("the RUNNING file is the start snapshot and may remain unchanged", contract)
-        self.assertIn("Do not checkpoint routine progress into it", contract)
-        self.assertNotIn("Update the current report at natural checkpoints", contract)
+        self.assertIn("the RUNNING file begins as the start snapshot", contract)
+        self.assertIn("Update the current report at natural checkpoints", contract)
+        self.assertIn("do not infer continuous activity, liveness, or current progress", contract)
 
         topology = json.loads((ROOT / "04 Operating Contracts/chatgpt-swarm-topology.json").read_text(encoding="utf-8"))
         authority = topology["subscriptions"]["S2"]["enabled_state_authority"]
