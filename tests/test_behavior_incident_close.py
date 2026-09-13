@@ -346,6 +346,23 @@ def test_memory_survives_finalize_failure_and_rerun_resumes_without_duplicate(tm
     assert len(load_bank(bank_path)) == 1
 
 
+def test_canonical_artifact_check_accepts_worktree_eol_normalization(tmp_path: Path) -> None:
+    init_feature_repo_with_origin_main(tmp_path)
+    result, replay_path = prepared_incident(tmp_path, "SW-V2-TEST-CLOSE-EOL")
+    subprocess.run(["git", "add", result["report_ref"], result["replay_ref"], result["evidence_ref"], result["pending_memory_ref"], "provenance.json"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "land pending incident"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "core.autocrlf", "true"], cwd=tmp_path, check=True)
+    report_path = tmp_path / result["report_ref"]
+    canonical_bytes = subprocess.run(["git", "show", f"refs/remotes/origin/main:{result['report_ref']}"] , cwd=tmp_path, check=True, capture_output=True).stdout
+    report_path.write_bytes(canonical_bytes.replace(b"\n", b"\r\n"))
+    assert report_path.read_bytes() != canonical_bytes
+    plan = plan_closure(replay_path, root=tmp_path)
+    assert plan["event_id"] == "SW-V2-TEST-CLOSE-EOL"
+    closed = close_incident(replay_path, root=tmp_path)
+    assert closed["status"] == "CLOSED"
+
+
 def test_close_requires_exact_incident_artifacts_on_origin_main(tmp_path: Path) -> None:
     init_feature_repo_with_origin_main(tmp_path)
     result, replay_path = prepared_incident(tmp_path, "SW-V2-TEST-CLOSE-CANONICAL")

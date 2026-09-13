@@ -235,13 +235,20 @@ def _require_canonical_artifacts(root: Path, refs: list[str]) -> None:
         normalized = ref.replace("\\", "/")
         local = _safe_repo_file(root, root / normalized, f"canonical artifact {normalized}")
         _require(local.is_file(), f"canonical closure artifact is missing locally: {normalized}")
-        show = subprocess.run(
-            ["git", "-C", str(root), "show", f"{canonical}:{normalized}"],
-            capture_output=True,
-            check=False,
+        canonical_blob = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", f"{canonical}:{normalized}"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
-        _require(show.returncode == 0, f"canonical memory closure blocked: {normalized} is not present on origin/main")
-        _require(show.stdout == local.read_bytes(), f"canonical memory closure blocked: {normalized} differs from origin/main")
+        _require(canonical_blob.returncode == 0, f"canonical memory closure blocked: {normalized} is not present on origin/main")
+        local_blob = subprocess.run(
+            ["git", "-C", str(root), "hash-object", "--", normalized],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
+        )
+        _require(local_blob.returncode == 0, f"canonical memory closure blocked: could not hash local artifact {normalized}")
+        _require(
+            local_blob.stdout.strip() == canonical_blob.stdout.strip(),
+            f"canonical memory closure blocked: {normalized} differs from origin/main",
+        )
 
 
 
