@@ -48,7 +48,7 @@ def fixture() -> dict:
             },
             "provenance": [{"ref": "conversation:test-turn"}],
             "parent_event_id": None,
-            "memory_ref": "mem-test-slopwall-v2",
+            "memory_ref": None,
             "evidence_confidence": "B",
             "scores": {
                 "information_slop": 3,
@@ -75,7 +75,7 @@ def fixture() -> dict:
                     "reused_assertions": ["original_objective_preserved"],
                 },
             },
-            "closure_state": "CLOSED",
+            "closure_state": "OPEN",
         },
     }
 
@@ -106,11 +106,73 @@ def test_repeated_slopwall_can_link_parent() -> None:
     validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
 
 
-def test_closed_event_requires_memory_pointer() -> None:
+def closed_fixture(tmp_path: Path) -> dict:
     raw = fixture()
-    raw["incident_event"]["memory_ref"] = ""
-    with pytest.raises(SlopwallV2Error, match="memory_ref"):
-        validate_slopwall_fixture(raw, root=ROOT, filename="example.json")
+    event = raw["incident_event"]
+    event_id = "SW-V2-TEST-CLOSED"
+    event["event_id"] = event_id
+    event["closure_state"] = "CLOSED"
+    raw["source_report"] = "01 Reports/test-incident.md"
+    event["replay_ref"] = "03 Fixtures and Experiments/test-replay.json"
+    event["capture"]["evidence_ref"] = "02 Evidence/test-visible.json"
+    event["memory_ref"] = "memory/memory-bank.jsonl#mem-test-slopwall-v2"
+
+    report = tmp_path / raw["source_report"]
+    report.parent.mkdir(parents=True, exist_ok=True)
+    report.write_text(f"event_id: {event_id}\n", encoding="utf-8")
+
+    evidence = tmp_path / event["capture"]["evidence_ref"]
+    evidence.parent.mkdir(parents=True, exist_ok=True)
+    evidence.write_text(json.dumps({
+        "capture_scope": "VISIBLE_CONTEXT_ONLY",
+        "verbatim": True,
+        "full_conversation_reload": False,
+        "items": [{"kind": "user_message", "content": event["source_message"]}],
+    }), encoding="utf-8")
+
+    replay = tmp_path / event["replay_ref"]
+    replay.parent.mkdir(parents=True, exist_ok=True)
+    replay.write_text(json.dumps(raw), encoding="utf-8")
+
+    bank = tmp_path / "memory/memory-bank.jsonl"
+    bank.parent.mkdir(parents=True, exist_ok=True)
+    bank.write_text(json.dumps({
+        "id": "mem-test-slopwall-v2",
+        "kind": "correction",
+        "state": "PROVEN",
+        "tags": ["slopwall"],
+        "text": f"Event {event_id} regression lesson.",
+        "evidence": [raw["source_report"], event["replay_ref"], event["capture"]["evidence_ref"]],
+        "source_messages": [event["source_message"]],
+    }) + "\n", encoding="utf-8")
+    return raw
+
+
+def test_closed_event_accepts_only_bound_canonical_memory(tmp_path: Path) -> None:
+    raw = closed_fixture(tmp_path)
+    validate_slopwall_fixture(raw, root=tmp_path, filename="test-replay.json")
+
+
+def test_closed_event_rejects_missing_or_pending_memory_pointer(tmp_path: Path) -> None:
+    raw = closed_fixture(tmp_path)
+    raw["incident_event"]["memory_ref"] = None
+    with pytest.raises(SlopwallV2Error, match="requires memory_ref"):
+        validate_slopwall_fixture(raw, root=tmp_path, filename="test-replay.json")
+
+    raw = closed_fixture(tmp_path)
+    pending = tmp_path / "memory/reports/pending.md"
+    pending.parent.mkdir(parents=True, exist_ok=True)
+    pending.write_text("pending", encoding="utf-8")
+    raw["incident_event"]["memory_ref"] = "memory/reports/pending.md"
+    with pytest.raises(SlopwallV2Error, match="canonical memory/memory-bank.jsonl#mem"):
+        validate_slopwall_fixture(raw, root=tmp_path, filename="test-replay.json")
+
+
+def test_concrete_v2_event_remains_pending_until_canonical_memory() -> None:
+    path = ROOT / "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    assert raw["incident_event"]["closure_state"] == "REPAIRED_PENDING_DURABILITY"
+    validate_slopwall_fixture(raw, root=ROOT, filename=path.name)
 
 
 def test_rule_change_cannot_be_inferred_from_plain_failure() -> None:

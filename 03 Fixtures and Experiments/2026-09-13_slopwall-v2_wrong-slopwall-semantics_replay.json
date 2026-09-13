@@ -148,6 +148,7 @@
       "retrieval_for_capture_only": false,
       "semantics": "Persist only evidence actually visible to the agent; do not backfill or reconstruct unseen conversation history for incident completeness.",
       "evidence_ref": "02 Evidence/2026-09-13_SW-V2-20260913-001_visible-context.json"
-    }
+    },
+    "replay_ref": "03 Fixtures and Experiments/2026-09-13_slopwall-v2_wrong-slopwall-semantics_replay.json"
   }
 }

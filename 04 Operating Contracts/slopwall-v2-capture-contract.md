@@ -11,7 +11,7 @@ Slopwall V2 uses one common behavior-incident loop with two explicit user trigge
 
 Either explicit corrective trigger creates one durable canonical event. The event must preserve enough evidence to explain what failed, replay the boundary, detect recurrence, and find the lesson later without making the incident machinery replace the user's inherited task.
 
-Meta-references to the word `slopwall` are references only and do not create corrective events.
+Meta-references or questions about `slopwall` or `incident report` are references only and do not create corrective events.
 
 ## Trigger semantics
 
@@ -35,16 +35,24 @@ The raw verbatim snapshot and the forensic analysis are separate: the raw snapsh
 
 Each corrective event has one immutable `event_id` and may have many provenance aliases (visible conversation turn, visible raw message, report, screenshot supplied/visible to the agent, memory, replay fixture). Duplicate artifacts never create duplicate events.
 
-A repeated explicit corrective trigger (`slopwall` or `incident report`) after a repair attempt creates a new event whose `parent_event_id` points to the prior Slopwall event. The failed repair attempt becomes the new failure boundary. This preserves correction-resistance chains instead of overwriting the first failure.
+A repeated explicit corrective trigger (`slopwall` or `incident report`) after a repair attempt creates a new event whose `parent_event_id` points to the prior behavior-incident event. The failed repair attempt becomes the new failure boundary. This preserves correction-resistance chains instead of overwriting the first failure.
 
 ## Required closure artifacts
 
 A corrective behavior-incident event is not `CLOSED` until all four exist:
 
-1. **Incident record/report** — every new V2 Slopwall gets a durable per-event record under the existing incident-report surface. It may be compact when the boundary is simple, but it must preserve failure boundary, inherited objective, user-visible symptom, available governing guidance/evidence, first supported divergence, rule-consumption analysis, correct counterfactual, repaired result/action, and unresolved uncertainty. A longer forensic report is justified only when those facts need more space.
+1. **Incident record/report** — every new V2 behavior incident gets a durable per-event record under the existing incident-report surface. It may be compact when the boundary is simple, but it must preserve failure boundary, inherited objective, user-visible symptom, available governing guidance/evidence, first supported divergence, rule-consumption analysis, correct counterfactual, repaired result/action, and unresolved uncertainty. A longer forensic report is justified only when those facts need more space.
 2. **Replay fixture** — inherited objective, live/protected state, hard exclusions, failure candidate, success candidate, discriminating evidence, completion condition, and deterministic assertions compatible with `tools/replay_scoring.py`.
 3. **Bounded score/confidence** — the five historical dimensions (information slop, task displacement, execution damage, correction resistance, control/state pathology) when evidence is sufficient; otherwise `UNSCORABLE` with confidence explaining why. Scoring is descriptive and never blocks the user-visible repair.
 4. **Searchable memory pointer** — compact `slopwall`-tagged correction that points to the event/report/replay and contains the reusable lesson. Memory is an index/lesson, not the incident itself.
+
+## Closure-state semantics
+
+- `OPEN`: analysis/repair is still active; no memory pointer is required yet.
+- `REPAIRED_PENDING_DURABILITY`: the repaired result exists and report/replay exist, but canonical memory has not landed. A bounded `memory/reports/...` handoff may hold the proposed searchable lesson, and it must bind the same `event_id`, source report, and replay. It is not canonical memory and cannot close the event.
+- `CLOSED`: requires a canonical `memory/memory-bank.jsonl#mem-...` entry in state `PROVEN`. That exact memory entry must bind the same `event_id` and list the event's source report, replay fixture, and visible-context evidence as evidence. A non-empty string or pending Markdown file is never sufficient proof of closure.
+
+The replay fixture/event manifest remains the machine-readable closure surface; the memory bank remains retrieval/indexing. Neither one replaces the raw visible-context evidence or the incident report.
 
 ## Required analysis order
 

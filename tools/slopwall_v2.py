@@ -135,7 +135,7 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
         _require(all(isinstance(item, str) and item.strip() for item in proposed), f"{event_id}: proposed_assertions must contain non-empty names")
         _require(set(proposed).issubset(scoring_names), f"{event_id}: proposed assertions must be bound into fixture scoring")
     memory_ref = event.get("memory_ref")
-    _require(isinstance(memory_ref, str) and memory_ref.strip(), f"{event_id}: memory_ref is required for closure")
+    _require(memory_ref is None or (isinstance(memory_ref, str) and memory_ref.strip()), f"{event_id}: memory_ref must be null or non-empty string")
 
     confidence = event.get("evidence_confidence")
     _require(confidence in CONFIDENCE, f"{event_id}: invalid evidence_confidence")
@@ -154,10 +154,57 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
 
     closure = event.get("closure_state")
     _require(closure in {"OPEN", "REPAIRED_PENDING_DURABILITY", "CLOSED"}, f"{event_id}: invalid closure_state")
+    source_report = raw.get("source_report")
+    replay_ref = event.get("replay_ref")
+
+    def checked_repo_file(ref: Any, label: str) -> Path:
+        _require(isinstance(ref, str) and ref.strip(), f"{event_id}: {label} is required")
+        path = (root / ref.split("#", 1)[0]).resolve()
+        _require(path.is_relative_to(root.resolve()), f"{event_id}: {label} must stay inside the Vault checkout")
+        _require(path.is_file(), f"{event_id}: {label} does not exist: {ref}")
+        return path
+
+    if closure in {"REPAIRED_PENDING_DURABILITY", "CLOSED"}:
+        report_path = checked_repo_file(source_report, "source_report")
+        _require(event_id in report_path.read_text(encoding="utf-8-sig", errors="replace"), f"{event_id}: source_report must bind the same event_id")
+        replay_path = checked_repo_file(replay_ref, "replay_ref")
+        try:
+            replay_payload = json.loads(replay_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SlopwallV2Error(f"{event_id}: invalid replay_ref payload: {exc}") from exc
+        replay_event = replay_payload.get("incident_event") or replay_payload.get("slopwall_event")
+        _require(isinstance(replay_event, dict) and replay_event.get("event_id") == event_id, f"{event_id}: replay_ref must bind the same event_id")
+        _require(isinstance(memory_ref, str) and memory_ref.strip(), f"{event_id}: repaired/closed event requires memory_ref")
+
+    if closure == "REPAIRED_PENDING_DURABILITY":
+        _require(memory_ref.startswith("memory/reports/"), f"{event_id}: pending event requires a bound memory/reports/... handoff until canonical memory is written")
+        pending_path = checked_repo_file(memory_ref, "pending memory_ref")
+        pending_text = pending_path.read_text(encoding="utf-8-sig", errors="replace")
+        _require(event_id in pending_text, f"{event_id}: pending memory handoff must bind the same event_id")
+        _require(str(source_report) in pending_text, f"{event_id}: pending memory handoff must reference source_report")
+        _require(str(replay_ref) in pending_text, f"{event_id}: pending memory handoff must reference replay_ref")
+
     if closure == "CLOSED":
-        _require(bool(raw.get("source_report")), f"{event_id}: CLOSED event requires source_report")
-        _require(bool(memory_ref), f"{event_id}: CLOSED event requires memory_ref")
         _require(raw.get("replay_ready", True) is not False, f"{event_id}: CLOSED event cannot have replay_ready=false")
+        _require(memory_ref.startswith("memory/memory-bank.jsonl#mem-"), f"{event_id}: CLOSED event requires canonical memory/memory-bank.jsonl#mem-... ref")
+        bank_ref, memory_id = memory_ref.split("#", 1)
+        bank_path = checked_repo_file(bank_ref, "canonical memory bank")
+        matched_memory = None
+        for line in bank_path.read_text(encoding="utf-8-sig").splitlines():
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if item.get("id") == memory_id:
+                matched_memory = item
+                break
+        _require(isinstance(matched_memory, dict), f"{event_id}: canonical memory id not found: {memory_id}")
+        _require(matched_memory.get("state") == "PROVEN", f"{event_id}: canonical memory must be PROVEN")
+        serialized_memory = json.dumps(matched_memory, ensure_ascii=False)
+        _require(event_id in serialized_memory, f"{event_id}: canonical memory must bind the same event_id")
+        memory_evidence = {str(item).replace("\\", "/") for item in matched_memory.get("evidence", []) if isinstance(item, str)}
+        required_memory_evidence = {str(source_report).replace("\\", "/"), str(replay_ref).replace("\\", "/"), str(evidence_ref).replace("\\", "/")}
+        _require(required_memory_evidence.issubset(memory_evidence), f"{event_id}: canonical memory must point to source_report, replay_ref, and visible evidence")
 
     return raw
 
