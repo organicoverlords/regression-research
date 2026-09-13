@@ -156,6 +156,18 @@ class StackAtlasTests(unittest.TestCase):
             self.assertIn("mandatory lightweight marker", guidance["asshole"])
             self.assertIn("one decision-relevant unknown", guidance["stack_find"])
             self.assertIn("narrow same unknown once", guidance["stack_find"])
+            security = guidance["security_evidence"]
+            self.assertEqual(security["mode"], "CLASSIFY_BEFORE_CAUSALITY")
+            self.assertEqual(security["source"], "RULES:platform-security-boundary")
+            self.assertEqual(
+                security["classes"]["tool_policy_rejection"],
+                "tool invocation rejected before MCP dispatch",
+            )
+            self.assertIn(
+                "tool_policy_rejection != platform_security_reroute",
+                security["non_equivalence"],
+            )
+            self.assertIn("shared log path/name is not a classification", security["causality_gate"])
             self.assertNotIn("missing", guidance)
 
             (root / "AGENTS.md").unlink()

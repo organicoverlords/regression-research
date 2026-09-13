@@ -868,7 +868,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "owner_components": ["agent_rules", "mcp_minimal_clone", "vps_edge_ingress", "memory_bank"],
         "triggers": ["security reroute", "security routing", "security rerouting", "reroute happened", "routing happened"],
         "entrypoints": [str(MCP_SECURITY_ROUTING_LOG_PATH), str(MCP_RECOVERY_STATE_PATH), r"C:\Users\Lauri\.agents\RULES.md"],
-        "boundary": "When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
+        "boundary": "This is a mixed historical evidence log, not a single event class: preserve each record's explicit classification and never treat membership in this file as proof of a platform reroute. When the user explicitly asks for platform-reroute/security analysis or incident tracking, a user-reported reroute must be logged with report/event time semantics, preceding actions/changes, serving identifiers, and bounded live evidence before related MCP/edge mutation; otherwise treat platform security events as external and do not persist them. Tool-policy rejection, MCP/transport failure, process execution outcome, and user/preserved platform reroute evidence remain non-interchangeable. Never infer an unknown occurrence time or use server-only arrivals as a complete denominator for client-side reroutes.",
     },
     "vault.overview": {
         "owner_components": ["memory_bank"],
@@ -3616,6 +3616,22 @@ def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT
         "slopwall": "keep inherited objective/core foregrounded; no filler/process/proxy displacement | RULES:slopwall + AGENTS:correction; repair first; mandatory correction before final",
         "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
         "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
+        "security_evidence": {
+            "mode": "CLASSIFY_BEFORE_CAUSALITY",
+            "source": "RULES:platform-security-boundary",
+            "classes": {
+                "platform_security_reroute": "user report or preserved platform evidence",
+                "tool_policy_rejection": "tool invocation rejected before MCP dispatch",
+                "mcp_transport_failure": "connector/MCP transport failure such as HTTP 5xx",
+                "process_execution": "local process receipt/outcome only",
+            },
+            "non_equivalence": [
+                "tool_policy_rejection != platform_security_reroute",
+                "mcp_transport_failure != platform_security_reroute",
+                "process_execution != platform_security_reroute",
+            ],
+            "causality_gate": "Cross-class causality requires explicit correlated evidence; a shared log path/name is not a classification.",
+        },
     }
 
 
