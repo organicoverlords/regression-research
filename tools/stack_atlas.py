@@ -794,7 +794,7 @@ FEATURE_INDEX: dict[str, dict[str, Any]] = {
         "triggers": ["production mutation", "control plane mutation", "serving path", "cutover", "live routing", "shared production", "rollback", "blast radius"],
         "entrypoints": [
             "python tools\\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
-            "PASS requires --independent-rollback-verified --offpath-proof-verified plus either --routine-scoped-advance for an already-established reversible serving advance or --explicit-user-authorization for a scope-widening/destructive/topology change",
+            "PASS requires --independent-rollback-verified --offpath-proof-verified plus either --routine-scoped-advance for an already-established reversible serving advance or --explicit-user-authorization with --authorization-evidence <exact-user-wording> for a scope-widening/destructive/topology change",
         ],
         "boundary": "Read-only preflight for shared production/control-plane mutation. A routine already-scoped reversible serving advance does not require redundant per-cutover user approval; arbitrary new, scope-widening, destructive, credential/permission, scheduler/fleet, or topology/control-plane mutation still requires explicit user authorization.",
     },
@@ -4054,12 +4054,42 @@ def _busy_scope_status(scope: str) -> dict[str, Any]:
     return {"available": True, "scope": scope, "job": payload.get("job"), "claim": payload.get("claim")}
 
 
+def _production_authorization_evidence(text: str | None) -> dict[str, Any]:
+    raw = text or ""
+    normalized = " ".join(raw.split()).casefold()
+    generic = {
+        "go", "continue", "fix", "fix it", "do it", "proceed", "yes", "ok", "okay",
+        "jatka", "korjaa", "mene töihin", "tee se", "anna mennä",
+    }
+    production_terms = ("live", "production", "prod", "tuotanto")
+    mutation_terms = (
+        "change", "mutat", "deploy", "cutover", "reload", "restart", "route", "routing", "serving",
+        "update", "edit", "switch", "restore", "replace", "muutos", "muuta", "vaihda", "palauta", "reit",
+        "lataa uudelleen", "käynnistä uudelleen",
+    )
+    provided = bool(normalized)
+    specific = (
+        provided
+        and normalized not in generic
+        and len(normalized) >= 20
+        and any(term in normalized for term in production_terms)
+        and any(term in normalized for term in mutation_terms)
+    )
+    return {
+        "provided": provided,
+        "specific_live_mutation": specific,
+        "normalized_length": len(normalized),
+        "sha256": hashlib.sha256(raw.encode("utf-8")).hexdigest() if provided else None,
+    }
+
+
 def production_change_gate(
     target: str,
     *,
     actor: str,
     busy_scope: str,
     explicit_user_authorization: bool = False,
+    explicit_user_authorization_evidence: str | None = None,
     routine_scoped_advance: bool = False,
     independent_rollback_verified: bool = False,
     offpath_proof_verified: bool = False,
@@ -4076,8 +4106,15 @@ def production_change_gate(
     elif component not in SHARED_PRODUCTION_COMPONENTS:
         reasons.append("target_not_classified_shared_production")
 
+    authorization_evidence = _production_authorization_evidence(explicit_user_authorization_evidence)
+    if explicit_user_authorization and not authorization_evidence["provided"]:
+        reasons.append("missing_explicit_user_authorization_evidence")
+    elif explicit_user_authorization and not authorization_evidence["specific_live_mutation"]:
+        reasons.append("explicit_user_authorization_evidence_not_specific")
+
+    explicit_authorization_valid = bool(explicit_user_authorization and authorization_evidence["specific_live_mutation"])
     scope_authorization_source = (
-        "EXPLICIT_USER" if explicit_user_authorization else ("ROUTINE_SCOPED_ADVANCE" if routine_scoped_advance else None)
+        "EXPLICIT_USER" if explicit_authorization_valid else ("ROUTINE_SCOPED_ADVANCE" if routine_scoped_advance else None)
     )
     if scope_authorization_source is None:
         reasons.append("missing_live_production_scope_basis")
@@ -4126,7 +4163,9 @@ def production_change_gate(
         "actor": actor,
         "busy_scope": busy_scope,
         "checks": {
-            "explicit_user_authorization_for_specific_live_change": bool(explicit_user_authorization),
+            "explicit_user_authorization_asserted": bool(explicit_user_authorization),
+            "explicit_user_authorization_for_specific_live_change": explicit_authorization_valid,
+            "explicit_user_authorization_evidence": authorization_evidence,
             "routine_scoped_reversible_advance": bool(routine_scoped_advance),
             "scope_authorization_source": scope_authorization_source,
             "independent_rollback_control_route_verified": bool(independent_rollback_verified),
@@ -4140,6 +4179,8 @@ def production_change_gate(
         "semantics": {
             "routine_scoped_advance_does_not_require_redundant_user_approval": True,
             "scope_widening_or_destructive_change_requires_explicit_user_authorization": True,
+            "boolean_authorization_assertion_alone_is_not_evidence": True,
+            "generic_go_continue_fix_is_not_production_authorization": True,
             "busy_claim_is_collision_control_not_authorization": True,
             "pass_is_necessary_not_sufficient_authority": True,
         },
@@ -5192,6 +5233,7 @@ def main() -> int:
     prod.add_argument("--actor", required=True)
     prod.add_argument("--busy-scope", required=True)
     prod.add_argument("--explicit-user-authorization", action="store_true")
+    prod.add_argument("--authorization-evidence", help="exact user wording authorizing the specific live production mutation; generic go/continue/fix is rejected")
     prod.add_argument("--routine-scoped-advance", action="store_true")
     prod.add_argument("--independent-rollback-verified", action="store_true")
     prod.add_argument("--offpath-proof-verified", action="store_true")
@@ -5233,6 +5275,7 @@ def main() -> int:
             actor=args.actor,
             busy_scope=args.busy_scope,
             explicit_user_authorization=args.explicit_user_authorization,
+            explicit_user_authorization_evidence=args.authorization_evidence,
             routine_scoped_advance=args.routine_scoped_advance,
             independent_rollback_verified=args.independent_rollback_verified,
             offpath_proof_verified=args.offpath_proof_verified,

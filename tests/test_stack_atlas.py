@@ -848,6 +848,34 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(routine["reasons"], [])
         self.assertEqual(routine["checks"]["scope_authorization_source"], "ROUTINE_SCOPED_ADVANCE")
 
+    def test_production_change_gate_rejects_boolean_only_and_generic_authorization_evidence(self):
+        busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
+        common = dict(
+            target="agent_rules", actor="ChatGPT:test", busy_scope="agents:RULES.md",
+            independent_rollback_verified=True, offpath_proof_verified=True, busy_status=busy,
+        )
+        boolean_only = production_change_gate(explicit_user_authorization=True, **common)
+        self.assertEqual(boolean_only["verdict"], "BLOCK")
+        self.assertIn("missing_explicit_user_authorization_evidence", boolean_only["reasons"])
+        self.assertFalse(boolean_only["checks"]["explicit_user_authorization_for_specific_live_change"])
+
+        generic = production_change_gate(
+            explicit_user_authorization=True, explicit_user_authorization_evidence="go", **common,
+        )
+        self.assertEqual(generic["verdict"], "BLOCK")
+        self.assertIn("explicit_user_authorization_evidence_not_specific", generic["reasons"])
+        self.assertFalse(generic["checks"]["explicit_user_authorization_evidence"]["specific_live_mutation"])
+
+        specific = production_change_gate(
+            explicit_user_authorization=True,
+            explicit_user_authorization_evidence="Valtuutan tämän live production Caddy routing muutoksen nyt.",
+            **common,
+        )
+        self.assertEqual(specific["verdict"], "PASS")
+        self.assertEqual(specific["reasons"], [])
+        self.assertTrue(specific["checks"]["explicit_user_authorization_for_specific_live_change"])
+        self.assertIsNotNone(specific["checks"]["explicit_user_authorization_evidence"]["sha256"])
+
     def test_production_change_gate_covers_shared_agent_rules_serving_root(self):
         busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
         blocked = production_change_gate(
@@ -862,7 +890,7 @@ class StackAtlasTests(unittest.TestCase):
 
         allowed = production_change_gate(
             "agent_rules", actor="ChatGPT:test", busy_scope="agents:RULES.md",
-            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            explicit_user_authorization=True, explicit_user_authorization_evidence="I authorize this live production routing change now.", independent_rollback_verified=True, offpath_proof_verified=True,
             busy_status=busy,
         )
         self.assertEqual(allowed["verdict"], "PASS")
@@ -894,7 +922,7 @@ class StackAtlasTests(unittest.TestCase):
         busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
         gate = production_change_gate(
             "vps_edge_ingress", actor="ChatGPT:test", busy_scope="mcp-vps:/etc/caddy/Caddyfile",
-            explicit_user_authorization=True, independent_rollback_verified=False, offpath_proof_verified=True,
+            explicit_user_authorization=True, explicit_user_authorization_evidence="I authorize this live production routing change now.", independent_rollback_verified=False, offpath_proof_verified=True,
             mcp_status=mcp, busy_status=busy,
         )
         self.assertEqual(gate["verdict"], "BLOCK")
@@ -908,7 +936,7 @@ class StackAtlasTests(unittest.TestCase):
         busy = {"available": True, "claim": {"actor": "ChatGPT:other"}, "job": None}
         gate = production_change_gate(
             "mcp_front_door", actor="ChatGPT:test", busy_scope="mcp-production:front-door",
-            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            explicit_user_authorization=True, explicit_user_authorization_evidence="I authorize this live production routing change now.", independent_rollback_verified=True, offpath_proof_verified=True,
             mcp_status=mcp, busy_status=busy,
         )
         self.assertEqual(gate["verdict"], "BLOCK")
@@ -922,7 +950,7 @@ class StackAtlasTests(unittest.TestCase):
         busy = {"available": True, "claim": {"actor": "ChatGPT:test"}, "job": None}
         gate = production_change_gate(
             "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
-            explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+            explicit_user_authorization=True, explicit_user_authorization_evidence="I authorize this live production routing change now.", independent_rollback_verified=True, offpath_proof_verified=True,
             mcp_status=mcp, busy_status=busy,
         )
         self.assertEqual(gate["verdict"], "PASS")
@@ -950,7 +978,7 @@ class StackAtlasTests(unittest.TestCase):
         ):
             gate = production_change_gate(
                 "mcpv3", actor="ChatGPT:test", busy_scope="mcp-production:vps-caddy-routing",
-                explicit_user_authorization=True, independent_rollback_verified=True, offpath_proof_verified=True,
+                explicit_user_authorization=True, explicit_user_authorization_evidence="I authorize this live production routing change now.", independent_rollback_verified=True, offpath_proof_verified=True,
                 busy_status=busy,
             )
         self.assertEqual(gate["verdict"], "PASS")
