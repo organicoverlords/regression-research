@@ -128,6 +128,23 @@ def state_lock(path,timeout_seconds=8.0):
 
 def _run(args,timeout): return subprocess.run(args,capture_output=True,text=True,timeout=timeout,check=False)
 
+def _gh_swarm_bin():
+    found=shutil.which("gh-swarm")
+    if found: return found
+    local=Path.home()/".local"/"bin"/("gh-swarm.exe" if os.name=="nt" else "gh-swarm")
+    return str(local) if local.is_file() else None
+
+def _github_read(args,timeout):
+    proxy=_gh_swarm_bin()
+    if proxy:
+        try:
+            cp=_run([proxy,*args],timeout)
+        except (OSError,subprocess.TimeoutExpired):
+            pass
+        else:
+            if cp.returncode==0: return cp
+    return _run(["gh",*args],timeout)
+
 def probe_windows():
     observed_hostname=platform.node() or os.environ.get("COMPUTERNAME") or None
     out={"available":True,"observed_hostname":observed_hostname}
@@ -202,7 +219,7 @@ def probe_omen(timeout=7.0):
     out["available"]=bool(out.get("available")); out.update(_bind_node_identity("omen",out.get("observed_hostname"))); return out
 
 def probe_vps(timeout=6.0):
-    try: cp=_run(["gh","api","repos/organicoverlords/p3/actions/runners"],timeout)
+    try: cp=_github_read(["api","repos/organicoverlords/p3/actions/runners"],timeout)
     except (OSError,subprocess.TimeoutExpired): return _unavailable_probe("vps","RUNNER_PROBE_UNAVAILABLE")
     if cp.returncode!=0: return _unavailable_probe("vps","RUNNER_PROBE_FAILED")
     try: runners=json.loads(cp.stdout).get("runners",[])
