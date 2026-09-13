@@ -229,10 +229,10 @@ BOOTSTRAP_GLANCE_MAX_BYTES = 28_000
 BOOTSTRAP_GLANCE_GROWTH_POLICY = "EXPLICIT_USER_AUTHORIZATION_REQUIRED"
 BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT = 4
 BOOTSTRAP_INTEGRITY_WARNING = (
-    "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
-    "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
-    "or incompleteness. If the end marker is missing, or any truncation/incompleteness is reported, "
-    "immediately tell the user after reading this bootstrap before relying on it as complete context."
+    "BOOTSTRAP INTEGRITY: complete only if final bootstrap_end.status=COMPLETE is visible and "
+    "transport/tool reports no envelope truncation. Schema-bounded samples are valid. Missing end "
+    "marker or transport truncation => BOOTSTRAP_INCOMPLETE: optimize representation preserving all "
+    "bootstrap information; never drop fields/data to fit."
 )
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
@@ -2442,7 +2442,6 @@ def _fit_bootstrap_glance_budget(
         bootstrap["payload_budget"] = {
             "max_bytes": budget,
             "mode": "BUDGET_NO_SIZE_COMPACTION",
-            "compacted": False,
             "growth_policy": BOOTSTRAP_GLANCE_GROWTH_POLICY,
         }
 

@@ -552,11 +552,15 @@ class StackAtlasTests(unittest.TestCase):
         self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
         self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 28_000)
         self.assertEqual(next(iter(glance)), "bootstrap_warning")
+        warning = glance["bootstrap_warning"]
+        self.assertIn("BOOTSTRAP_INCOMPLETE", warning)
+        self.assertIn("Schema-bounded samples are valid", warning)
+        self.assertIn("preserving all bootstrap information", warning)
+        self.assertIn("never drop fields/data to fit", warning)
         self.assertEqual(next(reversed(glance)), "bootstrap_end")
         self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
         self.assertEqual(glance["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
-        self.assertFalse(glance["bootstrap"]["payload_budget"]["compacted"])
         self.assertFalse(glance["bootstrap"]["payload_budget"]["over_budget"])
         self.assertEqual(glance["bootstrap"]["payload_budget"]["runtime_action"], "OBSERVE_ONLY_NO_FAIL")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["growth_policy"], BOOTSTRAP_GLANCE_GROWTH_POLICY)
@@ -677,8 +681,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["synthetic_oversize"], glance["synthetic_oversize"])
         self.assertTrue(fitted["bootstrap"]["payload_budget"]["over_budget"])
         self.assertEqual(fitted["bootstrap"]["payload_budget"]["runtime_action"], "OBSERVE_ONLY_NO_FAIL")
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
-    def test_bootstrap_under_cap_is_not_compacted(self):
+    def test_bootstrap_under_cap_preserves_payload_data(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "live_swarm": {"lanes": [{"lane_id": "lane-a", "detail": "x" * 3000}]},
@@ -692,7 +695,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["live_swarm"], glance["live_swarm"])
         self.assertEqual(fitted["memory_overview"], glance["memory_overview"])
         self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
     def test_bootstrap_budget_is_user_approved_28k_with_ci_growth_guard(self):
         self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 28_000)
         self.assertEqual(BOOTSTRAP_GLANCE_GROWTH_POLICY, "EXPLICIT_USER_AUTHORIZATION_REQUIRED")
@@ -700,7 +702,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["probe"], "x" * 20_000)
         self.assertEqual(fitted["bootstrap"]["payload_budget"]["max_bytes"], 28_000)
         self.assertEqual(fitted["bootstrap"]["payload_budget"]["growth_policy"], BOOTSTRAP_GLANCE_GROWTH_POLICY)
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
     def test_bootstrap_no_compaction_keeps_stack_commands_directly_executable(self):
         glance = {
             "bootstrap": {"status": "OK"},
@@ -721,7 +722,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertEqual(fitted["commands"], glance["commands"])
         self.assertEqual(fitted["paths"], glance["paths"])
         self.assertEqual(fitted["synthetic_detail"], glance["synthetic_detail"])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
     def test_bootstrap_mcp_service_health_source_detail_is_bounded(self):
         glance = {
             "bootstrap": {"status": "OK"},
@@ -738,7 +738,6 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(health["sources_truncated"])
         self.assertEqual(len(health["sources"]), BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
         self.assertEqual([item["instance"] for item in health["sources"]], [f"source-{i}" for i in range(BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
         self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
 
     def test_bootstrap_budget_preserves_manual_sanity_without_compaction(self):
@@ -756,7 +755,6 @@ class StackAtlasTests(unittest.TestCase):
         fitted = _fit_bootstrap_glance_budget(glance)
         self.assertEqual(fitted["workers"], glance["workers"])
         self.assertEqual(fitted["mcp"], glance["mcp"])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["compacted"])
     def test_production_change_gate_requires_specific_scope_basis(self):
         mcp = {
             "available": True, "status": "LIVE", "active_session_count": 20,
