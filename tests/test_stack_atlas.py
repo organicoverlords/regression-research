@@ -3475,6 +3475,7 @@ class TestFleetWatchSubscription(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             now = datetime(2026, 9, 7, 16, 30, tzinfo=timezone.utc)
@@ -3506,6 +3507,7 @@ class TestFleetWatchSubscription(unittest.TestCase):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_test_slot_registry(root)
             current = root / "worker-reports" / "current"
             current.mkdir(parents=True)
             contract = root / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
@@ -3514,6 +3516,10 @@ class TestFleetWatchSubscription(unittest.TestCase):
             target_id, target_label = TEST_RECURRING_WORKER_PARTITIONS["S1"][0]
             actor_id = TEST_RECURRING_WORKER_PARTITIONS["S1"][1][0]
             first_expected = now + timedelta(minutes=1)
+            registry = root / "worker-reports" / ".supervision" / "recurring-slot-bindings.json"
+            registry_payload = json.loads(registry.read_text(encoding="utf-8"))
+            registry_payload["bindings"]["S1/1"]["first_expected_start_at"] = first_expected.isoformat()
+            registry.write_text(json.dumps(registry_payload), encoding="utf-8")
             contract.write_text(json.dumps({"subscriptions": {"S1": {"workers": [{
                 "automation_id": target_id,
                 "label": target_label,

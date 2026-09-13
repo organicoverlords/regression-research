@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import tempfile
@@ -155,6 +156,10 @@ WINDOW_UI_PATHS = {
 }
 
 
+ALL_AREAS = ("stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui")
+WINDOWS_ONLY_AREAS = frozenset({"stack", "busy", "windows_ui"})
+
+
 def changed_files(base_ref: str) -> set[str]:
     commands = [
         ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
@@ -174,7 +179,7 @@ def changed_files(base_ref: str) -> set[str]:
 
 def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if run_all or changed & VERIFIER_PATHS:
-        return ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"]
+        return list(ALL_AREAS)
     selected = []
     if changed & STACK_PATHS or any(
         Path(path).parent.as_posix() == "03 Fixtures and Experiments" and path.endswith(".json")
@@ -194,6 +199,40 @@ def select_areas(changed: set[str], run_all: bool = False) -> list[str]:
     if changed & WINDOW_UI_PATHS:
         selected.append("windows_ui")
     return selected
+
+
+def split_areas(areas: list[str]) -> dict[str, object]:
+    invalid = [area for area in areas if area not in ALL_AREAS]
+    if invalid:
+        raise ValueError(f"unknown verification area(s): {', '.join(invalid)}")
+    windows_areas = [area for area in areas if area in WINDOWS_ONLY_AREAS]
+    portable_areas = [area for area in areas if area not in WINDOWS_ONLY_AREAS]
+    return {
+        "areas": list(areas),
+        "portable_areas": portable_areas,
+        "windows_areas": windows_areas,
+        "needs_windows": bool(windows_areas),
+    }
+
+
+def run_areas(areas: list[str]) -> None:
+    for area in areas:
+        if area == "stack":
+            verify_stack()
+        elif area == "memory":
+            verify_memory()
+        elif area == "conversation":
+            verify_conversation()
+        elif area == "busy":
+            verify_busy()
+        elif area == "worker_reports":
+            verify_worker_reports()
+        elif area == "routing":
+            verify_routing()
+        elif area == "windows_ui":
+            verify_windows_ui()
+        else:
+            raise ValueError(f"unknown verification area: {area}")
 
 
 def run(command: list[str]) -> None:
@@ -405,28 +444,34 @@ def main() -> int:
         action="store_true",
         help="Run every deterministic check (the default when no base ref is supplied).",
     )
+    parser.add_argument(
+        "--areas",
+        help="Run an explicit comma-separated area list. An empty value runs only the verifier entrypoint.",
+    )
+    parser.add_argument(
+        "--plan-json",
+        action="store_true",
+        help="Print the selected portable/Windows area split as JSON without executing checks.",
+    )
     args = parser.parse_args()
 
-    run_all = args.all or not args.base_ref
-    changed = set() if run_all else changed_files(args.base_ref)
-    areas = select_areas(changed, run_all=run_all)
+    if args.areas is not None:
+        areas = [item.strip() for item in args.areas.split(",") if item.strip()]
+        try:
+            split_areas(areas)
+        except ValueError as exc:
+            parser.error(str(exc))
+    else:
+        run_all = args.all or not args.base_ref
+        changed = set() if run_all else changed_files(args.base_ref)
+        areas = select_areas(changed, run_all=run_all)
+
+    if args.plan_json:
+        print(json.dumps(split_areas(areas), sort_keys=True))
+        return 0
 
     verify_entrypoint()
-    for area in areas:
-        if area == "stack":
-            verify_stack()
-        elif area == "memory":
-            verify_memory()
-        elif area == "conversation":
-            verify_conversation()
-        elif area == "busy":
-            verify_busy()
-        elif area == "worker_reports":
-            verify_worker_reports()
-        elif area == "routing":
-            verify_routing()
-        elif area == "windows_ui":
-            verify_windows_ui()
+    run_areas(areas)
 
     if not areas:
         print("CHANGED_AREA_CHECKS_SKIPPED")

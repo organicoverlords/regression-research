@@ -1184,7 +1184,7 @@ def mcp_events(
     root: Path,
     project_to_slug: dict[str, str],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    local = Path(os.environ.get("LOCALAPPDATA") or os.path.expandvars(r"%LOCALAPPDATA%"))
     mcp_roots = [local / "ChatGPTMcpClean", local / "ChatGPTMcpMinimal"]
     events: list[dict[str, Any]] = []
     coverage = {
@@ -1375,7 +1375,7 @@ def mcp_events(
 
 def mcp_replacement_events(*, since: datetime, limit: int = 1000) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Project immutable MCP production replacement receipts as long-lived version history."""
-    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    local = Path(os.environ.get("LOCALAPPDATA") or os.path.expandvars(r"%LOCALAPPDATA%"))
     mcp_roots = [local / "ChatGPTMcpClean", local / "ChatGPTMcpMinimal"]
     events: list[dict[str, Any]] = []
     coverage: dict[str, Any] = {"roots": [], "candidates": 0, "events": 0, "limit": limit, "saturated": False, "errors": []}
@@ -1455,7 +1455,7 @@ def coordinator_events(*, since: datetime, snapshot_now: datetime | None = None)
     """Capture current Busy collision state without promoting it to liveness/history authority."""
     del since
     snapshot_now = snapshot_now or datetime.now().astimezone()
-    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    local = Path(os.environ.get("LOCALAPPDATA") or os.path.expandvars(r"%LOCALAPPDATA%"))
     configured = os.environ.get("BUSY_STORE_PATH") or os.environ.get("MCP_BUSY_STORE_PATH")
     store = Path(configured) if configured else local / "ChatGPTMcpClean" / ".state" / "busy-claims.json"
     coverage: dict[str, Any] = {
@@ -1544,7 +1544,7 @@ def _runner_diag_roots() -> list[Path]:
         roots.update(path / "_diag" for path in Path("C:/").glob("actions-runner-*") if path.is_dir())
     except OSError:
         pass
-    local = Path(os.path.expandvars(r"%LOCALAPPDATA%")) / "GitHubActions"
+    local = Path(os.environ.get("LOCALAPPDATA") or os.path.expandvars(r"%LOCALAPPDATA%")) / "GitHubActions"
     try:
         roots.update(path / "_diag" for path in local.iterdir() if path.is_dir())
     except OSError:
@@ -1786,7 +1786,7 @@ def machine_observation_events(
     *, since: datetime, limit: int = DEFAULT_MACHINE_OBSERVATION_EVENTS
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Project persisted bootstrap PC observations as historical evidence, never live authority."""
-    local = Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+    local = Path(os.environ.get("LOCALAPPDATA") or os.path.expandvars(r"%LOCALAPPDATA%"))
     path = local / "ChatGPTMcpClean" / ".state" / "bootstrap-observations.jsonl"
     max_bytes = 4 * 1024 * 1024
     coverage: dict[str, Any] = {
