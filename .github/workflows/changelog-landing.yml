@@ -73,6 +73,20 @@ jobs:
         env:
           VERIFY_AREAS: ${{ needs.classify.outputs.portable_areas }}
         run: |
+          if ! command -v git >/dev/null 2>&1; then
+            git_root="$RUNNER_TEMP/rootless-git"
+            mkdir -p "$git_root/pkg" "$git_root/root"
+            (
+              cd "$git_root/pkg"
+              apt-get download git >/dev/null
+              pkg="$(find . -maxdepth 1 -type f -name 'git_*.deb' -print -quit)"
+              test -n "$pkg"
+              dpkg-deb -x "$pkg" "$git_root/root"
+            )
+            export PATH="$git_root/root/usr/bin:$PATH"
+            export GIT_EXEC_PATH="$git_root/root/usr/lib/git-core"
+            export GIT_TEMPLATE_DIR="$git_root/root/usr/share/git-core/templates"
+          fi
           python3 -m pip install --disable-pip-version-check --no-compile --target "$RUNNER_TEMP/verify-python" "pytest==8.3.5"
           PYTHONPATH="$RUNNER_TEMP/verify-python${PYTHONPATH:+:$PYTHONPATH}" python3 tools/verify.py --areas "$VERIFY_AREAS"
 
