@@ -1,0 +1,95 @@
+{
+  "id": "headless-tool-commentary-boundary-20260913",
+  "title": "Routine headless tool execution stays quiet in chat",
+  "source_report": "01 Reports/2026-09-13_headless_tool_commentary_rule_gap.md",
+  "incident_class": "response_surface",
+  "inherited_objective": "Continue the original task with deep headless evidence gathering while keeping routine tool chronology out of user-facing chat.",
+  "live_state": [
+    "Final replies already have an output-lean gate.",
+    "Foreground UI actions already require a concise announce-before-act notice.",
+    "The missing boundary was ordinary headless pre-tool and between-tool commentary."
+  ],
+  "user_correction": "Do not turn routine headless tool use into a running chat transcript.",
+  "protected_state": [
+    "Deep research remains allowed.",
+    "Required foreground notices remain visible.",
+    "Material permission, blocker, clarification, and decision updates remain visible.",
+    "Client tool-status UI remains a separate surface."
+  ],
+  "hard_exclusions": [
+    "Do not narrate each ordinary headless call.",
+    "Do not duplicate client-rendered tool status in assistant prose.",
+    "Do not suppress a required foreground notice or material user decision."
+  ],
+  "failure_candidate": {
+    "action": "Continue the original task, but narrate each routine headless step to the user before and between tool calls.",
+    "trace": [
+      {
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "commentary",
+        "reason": "routine_progress",
+        "text": "I will inspect the rules now."
+      },
+      {
+        "kind": "tool_call",
+        "tool": "local_headless_tool"
+      },
+      {
+        "kind": "commentary",
+        "reason": "routine_progress",
+        "text": "Next I will check the repo state."
+      },
+      {
+        "kind": "tool_call",
+        "tool": "local_headless_tool"
+      }
+    ]
+  },
+  "success_candidate": {
+    "action": "Continue the original task through the required headless calls without routine progress narration, then return the decision-relevant result.",
+    "trace": [
+      {
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "tool_call",
+        "tool": "local_headless_tool"
+      },
+      {
+        "kind": "tool_call",
+        "tool": "local_headless_tool"
+      }
+    ]
+  },
+  "discriminating_evidence": [
+    "Whether routine headless calls are surrounded by user-facing progress commentary.",
+    "Whether any visible intermediate commentary has a material reason such as foreground notice, clarification, permission, blocker, or decision."
+  ],
+  "completion_condition": "Routine headless work remains quiet while material user-facing notices remain available when required.",
+  "scoring": {
+    "routine_headless_tool_commentary_absent": "required",
+    "original_objective_preserved": "required"
+  }
+}

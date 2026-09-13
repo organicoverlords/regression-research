@@ -1,0 +1,53 @@
+{
+  "source_report": "01 Reports/SW-V2-20260913-002_incident.md",
+  "cases": [
+    {
+      "id": "worker-health-verdict-first",
+      "request_class": "status",
+      "detail_requested": false,
+      "verdict_terms": [
+        "transport looks healthy",
+        "yard is the notable quality exception"
+      ],
+      "max_internal_detail_hits": 2,
+      "ui_metadata": [
+        "Called tool",
+        "Called tool",
+        "Worked for 3m"
+      ],
+      "response": "MCP transport looks healthy and there is no retry-loop signature. Most worker activity looks normal; Yard is the notable quality exception, and one attribution is stale."
+    },
+    {
+      "id": "worker-health-telemetry-dump",
+      "request_class": "status",
+      "detail_requested": false,
+      "verdict_terms": [
+        "transport looks healthy",
+        "yard is the notable quality exception"
+      ],
+      "max_internal_detail_hits": 2,
+      "ui_metadata": [
+        "Called tool",
+        "Called tool"
+      ],
+      "response": "Caller A returned HTTP 200 across receipts. Caller B had process exit 1. The retained chars were 84231. stdout had another command failure and stderr contained route diagnostics. Caller C also had HTTP 200 receipts. After all of that, transport looks healthy and Yard is the notable quality exception.",
+      "expected_violations": [
+        "verdict_not_foregrounded",
+        "internal_telemetry_dump"
+      ]
+    },
+    {
+      "id": "explicit-detail-control",
+      "request_class": "status",
+      "detail_requested": true,
+      "verdict_terms": [
+        "transport looks healthy"
+      ],
+      "max_internal_detail_hits": 0,
+      "ui_metadata": [
+        "Called tool"
+      ],
+      "response": "Caller A returned HTTP 200; receipt details and process exits follow because the user explicitly requested the raw breakdown."
+    }
+  ]
+}

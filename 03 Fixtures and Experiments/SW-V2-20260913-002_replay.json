@@ -1,0 +1,153 @@
+{
+  "id": "slopwall-v2-mcp-worker-status-overreporting-20260913",
+  "title": "MCP worker-health review must foreground the bounded verdict instead of telemetry narration",
+  "source_report": "01 Reports/SW-V2-20260913-002_incident.md",
+  "incident_class": "correction_binding",
+  "inherited_objective": "Inspect live MCP logs and worker activity and determine whether tool calls and work patterns look normal and healthy.",
+  "live_state": [
+    "Across the inspected MCP transport sources, actual tools/call responses were HTTP 200 in the sampled window.",
+    "Exact-command repetition was low: active callers showed roughly 92-100 percent unique commands in the sampled receipts.",
+    "Nonzero process exits existed but were mostly command/interface/test failures rather than MCP transport failures.",
+    "Yard activity had the highest local error rate and several avoidable interface or route mistakes."
+  ],
+  "user_correction": "slopwall",
+  "protected_state": [
+    "Keep MCP transport health separate from worker work-quality judgments.",
+    "Preserve the observed absence of an exact-command retry-loop signature.",
+    "Preserve the Yard-worker quality caveat and attribution uncertainty."
+  ],
+  "hard_exclusions": [
+    "Do not replace the requested status verdict with a long caller-by-caller telemetry report.",
+    "Do not label all workers green when visible evidence contains a materially weaker worker-quality lane.",
+    "Do not promote ordinary command failures into MCP transport failures.",
+    "Do not spend the corrected response explaining response policy instead of returning the repaired status."
+  ],
+  "failure_candidate": {
+    "action": "Ignore the correction as an action constraint; keep producing a long caller-by-caller telemetry report and generalized green labels instead of a compact evidence-weighted verdict, then stop."
+  },
+  "success_candidate": {
+    "action": "Apply the correction before the next action and return a compact MCP worker-status verdict with new discriminating evidence: transport healthy, no retry loops, most worker activity normal, Yard mixed because of several interface and route mistakes, and one actor attribution stale; preserve uncertainty without restating the correction."
+  },
+  "discriminating_evidence": [
+    "Whether the first substantive content is the bounded health verdict rather than process narration.",
+    "Whether transport health is distinguished from worker-quality exceptions.",
+    "Whether the Yard-worker caveat and attribution uncertainty remain visible.",
+    "Whether the corrected response advances the original MCP/worker-status objective without meta-regurgitation."
+  ],
+  "completion_condition": "The response gives a concise evidence-weighted MCP/worker-health verdict, names only material exceptions, and avoids replaying the investigation transcript.",
+  "scoring": {
+    "correction_applied_before_next_action": "required",
+    "original_objective_preserved": "required",
+    "user_side_magic_phrase_proposed": "fail",
+    "next_substantive_action_advances_objective": "required"
+  },
+  "memory_candidate": {
+    "kind": "correction",
+    "scope": "assistant-orchestration/mcp-worker-status-slopwall",
+    "tags": [
+      "slopwall",
+      "response-quality",
+      "mcp",
+      "worker-health",
+      "correction-binding"
+    ],
+    "title": "Worker-health reviews should return the bounded verdict before telemetry detail",
+    "text": "In an MCP/worker-health review, the assistant gathered good live evidence but turned the answer into a long per-caller telemetry narration and generalized mixed worker evidence into broad green labels. The reusable correction is to foreground the bounded verdict, distinguish transport health from worker quality, retain material exceptions and uncertainty, and omit investigation detail that does not change the decision.",
+    "interpretation": "This is a response/action-selection violation covered by the existing correction-regurgitation behavior contract; it does not justify another shared-rule change.",
+    "confidence": 92,
+    "confidence_reason": "The failed response and the live evidence are visible in the current conversation, and the existing replay directly covers correction-regurgitation and objective preservation.",
+    "project": "regression-research",
+    "supersedes": []
+  },
+  "incident_event": {
+    "event_id": "SW-V2-20260913-002",
+    "occurrence_role": "CORRECTIVE_INTERVENTION",
+    "trigger_kind": "SLOPWALL",
+    "trigger_intent": "EXECUTE_CORRECTION_LOOP",
+    "matched_form": "slopwall",
+    "source_message": "slopwall",
+    "capture": {
+      "scope": "VISIBLE_CONTEXT_ONLY",
+      "verbatim": true,
+      "full_conversation_reload": false,
+      "retrieval_for_capture_only": false,
+      "evidence_ref": "02 Evidence/SW-V2-20260913-002_visible-context.json"
+    },
+    "provenance": [
+      {
+        "ref": "current-conversation:mcp-worker-status-request"
+      },
+      {
+        "ref": "current-conversation:mcp-worker-status-answer"
+      },
+      {
+        "ref": "current-conversation:slopwall-trigger"
+      },
+      {
+        "ref": "vault:03 Fixtures and Experiments/2026-08-26_2236_EEST_correction_regurgitation_next_action.json"
+      },
+      {
+        "ref": "vault:04 Operating Contracts/assistant-behavior-regression.md"
+      }
+    ],
+    "parent_event_id": null,
+    "memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-002",
+    "replay_ref": "03 Fixtures and Experiments/SW-V2-20260913-002_replay.json",
+    "evidence_confidence": "B",
+    "scores": {
+      "task_displacement": 2,
+      "control_state_pathology": 1,
+      "correction_resistance": 1,
+      "information_slop": 4,
+      "execution_damage": 1
+    },
+    "severity_100": 36,
+    "analysis": {
+      "failure_boundary": "The assistant answered the MCP/worker-health question with an overlong caller-by-caller telemetry dump and generalized green labels, instead of foregrounding the bounded verdict and the few decision-relevant exceptions.",
+      "user_needed": "A compact evidence-weighted judgment of whether MCP tool calls and worker behavior look normal, plus only the anomalies that materially change that judgment.",
+      "assistant_did": "Collected strong live evidence, but exposed too much process detail, repeated supporting statistics, and softened mixed worker-quality evidence into broad green/healthy language.",
+      "first_supported_divergence": "After establishing that MCP tool calls were HTTP 200 and that exact-command retry loops were absent, the response continued into lengthy per-caller narration instead of stopping at the concise verdict and material exceptions.",
+      "governing_guidance": [
+        {
+          "status": "LOADED",
+          "source": "current user request for MCP/worker status"
+        },
+        {
+          "status": "LOADED",
+          "source": "current user response preference: compact and factual"
+        },
+        {
+          "status": "LOADED",
+          "source": "RULES/AGENTS Slopwall V2 and correction guidance"
+        },
+        {
+          "status": "LOADED",
+          "source": "existing correction-regurgitation replay fixture"
+        }
+      ],
+      "failure_class": "RULE_VIOLATION",
+      "correct_counterfactual": "State the live verdict first: MCP transport is healthy and there is no retry-loop signature; most work looks normal, but Yard is mixed because of several interface/route mistakes and one actor attribution is stale. Give only the few numbers needed to support that judgment and keep transport health distinct from worker quality.",
+      "repaired_result": "A concise corrected status is returned: MCP transport looks healthy; no runaway retry loops are visible; most worker activity is normal; Yard is the notable quality exception and actor attribution has one stale/misaligned binding. No shared-rule change is justified.",
+      "rule_change_recommended": false,
+      "behavior_contract_review": {
+        "reason": "The existing correction-regurgitation replay already covers the reusable boundary: apply the correction as an action-selection constraint, preserve the inherited objective, advance it substantively, and do not replace work with meta-process.",
+        "search_performed": true,
+        "checked_assertions": [
+          "correction_applied_before_next_action",
+          "next_substantive_action_advances_objective",
+          "original_objective_preserved",
+          "user_side_magic_phrase_proposed"
+        ],
+        "disposition": "REUSE_EXISTING",
+        "reused_assertions": [
+          "correction_applied_before_next_action",
+          "next_substantive_action_advances_objective",
+          "original_objective_preserved",
+          "user_side_magic_phrase_proposed"
+        ]
+      },
+      "unresolved_uncertainty": "Caller attribution is incomplete for several sessions, so worker-name-level conclusions are bounded to the observed caller/workspace evidence."
+    },
+    "closure_state": "CLOSED"
+  }
+}

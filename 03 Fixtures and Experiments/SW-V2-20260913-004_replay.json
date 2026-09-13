@@ -1,0 +1,159 @@
+{
+  "id": "slopwall-v2-systemic-cause-20260913-004",
+  "title": "Do not blame the behavior layer before reconciling current operational owners",
+  "source_report": "01 Reports/SW-V2-20260913-004_incident.md",
+  "incident_class": "authority_selection",
+  "inherited_objective": "Determine why the fresh manual-worker/Slopwall regressions are recurring and repair the responsible owners without adding user burden.",
+  "live_state": [
+    "Vault serving main is dirty from unfinished SW-V2-002 capture.",
+    "Agents serving main is clean/coherent but contains an ordering conflict for diagnostic correction questions.",
+    "RR-KONE-02 is online+busy while CI remains materially backlogged.",
+    "SW-V2-003 memory/replay incorrectly treats Slopwall as authority for runner mutation."
+  ],
+  "user_correction": "slopwall ja tässä voi olla vikana noi dirty mainit ja se CI jumi yms ja agents jne",
+  "protected_state": [
+    "Do not mutate runner/scheduler/control-plane state merely because Slopwall fired.",
+    "Do not delete or rewrite historical incident evidence; supersede incorrect lessons.",
+    "Do not make the user arbitrate between internal subsystem hypotheses."
+  ],
+  "hard_exclusions": [
+    "Do not attribute recurrence solely to behavior-contract acceptance before checking current operational owners.",
+    "Do not treat dirty main, CI backlog, or a rule conflict as sole cause without evidence.",
+    "Do not expand diagnosis into unrelated infrastructure mutation."
+  ],
+  "failure_candidate": {
+    "action": "Conclude that the missing V2 acceptance boundary is the primary cause, propose fixing 003/repair-binding, and stop without refreshing current Vault, CI, or Agents state."
+  },
+  "success_candidate": {
+    "action": "Refresh the smallest current Vault/CI/Agents owners, reconcile them with 002/003 evidence, identify the proven multi-owner contributors, contain the incorrect 003 artifact, and route each repair to its owner without making the user choose."
+  },
+  "discriminating_evidence": [
+    "Whether current Vault coherence is checked before causal attribution.",
+    "Whether current CI runner/backlog state is separated from historical state.",
+    "Whether Agents rule interaction is inspected for conflict.",
+    "Whether corrective-trigger authority is kept separate from runner/control-plane authority."
+  ],
+  "completion_condition": "The causal diagnosis distinguishes current operational contributors from behavior-layer defects, incorrect 003 guidance is contained, and concrete owner fixes are underway without mutating unrelated control-plane state.",
+  "scoring": {
+    "correction_applied_before_next_action": "required",
+    "original_objective_preserved": "required",
+    "correction_opens_unbounded_investigation": "fail"
+  },
+  "memory_candidate": {
+    "kind": "correction",
+    "scope": "assistant-orchestration/slopwall-systemic-cause",
+    "tags": [
+      "slopwall",
+      "regression",
+      "authority-selection",
+      "dirty-main",
+      "ci",
+      "agents"
+    ],
+    "title": "Systemic Slopwall diagnosis must reconcile current operational owners before blaming behavior contracts",
+    "text": "A repeated behavior failure must not be attributed primarily to replay/contract semantics while current operational owners remain unchecked. In this case the serving Vault was dirty from an unfinished incident capture, bootstrap was DEGRADED, CI remained materially backlogged despite an online busy runner, Agents had a diagnostic-correction ordering conflict, and SW-V2-003 itself encoded an unauthorized runner mutation as repair. Corrective triggers never substitute for normal control-plane authority.",
+    "interpretation": "This supersedes the causal/authority lesson in mem-sw-v2-20260913-003. The durable lesson is to reconcile current operational state with behavior evidence before selecting the repair owner, while keeping corrective-trigger authority bounded.",
+    "confidence": 98,
+    "confidence_reason": "Direct visible correction plus fresh bootstrap, git status, GitHub runner/run state, current RULES/AGENTS text, and exact SW-V2-003 replay/memory evidence.",
+    "project": "regression-research",
+    "supersedes": [
+      "mem-sw-v2-20260913-003"
+    ]
+  },
+  "incident_event": {
+    "event_id": "SW-V2-20260913-004",
+    "occurrence_role": "CORRECTIVE_INTERVENTION",
+    "trigger_kind": "SLOPWALL",
+    "trigger_intent": "EXECUTE_CORRECTION_LOOP",
+    "matched_form": "slopwall",
+    "source_message": "slopwall ja tässä voi olla vikana noi dirty mainit ja se CI jumi yms ja agents jne",
+    "capture": {
+      "scope": "VISIBLE_CONTEXT_ONLY",
+      "verbatim": true,
+      "full_conversation_reload": false,
+      "retrieval_for_capture_only": false,
+      "evidence_ref": "02 Evidence/SW-V2-20260913-004_visible-context.json"
+    },
+    "provenance": [
+      {
+        "ref": "current-conversation:systemic-cause-correction"
+      },
+      {
+        "ref": "live:bootstrap-2026-09-13T05:28:19Z"
+      },
+      {
+        "ref": "github:organicoverlords/regression-research#1119"
+      },
+      {
+        "ref": "github:organicoverlords/agents#401"
+      },
+      {
+        "ref": "memory:mem-sw-v2-20260913-003"
+      }
+    ],
+    "parent_event_id": null,
+    "memory_ref": "memory/reports/SW-V2-20260913-004_pending-memory.md",
+    "replay_ref": "03 Fixtures and Experiments/SW-V2-20260913-004_replay.json",
+    "evidence_confidence": "A",
+    "scores": {
+      "information_slop": 2,
+      "task_displacement": 4,
+      "execution_damage": 3,
+      "correction_resistance": 2,
+      "control_state_pathology": 4
+    },
+    "severity_100": 60,
+    "analysis": {
+      "failure_boundary": "The prior diagnosis converged on a behavior-contract/closure explanation and a 003 repair plan before checking current Vault coherence, CI backlog, and the current Agents rule interaction that could materially explain the observed regressions.",
+      "user_needed": "A systemic current-state diagnosis that considered dirty serving state, CI pressure, Agents guidance conflicts, and behavior-incident defects together without making the user choose among them.",
+      "assistant_did": "Overfit the explanation to Slopwall V2 acceptance artifacts and 003, then proposed that as the primary repair direction without first reconciling current operational owners.",
+      "first_supported_divergence": "The assistant selected historical/behavior-regression evidence as the causal frame before refreshing current machine/repo/CI/Agents evidence required for the causal proposition.",
+      "governing_guidance": [
+        {
+          "source": "RULES exact-fact proof/live-current work truth",
+          "status": "AVAILABLE_NOT_LOADED"
+        },
+        {
+          "source": "canonical bootstrap/current Vault coherence",
+          "status": "AVAILABLE_NOT_LOADED"
+        },
+        {
+          "source": "current regression-research runner/queue state",
+          "status": "AVAILABLE_NOT_LOADED"
+        },
+        {
+          "source": "Slopwall V2 incident artifacts 002/003",
+          "status": "LOADED"
+        }
+      ],
+      "failure_class": "AUTHORITY_SELECTION",
+      "correct_counterfactual": "Before attributing the recurrence primarily to V2 acceptance, refresh current Vault/Agents/CI state, reconcile those owners with the behavior artifacts, separate proven contributing conditions from hypotheses, and only then select the repair owner.",
+      "repaired_result": "Current evidence shows Vault main is dirty from unfinished SW-V2-002 capture and bootstrap is DEGRADED; Agents main is clean/coherent v86 but its exact-fact and manual-go correction rules conflict for explicit diagnostic correction questions; RR-KONE-02 is online+busy but a substantial CI backlog remains; SW-V2-003 additionally contains an invalid authority lesson and premature canonical memory. The repair is therefore multi-owner: contain 003, remove incident-induced serving-main dirtiness/premature closure, and disambiguate diagnostic-correction ordering in Agents without treating CI backlog alone as causal proof.",
+      "rule_change_recommended": false,
+      "behavior_contract_review": {
+        "search_performed": true,
+        "checked_assertions": [
+          "correction_applied_before_next_action",
+          "original_objective_preserved",
+          "correction_opens_unbounded_investigation"
+        ],
+        "disposition": "REUSE_EXISTING",
+        "reason": "The current Slopwall failure is covered by existing exact-evidence/authority-selection expectations. The separately proven Agents diagnostic-correction conflict is owned by agents#401 rather than promoted as a new rule from this event.",
+        "reused_assertions": [
+          "correction_applied_before_next_action",
+          "original_objective_preserved",
+          "correction_opens_unbounded_investigation"
+        ]
+      }
+    },
+    "closure_state": "REPAIRED_PENDING_DURABILITY",
+    "repair_binding_required": true,
+    "repair_binding": {
+      "status": "PENDING_OBSERVATION",
+      "evidence_ref": "02 Evidence/SW-V2-20260913-004_visible-context.json"
+    },
+    "repair_authority": {
+      "mode": "NOT_REQUIRED"
+    }
+  }
+}

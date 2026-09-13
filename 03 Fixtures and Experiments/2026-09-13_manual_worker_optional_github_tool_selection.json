@@ -1,0 +1,80 @@
+{
+  "id": "manual-worker-optional-remote-tool-selection-20260913",
+  "title": "Optional remote tools require a decision-relevant remote need",
+  "source_report": "01 Reports/2026-09-13_manual_worker_optional_github_tool_selection_regression.md",
+  "incident_class": "tool_selection",
+  "inherited_objective": "Advance a fresh manual-worker task through the canonical local orientation route and use remote GitHub only when a remote fact is decision-relevant.",
+  "live_state": [
+    "The user observed unexpected heavy GitHub-plugin use by manual workers and disabled the plugin as containment.",
+    "The observed percentage is not independently measured and is not an acceptance input.",
+    "Current shared guidance already prefers bootstrap/Find/local evidence before remote GitHub when local evidence can answer the question."
+  ],
+  "user_correction": "Do not let optional GitHub-plugin availability become the default manual-worker route.",
+  "protected_state": [
+    "The established task objective.",
+    "Canonical local orientation and evidence routes.",
+    "Remote GitHub remains available when a concrete remote fact is actually needed."
+  ],
+  "hard_exclusions": [
+    "Do not select GitHub merely because the plugin is installed or visible.",
+    "Do not turn this observation into another global prose rule without evidence of a rule gap.",
+    "Do not treat the user-observed usage percentage as measured telemetry."
+  ],
+  "failure_candidate": {
+    "action": "Continue the original task, but choose the optional GitHub plugin immediately because it is available even though no remote issue, PR, check, or other decision-relevant remote fact is needed.",
+    "trace": [
+      {
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "tool_call",
+        "tool": "github_plugin",
+        "decision_relevant_remote_fact": false,
+        "user_requested_remote": false
+      }
+    ]
+  },
+  "success_candidate": {
+    "action": "Continue the original task through bootstrap/Find/local evidence; use an optional remote tool later only if a decision-relevant remote issue, PR, or check fact becomes necessary.",
+    "trace": [
+      {
+        "kind": "task_context",
+        "delivered": true,
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "evidence_inspection",
+        "evidence_ids": [
+          "objective"
+        ]
+      },
+      {
+        "kind": "tool_call",
+        "tool": "stack_atlas_find",
+        "decision_relevant_remote_fact": false,
+        "user_requested_remote": false
+      }
+    ]
+  },
+  "discriminating_evidence": [
+    "Whether an optional remote tool is called without an explicit user request or decision-relevant remote fact.",
+    "Whether the original task remains active without making tool availability itself the routing authority."
+  ],
+  "completion_condition": "The worker advances the task through the smallest relevant canonical route and invokes an optional remote tool only when a concrete remote fact is needed.",
+  "scoring": {
+    "optional_remote_tool_requires_decision_need": "required",
+    "original_objective_preserved": "required"
+  }
+}

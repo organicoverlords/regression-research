@@ -158,6 +158,27 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
 
     closure = event.get("closure_state")
     _require(closure in {"OPEN", "REPAIRED_PENDING_DURABILITY", "CLOSED"}, f"{event_id}: invalid closure_state")
+    repair_required = event.get("repair_binding_required", False)
+    _require(isinstance(repair_required, bool), f"{event_id}: repair_binding_required must be boolean")
+    if repair_required:
+        repair_authority = event.get("repair_authority")
+        _require(isinstance(repair_authority, dict), f"{event_id}: repair_authority is required")
+        authority_mode = repair_authority.get("mode")
+        _require(authority_mode in {"NOT_REQUIRED", "REQUIRED"}, f"{event_id}: invalid repair_authority mode")
+        if authority_mode == "REQUIRED":
+            _require(isinstance(repair_authority.get("owner"), str) and repair_authority["owner"].strip(), f"{event_id}: required repair authority needs owner")
+            _require(isinstance(repair_authority.get("gate"), str) and repair_authority["gate"].strip(), f"{event_id}: required repair authority needs gate")
+            _require(repair_authority.get("corrective_trigger_is_authority") is False, f"{event_id}: corrective trigger cannot be repair authority")
+        repair_binding = event.get("repair_binding")
+        _require(isinstance(repair_binding, dict), f"{event_id}: repair_binding is required")
+        repair_status = repair_binding.get("status")
+        _require(repair_status in {"PENDING_OBSERVATION", "SCORED_PASS", "SCORED_FAIL"}, f"{event_id}: invalid repair_binding status")
+        _require(repair_binding.get("evidence_ref") == (event.get("capture") or {}).get("evidence_ref"), f"{event_id}: repair_binding must use capture evidence_ref")
+        if repair_status in {"SCORED_PASS", "SCORED_FAIL"}:
+            _require(isinstance(repair_binding.get("sha256"), str) and repair_binding["sha256"].strip(), f"{event_id}: scored repair binding requires sha256")
+            _require(isinstance(raw.get("repair_candidate"), dict), f"{event_id}: scored repair binding requires repair_candidate")
+        if closure == "CLOSED":
+            _require(repair_status == "SCORED_PASS", f"{event_id}: CLOSED event requires scored PASS repair binding")
     source_report = raw.get("source_report")
     replay_ref = event.get("replay_ref")
 

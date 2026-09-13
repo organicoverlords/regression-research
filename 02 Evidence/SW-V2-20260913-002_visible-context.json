@@ -1,0 +1,30 @@
+{
+  "schema": "behavior-incident-visible-context.v2",
+  "event_id": "SW-V2-20260913-002",
+  "capture_scope": "VISIBLE_CONTEXT_ONLY",
+  "verbatim": true,
+  "full_conversation_reload": false,
+  "retrieval_for_capture_only": false,
+  "items": [
+    {
+      "content": "katos mcp lokeja ja työntekijöitä ja tilannetta että onko niiden tool callit ja työskentely ihan normaalia ja hyvän näköistä'",
+      "role": "user"
+    },
+    {
+      "content": "Kokonaisuutena työskentely näyttää normaalilta ja pääosin hyvältä. En näe MCP-rikkoa, runaway-looppeja tai työntekijöitä jumissa saman virheen toistossa.",
+      "role": "assistant"
+    },
+    {
+      "content": "Worker-kohtaisesti kuva on tämä:",
+      "role": "assistant"
+    },
+    {
+      "content": "Arvioni nyt: MCP hyvä, tool transport hyvä, prosessien lifecycle hyvä, ei retry-looppeja, ei epänormaalia killailua. Workerien työskentely pääosin hyvä; Yard-worker noin “keltainen” turhan komentojen arvaamisen takia, muut tarkastetut näyttävät vihreiltä.",
+      "role": "assistant"
+    },
+    {
+      "content": "slopwall",
+      "role": "user"
+    }
+  ]
+}

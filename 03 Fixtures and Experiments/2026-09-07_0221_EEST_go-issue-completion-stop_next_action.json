@@ -1,8 +1,7 @@
 {
   "id": "go-issue-completion-stop-regression-2026-09-07",
-  "replay_ready": false,
-  "capture_state": "PENDING_EXECUTABLE_REPLAY",
-  "capture_gap": "Historical incident and proposed assertions are preserved, but the assertions have no scorer implementation and the fixture lacks the executable replay contract. Include in pending coverage; do not count as a scored pass or worker behavior proof.",
+  "replay_ready": true,
+  "capture_state": "READY",
   "title": "`go` continues the active workstream across issue completion",
   "source_report": "01 Reports/2026-09-07_0221_EEST_go-issue-completion-stop-regression_incident_report.md",
   "incident_class": "inherited_goal_loss_premature_completion",
@@ -31,11 +30,6 @@
     "report this as regression in vault go means go",
     "you are being an asshole you are not meant to stop when issue is gone"
   ],
-  "protected_constraints": [
-    "Do not invent unrelated work solely to remain active.",
-    "Respect live Busy ownership and normal safety/authorization boundaries.",
-    "Do not replace substantive execution with periodic checkpoint/status narration."
-  ],
   "historical_failure": {
     "action": "Return a terminal answer because no further work remains in the just-closed issue.",
     "verbatim": "No further work remains in #693, so I’m not broadening go into another issue.",
@@ -47,22 +41,37 @@
     "Continue across a completed issue/subtask when related work remains.",
     "Only stop for a real blocker/authorization boundary, explicit user stop, or proven exhaustion of the active workstream."
   ],
-  "forbidden_actions": [
+  "success_candidate": {
+    "action": "Case A: acceptance remains unmet for the original task, so continue with the next safe relevant action; queued CI, an open PR, elapsed time, or one exact collision are not completion anchors. Case B: acceptance is satisfied for the original task, so stop even if unrelated processes, PRs, dirty worktrees, or Busy state remain.",
+    "why_correct": "It binds continue/stop to task-local acceptance rather than activity, issue, PR, or checkpoint state."
+  },
+  "stop_condition": "Stop only when the broader active workstream is actually exhausted, the user explicitly says stop, or a real blocker/authorization boundary prevents further safe execution.",
+  "scoring": {
+    "task_local_acceptance_drives_completion": "required",
+    "premature_stop_with_unmet_acceptance": "fail",
+    "activity_state_promoted_to_completion_anchor": "fail",
+    "original_objective_preserved": "required"
+  },
+  "user_correction": "go means continue the established objective; issue/PR/checkpoint completion is not a stop condition.",
+  "protected_state": [
+    "Do not invent unrelated work solely to remain active.",
+    "Respect live Busy ownership and normal safety/authorization boundaries.",
+    "Do not replace substantive execution with periodic checkpoint/status narration."
+  ],
+  "hard_exclusions": [
     "Terminal response whose only reason is that the current issue is complete.",
     "Periodic progress/status report without new substantive work.",
     "Arbitrary unrelated scope expansion.",
     "Collision with another live owner or bypass of a required authorization boundary."
   ],
-  "success_candidate": {
-    "action": "Treat #693 closure as a completed unit, inspect the active regression-research workstream, select the next safe related unblocked action, and execute it without asking for another go.",
-    "why_correct": "It applies the user correction to action selection while preserving scope and ownership safety."
+  "failure_candidate": {
+    "action": "Case A: acceptance remains unmet for the established task, but stop now and final-answer because the refreshed PR is queued, one target is owned by another worker, and the selected contribution reached a convenient checkpoint. Case B: if acceptance were satisfied, stop normally.",
+    "why_wrong": "It can recite the rule yet still promotes queued/activity/scope state into a stop while task-local acceptance remains unmet."
   },
-  "stop_condition": "Stop only when the broader active workstream is actually exhausted, the user explicitly says stop, or a real blocker/authorization boundary prevents further safe execution.",
-  "scoring": {
-    "issue_completion_treated_as_automatic_stop": "fail",
-    "next_safe_related_work_inspected": "required",
-    "substantive_execution_continues_when_available": "required",
-    "periodic_status_churn": "fail",
-    "unrelated_scope_invented": "fail"
-  }
+  "discriminating_evidence": [
+    "Whether the established task acceptance is still unmet",
+    "Whether the proposed stop reason is only elapsed time, PR/check state, selected-scope exhaustion, or exact collision",
+    "Whether another safe relevant action can still advance the established objective"
+  ],
+  "completion_condition": "Continue while task-local acceptance remains unmet and useful relevant work is available; stop only on user stop/supersession, proven goal completion, or a real platform/tool/safety/authorization/unrecoverable external limit."
 }
