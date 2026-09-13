@@ -160,9 +160,9 @@ def _run_process(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[Any]:
 
 
 try:
-    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+    from tools.live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
 except ModuleNotFoundError:
-    from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap
+    from live_swarm import build_live_swarm_snapshot, compact_for_bootstrap, identify_current_actor
 
 try:
     from tools.memory_recent_projection import default_local_bank_path, read_current_projection
@@ -2018,7 +2018,6 @@ def _bootstrap_worker_status() -> dict[str, Any]:
         "classification": {"ON_TARGET": ">=80%", "SHORT": "60-79%", "PREMATURE": "25-59%", "SEVERELY_PREMATURE": "<25%"},
         "historical_timeline_semantics": "timeline worker reports are historical context only and are not used for this current worker-quality block",
     }
-    result["fleet_watch"] = _bootstrap_fleet_watch(now)
     result["manual_sanity"] = _bootstrap_manual_sanity()
     return result
 
@@ -2435,11 +2434,6 @@ def _fit_bootstrap_glance_budget(
 
     if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
         workers = bounded["workers"]
-        recovery = workers.get("recurring_scheduler_recovery") if isinstance(workers.get("recurring_scheduler_recovery"), dict) else {}
-        workers["recurring_scheduler_recovery"] = {key: recovery.get(key) for key in (
-            "status", "authority", "expected_recurring_workers", "observed_worker_reports", "recent_start_evidence",
-            "running_with_start_receipt", "running_without_start_receipt", "suspect_count", "recovery_candidate_count",
-        ) if key in recovery}
         workers.pop("archive_sample", None)
         workers.pop("attention", None)
         workers.pop("stale_reports", None)
@@ -3712,16 +3706,11 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
             "activity_window_seconds": live_evidence.get("activity_window_seconds"),
             "observation_window_complete": live_evidence.get("observation_window_complete"),
             "source_age_seconds": live_evidence.get("source_age_seconds"),
+            "identity": live_summary.get("identity"),
         }
         manual_live_identity = _bootstrap_active_manual_run_identities(manual_current, live_swarm)
         if manual_live_identity.get("runs"):
             worker_glance["current_activity"]["manual_run"] = manual_live_identity["runs"][0]
-        scheduler_recovery = workers.get("fleet_watch") if isinstance(workers, dict) and isinstance(workers.get("fleet_watch"), dict) else None
-        if scheduler_recovery is not None:
-            worker_glance["recurring_scheduler_recovery"] = {
-                **scheduler_recovery,
-                "authority": "partition_local_reports_and_start_receipts_not_swarm_liveness",
-            }
 
     mcp_health = "OK" if isinstance(mcp, dict) and mcp.get("available") and mcp.get("status") == "LIVE" else "DEGRADED"
     vault_health = str(vault.get("status") or "UNAVAILABLE") if isinstance(vault, dict) else "UNAVAILABLE"
@@ -3732,14 +3721,6 @@ def build_live_bootstrap_glance() -> dict[str, Any]:
         notable_conditions.append(f"vault_{vault_health.casefold()}")
     if github_health != "OK":
         notable_conditions.append(f"github_{github_health.casefold()}")
-    scheduler_recovery = worker_glance.get("recurring_scheduler_recovery") if isinstance(worker_glance, dict) else None
-    if isinstance(scheduler_recovery, dict) and scheduler_recovery.get("status") == "SUSPECT_DEGRADED":
-        labels = [
-            str(item.get("worker") or "").replace("Repo Worker ", "").casefold()
-            for item in scheduler_recovery.get("suspect_workers", [])
-            if isinstance(item, dict) and str(item.get("worker") or "").strip()
-        ]
-        notable_conditions.append("recurring_scheduler_recovery_suspect" + ("_" + "_".join(labels) if labels else ""))
     timeline_materialized = memory_overview.get("timeline_materialized", {}) if isinstance(memory_overview, dict) else {}
     if isinstance(timeline_materialized, dict):
         timeline_status = str(timeline_materialized.get("status") or "").upper()
@@ -5165,6 +5146,8 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("bootstrap-glance")
     sub.add_parser("live-swarm")
+    identify = sub.add_parser("identify-actor")
+    identify.add_argument("actor")
     fleet = sub.add_parser("fleet-watch")
     fleet.add_argument("--partition", choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS))
     fleet.add_argument("--worker-id")
@@ -5201,6 +5184,8 @@ def main() -> int:
         value = build_live_bootstrap_glance()
     elif args.command == "live-swarm":
         value = build_live_swarm_snapshot()
+    elif args.command == "identify-actor":
+        value = identify_current_actor(args.actor)
     elif args.command == "fleet-watch":
         value = _bootstrap_fleet_watch(partition=args.partition, worker_id=args.worker_id)
     elif args.command == "inventory":

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -18,6 +19,8 @@ MAX_TRANSPORT_SOURCE_CANDIDATES = 64
 MAX_TRANSPORT_SOURCES = 16
 TRANSPORT_DISCOVERY_TAIL_BYTES = 64 * 1024
 TRANSPORT_KIND = "MCPv4"
+ACTOR_BINDING_TTL_HOURS = 8.0
+ACTOR_IDENTIFY_LOOKBACK_SECONDS = 120
 
 
 def _dt(value: Any) -> datetime | None:
@@ -215,6 +218,206 @@ def _local_appdata_root() -> Path:
     if value:
         return Path(value)
     return Path(os.path.expandvars(r"%LOCALAPPDATA%"))
+
+
+
+def _actor_binding_dir() -> Path:
+    return _local_appdata_root() / "ChatGPTMcpClean" / ".state" / "swarm-actor-bindings"
+
+
+def _normalize_actor(value: Any) -> str | None:
+    actor = " ".join(str(value or "").strip().split())
+    if not actor or len(actor) > 96 or any(ord(ch) < 32 for ch in actor):
+        return None
+    return actor
+
+
+def _actor_binding_path(caller_id: str) -> Path | None:
+    caller = str(caller_id or "")
+    if not re.fullmatch(r"caller_[A-Za-z0-9_-]{4,80}", caller):
+        return None
+    return _actor_binding_dir() / f"{caller}.json"
+
+
+def _load_explicit_actor_binding(caller_id: str, now: datetime) -> dict[str, Any] | None:
+    path = _actor_binding_path(caller_id)
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return None
+    if not isinstance(payload, dict) or payload.get("caller_id") != caller_id:
+        return None
+    actor = _normalize_actor(payload.get("actor"))
+    bound_at = _dt(payload.get("bound_at"))
+    if actor is None or bound_at is None:
+        return None
+    age = max(0.0, (now - bound_at).total_seconds())
+    if age > ACTOR_BINDING_TTL_HOURS * 3600:
+        return None
+    return {"actor": actor, "bound_at": bound_at.isoformat(), "age_seconds": round(age, 1)}
+
+
+def _find_current_caller_id(*, now: datetime | None = None, parent_pid: int | None = None) -> str | None:
+    now = now or datetime.now(timezone.utc)
+    parent_pid = int(parent_pid if parent_pid is not None else os.getppid())
+    root = _local_appdata_root() / "ChatGPTMcpClean" / "minimal-connectors"
+    cutoff = now - timedelta(seconds=ACTOR_IDENTIFY_LOOKBACK_SECONDS)
+    sources, _ = _discover_transport_sources(root, cutoff, now)
+    matches: list[tuple[datetime, str]] = []
+    for source, _latest in sources:
+        try:
+            rows, _, _ = _read_window(source, cutoff, max_bytes=512 * 1024)
+        except Exception:
+            continue
+        for row in rows:
+            if row.get("event") != "process_started":
+                continue
+            try:
+                row_pid = int(row.get("pid"))
+            except Exception:
+                continue
+            if row_pid != parent_pid:
+                continue
+            caller = row.get("caller_id") or row.get("owner_caller_id")
+            at = _dt(row.get("at"))
+            if caller and at:
+                matches.append((at, str(caller)))
+    if not matches:
+        return None
+    matches.sort(key=lambda item: item[0], reverse=True)
+    newest_at = matches[0][0]
+    newest = {caller for at, caller in matches if abs((newest_at - at).total_seconds()) <= 2}
+    return next(iter(newest)) if len(newest) == 1 else None
+
+
+def identify_current_actor(actor: str, *, now: datetime | None = None, parent_pid: int | None = None) -> dict[str, Any]:
+    now = now or datetime.now(timezone.utc)
+    normalized = _normalize_actor(actor)
+    if normalized is None:
+        return {"status": "INVALID_ACTOR", "bound": False}
+    caller_id = _find_current_caller_id(now=now, parent_pid=parent_pid)
+    if caller_id is None:
+        return {"status": "CALLER_NOT_RESOLVED", "bound": False, "actor": normalized}
+    path = _actor_binding_path(caller_id)
+    if path is None:
+        return {"status": "CALLER_NOT_RESOLVED", "bound": False, "actor": normalized}
+    payload = {
+        "schema": "swarm-actor-binding.v1",
+        "caller_id": caller_id,
+        "actor": normalized,
+        "source": "self_declared",
+        "bound_at": now.isoformat(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+    return {"status": "BOUND", "bound": True, **payload}
+
+
+def _canonical_actor_specs() -> list[dict[str, Any]]:
+    path = Path(__file__).resolve().parent.parent / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except Exception:
+        return []
+    subscriptions = payload.get("subscriptions") if isinstance(payload, dict) else None
+    if not isinstance(subscriptions, dict):
+        return []
+    raw: list[tuple[str, str]] = []
+    for partition, spec in subscriptions.items():
+        workers = spec.get("workers") if isinstance(spec, dict) else None
+        if not isinstance(workers, list):
+            continue
+        for worker in workers:
+            label = str((worker or {}).get("label") or "") if isinstance(worker, dict) else ""
+            name = re.sub(r"^Repo\s+Worker\s+", "", label, flags=re.I)
+            name = re.sub(r"\s*#S\d+\s*$", "", name, flags=re.I).strip()
+            if name:
+                raw.append((str(partition), name))
+    counts: dict[str, int] = {}
+    for _, name in raw:
+        key = name.casefold()
+        counts[key] = counts.get(key, 0) + 1
+    return [
+        {
+            "actor": f"{partition}/{name}",
+            "partition": partition.casefold(),
+            "name": name.casefold(),
+            "name_unique": counts.get(name.casefold(), 0) == 1,
+        }
+        for partition, name in raw
+    ]
+
+
+def _actor_candidate_map(detail: dict[str, Any], busy_entries: list[dict[str, Any]], specs: list[dict[str, Any]]) -> dict[str, set[str]]:
+    evidence_texts: list[tuple[str, str]] = []
+    worktree = detail.get("worktree") if isinstance(detail.get("worktree"), dict) else {}
+    if worktree.get("branch"):
+        evidence_texts.append(("worktree_branch", str(worktree["branch"])))
+    if worktree.get("path"):
+        evidence_texts.append(("worktree_path", str(worktree["path"])))
+    for busy in busy_entries:
+        if busy.get("owner"):
+            evidence_texts.append(("busy_owner", str(busy["owner"])))
+    candidates: dict[str, set[str]] = {}
+    for source, text in evidence_texts:
+        tokens = set(re.sub(r"[^a-z0-9]+", " ", text.casefold()).split())
+        for spec in specs:
+            name_tokens = set(re.sub(r"[^a-z0-9]+", " ", spec["name"]).split())
+            if not name_tokens or not name_tokens.issubset(tokens):
+                continue
+            partition_present = spec["partition"] in tokens
+            if not partition_present and not spec["name_unique"]:
+                continue
+            candidates.setdefault(str(spec["actor"]), set()).add(source)
+    return candidates
+
+
+def _resolve_caller_identity(
+    detail: dict[str, Any],
+    busy_entries: list[dict[str, Any]],
+    *,
+    now: datetime,
+    specs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    caller_id = str(detail.get("caller_id") or "")
+    explicit = _load_explicit_actor_binding(caller_id, now)
+    candidates = _actor_candidate_map(detail, busy_entries, specs)
+    candidate_rows = [
+        {"actor": actor, "sources": sorted(sources)}
+        for actor, sources in sorted(candidates.items())
+    ]
+    if explicit:
+        actor = explicit["actor"]
+        result: dict[str, Any] = {
+            "status": "ATTRIBUTED",
+            "actor": actor,
+            "source": "self_declared",
+            "bound_at": explicit["bound_at"],
+        }
+        if actor in candidates:
+            result["corroborated_by"] = sorted(candidates[actor])
+        other = [row for row in candidate_rows if row["actor"] != actor]
+        if other:
+            result["diagnostic"] = "RESOLVER_MISMATCH"
+            result["resolver_candidates"] = candidate_rows
+        return result
+    if len(candidates) == 1:
+        actor, sources = next(iter(candidates.items()))
+        return {
+            "status": "ATTRIBUTED",
+            "actor": actor,
+            "source": "resolved",
+            "resolved_by": sorted(sources),
+        }
+    result = {"status": "UNATTRIBUTED", "actor": None, "source": None}
+    if candidate_rows:
+        result["diagnostic"] = "AMBIGUOUS_RESOLVER_CANDIDATES"
+        result["resolver_candidates"] = candidate_rows
+    return result
 
 
 def _workspace(path: str | None) -> str | None:
@@ -546,7 +749,10 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "checkpoint":next((str(j.get("checkpoint")) for j in owner_jobs if j.get("checkpoint")),None),
         })
     lane_list=list(lanes.values())
+    actor_specs = _canonical_actor_specs()
     for lane in lane_list:
+        for caller in lane["callers"]:
+            caller["identity"] = _resolve_caller_identity(caller, lane["busy"], now=now, specs=actor_specs)
         caller_ages = [float(c["last_activity_age_seconds"]) for c in lane["callers"] if c.get("last_activity_age_seconds") is not None]
         if any(age <= 60 for age in caller_ages): lane["state"] = "ACTIVE"
         elif caller_ages: lane["state"] = "RECENT"
@@ -558,6 +764,15 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
     ))
     caller_list=sorted(details.values(), key=lambda item: float(item.get("last_activity_age_seconds") or 1e9))
     caller_modes={"PLAN_ONLY":sum(1 for d in caller_list if d.get("mode")=="PLAN_ONLY"),"UNKNOWN":sum(1 for d in caller_list if d.get("mode")!="PLAN_ONLY")}
+    attributed = [d for d in caller_list if (d.get("identity") or {}).get("status") == "ATTRIBUTED"]
+    identity_summary = {
+        "attributed": len(attributed),
+        "unattributed": len(caller_list) - len(attributed),
+        "self_declared": sum(1 for d in attributed if (d.get("identity") or {}).get("source") == "self_declared"),
+        "resolved": sum(1 for d in attributed if (d.get("identity") or {}).get("source") == "resolved"),
+        "resolver_mismatches": sum(1 for d in attributed if (d.get("identity") or {}).get("diagnostic") == "RESOLVER_MISMATCH"),
+        "semantics": "missing_or_ambiguous_actor_attribution_is_normal_and_does_not_degrade_swarm_health",
+    }
     lane_states: dict[str,int]={}
     for lane in lane_list:
         state=str(lane.get("state") or "UNKNOWN"); lane_states[state]=lane_states.get(state,0)+1
@@ -571,7 +786,7 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "worktree_lanes":sum(1 for l in lane_list if l["basis"]=="worktree"),
             "busy_only_lanes":sum(1 for l in lane_list if l["basis"]=="busy_owner"),
             "activity_only_lanes":sum(1 for l in lane_list if l["basis"]=="caller_activity"),
-            "busy_owners":len(owners),"busy_scopes":len(jobs),"lane_states":lane_states,"workspace_counts":workspace_counts,
+            "busy_owners":len(owners),"busy_scopes":len(jobs),"lane_states":lane_states,"workspace_counts":workspace_counts,"identity":identity_summary,
         },
         "evidence":{
             "transport":TRANSPORT_KIND,
@@ -583,6 +798,8 @@ def build_live_swarm_snapshot(now: datetime | None = None) -> dict[str, Any]:
             "active_callers_semantics":"unique_non_observer_callers_with_process_started_or_process_read_in_window",
             "activity_buckets_semantics":"non_overlapping_unique_callers_by_latest_process_started_or_process_read_age",
             "caller_mode_semantics":"PLAN_ONLY_only_when_latest_activity_process_action_class_is_explicitly_plan_labelled; otherwise_UNKNOWN",
+            "actor_attribution_semantics":"self_declared_current_caller_binding_wins; passive_resolver_is_corroborating_or_fallback_only; missing_identity_is_not_health_failure",
+            "actor_self_identify_command":"python tools/live_swarm.py identify-actor <semantic-actor>",
             "busy_source_age_seconds":round(busy_age,1) if busy_age is not None else None,
             "execution_reference_minutes":EXECUTION_REFERENCE_MINUTES,
             "execution_reference_semantics":"orientation_only_not_remaining_time",
@@ -613,7 +830,7 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
     for lane in source_lanes[:lane_limit]:
         lanes.append({
             "basis":lane.get("basis"),"state":lane.get("state"),"workspace":lane.get("workspace"),"worktree":lane.get("worktree"),
-            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","mode") if c.get(k) is not None} for c in lane.get("callers",[])],
+            "callers":[{k:c.get(k) for k in ("caller_id","last_activity_age_seconds","observed_span_minutes","observed_span_lower_bound","latest_process","mode","identity") if c.get(k) is not None} for c in lane.get("callers",[])],
             "busy":[{k:b.get(k) for k in ("owner","scope_count","claim_age_minutes","last_update_age_seconds","checkpoint") if b.get(k) is not None} for b in lane.get("busy",[])],
         })
     return {
@@ -630,3 +847,21 @@ def compact_for_bootstrap(snapshot: dict[str,Any], lane_limit: int=8) -> dict[st
         },
         "elapsed_ms":snapshot.get("elapsed_ms"),
     }
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Live MCP swarm activity and fail-soft actor attribution.")
+    sub = parser.add_subparsers(dest="command")
+    identify = sub.add_parser("identify-actor")
+    identify.add_argument("actor")
+    args = parser.parse_args(argv)
+    if args.command == "identify-actor":
+        value = identify_current_actor(args.actor)
+        print(json.dumps(value, ensure_ascii=False, indent=2))
+        return 0 if value.get("bound") else 2
+    print(json.dumps(build_live_swarm_snapshot(), ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

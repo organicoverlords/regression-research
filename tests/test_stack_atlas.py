@@ -1540,6 +1540,24 @@ class StackAtlasTests(unittest.TestCase):
             self.assertEqual(Path(workers["projection_path"]), metrics)
             self.assertIn("historical context only", workers["historical_timeline_semantics"])
 
+    def test_worker_status_does_not_promote_fleet_watch_into_bootstrap_liveness(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics = root / "worker-reports" / "metrics.json"
+            metrics.parent.mkdir(parents=True)
+            metrics.write_text(json.dumps({
+                "schema": "worker-report-metrics.v1", "population": "timed",
+                "generated_at": "2026-09-13T03:00:00+00:00", "window_hours": 24.0, "latest_reports": [],
+            }), encoding="utf-8")
+            with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root), \
+                 patch("tools.stack_atlas._bootstrap_manual_sanity", return_value={"available": False}), \
+                 patch("tools.stack_atlas._bootstrap_fleet_watch", side_effect=AssertionError("worker status must not infer liveness from fleet-watch")) as fleet_watch:
+                workers = _bootstrap_worker_status()
+            fleet_watch.assert_not_called()
+        self.assertTrue(workers["available"])
+        self.assertNotIn("fleet_watch", workers)
+        self.assertNotIn("recurring_scheduler_recovery", workers)
+
     def test_worker_direct_metrics_preserve_archived_quality_not_liveness_semantics(self):
         from datetime import datetime, timedelta, timezone
         with tempfile.TemporaryDirectory() as tmp:
