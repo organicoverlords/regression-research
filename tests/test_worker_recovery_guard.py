@@ -2,7 +2,6 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from tools.stack_atlas import CANONICAL_RECURRING_WORKER_PARTITIONS
 from tools.worker_recovery_guard import (
     authorize_recovery,
     authorize_supervising_chat_recovery,
@@ -10,13 +9,30 @@ from tools.worker_recovery_guard import (
 )
 
 
+
+TEST_RECURRING_WORKER_PARTITIONS = {
+    "S1": tuple((str(index) * 32, f"S1 Test Worker {index}") for index in range(1, 6)),
+    "S2": tuple((char * 32, f"S2 Test Worker {index}") for index, char in enumerate("abcde", start=1)),
+}
+
 NONCANONICAL_WORKER_ID = "00000000000000000000000000000000"
 
 
 class WorkerRecoveryGuardTests(unittest.TestCase):
     def setUp(self):
-        self.s1 = CANONICAL_RECURRING_WORKER_PARTITIONS["S1"]
-        self.s2 = CANONICAL_RECURRING_WORKER_PARTITIONS["S2"]
+        self.s1 = TEST_RECURRING_WORKER_PARTITIONS["S1"]
+        self.s2 = TEST_RECURRING_WORKER_PARTITIONS["S2"]
+        partition_by_id = {
+            automation_id: partition
+            for partition, workers in TEST_RECURRING_WORKER_PARTITIONS.items()
+            for automation_id, _label in workers
+        }
+        self.binding_patch = patch(
+            "tools.worker_recovery_guard._binding_partition_map",
+            return_value=(partition_by_id, {"status": "OK"}),
+        )
+        self.binding_patch.start()
+        self.addCleanup(self.binding_patch.stop)
 
     def _watch(self, *, candidates, scope="S2"):
         return {
@@ -37,7 +53,7 @@ class WorkerRecoveryGuardTests(unittest.TestCase):
 
         result = authorize_recovery(actor, NONCANONICAL_WORKER_ID, fleet_watch=fleet_watch)
         self.assertFalse(result["authorized"])
-        self.assertEqual(result["reason"], "TARGET_NOT_CANONICAL")
+        self.assertEqual(result["reason"], "TARGET_NOT_BOUND_TO_RECURRING_SLOT")
         self.assertFalse(called)
 
     def test_worker_mode_rejects_self_administration_without_fleet_read(self):
@@ -186,7 +202,7 @@ class WorkerRecoveryGuardTests(unittest.TestCase):
 
         result = authorize_supervising_chat_recovery("S2", "not-a-worker", fleet_watch=fleet_watch)
         self.assertFalse(result["authorized"])
-        self.assertEqual(result["reason"], "TARGET_NOT_CANONICAL")
+        self.assertEqual(result["reason"], "TARGET_NOT_BOUND_TO_RECURRING_SLOT")
         self.assertFalse(called)
 
     def test_supervising_chat_rejects_scope_mismatch(self):

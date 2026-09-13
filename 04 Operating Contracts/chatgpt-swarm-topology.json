@@ -1,68 +1,60 @@
 {
-  "schema": "chatgpt-swarm-topology.v1",
-  "recorded_at": "2026-09-11T13:36:00+03:00",
-  "authority": "CURRENT_USER_DIRECTION_AND_VERIFIED_PARTITION_LOCAL_SCHEDULER_STATE",
+  "schema": "chatgpt-swarm-topology.v2",
+  "recorded_at": "2026-09-13T05:10:30.493785+00:00",
+  "authority": "CURRENT_USER_DIRECTION_AND_STABLE_PARTITION_SLOTS",
   "subscriptions": {
     "S1": {
       "recurring_worker_slots": 5,
       "operator_control": "PARTITION_LOCAL",
-      "membership_semantics": "canonical recurring membership only; membership does not imply enabled state or worker liveness",
+      "membership_semantics": "five stable recurring capacity slots; automation IDs and display names are mutable operational bindings and do not define slot identity or liveness",
       "enabled_state_authority": "current ChatGPT scheduler state in the owning account",
-      "workers": [
+      "slots": [
         {
-          "automation_id": "6a9adbfcc0588191b0af53bdf70fc1fe",
-          "label": "Repo Worker Hazel"
+          "slot_id": "S1/1"
         },
         {
-          "automation_id": "6a9adc04e6a881918433be70752b1426",
-          "label": "Repo Worker Maple"
+          "slot_id": "S1/2"
         },
         {
-          "automation_id": "6a9adc0dbf6481919c607312a5041d1d",
-          "label": "Repo Worker Pine"
+          "slot_id": "S1/3"
         },
         {
-          "automation_id": "6a9adbe27ff08191a918fa3e51aaf9b8",
-          "label": "Repo Worker Aspen"
+          "slot_id": "S1/4"
         },
         {
-          "automation_id": "6a9b8fc37c148191a70dc17e1e83eda4",
-          "label": "Repo Worker Alder"
+          "slot_id": "S1/5"
         }
-      ]
+      ],
+      "binding_registry": "worker-reports/.supervision/recurring-slot-bindings.json"
     },
     "S2": {
       "recurring_worker_slots": 5,
       "operator_control": "PARTITION_LOCAL",
-      "membership_semantics": "canonical recurring membership only; membership does not imply enabled state or worker liveness",
+      "membership_semantics": "five stable recurring capacity slots; automation IDs and display names are mutable operational bindings and do not define slot identity or liveness",
       "enabled_state_authority": "current ChatGPT scheduler state in the owning S2 account; worker reports are run-lifecycle start/finalization evidence only and do not prove current liveness, in-run progress, or scheduler flags",
-      "workers": [
+      "slots": [
         {
-          "automation_id": "6a9ee44357908191a11023d4ff0b5b82",
-          "label": "Repo Worker Rowan #S2"
+          "slot_id": "S2/1"
         },
         {
-          "automation_id": "6a9ee44e36908191aa0f4fd3d8ebad55",
-          "label": "Repo Worker Spruce #S2"
+          "slot_id": "S2/2"
         },
         {
-          "automation_id": "6a9ee456182881918005c354563e8638",
-          "label": "Repo Worker Willow #S2"
+          "slot_id": "S2/3"
         },
         {
-          "automation_id": "6a9ee45e7c208191aae86087f11875d9",
-          "label": "Repo Worker Juniper #S2"
+          "slot_id": "S2/4"
         },
         {
-          "automation_id": "6a9ee46471a88191b478716a47a38cc4",
-          "label": "Repo Worker Alder #S2"
+          "slot_id": "S2/5"
         }
-      ]
+      ],
+      "binding_registry": "worker-reports/.supervision/recurring-slot-bindings.json"
     }
   },
   "recurring_worker_total": 10,
   "recurring_worker_global_max": 10,
-  "recurring_worker_partition_rule": "S1 and S2 are independent canonical recurring partitions with at most five recurring workers each (ten total). Activity in one partition never authorizes scheduler mutation in the other.",
+  "recurring_worker_partition_rule": "S1 and S2 are independent canonical recurring partitions with exactly five stable capacity slots each (ten slots total). Slot bindings may change without changing topology. Activity in one partition never authorizes scheduler mutation in the other.",
   "routine_recurring_recovery": {
     "authority": "SAME_PARTITION_RECURRING_PEER_OR_SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
     "scheduler_role": "RECURRENCE_ONLY",
@@ -83,5 +75,12 @@
     "automatic_scheduler_mutation_on_topology_change": false,
     "note": "S1 and S2 are both canonical recurring partitions; verify exact scheduler flags in the owning account. A current live scheduler run overrides stale local report evidence."
   },
-  "recurring_worker_partition_max": 5
+  "recurring_worker_partition_max": 5,
+  "recurring_worker_total_semantics": "slot capacity total; bound worker count may be lower while a slot is intentionally unbound during replacement",
+  "slot_binding_registry": {
+    "path": "worker-reports/.supervision/recurring-slot-bindings.json",
+    "schema": "recurring-worker-slot-bindings.v1",
+    "authority": "MUTABLE_OPERATIONAL_SLOT_BINDINGS_NOT_LIVENESS",
+    "semantics": "slot identity is stable; automation_id and label are replaceable bindings; unbound or missing bindings are non-alert states and never scheduler-mutation authority"
+  }
 }

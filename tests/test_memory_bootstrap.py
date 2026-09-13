@@ -30,8 +30,11 @@ class MemoryBootstrapRetirementTests(unittest.TestCase):
 
     def test_worker_contract_stays_small_and_non_blocking(self):
         text = (ROOT / "04 Operating Contracts/fresh-worker-generation-launch.md").read_text(encoding="utf-8")
-        self.assertIn("Each recurring subscription partition has a hard maximum of five workers", text)
-        self.assertIn("the two known partitions permit up to ten recurring workers total", text)
+        self.assertIn("Each recurring subscription partition has exactly five stable capacity slots", text)
+        self.assertIn("S1/1", text)
+        self.assertIn("S2/5", text)
+        self.assertIn("worker display names and ChatGPT automation IDs are replaceable bindings", text)
+        self.assertIn("An intentionally unbound slot, a missing binding, or an ambiguous replacement is a non-alert state", text)
         self.assertIn("Never create or enable a sixth worker inside either partition", text)
 
         self.assertIn("The scheduler provides recurrence only", text)

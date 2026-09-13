@@ -14,20 +14,31 @@ from typing import Any, Callable
 
 try:
     from tools.stack_atlas import (
-        CANONICAL_RECURRING_WORKER_PARTITIONS,
-        CANONICAL_RECURRING_WORKER_PARTITION_BY_ID,
+        ATLAS_LIVE_ROOT,
         BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES,
         _bootstrap_fleet_watch,
     )
+    from tools.recurring_slot_registry import RECURRING_WORKER_SLOTS, load_slot_snapshot
 except ImportError:
     from stack_atlas import (
-        CANONICAL_RECURRING_WORKER_PARTITIONS,
-        CANONICAL_RECURRING_WORKER_PARTITION_BY_ID,
+        ATLAS_LIVE_ROOT,
         BOOTSTRAP_RECURRING_CADENCE_GRACE_MINUTES,
         _bootstrap_fleet_watch,
     )
+    from recurring_slot_registry import RECURRING_WORKER_SLOTS, load_slot_snapshot
 
 FleetWatch = Callable[..., dict[str, Any]]
+
+
+def _binding_partition_map() -> tuple[dict[str, str], dict[str, Any]]:
+    snapshot = load_slot_snapshot(ATLAS_LIVE_ROOT)
+    if snapshot.get("status") != "OK":
+        return {}, snapshot
+    mapping = {
+        binding["automation_id"]: binding["partition"]
+        for binding in snapshot.get("bound_workers", [])
+    }
+    return mapping, snapshot
 
 
 def _deny(actor: str, target: str, reason: str, **extra: Any) -> dict[str, Any]:
@@ -52,16 +63,19 @@ def authorize_recovery(
     target = str(target_worker_id or "").strip().lower()
     _ = fleet_watch  # compatibility parameter; worker mode intentionally performs no fleet read
 
-    actor_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(actor)
+    partition_by_id, slot_snapshot = _binding_partition_map()
+    if slot_snapshot.get("status") != "OK":
+        return _deny(actor, target, "SLOT_REGISTRY_UNAVAILABLE", slot_registry_status=slot_snapshot.get("status"))
+    actor_partition = partition_by_id.get(actor)
     if actor_partition is None:
-        return _deny(actor, target, "ACTOR_NOT_CANONICAL")
+        return _deny(actor, target, "ACTOR_NOT_BOUND_TO_RECURRING_SLOT")
 
-    target_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(target)
+    target_partition = partition_by_id.get(target)
     if target_partition is None:
         return _deny(
             actor,
             target,
-            "TARGET_NOT_CANONICAL",
+            "TARGET_NOT_BOUND_TO_RECURRING_SLOT",
             actor_partition=actor_partition,
         )
 
@@ -120,12 +134,17 @@ def authorize_supervising_chat_recovery(
     partition = str(supervising_chat_partition or "").strip().upper()
     target = str(target_worker_id or "").strip().lower()
 
-    if partition not in CANONICAL_RECURRING_WORKER_PARTITIONS:
+    if partition not in RECURRING_WORKER_SLOTS:
         return _supervisor_deny(partition, target, "SUPERVISING_CHAT_PARTITION_NOT_CANONICAL")
 
-    target_partition = CANONICAL_RECURRING_WORKER_PARTITION_BY_ID.get(target)
+    partition_by_id, slot_snapshot = _binding_partition_map()
+    if slot_snapshot.get("status") != "OK":
+        return _supervisor_deny(
+            partition, target, "SLOT_REGISTRY_UNAVAILABLE", slot_registry_status=slot_snapshot.get("status")
+        )
+    target_partition = partition_by_id.get(target)
     if target_partition is None:
-        return _supervisor_deny(partition, target, "TARGET_NOT_CANONICAL")
+        return _supervisor_deny(partition, target, "TARGET_NOT_BOUND_TO_RECURRING_SLOT")
 
     # Validate the target boundary before reading any fleet state. A supervising
     # chat is scoped to exactly one subscription partition and cannot inspect a
@@ -254,7 +273,7 @@ def main() -> int:
     actor_mode.add_argument("--actor-worker-id")
     actor_mode.add_argument(
         "--supervising-chat-partition",
-        choices=tuple(CANONICAL_RECURRING_WORKER_PARTITIONS),
+        choices=tuple(RECURRING_WORKER_SLOTS),
     )
     parser.add_argument("--target-worker-id", required=True)
     parser.add_argument("--scheduler-enabled", choices=("true", "false"))
