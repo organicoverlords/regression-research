@@ -1,5 +1,8 @@
 name: changelog-landing
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   workflow_dispatch:
@@ -13,7 +16,7 @@ concurrency:
 jobs:
   classify:
     name: classify
-    runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
       portable_areas: ${{ steps.plan.outputs.portable_areas }}
@@ -91,7 +94,7 @@ jobs:
     name: verify
     needs: [classify, portable, windows]
     if: ${{ always() && needs.classify.result == 'success' && needs.portable.result == 'success' && (needs.windows.result == 'success' || needs.windows.result == 'skipped') }}
-    runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Confirm repository verification

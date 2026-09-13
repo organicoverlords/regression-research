@@ -286,7 +286,9 @@ class VerifyTests(unittest.TestCase):
     def test_changelog_landing_preserves_windows_gate_but_allows_repo_runner_redundancy(self):
         workflow = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "changelog-landing.yml"
         text = workflow.read_text(encoding="utf-8")
-        self.assertGreaterEqual(text.count("runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]"), 3)
+        self.assertEqual(text.count("runs-on: [self-hosted, Linux, X64, regression-research, omen-ci]"), 1)
+        self.assertGreaterEqual(text.count("runs-on: ubuntu-latest"), 2)
+        self.assertIn("permissions:\n  contents: read", text)
         self.assertIn("runs-on: [self-hosted, Windows, X64, kone-ci-light]", text)
         self.assertNotIn("runs-on: [self-hosted, Windows, X64, regression-research]", text)
         self.assertNotIn("runs-on: [self-hosted, regression-research]", text)
