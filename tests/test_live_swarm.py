@@ -7,10 +7,56 @@ from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tools.live_swarm import _action_mode, _command_target, _git_identity, _read_window, _workspace, build_live_swarm_snapshot, compact_for_bootstrap
+from tools.live_swarm import (
+    _action_mode, _actor_candidate_map, _command_target, _git_identity, _read_window,
+    _resolve_caller_identity, _workspace, build_live_swarm_snapshot, compact_for_bootstrap,
+    identify_current_actor,
+)
 
 
 class LiveSwarmTests(unittest.TestCase):
+
+    def test_actor_candidate_requires_partition_for_duplicate_names(self):
+        specs=[
+            {"actor":"S1/Alder","partition":"s1","name":"alder","name_unique":False},
+            {"actor":"S2/Alder","partition":"s2","name":"alder","name_unique":False},
+            {"actor":"S2/Spruce","partition":"s2","name":"spruce","name_unique":True},
+        ]
+        detail={"worktree":{"branch":"chatgpt/3013-cohort-pressure-retry-spruce-s2","path":r"C:\\wt\\spruce-s2"}}
+        got=_actor_candidate_map(detail,[{"owner":"ChatGPT-alder-s2-run11"}],specs)
+        self.assertEqual(got,{"S2/Alder":{"busy_owner"},"S2/Spruce":{"worktree_branch","worktree_path"}})
+
+    def test_explicit_actor_wins_resolver_mismatch_without_health_failure(self):
+        now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
+        detail={"caller_id":"caller_abc123","worktree":{"branch":"chatgpt/rowan-s2","path":r"C:\\wt\\rowan-s2"}}
+        specs=[{"actor":"S2/Rowan","partition":"s2","name":"rowan","name_unique":True}]
+        with patch("tools.live_swarm._load_explicit_actor_binding",return_value={"actor":"manual/reviewer","bound_at":now.isoformat(),"age_seconds":0}):
+            identity=_resolve_caller_identity(detail,[],now=now,specs=specs)
+        self.assertEqual(identity["status"],"ATTRIBUTED")
+        self.assertEqual(identity["actor"],"manual/reviewer")
+        self.assertEqual(identity["source"],"self_declared")
+        self.assertEqual(identity["diagnostic"],"RESOLVER_MISMATCH")
+        self.assertEqual(identity["resolver_candidates"][0]["actor"],"S2/Rowan")
+
+    def test_unattributed_actor_is_normal_state(self):
+        now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
+        detail={"caller_id":"caller_abc123","worktree":None}
+        with patch("tools.live_swarm._load_explicit_actor_binding",return_value=None):
+            identity=_resolve_caller_identity(detail,[],now=now,specs=[])
+        self.assertEqual(identity,{"status":"UNATTRIBUTED","actor":None,"source":None})
+
+    def test_identify_current_actor_persists_per_caller_binding(self):
+        now=datetime(2026,9,13,3,0,0,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as td, patch.dict("os.environ",{"LOCALAPPDATA":td}), \
+             patch("tools.live_swarm._find_current_caller_id",return_value="caller_abc123"):
+            result=identify_current_actor("manual/reviewer",now=now,parent_pid=123)
+            self.assertTrue(result["bound"])
+            self.assertEqual(result["caller_id"],"caller_abc123")
+            path=Path(td)/"ChatGPTMcpClean"/".state"/"swarm-actor-bindings"/"caller_abc123.json"
+            payload=json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["actor"],"manual/reviewer")
+            self.assertEqual(payload["source"],"self_declared")
+
     def test_command_target_prefers_explicit_execution_surface(self):
         path,basis=_command_target("$wt='C:\\work\\tiny3d-wt'; Set-Location $wt; python test.py")
         self.assertEqual(path, r"C:\work\tiny3d-wt")
