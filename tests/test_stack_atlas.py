@@ -907,6 +907,7 @@ class StackAtlasTests(unittest.TestCase):
             ("bootstrap_snapshot", "vault:bootstrap-snapshot:runtime-bundle"),
             ("vault_checkout_sync", "vault:checkout-sync:scheduled-task"),
             ("worktree_hygiene", "vault:worktree-hygiene:scheduled-task"),
+            ("github_runner", "omen:github-runner:regression-research"),
         ):
             gate = production_change_gate(
                 target, actor="ChatGPT:test", busy_scope=scope,

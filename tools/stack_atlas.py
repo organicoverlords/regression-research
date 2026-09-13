@@ -785,6 +785,7 @@ SHARED_PRODUCTION_COMPONENTS = frozenset({
     "bootstrap_snapshot",
     "vault_checkout_sync",
     "worktree_hygiene",
+    "github_runner",
     "vps_edge_ingress",
     "mcp_front_door",
     "mcp_minimal_clone",
