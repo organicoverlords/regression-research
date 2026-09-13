@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from tools.memory_bank import BankError, append_entry, load_bank
+    from tools.memory_bank import MAX_TITLE_CHARS, BankError, append_entry, load_bank
     from tools.replay_scoring import FixtureError, score_fixture
     from tools.slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
 except ImportError:
-    from memory_bank import BankError, append_entry, load_bank
+    from memory_bank import MAX_TITLE_CHARS, BankError, append_entry, load_bank
     from replay_scoring import FixtureError, score_fixture
     from slopwall_v2 import SlopwallV2Error, validate_slopwall_fixture
 
@@ -96,6 +96,7 @@ def _memory_values(raw: dict[str, Any]) -> dict[str, Any]:
     _require(isinstance(candidate, dict), f"{event_id}: replay requires structured memory_candidate")
     for key in ("scope", "title", "text", "interpretation", "confidence_reason"):
         _require(isinstance(candidate.get(key), str) and candidate[key].strip(), f"{event_id}: memory_candidate.{key} is required")
+    _require(len(candidate["title"]) <= MAX_TITLE_CHARS, f"{event_id}: memory_candidate.title exceeds {MAX_TITLE_CHARS} characters")
     _require(candidate.get("kind") == "correction", f"{event_id}: behavior incident memory_candidate.kind must be correction")
     tags = candidate.get("tags")
     _require(isinstance(tags, list) and all(isinstance(item, str) and item.strip() for item in tags), f"{event_id}: memory_candidate.tags must contain strings")

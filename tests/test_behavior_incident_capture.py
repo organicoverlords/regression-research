@@ -9,6 +9,7 @@ import pytest
 
 import tools.behavior_incident_capture as capture
 from tools.behavior_incident_capture import BehaviorIncidentCaptureError, materialize_capture
+from tools.memory_bank import MAX_TITLE_CHARS
 from tools.provenance import validate as validate_provenance
 from tools.slopwall_v2 import validate_slopwall_fixture
 
@@ -88,6 +89,14 @@ def capture_spec(event_id: str = "SW-V2-TEST-MAT-001") -> dict:
             "confidence_reason": "The trigger, failed boundary, governing rule, and repaired counterfactual are all present in the bounded visible evidence.",
         },
     }
+
+
+def test_capture_rejects_memory_title_that_canonical_bank_would_reject(tmp_path: Path) -> None:
+    spec = capture_spec("SW-V2-TEST-TITLE-LIMIT")
+    spec["memory"]["title"] = "x" * (MAX_TITLE_CHARS + 1)
+    with pytest.raises(BehaviorIncidentCaptureError, match=f"memory.title exceeds {MAX_TITLE_CHARS} characters"):
+        materialize_capture(spec, root=tmp_path)
+    assert files_under(tmp_path) == set()
 
 
 def files_under(root: Path) -> set[str]:
