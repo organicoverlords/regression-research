@@ -97,6 +97,7 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
     _require(isinstance(analysis.get("failure_boundary"), str) and analysis["failure_boundary"].strip(), f"{event_id}: analysis.failure_boundary is required")
     _require(isinstance(analysis.get("user_needed"), str) and analysis["user_needed"].strip(), f"{event_id}: analysis.user_needed is required")
     _require(isinstance(analysis.get("assistant_did"), str) and analysis["assistant_did"].strip(), f"{event_id}: analysis.assistant_did is required")
+    _require(isinstance(analysis.get("first_supported_divergence"), str) and analysis["first_supported_divergence"].strip(), f"{event_id}: analysis.first_supported_divergence is required")
     guidance = analysis.get("governing_guidance")
     _require(isinstance(guidance, list) and guidance, f"{event_id}: analysis.governing_guidance is required")
     allowed_guidance = {"LOADED", "AVAILABLE_NOT_LOADED", "MISSING", "STALE_OR_CONFLICTING", "UNKNOWN"}

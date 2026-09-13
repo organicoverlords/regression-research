@@ -83,3 +83,5 @@ Stack Atlas should navigate `behavior contract`, `replay fixture`, `replay scori
 ## Visible-context capture boundary
 
 Behavior-incident capture never requires a whole-conversation reload. Raw incident evidence is the relevant material already visible to the agent, preserved verbatim. Additional retrieval is allowed only when needed to diagnose or repair the incident, not to reconstruct unseen transcript history for archival completeness.
+
+`tools/behavior_incident_capture.py` consumes an explicit visible-context capture spec. It preflights destination/provenance collisions, validates the complete generated bundle in staging, then commits evidence + report + replay + pending-memory handoff + provenance as one rollback-capable write set. It never calls transcript/conversation retrieval and never writes `memory/memory-bank.jsonl`; canonical memory remains a separate closure step.

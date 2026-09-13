@@ -62,6 +62,7 @@ def fixture() -> dict:
                 "failure_boundary": "The prior answer displaced the inherited objective.",
                 "user_needed": "The corrected task result.",
                 "assistant_did": "Explained the failure and stopped.",
+                "first_supported_divergence": "The assistant stopped at explanation instead of advancing the inherited objective.",
                 "governing_guidance": [{"source": "RULES.md", "status": "LOADED"}],
                 "failure_class": "RULE_VIOLATION",
                 "correct_counterfactual": "Apply the existing rule and advance the inherited task.",

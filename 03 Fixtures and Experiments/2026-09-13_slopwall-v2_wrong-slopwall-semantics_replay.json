@@ -138,7 +138,8 @@
           "existing_behavior_authority_checked_before_shared_rule_change",
           "shared_rule_change_requires_proven_gap_or_conflict"
         ]
-      }
+      },
+      "first_supported_divergence": "The assistant chose the newly inferred durability-centered interpretation as behavior authority before loading the preserved historical Slopwall event/replay authority."
     },
     "closure_state": "REPAIRED_PENDING_DURABILITY",
     "capture": {

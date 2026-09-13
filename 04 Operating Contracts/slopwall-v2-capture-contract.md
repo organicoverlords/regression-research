@@ -98,10 +98,11 @@ If the user sends another explicit corrective `slopwall` or `incident report` be
 
 Reuse current owners where possible:
 
+- `tools/behavior_incident_capture.py` as the bounded capture materializer: explicit visible-context spec in; raw evidence + report + replay + pending-memory handoff + provenance out, with preflight, staging validation, and rollback-capable commit; no transcript retrieval and no canonical-memory write;
 - `01 Reports/` for incident records;
 - `03 Fixtures and Experiments/` + `tools/replay_scoring.py` for replay and executable behavior contracts;
-- `memory_bank.py` for searchable pointer/lesson;
-- `04 Operating Contracts/assistant-behavior-regression.md` for the regression framework boundary;
-- a small Slopwall event validator for identity, closure state, linkage, score/confidence, rule-change gate, contract-review disposition, and artifact references.
+- `tools/slopwall_v2.py` for identity, closure state, linkage, score/confidence, rule-change gate, contract-review disposition, and artifact-reference validation;
+- `memory_bank.py` for the separate canonical searchable pointer/lesson closure step;
+- `04 Operating Contracts/assistant-behavior-regression.md` for the regression framework boundary.
 
 Do not restore the retired raw-discovery/raw-review/promotion pipeline as a live dependency. Historical code remains useful as schema/test source only.

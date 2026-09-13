@@ -50,8 +50,15 @@ def test_behavior_regression_owner_is_first_feature_hit() -> None:
     owner = atlas_lookup("assistant_behavior_regressions")
     assert owner["id"] == "assistant_behavior_regressions"
     assert any("assistant-behavior-regression.md" in item for item in owner["canonical_sources"])
+    assert any("behavior_incident_capture.py" in item for item in owner["canonical_sources"])
+    assert any("slopwall_v2.py" in item for item in owner["canonical_sources"])
     hits = find_features("assistant acceptance contract replay fixture deterministic regression scoring")
     assert hits[0]["id"] == "assistant.behavior_regressions"
     assert "assistant_behavior_regressions" in hits[0]["owner_components"]
     incident_hits = find_features("incident report")
     assert incident_hits[0]["id"] == "assistant.behavior_regressions"
+    capture_hits = find_features("behavior incident capture")
+    assert capture_hits[0]["id"] == "assistant.behavior_regressions"
+    assert any("behavior_incident_capture.py --help" in item for item in capture_hits[0]["entrypoints"])
+    assert "explicit agent-visible context only" in capture_hits[0]["boundary"]
+    assert "never retrieves whole-chat history" in capture_hits[0]["boundary"]
