@@ -31,6 +31,8 @@ STACK_PATHS = {
     "tools/slopwall_v2.py",
     "tests/test_replay_scoring.py",
     "tests/test_behavior_regression_contract.py",
+    "tests/test_manual_go_replay.py",
+    "03 Fixtures and Experiments/2026-09-07_0221_EEST_go-issue-completion-stop_next_action.json",
     "tests/test_slopwall_v2.py",
     "04 Operating Contracts/assistant-behavior-regression.md",
     "04 Operating Contracts/slopwall-v2-capture-contract.md",
@@ -233,6 +235,7 @@ def verify_stack() -> None:
     run_pytest(
         [
             "tests/test_behavior_regression_contract.py",
+            "tests/test_manual_go_replay.py",
             "tests/test_slopwall_v2.py",
             "tests/test_behavior_incident_capture.py",
             "tests/test_behavior_incident_close.py",

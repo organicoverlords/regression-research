@@ -158,6 +158,19 @@ def validate_slopwall_fixture(raw: dict[str, Any], *, root: Path = ROOT, filenam
 
     closure = event.get("closure_state")
     _require(closure in {"OPEN", "REPAIRED_PENDING_DURABILITY", "CLOSED"}, f"{event_id}: invalid closure_state")
+    repair_required = event.get("repair_binding_required", False)
+    _require(isinstance(repair_required, bool), f"{event_id}: repair_binding_required must be boolean")
+    if repair_required:
+        repair_binding = event.get("repair_binding")
+        _require(isinstance(repair_binding, dict), f"{event_id}: repair_binding is required")
+        repair_status = repair_binding.get("status")
+        _require(repair_status in {"PENDING_OBSERVATION", "SCORED_PASS", "SCORED_FAIL"}, f"{event_id}: invalid repair_binding status")
+        _require(repair_binding.get("evidence_ref") == (event.get("capture") or {}).get("evidence_ref"), f"{event_id}: repair_binding must use capture evidence_ref")
+        if repair_status in {"SCORED_PASS", "SCORED_FAIL"}:
+            _require(isinstance(repair_binding.get("sha256"), str) and repair_binding["sha256"].strip(), f"{event_id}: scored repair binding requires sha256")
+            _require(isinstance(raw.get("repair_candidate"), dict), f"{event_id}: scored repair binding requires repair_candidate")
+        if closure == "CLOSED":
+            _require(repair_status == "SCORED_PASS", f"{event_id}: CLOSED event requires scored PASS repair binding")
     source_report = raw.get("source_report")
     replay_ref = event.get("replay_ref")
 

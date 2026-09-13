@@ -1,0 +1,35 @@
+{
+  "schema": "behavior-incident-visible-context.v2",
+  "event_id": "SW-V2-20260913-004",
+  "capture_scope": "VISIBLE_CONTEXT_ONLY",
+  "verbatim": true,
+  "full_conversation_reload": false,
+  "retrieval_for_capture_only": false,
+  "items": [
+    {
+      "kind": "user_message",
+      "source": "current-visible-context",
+      "content": "slopwall ja tässä voi olla vikana noi dirty mainit ja se CI jumi yms ja agents jne"
+    },
+    {
+      "kind": "assistant_message",
+      "source": "immediately-preceding-visible-reply",
+      "content": "Eli nyt en halua lisätä taas viittä sääntöä. Näistä alkaa muodostua yksi selkeä V2:n puuttuva acceptance boundary: järjestelmä arvioi liian helposti ‘tehtiinkö jotain / kirjoitettiinko incident / syntyikö memory’, eikä riittävästi oliko seuraava todellinen käyttäjälle näkyvä toiminta oikea, valtuutettu ja alkuperäiseen kysymykseen vastaava."
+    },
+    {
+      "kind": "live_state",
+      "source": "bootstrap.v1@2026-09-13T05:28:19Z",
+      "content": "Vault checkout: dirty=true, coherent=false, bootstrap.status=DEGRADED; Agents contract: COHERENT v86."
+    },
+    {
+      "kind": "live_state",
+      "source": "GitHub runner/run snapshot",
+      "content": "RR-KONE-02 status=online busy=true; 24 of the latest 50 regression-research runs were queued or in_progress at the bounded snapshot."
+    },
+    {
+      "kind": "rule_snapshot",
+      "source": "RULES.md + AGENTS.md",
+      "content": "Exact-fact guidance requires answering the exact factual question first, while manual-go correction guidance says resume a concrete useful action first and treats explaining the prior failure as non-progress; an explicit diagnostic correction question is therefore ambiguously ordered."
+    }
+  ]
+}

@@ -1024,8 +1024,8 @@ def _assertion(assertion: str, text: str, candidate: Any = None) -> tuple[bool, 
     raise FixtureError(f"unsupported scoring assertion: {assertion}")
 
 
-def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: str | None = None) -> dict[str, Any]:
-    validate_fixture(fixture, root=ROOT, filename=fixture.get("_path", fixture.get("id", "fixture")))
+def score_fixture(fixture: dict[str, Any], candidate: Any, *, candidate_name: str | None = None, root: Path = ROOT) -> dict[str, Any]:
+    validate_fixture(fixture, root=root, filename=fixture.get("_path", fixture.get("id", "fixture")))
     if not _is_replay_ready(fixture):
         raise FixtureError(f"{fixture.get('id', 'fixture')}: pending capture is not replay-ready")
     text = candidate_text(candidate)

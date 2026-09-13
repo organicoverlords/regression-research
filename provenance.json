@@ -1597,6 +1597,46 @@
       ],
       "notes": "V2 design incident. Raw evidence is intentionally bounded to agent-visible context and preserved verbatim; no full conversation reload/backfill is required or claimed. Replay fixture carries the event manifest and behavior-contract review. Canonical behavior-incident memory closure is bound to memory/memory-bank.jsonl#mem-sw-v2-20260913-001.",
       "canonical_memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-001"
+    },
+    {
+      "incident_id": "SW-V2-20260913-004",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/SW-V2-20260913-004_incident.md",
+      "title": "Systemic Slopwall diagnosis must reconcile current operational owners before blaming behavior contracts",
+      "date": "2026-09-13",
+      "evidence_type": "evidence_bounded_behavior_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/SW-V2-20260913-004_visible-context.json",
+        "03 Fixtures and Experiments/SW-V2-20260913-004_replay.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [
+        "repair_observation_pending",
+        "canonical_memory_pending"
+      ],
+      "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed."
+    },
+    {
+      "incident_id": "SW-V2-20260913-002",
+      "incident_id_status": "assigned",
+      "report_path": "01 Reports/SW-V2-20260913-002_incident.md",
+      "title": "Worker-health reviews should return the bounded verdict before telemetry detail",
+      "date": "2026-09-13",
+      "evidence_type": "evidence_bounded_behavior_incident",
+      "raw_transcripts": [],
+      "evidence_files": [
+        "02 Evidence/SW-V2-20260913-002_visible-context.json",
+        "03 Fixtures and Experiments/SW-V2-20260913-002_replay.json"
+      ],
+      "contract_snapshots": [],
+      "duplicate_status": "canonical",
+      "superseded_by": null,
+      "missing": [],
+      "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed. Canonical behavior-incident memory closure is bound to memory/memory-bank.jsonl#mem-sw-v2-20260913-002.",
+      "canonical_memory_ref": "memory/memory-bank.jsonl#mem-sw-v2-20260913-002"
     }
   ],
   "orphan_evidence": [

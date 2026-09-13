@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -114,7 +115,12 @@ def test_materialize_creates_bound_pending_bundle_without_canonical_memory(tmp_p
     assert event["analysis"]["first_supported_divergence"].startswith("The response selected")
     assert event["capture"]["scope"] == "VISIBLE_CONTEXT_ONLY"
     assert event["capture"]["full_conversation_reload"] is False
+    assert event["repair_binding_required"] is True
+    assert event["repair_binding"]["status"] == "PENDING_OBSERVATION"
     validate_slopwall_fixture(replay, root=tmp_path, filename=Path(result["replay_ref"]).name)
+
+    provenance = json.loads((tmp_path / "provenance.json").read_text(encoding="utf-8"))
+    assert "repair_observation_pending" in provenance["entries"][0]["missing"]
 
     ok, errors, _ = validate_provenance(tmp_path / "provenance.json")
     assert ok, errors
@@ -205,3 +211,11 @@ def test_capture_contract_rejects_full_chat_reload_before_writes(tmp_path: Path)
     with pytest.raises(BehaviorIncidentCaptureError, match="full_conversation_reload must be false"):
         materialize_capture(spec, root=tmp_path)
     assert files_under(tmp_path) == set()
+
+
+def test_materialize_refuses_serving_main_checkout(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
+    with pytest.raises(BehaviorIncidentCaptureError, match="serving/main"):
+        materialize_capture(capture_spec(), root=tmp_path)
+    assert not (tmp_path / "01 Reports/SW-V2-TEST-MAT-001_incident.md").exists()
+    assert not (tmp_path / "provenance.json").exists()

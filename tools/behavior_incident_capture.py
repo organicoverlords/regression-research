@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -112,7 +113,7 @@ Status: V2 capture artifact.
 
 ## Capture boundary
 
-Only agent-visible incident evidence was persisted verbatim. No conversation reload, transcript reconstruction, or backfill was performed for capture completeness.
+Only agent-visible incident evidence was persisted verbatim. No conversation reload, transcript reconstruction, or backfill was performed for capture completeness. Closure remains pending until the actual next user-facing repair reply/action is observed from visible context, bound into the replay, and scores PASS.
 """
 
 
@@ -248,6 +249,8 @@ def build_artifacts(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any
         "scores": event.get("scores"),
         "severity_100": event.get("severity_100"),
         "analysis": incident_analysis,
+        "repair_binding_required": True,
+        "repair_binding": {"status": "PENDING_OBSERVATION", "evidence_ref": evidence_ref},
         "closure_state": "REPAIRED_PENDING_DURABILITY",
     }
 
@@ -309,7 +312,7 @@ def _provenance_entry(spec: dict[str, Any], artifacts: dict[str, Any]) -> dict[s
         "contract_snapshots": [],
         "duplicate_status": "canonical",
         "superseded_by": None,
-        "missing": ["canonical_memory_pending"],
+        "missing": ["repair_observation_pending", "canonical_memory_pending"],
         "notes": "V2 behavior incident captured from agent-visible evidence only; no conversation reload/backfill performed.",
     }
 
@@ -437,7 +440,25 @@ def _commit_transaction(payloads: dict[str, bytes], *, root: Path) -> int:
     return len(changed_refs)
 
 
+def _require_nonserving_branch(root: Path) -> None:
+    git_marker = root / ".git"
+    if not git_marker.exists():
+        return
+    proc = subprocess.run(
+        ["git", "-C", str(root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    _require(proc.returncode == 0, f"cannot determine capture checkout branch: {proc.stderr.strip()}")
+    branch = proc.stdout.strip()
+    _require(branch != "main", "refusing to materialize behavior incident directly on serving/main; use an isolated feature worktree")
+
+
 def materialize_capture(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str, Any]:
+    _require_nonserving_branch(root.resolve())
     artifacts = build_artifacts(spec, root=root)
     provenance, provenance_added = _prepare_provenance(spec, artifacts, root=root)
     payloads = _artifact_payloads(artifacts, provenance)
@@ -451,6 +472,8 @@ def materialize_capture(spec: dict[str, Any], *, root: Path = ROOT) -> dict[str,
     return {
         "status": status,
         "event_id": artifacts["event_id"],
+        "repair_binding_required": True,
+        "repair_binding": {"status": "PENDING_OBSERVATION", "evidence_ref": artifacts["evidence_ref"]},
         "closure_state": "REPAIRED_PENDING_DURABILITY",
         "report_ref": artifacts["report_ref"],
         "evidence_ref": artifacts["evidence_ref"],
