@@ -43,9 +43,8 @@ from tools.stack_atlas import (
     ATLAS_CONTRACT,
     BOOTSTRAP_MEMORY_CANDIDATE_LIMIT,
     BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES,
-    BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
+    BOOTSTRAP_GLANCE_GROWTH_POLICY,
     BOOTSTRAP_GLANCE_MAX_BYTES,
-    BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES,
     BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT,
     BOOTSTRAP_MEMORY_TITLE_LIMIT,
     blast_radius,
@@ -551,13 +550,21 @@ class StackAtlasTests(unittest.TestCase):
             glance = build_live_bootstrap_glance()
         payload = json.dumps(glance, separators=(",", ":")).encode("utf-8")
         self.assertLessEqual(len(payload), BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 25_000)
-        self.assertEqual(BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES, 15_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 28_000)
         self.assertEqual(next(iter(glance)), "bootstrap_warning")
+        warning = glance["bootstrap_warning"]
+        self.assertIn("BOOTSTRAP_INCOMPLETE", warning)
+        self.assertIn("Schema-bounded samples are valid", warning)
+        self.assertIn("preserving all bootstrap information", warning)
+        self.assertIn("never drop fields/data to fit", warning)
         self.assertEqual(next(reversed(glance)), "bootstrap_end")
         self.assertEqual(glance["bootstrap_end"]["status"], "COMPLETE")
         self.assertEqual(glance["bootstrap"]["payload_budget"]["max_bytes"], BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(glance["bootstrap"]["payload_budget"]["compaction_target_bytes"], BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
+        self.assertFalse(glance["bootstrap"]["payload_budget"]["over_budget"])
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["runtime_action"], "OBSERVE_ONLY_NO_FAIL")
+        self.assertEqual(glance["bootstrap"]["payload_budget"]["growth_policy"], BOOTSTRAP_GLANCE_GROWTH_POLICY)
+        self.assertNotIn("compaction_target_bytes", glance["bootstrap"]["payload_budget"])
         self.assertIn("trend", glance["pc"]["disk"])
         memory = glance["pc"]["memory"]
         self.assertIn("commit_headroom_gb", memory)
@@ -627,7 +634,7 @@ class StackAtlasTests(unittest.TestCase):
         self.assertIn("lookup tiny3d_library", glance["commands"]["tiny3d_asset_library"])
         self.assertNotIn("connector_reliability.py", json.dumps(glance))
 
-    def test_bootstrap_cli_emits_the_budgeted_compact_utf8_representation(self):
+    def test_bootstrap_cli_emits_the_budgeted_utf8_representation_without_compaction(self):
         glance = _fit_bootstrap_glance_budget({
             "bootstrap": {"status": "OK"},
             "non_ascii_probe": "ä" * 4000,
@@ -662,201 +669,40 @@ class StackAtlasTests(unittest.TestCase):
         path_call.assert_called_once_with("node-a", "node-b", surface_id="surface-y")
         self.assertEqual(json.loads(path_output.getvalue()), path_value)
 
-    def test_bootstrap_budget_compacts_drilldown_detail_before_live_truth(self):
+    def test_bootstrap_budget_reports_oversize_without_runtime_failure_or_compaction(self):
         glance = {
             "bootstrap": {"status": "OK"},
-            "mcp_recovery_state": {
-                "path": r"C:\\vault\\mcp-recovery-state.json",
-                "conditions": [
-                    {
-                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
-                        "message": "detail " * 120, "observed_generation": "g" * 80,
-                        "last_transition_at": "2026-09-06T18:00:00Z",
-                    }
-                    for i in range(5)
-                ],
-            },
-            "memory_overview": {
-                "contract": "history only", "eligible_entries": 400,
-                "timeline_snapshots": {
-                    "authority": "DERIVED_HISTORY_ONLY",
-                    "narrative": {"primary": "cases", "read_order": "cases>work_graph>evidence_density>context_only"},
-                    "windows": [{
-                        "window": "24h", "cases": {"total": 20, "red": 1}, "observations": 5000,
-                        "case_examples": [{"id": "case:important", "title": "important case", "support": "mixed"}],
-                        "highlights": [{"title": "x" * 500} for _ in range(8)],
-                    }],
-                },
-                "timeline_materialized": {"status": "FRESH", "coverage_status": "HISTORICAL_INCOMPLETE"},
-                "incident_rollups": [], "recent": [], "projects": [], "recurring_tags": [],
-            },
-            "source_freshness": {
-                "available": True, "attention_required": True, "updates_pending": False,
-                "meaning": "detail " * 120, "cache": {"used": True, "age_seconds": 1},
-                "sources": {
-                    "RULES.md": {"path": "p" * 500, "last_update_commit": "a" * 40, "last_updated_at": "2026-09-06T18:00:00Z", "local_last_committed_at": "2026-09-06T18:00:00Z", "local_matches_remote_main": False, "local_differs_from_remote_main": True, "updates_pending": False},
-                },
-            },
-            "mcp": {
-                "active_session_count": 9, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 9},
-                "active_sessions": [{"caller_id": f"caller-{i}", "cwd": "C:\\" + ("x" * 350), "workspace": "Vault", "busy_titles": []} for i in range(4)],
-            },
-            "workers": {
-                "attention": [{"worker": f"w{i}", "detail": "x" * 300} for i in range(4)], "stale_reports": [],
-                "manual_sanity": {
-                    "available": True, "path": "p" * 500, "baseline_id": "baseline", "boundary_at": "2026-09-06T21:26:41+03:00",
-                    "status": "PROVISIONAL", "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
-                    "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
-                    "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
-                    "semantics": "diagnostic detail " * 100,
-                },
-            },
-            "paths": {"mcp_recovery_state": r"C:\\vault\\mcp-recovery-state.json"},
-            "commands": {"stack_owner": "python tools/stack_atlas.py lookup <id>"},
+            "memory_overview": {"important": "keep-me"},
+            "synthetic_oversize": "x" * BOOTSTRAP_GLANCE_MAX_BYTES,
         }
-        memory_before = json.loads(json.dumps(glance["memory_overview"]))
+        original = json.loads(json.dumps(glance))
         fitted = _fit_bootstrap_glance_budget(glance)
-        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
-        self.assertEqual(fitted["mcp"]["active_session_count"], 9)
-        self.assertEqual(fitted["mcp"]["workspace_counts"], {"Vault": 9})
-        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
-        self.assertTrue(fitted["source_freshness"]["attention_required"])
-        self.assertTrue(fitted["source_freshness"]["sources"]["RULES.md"]["local_differs_from_remote_main"])
-        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
-        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
-        self.assertIn("case:important", json.dumps(fitted["memory_overview"]))
-        self.assertEqual(fitted["memory_overview"], memory_before)
-
-    def test_bootstrap_soft_target_preserves_bounded_live_status_detail_under_hard_cap(self):
-        lanes = [{"basis": "worktree", "workspace": f"w{i}", "worktree": {"path": f"C:/w{i}"}, "callers": [{"caller_id": f"c{i}"}], "busy": []} for i in range(4)]
-        sessions = [{"caller_id": f"c{i}", "cwd": f"C:/w{i}", "workspace": f"w{i}", "busy_titles": []} for i in range(3)]
+        self.assertEqual(glance, original)
+        self.assertEqual(fitted["synthetic_oversize"], glance["synthetic_oversize"])
+        self.assertTrue(fitted["bootstrap"]["payload_budget"]["over_budget"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["runtime_action"], "OBSERVE_ONLY_NO_FAIL")
+    def test_bootstrap_under_cap_preserves_payload_data(self):
         glance = {
             "bootstrap": {"status": "OK"},
-            "live_swarm": {
-                "summary": {"recent_callers": 4, "lanes": 4},
-                "evidence": {"activity_window_complete": True, "observation_window_complete": True},
-                "lanes": lanes,
-                "lane_details": {"policy": "most_recent", "limit": 4, "returned": 4, "total": 4, "bounded": False, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
-            },
-            "mcp": {
-                "active_session_count": 4, "active_session_count_status": "COMPLETE",
-                "active_sessions": sessions,
-                "active_session_details": {"policy": "most_recent", "limit": 3, "returned": 3, "total": 4, "bounded": True, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
-            },
-            "synthetic_uncompacted_detail": "x" * 16_000,
+            "live_swarm": {"lanes": [{"lane_id": "lane-a", "detail": "x" * 3000}]},
+            "memory_overview": {"important": "y" * 3000},
+            "synthetic_uncompacted_detail": "z" * 12_000,
         }
         fitted = _fit_bootstrap_glance_budget(glance)
         size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertGreater(size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
         self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertEqual(len(fitted["live_swarm"]["lanes"]), 4)
-        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 3)
-        self.assertNotIn("lanes_truncated", fitted["live_swarm"])
-        self.assertNotIn("active_sessions_truncated", fitted["mcp"])
-        self.assertTrue(fitted["mcp"]["active_session_details"]["bounded"])
-
-    def test_bootstrap_headroom_compaction_keeps_reserve_under_high_live_detail(self):
-        lanes = [
-            {
-                "basis": "worktree", "state": "ACTIVE", "workspace": f"w{i}",
-                "worktree": {"path": "C:/" + (f"lane{i}-" * 90), "branch": f"b{i}", "head": "a" * 40},
-                "callers": [{"caller_id": f"caller_{i}", "last_activity_age_seconds": i, "mode": "UNKNOWN", "identity": {"status": "UNATTRIBUTED"}}],
-                "busy": [],
-            }
-            for i in range(4)
-        ]
-        sessions = [
-            {"caller_id": f"caller_{i}", "cwd": "C:/" + (f"session{i}-" * 90), "workspace": f"w{i}", "busy_titles": []}
-            for i in range(3)
-        ]
-        sources = [
-            {
-                "instance": f"clone-{i}", "status": "LIVE", "http_status": 200,
-                "backend_generation": "g" * 180, "runtime_identity": {"source_commit": "c" * 40, "dist_sha256": "d" * 64},
-            }
-            for i in range(4)
-        ]
-        glance = {
-            "bootstrap": {"status": "OK"},
-            "synthetic_fixed_payload": "z" * 16_500,
-            "live_swarm": {
-                "summary": {"recent_callers": 4, "lanes": 4},
-                "evidence": {"activity_window_complete": True},
-                "recurring_actors": [
-                    {"slot_id": "S1/1", "actor": "S1/Hazel", "evidence_state": "RECENT_ATTRIBUTED_MCP_ACTIVITY", "mcp": {"branch": "x" * 300}},
-                    {"slot_id": "S2/3", "actor": "S2/Willow", "evidence_state": "RECENT_ATTRIBUTED_MCP_ACTIVITY", "mcp": {"branch": "y" * 300}},
-                ],
-                "lanes": lanes,
-                "lane_details": {"policy": "most_recent", "limit": 4, "returned": 4, "total": 4, "bounded": False, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
-            },
-            "mcp": {
-                "active_session_count": 4, "active_session_count_status": "COMPLETE",
-                "active_sessions": sessions,
-                "active_session_details": {"policy": "most_recent", "limit": 3, "returned": 3, "total": 4, "bounded": True, "semantics": "bootstrap_detail_bound_not_evidence_truncation"},
-                "service_health": {"source_count": 4, "live_source_count": 4, "sources": sources},
-            },
-        }
-        raw_size = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        stability_ceiling = BOOTSTRAP_GLANCE_MAX_BYTES - BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES
-        self.assertGreater(raw_size, stability_ceiling)
-        fitted = _fit_bootstrap_glance_budget(glance)
-        fitted_size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(fitted_size, stability_ceiling)
-        self.assertEqual(fitted["bootstrap"]["payload_budget"]["headroom_reserve_bytes"], BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES)
-        self.assertEqual(fitted["bootstrap"]["payload_budget"]["stability_ceiling_bytes"], stability_ceiling)
-        self.assertTrue(fitted["bootstrap"]["payload_budget"]["headroom_compacted"])
-        self.assertTrue(fitted["bootstrap"]["payload_budget"]["headroom_target_met"])
-        self.assertEqual(fitted["mcp"]["active_session_count"], 4)
-        self.assertEqual(fitted["live_swarm"]["summary"]["recent_callers"], 4)
-        self.assertGreaterEqual(len(fitted["live_swarm"]["lanes"]), 1)
-        self.assertTrue(
-            fitted["mcp"]["active_session_details"].get("budget_limited")
-            or fitted["live_swarm"]["lane_details"].get("budget_limited")
-            or fitted["mcp"]["service_health"].get("budget_limited")
-        )
-        self.assertEqual(len(glance["mcp"]["active_sessions"]), 3)
-        self.assertEqual(len(glance["live_swarm"]["lanes"]), 4)
-
-    def test_bootstrap_reports_unmet_headroom_target_without_faking_failure(self):
-        glance = {
-            "bootstrap": {"status": "OK"},
-            "synthetic_fixed_payload": "x" * 22_000,
-        }
-        fitted = _fit_bootstrap_glance_budget(glance)
-        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertGreater(size, BOOTSTRAP_GLANCE_MAX_BYTES - BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES)
-        self.assertLessEqual(size, BOOTSTRAP_GLANCE_MAX_BYTES)
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["headroom_target_met"])
-        self.assertFalse(fitted["bootstrap"]["payload_budget"]["headroom_compacted"])
-        self.assertEqual(fitted["bootstrap_end"]["status"], "COMPLETE")
-
-    def test_bootstrap_hard_cap_does_not_relax_existing_compaction_target(self):
-        glance = {
-            "bootstrap": {"status": "OK"},
-            "mcp_recovery_state": {
-                "conditions": [
-                    {
-                        "type": f"Condition{i}", "status": "Unknown", "reason": "BoundedReason",
-                        "message": "detail " * 400, "observed_generation": "g" * 500,
-                    }
-                    for i in range(5)
-                ],
-            },
-        }
-        raw_size = len(json.dumps(glance, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertGreater(raw_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
-        self.assertLess(raw_size, BOOTSTRAP_GLANCE_MAX_BYTES)
-        fitted = _fit_bootstrap_glance_budget(glance)
-        fitted_size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(fitted_size, BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES)
-        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
-        self.assertEqual(fitted["bootstrap"]["payload_budget"]["max_bytes"], 25_000)
-        self.assertEqual(fitted["bootstrap"]["payload_budget"]["compaction_target_bytes"], 15_000)
-        self.assertEqual(fitted["mcp_recovery_state"]["conditions"][0], {"type": "Condition0", "status": "Unknown", "reason": "BoundedReason"})
-
-    def test_bootstrap_compaction_keeps_stack_commands_directly_executable(self):
+        self.assertEqual(fitted["synthetic_uncompacted_detail"], glance["synthetic_uncompacted_detail"])
+        self.assertEqual(fitted["live_swarm"], glance["live_swarm"])
+        self.assertEqual(fitted["memory_overview"], glance["memory_overview"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
+    def test_bootstrap_budget_is_user_approved_28k_with_ci_growth_guard(self):
+        self.assertEqual(BOOTSTRAP_GLANCE_MAX_BYTES, 28_000)
+        self.assertEqual(BOOTSTRAP_GLANCE_GROWTH_POLICY, "EXPLICIT_USER_AUTHORIZATION_REQUIRED")
+        fitted = _fit_bootstrap_glance_budget({"bootstrap": {"status": "OK"}, "probe": "x" * 20_000})
+        self.assertEqual(fitted["probe"], "x" * 20_000)
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["max_bytes"], 28_000)
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["growth_policy"], BOOTSTRAP_GLANCE_GROWTH_POLICY)
+    def test_bootstrap_no_compaction_keeps_stack_commands_directly_executable(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "commands": {
@@ -869,24 +715,13 @@ class StackAtlasTests(unittest.TestCase):
                 "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
                 "tiny3d_asset_library": "lookup tiny3d_library",
             },
-            "paths": {
-                "rules": r"C:\Users\Lauri\.agents\RULES.md",
-                "agents": r"C:\Users\Lauri\.agents\AGENTS.md",
-                "vault": r"C:\Users\Lauri\Desktop\vault",
-                "synthetic_bloat": "x" * 20_000,
-            },
+            "paths": {"rules": r"C:\Users\Lauri\.agents\RULES.md", "agents": r"C:\Users\Lauri\.agents\AGENTS.md"},
+            "synthetic_detail": "x" * 10_000,
         }
         fitted = _fit_bootstrap_glance_budget(glance)
-        commands = fitted["commands"]
-        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
-        self.assertEqual(commands["live_swarm"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm")
-        self.assertEqual(commands["stack_find"], r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>")
-        self.assertEqual(commands["memory_overview"], r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview")
-        self.assertLessEqual(
-            len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8")),
-            BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
-        )
-
+        self.assertEqual(fitted["commands"], glance["commands"])
+        self.assertEqual(fitted["paths"], glance["paths"])
+        self.assertEqual(fitted["synthetic_detail"], glance["synthetic_detail"])
     def test_bootstrap_mcp_service_health_source_detail_is_bounded(self):
         glance = {
             "bootstrap": {"status": "OK"},
@@ -903,33 +738,23 @@ class StackAtlasTests(unittest.TestCase):
         self.assertTrue(health["sources_truncated"])
         self.assertEqual(len(health["sources"]), BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)
         self.assertEqual([item["instance"] for item in health["sources"]], [f"source-{i}" for i in range(BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT)])
-        self.assertTrue(fitted["bootstrap"]["payload_budget"]["compacted"])
+        self.assertEqual(fitted["bootstrap"]["payload_budget"]["mode"], "BUDGET_NO_SIZE_COMPACTION")
 
-    def test_bootstrap_budget_compacts_manual_sanity_before_session_samples(self):
+    def test_bootstrap_budget_preserves_manual_sanity_without_compaction(self):
         glance = {
             "bootstrap": {"status": "OK"},
             "workers": {"manual_sanity": {
-                "available": True, "path": "p" * 500, "baseline_id": "baseline",
+                "available": True, "path": "p" * 200, "baseline_id": "baseline",
                 "boundary_at": "2026-09-06T21:26:41+03:00", "status": "PROVISIONAL",
                 "score_delta": 42.0, "direction": "IMPROVED", "post_run_count": 7,
-                "minimum_post_runs_for_provisional": 5, "minimum_post_runs_for_comparable": 20,
                 "components": {"median_report_bytes": {"baseline": 1000, "current": 500, "delta_points": 20}},
-                "semantics": "diagnostic detail " * 200,
+                "semantics": "diagnostic detail " * 20,
             }},
-            "mcp": {
-                "active_session_count": 4, "active_session_count_status": "COMPLETE", "workspace_counts": {"Vault": 4},
-                "active_sessions": [{"caller_id": f"c{i}", "cwd": "C:/" + ("x" * 250), "workspace": "Vault", "busy_titles": []} for i in range(4)],
-            },
+            "mcp": {"active_session_count": 1, "active_sessions": [{"caller_id": "c1", "cwd": "C:/x", "workspace": "Vault", "busy_titles": []}]},
         }
-        fitted = _fit_bootstrap_glance_budget(glance, 2_200)
-        size = len(json.dumps(fitted, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
-        self.assertLessEqual(size, 2_200)
-        self.assertEqual(len(fitted["mcp"]["active_sessions"]), 4)
-        self.assertEqual(fitted["mcp"]["active_session_count"], 4)
-        self.assertEqual(fitted["workers"]["manual_sanity"]["status"], "PROVISIONAL")
-        self.assertEqual(fitted["workers"]["manual_sanity"]["post_run_count"], 7)
-        self.assertNotIn("components", fitted["workers"]["manual_sanity"])
-
+        fitted = _fit_bootstrap_glance_budget(glance)
+        self.assertEqual(fitted["workers"], glance["workers"])
+        self.assertEqual(fitted["mcp"], glance["mcp"])
     def test_production_change_gate_requires_specific_scope_basis(self):
         mcp = {
             "available": True, "status": "LIVE", "active_session_count": 20,

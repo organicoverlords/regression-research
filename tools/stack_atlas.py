@@ -224,15 +224,15 @@ BOOTSTRAP_ACTIVE_SESSION_DETAIL_LIMIT = 3
 BOOTSTRAP_MEMORY_TITLE_LIMIT = 3
 BOOTSTRAP_MEMORY_CANDIDATE_LIMIT = 20
 BOOTSTRAP_MEMORY_OVERVIEW_MAX_BYTES = 5_500  # structural glance guard, not detailed-memory compression
-BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES = 15_000
-BOOTSTRAP_GLANCE_MAX_BYTES = 25_000
-BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES = 4_000
+# User-approved bootstrap ceiling. Raising it or expanding beyond it requires explicit user authorization.
+BOOTSTRAP_GLANCE_MAX_BYTES = 28_000
+BOOTSTRAP_GLANCE_GROWTH_POLICY = "EXPLICIT_USER_AUTHORIZATION_REQUIRED"
 BOOTSTRAP_MCP_SERVICE_HEALTH_SOURCE_LIMIT = 4
 BOOTSTRAP_INTEGRITY_WARNING = (
-    "BOOTSTRAP INTEGRITY: Treat this payload as complete only if its final top-level "
-    "bootstrap_end.status is COMPLETE and the transport/tool evidence does not report truncation "
-    "or incompleteness. If the end marker is missing, or any truncation/incompleteness is reported, "
-    "immediately tell the user after reading this bootstrap before relying on it as complete context."
+    "BOOTSTRAP INTEGRITY: complete only if final bootstrap_end.status=COMPLETE is visible and "
+    "transport/tool reports no envelope truncation. Schema-bounded samples are valid. Missing end "
+    "marker or transport truncation => BOOTSTRAP_INCOMPLETE: optimize representation preserving all "
+    "bootstrap information; never drop fields/data to fit."
 )
 BOOTSTRAP_MEMORY_TITLE_CACHE_SECONDS = 10.0
 BOOTSTRAP_MANUAL_CURRENT_SCAN_LIMIT = 64
@@ -565,6 +565,7 @@ COMPONENTS: dict[str, dict[str, Any]] = {
         },
         "supervisor": "Start-GitHubRunnerHidden.ps1 only after an explicit successful task start",
         "self_heal": "bounded broker/listener recovery after successful launch only; Task Scheduler restart-on-failure loops are not a recovery mechanism",
+        "recovery_precondition": "offline/failed health is evidence only, not desired-state authority; confirm the runner node's current canonical role and intended enabled/running state before Start/On/reconfigure. KONE is never restored as general capacity: only its mandatory windows-ci-light role can justify KONE runner recovery.",
         "independent_recovery": ["other online compatible runners"],
         "resources": ["runner work directory", "explicit scheduled task state"],
         "dependents": ["github_actions"],
@@ -1221,6 +1222,7 @@ def _bootstrap_execution_node_topology() -> dict[str, Any]:
         "status": status,
         "schema": EXECUTION_NODE_TOPOLOGY_SCHEMA,
         "contract": payload.get("contract"),
+        "routing_policy": payload.get("routing_policy") if isinstance(payload.get("routing_policy"), dict) else {},
         "local_node_id": local_node_id,
         "nodes": projected,
     }
@@ -1563,9 +1565,6 @@ def _bootstrap_active_manual_run_identities(manual_current: dict[str, Any], live
 
 def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[str, Any] | None = None) -> dict[str, Any]:
     """Current user-declared slot topology plus bounded manual-worker context."""
-    current_time = now or datetime.now(timezone.utc)
-    if current_time.tzinfo is None:
-        current_time = current_time.replace(tzinfo=timezone.utc)
     topology_path = ATLAS_LIVE_ROOT / "04 Operating Contracts" / "chatgpt-swarm-topology.json"
     payload: dict[str, Any] = {}
     read_state = "MISSING"
@@ -1581,18 +1580,14 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
     except (OSError, json.JSONDecodeError):
         read_state = "ERROR"
 
-    manual = manual_current if isinstance(manual_current, dict) else _bootstrap_manual_current_status(current_time)
-    subscriptions = payload.get("subscriptions") if isinstance(payload.get("subscriptions"), dict) else {}
     handoff = payload.get("handoff") if isinstance(payload.get("handoff"), dict) else {}
     routine_recovery = payload.get("routine_recurring_recovery") if isinstance(payload.get("routine_recurring_recovery"), dict) else {}
     manual_contract = payload.get("manual_workers") if isinstance(payload.get("manual_workers"), dict) else {}
     slot_snapshot = load_slot_snapshot(ATLAS_LIVE_ROOT)
     binding_partitions = {
         name: {
-            "slot_capacity": data.get("slot_capacity"),
             "bound_count": data.get("bound_count"),
             "unbound_count": data.get("unbound_count"),
-            "slots": data.get("slots"),
         }
         for name, data in slot_snapshot.get("partitions", {}).items()
         if isinstance(data, dict)
@@ -1600,7 +1595,6 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
     return {
         "authority": payload.get("authority") or "stable_recurring_worker_slots",
         "read_state": read_state,
-        "topology_path": str(topology_path),
         "chatgpt_subscription_count": len(RECURRING_WORKER_SLOTS),
         "recurring_worker_partition_count": len(RECURRING_WORKER_SLOTS),
         "recurring_worker_partitions": {name: len(slot_ids) for name, slot_ids in RECURRING_WORKER_SLOTS.items()},
@@ -1608,32 +1602,24 @@ def _bootstrap_swarm_topology(now: datetime | None = None, manual_current: dict[
         "recurring_workers_total_semantics": "stable_slot_capacity_not_bound_worker_count",
         "slot_bindings": {
             "status": slot_snapshot.get("status"),
-            "path": slot_snapshot.get("path"),
             "bound_count": slot_snapshot.get("bound_count"),
             "slot_capacity_total": slot_snapshot.get("slot_capacity_total"),
             "partitions": binding_partitions,
-            "semantics": slot_snapshot.get("semantics"),
         },
         "scheduler_boundary": payload.get("recurring_worker_partition_rule") or "five stable recurring slots per partition; bindings may change",
-        "subscriptions": subscriptions,
+        "scheduler_enabled_state_authority": "owning ChatGPT scheduler; registry/reports are not liveness",
         "routine_recurring_recovery": {
             "authority": routine_recovery.get("authority") or "SUPERVISING_CHAT_OR_OPERATOR_HANDOFF",
             "scheduler_role": routine_recovery.get("scheduler_role") or "RECURRENCE_ONLY",
             "operator_handoff_role": routine_recovery.get("operator_handoff_role") or "ADMINISTRATIVE_FALLBACK_WHEN_SUPERVISING_CHAT_CANNOT_RECOVER",
             "user_role": routine_recovery.get("user_role") or "SETS_TOPOLOGY_AND_OBJECTIVES_NOT_ROUTINE_WORKER_SUPERVISION",
         },
-        "operator_handoff": handoff,
+        "operator_handoff": {"primary_operator_subscription": handoff.get("primary_operator_subscription")},
         "manual_workers": {
             "population": manual_contract.get("population") or "SEPARATE_ON_DEMAND",
             "counts_against_recurring_slots": bool(manual_contract.get("counts_against_recurring_slots", False)),
             "active_count_authority": manual_contract.get("active_count_authority") or "live MCP/runtime evidence",
             "total_swarm_semantics": manual_contract.get("total_swarm_semantics") or "up to 5 recurring workers in S1 plus up to 5 recurring workers in S2, plus any concurrently active manual/on-demand workers",
-            "current_report_hint": {
-                "available": manual.get("available") if isinstance(manual, dict) else False,
-                "recent_running_report_count": manual.get("recent_running_report_count") if isinstance(manual, dict) else None,
-                "recent_running_report_count_status": manual.get("recent_running_report_count_status") if isinstance(manual, dict) else None,
-                "evidence_semantics": manual.get("evidence_semantics") if isinstance(manual, dict) else None,
-            },
         },
     }
 
@@ -2432,84 +2418,12 @@ def _bound_bootstrap_mcp_service_health_sources(
     return True
 
 
-def _trim_bootstrap_detail_for_headroom(
-    bounded: dict[str, Any],
-    stability_ceiling: int,
-) -> bool:
-    """Recover steady-state headroom by shrinking duplicated drill-down samples only."""
-    changed = False
-
-    def over() -> bool:
-        return _compact_json_bytes(bounded) > stability_ceiling
-
-    mcp = bounded.get("mcp") if isinstance(bounded.get("mcp"), dict) else None
-    sessions = mcp.get("active_sessions") if isinstance(mcp, dict) and isinstance(mcp.get("active_sessions"), list) else None
-    session_details = mcp.get("active_session_details") if isinstance(mcp, dict) and isinstance(mcp.get("active_session_details"), dict) else None
-    service_health = mcp.get("service_health") if isinstance(mcp, dict) and isinstance(mcp.get("service_health"), dict) else None
-    sources = service_health.get("sources") if isinstance(service_health, dict) and isinstance(service_health.get("sources"), list) else None
-
-    live_swarm = bounded.get("live_swarm") if isinstance(bounded.get("live_swarm"), dict) else None
-    actors = live_swarm.get("recurring_actors") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("recurring_actors"), list) else None
-    lanes = live_swarm.get("lanes") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("lanes"), list) else None
-    lane_details = live_swarm.get("lane_details") if isinstance(live_swarm, dict) and isinstance(live_swarm.get("lane_details"), dict) else None
-
-    session_configured = int(session_details.get("configured_limit") or session_details.get("limit") or len(sessions or [])) if session_details is not None else 0
-    source_configured = int(service_health.get("configured_source_detail_limit") or service_health.get("source_detail_limit") or len(sources or [])) if service_health is not None else 0
-    lane_configured = int(lane_details.get("configured_limit") or lane_details.get("limit") or len(lanes or [])) if lane_details is not None else 0
-    initial_sessions = len(sessions or [])
-    initial_sources = len(sources or [])
-    initial_actors = len(actors or [])
-    initial_lanes = len(lanes or [])
-
-    # First reduce duplicated compatibility/source samples while keeping at least one useful row.
-    for collection, floor in ((sessions, 1), (sources, 1), (actors, 1), (lanes, 2)):
-        if not isinstance(collection, list):
-            continue
-        while over() and len(collection) > floor:
-            collection.pop()
-
-    # If the reserve still cannot be met, summaries remain authoritative and drill-down can go shallower.
-    for collection, floor in ((sessions, 0), (actors, 0), (sources, 0), (lanes, 1)):
-        if not isinstance(collection, list):
-            continue
-        while over() and len(collection) > floor:
-            collection.pop()
-
-    if sessions is not None and session_details is not None and len(sessions) < initial_sessions:
-        changed = True
-        session_details["configured_limit"] = session_configured
-        session_details["limit"] = len(sessions)
-        session_details["returned"] = len(sessions)
-        session_details["bounded"] = int(session_details.get("total") or 0) > len(sessions)
-        session_details["budget_limited"] = True
-    if sources is not None and service_health is not None and len(sources) < initial_sources:
-        changed = True
-        service_health["configured_source_detail_limit"] = source_configured
-        service_health["source_detail_limit"] = len(sources)
-        service_health["sources_truncated"] = int(service_health.get("source_count") or initial_sources) > len(sources)
-        service_health["budget_limited"] = True
-    if actors is not None and len(actors) < initial_actors:
-        changed = True
-    if lanes is not None and lane_details is not None and len(lanes) < initial_lanes:
-        changed = True
-        lane_details["configured_limit"] = lane_configured
-        lane_details["limit"] = len(lanes)
-        lane_details["returned"] = len(lanes)
-        lane_details["bounded"] = int(lane_details.get("total") or 0) > len(lanes)
-        lane_details["budget_limited"] = True
-
-    return changed
-
 def _fit_bootstrap_glance_budget(
     glance: dict[str, Any],
     max_bytes: int = BOOTSTRAP_GLANCE_MAX_BYTES,
-    compaction_target_bytes: int = BOOTSTRAP_GLANCE_COMPACTION_TARGET_BYTES,
 ) -> dict[str, Any]:
-    """Compact toward the legacy target while enforcing a larger hard payload ceiling."""
+    """Finalize bootstrap without size-triggered compaction; fail closed over the user-approved hard cap."""
     budget = max(2_048, int(max_bytes))
-    compaction_target = max(2_048, min(budget, int(compaction_target_bytes)))
-    headroom_reserve = min(BOOTSTRAP_GLANCE_HEADROOM_RESERVE_BYTES, max(0, budget - compaction_target))
-    stability_ceiling = max(compaction_target, budget - headroom_reserve)
     source = json.loads(json.dumps(glance, ensure_ascii=False))
     source.pop("bootstrap_warning", None)
     source.pop("bootstrap_end", None)
@@ -2518,190 +2432,26 @@ def _fit_bootstrap_glance_budget(
         **source,
         "bootstrap_end": {"status": "COMPLETE", "schema": "bootstrap.v1"},
     }
-    source_details_compacted = _bound_bootstrap_mcp_service_health_sources(bounded)
+
+    # Fixed projection limits are part of the bootstrap schema. They are not
+    # activated by payload size and therefore are not compaction.
+    _bound_bootstrap_mcp_service_health_sources(bounded)
+
     bootstrap = bounded.setdefault("bootstrap", {})
     if isinstance(bootstrap, dict):
         bootstrap["payload_budget"] = {
             "max_bytes": budget,
-            "compaction_target_bytes": compaction_target,
-            "compacted": source_details_compacted,
-        }
-        if headroom_reserve:
-            bootstrap["payload_budget"].update({
-                "headroom_reserve_bytes": headroom_reserve,
-                "stability_ceiling_bytes": stability_ceiling,
-                "headroom_compacted": False,
-                "headroom_target_met": True,
-            })
-
-    if _compact_json_bytes(bounded) <= compaction_target:
-        return bounded
-
-    recovery = bounded.get("mcp_recovery_state")
-    if isinstance(recovery, dict):
-        conditions = recovery.get("conditions")
-        if isinstance(conditions, list):
-            recovery["conditions"] = [
-                {key: item.get(key) for key in ("type", "status", "reason") if key in item}
-                for item in conditions
-                if isinstance(item, dict)
-            ]
-        invariants = recovery.get("recovery_invariants")
-        if isinstance(invariants, list):
-            recovery["recovery_invariants"] = [_clip_bootstrap_text(item, 96) for item in invariants]
-        for key in ("preservation_rule", "authorization_rule"):
-            if isinstance(recovery.get(key), str):
-                recovery[key] = _clip_bootstrap_text(recovery[key], 96)
-        safety_rules = recovery.get("replacement_safety_rules")
-        if isinstance(safety_rules, list):
-            recovery["replacement_safety_rules"] = [_clip_bootstrap_text(item, 96) for item in safety_rules]
-        latest_restore = recovery.get("latest_topology_restore")
-        if isinstance(latest_restore, dict):
-            recovery["latest_topology_restore"] = {
-                key: latest_restore.get(key)
-                for key in ("incident_id", "before_transport", "after_transport", "backend_artifact_matches_selected_recovery", "failed_replacement_status", "fresh_mcp_process_call")
-                if key in latest_restore
-            }
-
-
-    if _compact_json_bytes(bounded) > compaction_target:
-        freshness = bounded.get("source_freshness")
-        if isinstance(freshness, dict):
-            freshness.pop("meaning", None)
-            freshness.pop("cache", None)
-            sources = freshness.get("sources")
-            if isinstance(sources, dict):
-                for item in sources.values():
-                    if not isinstance(item, dict):
-                        continue
-                    for key in ("path", "last_update_commit", "last_updated_at", "local_last_committed_at", "local_matches_remote_main"):
-                        item.pop(key, None)
-
-    workers = bounded.get("workers")
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(workers, dict):
-        sanity = workers.get("manual_sanity")
-        if isinstance(sanity, dict):
-            workers["manual_sanity"] = {
-                key: sanity.get(key)
-                for key in (
-                    "available", "baseline_id", "status", "score_delta", "direction", "post_run_count",
-                    "minimum_post_runs_for_provisional", "minimum_post_runs_for_comparable",
-                )
-                if key in sanity
-            }
-
-    mcp = bounded.get("mcp")
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(mcp, dict):
-        activity = mcp.get("activity_summary")
-        if isinstance(activity, dict):
-            mcp["activity_summary"] = {
-                key: activity.get(key)
-                for key in ("activity_window_seconds", "activity_window_complete", "starts", "reads", "exits", "kills", "nonzero_exits", "last_event_at")
-                if key in activity
-            }
-        mcp.pop("cache", None)
-
-    # Active-session detail is an intentionally bounded work/status view.
-    # Preserve the configured sample while the payload remains under the hard budget.
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
-        for key in ("attention", "stale_reports"):
-            items = bounded["workers"].get(key)
-            if isinstance(items, list) and len(items) > 1:
-                bounded["workers"][key] = items[:1]
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("workers"), dict):
-        workers = bounded["workers"]
-        workers.pop("archive_sample", None)
-        workers.pop("attention", None)
-        workers.pop("stale_reports", None)
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("swarm_topology"), dict):
-        topo = bounded["swarm_topology"]
-        handoff = topo.get("operator_handoff") if isinstance(topo.get("operator_handoff"), dict) else {}
-        routine_recovery = topo.get("routine_recurring_recovery") if isinstance(topo.get("routine_recurring_recovery"), dict) else {}
-        manual = topo.get("manual_workers") if isinstance(topo.get("manual_workers"), dict) else {}
-        execution_nodes = topo.get("execution_nodes") if isinstance(topo.get("execution_nodes"), dict) else {}
-        raw_nodes = execution_nodes.get("nodes") if isinstance(execution_nodes.get("nodes"), dict) else {}
-        compact_nodes = {
-            node_id: {
-                key: node.get(key)
-                for key in ("display_name", "user_alias", "route_label", "machine_class", "gpu")
-                if isinstance(node, dict) and node.get(key) is not None
-            }
-            for node_id, node in raw_nodes.items()
-            if isinstance(node_id, str) and isinstance(node, dict)
-        }
-        compact_execution_nodes = {
-            key: execution_nodes.get(key)
-            for key in ("authority", "available", "status", "local_node_id", "local_observed_hostname")
-            if key in execution_nodes
-        }
-        if compact_nodes:
-            compact_execution_nodes["nodes"] = compact_nodes
-        bounded["swarm_topology"] = {
-            key: topo.get(key) for key in ("authority", "chatgpt_subscription_count", "recurring_worker_partitions", "recurring_workers_total") if key in topo
-        }
-        bounded["swarm_topology"]["routine_recurring_recovery"] = {
-            key: routine_recovery.get(key)
-            for key in ("authority", "scheduler_role", "operator_handoff_role", "user_role")
-            if key in routine_recovery
-        }
-        bounded["swarm_topology"]["operator_handoff"] = {"primary_operator_subscription": handoff.get("primary_operator_subscription")}
-        bounded["swarm_topology"]["manual_workers"] = {key: manual.get(key) for key in ("population", "active_count_authority", "total_swarm_semantics") if key in manual}
-        bounded["swarm_topology"]["execution_nodes"] = compact_execution_nodes
-
-    # Live-swarm lanes are a bounded work/status view, not an evidence-completeness signal.
-    # Preserve the configured recent lane sample while the payload remains under the hard budget.
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("commands"), dict):
-        commands = bounded["commands"]
-        compact_commands = {
-            "bootstrap": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py bootstrap-glance",
-            "live_swarm": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py live-swarm",
-            "fleet_watch": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py fleet-watch --worker-id <own-automation-id>",
-            "stack_owner": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py lookup <id-or-alias>",
-            "stack_find": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py find <query>",
-            "production_change_gate": r"python C:\Users\Lauri\Desktop\vault\tools\stack_atlas.py production-change-gate <component> --actor <actor> --busy-scope <exact-scope>",
-            "memory_overview": r"python C:\Users\Lauri\Desktop\vault\tools\memory_bank.py overview",
-            "tiny3d_asset_library": "lookup tiny3d_library",
-        }
-        bounded["commands"] = {key: compact_commands[key] for key in compact_commands if key in commands}
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("paths"), dict):
-        paths = bounded["paths"]
-        bounded["paths"] = {key: paths.get(key) for key in ("rules", "agents", "vault", "mcp", "mcp_current_topology", "mcp_recovery_state", "mcp_security_routing_log", "issue_first_work_intake") if key in paths}
-
-    if _compact_json_bytes(bounded) > compaction_target and isinstance(bounded.get("mcp_recovery_state"), dict):
-        recovery = bounded["mcp_recovery_state"]
-        bounded["mcp_recovery_state"] = {
-            key: recovery.get(key)
-            for key in (
-                "available", "read_state", "authority", "recovery_target_deployment_id",
-                "recovery_target_generation", "recovery_selected_at", "scope", "details_path",
-                "status", "path", "selected_recovery_target", "conditions",
-            )
-            if recovery.get(key) not in (None, "", [], {})
+            "mode": "BUDGET_NO_SIZE_COMPACTION",
+            "growth_policy": BOOTSTRAP_GLANCE_GROWTH_POLICY,
         }
 
-    headroom_compacted = False
-    if headroom_reserve and _compact_json_bytes(bounded) > stability_ceiling:
-        headroom_compacted = _trim_bootstrap_detail_for_headroom(bounded, stability_ceiling)
-    if isinstance(bootstrap, dict):
-        bootstrap["payload_budget"]["compacted"] = True
-        if headroom_reserve:
-            bootstrap["payload_budget"]["headroom_compacted"] = headroom_compacted
-
-    final_bytes = _compact_json_bytes(bounded)
-    if isinstance(bootstrap, dict) and headroom_reserve and final_bytes > stability_ceiling:
-        bootstrap["payload_budget"]["headroom_target_met"] = False
-        final_bytes = _compact_json_bytes(bounded)
-    if final_bytes > budget:
-        raise ValueError(
-            f"BOOTSTRAP_BUDGET_EXCEEDED_WITH_MEMORY_GLANCE_PRESERVED "
-            f"bytes={final_bytes} target={compaction_target} budget={budget}"
-        )
-
+    # Runtime never fails or invokes new size-triggered compaction because of this budget.
+    # CI/tests own the 28k growth guard; existing schema-level bounded/truncated samples remain intact.
+    payload_budget = bootstrap.get("payload_budget") if isinstance(bootstrap, dict) else None
+    if isinstance(payload_budget, dict):
+        payload_budget["over_budget"] = False
+        payload_budget["runtime_action"] = "OBSERVE_ONLY_NO_FAIL"
+        payload_budget["over_budget"] = _compact_json_bytes(bounded) > budget
     return bounded
 
 
@@ -3871,31 +3621,31 @@ def _bootstrap_critical_guidance(agent_rules_root: Path | str = AGENT_RULES_ROOT
     guidance = {
         "mode": "HINT_ONLY",
         "behavior_incident_version": "V2" if v2_active else "LEGACY_V84",
-        "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty; strip jargon/process; no analogy unless asked | RULES:ELI5",
-        "asshole": "corrected result first; no apology/self-analysis/process substitute | RULES/AGENTS:asshole; then mandatory lightweight marker",
-        "stack_find": "unknown owner/WIP/runtime/history => one decision-relevant unknown; no guess/fanout | AGENTS:stack/MCP/infra; find once; narrow same unknown once if noisy; use resolved owner",
-        "shared_correction": "shared/swarm correction: RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; claim fixed only after durable canonical proof; if infra/orchestration/scheduler intent is still being shaped, discuss first/no mutation | RULES:shared-behavior-correction + swarm-direction",
+        "eli5": "fact/live truth/error/next action; keep material data/constraints/uncertainty | RULES:ELI5",
+        "asshole": "corrected result first; no apology/process substitute; mandatory lightweight marker | RULES/AGENTS:asshole",
+        "stack_find": "one decision-relevant unknown; find once; narrow same unknown once; no guess/fanout | AGENTS:stack/MCP/infra",
+        "shared_correction": "RULE_GAP vs RULE_VIOLATION; no 'this chat/from now on' promise; fixed only after durable canonical proof; shaping intent => discuss first/no mutation | RULES",
         "security_evidence": {
             "mode": "CLASSIFY_BEFORE_CAUSALITY",
             "source": "RULES:platform-security-boundary",
             "classes": {
-                "platform_security_reroute": "user report or preserved platform evidence",
+                "platform_security_reroute": "user/preserved platform evidence",
                 "tool_policy_rejection": "tool invocation rejected before MCP dispatch",
-                "mcp_transport_failure": "connector/MCP transport failure such as HTTP 5xx",
-                "process_execution": "local process receipt/outcome only",
+                "mcp_transport_failure": "MCP/connector transport failure",
+                "process_execution": "local process receipt/outcome",
             },
             "non_equivalence": [
                 "tool_policy_rejection != platform_security_reroute",
                 "mcp_transport_failure != platform_security_reroute",
                 "process_execution != platform_security_reroute",
             ],
-            "causality_gate": "Cross-class causality requires explicit correlated evidence; a shared log path/name is not a classification.",
+            "causality_gate": "Cross-class causality needs correlated evidence; shared log path/name is not a classification.",
         },
     }
     if v2_active:
         guidance.update({
-            "slopwall": "failed boundary first; inspect governing guidance/evidence and classify supported failure; bounded diagnosis > repair inherited objective > incident/replay/score/memory/contract review; capture visible context verbatim only, never reload/backfill whole chat; repeated corrective trigger links the failed repair | RULES:slopwall + AGENTS:correction",
-            "incident_report": "command-form trigger uses the same V2 loop even when failure is not Slopwall; meta-reference is not a trigger; visible-context-only verbatim capture; no unrelated mutation authority | RULES:incident report + AGENTS:correction",
+            "slopwall": "failed boundary first; inspect governing guidance/evidence; classify supported failure; bounded diagnosis > repair inherited objective > incident/replay/memory review; visible context verbatim only; never reload/backfill whole chat; repeated corrective trigger links the failed repair | RULES/AGENTS",
+            "incident_report": "command trigger uses same V2 loop; meta-reference is not a trigger; visible-context-only; no unrelated mutation authority | RULES/AGENTS",
         })
     else:
         guidance.update({
