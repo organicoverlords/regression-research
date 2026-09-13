@@ -8,13 +8,65 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from tools.live_swarm import (
-    _action_mode, _actor_candidate_map, _command_target, _git_identity, _read_window,
+    _action_mode, _actor_candidate_map, _canonical_actor_specs, _command_target, _git_identity, _read_window,
     _resolve_caller_identity, _workspace, build_live_swarm_snapshot, compact_for_bootstrap,
     identify_current_actor,
 )
 
 
 class LiveSwarmTests(unittest.TestCase):
+
+
+    def test_canonical_actor_specs_follow_current_slot_bindings(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            registry=root/"worker-reports"/".supervision"/"recurring-slot-bindings.json"
+            registry.parent.mkdir(parents=True)
+            registry.write_text(json.dumps({
+                "schema":"recurring-worker-slot-bindings.v1",
+                "authority":"MUTABLE_OPERATIONAL_SLOT_BINDINGS_NOT_LIVENESS",
+                "bindings":{
+                    "S1/1":{"automation_id":"1"*32,"label":"Repo Worker Hazel S1 New","bound_at":"2026-09-13T05:00:00+00:00"},
+                    "S2/1":{"automation_id":"a"*32,"label":"Repo Worker Rowan #S2","bound_at":"2026-09-13T05:00:00+00:00"},
+                    "S2/2":{"automation_id":"b"*32,"label":"Repo Worker Alder #S2","bound_at":"2026-09-13T05:00:00+00:00"},
+                },
+            }),encoding="utf-8")
+            specs=_canonical_actor_specs(root)
+            payload=json.loads(registry.read_text(encoding="utf-8"))
+            payload["bindings"]["S1/1"]={
+                "automation_id":"2"*32,
+                "label":"Repo Worker Aspen #S1",
+                "bound_at":"2026-09-13T06:00:00+00:00",
+            }
+            registry.write_text(json.dumps(payload),encoding="utf-8")
+            rebound={row["actor"]:row for row in _canonical_actor_specs(root)}
+        by_actor={row["actor"]:row for row in specs}
+        self.assertEqual(set(by_actor),{"S1/Hazel","S2/Rowan","S2/Alder"})
+        self.assertEqual(by_actor["S1/Hazel"]["slot_id"],"S1/1")
+        self.assertEqual(by_actor["S2/Rowan"]["name"],"rowan")
+        self.assertNotIn("S1/Hazel",rebound)
+        self.assertEqual(rebound["S1/Aspen"]["slot_id"],"S1/1")
+
+    def test_canonical_actor_specs_ignore_unbound_slots_and_disambiguate_duplicate_names(self):
+        snapshot={
+            "status":"OK",
+            "bound_workers":[
+                {"partition":"S1","slot_id":"S1/1","label":"Repo Worker Alder"},
+                {"partition":"S2","slot_id":"S2/5","label":"Repo Worker Alder #S2"},
+            ],
+        }
+        with patch("tools.live_swarm.load_slot_snapshot",return_value=snapshot):
+            specs=_canonical_actor_specs()
+        self.assertEqual({row["actor"] for row in specs},{"S1/Alder","S2/Alder"})
+        self.assertTrue(all(not row["name_unique"] for row in specs))
+        got=_actor_candidate_map(
+            {"worktree":{"branch":"chatgpt/alder-s2-work","path":r"C:\wt\alder-s2"}},[],specs
+        )
+        self.assertEqual(got,{"S2/Alder":{"worktree_branch","worktree_path"}})
+
+    def test_canonical_actor_specs_fail_soft_when_slot_registry_unavailable(self):
+        with patch("tools.live_swarm.load_slot_snapshot",return_value={"status":"MISSING"}):
+            self.assertEqual(_canonical_actor_specs(),[])
 
     def test_actor_candidate_requires_partition_for_duplicate_names(self):
         specs=[
