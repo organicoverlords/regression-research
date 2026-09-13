@@ -191,17 +191,38 @@ class TimelineIssue649RecoveryTests(unittest.TestCase):
                 child.terminate()
                 child.wait(timeout=10)
 
-    def test_old_lock_with_dead_owner_can_be_reclaimed(self):
+    def test_fresh_lock_with_dead_owner_is_reclaimed_immediately(self):
         with tempfile.TemporaryDirectory() as directory:
             lock_path = Path(directory) / "refresh.lock"
             lock_path.write_text("99999999\n", encoding="ascii")
-            stale = time.time() - (LOCK_STALE_MINUTES * 60 + 5)
-            os.utime(lock_path, (stale, stale))
 
             acquired = _acquire_lock(lock_path)
             self.assertIsNotNone(acquired)
             if acquired is not None:
                 os.close(acquired)
+
+    def test_unknown_lock_owner_is_not_reclaimed_even_when_old(self):
+        with tempfile.TemporaryDirectory() as directory:
+            lock_path = Path(directory) / "refresh.lock"
+            lock_path.write_text("12345\n", encoding="ascii")
+            stale = time.time() - (LOCK_STALE_MINUTES * 60 + 5)
+            os.utime(lock_path, (stale, stale))
+
+            with patch("tools.timeline_materializer._lock_owner_liveness", return_value=None):
+                acquired = _acquire_lock(lock_path)
+
+            self.assertIsNone(acquired)
+            self.assertEqual(lock_path.read_text(encoding="ascii").strip(), "12345")
+
+    def test_malformed_lock_owner_is_unknown_and_not_reclaimed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            lock_path = Path(directory) / "refresh.lock"
+            lock_path.write_text("not-a-pid\n", encoding="ascii")
+
+            acquired = _acquire_lock(lock_path)
+
+            self.assertIsNone(acquired)
+            self.assertTrue(lock_path.exists())
 
     def test_interrupted_sidecar_write_keeps_canonical_evidence_readable_and_retryable(self):
         prior = "2026-09-06T05:00:00+00:00"
