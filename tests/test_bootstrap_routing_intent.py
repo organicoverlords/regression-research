@@ -28,13 +28,7 @@ def test_bootstrap_execution_node_projection_keeps_routing_policy(monkeypatch):
     assert "default_execution" in projected["nodes"]["omen-linux-laptop"]["roles"]
 
 
-def test_bootstrap_critical_guidance_surfaces_machine_routing():
-    guidance = stack_atlas._bootstrap_critical_guidance()
-    assert "machine_routing" in guidance
-    assert "OMEN is default/required substantive execution" in guidance["machine_routing"]
-    assert "KONE is mandatory windows-ci-light only" in guidance["machine_routing"]
-
-def test_bootstrap_compaction_preserves_execution_roles_and_policy():
+def test_bootstrap_no_compaction_preserves_execution_roles_and_policy():
     policy = {
         "authority": "CURRENT_USER_DIRECTION_AND_SWARM_ROUTING_COHORT",
         "default_execution_node": "omen-linux-laptop",
@@ -75,16 +69,31 @@ def test_bootstrap_compaction_preserves_execution_roles_and_policy():
                 },
             },
         },
-        "bootstrap": {"critical_guidance": {"machine_routing": "keep"}},
-        "workers": {"archive_sample": ["x" * 7000], "attention": ["y" * 7000]},
+        "bootstrap": {"status": "OK"},
+        "workers": {"marker": "keep"},
     }
-    bounded = _fit_bootstrap_glance_budget(glance, max_bytes=16_000, compaction_target_bytes=4_000)
+    bounded = _fit_bootstrap_glance_budget(glance)
     nodes = bounded["swarm_topology"]["execution_nodes"]
     assert nodes["routing_policy"] == policy
     assert "mandatory_windows_ci_light" in nodes["nodes"]["kone-gpu-desktop"]["roles"]
     assert "default_execution" in nodes["nodes"]["omen-linux-laptop"]["roles"]
-    assert bounded["bootstrap"]["critical_guidance"]["machine_routing"] == "keep"
+    assert bounded["workers"] == {"marker": "keep"}
+    assert bounded["bootstrap"]["payload_budget"]["mode"] == "HARD_CAP_NO_COMPACTION"
+    assert bounded["bootstrap"]["payload_budget"]["compacted"] is False
 
+
+
+def test_bootstrap_swarm_topology_is_summary_by_construction(monkeypatch):
+    monkeypatch.setattr(stack_atlas, "ATLAS_LIVE_ROOT", ROOT)
+    topology = stack_atlas._bootstrap_swarm_topology()
+    assert "subscriptions" not in topology
+    assert "topology_path" not in topology
+    assert topology["scheduler_enabled_state_authority"] == "owning ChatGPT scheduler; registry/reports are not liveness"
+    bindings = topology["slot_bindings"]
+    assert set(bindings) == {"status", "bound_count", "slot_capacity_total", "partitions"}
+    for partition in bindings["partitions"].values():
+        assert set(partition) == {"bound_count", "unbound_count"}
+        assert "slots" not in partition
 
 def test_github_runner_recovery_requires_intent_confirmation():
     runner = COMPONENTS["github_runner"]
