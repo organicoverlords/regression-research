@@ -250,8 +250,26 @@ class VerifyTests(unittest.TestCase):
             split_areas(["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"]),
             {
                 "areas": ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"],
-                "portable_areas": ["stack", "memory", "conversation", "busy", "worker_reports", "routing"],
-                "windows_areas": ["windows_ui"],
+                "portable_areas": ["memory", "conversation", "worker_reports", "routing"],
+                "windows_areas": ["stack", "busy", "windows_ui"],
+                "needs_windows": True,
+            },
+        )
+        self.assertEqual(
+            split_areas(["stack"]),
+            {
+                "areas": ["stack"],
+                "portable_areas": [],
+                "windows_areas": ["stack"],
+                "needs_windows": True,
+            },
+        )
+        self.assertEqual(
+            split_areas(["busy"]),
+            {
+                "areas": ["busy"],
+                "portable_areas": [],
+                "windows_areas": ["busy"],
                 "needs_windows": True,
             },
         )

@@ -157,7 +157,7 @@ WINDOW_UI_PATHS = {
 
 
 ALL_AREAS = ("stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui")
-WINDOWS_ONLY_AREAS = frozenset({"windows_ui"})
+WINDOWS_ONLY_AREAS = frozenset({"stack", "busy", "windows_ui"})
 
 
 def changed_files(base_ref: str) -> set[str]:
