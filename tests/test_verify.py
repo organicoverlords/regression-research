@@ -3,12 +3,12 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_routing, verify_stack, verify_worker_reports
+from tools.verify import changed_files, run_pytest, select_areas, verify_busy, verify_memory, verify_routing, verify_stack, verify_windows_ui, verify_worker_reports
 
 
 class VerifyTests(unittest.TestCase):
     def test_selects_only_affected_area(self):
-        self.assertEqual(select_areas({"tools/stack_atlas.py"}), ["stack", "memory"])
+        self.assertEqual(select_areas({"tools/stack_atlas.py"}), ["stack", "memory", "windows_ui"])
         self.assertEqual(select_areas({"tools/tiny3d_atlas_projection.py"}), ["stack"])
         self.assertEqual(select_areas({"tests/test_tiny3d_atlas_projection.py"}), ["stack"])
         self.assertEqual(select_areas({"NORTH_STAR.md"}), ["stack"])
@@ -23,7 +23,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(select_areas({"02 Evidence/mcp-security-routing-events.jsonl"}), ["memory"])
         self.assertEqual(select_areas({"tools/mcp_reroute_evidence.py"}), ["memory"])
         self.assertEqual(select_areas({"tests/test_mcp_reroute_evidence.py"}), ["memory"])
-        self.assertEqual(select_areas({"tools/worker_report_history.py"}), ["worker_reports"])
+        self.assertEqual(select_areas({"tools/worker_report_history.py"}), ["worker_reports", "windows_ui"])
         self.assertEqual(select_areas({"tools/manual_work_disposition.py"}), ["worker_reports"])
         self.assertEqual(select_areas({"tests/test_manual_work_disposition.py"}), ["worker_reports"])
         self.assertEqual(select_areas({"tools/swarm_route.py"}), ["routing"])
@@ -42,7 +42,29 @@ class VerifyTests(unittest.TestCase):
             "tests/test_issue675_query_cache_generation.py",
         ):
             with self.subTest(path=path):
-                self.assertEqual(select_areas({path}), ["memory"])
+                expected = ["memory", "windows_ui"] if path in {"tools/repo_timeline.py", "tools/timeline_materializer.py"} else ["memory"]
+                self.assertEqual(select_areas({path}), expected)
+
+    def test_windows_background_owner_changes_select_ui_verification(self):
+        expected = {
+            "tools/bootstrap_read_loop.py": ["windows_ui"],
+            "tools/cleanup_converger.py": ["windows_ui"],
+            "tools/runtime_dependency_graph.py": ["windows_ui"],
+            "tools/worktree_hygiene_guard.py": ["windows_ui"],
+            "tools/Sync-VaultCheckout.ps1": ["windows_ui"],
+            "tools/Install-TimelineMaterializerTask.ps1": ["windows_ui"],
+            "tools/Install-VaultCheckoutSyncTask.ps1": ["windows_ui"],
+            "tools/Install-WorktreeHygieneTask.ps1": ["windows_ui"],
+            "tools/install_bootstrap_snapshot_task.ps1": ["windows_ui"],
+            "tools/memory_git_sync.py": ["memory", "windows_ui"],
+            "tools/repo_timeline.py": ["memory", "windows_ui"],
+            "tools/timeline_materializer.py": ["memory", "windows_ui"],
+            "tools/worker_report_history.py": ["worker_reports", "windows_ui"],
+            "tests/test_hidden_subprocess_windows.py": ["windows_ui"],
+        }
+        for path, areas in expected.items():
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), areas)
 
     def test_issue693_entry_fixture_selects_stack_verification(self):
         for path in (
@@ -156,6 +178,16 @@ class VerifyTests(unittest.TestCase):
         )
 
     @patch("tools.verify.run")
+    def test_windows_ui_verification_executes_behavioral_contract(self, run_command):
+        verify_windows_ui()
+        commands = [call.args[0] for call in run_command.call_args_list]
+        self.assertIn([sys.executable, "-m", "py_compile", "tests/test_hidden_subprocess_windows.py"], commands)
+        self.assertIn(
+            [sys.executable, "-m", "unittest", "tests.test_hidden_subprocess_windows", "-v"],
+            commands,
+        )
+
+    @patch("tools.verify.run")
     def test_routing_verification_executes_focused_regressions(self, run_command):
         verify_routing()
         commands = [call.args[0] for call in run_command.call_args_list]
@@ -188,11 +220,11 @@ class VerifyTests(unittest.TestCase):
     def test_verifier_changes_run_every_area(self):
         self.assertEqual(
             select_areas({"tools/verify.py"}),
-            ["stack", "memory", "conversation", "busy", "worker_reports", "routing"],
+            ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"],
         )
 
     def test_all_runs_every_area(self):
-        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy", "worker_reports", "routing"])
+        self.assertEqual(select_areas(set(), run_all=True), ["stack", "memory", "conversation", "busy", "worker_reports", "routing", "windows_ui"])
 
     @patch("tools.verify.subprocess.check_output")
     def test_changed_files_normalizes_git_paths(self, check_output):
