@@ -145,6 +145,12 @@ class VerifyTests(unittest.TestCase):
         self.assertIn("tests.test_issue122_false_boundary_replay", unittest_command)
         self.assertIn("tests.test_issue123_current_vault_history_boundary", unittest_command)
         self.assertIn("tests.test_issue123_response_shape", unittest_command)
+        self.assertIn("tests.test_live_swarm", unittest_command)
+
+    def test_live_swarm_changes_select_stack_verification(self):
+        for path in ("tools/live_swarm.py", "tests/test_live_swarm.py"):
+            with self.subTest(path=path):
+                self.assertEqual(select_areas({path}), ["stack"])
 
     @patch("tools.verify.run")
     @patch("tools.verify.run_pytest")
