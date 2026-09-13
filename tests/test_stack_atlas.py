@@ -1033,11 +1033,18 @@ class StackAtlasTests(unittest.TestCase):
         self.assertNotIn("scheduler_mutation_authorized", watch)
         self.assertTrue(watch["recovery_candidates_require_live_scheduler_probe"])
         self.assertEqual(watch["observed_worker_reports"], len(TEST_RECURRING_WORKERS) - 1)
-        self.assertEqual(watch["status"], "SUSPECT_DEGRADED")
-        suspect_ids = {item["automation_id"] for item in watch["suspect_workers"]}
+        self.assertEqual(watch["status"], "LOCAL_RECOVERY_EVIDENCE")
+        self.assertEqual(watch["health_verdict"], "NOT_PROVIDED")
+        self.assertEqual(watch["liveness_authority"], "live_swarm_runtime_evidence")
+        self.assertIn("not_worker_liveness_or_swarm_health", watch["evidence_semantics"])
+        self.assertNotIn("suspect_workers", watch)
+        self.assertNotIn("suspect_count", watch)
+        suspect_ids = {item["automation_id"] for item in watch["lifecycle_gaps"]}
         self.assertIn(missing_id, suspect_ids)
         self.assertIn(stale_id, suspect_ids)
         self.assertEqual(watch["recovery_candidate_count"], 2)
+        self.assertEqual(watch["scheduler_probe_candidate_count"], 2)
+        self.assertEqual(watch["scheduler_probe_candidates"], watch["recovery_candidates"])
 
     def test_fleet_watch_running_worker_uses_last_activity_for_freshness(self):
         from datetime import datetime, timedelta, timezone
@@ -1066,8 +1073,8 @@ class StackAtlasTests(unittest.TestCase):
                     (supervision / f"{worker_id}.start.json").write_text("{}", encoding="utf-8")
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now)
-        self.assertEqual(watch["running_with_start_receipt"], 1)
-        self.assertNotIn(target_id, {item["automation_id"] for item in watch["suspect_workers"]})
+        self.assertEqual(watch["running_report_with_start_receipt"], 1)
+        self.assertNotIn(target_id, {item["automation_id"] for item in watch["lifecycle_gaps"]})
 
     def test_bootstrap_execution_node_topology_distinguishes_gpu_machine_from_laptop(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1274,12 +1281,12 @@ class StackAtlasTests(unittest.TestCase):
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now, partition="S1")
 
-        self.assertEqual(watch["status"], "CURRENT_LOCAL_EVIDENCE")
+        self.assertEqual(watch["status"], "LOCAL_RECOVERY_EVIDENCE")
         self.assertEqual(watch["expected_recurring_workers"], 5)
         self.assertEqual(watch["bound_recurring_workers"], 4)
         self.assertEqual(watch["worker_partitions"]["S1"]["unbound_slots"], ["S1/5"])
         self.assertEqual(watch["recovery_candidate_count"], 0)
-        self.assertEqual(watch["suspect_count"], 0)
+        self.assertEqual(watch["lifecycle_gap_count"], 0)
 
     def test_fleet_watch_replacement_binding_accepts_new_id_and_rejects_old_id(self):
         from datetime import datetime, timezone
@@ -1377,13 +1384,13 @@ class StackAtlasTests(unittest.TestCase):
                 pending = _bootstrap_fleet_watch(now, worker_id=actor_id)
                 degraded = _bootstrap_fleet_watch(first_expected + timedelta(minutes=11), worker_id=actor_id)
 
-        pending_target = next(item for item in pending.get("suspect_workers", []) if item.get("automation_id") == target_id) if any(item.get("automation_id") == target_id for item in pending.get("suspect_workers", [])) else None
+        pending_target = next(item for item in pending.get("lifecycle_gaps", []) if item.get("automation_id") == target_id) if any(item.get("automation_id") == target_id for item in pending.get("lifecycle_gaps", [])) else None
         self.assertIsNone(pending_target)
         self.assertEqual(pending["first_start_pending"], 1)
         self.assertEqual(pending["recovery_candidate_count"], 0)
-        degraded_target = next(item for item in degraded["suspect_workers"] if item["automation_id"] == target_id)
+        degraded_target = next(item for item in degraded["lifecycle_gaps"] if item["automation_id"] == target_id)
         self.assertEqual(degraded_target["reason"], "NO_LOCAL_START_EVIDENCE")
-        self.assertTrue(degraded_target["recovery_actionable"])
+        self.assertTrue(degraded_target["probe_actionable"])
 
     def test_fleet_watch_running_without_start_receipt_uses_short_race_grace_then_flags_recovery(self):
         from datetime import datetime, timedelta, timezone
@@ -1409,15 +1416,15 @@ class StackAtlasTests(unittest.TestCase):
                 pending = _bootstrap_fleet_watch(now)
                 degraded = _bootstrap_fleet_watch(now + timedelta(minutes=2))
 
-        self.assertEqual(pending["status"], "CURRENT_LOCAL_EVIDENCE")
+        self.assertEqual(pending["status"], "LOCAL_RECOVERY_EVIDENCE")
         self.assertEqual(pending["start_receipt_pending"], 1)
-        self.assertEqual(pending["running_without_start_receipt"], 0)
+        self.assertEqual(pending["running_report_without_start_receipt"], 0)
         self.assertEqual(pending["recovery_candidate_count"], 0)
-        suspect = next(item for item in degraded["suspect_workers"] if item["automation_id"] == target_id)
-        self.assertEqual(suspect["reason"], "RUNNING_WITHOUT_START_RECEIPT")
-        self.assertEqual(suspect["recovery_status"], "RECOVERY_NEEDED")
-        self.assertTrue(suspect["recovery_actionable"])
-        self.assertEqual(degraded["running_without_start_receipt"], 1)
+        suspect = next(item for item in degraded["lifecycle_gaps"] if item["automation_id"] == target_id)
+        self.assertEqual(suspect["reason"], "RUNNING_REPORT_WITHOUT_START_RECEIPT")
+        self.assertEqual(suspect["scheduler_probe_status"], "SCHEDULER_PROBE_NEEDED")
+        self.assertTrue(suspect["probe_actionable"])
+        self.assertEqual(degraded["running_report_without_start_receipt"], 1)
         self.assertEqual(degraded["recovery_candidate_count"], 1)
         self.assertEqual(degraded["scheduler_probe"], "required_before_scheduler_mutation")
         self.assertFalse(degraded["local_evidence_scheduler_mutation_authorized"])
@@ -1459,9 +1466,9 @@ class StackAtlasTests(unittest.TestCase):
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now)
 
-        suspect = next(item for item in watch["suspect_workers"] if item["automation_id"] == stale_id)
-        self.assertEqual(suspect["recovery_status"], "RECOVERY_PENDING")
-        self.assertFalse(suspect["recovery_actionable"])
+        suspect = next(item for item in watch["lifecycle_gaps"] if item["automation_id"] == stale_id)
+        self.assertEqual(suspect["scheduler_probe_status"], "SCHEDULER_PROBE_PENDING")
+        self.assertFalse(suspect["probe_actionable"])
         self.assertEqual(suspect["last_recovery"]["actor_id"], actor_id)
         self.assertEqual(watch["recovery_candidate_count"], 0)
         self.assertEqual(watch["recovery_candidates"], [])
@@ -1501,8 +1508,8 @@ class StackAtlasTests(unittest.TestCase):
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now)
 
-        suspect = next(item for item in watch["suspect_workers"] if item["automation_id"] == stale_id)
-        self.assertEqual(suspect["recovery_status"], "RECOVERY_PENDING")
+        suspect = next(item for item in watch["lifecycle_gaps"] if item["automation_id"] == stale_id)
+        self.assertEqual(suspect["scheduler_probe_status"], "SCHEDULER_PROBE_PENDING")
         self.assertEqual(suspect["last_recovery"]["actor_id"], actor_id)
         self.assertEqual(suspect["last_recovery"]["recovered_at"], (now - timedelta(minutes=20)).isoformat())
         self.assertEqual(watch["recovery_candidate_count"], 0)
@@ -1539,11 +1546,11 @@ class StackAtlasTests(unittest.TestCase):
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now)
 
-        suspect = next(item for item in watch["suspect_workers"] if item["automation_id"] == stale_id)
-        self.assertEqual(suspect["recovery_status"], "RECOVERY_RETRY_NEEDED")
-        self.assertTrue(suspect["recovery_actionable"])
+        suspect = next(item for item in watch["lifecycle_gaps"] if item["automation_id"] == stale_id)
+        self.assertEqual(suspect["scheduler_probe_status"], "SCHEDULER_PROBE_RETRY_NEEDED")
+        self.assertTrue(suspect["probe_actionable"])
         self.assertEqual(
-            suspect["recovery_pending_until"],
+            suspect["scheduler_probe_pending_until"],
             datetime(2026, 9, 7, 3, 25, tzinfo=timezone.utc).isoformat(),
         )
         self.assertEqual(watch["recovery_candidate_count"], 1)
@@ -1580,9 +1587,9 @@ class StackAtlasTests(unittest.TestCase):
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 watch = _bootstrap_fleet_watch(now)
 
-        suspect = next(item for item in watch["suspect_workers"] if item["automation_id"] == stale_id)
-        self.assertEqual(suspect["recovery_status"], "RECOVERY_NEEDED")
-        self.assertTrue(suspect["recovery_actionable"])
+        suspect = next(item for item in watch["lifecycle_gaps"] if item["automation_id"] == stale_id)
+        self.assertEqual(suspect["scheduler_probe_status"], "SCHEDULER_PROBE_NEEDED")
+        self.assertTrue(suspect["probe_actionable"])
         self.assertNotIn("last_recovery", suspect)
         self.assertEqual(watch["recovery_candidate_count"], 1)
 
@@ -3423,12 +3430,12 @@ class TestFleetWatchSubscription(unittest.TestCase):
             with patch("tools.stack_atlas.ATLAS_LIVE_ROOT", root):
                 pending = _bootstrap_fleet_watch(now, worker_id=actor_id)
                 overdue = _bootstrap_fleet_watch(first_expected + timedelta(minutes=11), worker_id=actor_id)
-        self.assertEqual(pending["status"], "CURRENT_LOCAL_EVIDENCE")
+        self.assertEqual(pending["status"], "LOCAL_RECOVERY_EVIDENCE")
         self.assertEqual(pending["first_start_pending"], 1)
         self.assertEqual(pending["recovery_candidates"], [])
-        target = next(item for item in overdue["suspect_workers"] if item["automation_id"] == target_id)
+        target = next(item for item in overdue["lifecycle_gaps"] if item["automation_id"] == target_id)
         self.assertEqual(target["reason"], "NO_LOCAL_START_EVIDENCE")
-        self.assertTrue(target["recovery_actionable"])
+        self.assertTrue(target["probe_actionable"])
 
 
 class TestWindowsBoundedProcessCapture(unittest.TestCase):
