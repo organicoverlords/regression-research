@@ -123,7 +123,7 @@ def test_windows_assignment_is_kone_not_laptop():
     try:
         m.probe_all = lambda: probe
         with tempfile.TemporaryDirectory() as td:
-            result = m.route_work(Path(td) / "state.json", "lowvram-node-test", "lowvram", 600, False)
+            result = m.route_work(Path(td) / "state.json", "windows-ci-node-test", "windows-ci-light", 600, False)
     finally:
         m.probe_all = original
     assert result["route"] == "windows"
@@ -143,7 +143,7 @@ def test_assignment_preserves_hostname_mismatch_instead_of_guessing_node():
     try:
         m.probe_all = lambda: probe
         with tempfile.TemporaryDirectory() as td:
-            result = m.route_work(Path(td) / "state.json", "mismatch-node-test", "windows-only", 600, False)
+            result = m.route_work(Path(td) / "state.json", "mismatch-node-test", "windows-ci-light", 600, False)
     finally:
         m.probe_all = original
     assert result["route"] == "windows"
@@ -169,8 +169,8 @@ def test_explicit_owner_correction_supersedes_sticky_wrong_machine_assignment():
     with mock.patch.object(m,"probe_all",return_value=probe):
         with tempfile.TemporaryDirectory() as td:
             state=Path(td)/"state.json"
-            first=m.route_work(state,"desktop-owner-correction","portable",600,False)
-            corrected=m.route_work(state,"desktop-owner-correction","portable",600,False,owner_node_id="omen-linux-laptop")
+            first=m.route_work(state,"desktop-owner-correction","windows-ci-light",600,False)
+            corrected=m.route_work(state,"desktop-owner-correction","windows-ci-light",600,False,owner_node_id="omen-linux-laptop")
     assert first["node_id"]=="kone-gpu-desktop"
     assert corrected["route"]=="omen"
     assert corrected["owner_node_id"]=="omen-linux-laptop"

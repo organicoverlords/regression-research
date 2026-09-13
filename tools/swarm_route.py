@@ -6,10 +6,10 @@ from pathlib import Path
 import re, shlex, shutil, subprocess, sys, tempfile, time, uuid
 
 SCHEMA = "swarm.routing.cohort.v1"
-KINDS = ("lowvram", "windows-only", "portable", "portable-light", "heavy", "p3-runtime")
+KINDS = ("lowvram", "windows-only", "windows-ci-light", "portable", "portable-light", "heavy", "p3-runtime")
 DEFAULT_TTL_SECONDS = 1800
 PROBE_TTL_SECONDS = 45
-POLICY_EPOCH = 4
+POLICY_EPOCH = 5
 WORK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/#@+-]{0,191}$")
 OMEN_HOST = "192.168.0.128"
 OMEN_HOST_KEY_ALIAS = "192.168.0.128"
@@ -287,8 +287,8 @@ def windows_admissible(windows):
 
 def choose_route(kind,facts,assignments,allow_vps=False):
     windows_ok,windows_reason=windows_admissible(facts.get("windows",{}))
-    if kind=="lowvram": return ("windows","LOWVRAM_PINNED_WINDOWS") if windows_ok else ("blocked",windows_reason)
-    if kind=="windows-only": return ("windows","WINDOWS_ONLY") if windows_ok else ("blocked",windows_reason)
+    if kind=="windows-ci-light": return ("windows","MANDATORY_LIGHT_WINDOWS_CI") if windows_ok else ("blocked",windows_reason)
+    if kind in {"lowvram","windows-only"}: return "blocked","KONE_WORK_EXECUTION_RESTRICTED_TO_LIGHT_MANDATORY_CI"
     ok,reason=omen_admissible(kind,facts.get("omen",{}),assignments)
     if ok: return "omen",reason
     if kind=="portable-light" and allow_vps and facts.get("vps",{}).get("available"): return "vps",reason+"_VPS_LIGHT_OVERFLOW"
@@ -298,6 +298,8 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
     if kind not in KINDS: raise ValueError("SWARM_ROUTE_BAD_KIND")
     if not WORK_ID_RE.fullmatch(work_id): raise ValueError("SWARM_ROUTE_BAD_WORK_ID")
     owner_route=_owner_route(owner_node_id) if owner_node_id else None
+    if owner_node_id=="kone-gpu-desktop" and kind!="windows-ci-light":
+        raise ValueError(f"SWARM_ROUTE_KONE_RESTRICTED kind={kind} required_kind=windows-ci-light")
     now=utc_now()
     with state_lock(state_path):
         state=load_state(state_path); prune_assignments(state,now)
@@ -313,11 +315,15 @@ def route_work(state_path,work_id,kind,ttl_seconds,refresh_probe=False,owner_nod
             state["assignments"].pop(work_id,None)
             current=None
         if current and current.get("route")=="windows":
-            windows_now=probe_windows()
-            windows_ok,_windows_reason=windows_admissible(windows_now)
-            if not windows_ok:
+            if kind!="windows-ci-light":
                 state["assignments"].pop(work_id,None)
                 current=None
+            else:
+                windows_now=probe_windows()
+                windows_ok,_windows_reason=windows_admissible(windows_now)
+                if not windows_ok:
+                    state["assignments"].pop(work_id,None)
+                    current=None
         if current:
             current["last_reused_at"]=iso(now)
             if owner_node_id: current["owner_node_id"]=owner_node_id

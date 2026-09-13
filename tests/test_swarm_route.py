@@ -19,8 +19,13 @@ class TransportContractTests(unittest.TestCase):
         self.assertIn('argv_active("run-p3-linux-light.sh")',code)
         self.assertIn('active("p3-linux-lane@2.service") or argv_active("run-p3-linux-lane.sh",2)',code)
 class RouteDecisionTests(unittest.TestCase):
-    def test_pins(self):
-        f=facts(); self.assertEqual(m.choose_route("lowvram",f,{})[0],"windows"); self.assertEqual(m.choose_route("windows-only",f,{})[0],"windows")
+    def test_only_explicit_light_windows_ci_can_select_kone(self):
+        f=facts()
+        self.assertEqual(m.choose_route("windows-ci-light",f,{})[0],"windows")
+        for kind in ("lowvram","windows-only"):
+            route,reason=m.choose_route(kind,f,{})
+            self.assertEqual(route,"blocked")
+            self.assertEqual(reason,"KONE_WORK_EXECUTION_RESTRICTED_TO_LIGHT_MANDATORY_CI")
     def test_omen_default(self):
         for kind in ("portable","portable-light","heavy","p3-runtime"): self.assertEqual(m.choose_route(kind,facts(),{})[0],"omen")
     def test_general_work_blocks_when_omen_is_unavailable(self):
@@ -32,11 +37,15 @@ class RouteDecisionTests(unittest.TestCase):
         route,reason=m.choose_route("portable",facts(omen=False,vps=False,windows_disk=120),{})
         self.assertEqual(route,"blocked")
         self.assertIn("OMEN_UNAVAILABLE",reason)
-    def test_windows_pinned_work_ignores_generic_disk_threshold(self):
-        for kind in ("lowvram","windows-only"):
-            route,reason=m.choose_route(kind,facts(windows_disk=1),{})
-            self.assertEqual(route,"windows")
-            self.assertIn(reason,("LOWVRAM_PINNED_WINDOWS","WINDOWS_ONLY"))
+    def test_light_windows_ci_ignores_generic_disk_threshold(self):
+        route,reason=m.choose_route("windows-ci-light",facts(windows_disk=1),{})
+        self.assertEqual(route,"windows")
+        self.assertEqual(reason,"MANDATORY_LIGHT_WINDOWS_CI")
+
+    def test_explicit_kone_owner_cannot_bypass_light_ci_boundary(self):
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ValueError,"SWARM_ROUTE_KONE_RESTRICTED"):
+                m.route_work(Path(td)/"state.json","forbidden-kone-owner","portable",600,False,owner_node_id="kone-gpu-desktop")
     def test_vps_light_requires_explicit_execution_capability(self):
         f=facts(mem=1,vps=True)
         self.assertEqual(m.choose_route("portable-light",f,{})[0],"blocked")
@@ -98,21 +107,15 @@ class RouteDecisionTests(unittest.TestCase):
             m.save_state(p,s)
             with self.assertRaisesRegex(ValueError,"SWARM_ROUTE_NO_SAFE_NODE"):
                 m.route_work(p,"legacy","portable-light",600,False)
-    def test_legacy_windows_fallback_does_not_renew_under_new_policy_epoch(self):
+    def test_legacy_windows_fallback_is_not_reused(self):
         with tempfile.TemporaryDirectory() as td:
-            p=Path(td)/"state.json"; s=m.empty_state()
-            original_expiry="2099-01-01T00:00:00Z"
-            s["assignments"]["old-windows"]={"work_id":"old-windows","route":"windows","kind":"portable","reason":"OMEN_UNAVAILABLE_WINDOWS_FALLBACK","policy_epoch":m.POLICY_EPOCH-1,"expires_at":original_expiry}
-            m.save_state(p,s)
-            original_windows=m.probe_windows
-            try:
-                m.probe_windows=lambda: {"available":True,"disk_free_gb":120}
-                result=m.route_work(p,"old-windows","portable",600,False)
-            finally:
-                m.probe_windows=original_windows
-            self.assertTrue(result["reused"])
-            self.assertTrue(result["policy_migration_pending"])
-            self.assertEqual(result["expires_at"],original_expiry)
+            p=Path(td)/"state.json"; state=m.empty_state()
+            state["assignments"]["old-windows"]={"work_id":"old-windows","route":"windows","kind":"portable","reason":"OMEN_UNAVAILABLE_WINDOWS_FALLBACK","policy_epoch":m.POLICY_EPOCH-1,"expires_at":"2099-01-01T00:00:00Z"}
+            state["probe"]={**facts(omen=False,vps=False),"observed_at":m.iso(m.utc_now())}
+            m.save_state(p,state)
+            with self.assertRaisesRegex(ValueError,"SWARM_ROUTE_NO_SAFE_NODE"):
+                m.route_work(p,"old-windows","portable",600,False)
+            self.assertNotIn("old-windows",m.load_state(p)["assignments"])
 
     def test_current_epoch_assignment_renews(self):
         with tempfile.TemporaryDirectory() as td:
